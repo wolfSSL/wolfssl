@@ -14997,6 +14997,10 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)us / 1000000.0;
     }
 
+#elif defined(__WATCOMC__)
+
+    #include <time.h>
+    WC_INLINE double current_time(int reset) { (void)reset; return ((double)clock())/CLOCKS_PER_SEC; }
 #else
 
     #include <time.h>

@@ -57,7 +57,32 @@
     #include "zlib.h"
 #endif
 
-#ifndef USE_WINDOWS_API
+#if defined(__WATCOMC__)
+    #if defined(__NT__)
+    #elif defined(__OS2__)
+        #include <errno.h>
+        #include <os2.h>
+        #include <sys/types.h>
+        #include <os2/types.h>
+        #include <sys/socket.h>
+        #include <arpa/inet.h>
+        #include <netinet/in.h>
+        #include <nerrno.h>
+        #include <sys/ioctl.h>
+
+        typedef int socklen_t;
+    #elif defined(__LINUX__)
+        #include <sys/types.h>
+        #include <errno.h>
+        #include <unistd.h>
+        #include <fcntl.h>
+        #define XFCNTL(fd, flag, block) fcntl((fd), (flag), (block))
+        #include <sys/socket.h>
+        #include <arpa/inet.h>
+        #include <netinet/in.h>
+    #endif
+#elif defined(USE_WINDOWS_API)
+#else
     #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
         /* lwIP needs to be configured to use sockets API in this mode */
         /* LWIP_SOCKET 1 in lwip/opt.h or in build */
@@ -152,26 +177,6 @@
         #include <fclfcntl.h>
     #elif defined(WOLFSSL_EMNET)
         #include <IP/IP.h>
-    #elif defined(__WATCOMC__)
-        #if defined(__OS2__)
-            #include <errno.h>
-            #include <os2.h>
-            #include <sys/types.h>
-            #include <os2/types.h>
-            #include <sys/socket.h>
-            #include <arpa/inet.h>
-            #include <netinet/in.h>
-            #include <nerrno.h>
-
-            typedef int socklen_t;
-        #elif defined(__LINUX__)
-            #include <sys/types.h>
-            #include <errno.h>
-            #include <unistd.h>
-            #include <sys/socket.h>
-            #include <arpa/inet.h>
-            #include <netinet/in.h>
-        #endif
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -224,7 +229,40 @@
 #define SOCKET_RECEIVING 1
 #define SOCKET_SENDING 2
 
-#ifdef USE_WINDOWS_API
+#ifdef __WATCOMC__
+    #if defined(__NT__)
+        /* no epipe yet */
+        #ifndef WSAEPIPE
+            #define WSAEPIPE       -12345
+        #endif
+        #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
+        #define SOCKET_EAGAIN      WSAETIMEDOUT
+        #define SOCKET_ETIMEDOUT   WSAETIMEDOUT
+        #define SOCKET_ECONNRESET  WSAECONNRESET
+        #define SOCKET_EINTR       WSAEINTR
+        #define SOCKET_EPIPE       WSAEPIPE
+        #define SOCKET_ECONNREFUSED WSAENOTCONN
+        #define SOCKET_ECONNABORTED WSAECONNABORTED
+    #elif defined(__OS2__)
+        #define SOCKET_EWOULDBLOCK SOCEWOULDBLOCK
+        #define SOCKET_EAGAIN      SOCEAGAIN
+        #define SOCKET_ETIMEDOUT   SOCETIMEDOUT
+        #define SOCKET_ECONNRESET  SOCECONNRESET
+        #define SOCKET_EINTR       SOCEINTR
+        #define SOCKET_EPIPE       SOCEPIPE
+        #define SOCKET_ECONNREFUSED SOCECONNREFUSED
+        #define SOCKET_ECONNABORTED SOCECONNABORTED
+    #elif defined(__UNIX__)
+        #define SOCKET_EWOULDBLOCK EWOULDBLOCK
+        #define SOCKET_EAGAIN      EAGAIN
+        #define SOCKET_ETIMEDOUT   ETIMEDOUT
+        #define SOCKET_ECONNRESET  ECONNRESET
+        #define SOCKET_EINTR       EINTR
+        #define SOCKET_EPIPE       EPIPE
+        #define SOCKET_ECONNREFUSED ECONNREFUSED
+        #define SOCKET_ECONNABORTED ECONNABORTED
+    #endif
+#elif defined(USE_WINDOWS_API)
     /* no epipe yet */
     #ifndef WSAEPIPE
         #define WSAEPIPE       -12345
@@ -856,21 +894,33 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 
 #ifndef XINET_NTOP
-    #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
-    #ifdef USE_WINDOWS_API /* Windows-friendly definition */
-        #undef  XINET_NTOP
+    #if defined(__WATCOMC__)
+        #if defined(__OS2__) || defined(__NT__) && (NTDDI_VERSION >= NTDDI_VISTA)
+            #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
+        #else
+            #define XINET_NTOP(a,b,c,d) strncpy((c),inet_ntoa(*(unsigned *)(b)),(d))
+        #endif
+    #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
         #define XINET_NTOP(a,b,c,d) InetNtop((a),(b),(c),(d))
+    #else
+        #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
     #endif
 #endif
 #ifndef XINET_PTON
-    #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
-    #ifdef USE_WINDOWS_API /* Windows-friendly definition */
-        #undef  XINET_PTON
+    #if defined(__WATCOMC__)
+        #if defined(__OS2__) || defined(__NT__) && (NTDDI_VERSION >= NTDDI_VISTA)
+            #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+        #else
+            #define XINET_PTON(a,b,c)   *(unsigned *)(c) = inet_addr((b))
+        #endif
+    #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
         #if defined(__MINGW64__) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
             #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
         #endif
+    #else
+        #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
     #endif
 #endif
 

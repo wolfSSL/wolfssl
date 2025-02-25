@@ -51,7 +51,14 @@
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+    #if defined(__WATCOMC__)
+        #if defined(WOLFSSL_DLL) && defined(__NT__)
+            #define WOLFSSL_API __declspec(dllimport)
+        #else
+            #define WOLFSSL_API
+        #endif
+        #define WOLFSSL_LOCAL
+    #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
         defined(_WIN32_WCE) || defined(__WATCOMC__)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
