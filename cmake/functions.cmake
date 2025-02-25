@@ -9,19 +9,27 @@ function(override_cache VAR VAL)
     set_property(CACHE ${VAR} PROPERTY VALUE ${VAL})
 endfunction()
 
-function(add_option NAME HELP_STRING DEFAULT VALUES)
-    if(VALUES STREQUAL "yes;no")
+function(add_option_defs)
+    cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME;HELP_STRING;DEFAULT" "VALUES;DEFINITIONS")
+    if(NOT DEFINED arg_DEFAULT)
+        # Pick first value from list of values as default
+        list(GET arg_VALUES 0 arg_DEFAULT)
+    endif()
+    if(NOT arg_HELP_STRING MATCHES "default:")
+        string(APPEND arg_HELP_STRING ". (default: " "${arg_DEFAULT}" ")")
+    endif()
+    if(arg_VALUES STREQUAL "yes;no" OR arg_VALUES STREQUAL "no;yes")
         # Set the default value for the option.
-        set(${NAME} ${DEFAULT} CACHE BOOL ${HELP_STRING})
+        set(${arg_NAME} ${arg_DEFAULT} CACHE BOOL ${arg_HELP_STRING})
     else()
         # Set the default value for the option.
-        set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
+        set(${arg_NAME} ${arg_DEFAULT} CACHE STRING ${arg_HELP_STRING})
         # Set the list of allowed values for the option.
-        set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+        set_property(CACHE ${arg_NAME} PROPERTY STRINGS ${arg_VALUES})
     endif()
 
-    if(DEFINED ${NAME})
-        list(FIND VALUES ${${NAME}} IDX)
+    if(DEFINED ${arg_NAME})
+        list(FIND arg_VALUES ${${arg_NAME}} IDX)
         #
         # If the given value isn't in the list of allowed values for the option,
         # reduce it to yes/no according to CMake's "if" logic:
@@ -31,14 +39,24 @@ function(add_option NAME HELP_STRING DEFAULT VALUES)
         # CMakeCache.txt and cmake-gui easier to read.
         #
         if (${IDX} EQUAL -1)
-            if(${${NAME}})
-                override_cache(${NAME} "yes")
+            if(${${arg_NAME}})
+                override_cache(${arg_NAME} "yes")
             else()
-                override_cache(${NAME} "no")
+                override_cache(${arg_NAME} "no")
             endif()
         endif()
     endif()
+    if(DEFINED arg_DEFINITIONS)
+       list(APPEND WOLFSSL_DEFINITIONS ${arg_DEFINITIONS})
+       set(WOLFSSL_DEFINITIONS ${WOLFSSL_DEFINITIONS} PARENT_SCOPE)
+    endif()
 endfunction()
+
+function(add_option NAME HELP_STRING DEFAULT VALUES)
+    add_option_defs(NAME ${NAME} HELP_STRING ${HELP_STRING} DEFAULT ${DEFAULT} VALUES  ${VALUES})
+    set(WOLFSSL_DEFINITIONS ${WOLFSSL_DEFINITIONS} PARENT_SCOPE)
+endfunction()
+
 
 function(generate_build_flags)
     set(BUILD_DISTRO ${WOLFSSL_DISTRO} PARENT_SCOPE)
