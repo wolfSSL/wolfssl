@@ -14092,6 +14092,11 @@ void wolfSSL_X509_OBJECT_free(WOLFSSL_X509_OBJECT *obj)
         if (obj->type == WOLFSSL_X509_LU_X509) {
             wolfSSL_X509_free(obj->data.x509);
         }
+    #ifdef HAVE_CRL
+        else if (obj->type == WOLFSSL_X509_LU_CRL) {
+            wolfSSL_X509_CRL_free(obj->data.crl);
+        }
+    #endif
         else {
             /* We don't free as this will point to
              * store->cm->crl which we don't own */

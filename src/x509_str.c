@@ -1912,6 +1912,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 
 #ifdef HAVE_CRL
     if (store->cm->crl != NULL) {
+        int res;
         obj = wolfSSL_X509_OBJECT_new();
         if (obj == NULL) {
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
@@ -1923,6 +1924,11 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             goto err_cleanup;
         }
         obj->type = WOLFSSL_X509_LU_CRL;
+        wolfSSL_RefInc(&store->cm->crl->ref, &res);
+        if (res != 0) {
+            WOLFSSL_MSG("Failed to lock crl mutex");
+            goto err_cleanup;
+        }
         obj->data.crl = store->cm->crl;
     }
 #endif

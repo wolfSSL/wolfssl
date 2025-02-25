@@ -87,6 +87,13 @@ int InitCRL(WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm)
         WOLFSSL_MSG("Init Mutex failed");
         return BAD_MUTEX_E;
     }
+#ifdef OPENSSL_ALL
+    {
+        int ret;
+        wolfSSL_RefInit(&crl->ref, &ret);
+        (void)ret;
+    }
+#endif
 
     return 0;
 }
@@ -213,7 +220,7 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 
     WOLFSSL_ENTER("FreeCRL_Entry");
 
-    while (tmp) {
+    while (tmp != NULL) {
         next = tmp->next;
         XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
@@ -241,11 +248,24 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
 {
     CRL_Entry* tmp;
 
+    WOLFSSL_ENTER("FreeCRL");
+
     if (crl == NULL)
         return;
 
+#ifdef OPENSSL_ALL
+    {
+        int ret;
+        int doFree = 0;
+        wolfSSL_RefDec(&crl->ref, &doFree, &ret);
+        if (ret != 0)
+            WOLFSSL_MSG("Couldn't lock x509 mutex");
+        if (!doFree)
+            return;
+    }
+#endif
+
     tmp = crl->crlList;
-    WOLFSSL_ENTER("FreeCRL");
 #ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
@@ -916,9 +936,17 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
 
 #ifndef CRL_STATIC_REVOKED_LIST
     dupl->certs = DupRevokedCertList(ent->certs, heap);
+    if (ent->certs != NULL && dupl->certs == NULL) {
+        CRL_Entry_free(dupl, heap);
+        return NULL;
+    }
 #endif
 #ifdef OPENSSL_EXTRA
     dupl->issuer = wolfSSL_X509_NAME_dup(ent->issuer);
+    if (ent->issuer != NULL && dupl->issuer == NULL) {
+        CRL_Entry_free(dupl, heap);
+        return NULL;
+    }
 #endif
 
     if (!ent->verified) {
@@ -1035,6 +1063,8 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 #endif
 
     dupl->crlList = DupCRL_list(crl->crlList, dupl->heap);
+    if (dupl->crlList == NULL)
+        return MEMORY_E;
 #ifdef HAVE_CRL_IO
     dupl->crlIOCb = crl->crlIOCb;
 #endif

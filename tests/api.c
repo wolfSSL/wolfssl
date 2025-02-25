@@ -55756,7 +55756,6 @@ static int test_X509_STORE_get0_objects(void)
             ExpectIntEQ(X509_STORE_add_crl(store_cpy, crl), WOLFSSL_SUCCESS);
 
             ExpectNotNull(crl = X509_OBJECT_get0_X509_CRL(objCopy));
-            X509_CRL_free(crl);
             break;
         }
 #endif

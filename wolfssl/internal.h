@@ -2638,6 +2638,9 @@ struct WOLFSSL_CRL {
     wolfSSL_CRL_mfd_t     mfd;
     int                   setup;         /* thread is setup predicate */
 #endif
+#ifdef OPENSSL_ALL
+    wolfSSL_Ref           ref;
+#endif
     void*                 heap;          /* heap hint for dynamic memory */
 };
 
