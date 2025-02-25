@@ -1462,44 +1462,48 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
                                              int length)
 {
     WOLFSSL_OCSP_CERTID *cid = NULL;
+    int isAllocated = 0;
+    word32 idx = 0;
+    int ret;
 
-    if ((cidOut != NULL) && (derIn != NULL) && (*derIn != NULL) &&
-        (length > 0)) {
+    if (derIn == NULL || *derIn == NULL || length <= 0)
+        return NULL;
 
+    if (cidOut != NULL && *cidOut != NULL) {
         cid = *cidOut;
-
-        /* If a NULL is passed we allocate the memory for the caller. */
-        if (cid == NULL) {
-            cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*cid), NULL,
-                                                DYNAMIC_TYPE_OPENSSL);
-        }
-        else if (cid->rawCertId != NULL) {
-            XFREE(cid->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-            cid->rawCertId = NULL;
-            cid->rawCertIdSize = 0;
-        }
-
-        if (cid != NULL) {
-            cid->rawCertId = (byte*)XMALLOC((size_t)length + 1, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (cid->rawCertId != NULL) {
-                XMEMCPY(cid->rawCertId, *derIn, (size_t)length);
-                cid->rawCertIdSize = length;
-
-                /* Per spec. advance past the data that is being returned
-                 * to the caller. */
-                *cidOut = cid;
-                *derIn = *derIn + length;
-
-                return cid;
-            }
-        }
+        FreeOcspEntry(cid, NULL);
+    } else {
+        cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+        if (cid == NULL)
+            return NULL;
+        isAllocated = 1;
     }
 
-    if ((cid != NULL) && ((cidOut == NULL) || (cid != *cidOut))) {
+    XMEMSET(cid, 0, sizeof(WOLFSSL_OCSP_CERTID));
+    cid->status = XMALLOC(sizeof(CertStatus), NULL, DYNAMIC_TYPE_OCSP_STATUS);
+    if (cid->status == NULL) {
         XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    XMEMSET(cid->status, 0, sizeof(CertStatus));
+    cid->ownStatus = 1;
+
+    ret = OcspDecodeCertID(*derIn, &idx, length, cid);
+    if (ret != 0) {
+        FreeOcspEntry(cid, NULL);
+        if (isAllocated) {
+            XFREE(cid, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        return NULL;
     }
 
-    return NULL;
+    *derIn += idx;
+
+    if (isAllocated && cidOut != NULL)
+        *cidOut = cid;
+
+    return cid;
 }
 
 const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(
