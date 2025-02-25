@@ -2708,6 +2708,14 @@ struct CertStatus {
 typedef struct OcspEntry OcspEntry;
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+#define OCSP_DIGEST WC_HASH_TYPE_SM3
+#elif defined(NO_SHA)
+#define OCSP_DIGEST WC_HASH_TYPE_SHA256
+#else
+#define OCSP_DIGEST WC_HASH_TYPE_SHA
+#endif
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
 #define OCSP_DIGEST_SIZE WC_SM3_DIGEST_SIZE
 #elif defined(NO_SHA)
 #define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE

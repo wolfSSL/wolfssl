@@ -727,13 +727,23 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     WOLFSSL_CERT_MANAGER* cm = NULL;
     int ret = -1;
     DerBuffer* derCert = NULL;
+    int dgstType;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert *cert = NULL;
 #else
     DecodedCert cert[1];
 #endif
 
-    (void)dgst;
+    if (dgst == NULL) {
+        dgstType = WC_HASH_TYPE_SHA;
+    }
+    else if (wolfSSL_EVP_get_hashinfo(dgst, &dgstType, NULL) !=
+             WOLFSSL_SUCCESS) {
+        return NULL;
+    }
+
+    if (dgstType != OCSP_DIGEST)
+        return NULL;
 
     cm = wolfSSL_CertManagerNew();
     if (cm == NULL
@@ -785,6 +795,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
         goto out;
     }
     else {
+        certId->hashAlgoOID = wc_HashGetOID(OCSP_DIGEST);
         XMEMCPY(certId->issuerHash, cert->issuerHash, OCSP_DIGEST_SIZE);
         XMEMCPY(certId->issuerKeyHash, cert->issuerKeyHash, OCSP_DIGEST_SIZE);
         XMEMCPY(certId->status->serial, cert->serial, (size_t)cert->serialSz);
