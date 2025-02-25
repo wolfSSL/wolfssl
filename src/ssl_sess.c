@@ -375,7 +375,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
         WOLFSSL_MSG("Valid ServerID not cached already");
 
         ssl->session->idLen = (word16)len;
-        XMEMCPY(ssl->session->serverID, id, len);
+        XMEMCPY(ssl->session->serverID, id, (size_t)len);
     }
 #ifdef HAVE_EXT_CACHE
     else {
@@ -1819,7 +1819,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
     ticLen = addSession->ticketLen;
     /* Alloc Memory here to avoid syscalls during lock */
     if (ticLen > SESSION_TICKET_LEN) {
-        ticBuff = (byte*)XMALLOC(ticLen, NULL,
+        ticBuff = (byte*)XMALLOC((size_t)ticLen, NULL,
                 DYNAMIC_TYPE_SESSION_TICK);
         if (ticBuff == NULL) {
             return MEMORY_E;
@@ -1978,7 +1978,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         /* Copy in the certs from the session */
         addSession->chain.count = cacheSession->chain.count;
         XMEMCPY(addSession->chain.certs, cacheSession->chain.certs,
-                sizeof(x509_buffer) * cacheSession->chain.count);
+                sizeof(x509_buffer) * (size_t)cacheSession->chain.count);
     }
 #endif /* SESSION_CERTS */
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -2669,7 +2669,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         unsigned char *data;
 
         if (*p == NULL)
-            *p = (unsigned char*)XMALLOC(size, NULL, DYNAMIC_TYPE_OPENSSL);
+            *p = (unsigned char*)XMALLOC((size_t)size, NULL,
+                                                DYNAMIC_TYPE_OPENSSL);
         if (*p == NULL)
             return 0;
         data = *p;
@@ -2693,7 +2694,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
             c16toa((word16)sess->chain.certs[i].length, data + idx);
             idx += OPAQUE16_LEN;
             XMEMCPY(data + idx, sess->chain.certs[i].buffer,
-                    sess->chain.certs[i].length);
+                    (size_t)sess->chain.certs[i].length);
             idx += sess->chain.certs[i].length;
         }
 #endif
@@ -3524,7 +3525,7 @@ int wolfSSL_SESSION_get_master_key(const WOLFSSL_SESSION* ses,
         size = outSz;
     }
 
-    XMEMCPY(out, ses->masterSecret, size);
+    XMEMCPY(out, ses->masterSecret, (size_t)size);
     return size;
 }
 

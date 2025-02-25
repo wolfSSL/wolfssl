@@ -606,7 +606,7 @@ static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t 
     if (ctx->verbose) {
         printf("[%s] send_alert: level=%d, err=%d\n", ctx->name, level, err);
     }
-    ctx->alert_level = level;
+    ctx->alert_level = (int)level;
     ctx->alert = alert;
     return 1;
 }
