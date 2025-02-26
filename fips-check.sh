@@ -240,9 +240,9 @@ linuxv5|linuxv5.2.1)
   )
   ;;
 v6.0.0)
-  WOLF_REPO_TAG='WCv6.0.0-RC3'
+  WOLF_REPO_TAG='WCv6.0.0-RC4'
   FIPS_REPO_TAG='WCv6.0.0-RC4'
-  ASM_PICKUPS_TAG='WCv6.0.0-RC3'
+  ASM_PICKUPS_TAG='WCv6.0.0-RC4'
   FIPS_OPTION='v6'
   FIPS_FILES=(
     "wolfcrypt/src/fips.c:${FIPS_REPO_TAG}"
