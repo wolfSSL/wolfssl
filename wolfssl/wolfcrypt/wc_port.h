@@ -127,7 +127,7 @@
         #if defined(USE_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
             #ifndef WOLFSSL_USER_IO
                 #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */
@@ -139,7 +139,7 @@
         #if defined(USE_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
             #include <process.h>
             #ifndef WOLFSSL_USER_IO
                 #include <winsock2.h>
@@ -172,7 +172,7 @@
         #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
             #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
             #ifndef WOLFSSL_USER_IO
                 #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */

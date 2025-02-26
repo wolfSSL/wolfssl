@@ -1496,7 +1496,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
             err_sys_with_errno("setsockopt TCP_NODELAY failed\n");
     }
 #endif
-#endif  /* !defined(USE_WINDOWS_API) && !defined(__WATCOMC__) && !defined(__OS2__) */
+#endif  /* !defined(USE_WINDOWS_API) && !defined(__WATCOMC__) && ... */
 }
 
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && defined(WOLFSENTRY_H)
