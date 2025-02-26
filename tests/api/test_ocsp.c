@@ -623,7 +623,7 @@ int test_ocsp_certid_enc_dec(void)
     ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der), 0);
     ExpectIntEQ(derSz, derSz1);
 
-    temp = der2 = XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+    temp = der2 = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
     ExpectNotNull(der2);
     /* encode without allocation */
     ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der2), 0);
