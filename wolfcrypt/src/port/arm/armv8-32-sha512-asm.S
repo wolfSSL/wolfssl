@@ -33,7 +33,7 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.type	L_SHA512_transform_len_k, %object
@@ -9284,7 +9284,7 @@ L_SHA512_transform_neon_len_start:
 	bx	lr
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 

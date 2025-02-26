@@ -31,7 +31,7 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_neon_len_k, %object
@@ -1730,7 +1730,7 @@ L_sha512_len_crypto_begin:
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA512 */
-#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 
