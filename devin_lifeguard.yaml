@@ -1,0 +1,145 @@
+rules:
+  - name: no-void-functions
+    trigger: >-
+      All functions must return a value. Avoid using void return types to ensure
+      error values can be propagated upstream.
+    solution: >-
+      Change the function to return an appropriate error code or result instead
+      of void. Ensure all return paths provide a meaningful value.
+  - name: avoid-recursion
+    trigger: >-
+      Recursion is not allowed. Prefer iterative solutions to reduce stack usage
+      and prevent potential stack overflows.
+    solution: >-
+      Refactor the recursive function into an iterative one using loops or other
+      control structures.
+  - name: use-forcezero
+    trigger: >-
+      Sensitive data such as private keys must be zeroized using `ForceZero()`
+      to prevent the compiler from optimizing away the zeroization.
+    solution: >-
+      Replace `memset` or similar functions with `ForceZero(variable, size)` to
+      ensure sensitive data is properly cleared from memory.
+  - name: check-all-return-codes
+    trigger: >-
+      Every return code from function calls must be checked to handle errors
+      appropriately and prevent unexpected behavior.
+    solution: >-
+      After each function call, add error handling logic to check the return
+      value and respond accordingly.
+  - name: no-memory-leaks
+    trigger: >-
+      Memory or resources allocated must have a clear path to being released to
+      prevent memory leaks.
+    solution: >-
+      Ensure that every allocation has a corresponding free or release call. Use
+      resource management patterns to handle allocations and deallocations.
+  - name: do-not-change-external-apis
+    trigger: >-
+      External facing APIs should not be altered. Instead of modifying an
+      existing API, create a new version with the necessary parameters.
+    solution: >-
+      If additional parameters are needed, create a new function (e.g., `f_ex(a,
+      b)`) and have the original function (`f(a)`) call the new one with default
+      or null parameters.
+  - name: limit-stack-usage
+    trigger: >-
+      Functions should not use more than 100 bytes of stack. Excessive stack
+      usage can lead to stack overflows and reduced performance.
+    solution: >-
+      Apply the `WOLFSSL_SMALL_STACK` pattern by dynamically allocating large
+      variables to minimize stack usage within the function.
+  - name: prefer-constant-time
+    trigger: >-
+      Implement algorithms in constant time to prevent timing attacks and ensure
+      security.
+    solution: >-
+      Review and refactor algorithms to ensure their execution time does not
+      depend on input values. Use constant-time libraries or functions where
+      applicable.
+  - name: use-sizeof
+    trigger: >-
+      Avoid hard-coded numeric values for sizes. Use `sizeof()` to ensure
+      portability and maintainability.
+    solution: >-
+      Replace hard-coded sizes with `sizeof(type)` to automatically adapt to
+      changes in type sizes.
+  - name: use-typedefs-not-stdint
+    trigger: >-
+      Use `byte`, `word16`, `word32` instead of standard integer types like
+      `uint32_t` to maintain consistency across the codebase.
+    solution: >-
+      Replace instances of `uint32_t` and similar types with the designated
+      typedefs such as `word32`.
+  - name: use-c-style-comments
+    trigger: >-
+      Only C-style comments (`/* */`) are allowed in C code. C++ style comments
+      (`//`) should not be used.
+    solution: >-
+      Replace all `//` comments with `/* */` to adhere to the project's
+      commenting standards.
+  - name: pointer-null-check
+    trigger: >-
+      Always check for null pointers using the `ptr != NULL` pattern to prevent
+      dereferencing null pointers.
+    solution: >-
+      Add a condition to verify that the pointer is not null before using it,
+      e.g., `if (ptr != NULL) { /* use ptr */ }`.
+  - name: declare-const-pointers
+    trigger: >-
+      Pointer parameters that are not modified within a function should be
+      declared as `const` to enhance code safety and clarity.
+    solution: >-
+      Add the `const` keyword to pointer parameters that are not intended to be
+      modified, e.g., `const void *ptr`.
+  - name: struct-member-order
+    trigger: >-
+      Struct members should be ordered in descending size to optimize memory
+      alignment and reduce padding.
+    solution: >-
+      Reorder the members of the struct so that larger data types are declared
+      before smaller ones.
+  - name: no-always-success-stubs
+    trigger: >-
+      when implementing a stub function that is not fully developed, returning
+      success unconditionally can hide real logic and debugging information
+    solution: >-
+      either implement the stub with real logic or return an appropriate error
+      code to indicate "not yet implemented," so that failures are not silently
+      ignored
+  - name: free-allocated-memory
+    trigger: |-
+      allocating memory but forgetting to free it on all code paths
+      or using functions that allocate buffers without a corresponding free
+    solution: >-
+      for every XMALLOC call, ensure there's a matching XFREE on every return
+      path
+
+      if handing ownership off, confirm the new owner also properly frees it
+  - name: check-return-codes
+    trigger: >-
+      calling library functions that return non-zero in case of error, but not
+      checking or handling those return values
+    solution: >-
+      always verify and handle function return codes
+
+      if ret != 0, do not continue silently; either propagate the error or
+      handle it
+  - name: handle-partial-writes
+    trigger: >-
+      calling a write function (e.g., wolfSSL_write_ex) that may write only part
+      of the data, returning fewer bytes than requested or a particular status
+    solution: >-
+      if partial writes are possible, loop until the entire buffer is written or
+      an error occurs
+
+      do not assume a single call wrote or accepted all bytes
+  - name: manage-ephemeral-objects-correctly
+    trigger: >-
+      generating or importing ephemeral objects (e.g., ephemeral keys, ephemeral
+      certs) and forgetting to finalize or free them, or double-freeing them
+    solution: >-
+      coordinate ephemeral object ownership carefully
+
+      ensure ephemeral structures are freed once no longer needed, and avoid
+      reusing pointers after free
