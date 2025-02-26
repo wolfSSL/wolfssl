@@ -12753,7 +12753,12 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
     }
 
     if ((len != (AES_128_KEY_SIZE*2)) &&
+#ifndef HAVE_FIPS
+        /* XTS-384 not allowed by FIPS and can not be treated like
+         * RSA-4096 bit keys back in the day, can not vendor affirm
+         * the use of 2 concatenated 192-bit keys (XTS-384) */
         (len != (AES_192_KEY_SIZE*2)) &&
+#endif
         (len != (AES_256_KEY_SIZE*2)))
     {
         WOLFSSL_MSG("Unsupported key size");
