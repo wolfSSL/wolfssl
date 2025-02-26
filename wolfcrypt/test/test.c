@@ -3065,6 +3065,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
     struct tm timearg;
     time_t now;
 #endif
+    int i;
+    unsigned char buf[16];
+
     WOLFSSL_ENTER("asn_test");
 
     ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
@@ -3092,6 +3095,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t asn_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 #endif /* !NO_ASN_TIME */
+
+    /* Test that only calculating the length works. */
+    for (i = 16; i < 32; i++) {
+        ret = wc_PkcsPad(NULL, i, 16);
+        if (ret != i + (16 - (i % 16)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    /* Test that adding padding works. */
+    XMEMSET(buf, 0xa5, sizeof(buf));
+    for (i = 15; i >= 0; i--) {
+        int j;
+        ret = wc_PkcsPad(buf, i, 16);
+        if (ret != 16)
+            return WC_TEST_RET_ENC_I(i);
+        /* Check padded buffer. */
+        for (j = 0; j < 16; j++) {
+            /* Check buffer bytes haven't been modified. */
+            if ((j < i) && (buf[j] != 0xa5))
+                return WC_TEST_RET_ENC_I(i);
+            /* Check padding bytes are correct. */
+            if (j >= i && (buf[j] != (16 - i)))
+                return WC_TEST_RET_ENC_I(i);
+        }
+    }
 
     return 0;
 }
