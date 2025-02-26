@@ -1162,7 +1162,8 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen)
     if (ret == 0) {
         XMEMCPY(key->pub, in, inLen);
 
-        key->state = WC_LMS_STATE_VERIFYONLY;
+        if (key->state != WC_LMS_STATE_OK)
+            key->state = WC_LMS_STATE_VERIFYONLY;
     }
 
     return ret;

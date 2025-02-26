@@ -17282,6 +17282,10 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         level = WC_ML_DSA_87_DRAFT;
                     }
                 #endif
+                    else {
+                        WOLFSSL_MSG("Invalid Dilithium key OID");
+                        goto exit_cs;
+                    }
                     sigCtx->verify = 0;
                     sigCtx->key.dilithium = (dilithium_key*)XMALLOC(
                         sizeof(dilithium_key), sigCtx->heap,

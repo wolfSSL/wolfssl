@@ -18569,11 +18569,11 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
           "Dilithium Level 5", "Dilithium Level 5"},
     #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
         { CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2k,  oidKeyType,
-          "ML_DSA Level 2", "ML_DSA Level 2"},
+          "ML-DSA 44", "ML-DSA 44"},
         { CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3k,  oidKeyType,
-          "ML_DSA Level 3", "ML_DSA Level 3"},
+          "ML-DSA 65", "ML-DSA 65"},
         { CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5k,  oidKeyType,
-          "ML_DSA Level 5", "ML_DSA Level 5"},
+          "ML-DSA 87", "ML-DSA 87"},
     #endif /* HAVE_DILITHIUM */
 
         /* oidCurveType */
