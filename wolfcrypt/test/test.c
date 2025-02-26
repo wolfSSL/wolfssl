@@ -11585,6 +11585,8 @@ static wc_test_ret_t aes_xts_128_test(void)
 }
 #endif /* WOLFSSL_AES_128 */
 
+#ifndef HAVE_FIPS
+/* FIPS won't allow for XTS-384 (two 192-bit keys) */
 #ifdef WOLFSSL_AES_192
 static wc_test_ret_t aes_xts_192_test(void)
 {
@@ -12288,7 +12290,7 @@ static wc_test_ret_t aes_xts_192_test(void)
     return ret;
 }
 #endif /* WOLFSSL_AES_192 */
-
+#endif /* HAVE_FIPS */
 
 #ifdef WOLFSSL_AES_256
 static wc_test_ret_t aes_xts_256_test(void)
@@ -14637,11 +14639,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_xts_test(void)
         return ret;
     #endif
 
+/* FIPS won't allow for XTS-384 (two 192-bit keys) */
+#ifndef HAVE_FIPS
     #ifdef WOLFSSL_AES_192
     ret = aes_xts_192_test();
     if (ret != 0)
         return ret;
     #endif
+#endif
 
     #ifdef WOLFSSL_AES_256
     ret = aes_xts_256_test();
