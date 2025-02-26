@@ -6085,7 +6085,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* The first item in the typesGood array will be used for placeholder */
     #define          PLACEHOLDER_TYPE 0
-    int              this_type = HASH_TYPE_E;
+    int              this_type = PLACEHOLDER_TYPE;
 
     wc_HashAlg      *hash = NULL;
 #else
@@ -6251,7 +6251,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
             }
         }
 
-        if (exp_ret == HASH_TYPE_E) {
+        if (exp_ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
             /* Recognized but no implementation compiled in. */
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             /* Create a placeholder hash object for test on typesNoImpl targets */
@@ -6325,7 +6325,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif /* !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC) */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        if (exp_ret == HASH_TYPE_E) {
+        if (exp_ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
             /* re-init to the placeholder value so we can delete it properly */
             ret = wc_HashInit(hash, typesGood[this_type]);
             if (ret < 0) {
