@@ -216,8 +216,11 @@ enum {
 **   Turns on diagnostic messages for SHA mutex. Note that given verbosity,
 **   there may be TLS timing issues encountered. Use with caution.
 **
+** DEBUG_WOLFSSL_ESP32_HEAP
+**   Prints heap memory usage
+**
 ** DEBUG_WOLFSSL_ESP32_UNFINISHED_HW
-**   This may be interesting in that HW may have been unnessearily locked
+**   This may be interesting in that HW may have been unnecessarily locked
 **   for hash that was never completed. (typically encountered at `free1` time)
 **
 ** LOG_LOCAL_LEVEL
@@ -234,11 +237,11 @@ enum {
 **   Shows a warning when mulm falls back for minimum number of bits.
 **
 ** WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
-**   Shows a marning when multiplication math bits have exceeded hardware
+**   Shows a warning when multiplication math bits have exceeded hardware
 **   capabilities and will fall back to slower software.
 **
 ** WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
-**   Shows a marning when modular math bits have exceeded hardware capabilities
+**   Shows a warning when modular math bits have exceeded hardware capabilities
 **   and will fall back to slower software.
 **
 ** NO_HW_MATH_TEST
