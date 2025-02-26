@@ -33,7 +33,7 @@ jobs:
           update: true
           install: git ${{matrix.compiler}} autotools base-devel autoconf netcat
       - name: configure wolfSSL
-        run: ./autogen.sh && ./configure CFLAGS="-DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256"
+        run: ./autogen.sh && ./configure CFLAGS="-DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -DNO_WRITE_TEMP_FILES"
       - name: build wolfSSL
         run: make check
       - name: Display log
