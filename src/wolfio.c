@@ -1251,6 +1251,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         ret = ioctlsocket(sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
             ret = WOLFSSL_FATAL_ERROR;
+    #elif defined(__WATCOMC__) && defined(__OS2__)
+        if (ioctl(sockfd, FIONBIO, &non_blocking) == -1)
+            ret = WOLFSSL_FATAL_ERROR;
     #else
         ret = fcntl(sockfd, F_GETFL, 0);
         if (ret >= 0) {
@@ -1290,9 +1293,9 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
 
         ret = select(nfds, &rfds, &wfds, NULL, &timeout);
         if (ret == 0) {
-        #ifdef DEBUG_HTTP
+    #ifdef DEBUG_HTTP
             fprintf(stderr, "Timeout: %d\n", ret);
-        #endif
+    #endif
             return HTTP_TIMEOUT;
         }
         else if (ret > 0) {
