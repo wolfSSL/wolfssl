@@ -50,6 +50,9 @@ extern "C" {
 /*---------- WOLF_CONF_DTLS -----------*/
 #define WOLF_CONF_DTLS      0
 
+/*---------- WOLF_CONF_DTLS13 -----------*/
+#define WOLF_CONF_DTLS13    0
+
 /*---------- WOLF_CONF_MATH -----------*/
 #define WOLF_CONF_MATH      4
 
@@ -119,11 +122,23 @@ extern "C" {
 /*---------- WOLF_CONF_TEST -----------*/
 #define WOLF_CONF_TEST      1
 
-/*---------- WOLF_CONF_PQM4 -----------*/
-#define WOLF_CONF_PQM4      0
+/*---------- WOLF_CONF_KYBER -----------*/
+#define WOLF_CONF_KYBER      0
 
 /*---------- WOLF_CONF_ARMASM -----------*/
 #define WOLF_CONF_ARMASM      1
+
+/*---------- WOLF_CONF_IO -----------*/
+#define WOLF_CONF_IO      1
+
+/*---------- WOLF_CONF_RESUMPTION -----------*/
+#define WOLF_CONF_RESUMPTION      0
+
+/*---------- WOLF_CONF_TPM -----------*/
+#define WOLF_CONF_TPM      0
+
+/*---------- WOLF_CONF_PK -----------*/
+#define WOLF_CONF_PK      0
 
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
@@ -165,6 +180,12 @@ extern "C" {
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
+    #define HAL_CONSOLE_UART huart3
+#elif defined(STM32H7S3xx)
+    #define WOLFSSL_STM32H7S
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
     #define HAL_CONSOLE_UART huart3
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
@@ -229,14 +250,22 @@ extern "C" {
     #define HAL_CONSOLE_UART huart3
     #define STM32_HAL_V2
     #undef  NO_STM32_HASH
-
+#elif defined(STM32MP135Fxx)
+    #define WOLFSSL_STM32MP13
+    #define HAL_CONSOLE_UART huart4
+    #define STM32_HAL_V2
+    #undef NO_STM32_HASH
+    #undef NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
+    #define WOLFSSL_STM32_PKA_V2
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
     /* You need to define a CPU type, HW crypto and debug UART */
     /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4, WOLFSSL_STM32L5,
-        WOLFSSL_STM32G0, WOLFSSL_STM32WB and WOLFSSL_STM32U5 */
+        WOLFSSL_STM32G0, WOLFSSL_STM32G4, WOLFSSL_STM32WB, WOLFSSL_STM32U5 and
+        WOLFSSL_STM32MP13 */
     #define WOLFSSL_STM32F4
 
     /* Debug UART used for printf */
@@ -263,6 +292,8 @@ extern "C" {
 #define WOLFSSL_STM32_CUBEMX
 #define WOLFSSL_SMALL_STACK
 #define WOLFSSL_IGNORE_FILE_WARN
+#define WOLFSSL_WOLFSSH
+
 
 /* ------------------------------------------------------------------------- */
 /* Network stack: 1=User IO (custom), 2=LWIP (posix), 3=LWIP (native) */
@@ -381,6 +412,10 @@ extern "C" {
 #endif
 #if defined(WOLF_CONF_DTLS) && WOLF_CONF_DTLS == 1
     #define WOLFSSL_DTLS
+#endif
+#if defined(WOLF_CONF_DTLS13) && WOLF_CONF_DTLS13 == 1
+    #define WOLFSSL_DTLS13
+    #define WOLFSSL_SEND_HRR_COOKIE
 #endif
 #if defined(WOLF_CONF_PSK) && WOLF_CONF_PSK == 0
     #define NO_PSK
@@ -630,25 +665,25 @@ extern "C" {
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-#undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
 
-#undef  WOLFSSL_HAVE_KYBER
-#define WOLFSSL_HAVE_KYBER
+    #undef  WOLFSSL_HAVE_KYBER
+    #define WOLFSSL_HAVE_KYBER
 
-#undef  WOLFSSL_WC_KYBER
-#define WOLFSSL_WC_KYBER
+    #undef  WOLFSSL_WC_KYBER
+    #define WOLFSSL_WC_KYBER
 
-#undef  WOLFSSL_NO_SHAKE128
-#undef  WOLFSSL_SHAKE128
-#define WOLFSSL_SHAKE128
+    #undef  WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
 
-#undef  WOLFSSL_NO_SHAKE256
-#undef  WOLFSSL_SHAKE256
-#define WOLFSSL_SHAKE256
+    #undef  WOLFSSL_NO_SHAKE256
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
 
-#undef  WOLFSSL_SHA3
-#define WOLFSSL_SHA3
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
 #endif /* WOLF_CONF_KYBER */
 
 /* ------------------------------------------------------------------------- */
@@ -663,6 +698,7 @@ extern "C" {
     #define WOLFSSL_ARMASM_INLINE
     #define WOLFSSL_ARMASM_NO_HW_CRYPTO
     #define WOLFSSL_ARMASM_NO_NEON
+    #define WOLFSSL_ARMASM_THUMB2
     #define WOLFSSL_ARM_ARCH 7
     /* Disable H/W offloading if accelerating S/W crypto */
     #undef  NO_STM32_HASH
