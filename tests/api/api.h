@@ -32,6 +32,28 @@
 #define TEST_STRING_SZ 25
 
 
+/* Returns the result based on whether check is true.
+ *
+ * @param [in] check  Condition for success.
+ * @return  When condition is true: TEST_SUCCESS.
+ * @return  When condition is false: TEST_FAIL.
+ */
+#ifdef DEBUG_WOLFSSL_VERBOSE
+#define XSTRINGIFY(s) STRINGIFY(s)
+#define STRINGIFY(s)  #s
+#define TEST_RES_CHECK(check) ({ \
+    int _ret = (check) ? TEST_SUCCESS : TEST_FAIL; \
+    if (_ret == TEST_FAIL) { \
+        fprintf(stderr, " check \"%s\" at %d ", \
+            XSTRINGIFY(check), __LINE__); \
+    } \
+    _ret; })
+#else
+#define TEST_RES_CHECK(check) \
+    ((check) ? TEST_SUCCESS : TEST_FAIL)
+#endif /* DEBUG_WOLFSSL_VERBOSE */
+
+
 typedef struct testVector {
     const char* input;
     const char* output;
