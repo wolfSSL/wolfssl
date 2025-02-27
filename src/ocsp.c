@@ -833,101 +833,76 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
     wolfSSL_OCSP_RESPONSE_free(basicResponse);
 }
 
-/* Calculate size needed for CertID DER encoding following RFC 6960:
+/* Calculate ancode CertID DER encoding following RFC 6960:
    CertID ::= SEQUENCE {
        hashAlgorithm       AlgorithmIdentifier,
        issuerNameHash      OCTET STRING,
        issuerKeyHash       OCTET STRING,
        serialNumber        CertificateSerialNumber }
 */
-static int OcspGetCertIdRawSize(WOLFSSL_OCSP_CERTID* id, word32* totalSz,
-    word32* intSize)
+static int OcspEncodeCertID(WOLFSSL_OCSP_CERTID* id, byte* output,
+    word32* totalSz, word32* intSize)
 {
     word32 idx = 0;
     int ret;
 
-    if (id == NULL || totalSz == NULL || id->status == NULL)
+    if (id == NULL || totalSz == NULL || intSize == NULL ||
+        (output != NULL && (*totalSz == 0 || *totalSz <= *intSize)))
         return BAD_FUNC_ARG;
 
-    ret = SetAlgoID(id->hashAlgoOID, NULL, oidHashType, 0);
+    if (output != NULL) {
+        ret = SetSequence(*intSize, output);
+        if (ret < 0)
+            return ret;
+        idx += ret;
+    }
+
+    ret = SetAlgoID(id->hashAlgoOID, ((output != NULL) ? output + idx : output),
+        oidHashType, 0);
     if (ret < 0)
         return ret;
     idx += ret;
 
     /* issuerNameHash */
-    ret = SetOctetString(OCSP_DIGEST_SIZE, NULL);
-    if (ret < 0)
-        return ret;
-    idx += ret + OCSP_DIGEST_SIZE;
-
-    /* issuerKeyHash */
-    ret = SetOctetString(OCSP_DIGEST_SIZE, NULL);
-    if (ret < 0)
-        return ret;
-    idx += ret + OCSP_DIGEST_SIZE;
-
-    /* serialNumber */
-    ret = SetASNInt(id->status->serialSz, id->status->serial[0], NULL);
-    if (ret < 0)
-        return ret;
-    idx += ret + id->status->serialSz;
-
-    /* Set sequence - get size */
-    ret = SetSequence(idx, NULL);
-    if (ret < 0)
-        return ret;
-
-    *totalSz = idx + ret;
-    if (intSize)
-        *intSize = idx;
-    return 0;
-}
-
-/* Encode CertID following RFC 6960 ASN.1 structure */
-static int OcspEncodeCertID(WOLFSSL_OCSP_CERTID* id, byte* output, word32 size)
-{
-    word32 idx = 0;
-    int ret;
-
-    if (id == NULL || output == NULL || id->status == NULL)
-        return BAD_FUNC_ARG;
-
-    ret = SetSequence(size, output);
+    ret = SetOctetString(OCSP_DIGEST_SIZE, ((output != NULL) ? output + idx : output));
     if (ret < 0)
         return ret;
     idx += ret;
-
-    /* hashAlgorithm */
-    ret = SetAlgoID(id->hashAlgoOID, output + idx, oidHashType, 0);
-    if (ret < 0)
-        return ret;
-    idx += ret;
-
-    /* issuerNameHash */
-    ret = SetOctetString(OCSP_DIGEST_SIZE, output + idx);
-    if (ret < 0)
-        return ret;
-    idx += ret;
-    XMEMCPY(output + idx, id->issuerHash, OCSP_DIGEST_SIZE);
+    if (output != NULL)
+        XMEMCPY(output + idx, id->issuerHash, OCSP_DIGEST_SIZE);
     idx += OCSP_DIGEST_SIZE;
 
     /* issuerKeyHash */
-    ret = SetOctetString(OCSP_DIGEST_SIZE, output + idx);
+    ret = SetOctetString(OCSP_DIGEST_SIZE, ((output != NULL) ? output + idx : output));
     if (ret < 0)
         return ret;
     idx += ret;
-    XMEMCPY(output + idx, id->issuerKeyHash, OCSP_DIGEST_SIZE);
+    if (output != NULL)
+        XMEMCPY(output + idx, id->issuerKeyHash, OCSP_DIGEST_SIZE);
     idx += OCSP_DIGEST_SIZE;
 
     /* serialNumber */
-    ret = SetASNInt(id->status->serialSz, id->status->serial[0], output + idx);
+    ret = SetASNInt(id->status->serialSz, id->status->serial[0], ((output != NULL) ? output + idx : output));
     if (ret < 0)
         return ret;
     idx += ret;
-    XMEMCPY(output + idx, id->status->serial, id->status->serialSz);
+    if (output != NULL)
+        XMEMCPY(output + idx, id->status->serial, id->status->serialSz);
     idx += id->status->serialSz;
 
-    return idx;
+    if (output == NULL) {
+        *intSize = idx;
+        ret = SetSequence(idx, NULL);
+        if (ret < 0)
+            return ret;
+        idx += ret;
+        *totalSz = idx;
+    }
+    else if (idx != *totalSz) {
+        return BUFFER_E;
+    }
+
+    return 0;
 }
 
 static int OcspRespIdMatches(OcspResponse* resp, const byte* NameHash,
@@ -1398,32 +1373,22 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
     int ret;
     WOLFSSL_ENTER("wolfSSL_i2d_OCSP_CERTID");
 
-    if (id == NULL) {
+    if (id == NULL)
         return -1;
+
+    if (id->rawCertId != NULL) {
+        derSz = id->rawCertIdSize;
+    }
+    else {
+        ret = OcspEncodeCertID(id, NULL, &derSz, &intSz);
+        if (ret != 0) {
+            WOLFSSL_MSG("Failed to calculate CertID size");
+            return -1;
+        }
     }
 
     if (data == NULL) {
-        if (id->rawCertId != NULL)
-            return id->rawCertIdSize;
-
-        ret = OcspGetCertIdRawSize(id, &derSz, NULL);
-        if (ret != 0) {
-            WOLFSSL_MSG("Failed to calculate CertID size");
-            return -1;
-        }
         return derSz;
-    }
-
-    if (id->rawCertId == NULL) {
-        /* Calculate required size */
-        ret = OcspGetCertIdRawSize(id, &derSz, &intSz);
-        if (ret != 0) {
-            WOLFSSL_MSG("Failed to calculate CertID size");
-            return -1;
-        }
-    }
-    else {
-        derSz = id->rawCertIdSize;
     }
 
     if (*data == NULL) {
@@ -1440,11 +1405,11 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
         XMEMCPY(*data, id->rawCertId, id->rawCertIdSize);
     }
     else {
-        ret = OcspEncodeCertID(id, *data, intSz);
+        ret = OcspEncodeCertID(id, *data, &derSz, &intSz);
         if (ret < 0) {
             WOLFSSL_MSG("Failed to encode CertID");
             if (allocated) {
-                XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
+                XFREE(*data, NULL, DYNAMIC_TYPE_OPENSSL);
                 *data = NULL;
             }
             return -1;
@@ -1472,9 +1437,10 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
     if (cidOut != NULL && *cidOut != NULL) {
         cid = *cidOut;
         FreeOcspEntry(cid, NULL);
-    } else {
-        cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID),
-                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else {
+        cid = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID), NULL,
+            DYNAMIC_TYPE_OPENSSL);
         if (cid == NULL)
             return NULL;
         isAllocated = 1;
