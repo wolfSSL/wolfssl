@@ -2501,7 +2501,6 @@ if(WOLFSSL_EXAMPLES)
     # Build unit tests
     add_executable(unit_test
         tests/api.c
-        tests/api/test_dtls.c
         tests/api/test_md5.c
         tests/api/test_sha.c
         tests/api/test_sha256.c
@@ -2511,8 +2510,21 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_sm3.c
         tests/api/test_ripemd.c
         tests/api/test_hash.c
+        tests/api/test_hmac.c
+        tests/api/test_cmac.c
+        tests/api/test_des3.c
+        tests/api/test_chacha.c
+        tests/api/test_poly1305.c
+        tests/api/test_chacha20_poly1305.c
+        tests/api/test_camellia.c
+        tests/api/test_arc4.c
+        tests/api/test_rc2.c
+        tests/api/test_aes.c
         tests/api/test_ascon.c
+        tests/api/test_sm4.c
+        tests/api/test_wc_encrypt.c
         tests/api/test_mlkem.c
+        tests/api/test_dtls.c
         tests/api/test_ocsp.c
         tests/hash.c
         tests/srp.c
