@@ -593,7 +593,8 @@ int test_ocsp_status_callback(void)
         !defined(WOLFSSL_NO_TLS12)                                             \
         && defined(OPENSSL_ALL) */
 
-#if !defined (NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if !defined(NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP) &&          \
+    !defined(WOLFSSL_SM3) && !defined(WOLFSSL_SM2)
 int test_ocsp_certid_enc_dec(void)
 {
     EXPECT_DECLS;
@@ -653,7 +654,7 @@ int test_ocsp_certid_enc_dec(void)
 
     return EXPECT_SUCCESS();
 }
-#else
+#else /* !NO_SHA && OPENSSL_ALL && HAVE_OCSP && !WOLFSSL_SM3 && !WOLFSSL_SM2 */
 int test_ocsp_certid_enc_dec(void)
 {
     return TEST_SKIPPED;

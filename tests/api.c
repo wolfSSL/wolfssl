@@ -71324,7 +71324,8 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && \
-    defined(HAVE_OCSP) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    defined(HAVE_OCSP) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3)
     X509* cert = NULL;
     X509* issuer = NULL;
     OCSP_CERTID* id = NULL;
