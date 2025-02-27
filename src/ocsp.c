@@ -859,8 +859,8 @@ static int OcspEncodeCertID(WOLFSSL_OCSP_CERTID* id, byte* output,
 
     ret = SetAlgoID(id->hashAlgoOID, ((output != NULL) ? output + idx : output),
         oidHashType, 0);
-    if (ret < 0)
-        return ret;
+    if (ret <= 0)
+        return -1;
     idx += ret;
 
     /* issuerNameHash */
