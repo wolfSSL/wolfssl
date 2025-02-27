@@ -202,6 +202,7 @@ int test_wc_Sha256Transform(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_SHA256) && (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
     DIGEST_TRANSFORM_FINAL_RAW_TEST(wc_Sha256, Sha256, SHA256,

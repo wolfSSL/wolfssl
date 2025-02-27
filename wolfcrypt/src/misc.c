@@ -189,6 +189,28 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
             out[i] = ByteReverseWord32(in[i]);
     }
 #ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x3) == 0) {
+        byte *out_bytes = (byte *)out;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            scratch = ByteReverseWord32(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x3) == 0) {
+        byte *in_bytes = (byte *)in;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord32(scratch);
+        }
+    }
     else {
         byte *in_bytes = (byte *)in;
         byte *out_bytes = (byte *)out;
@@ -335,9 +357,51 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 {
     word32 count = byteCount/(word32)sizeof(word64), i;
 
-    for (i = 0; i < count; i++)
-        out[i] = ByteReverseWord64(in[i]);
+#ifdef WOLFSSL_USE_ALIGN
+    if ((((size_t)in & 0x7) == 0) &&
+        (((size_t)out & 0x7) == 0))
+#endif
+    {
+        for (i = 0; i < count; i++)
+            out[i] = ByteReverseWord64(in[i]);
+    }
+#ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x7) == 0) {
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
 
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            scratch = ByteReverseWord64(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x7) == 0) {
+        byte *in_bytes = (byte *)in;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord64(scratch);
+        }
+    }
+    else {
+        byte *in_bytes = (byte *)in;
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            scratch = ByteReverseWord64(scratch);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+#endif
 }
 
 #endif /* WORD64_AVAILABLE && !WOLFSSL_NO_WORD64_OPS */

@@ -861,6 +861,7 @@ int test_wc_Shake128_Absorb(void)
 
     ExpectIntEQ(wc_InitShake128(&shake128, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake128_Absorb(NULL     , NULL    , 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL    , 1),
@@ -869,6 +870,8 @@ int test_wc_Shake128_Absorb(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL, 0), 0);
+#endif
+
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, (byte*)"a", 1), 0);
 
     wc_Shake128_Free(&shake128);
@@ -885,6 +888,7 @@ int test_wc_Shake128_SqueezeBlocks(void)
 
     ExpectIntEQ(wc_InitShake128(&shake128, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(NULL     , NULL, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, NULL, 1),
@@ -893,6 +897,7 @@ int test_wc_Shake128_SqueezeBlocks(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, hash, 1), 0);
 
     wc_Shake128_Free(&shake128);
@@ -1281,6 +1286,7 @@ int test_wc_Shake256_Absorb(void)
 
     ExpectIntEQ(wc_InitShake256(&shake256, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake256_Absorb(NULL     , NULL    , 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL    , 1),
@@ -1289,6 +1295,7 @@ int test_wc_Shake256_Absorb(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, (byte*)"a", 1), 0);
 
     wc_Shake256_Free(&shake256);
@@ -1305,6 +1312,7 @@ int test_wc_Shake256_SqueezeBlocks(void)
 
     ExpectIntEQ(wc_InitShake256(&shake256, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(NULL     , NULL, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, NULL, 1),
@@ -1313,6 +1321,7 @@ int test_wc_Shake256_SqueezeBlocks(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, hash, 1), 0);
 
     wc_Shake256_Free(&shake256);

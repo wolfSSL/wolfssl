@@ -41793,7 +41793,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ret = args->lastErr;
                         args->lastErr = 0; /* reset */
                         /* On error 'ret' will be negative */
-                        mask = (byte)((ret >> ((sizeof(ret) * 8) - 1)) & 0xFF) - 1;
+                        mask = (byte)(((unsigned int)ret >> ((sizeof(ret) * 8) - 1)) - 1);
 
                         /* build PreMasterSecret */
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
