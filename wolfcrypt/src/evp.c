@@ -1059,6 +1059,10 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     switch (ctx->cipherType) {
+        case NULL_CIPHER_TYPE:
+            XMEMCPY(out, in, inl);
+            *outl = inl;
+            return WOLFSSL_SUCCESS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         case WC_AES_128_GCM_TYPE:
         case WC_AES_192_GCM_TYPE:

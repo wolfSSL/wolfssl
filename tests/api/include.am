@@ -28,6 +28,7 @@ tests_unit_test_SOURCES += tests/api/test_aes.c
 tests_unit_test_SOURCES += tests/api/test_ascon.c
 tests_unit_test_SOURCES += tests/api/test_sm4.c
 tests_unit_test_SOURCES += tests/api/test_wc_encrypt.c
+tests_unit_test_SOURCES += tests/api/test_evp.c
 # Signature Algorithm
 tests_unit_test_SOURCES += tests/api/test_mlkem.c
 # TLS Protocol
@@ -66,4 +67,5 @@ EXTRA_DIST += tests/api/test_dtls.h
 EXTRA_DIST += tests/api/test_ocsp.h
 EXTRA_DIST += tests/api/test_ocsp_test_blobs.h
 EXTRA_DIST += tests/api/create_ocsp_test_blobs.py
+EXTRA_DIST += tests/api/test_evp.h
 
