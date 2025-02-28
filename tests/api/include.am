@@ -34,6 +34,7 @@ tests_unit_test_SOURCES += tests/api/test_mlkem.c
 tests_unit_test_SOURCES += tests/api/test_dtls.c
 # TLS Feature
 tests_unit_test_SOURCES += tests/api/test_ocsp.c
+tests_unit_test_SOURCES += tests/api/test_evp.c
 endif
 
 EXTRA_DIST += tests/api/api.h
@@ -66,4 +67,5 @@ EXTRA_DIST += tests/api/test_dtls.h
 EXTRA_DIST += tests/api/test_ocsp.h
 EXTRA_DIST += tests/api/test_ocsp_test_blobs.h
 EXTRA_DIST += tests/api/create_ocsp_test_blobs.py
+EXTRA_DIST += tests/api/test_evp.h
 
