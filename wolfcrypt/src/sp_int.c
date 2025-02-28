@@ -8027,8 +8027,18 @@ static void sp_clamp_ct(sp_int* a)
     sp_size_t mask = (sp_size_t)-1;
 
     for (i = (int)a->used - 1; i >= 0; i--) {
-        used = (sp_size_t)(used - ((a->dp[i] == 0) & mask));
-        mask &= (sp_size_t)(0 - (a->dp[i] == 0));
+#if ((SP_WORD_SIZE == 64) && \
+     (defined(_WIN64) || !defined(WOLFSSL_UINT128_T_DEFINED))) || \
+    ((SP_WORD_SIZE == 32) && defined(NO_64BIT))
+        sp_int_digit negVal = ~a->dp[i];
+        sp_int_digit minusOne = a->dp[i] - 1;
+        sp_int_digit zeroMask = (sp_int_sdigit)(negVal & minusOne) >>
+                                (SP_WORD_SIZE - 1);
+#else
+        sp_int_digit zeroMask = (((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE;
+#endif
+        mask &= (sp_size_t)zeroMask;
+        used = (sp_size_t)(used + mask);
     }
     a->used = used;
 }
