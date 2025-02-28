@@ -1063,7 +1063,9 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if (out == NULL) {
                 return WOLFSSL_FAILURE;
             }
-            XMEMCPY(out, in, inl);
+            if (in != NULL && inl > 0) {
+                XMEMCPY(out, in, inl);
+            }
             *outl = inl;
             return WOLFSSL_SUCCESS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
