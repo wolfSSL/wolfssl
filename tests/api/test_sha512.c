@@ -257,7 +257,7 @@ int test_wc_Sha512Transform(void)
     (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
-    DIGEST_TRANSFORM_FINAL_RAW_TEST(wc_Sha512, Sha512, SHA512,
+    DIGEST_TRANSFORM_FINAL_RAW_ALL_TEST(wc_Sha512, Sha512, SHA512,
                                     "\x80\x63\x62\x61\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -458,7 +458,7 @@ int test_wc_Sha512_224Transform(void)
     (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
-    DIGEST_TRANSFORM_FINAL_RAW_TEST(wc_Sha512, Sha512_224, SHA512_224,
+    DIGEST_TRANSFORM_FINAL_RAW_ALL_TEST(wc_Sha512, Sha512_224, SHA512_224,
                                     "\x61\x62\x63\x80\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -656,7 +656,7 @@ int test_wc_Sha512_256Transform(void)
     (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
     !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
-    DIGEST_TRANSFORM_FINAL_RAW_TEST(wc_Sha512, Sha512_256, SHA512_256,
+    DIGEST_TRANSFORM_FINAL_RAW_ALL_TEST(wc_Sha512, Sha512_256, SHA512_256,
                                     "\x61\x62\x63\x80\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
                                     "\x00\x00\x00\x00\x00\x00\x00\x00"
