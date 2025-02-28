@@ -4097,7 +4097,7 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     ForceZero(session->sessionID, ID_LEN);
 
     if (session->type == WOLFSSL_SESSION_TYPE_HEAP) {
-        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION);
+        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION); /* // NOLINT(clang-analyzer-unix.Malloc) */
     }
 }
 
