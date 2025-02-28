@@ -1060,6 +1060,9 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     switch (ctx->cipherType) {
         case WC_NULL_CIPHER_TYPE:
+            if (out == NULL) {
+                return WOLFSSL_FAILURE;
+            }
             XMEMCPY(out, in, inl);
             *outl = inl;
             return WOLFSSL_SUCCESS;
