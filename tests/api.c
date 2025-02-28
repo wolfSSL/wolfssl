@@ -39205,10 +39205,11 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 #endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && !NO_AES_256 */
 
 
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
 #define MAX_TEST_DECODE_SIZE 6000
-static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(PKCS7* pkcs7, const byte* output,              
-     word32 outputSz, void* ctx) {                                                                                                                
-     WOLFSSL_BUFFER_INFO* out = (WOLFSSL_BUFFER_INFO*)ctx;                                            
+static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
+    const byte* output, word32 outputSz, void* ctx) {
+     WOLFSSL_BUFFER_INFO* out = (WOLFSSL_BUFFER_INFO*)ctx;
 
     if (out == NULL) {
         return -1;
@@ -39218,15 +39219,18 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(PKCS7* pkcs7, con
         printf("Example buffer size needs increased");
     }
 
-printf("Decoded in %d bytes\n", outputSz);
-for (word32 z = 0; z < outputSz; z++) printf("%02X", output[z]);
-printf("\n");
+    /* printf("Decoded in %d bytes\n", outputSz);
+     * for (word32 z = 0; z < outputSz; z++) printf("%02X", output[z]);
+     * printf("\n");
+    */
+
     XMEMCPY(out->buffer + out->length, output, outputSz);
     out->length += outputSz;
 
     (void)pkcs7;
-    return 0;                                                             
-} 
+    return 0;
+}
+#endif /* HAVE_PKCS7 && ASN_BER_TO_DER */
 
 /*
  * Testing wc_PKCS7_DecodeEnvelopedData with streaming
@@ -39251,7 +39255,8 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
         sizeof_client_cert_der_2048), 0);
 
-    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048, sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+        sizeof_client_key_der_2048), 0);
     ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
         test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb, (void*)&out), 0);
 
@@ -39260,10 +39265,8 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
         ExpectIntGT(testStreamBufferSz = (int)XFREAD(testStreamBuffer, 1,
             sizeof(testStreamBuffer), f), 0);
 
-printf("Fedding in %d bytes\n", testStreamBufferSz);
-for (int z = 0; z < testStreamBufferSz; z++) printf("%02X", testStreamBuffer[z]);
-printf("\n");
-        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testStreamBuffer, testStreamBufferSz, NULL, 0);
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testStreamBuffer,
+            testStreamBufferSz, NULL, 0);
     } while (ret == WC_PKCS7_WANT_READ_E);
     ExpectIntGT(ret, 0);
 
