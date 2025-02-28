@@ -98,7 +98,7 @@ extern "C" {
 #define SP_INT_BITS 8192
 
 #undef USE_FAST_MATH
-#if 1 /* Flip to 1 for PAA with single precision */
+#if 0 /* Flip to 1 for PAA with single precision */
     #define WOLFSSL_SP_MATH_ALL
     #define WOLFSSL_SP_INT_NEGATIVE
 #else
@@ -120,7 +120,7 @@ extern "C" {
 
 /* Wolf Single Precision Math */
 #undef WOLFSSL_SP
-#if 1 /* SP Assembly Speedups (wPAA) */  /* Flip to 1 for PAA with tfm or single precision */
+#if 0 /* SP Assembly Speedups (wPAA) */  /* Flip to 1 for PAA with tfm or single precision */
     #define WOLFSSL_SP
     //#define WOLFSSL_SP_SMALL      /* use smaller version of code */
     #define WOLFSSL_SP_1024
@@ -133,7 +133,7 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
     /* Customer indicated no desire for PAA, leave out */
-    #if 1 /* Flip to 1 for PAA with single precision */
+    #if 0 /* Flip to 1 for PAA with single precision */
         #define WOLFSSL_ARMASM
         #define WOLFSSL_SP_ARM64
         #define WOLFSSL_SP_ARM64_ASM
