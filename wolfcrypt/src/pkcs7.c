@@ -12612,7 +12612,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (explicitOctet) {
                 /* encrypted content may be fragmented into multiple
                  * consecutive OCTET STRINGs, if so loop through
-                 * decrypting and outputing or caching contents until the indef
+                 * decrypting and outputting or caching contents until the indef
                  * ending tag is found */
 
                 if (pkcs7->decryptionCb == NULL) {
@@ -12735,7 +12735,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         }
                         else {
                             //@TODO copy over into output buffer, we need an
-                            // index/ofset into the buffer
+                            // index/offset into the buffer
                         }
                     }
 
@@ -13528,7 +13528,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
-            /* check that the expected size was acurate */
+            /* check that the expected size was accurate */
             if (ret == 0) {
                 if (length > (int)pkcs7->stream->expected && length > (int)pkiMsgSz) {
                     pkcs7->stream->expected = length + 1;
@@ -13780,10 +13780,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         /* From RFC5083, "For the purpose of constructing the AAD, the
                          * IMPLICIT [1] tag in the authAttrs field is not used for the
                          * DER encoding: rather a universal SET OF tag is used. */
-                        if (SetSet(length, pkcs7->stream->aad) < 0) {
-                            ret = ASN_PARSE_E;
-                            break;
-                        }
+                        (void)SetSet(length, pkcs7->stream->aad); /* ignoring the size returned,
+                         * we know it is idx - encodedAttribIdx from parsing whats given */
                     }
                 }
 
