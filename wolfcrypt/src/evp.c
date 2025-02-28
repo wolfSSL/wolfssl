@@ -1059,7 +1059,7 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     switch (ctx->cipherType) {
-        case NULL_CIPHER_TYPE:
+        case WC_NULL_CIPHER_TYPE:
             XMEMCPY(out, in, inl);
             *outl = inl;
             return WOLFSSL_SUCCESS;
