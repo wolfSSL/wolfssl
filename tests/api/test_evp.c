@@ -47,17 +47,17 @@ int test_wolfSSL_EVP_CipherUpdate_Null(void)
     ExpectNotNull(ctx);
 
     /* Initialize with NULL cipher */
-    ExpectIntEQ(wolfSSL_EVP_CipherInit_ex(ctx, wolfSSL_EVP_enc_null(), 
+    ExpectIntEQ(wolfSSL_EVP_CipherInit_ex(ctx, wolfSSL_EVP_enc_null(),
                                          NULL, NULL, NULL, 1), WOLFSSL_SUCCESS);
 
     /* Test encryption (which should just copy the data) */
-    ExpectIntEQ(wolfSSL_EVP_CipherUpdate(ctx, output, &outputLen, 
-                                        (const unsigned char*)testData, 
+    ExpectIntEQ(wolfSSL_EVP_CipherUpdate(ctx, output, &outputLen,
+                                        (const unsigned char*)testData,
                                         testDataLen), WOLFSSL_SUCCESS);
-    
+
     /* Verify output length matches input length */
     ExpectIntEQ(outputLen, testDataLen);
-    
+
     /* Verify output data matches input data (no encryption occurred) */
     ExpectIntEQ(XMEMCMP(output, testData, testDataLen), 0);
 
