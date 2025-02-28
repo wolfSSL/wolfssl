@@ -5276,6 +5276,7 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             /* got partial octet string data */
             /* accumulate partial octet string to buffer */
             if (keepContent) {
+            #ifdef ASN_BER_TO_DER
                 if (pkcs7->streamOutCb) {
                     ret = wc_HashUpdate(&pkcs7->stream->hashAlg,
                         pkcs7->stream->hashType,
@@ -5285,7 +5286,9 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                     pkcs7->streamOutCb(pkcs7, msg + *idx,
                         pkcs7->stream->expected, pkcs7->streamCtx);
                 }
-                else {
+                else
+            #endif /* ASN_BER_TO_DER */
+                {
                     /* store current content buffer temporarily */
                     tempBuf = pkcs7->stream->content;
                     pkcs7->stream->content = NULL;
@@ -5938,6 +5941,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE3);
 
         #ifndef NO_PKCS7_STREAM
+        #ifdef ASN_BER_TO_DER
             /* setup hash struct for creating hash of content if needed */
             if (pkcs7->streamOutCb) {
                 ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
@@ -5945,6 +5949,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 if (ret != 0)
                     break;
             }
+        #endif /* ASN_BER_TO_DER */
 
         /* free pkcs7->stream->content buffer */
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -6607,7 +6612,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->contentSz = (word32)contentSz;
 
                 if (ret == 0) {
-                #ifndef NO_PKCS7_STREAM
+                #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
                     byte streamHash[WC_MAX_DIGEST_SIZE];
 
                     /* get final hash if having done hash updates while
@@ -6623,7 +6628,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         if (ret != 0)
                             break;
                     }
-                #endif
+                #endif /* !NO_PKCS7_STREAM && ASN_BER_TO_DER */
                     ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig,
                             (word32)sigSz, signedAttrib, (word32)signedAttribSz,
                                                    hashBuf, hashSz);
@@ -8447,7 +8452,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
 }
 
 
-static int wc_PKCS7_DecryptContentInit(PKCS7* pkcs7, int encryptOID, byte* key,
+static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, int encryptOID, byte* key,
         int keySz, byte* iv, int ivSz, int devId, void* heap)
 {
     int ret;
@@ -8592,13 +8597,17 @@ static int wc_PKCS7_DecryptContentInit(PKCS7* pkcs7, int encryptOID, byte* key,
 
 /* Only does decryption of content using encryptOID algo and already set keys
  * returns 0 on success */
-static int wc_PKCS7_DecryptContentEx(PKCS7* pkcs7, int encryptOID,
+static int wc_PKCS7_DecryptContentEx(wc_PKCS7* pkcs7, int encryptOID,
     byte* iv, int ivSz, byte* aad, word32 aadSz, byte* authTag,
     word32 authTagSz, byte* in, int inSz, byte* out)
 {
     int ret;
 
-    if (in == NULL && pkcs7->getContentCb == NULL) {
+    if (in == NULL
+    #ifdef ASN_BER_TO_DER
+        && pkcs7->getContentCb == NULL
+    #endif
+    ) {
         return BAD_FUNC_ARG;
     }
 
@@ -8702,7 +8711,7 @@ static int wc_PKCS7_DecryptContentEx(PKCS7* pkcs7, int encryptOID,
 
 
 /* clears up struct for algo used and free's memory */
-static void wc_PKCS7_DecryptContentFree(PKCS7* pkcs7, int encryptOID,
+static void wc_PKCS7_DecryptContentFree(wc_PKCS7* pkcs7, int encryptOID,
     void* heap)
 {
     switch (encryptOID) {
@@ -12366,8 +12375,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     if (pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
         
-    if (pkcs7->streamOutCb == NULL && (output == NULL || outputSz == 0))
+    if ((output == NULL || outputSz == 0)
+    #ifdef ASN_BER_TO_DER
+        && pkcs7->streamOutCb == NULL
+    #endif
+    ) {
         return BAD_FUNC_ARG;
+    }
 
 #ifndef NO_PKCS7_STREAM
     (void)tmpIv; /* help out static analysis */
@@ -12436,7 +12450,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             tmpIdx               = idx;
             pkcs7->stream->aadSz = decryptedKeySz;
-            pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ + ASN_TAG_SZ;
+            pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
+                ASN_TAG_SZ + MAX_LENGTH_SZ;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_3);
             FALL_THROUGH;
@@ -12460,13 +12475,33 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
         #ifndef NO_PKCS7_STREAM
+            if (length == 0) {
+                /* if indefinet length, assume worst case size
+                 * - Content Type OID + tag/length
+                 * - Algorithm ID structure (OID + parameters)
+                 * - Version
+                 */
+                pkcs7->stream->expected = MAX_SEQ_SZ +     /* outer sequence */
+                                        MAX_OID_SZ +      /* content type OID */
+                                        MAX_ALGO_SZ +     /* algorithm identifier */
+                                        MAX_VERSION_SZ +  /* version */
+                                        ASN_TAG_SZ +      /* tag */
+                                        MAX_LENGTH_SZ;    /* length */
+            }
+            else {
+                pkcs7->stream->expected = length + ASN_TAG_SZ; /* revize size if known */
+            }
+
             /* Did we get enough for the expected length? */
-            if (length > (int)pkcs7->stream->expected &&
-                     length > (int)pkiMsgSz) {
-                pkcs7->stream->expected = length + 1;
+            if (pkcs7->stream->expected > pkiMsgSz) {
+                localIdx = idx;
                 if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, pkcs7->stream->expected,
                                                 &pkiMsg, &idx)) != 0) {
                     return ret;
+                }
+                pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+                if (pkcs7->stream->length > 0) {
+                    idx = localIdx; /* acount for byte used with seq read */
                 }
             }
         #endif
@@ -12719,21 +12754,24 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         }
                     }
 
-                pkcs7->stream->expected = MAX_OCTET_STR_SZ;
-            if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx, &localIdx)) != 0) {
-                break;
-            }
+                    pkcs7->stream->expected = MAX_OCTET_STR_SZ;
+                    if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx, &localIdx)) != 0) {
+                        break;
+                    }
 
                     /* save last decrypted string to handle padding (this output
                      * flush happens outside of the while loop in the case that
                      * the indef end was found) */
                     if (ret == 0) {
+                    #ifdef ASN_BER_TO_DER
                         if (pkcs7->streamOutCb) {
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
                                 encryptedContentSz, pkcs7->streamCtx);
                         }
-                        else {
+                        else
+                    #endif /* ASN_BER_TO_DER */
+                        {
                             //@TODO copy over into output buffer, we need an
                             // index/offset into the buffer
                         }
@@ -12775,11 +12813,14 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 break;
             }
 
+        #ifdef ASN_BER_TO_DER
             if (pkcs7->streamOutCb) {
                 ret = pkcs7->streamOutCb(pkcs7, encryptedContent,
                                 encryptedContentSz - padLen, pkcs7->streamCtx);
             }
-            else {
+            else
+        #endif /* ASN_BER_TO_DER */
+            {
                 if ((word32)(encryptedContentSz - padLen) > outputSz) {
                     ret = BUFFER_E;
                     break;
