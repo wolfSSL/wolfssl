@@ -39241,10 +39241,10 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
     EXPECT_DECLS;
     PKCS7*      pkcs7 = NULL;
     int ret;
-    FILE* f;
+    FILE* f = NULL;
     const char* testStream = "./certs/test-stream-dec.p7b";
     byte testStreamBuffer[100];
-    int testStreamBufferSz;
+    int testStreamBufferSz = 0;
     byte decodedData[MAX_TEST_DECODE_SIZE]; /* large enough to hold result of decode, which is ca-cert.pem */
     WOLFSSL_BUFFER_INFO out;
 

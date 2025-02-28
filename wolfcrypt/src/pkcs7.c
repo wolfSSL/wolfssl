@@ -8618,7 +8618,7 @@ static int wc_PKCS7_DecryptContentEx(PKCS7* pkcs7, int encryptOID,
                 (word32)inSz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* async decrypt not available here, so block till done */
-            ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
+            ret = wc_AsyncWait(ret, &pkcs7->decryptKey.aes->asyncDev, WC_ASYNC_FLAG_NONE);
         #endif
             break;
     #endif /* HAVE_AES_CBC */
@@ -8681,7 +8681,7 @@ static int wc_PKCS7_DecryptContentEx(PKCS7* pkcs7, int encryptOID,
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* async decrypt not available here, so block till done */
             ret = wc_AsyncWait(ret,
-              &pkcs7->decryptKey.des3.asyncDev, WC_ASYNC_FLAG_NONE);
+              &pkcs7->decryptKey.des3->asyncDev, WC_ASYNC_FLAG_NONE);
         #endif
             break;
 #endif /* !NO_DES3 */
@@ -13781,7 +13781,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                          * IMPLICIT [1] tag in the authAttrs field is not used for the
                          * DER encoding: rather a universal SET OF tag is used. */
                         (void)SetSet(length, pkcs7->stream->aad); /* ignoring the size returned,
-                         * we know it is idx - encodedAttribIdx from parsing whats given */
+                         * we know it is idx - encodedAttribIdx from parsing what's given */
                     }
                 }
 
