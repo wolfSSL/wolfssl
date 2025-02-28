@@ -66551,7 +66551,8 @@ static int test_wolfSSL_OCSP_parse_url(void)
 
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
     defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3)
 static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
 {
     if (t != NULL) {
@@ -66566,7 +66567,8 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
-    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3)
     /* This buffer was taken from the ocsp-stapling.test test case 1. The ocsp
      * response was captured in wireshark. It contains both the http and binary
      * parts. The time test_wolfSSL_OCSP_REQ_CTX_time_cb is set exactly so that
