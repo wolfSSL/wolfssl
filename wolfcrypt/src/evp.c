@@ -8259,9 +8259,9 @@ void wolfSSL_EVP_init(void)
     }
 #endif /* !NO_AES || !NO_DES3 */
 
-    static int IsCipherTypeAEAD(unsigned char cipherType)
+    static int IsCipherTypeAEAD(unsigned char cipherType_value)
     {
-        switch (cipherType) {
+        switch (cipherType_value) {
             case WC_AES_128_GCM_TYPE:
             case WC_AES_192_GCM_TYPE:
             case WC_AES_256_GCM_TYPE:
