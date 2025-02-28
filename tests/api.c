@@ -66217,7 +66217,8 @@ static int test_wolfSSL_OCSP_id_get0_info(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && \
-    defined(HAVE_OCSP) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    defined(HAVE_OCSP) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_SM2) && !defined(WOLFSSL_SM3)
     X509* cert = NULL;
     X509* issuer = NULL;
     OCSP_CERTID* id = NULL;
@@ -66349,10 +66350,9 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
         WOLFSSL_OCSP_CERTID* certId = NULL;
         ExpectNotNull(certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
                                                        sizeof(rawCertId)));
-        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
         if (certId != NULL) {
             XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-            XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+            wolfSSL_OCSP_CERTID_free(certId);
         }
     }
 
@@ -66370,10 +66370,9 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
         ExpectNotNull(certIdGood = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
                                                            sizeof(rawCertId)));
         ExpectPtrEq(certIdGood, certId);
-        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
         if (certId != NULL) {
             XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-            XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_OCSP_CERTID_free(certId);
             certId = NULL;
         }
     }
@@ -66382,8 +66381,6 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
      * always be returned. */
     {
         WOLFSSL_OCSP_CERTID* certId = NULL;
-        ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr,
-                                                       sizeof(rawCertId)));
         ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL,
                                                        sizeof(rawCertId)));
         ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0));
@@ -90451,6 +90448,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_status_callback),
     TEST_DECL(test_ocsp_basic_verify),
     TEST_DECL(test_ocsp_response_parsing),
+    TEST_DECL(test_ocsp_certid_enc_dec),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

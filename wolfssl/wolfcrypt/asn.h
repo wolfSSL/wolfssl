@@ -2708,6 +2708,14 @@ struct CertStatus {
 typedef struct OcspEntry OcspEntry;
 
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+#define OCSP_DIGEST WC_HASH_TYPE_SM3
+#elif defined(NO_SHA)
+#define OCSP_DIGEST WC_HASH_TYPE_SHA256
+#else
+#define OCSP_DIGEST WC_HASH_TYPE_SHA
+#endif
+
+#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
 #define OCSP_DIGEST_SIZE WC_SM3_DIGEST_SIZE
 #elif defined(NO_SHA)
 #define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
@@ -2732,6 +2740,12 @@ struct OcspEntry
     WC_BITFIELD used:1;                   /* entry used                */
 };
 
+#define OCSP_RESPONDER_ID_KEY_SZ 20
+#if !defined(NO_SHA)
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA
+#else
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA256
+#endif
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,
@@ -2750,7 +2764,7 @@ struct OcspResponse {
 
     enum responderIdType responderIdType;
     union {
-        byte keyHash[KEYID_SIZE];
+        byte keyHash[OCSP_RESPONDER_ID_KEY_SZ];
         byte nameHash[KEYID_SIZE];
     } responderId ;
 
@@ -2817,7 +2831,8 @@ WOLFSSL_LOCAL word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output,
 
 
 WOLFSSL_LOCAL int  CompareOcspReqResp(OcspRequest* req, OcspResponse* resp);
-
+WOLFSSL_LOCAL int OcspDecodeCertID(const byte* input, word32* inOutIdx, word32 inSz,
+                 OcspEntry* entry);
 
 #endif /* HAVE_OCSP */
 
