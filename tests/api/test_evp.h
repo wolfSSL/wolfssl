@@ -23,6 +23,7 @@
 #define WOLFSSL_TEST_EVP_H
 
 #ifdef OPENSSL_EXTRA
+/* Function to register all EVP tests */
 int TestEvpAll(void);
 #endif /* OPENSSL_EXTRA */
 

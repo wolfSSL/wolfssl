@@ -29,8 +29,18 @@
 
 #include <tests/unit.h>
 #include <wolfssl/openssl/evp.h>
+#include <tests/api/test_evp.h>
 
 #ifdef OPENSSL_EXTRA
+
+/* Test for NULL_CIPHER_TYPE in wolfSSL_EVP_CipherUpdate() */
+static int TestNullCipherUpdate(void);
+/* Test for NULL_CIPHER_TYPE with empty data */
+static int TestNullCipherUpdateEmptyData(void);
+/* Test for NULL_CIPHER_TYPE with large data */
+static int TestNullCipherUpdateLargeData(void);
+/* Test for NULL_CIPHER_TYPE with multiple updates */
+static int TestNullCipherUpdateMultiple(void);
 
 /* Test for NULL_CIPHER_TYPE in wolfSSL_EVP_CipherUpdate() */
 static int TestNullCipherUpdate(void)
