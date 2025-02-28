@@ -628,6 +628,30 @@ do {                                                                           \
 
 #endif
 
+#define DIGEST_TRANSFORM_FINAL_RAW_ALL_TEST(type, name, upper, abcBlockStr,    \
+                                            abcHashStr)                        \
+    type dgst;                                                                 \
+    const char* abc##name##Data = abcBlockStr;                                 \
+    const char* abcHash = abcHashStr;                                          \
+    byte abcData[WC_##upper##_BLOCK_SIZE];                                     \
+    byte hash[WC_##upper##_DIGEST_SIZE];                                       \
+                                                                               \
+    XMEMCPY(abcData, abc##name##Data, WC_##upper##_BLOCK_SIZE);                \
+                                                                               \
+    ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
+                                                                               \
+    /* Test bad args. */                                                       \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
+        BAD_FUNC_ARG);                                                         \
+                                                                               \
+    ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
+    ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
+    ExpectBufEQ(hash, (byte*)abcHash, WC_##upper##_DIGEST_SIZE);               \
+                                                                               \
+    wc_##name##Free(&dgst)
+
 #define DIGEST_FLAGS_TEST(type, name)                                          \
     type dgst;                                                                 \
     type dgst_copy;                                                            \
