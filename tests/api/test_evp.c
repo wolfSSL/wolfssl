@@ -34,16 +34,7 @@
 #ifdef OPENSSL_EXTRA
 
 /* Test for NULL_CIPHER_TYPE in wolfSSL_EVP_CipherUpdate() */
-static int TestNullCipherUpdate(void);
-/* Test for NULL_CIPHER_TYPE with empty data */
-static int TestNullCipherUpdateEmptyData(void);
-/* Test for NULL_CIPHER_TYPE with large data */
-static int TestNullCipherUpdateLargeData(void);
-/* Test for NULL_CIPHER_TYPE with multiple updates */
-static int TestNullCipherUpdateMultiple(void);
-
-/* Test for NULL_CIPHER_TYPE in wolfSSL_EVP_CipherUpdate() */
-static int TestNullCipherUpdate(void)
+int TestNullCipherUpdate(void)
 {
     EXPECT_DECLS;
     WOLFSSL_EVP_CIPHER_CTX* ctx;
@@ -78,7 +69,7 @@ static int TestNullCipherUpdate(void)
 }
 
 /* Test for NULL_CIPHER_TYPE with empty data */
-static int TestNullCipherUpdateEmptyData(void)
+int TestNullCipherUpdateEmptyData(void)
 {
     EXPECT_DECLS;
     WOLFSSL_EVP_CIPHER_CTX* ctx;
@@ -107,7 +98,7 @@ static int TestNullCipherUpdateEmptyData(void)
 }
 
 /* Test for NULL_CIPHER_TYPE with large data */
-static int TestNullCipherUpdateLargeData(void)
+int TestNullCipherUpdateLargeData(void)
 {
     EXPECT_DECLS;
     WOLFSSL_EVP_CIPHER_CTX* ctx;
@@ -146,7 +137,7 @@ static int TestNullCipherUpdateLargeData(void)
 }
 
 /* Test for NULL_CIPHER_TYPE with multiple updates */
-static int TestNullCipherUpdateMultiple(void)
+int TestNullCipherUpdateMultiple(void)
 {
     EXPECT_DECLS;
     WOLFSSL_EVP_CIPHER_CTX* ctx;
@@ -189,19 +180,6 @@ static int TestNullCipherUpdateMultiple(void)
     wolfSSL_EVP_CIPHER_CTX_free(ctx);
 
     return EXPECT_RESULT();
-}
-
-/* Function to register all EVP tests */
-int TestEvpAll(void)
-{
-    int ret = 0;
-
-    ret |= TestNullCipherUpdate();
-    ret |= TestNullCipherUpdateEmptyData();
-    ret |= TestNullCipherUpdateLargeData();
-    ret |= TestNullCipherUpdateMultiple();
-
-    return ret;
 }
 
 #endif /* OPENSSL_EXTRA */

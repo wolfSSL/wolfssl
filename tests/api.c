@@ -295,6 +295,7 @@
 #include <tests/api/test_sha256.h>
 #include <tests/api/test_sha512.h>
 #include <tests/api/test_sha3.h>
+#include <tests/api/test_evp.h>
 #include <tests/api/test_blake2.h>
 #include <tests/api/test_sm3.h>
 #include <tests/api/test_ripemd.h>
@@ -64078,6 +64079,35 @@ static int test_wolfSSL_EVP_BytesToKey(void)
     return EXPECT_RESULT();
 }
 
+
+static int test_evp_null_cipher(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    int ret = 0;
+    
+    ret = TestNullCipherUpdate();
+    if (ret != 0) {
+        EXPECT_FAIL("TestNullCipherUpdate failed");
+    }
+    
+    ret = TestNullCipherUpdateEmptyData();
+    if (ret != 0) {
+        EXPECT_FAIL("TestNullCipherUpdateEmptyData failed");
+    }
+    
+    ret = TestNullCipherUpdateLargeData();
+    if (ret != 0) {
+        EXPECT_FAIL("TestNullCipherUpdateLargeData failed");
+    }
+    
+    ret = TestNullCipherUpdateMultiple();
+    if (ret != 0) {
+        EXPECT_FAIL("TestNullCipherUpdateMultiple failed");
+    }
+#endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
 static int test_evp_cipher_aes_gcm(void)
 {
     EXPECT_DECLS;
@@ -89613,6 +89643,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_rc2_cbc),
     TEST_DECL(test_wolfSSL_EVP_mdc2),
 
+
+#ifdef OPENSSL_EXTRA
+    TEST_DECL(test_evp_null_cipher),
+#endif
     TEST_DECL(test_evp_cipher_aes_gcm),
 #endif
     TEST_DECL(test_wolfssl_EVP_aria_gcm),

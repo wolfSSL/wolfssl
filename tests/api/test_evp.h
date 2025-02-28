@@ -23,8 +23,14 @@
 #define WOLFSSL_TEST_EVP_H
 
 #ifdef OPENSSL_EXTRA
-/* Function to register all EVP tests */
-int TestEvpAll(void);
+/* Test for NULL_CIPHER_TYPE in wolfSSL_EVP_CipherUpdate() */
+int TestNullCipherUpdate(void);
+/* Test for NULL_CIPHER_TYPE with empty data */
+int TestNullCipherUpdateEmptyData(void);
+/* Test for NULL_CIPHER_TYPE with large data */
+int TestNullCipherUpdateLargeData(void);
+/* Test for NULL_CIPHER_TYPE with multiple updates */
+int TestNullCipherUpdateMultiple(void);
 #endif /* OPENSSL_EXTRA */
 
 #endif /* WOLFSSL_TEST_EVP_H */
