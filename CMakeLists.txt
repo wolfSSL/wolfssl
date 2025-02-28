@@ -2514,6 +2514,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ascon.c
         tests/api/test_mlkem.c
         tests/api/test_ocsp.c
+        tests/api/test_evp.c
         tests/hash.c
         tests/srp.c
         tests/suites.c
