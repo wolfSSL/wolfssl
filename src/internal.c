@@ -25346,12 +25346,12 @@ int SendAsyncData(WOLFSSL* ssl)
  * 2 in SCR and we have plain data ready
  * Early data logic may bypass this logic in TLSv1.3 when appropriate.
  */
-static int ssl_in_handshake(WOLFSSL *ssl, int send)
+static int ssl_in_handshake(WOLFSSL *ssl, int sending_data)
 {
 int SendAsyncData = 1;
 (void)SendAsyncData;
     if (IsSCR(ssl)) {
-        if (send) {
+        if (sending_data) {
             /* allow sending data in SCR */
             return 0;
         } else {
