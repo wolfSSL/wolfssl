@@ -64080,6 +64080,7 @@ static int test_wolfSSL_EVP_BytesToKey(void)
 }
 
 
+    return EXPECT_RESULT();
 static int test_evp_null_cipher(void)
 {
     EXPECT_DECLS;
@@ -64088,25 +64089,30 @@ static int test_evp_null_cipher(void)
     
     ret = TestNullCipherUpdate();
     if (ret != 0) {
-        EXPECT_FAIL("TestNullCipherUpdate failed");
+        printf("TestNullCipherUpdate failed\n");
+        EXPECT_FAIL();
     }
     
     ret = TestNullCipherUpdateEmptyData();
     if (ret != 0) {
-        EXPECT_FAIL("TestNullCipherUpdateEmptyData failed");
+        printf("TestNullCipherUpdateEmptyData failed\n");
+        EXPECT_FAIL();
     }
     
     ret = TestNullCipherUpdateLargeData();
     if (ret != 0) {
-        EXPECT_FAIL("TestNullCipherUpdateLargeData failed");
+        printf("TestNullCipherUpdateLargeData failed\n");
+        EXPECT_FAIL();
     }
     
     ret = TestNullCipherUpdateMultiple();
     if (ret != 0) {
-        EXPECT_FAIL("TestNullCipherUpdateMultiple failed");
+        printf("TestNullCipherUpdateMultiple failed\n");
+        EXPECT_FAIL();
     }
-#endif /* OPENSSL_EXTRA */
+#endif
     return EXPECT_RESULT();
+}
 }
 static int test_evp_cipher_aes_gcm(void)
 {
