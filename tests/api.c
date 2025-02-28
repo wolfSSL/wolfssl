@@ -303,6 +303,7 @@
 #include <tests/api/test_mlkem.h>
 #include <tests/api/test_dtls.h>
 #include <tests/api/test_ocsp.h>
+#include <tests/api/test_evp.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -94611,6 +94612,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_ENCODE_CTX_free),
     TEST_DECL(test_wolfSSL_EVP_EncodeInit),
     TEST_DECL(test_wolfSSL_EVP_EncodeUpdate),
+    TEST_DECL(test_wolfSSL_EVP_CipherUpdate_Null),
     TEST_DECL(test_wolfSSL_EVP_EncodeFinal),
     TEST_DECL(test_wolfSSL_EVP_DecodeInit),
     TEST_DECL(test_wolfSSL_EVP_DecodeUpdate),
