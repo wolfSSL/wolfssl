@@ -1097,7 +1097,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
 
     WOLFSSL_ENTER("wolfSSL_ASN1_INTEGER_dup");
 
-    /* Check for object to dstlicate. */
+    /* Check for object to duplicate. */
     if (src != NULL) {
         /* Create a new ASN.1 INTEGER object to be copied into. */
         dst = wolfSSL_ASN1_INTEGER_new();
