@@ -21432,6 +21432,7 @@ int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
     return ret;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 /* May be called by server to get the requested accepted name and by the client
  * to get the requested name. */
 const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
@@ -21443,6 +21444,8 @@ const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
             !wolfSSL_is_server(ssl));
     return (const char *)serverName;
 }
+#endif
+
 #endif /* HAVE_SNI */
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
