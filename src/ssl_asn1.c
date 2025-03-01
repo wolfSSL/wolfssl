@@ -1093,36 +1093,36 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
  */
 WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
 {
-    WOLFSSL_ASN1_INTEGER* dup = NULL;
+    WOLFSSL_ASN1_INTEGER* dst = NULL;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_INTEGER_dup");
 
     /* Check for object to duplicate. */
     if (src != NULL) {
         /* Create a new ASN.1 INTEGER object to be copied into. */
-        dup = wolfSSL_ASN1_INTEGER_new();
+        dst = wolfSSL_ASN1_INTEGER_new();
     }
     /* Check for object to copy into. */
-    if (dup != NULL) {
+    if (dst != NULL) {
         /* Copy simple fields. */
-        dup->length   = src->length;
-        dup->negative = src->negative;
-        dup->type     = src->type;
+        dst->length   = src->length;
+        dst->negative = src->negative;
+        dst->type     = src->type;
 
         if (!src->isDynamic) {
             /* Copy over data from/to fixed buffer. */
-            XMEMCPY(dup->intData, src->intData, WOLFSSL_ASN1_INTEGER_MAX);
+            XMEMCPY(dst->intData, src->intData, WOLFSSL_ASN1_INTEGER_MAX);
         }
-        else if (wolfssl_asn1_integer_require_len(dup, src->length, 0) == 0) {
-            wolfSSL_ASN1_INTEGER_free(dup);
-            dup = NULL;
+        else if (wolfssl_asn1_integer_require_len(dst, src->length, 0) == 0) {
+            wolfSSL_ASN1_INTEGER_free(dst);
+            dst = NULL;
         }
         else {
-            XMEMCPY(dup->data, src->data, (size_t)src->length);
+            XMEMCPY(dst->data, src->data, (size_t)src->length);
         }
     }
 
-    return dup;
+    return dst;
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
