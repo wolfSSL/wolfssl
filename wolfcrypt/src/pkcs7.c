@@ -12476,7 +12476,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
         #ifndef NO_PKCS7_STREAM
             if (length == 0) {
-                /* if indefinet length, assume worst case size
+                /* if indefinite length, assume worst case size
                  * - Content Type OID + tag/length
                  * - Algorithm ID structure (OID + parameters)
                  * - Version
@@ -12501,7 +12501,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
                 pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
                 if (pkcs7->stream->length > 0) {
-                    idx = localIdx; /* acount for byte used with seq read */
+                    idx = localIdx; /* account for byte used with seq read */
                 }
             }
         #endif
@@ -12737,8 +12737,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
 
                     if (ret != 0) {
-                        if (ret == -270)
+                        if (ret == WC_PKCS7_WANT_READ_E) {
                             wc_PKCS7_StreamEndCase(pkcs7, &localIdx, &idx);
+                        }
                         break;
                     }
 
@@ -12781,6 +12782,10 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 }
 
                 if (ret != 0) {
+                    if (ret != WC_PKCS7_WANT_READ_E) {
+                        /* free up in an error case if not looking for more data */
+                        wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
+                    }
                     break;
                 }
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
