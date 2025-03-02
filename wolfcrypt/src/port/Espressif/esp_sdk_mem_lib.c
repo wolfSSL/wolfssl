@@ -265,38 +265,72 @@ esp_err_t sdk_var_whereis(const char* v_name, void* v) {
 intptr_t esp_sdk_stack_pointer(void)
 {
     intptr_t sp = 0;
+
+    /* Get stack pointer based on architecture */
 #if defined(CONFIG_IDF_TARGET_ARCH_RISCV)
-    if (CONFIG_IDF_TARGET_ARCH_RISCV == 1) {
-        __asm volatile("mv %0, sp" : "=r" (sp));
-    }
+    __asm__ volatile("mv %0, sp" : "=r" (sp));
 #elif defined(CONFIG_IDF_TARGET_ARCH_XTENSA)
-    if (CONFIG_IDF_TARGET_ARCH_XTENSA == 1) {
-        __asm volatile("mov %0, sp" : "=r"(sp));
-    }
+    __asm__ volatile("mov %0, sp" : "=r" (sp));
+#else
+    #error "Unsupported architecture for stack pointer access"
 #endif
+
+    /* Initialize starting stack pointer if not set */
     if (_starting_stack_pointer == 0) {
         _starting_stack_pointer = sp;
     }
+
+    /* Calculate current stack usage */
     _stack_used = _starting_stack_pointer - sp;
+    if (_stack_used < 0) {
+        ESP_LOGE(TAG, "Stack overflow detected!");
+        _stack_used = 0;
+    }
+
     return sp;
 }
 
 esp_err_t esp_sdk_mem_lib_init(void)
 {
-    int ret = ESP_OK;
-    sdk_init_meminfo();
+    esp_err_t ret;
+
+    /* Initialize memory segment tracking */
+    ret = sdk_init_meminfo();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize memory info");
+        return ret;
+    }
+
+    /* Initialize stack tracking */
+    _starting_stack_pointer = esp_sdk_stack_pointer();
+    if (_starting_stack_pointer == 0) {
+        ESP_LOGE(TAG, "Failed to get initial stack pointer");
+        return ESP_FAIL;
+    }
+
     ESP_LOGI(TAG, "esp_sdk_mem_lib_init Ver %d", ESP_SDK_MEM_LIB_VERSION);
-    return ret;
+    return ESP_OK;
 }
 
 void* wc_debug_pvPortMalloc(size_t size,
                            const char* file, int line, const char* fname) {
-    void* ret = NULL;
-    ret = pvPortMalloc(size);
-    if (ret == NULL) {
-        ESP_LOGE("malloc", "%s:%d (%s)", file, line, fname);
-        ESP_LOGE("malloc", "Failed Allocating memory of size: %d bytes", size);
+    if (size == 0) {
+        ESP_LOGE(TAG, "Invalid allocation size: 0 bytes at %s:%d (%s)",
+                      file, line, fname);
+        return NULL;
     }
+
+    void* ret = pvPortMalloc(size);
+    if (ret == NULL) {
+        ESP_LOGE(TAG, "Memory allocation failed: %zu bytes at %s:%d (%s)",
+                      size, file, line, fname);
+        /* Log stack usage to help debug memory issues */
+        ESP_LOGW(TAG, "Current stack usage: %d bytes", _stack_used);
+        return NULL;
+    }
+
+    /* Track allocation for debugging */
+    sdk_var_whereis(fname, ret);
     return ret;
 }
 

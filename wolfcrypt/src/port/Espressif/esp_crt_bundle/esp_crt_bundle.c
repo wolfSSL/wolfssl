@@ -1333,6 +1333,7 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
             ESP_LOGE(TAG, "Unable to allocate memory for bundle pointers");
             _esp_crt_bundle_is_valid = ESP_FAIL;
             ret = ESP_ERR_NO_MEM;
+            goto cleanup;
         }
     } /* ret == ESP_OK */
 
@@ -1387,29 +1388,38 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
         ret = ESP_ERR_INVALID_ARG;
     }
 
-    if (_esp_crt_bundle_is_valid ==  ESP_FAIL) {
-        if (crts == NULL) {
-#ifdef DEBUG_WOLFSSL_MALLOC
-            ESP_LOGW(TAG, "Free certs after invalid bundle");
-#endif
-            free(crts);
-            crts = NULL;
-            s_crt_bundle.num_certs = 0;
-            s_crt_bundle.crts = NULL;
-        }
-    }
-    else {
-        /* The previous crt bundle is only updated when initialization of the
-         * current crt_bundle is successful */
-        /* Free previous crt_bundle */
+    if (ret == ESP_OK) {
+        /* Free previous bundle before assigning new one */
         if (s_crt_bundle.crts != NULL) {
 #ifdef DEBUG_WOLFSSL_MALLOC
-            ESP_LOGI(TAG, "Free crts");
+            ESP_LOGI(TAG, "Free previous crt bundle");
 #endif
-            free(s_crt_bundle.crts);
+            free((void*)s_crt_bundle.crts);
         }
-        s_crt_bundle.num_certs = num_certs;
         s_crt_bundle.crts = crts;
+        s_crt_bundle.num_certs = num_certs;
+        s_crt_bundle.x509_crt_bundle_wolfssl_len = bundle_size;
+        _esp_crt_bundle_is_valid = ESP_OK;
+    }
+
+cleanup:
+    if (ret != ESP_OK) {
+        /* Cleanup on error */
+        if (crts != NULL) {
+#ifdef DEBUG_WOLFSSL_MALLOC
+            ESP_LOGW(TAG, "Free certs after error");
+#endif
+            free((void*)crts);
+            crts = NULL;
+        }
+        s_crt_bundle.crts = NULL;
+        s_crt_bundle.num_certs = 0;
+        s_crt_bundle.x509_crt_bundle_wolfssl_len = 0;
+        _esp_crt_bundle_is_valid = ESP_FAIL;
+        _cert_bundle_loaded = 0;
+        _crt_found = 0;
+        _added_cert = 0;
+        _need_bundle_cert = 0;
     }
 
     /* Consider using WOLFSSL_ASN_ALLOW_0_SERIAL or WOLFSSL_NO_ASN_STRICT

@@ -474,16 +474,26 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
     int ret;
 
     ESP_LOGV(TAG, "enter wc_esp32AesDecrypt");
-    /* lock the hw engine */
-    esp_aes_hw_InUse();
-    /* load the key into the register */
+
+    /* Validate parameters */
+    if (aes == NULL || in == NULL || out == NULL) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Lock the hw engine */
+    ret = esp_aes_hw_InUse();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to acquire HW lock");
+        return ret;
+    }
+
+    /* Load the key into the register */
     ret = esp_aes_hw_Set_KeyMode(aes, ESP32_AES_UPDATEKEY_DECRYPT);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "wc_esp32AesDecrypt failed "
-                      "during esp_aes_hw_Set_KeyMode");
-        /* release hw */
+        ESP_LOGE(TAG, "Failed during esp_aes_hw_Set_KeyMode");
         esp_aes_hw_Leave();
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
     if (ret == ESP_OK) {
@@ -514,13 +524,27 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     int i;
     int offset = 0;
-    word32 blocks = (sz / WC_AES_BLOCK_SIZE);
+    word32 blocks;
     byte *iv;
     byte temp_block[WC_AES_BLOCK_SIZE];
 
     ESP_LOGV(TAG, "enter wc_esp32AesCbcEncrypt");
 
+    /* Validate parameters */
+    if (aes == NULL || out == NULL || in == NULL) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Validate size */
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        ESP_LOGE(TAG, "Invalid size: must be multiple of block size");
+        return BAD_FUNC_ARG;
+    }
+
+    blocks = sz / WC_AES_BLOCK_SIZE;
     iv = (byte*)aes->reg;
+    XMEMSET(temp_block, 0, WC_AES_BLOCK_SIZE);
 
     ret = esp_aes_hw_InUse();
 
@@ -570,16 +594,29 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     int ret;
-
     int i;
     int offset = 0;
-    word32 blocks = (sz / WC_AES_BLOCK_SIZE);
+    word32 blocks;
     byte* iv;
     byte temp_block[WC_AES_BLOCK_SIZE];
 
     ESP_LOGV(TAG, "enter wc_esp32AesCbcDecrypt");
 
+    /* Validate parameters */
+    if (aes == NULL || out == NULL || in == NULL) {
+        ESP_LOGE(TAG, "Invalid parameters");
+        return BAD_FUNC_ARG;
+    }
+
+    /* Validate size */
+    if (sz == 0 || (sz % WC_AES_BLOCK_SIZE) != 0) {
+        ESP_LOGE(TAG, "Invalid size: must be multiple of block size");
+        return BAD_FUNC_ARG;
+    }
+
+    blocks = sz / WC_AES_BLOCK_SIZE;
     iv = (byte*)aes->reg;
+    XMEMSET(temp_block, 0, WC_AES_BLOCK_SIZE);
 
     ret = esp_aes_hw_InUse();
 
