@@ -209,7 +209,8 @@ on the specific device platform.
         #define SHA256_UPDATE_REV_BYTES(ctx) (sha256->sha_method == SHA256_C)
     #else
         #define SHA256_UPDATE_REV_BYTES(ctx) \
-            (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+            (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags) && \
+             !IS_INTEL_SHA(intel_flags))
     #endif
 #elif defined(FREESCALE_MMCAU_SHA)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0 /* reverse not needed on update */
@@ -1652,7 +1653,8 @@ static int InitSha256(wc_Sha256* sha256)
         #ifdef WC_C_DYNAMIC_FALLBACK
         if (sha256->sha_method != SHA256_C)
         #else
-        if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
+        if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags) ||
+            IS_INTEL_SHA(intel_flags))
         #endif
         #endif
         {
