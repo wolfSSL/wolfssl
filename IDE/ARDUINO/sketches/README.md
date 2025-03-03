@@ -2,8 +2,10 @@
 
 There are currently two example Arduino sketches:
 
+* [wolfssl_AES_CTR](./wolfssl_AES_CTR/README.md): Basic AES CTR Encryption / Decryption example.
 * [wolfssl_client](./wolfssl_client/README.md): Basic TLS listening client.
 * [wolfssl_server](./wolfssl_server/README.md): Basic TLS server.
+* [wolfssl_version](./wolfssl_version/README.md): Bare-bones wolfL example.
 
 Examples have been most recently confirmed operational on the
 [Arduino IDE](https://www.arduino.cc/en/software) 2.2.1.
