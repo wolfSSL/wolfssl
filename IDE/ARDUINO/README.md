@@ -2,8 +2,10 @@
 
 See the [example sketches](./sketches/README.md):
 
-- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md)
+* [sketches/wolfssl_AES_CTR](./sketches/wolfssl_AES_CTR/README.md)
 - [sketches/wolfssl_client](./sketches/wolfssl_client/README.md)
+- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md)
+- [sketches/wolfssl_version](./sketches/wolfssl_version/README.md)
 
 When publishing a new version to the Arduino Registry, be sure to edit `WOLFSSL_VERSION_ARUINO_SUFFIX` in the `wolfssl-arduino.sh` script.
 
