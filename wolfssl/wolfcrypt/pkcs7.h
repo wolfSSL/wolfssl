@@ -378,7 +378,7 @@ struct wc_PKCS7 {
 #if !defined(NO_DES3) || !defined(NO_AES)
     union {
     #ifndef NO_AES
-        Aes* aes; 
+        Aes* aes;
     #endif
     #ifndef NO_DES3
         Des*  des;

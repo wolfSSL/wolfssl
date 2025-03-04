@@ -39267,7 +39267,7 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testStreamBuffer,
             testStreamBufferSz, NULL, 0);
-    } while (ret == WC_PKCS7_WANT_READ_E);
+    } while (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
     ExpectIntGT(ret, 0);
 
     if (f != XBADFILE) {
