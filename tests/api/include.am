@@ -4,6 +4,8 @@
 
 if BUILD_TESTS
 # Digests
+tests_unit_test_SOURCES += tests/api/test_md2.c
+tests_unit_test_SOURCES += tests/api/test_md4.c
 tests_unit_test_SOURCES += tests/api/test_md5.c
 tests_unit_test_SOURCES += tests/api/test_sha.c
 tests_unit_test_SOURCES += tests/api/test_sha256.c
@@ -37,6 +39,8 @@ tests_unit_test_SOURCES += tests/api/test_ocsp.c
 endif
 
 EXTRA_DIST += tests/api/api.h
+EXTRA_DIST += tests/api/test_md2.h
+EXTRA_DIST += tests/api/test_md4.h
 EXTRA_DIST += tests/api/test_md5.h
 EXTRA_DIST += tests/api/test_sha.h
 EXTRA_DIST += tests/api/test_sha256.h
