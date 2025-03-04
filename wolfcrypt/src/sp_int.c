@@ -353,8 +353,8 @@ while (0)
         "movq	%%rax, %[l]	\n\t"                    \
         "movq	%%rdx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "m" (va), [b] "m" (vb)                     \
-        : "memory", "%rax", "%rdx", "cc"                 \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -377,7 +377,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
@@ -388,7 +388,7 @@ while (0)
         "addq	%%rax, %[l]	\n\t"                    \
         "adcq	%%rdx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
@@ -403,7 +403,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
@@ -419,7 +419,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and store double size result in: vh | vl */
@@ -430,8 +430,8 @@ while (0)
         "movq	%%rax, %[l]	\n\t"                    \
         "movq	%%rdx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "m" (va)                                   \
-        : "memory", "%rax", "%rdx", "cc"                 \
+        : [a] "rm" (va)                                  \
+        : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -442,7 +442,7 @@ while (0)
         "adcq	%%rdx, %[h]	\n\t"                    \
         "adcq	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Square va and add double size result into: vh | vl */
@@ -453,7 +453,7 @@ while (0)
         "addq	%%rax, %[l]	\n\t"                    \
         "adcq	%%rdx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "%rax", "%rdx", "cc"                           \
     )
 /* Add va into: vh | vl */
@@ -462,10 +462,9 @@ while (0)
         "addq	%[a], %[l]	\n\t"                    \
         "adcq	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "cc"                                           \
     )
-/* Add va, variable in a register, into: vh | vl */
 #define SP_ASM_ADDC_REG(vl, vh, va)                      \
     __asm__ __volatile__ (                               \
         "addq	%[a], %[l]	\n\t"                    \
@@ -480,7 +479,7 @@ while (0)
         "subq	%[a], %[l]	\n\t"                    \
         "sbbq	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "cc"                                           \
     )
 /* Sub va from: vh | vl */
@@ -703,8 +702,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "movl	%%eax, %[l]	\n\t"                    \
         "movl	%%edx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "m" (va), [b] "m" (vb)                     \
-        : "memory", "eax", "edx", "cc"                   \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
+        : "eax", "edx", "cc"                             \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -726,8 +725,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
-        : [a] "r" (va), [b] "r" (vb)                     \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
 /* Multiply va by vb and add double size result into: vh | vl */
@@ -738,7 +737,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
@@ -752,8 +751,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
-        : [a] "r" (va), [b] "r" (vb)                     \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl
@@ -769,7 +768,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
-        : [a] "m" (va), [b] "m" (vb)                     \
+        : [a] "rm" (va), [b] "rm" (vb)                   \
         : "eax", "edx", "cc"                             \
     )
 /* Square va and store double size result in: vh | vl */
@@ -780,8 +779,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "movl	%%eax, %[l]	\n\t"                    \
         "movl	%%edx, %[h]	\n\t"                    \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
-        : [a] "m" (va)                                   \
-        : "memory", "eax", "edx", "cc"                   \
+        : [a] "rm" (va)                                  \
+        : "eax", "edx", "cc"                             \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -791,8 +790,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         "adcl	$0   , %[o]	\n\t"                    \
-        : [l] "+rm" (vl), [h] "+rm" (vh), [o] "+rm" (vo) \
-        : [a] "m" (va)                                   \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "rm" (va)                                  \
         : "eax", "edx", "cc"                             \
     )
 /* Square va and add double size result into: vh | vl */
@@ -803,7 +802,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%%eax, %[l]	\n\t"                    \
         "adcl	%%edx, %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "eax", "edx", "cc"                             \
     )
 /* Add va into: vh | vl */
@@ -812,10 +811,9 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "addl	%[a], %[l]	\n\t"                    \
         "adcl	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "cc"                                           \
     )
-/* Add va, variable in a register, into: vh | vl */
 #define SP_ASM_ADDC_REG(vl, vh, va)                      \
     __asm__ __volatile__ (                               \
         "addl	%[a], %[l]	\n\t"                    \
@@ -830,7 +828,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "subl	%[a], %[l]	\n\t"                    \
         "sbbl	$0  , %[h]	\n\t"                    \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
-        : [a] "m" (va)                                   \
+        : [a] "rm" (va)                                  \
         : "cc"                                           \
     )
 /* Sub va from: vh | vl */
@@ -904,7 +902,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "umulh	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory", "cc"                                 \
+        : "cc"                                           \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -915,7 +913,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mov	%[o], xzr		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "x8"                                           \
+        : "x8", "cc"                                     \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
@@ -978,7 +976,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "umulh	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        : "cc"                                           \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -1135,7 +1133,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "umull	%[l], %[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -1144,7 +1141,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mov	%[o], #0		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
-        :                                                \
     )
 /* Multiply va by vb and add double size result into: vo | vh | vl */
 #define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
@@ -1163,7 +1159,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "umlal	%[l], %[h], %[a], %[b]	\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        :                                                \
     )
 /* Multiply va by vb and add double size result twice into: vo | vh | vl */
 #define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
@@ -1200,7 +1195,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "umull	%[l], %[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -1259,7 +1253,6 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "clz	%[n], %[a]	\n\t"                    \
         : [n] "=r" (vn)                                  \
         : [a] "r" (va)                                   \
-        :                                                \
     )
 #endif
 
@@ -3482,7 +3475,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhdu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -3555,7 +3548,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhdu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -3630,7 +3623,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhdu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -3703,7 +3696,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhdu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -3789,7 +3782,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhwu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -3861,7 +3854,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhwu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -3935,7 +3928,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhwu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4007,7 +4000,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhwu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -4091,7 +4084,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory", "$lo", "$hi"                         \
+        : "$lo", "$hi"                                   \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4194,7 +4187,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory", "$lo", "$hi"                         \
+        : "$lo", "$hi"                                   \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -4292,7 +4285,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory", "%lo", "%hi"                         \
+        : "%lo", "%hi"                                   \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4395,7 +4388,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mfhi	%[h]			\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory", "%lo", "%hi"                         \
+        : "%lo", "%hi"                                   \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -4492,7 +4485,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4589,7 +4582,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -4684,7 +4677,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhu	%[h], %[a], %[b]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory"                                       \
+        :                                                \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4781,7 +4774,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "mulhu	%[h], %[a], %[a]	\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory"                                       \
+        :                                                \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -4878,7 +4871,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "lgr	%[h], %%r0		\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va), [b] "r" (vb)                     \
-        : "memory", "r0", "r1"                           \
+        : "r0", "r1"                                     \
     )
 /* Multiply va by vb and store double size result in: vo | vh | vl */
 #define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
@@ -4958,7 +4951,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         "lgr	%[h], %%r0		\n\t"            \
         : [h] "+r" (vh), [l] "+r" (vl)                   \
         : [a] "r" (va)                                   \
-        : "memory", "r0", "r1"                           \
+        : "r0", "r1"                                     \
     )
 /* Square va and add double size result into: vo | vh | vl */
 #define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
@@ -17618,10 +17611,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             h = 0;
         }
         /* Handle overflow. */
-        h = o2;
-        SP_ASM_ADDC(l, h, a->dp[7]);
+        SP_ASM_ADDC(l, o2, a->dp[7]);
         a->dp[3] = l;
-        a->dp[4] = h;
+        a->dp[4] = o2;
         a->used = 5;
 
         /* Remove leading zeros. */
@@ -17684,10 +17676,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             h = 0;
         }
         /* Handle overflow. */
-        h = o2;
-        SP_ASM_ADDC(l, h, a->dp[11]);
+        SP_ASM_ADDC(l, o2, a->dp[11]);
         a->dp[5] = l;
-        a->dp[6] = h;
+        a->dp[6] = o2;
         a->used = 7;
 
         /* Remove leading zeros. */
@@ -17723,7 +17714,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             h = 0;
             SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
             l = h;
-            for (j = 1; j + 1 < (unsigned int)m->used - 1; j += 2) {
+            for (j = 1; j < (unsigned int)m->used - 2; j += 2) {
                 h = 0;
                 SP_ASM_ADDC(l, h, ad[j]);
                 SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
@@ -17749,11 +17740,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             o = h;
         }
         /* Handle overflow. */
-        l = o;
-        h = o2;
-        SP_ASM_ADDC(l, h, a->dp[m->used * 2 - 1]);
-        a->dp[m->used  - 1] = l;
-        a->dp[m->used] = h;
+        SP_ASM_ADDC(o, o2, a->dp[m->used * 2 - 1]);
+        a->dp[m->used  - 1] = o;
+        a->dp[m->used] = o2;
         a->used = m->used + 1;
 
         /* Remove leading zeros. */
@@ -17794,8 +17783,8 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             SP_ASM_MUL_ADD_NO(l, h, mu, *(md++));
             ad[0] = l;
             l = h;
-            /* 2.4. If i == NumDigits(m)-1 and mask != 0 then mu & = mask */
-            for (j = 1; j + 1 < (unsigned int)m->used - 1; j += 2) {
+            /* 2.4. For j = 1 up to NumDigits(m)-2 */
+            for (j = 1; j < (unsigned int)m->used - 2; j += 2) {
                 h = 0;
                 /* 2.4.1. a += mu * DigitMask(m, j) */
                 SP_ASM_ADDC(l, h, ad[j + 0]);
@@ -17825,11 +17814,9 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
             o = h;
         }
         /* Handle overflow. */
-        l = o;
-        h = o2;
-        SP_ASM_ADDC(l, h, a->dp[m->used * 2 - 1]);
-        a->dp[m->used * 2 - 1] = l;
-        a->dp[m->used * 2] = h;
+        SP_ASM_ADDC(o, o2, a->dp[m->used * 2 - 1]);
+        a->dp[m->used * 2 - 1] = o;
+        a->dp[m->used * 2] = o2;
         a->used = (sp_size_t)(m->used * 2 + 1);
     }
 
