@@ -395,7 +395,7 @@ int test_wc_Blake2sFinal(void)
     EXPECT_DECLS;
 #ifdef HAVE_BLAKE2S
     Blake2s blake;
-    byte hash[WC_BLAKE2B_DIGEST_SIZE];
+    byte hash[WC_BLAKE2S_DIGEST_SIZE];
 
     /* Initialize */
     ExpectIntEQ(wc_InitBlake2s(&blake, WC_BLAKE2S_DIGEST_SIZE), 0);
@@ -407,7 +407,7 @@ int test_wc_Blake2sFinal(void)
     ExpectIntEQ(wc_Blake2sFinal(NULL, hash, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Test good args. */
-    ExpectIntEQ(wc_Blake2sFinal(&blake, hash, WC_BLAKE2B_DIGEST_SIZE), 0);
+    ExpectIntEQ(wc_Blake2sFinal(&blake, hash, WC_BLAKE2S_DIGEST_SIZE), 0);
 #endif
     return EXPECT_RESULT();
 }

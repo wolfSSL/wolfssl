@@ -1,4 +1,4 @@
-/* test_sm3.h
+/* test_md2.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,17 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_SM3_H
-#define WOLFCRYPT_TEST_SM3_H
+#ifndef WOLFCRYPT_TEST_MD4_H
+#define WOLFCRYPT_TEST_MD4_H
 
-int test_wc_InitSm3(void);
-int test_wc_Sm3Update(void);
-int test_wc_Sm3Final(void);
-int test_wc_Sm3FinalRaw(void);
-int test_wc_Sm3_KATs(void);
-int test_wc_Sm3_other(void);
-int test_wc_Sm3Copy(void);
-int test_wc_Sm3GetHash(void);
-int test_wc_Sm3_Flags(void);
+int test_wc_InitMd4(void);
+int test_wc_Md4Update(void);
+int test_wc_Md4Final(void);
+int test_wc_Md4_KATs(void);
+int test_wc_Md4_other(void);
 
-#endif /* WOLFCRYPT_TEST_SM3_H */
+#endif /* WOLFCRYPT_TEST_MD4_H */
