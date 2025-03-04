@@ -8452,8 +8452,8 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
 }
 
 
-static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, int encryptOID, byte* key,
-        int keySz, byte* iv, int ivSz, int devId, void* heap)
+static int wc_PKCS7_DecryptContentInit(wc_PKCS7* pkcs7, int encryptOID,
+    byte* key, int keySz, byte* iv, int ivSz, int devId, void* heap)
 {
     int ret;
 #ifndef NO_AES
@@ -12618,6 +12618,19 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
             wc_PKCS7_StreamGetVar(pkcs7, &encOID, &expBlockSz, 0);
             wc_PKCS7_StreamStoreVar(pkcs7, encOID, expBlockSz, explicitOctet);
+
+            if (explicitOctet) {
+                /* initialize decryption state in preperation */
+                if (pkcs7->decryptionCb == NULL) {
+                    ret = wc_PKCS7_DecryptContentInit(pkcs7, encOID,
+                        pkcs7->stream->aad, pkcs7->stream->aadSz,
+                        pkcs7->stream->tmpIv, expBlockSz,
+                        pkcs7->devId, pkcs7->heap);
+                    if (ret != 0)
+                        break;
+                }
+            }
+
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_5);
             FALL_THROUGH;
@@ -12649,13 +12662,6 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                  * consecutive OCTET STRINGs, if so loop through
                  * decrypting and outputting or caching contents until the indef
                  * ending tag is found */
-
-                if (pkcs7->decryptionCb == NULL) {
-
-                    ret = wc_PKCS7_DecryptContentInit(pkcs7, encOID,
-                        decryptedKey, blockKeySz, tmpIv, expBlockSz,
-                        pkcs7->devId, pkcs7->heap);
-                }
 
                 while (1) {
                     if (pkiMsgSz <= localIdx) {
