@@ -39,6 +39,9 @@
 
 void wc_InitMd4(wc_Md4* md4)
 {
+    if (md4 == NULL)
+        return;
+
     md4->digest[0] = 0x67452301L;
     md4->digest[1] = 0xefcdab89L;
     md4->digest[2] = 0x98badcfeL;
@@ -141,8 +144,12 @@ static WC_INLINE void AddLength(wc_Md4* md4, word32 len)
 void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len)
 {
     /* do block size increments */
-    byte* local = (byte*)md4->buffer;
+    byte* local;
 
+    if (md4 == NULL || (data == NULL && len != 0))
+        return;
+
+    local = (byte*)md4->buffer;
     while (len) {
         word32 add = min(len, WC_MD4_BLOCK_SIZE - md4->buffLen);
         XMEMCPY(&local[md4->buffLen], data, add);
@@ -165,8 +172,12 @@ void wc_Md4Update(wc_Md4* md4, const byte* data, word32 len)
 
 void wc_Md4Final(wc_Md4* md4, byte* hash)
 {
-    byte* local = (byte*)md4->buffer;
+    byte* local;
 
+    if (md4 == NULL || hash == NULL)
+        return;
+
+    local = (byte*)md4->buffer;
     AddLength(md4, md4->buffLen);               /* before adding pads */
 
     local[md4->buffLen++] = 0x80;  /* add 1 */
