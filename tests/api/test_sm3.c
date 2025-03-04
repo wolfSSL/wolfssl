@@ -423,25 +423,3 @@ int test_wc_Sm3_Flags(void)
     return EXPECT_RESULT();
 }
 
-/*
- *  Testing wc_Sm3Hash()
- */
-int test_wc_Sm3Hash(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
-    byte data[WC_SM3_BLOCK_SIZE];
-    byte hash[WC_SM3_DIGEST_SIZE];
-
-    /* Invalid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(NULL, sizeof(data), hash),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), hash), 0);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Hash */
-

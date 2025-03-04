@@ -141,6 +141,8 @@
 
 #define EXPECT_DECLS \
     int _ret = TEST_SKIPPED, _fail_codepoint_id = TEST_FAIL
+#define EXPECT_SUCCESS_DECLS \
+    int _ret = TEST_SUCCESS, _fail_codepoint_id = TEST_SUCCESS
 #define EXPECT_DECLS_NO_MSGS(fail_codepoint_offset)     \
     int _ret = TEST_SKIPPED_NO_MSGS,                    \
         _fail_codepoint_id = (fail_codepoint_offset)
