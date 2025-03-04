@@ -702,7 +702,10 @@ typedef struct sp_ecc_ctx {
     do {                                                                       \
         int ii;                                                                \
         if ((a)->used > 0) {                                                   \
-            for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+            for (ii = (int)(a)->used - 1; ii >= 0; ii--) {                     \
+                if ((a)->dp[ii] != 0) {                                        \
+                    break;                                                     \
+                }                                                              \
             }                                                                  \
             (a)->used = (wc_mp_size_t)(ii + 1);                                \
         }                                                                      \
