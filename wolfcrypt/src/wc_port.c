@@ -1041,6 +1041,15 @@ int z_fs_close(XFILE file)
     return ret;
 }
 
+/* Rewind the file pointer to the beginning of the file */
+/* This is not a 'rewind' is not supported in Zephyr so */
+/* use fs_seek to move the file pointer to the beginning of the file */
+/* calling it z_fs_rewind to avoid future conflicts if rewind is added */
+int z_fs_rewind(XFILE file)
+{
+    return fs_seek(file, 0, FS_SEEK_SET);
+}
+
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */
 
 #if !defined(WOLFSSL_USER_MUTEX)
