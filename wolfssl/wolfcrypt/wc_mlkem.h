@@ -410,4 +410,3 @@ WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key,
 #endif /* WOLFSSL_HAVE_KYBER */
 
 #endif /* WOLF_CRYPT_WC_MLKEM_H */
-
