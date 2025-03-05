@@ -227,8 +227,9 @@ int wc_MlKemKey_Init(MlKemKey* key, int type, void* heap, int devId)
  * Free the Kyber key object.
  *
  * @param  [in, out]  key   Kyber key object to dispose of.
+ * @return  0 on success.
  */
-void wc_MlKemKey_Free(MlKemKey* key)
+int wc_MlKemKey_Free(MlKemKey* key)
 {
     if (key != NULL) {
         /* Dispose of PRF object. */
@@ -241,6 +242,8 @@ void wc_MlKemKey_Free(MlKemKey* key)
         ForceZero(key->priv, sizeof(key->priv));
         ForceZero(key->z, sizeof(key->z));
     }
+    
+    return 0;
 }
 
 /******************************************************************************/
