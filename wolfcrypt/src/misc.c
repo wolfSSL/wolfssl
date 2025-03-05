@@ -484,6 +484,9 @@ counts, placing the result in <*buf>. */
 
 WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
+    /* Leave no doubt that WOLFSSL_WORD_SIZE is a power of 2. */
+    wc_static_assert((WOLFSSL_WORD_SIZE & (WOLFSSL_WORD_SIZE - 1)) == 0);
+
     word32      i;
     byte*       b;
     const byte* m;
@@ -491,8 +494,9 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
     b = (byte*)buf;
     m = (const byte*)mask;
 
-    if (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
-            ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
+    if ((((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) ==
+        (((wc_ptr_t)m) & (WOLFSSL_WORD_SIZE - 1)))
+    {
         /* type-punning helpers */
         union {
             byte* bp;
@@ -505,16 +509,25 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
         /* Alignment checks out. Possible to XOR words. */
         /* Move alignment so that it lines up with a
          * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+        while ((((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) != 0 && count > 0)
+        {
             *(b++) ^= *(m++);
             count--;
         }
         tpb.bp = b;
         tpm.bp = m;
-        XorWords( &tpb.wp, &tpm.wp, count / WOLFSSL_WORD_SIZE);
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        XorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
         b = tpb.bp;
         m = tpm.bp;
-        count %= WOLFSSL_WORD_SIZE;
+        count &= (WOLFSSL_WORD_SIZE - 1);
     }
 
     for (i = 0; i < count; i++)
@@ -524,7 +537,7 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimizations doesn't skip it  */
+   with zeros. It ensures compiler optimization doesn't skip it  */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
