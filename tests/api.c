@@ -1014,6 +1014,12 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     strncpy(newCert.subject.unit, "Engineering", CTC_NAME_SIZE);
     strncpy(newCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
     strncpy(newCert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+    strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
+        CTC_DATE_SIZE);
+    newCert.beforeDateSz = 17;
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+        CTC_DATE_SIZE);
+    newCert.afterDateSz = 17;
     newCert.sigType = CTC_SHA256wRSA;
     newCert.isCA    = 1;
 
@@ -1046,6 +1052,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     ExpectIntGT(outSz = wc_MakeSelfCert(&newCert, outBuf, outSz, &caKey, &rng),
                 0);
     *out = outBuf;
+
     wc_FreeRsaKey(&caKey);
     wc_FreeRng(&rng);
     wc_FreeDecodedCert(&preTBS);
@@ -1146,6 +1153,12 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     strncpy(newCert.subject.unit, "Engineering", CTC_NAME_SIZE);
     strncpy(newCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
     strncpy(newCert.subject.email, "server@wolfssl.com", CTC_NAME_SIZE);
+    strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
+        CTC_DATE_SIZE);
+    newCert.beforeDateSz = 17;
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+        CTC_DATE_SIZE);
+    newCert.afterDateSz = 17;
 
     newCert.sigType = CTC_SHA256wRSA;
     newCert.isCA    = 0;
