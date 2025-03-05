@@ -62,16 +62,25 @@ enum {
 #ifdef BASE64_NO_TABLE
 static WC_INLINE byte Base64_Char2Val(byte c)
 {
-    word16 v = 0x0000;
+    word16 v;
+    sword16 smallEnd   = (sword16)c - 0x7b;
+    sword16 smallStart = (sword16)c - 0x61;
+    sword16 bigEnd     = (sword16)c - 0x5b;
+    sword16 bigStart   = (sword16)c - 0x41;
+    sword16 numEnd     = (sword16)c - 0x3a;
+    sword16 numStart   = (sword16)c - 0x30;
+    sword16 slashEnd   = (sword16)c - 0x30;
+    sword16 slashStart = (sword16)c - 0x2f;
+    sword16 plusEnd    = (sword16)c - 0x2c;
+    sword16 plusStart  = (sword16)c - 0x2b;
 
-    v |= 0xff3E & ctMask16Eq(c, 0x2b);
-    v |= 0xff3F & ctMask16Eq(c, 0x2f);
-    v |= (c + 0xff04) & ctMask16GTE(c, 0x30) & ctMask16LTE(c, 0x39);
-    v |= (0xff00 + c - 0x41) & ctMask16GTE(c, 0x41) & ctMask16LTE(c, 0x5a);
-    v |= (0xff00 + c - 0x47) & ctMask16GTE(c, 0x61) & ctMask16LTE(c, 0x7a);
-    v |= ~(v >> 8);
+    v  = ((smallStart >> 8) ^ (smallEnd >> 8)) & (smallStart + 26 + 1);
+    v |= ((bigStart   >> 8) ^ (bigEnd   >> 8)) & (bigStart   +  0 + 1);
+    v |= ((numStart   >> 8) ^ (numEnd   >> 8)) & (numStart   + 52 + 1);
+    v |= ((slashStart >> 8) ^ (slashEnd >> 8)) & (slashStart + 63 + 1);
+    v |= ((plusStart  >> 8) ^ (plusEnd  >> 8)) & (plusStart  + 62 + 1);
 
-    return (byte)v;
+    return (byte)(v - 1);
 }
 #else
 static
