@@ -6884,7 +6884,7 @@ void wolfSSL_EVP_init(void)
                 ret = wc_AriaInitCrypt(&ctx->cipher.aria, MC_ALGID_ARIA_256BITKEY);
                 break;
             default:
-                WOLFSSL_MSG("Not implemented cipherType");
+                WOLFSSL_MSG("Unimplemented cipherType");
                 return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
         }
         if (ret != 0) {
@@ -8267,9 +8267,9 @@ void wolfSSL_EVP_init(void)
     }
 #endif /* !NO_AES || !NO_DES3 */
 
-    static int IsCipherTypeAEAD(unsigned char cipherType)
+    static int IsCipherTypeAEAD(unsigned int type)
     {
-        switch (cipherType) {
+        switch (type) {
             case WC_AES_128_GCM_TYPE:
             case WC_AES_192_GCM_TYPE:
             case WC_AES_256_GCM_TYPE:
