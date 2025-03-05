@@ -33268,6 +33268,7 @@ exit:
 /* ./configure --enable-ecc=nonblock --enable-sp=yes,nonblock CFLAGS="-DWOLFSSL_PUBLIC_MP" */
 #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_HAVE_SP_ECC) && \
     defined(WOLFSSL_PUBLIC_MP)
+#ifndef NO_ECC256
 /* ECC Private Key "d" */
 static const byte p256PrivKey[] = {
     /* SECP256R1 */
@@ -33277,6 +33278,7 @@ static const byte p256PrivKey[] = {
     0x15, 0xdb, 0x4c, 0x43, 0xcd, 0xfa, 0xe5, 0x1f,
     0x3d, 0x4c, 0x37, 0xfe, 0x59, 0x3b, 0x96, 0xd8
 };
+#endif
 #ifdef HAVE_ECC384
 static const byte p384PrivKey[] = {
     /* SECP384R1 */
@@ -33306,6 +33308,7 @@ static const byte p521PrivKey[] = {
 #endif /* HAVE_ECC521 */
 
 /* ECC public key Qx/Qy */
+#ifndef NO_ECC256
 static const byte p256PubKey[] = {
     /* SECP256R1 */
     /* Qx */
@@ -33319,6 +33322,7 @@ static const byte p256PubKey[] = {
     0x43, 0x24, 0xe6, 0x82, 0x00, 0x40, 0xc6, 0xdb,
     0x1c, 0x2f, 0xcd, 0x38, 0x4b, 0x60, 0xdd, 0x61
 };
+#endif
 #ifdef HAVE_ECC384
 static const byte p384PubKey[] = {
     /* SECP384R1 */
@@ -33362,6 +33366,9 @@ static const byte p521PubKey[] = {
     0x40, 0x5c, 0x4f, 0xd6, 0x13, 0x73, 0x42, 0xbc,
     0x91, 0xd9
 };
+#endif
+
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
 
 /* perform verify of signature and hash using public key */
 /* key is public Qx + public Qy */
@@ -33698,12 +33705,14 @@ static wc_test_ret_t ecc_test_nonblock(WC_RNG* rng)
     const byte* pubKeys[3] = {NULL, NULL, NULL};
     word32 pubKeySzs[3] = {0, 0, 0};
 
+#ifndef NO_ECC256
     curveIds[0] = ECC_SECP256R1;
     curveSzs[0] = 32;
     privKeys[0] = p256PrivKey;
     privKeySzs[0] = sizeof(p256PrivKey);
     pubKeys[0] = p256PubKey;
     pubKeySzs[0] = sizeof(p256PubKey);
+#endif
 #ifdef HAVE_ECC384
     curveIds[1] = ECC_SECP384R1;
     curveSzs[1] = 48;
