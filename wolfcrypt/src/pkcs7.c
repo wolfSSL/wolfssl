@@ -10031,14 +10031,14 @@ int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 
         /* resize encrypted content buffer */
         if (encryptedContent != NULL) {
-        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        encryptedContent = (byte*)XMALLOC(streamSz, pkcs7->heap,
-                                          DYNAMIC_TYPE_PKCS7);
-        if (encryptedContent == NULL) {
-            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-            return MEMORY_E;
-        }
+            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            encryptedContent = (byte*)XMALLOC(streamSz, pkcs7->heap,
+                                              DYNAMIC_TYPE_PKCS7);
+            if (encryptedContent == NULL) {
+                XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+                return MEMORY_E;
+            }
         }
     }
 #endif
@@ -12674,7 +12674,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                  * ending tag is found */
 
                 while (1) {
-                    if (pkiMsgSz <= localIdx) {
+                    encryptedContentSz = 0;
+                    if (pkiMsgSz <= localIdx + MAX_OCTET_STR_SZ) {
                         /* ran out of data to parse */
                         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
@@ -12686,13 +12687,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
                     localIdx = idx;
                     if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) < 0) {
-                        if (localIdx >= pkiMsgSz) {
-                            /* ran out of data to parse */
-                            ret = WC_PKCS7_WANT_READ_E;
-                        }
-                        else {
-                            ret = ASN_PARSE_E;
-                        }
+                        ret = ASN_PARSE_E;
                     }
 
                     if (ret == 0 && (tag != ASN_OCTET_STRING)) {
@@ -12701,17 +12696,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
 
                     if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
                                 &encryptedContentSz, pkiMsgSz, 0) <= 0) {
-                        if (localIdx + MAX_LENGTH_SZ >= pkiMsgSz) {
-                            /* ran out of data to parse */
-                            ret = WC_PKCS7_WANT_READ_E;
-                        }
-                        else {
-                            ret = ASN_PARSE_E;
-                        }
+                        ret = ASN_PARSE_E;
                     }
+
                     if (ret == 0) {
+                        /* always try to get 2 extra bytes to catch indef ending */
                         pkcs7->stream->expected = encryptedContentSz +
-                            (localIdx - idx);
+                            (localIdx - idx) + ASN_INDEF_END_SZ;
                     }
 
                     if (ret == 0 &&
@@ -12733,13 +12724,14 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     /* sanity check that the buffer has all of the data */
                     if (ret == 0 && (localIdx + encryptedContentSz) >
                             pkiMsgSz) {
-                        ret = WC_PKCS7_WANT_READ_E;
-
+                        word32 ofsetIdx = localIdx - idx;
                         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &localIdx))
                                 != 0) {
                             return ret;
                         }
+                        localIdx += ofsetIdx;
+                        pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
                     }
 
                     /* Use callback for decryption still, if set */
@@ -12767,7 +12759,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     /* advance idx past encrypted content */
                     localIdx += (word32)encryptedContentSz;
 
-                    if (localIdx + ASN_INDEF_END_SZ < pkiMsgSz) {
+                    if (localIdx + ASN_INDEF_END_SZ <= pkiMsgSz) {
                         if (pkiMsg[localIdx] == ASN_EOC &&
                                 pkiMsg[localIdx+1] == ASN_EOC) {
                             /* found the end of encrypted content */
