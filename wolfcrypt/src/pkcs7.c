@@ -12832,11 +12832,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (pkcs7->streamOutCb) {
                 ret = pkcs7->streamOutCb(pkcs7, encryptedContent,
                                 encryptedContentSz - padLen, pkcs7->streamCtx);
+                if (ret != 0) {
+                    WOLFSSL_MSG("Stream out callback returned failure");
+                    ret = BUFFER_E;
+                    break;
+                }
             }
             else
         #endif /* ASN_BER_TO_DER */
             {
-                if ((word32)(encryptedContentSz - padLen) > outputSz) {
+                if (output == NULL || (word32)(encryptedContentSz - padLen) >
+                        outputSz) {
                     ret = BUFFER_E;
                     break;
                 }
@@ -13813,7 +13819,6 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret == 0 && GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) == 0 &&
                     tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
                 encodedAttribIdx = idx;
-                encodedAttribs = pkiMsg + idx;
                 idx++;
 
                 if (GetLength_ex(pkiMsg, &idx, &length, pkiMsgSz, 0) <= 0) {
