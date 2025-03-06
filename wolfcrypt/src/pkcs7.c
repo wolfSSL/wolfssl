@@ -12676,6 +12676,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 while (1) {
                     encryptedContentSz = 0;
                     if (pkiMsgSz <= localIdx + MAX_OCTET_STR_SZ) {
+                    #ifndef NO_PKCS7_STREAM
                         /* ran out of data to parse */
                         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
@@ -12683,6 +12684,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         }
                         pkiMsgSz = (pkcs7->stream->length > 0) ?
                             pkcs7->stream->length : inSz;
+                    #else
+                        ret = BUFFER_E;
+                    #endif
                     }
 
                     localIdx = idx;
@@ -12698,12 +12702,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                 &encryptedContentSz, pkiMsgSz, 0) <= 0) {
                         ret = ASN_PARSE_E;
                     }
-
+                #ifndef NO_PKCS7_STREAM
                     if (ret == 0) {
                         /* always try to get 2 extra bytes to catch indef ending */
                         pkcs7->stream->expected = encryptedContentSz +
                             (localIdx - idx) + ASN_INDEF_END_SZ;
                     }
+                #endif
 
                     if (ret == 0 &&
                          pkcs7->cachedEncryptedContentSz <
@@ -12724,6 +12729,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     /* sanity check that the buffer has all of the data */
                     if (ret == 0 && (localIdx + encryptedContentSz) >
                             pkiMsgSz) {
+                    #ifndef NO_PKCS7_STREAM
                         word32 ofsetIdx = localIdx - idx;
                         if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &localIdx))
@@ -12732,6 +12738,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         }
                         localIdx += ofsetIdx;
                         pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+                    #else
+                        ret = BUFFER_E;
+                    #endif
                     }
 
                     /* Use callback for decryption still, if set */
@@ -12749,12 +12758,14 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             pkcs7->cachedEncryptedContent);
                     }
 
+                #ifndef NO_PKCS7_STREAM
                     if (ret != 0) {
                         if (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
                             wc_PKCS7_StreamEndCase(pkcs7, &localIdx, &idx);
                         }
                         break;
                     }
+                #endif
 
                     /* advance idx past encrypted content */
                     localIdx += (word32)encryptedContentSz;
@@ -12767,12 +12778,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             break;
                         }
                     }
-
+                #ifndef NO_PKCS7_STREAM
                     pkcs7->stream->expected = MAX_OCTET_STR_SZ;
                     if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx,
                             &localIdx)) != 0) {
                         break;
                     }
+                #endif
 
                     /* save last decrypted string to handle padding (this output
                      * flush happens outside of the while loop in the case that
@@ -13592,6 +13604,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
+        #ifndef NO_PKCS7_STREAM
             /* check that the expected size was accurate */
             if (ret == 0) {
                 if (length > (int)pkcs7->stream->expected && length >
@@ -13603,6 +13616,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     }
                 }
             }
+        #endif
 
             if (ret == 0 && wc_GetContentType(pkiMsg, &idx, &contentType,
                         pkiMsgSz) < 0) {
@@ -13832,24 +13846,19 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 if (ret != 0)
                     break;
 
-            #ifndef NO_PKCS7_STREAM
                 if (encodedAttribSz > 0) {
-                    pkcs7->stream->aadSz = encodedAttribSz;
-                    pkcs7->stream->aad = (byte*)XMALLOC(encodedAttribSz,
+                    encodedAttribs = (byte*)XMALLOC(encodedAttribSz,
                             pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    if (pkcs7->stream->aad == NULL) {
+                    if (encodedAttribs == NULL) {
                         ret = MEMORY_E;
                         break;
                     }
-                    else {
-                        /* From RFC5083, "For the purpose of constructing the
-                         * AAD, the IMPLICIT [1] tag in the authAttrs field is
-                         * not used for the DER encoding: rather a universal SET
-                         * OF tag is used. */
-                        (void)SetSet(length, pkcs7->stream->aad);
-                        /* ignoring the size returned, we know it is
-                         * idx - encodedAttribIdx from parsing what's given */
-                    }
+                }
+
+            #ifndef NO_PKCS7_STREAM
+                if (encodedAttribSz > 0) {
+                    pkcs7->stream->aadSz = encodedAttribSz;
+                    pkcs7->stream->aad   = encodedAttribs;
                 }
 
                 if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
@@ -13884,6 +13893,21 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             /* save pointer and length */
             authAttrib = &pkiMsg[idx];
             authAttribSz = length;
+
+            {
+                int ofst;
+
+                /* From RFC5083, "For the purpose of constructing the
+                * AAD, the IMPLICIT [1] tag in the authAttrs field is
+                * not used for the DER encoding: rather a universal SET
+                * OF tag is used. */
+                ofst = SetSet(length, encodedAttribs);
+
+                XMEMCPY(encodedAttribs + ofst, authAttrib, authAttribSz);
+            }
+
+            /* ignoring the size returned, we know it is
+                * idx - encodedAttribIdx from parsing what's given */
 
             if (ret == 0 && wc_PKCS7_ParseAttribs(pkcs7, authAttrib,
                     authAttribSz) < 0) {
@@ -13936,7 +13960,8 @@ authenv_atrbend:
                 ret = ASN_PARSE_E;
             }
 
-            /* there might not be enough data for the auth tag too, check here */
+        #ifndef NO_PKCS7_STREAM
+            /* there might not be enough data for the auth tag too */
             if (ret == 0) {
                 if ((authTagSz + (localIdx - idx)) > pkcs7->stream->expected &&
                     (authTagSz + (localIdx - idx)) > pkiMsgSz) {
@@ -13947,6 +13972,7 @@ authenv_atrbend:
                         }
                 }
             }
+        #endif
             idx = localIdx;
 
             if (ret == 0 && authTagSz > (int)sizeof(authTag)) {
@@ -14055,6 +14081,14 @@ authenv_atrbend:
                 encodedAttribs[0] = authAttribSetByte;
             }
 
+            if (encodedAttribs != NULL) {
+                XFREE(encodedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                encodedAttribs = NULL;
+            #ifndef NO_PKCS7_STREAM
+                pkcs7->stream->aad = NULL;
+            #endif
+            }
+
             /* copy plaintext to output */
             XMEMCPY(output, encryptedContent, (word32)encryptedContentSz);
 
@@ -14095,6 +14129,14 @@ authenv_atrbend:
             encryptedContent = NULL;
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->bufferPt = NULL;
+        #endif
+        }
+
+        if (encodedAttribs != NULL) {
+            XFREE(encodedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            encodedAttribs = NULL;
+        #ifndef NO_PKCS7_STREAM
+            pkcs7->stream->aad = NULL;
         #endif
         }
     }
