@@ -13,7 +13,7 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
-  make_check:
+  build_library:
     strategy:
       matrix:
         config: [
@@ -22,8 +22,7 @@ jobs:
           '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
           '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
           '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion" --enable-32bit CFLAGS=-m32'
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"'
         ]
     name: build library
     if: github.repository_owner == 'wolfssl'
@@ -37,5 +36,6 @@ jobs:
       - name: Build wolfCrypt with extra type conversion warnings
         run: |
           ./autogen.sh || $(exit 2)
+          echo "running ./configure ${{ matrix.config }}"
           ./configure ${{ matrix.config }} || $(exit 3)
           make -j 4 || $(exit 4)
