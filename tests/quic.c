@@ -1337,12 +1337,15 @@ static int select_ALPN(WOLFSSL *ssl,
 
 static int test_quic_alpn(int verbose) {
     EXPECT_DECLS;
-    WOLFSSL_CTX * ctx_c = NULL;
-    WOLFSSL_CTX * ctx_s = NULL;
-    QuicTestContext tclient, tserver;
-    QuicConversation conv;
+    WOLFSSL_CTX *        ctx_c = NULL;
+    WOLFSSL_CTX *        ctx_s = NULL;
+    QuicTestContext      tclient, tserver;
+    QuicConversation     conv;
     struct stripe_buffer stripe;
-    unsigned char alpn_protos[256];
+    unsigned char        alpn_protos[256];
+
+    XMEMSET(&stripe, 0, sizeof(stripe));
+    XMEMSET(alpn_protos, 0, sizeof(alpn_protos));
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
@@ -1392,9 +1395,9 @@ static int test_quic_alpn(int verbose) {
 
 static int test_quic_key_share(int verbose) {
     EXPECT_DECLS;
-    WOLFSSL_CTX * ctx_c = NULL;
-    WOLFSSL_CTX * ctx_s = NULL;
-    QuicTestContext tclient, tserver;
+    WOLFSSL_CTX *    ctx_c = NULL;
+    WOLFSSL_CTX *    ctx_s = NULL;
+    QuicTestContext  tclient, tserver;
     QuicConversation conv;
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
@@ -1469,13 +1472,16 @@ static int test_quic_key_share(int verbose) {
 
 static int test_quic_resumption(int verbose) {
     EXPECT_DECLS;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL_SESSION *session, *session_restored;
-    QuicTestContext tclient, tserver;
-    QuicConversation conv;
-    unsigned char session_buffer[16 * 1024], *session_data;
-    const unsigned char *session_data2;
-    unsigned int session_size;
+    WOLFSSL_CTX *         ctx_c = NULL;
+    WOLFSSL_CTX *         ctx_s = NULL;
+    WOLFSSL_SESSION *     session = NULL;
+    WOLFSSL_SESSION *     session_restored = NULL;
+    QuicTestContext       tclient, tserver;
+    QuicConversation      conv;
+    unsigned char         session_buffer[16 * 1024];
+    unsigned char *       session_data = NULL;
+    const unsigned char * session_data2 = NULL;
+    unsigned int          session_size = 0;
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
@@ -1536,7 +1542,7 @@ static int test_quic_resumption(int verbose) {
 
     {
         /* Do a Session resumption with a new server ctx */
-        WOLFSSL_CTX *ctx_s2;
+        WOLFSSL_CTX * ctx_s2 = NULL;
         ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
         ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s2, eccCertFile, WOLFSSL_FILETYPE_PEM));
         ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, eccKeyFile, WOLFSSL_FILETYPE_PEM));
@@ -1566,14 +1572,14 @@ static int test_quic_resumption(int verbose) {
 #ifdef WOLFSSL_EARLY_DATA
 static int test_quic_early_data(int verbose) {
     EXPECT_DECLS;
-    WOLFSSL_CTX * ctx_c = NULL; 
-    WOLFSSL_CTX * ctx_s = NULL;
-    QuicTestContext tclient, tserver;
-    QuicConversation conv;
-    const byte early_data[] = "Nulla dies sine linea!";
-    size_t ed_written = 0;
+    WOLFSSL_CTX *     ctx_c = NULL;
+    WOLFSSL_CTX *     ctx_s = NULL;
+    QuicTestContext   tclient, tserver;
+    QuicConversation  conv;
+    const byte        early_data[] = "Nulla dies sine linea!";
+    size_t            ed_written = 0;
     WOLFSSL_SESSION * session = NULL;
-    unsigned int max_early_sz = 0;
+    unsigned int      max_early_sz = 0;
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     wolfSSL_CTX_UseSessionTicket(ctx_c);
@@ -1650,10 +1656,10 @@ static int test_quic_early_data(int verbose) {
 
 static int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session)
 {
-    QuicTestContext *ctx = (QuicTestContext*)wolfSSL_get_app_data(ssl);
-    byte *data;
-    int ret = 0;
-    int sz;
+    QuicTestContext * ctx = (QuicTestContext*)wolfSSL_get_app_data(ssl);
+    byte * data = NULL;
+    int    ret = 0;
+    int    sz = 0;
 
     AssertNotNull(ctx);
 
@@ -1678,13 +1684,14 @@ static int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session)
 static int test_quic_session_export(int verbose)
 {
     EXPECT_DECLS;
-    WOLFSSL_CTX *ctx_c, *ctx_s;
-    WOLFSSL_SESSION *session = NULL;
-    QuicTestContext tclient, tserver;
-    QuicConversation conv;
-    byte session_data[16*1024];
-    const byte *bp;
-    word32 session_len;
+    WOLFSSL_CTX *     ctx_c = NULL;
+    WOLFSSL_CTX *     ctx_s = NULL;
+    WOLFSSL_SESSION * session = NULL;
+    QuicTestContext   tclient, tserver;
+    QuicConversation  conv;
+    byte              session_data[16*1024];
+    const byte *      bp = NULL;
+    word32            session_len = 0;
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
