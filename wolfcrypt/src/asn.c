@@ -25321,8 +25321,8 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     char header[MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE];
     char footer[MAX_X509_HEADER_SZ];
 #endif
-    int headerLen = MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE;
-    int footerLen = MAX_X509_HEADER_SZ;
+    size_t headerLen = MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE;
+    size_t footerLen = MAX_X509_HEADER_SZ;
     int i;
     int err;
     int outLen;   /* return length or error */
@@ -25349,9 +25349,9 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 #endif
 
     /* build header and footer based on type */
-    XSTRNCPY(header, headerStr, (size_t)headerLen - 1);
+    XSTRNCPY(header, headerStr, headerLen - 1);
     header[headerLen - 2] = 0;
-    XSTRNCPY(footer, footerStr, (size_t)footerLen - 1);
+    XSTRNCPY(footer, footerStr, footerLen - 1);
     footer[footerLen - 2] = 0;
 
     /* add new line to end */
@@ -25359,7 +25359,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     XSTRNCAT(footer, "\n", 2);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    err = wc_EncryptedInfoAppend(header, headerLen, (char*)cipher_info);
+    err = wc_EncryptedInfoAppend(header, (int)headerLen, (char*)cipher_info);
     if (err != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -25369,8 +25369,8 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     }
 #endif
 
-    headerLen = (int)XSTRLEN(header);
-    footerLen = (int)XSTRLEN(footer);
+    headerLen = XSTRLEN(header);
+    footerLen = XSTRLEN(footer);
 
     /* if null output and 0 size passed in then return size needed */
     if (!output && outSz == 0) {
@@ -25384,7 +25384,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
             WOLFSSL_ERROR_VERBOSE(err);
             return err;
         }
-        return headerLen + footerLen + outLen;
+        return (int)headerLen + (int)footerLen + outLen;
     }
 
     if (!der || !output) {
@@ -25406,14 +25406,14 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     /* header */
     XMEMCPY(output, header, (size_t)headerLen);
-    i = headerLen;
+    i = (int)headerLen;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     /* body */
-    outLen = (int)outSz - (headerLen + footerLen);  /* input to Base64_Encode */
+    outLen = (int)outSz - (int)(headerLen + footerLen);  /* input to Base64_Encode */
     if ( (err = Base64_Encode(der, derSz, output + i, (word32*)&outLen)) < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -25424,7 +25424,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     i += outLen;
 
     /* footer */
-    if ( (i + footerLen) > (int)outSz) {
+    if ( (i + (int)footerLen) > (int)outSz) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -25436,7 +25436,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     XFREE(footer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    return outLen + headerLen + footerLen;
+    return outLen + (int)headerLen + (int)footerLen;
 }
 
 #endif /* WOLFSSL_DER_TO_PEM */
@@ -25757,7 +25757,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         }
 
     #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
+        password = (char*)XMALLOC((size_t)passwordSz, heap, DYNAMIC_TYPE_STRING);
         if (password == NULL) {
             return MEMORY_E;
         }
