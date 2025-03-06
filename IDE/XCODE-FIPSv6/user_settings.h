@@ -885,6 +885,7 @@ extern "C" {
     #define OPTEST_LOG_TE_MAPPING
     #define NO_MAIN_OPTEST_DRIVER
     #define NO_MAIN_DRIVER
+    #define NO_MAIN_HARNESS_DRIVER
 
     #define NO_WRITE_TEMP_FILES
 #endif
