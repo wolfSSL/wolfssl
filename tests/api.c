@@ -1033,6 +1033,7 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     XMEMSET(scratchBuf, 0, scratchSz);
     ExpectIntGT(scratchSz = wc_MakeSelfCert(&newCert, scratchBuf, scratchSz,
                 &caKey, &rng), 0);
+
     wc_InitDecodedCert(&preTBS, scratchBuf, scratchSz, 0);
     ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
 

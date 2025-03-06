@@ -13476,8 +13476,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->altNamesNext   = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
+    x509->basicConstCrit = dCert->extBasicConstCrit;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     x509->pathLength = dCert->pathLength;
+    x509->pathLengthSet = dCert->pathLengthSet;
     x509->keyUsage = dCert->extKeyUsage;
 
     x509->CRLdistSet = dCert->extCRLdistSet;
@@ -13531,7 +13533,6 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     #endif
     x509->basicConstSet = dCert->extBasicConstSet;
-    x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->basicConstPlSet = dCert->pathLengthSet;
     x509->subjAltNameSet = dCert->extSubjAltNameSet;
     x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
@@ -13644,6 +13645,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         if (x509->sapkiDer != NULL) {
             XMEMCPY(x509->sapkiDer, dCert->sapkiDer, dCert->sapkiLen);
             x509->sapkiLen = dCert->sapkiLen;
+            x509->sapkiCrit = dCert->extSapkiCrit;
         }
         else {
             ret = MEMORY_E;
@@ -13656,6 +13658,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->altSigAlgDer, dCert->altSigAlgDer,
                     dCert->altSigAlgLen);
             x509->altSigAlgLen = dCert->altSigAlgLen;
+            x509->altSigAlgCrit = dCert->extAltSigAlgCrit;
         }
         else {
             ret = MEMORY_E;
@@ -13668,6 +13671,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->altSigValDer, dCert->altSigValDer,
                     dCert->altSigValLen);
             x509->altSigValLen = dCert->altSigValLen;
+            x509->altSigValCrit = dCert->extAltSigValCrit;
         }
         else {
             ret = MEMORY_E;
