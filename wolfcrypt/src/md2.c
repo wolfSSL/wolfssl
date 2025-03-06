@@ -42,6 +42,9 @@
 
 void wc_InitMd2(wc_Md2* md2)
 {
+    if (md2 == NULL)
+        return;
+
     XMEMSET(md2->X, 0, WC_MD2_X_SIZE);
     XMEMSET(md2->C, 0, WC_MD2_BLOCK_SIZE);
     XMEMSET(md2->buffer, 0, WC_MD2_BLOCK_SIZE);
@@ -72,6 +75,9 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
         166, 119, 114, 248, 235, 117, 75, 10, 49, 68, 80, 180, 143, 237,
         31, 26, 219, 153, 141, 51, 159, 17, 131, 20
     };
+
+    if (md2 == NULL || (data == NULL && len != 0))
+        return;
 
     while (len) {
         word32 L = (WC_MD2_PAD_SIZE - md2->count) < len ?
@@ -117,9 +123,13 @@ void wc_Md2Update(wc_Md2* md2, const byte* data, word32 len)
 void wc_Md2Final(wc_Md2* md2, byte* hash)
 {
     byte   padding[WC_MD2_BLOCK_SIZE];
-    word32 padLen = WC_MD2_PAD_SIZE - md2->count;
+    word32 padLen;
     word32 i;
 
+    if (md2 == NULL || hash == NULL)
+        return;
+
+    padLen = WC_MD2_PAD_SIZE - md2->count;
     for (i = 0; i < padLen; i++)
         padding[i] = (byte)padLen;
 
