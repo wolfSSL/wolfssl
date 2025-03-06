@@ -804,13 +804,14 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      * make the API more POSIX like. */
     XFILE z_fs_open(const char* filename, const char* mode);
     int z_fs_close(XFILE file);
+    int z_fs_rewind(XFILE file);
 
     #define XFOPEN              z_fs_open
     #define XFCLOSE             z_fs_close
     #define XFFLUSH             fs_sync
     #define XFSEEK              fs_seek
     #define XFTELL              fs_tell
-    #define XFREWIND            fs_rewind
+    #define XFREWIND            z_fs_rewind
     #define XFREAD(P,S,N,F)     fs_read(F, P, S*N)
     #define XFWRITE(P,S,N,F)    fs_write(F, P, S*N)
     #define XSEEK_SET           FS_SEEK_SET
