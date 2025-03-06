@@ -245,7 +245,7 @@ int unit_test(int argc, char** argv)
     #endif /* WOLFSSL_W64_WRAPPER */
 
     #ifdef WOLFSSL_QUIC
-        if ((ret = QuicTest()) != 0) {
+        if ((ret = QuicTest()) != TEST_SUCCESS) {
             printf("quic test failed with %d\n", ret);
             goto exit;
         }
