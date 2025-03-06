@@ -84,6 +84,7 @@ jobs:
         os: [ ubuntu-22.04, macos-latest ]
         user-settings: [
           # Add new user_settings.h here
+          'examples/configs/user_settings_eccnonblock.h',
           'examples/configs/user_settings_min_ecc.h',
           'examples/configs/user_settings_wolfboot_keytools.h',
           'examples/configs/user_settings_wolftpm.h',
