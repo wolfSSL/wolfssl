@@ -8242,7 +8242,7 @@ done:
     if (!sharedCtx)
         wolfSSL_CTX_free(ctx);
 
-    if (clientfd >= 0)
+    if (clientfd != SOCKET_INVALID)
         CloseSocket(clientfd);
 
 #ifdef WOLFSSL_TIRTOS
@@ -52614,7 +52614,7 @@ static int test_wolfSSL_BIO(void)
         ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         ExpectIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
 
-        ExpectTrue((f1 = XFOPEN(svrCertFile, "rwb")) != XBADFILE);
+        ExpectTrue((f1 = XFOPEN(svrCertFile, "rb+")) != XBADFILE);
         ExpectIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), WOLFSSL_SUCCESS);
         ExpectIntEQ(BIO_write_filename(f_bio2, testFile),
                 WOLFSSL_SUCCESS);
@@ -52638,7 +52638,7 @@ static int test_wolfSSL_BIO(void)
         BIO_free(f_bio2);
         f_bio2 = NULL;
 
-        ExpectNotNull(f_bio1 = BIO_new_file(svrCertFile, "rwb"));
+        ExpectNotNull(f_bio1 = BIO_new_file(svrCertFile, "rb+"));
         ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         ExpectIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
         BIO_free(f_bio1);
@@ -55290,7 +55290,7 @@ static int test_wc_ERR_print_errors_fp(void)
     XFILE fp = XBADFILE;
 
     WOLFSSL_ERROR(WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectTrue((fp = XFOPEN("./tests/test-log-dump-to-file.txt", "ar")) !=
+    ExpectTrue((fp = XFOPEN("./tests/test-log-dump-to-file.txt", "a+")) !=
         XBADFILE);
     wc_ERR_print_errors_fp(fp);
 #if defined(DEBUG_WOLFSSL)
@@ -85971,7 +85971,8 @@ static int test_dtls_msg_from_other_peer(void)
         *  !defined(SINGLE_THREADED) && !defined(NO_RSA) */
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_IPV6) &&               \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && !defined(USE_WINDOWS_API)
 static int test_dtls_ipv6_check(void)
 {
     EXPECT_DECLS;
