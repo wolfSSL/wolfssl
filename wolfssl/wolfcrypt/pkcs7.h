@@ -243,6 +243,7 @@ typedef int (*CallbackRsaSignRawDigest)(wc_PKCS7* pkcs7, byte* digest,
                                    int devId, int hashOID);
 #endif
 
+
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility!
  */
@@ -258,6 +259,7 @@ struct wc_PKCS7 {
 #ifdef ASN_BER_TO_DER
     byte*  der;                   /* DER encoded version of message       */
     word32 derSz;
+    byte   indefDepth;
     CallbackGetContent getContentCb;
     CallbackStreamOut  streamOutCb;
     void*  streamCtx; /* passed to getcontentCb and streamOutCb */
@@ -371,6 +373,19 @@ struct wc_PKCS7 {
      * creating PKCS7 bundles*/
     byte* customSKID;
     word16 customSKIDSz;
+
+
+#if !defined(NO_DES3) || !defined(NO_AES)
+    union {
+    #ifndef NO_AES
+        Aes* aes;
+    #endif
+    #ifndef NO_DES3
+        Des*  des;
+        Des3* des3;
+    #endif
+    } decryptKey;
+#endif
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };

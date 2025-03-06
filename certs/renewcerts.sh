@@ -858,6 +858,11 @@ run_renewcerts(){
     openssl smime -sign -in ./ca-cert.pem -out test-stream-sign.p7b -signer ./ca-cert.pem -nodetach -nocerts -binary -outform DER -stream -inkey ./ca-key.pem
     check_result $? ""
 
+    echo "Creating test-stream-dec.p7b..."
+    echo ""
+    openssl cms -encrypt -in ca-cert.pem -recip client-cert.pem -out test-stream-dec.p7b -outform DER -stream
+    check_result $? ""
+
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
