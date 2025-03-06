@@ -89,9 +89,6 @@ static int disable_setkey_warnings = 0;
 #if defined(HAVE_AES_CBC) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
-#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
-    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
-#endif
 static int  linuxkm_test_aescbc(void);
 #endif
 #if defined(WOLFSSL_AES_CFB) && \
@@ -214,7 +211,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
     if (unlikely(err)) {
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetKey for encryption key failed: %d\n", name, err);
-        return -ENOKEY;
+        return -EINVAL;
     }
 
     if (ctx->aes_decrypt) {
@@ -225,7 +222,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
             if (! disable_setkey_warnings)
                 pr_err("%s: wc_AesSetKey for decryption key failed: %d\n",
                        name, err);
-            return -ENOKEY;
+            return -EINVAL;
         }
     }
 
@@ -278,37 +275,33 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     err = skcipher_walk_virt(&walk, req, false);
 
     if (unlikely(err)) {
-        pr_err("%s: skcipher_walk_virt failed: %d\n",
-               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
         return err;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
+    err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
 
-        if (unlikely(err)) {
-            pr_err("%s: wc_AesSetIV failed: %d\n",
-                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
-        }
-
-        err = wc_AesCbcEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes);
-
-        if (unlikely(err)) {
-            pr_err("%s: wc_AesCbcEncrypt failed: %d\n",
-                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
-        }
-
-        err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-
-        if (unlikely(err)) {
-            pr_err("%s: skcipher_walk_done failed: %d\n",
-                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
-        }
+    if (unlikely(err)) {
+        pr_err("%s: wc_AesSetIV failed: %d\n",
+               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+        return -EINVAL;
     }
+
+    while ((nbytes = walk.nbytes) != 0) {
+        err = wc_AesCbcEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
+                               walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
+
+        if (unlikely(err)) {
+            pr_err("%s: wc_AesCbcEncrypt failed for %u bytes: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
+            return -EINVAL;
+        }
+
+        nbytes &= WC_AES_BLOCK_SIZE - 1;
+        err = skcipher_walk_done(&walk, nbytes);
+    }
+
+    /* copy iv from wolfCrypt back to walk.iv */
+    XMEMCPY(walk.iv, ctx->aes_encrypt->reg, WC_AES_BLOCK_SIZE);
 
     return err;
 }
@@ -327,38 +320,34 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
     err = skcipher_walk_virt(&walk, req, false);
 
     if (unlikely(err)) {
-        pr_err("%s: skcipher_walk_virt failed: %d\n",
-               crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
         return err;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesSetIV(ctx->aes_decrypt, walk.iv);
+    err = wc_AesSetIV(ctx->aes_decrypt, walk.iv);
 
-        if (unlikely(err)) {
-            if (! disable_setkey_warnings)
-                pr_err("%s: wc_AesSetKey failed: %d\n",
-                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
-        }
-
-        err = wc_AesCbcDecrypt(ctx->aes_decrypt, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes);
-
-        if (unlikely(err)) {
-            pr_err("%s: wc_AesCbcDecrypt failed: %d\n",
+    if (unlikely(err)) {
+        if (! disable_setkey_warnings)
+            pr_err("%s: wc_AesSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
-        }
-
-        err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
-
-        if (unlikely(err)) {
-            pr_err("%s: skcipher_walk_done failed: %d\n",
-                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
-        }
+        return -EINVAL;
     }
+
+    while ((nbytes = walk.nbytes) != 0) {
+        err = wc_AesCbcDecrypt(ctx->aes_decrypt, walk.dst.virt.addr,
+                               walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
+
+        if (unlikely(err)) {
+            pr_err("%s: wc_AesCbcDecrypt failed for %u bytes: %d\n",
+                   crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
+            return -EINVAL;
+        }
+
+        nbytes &= WC_AES_BLOCK_SIZE - 1;
+        err = skcipher_walk_done(&walk, nbytes);
+    }
+
+    /* copy iv from wolfCrypt back to walk.iv */
+    XMEMCPY(walk.iv, ctx->aes_decrypt->reg, WC_AES_BLOCK_SIZE);
 
     return err;
 }
@@ -556,7 +545,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesGcmSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -ENOKEY;
+        return -EINVAL;
     }
 
     return 0;

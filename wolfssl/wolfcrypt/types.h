@@ -327,12 +327,15 @@ decouple library dependencies with standard string, memory and so on.
 
     #if defined(NO_64BIT)
           typedef word32 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 2
           #undef WORD64_AVAILABLE
     #else
         #ifdef WC_64BIT_CPU
           typedef word64 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 3
         #else
           typedef word32 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 2
           #ifdef WORD64_AVAILABLE
               #define WOLFCRYPT_SLOW_WORD64
           #endif
@@ -344,12 +347,14 @@ decouple library dependencies with standard string, memory and so on.
         #undef WORD64_AVAILABLE
     #endif
         typedef word16 wolfssl_word;
+        #define WOLFSSL_WORD_SIZE_LOG2 1
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                            * mp_digit, no 64 bit type so make mp_digit 16 bit */
 
 #else
         #undef WORD64_AVAILABLE
         typedef word32 wolfssl_word;
+        #define WOLFSSL_WORD_SIZE_LOG2 2
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                            * mp_digit, no 64 bit type so make mp_digit 16 bit */
 #endif
