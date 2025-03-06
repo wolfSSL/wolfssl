@@ -12372,7 +12372,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte padLen;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
-    word32 localIdx;
+    word32 localIdx = 0;
     byte   tag = 0;
 
     if (pkcs7 == NULL)
