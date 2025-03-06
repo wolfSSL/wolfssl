@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha512.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha512-asm.c
+ *   ruby ./sha2/sha512.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha512-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -101,7 +102,9 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
     register wc_Sha512* sha512 __asm__ ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data __asm__ ("r1") = (const byte*)data_p;
     register word32 len __asm__ ("r2") = (word32)len_p;
-    register word64* L_SHA512_transform_len_k_c __asm__ ("r3") = (word64*)&L_SHA512_transform_len_k;
+    register word64* L_SHA512_transform_len_k_c __asm__ ("r3") =
+        (word64*)&L_SHA512_transform_len_k;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3575,16 +3578,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 #endif
         "EOR	r0, r0, r0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len),
           [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
-#else
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_transform_len_k] "r" (L_SHA512_transform_len_k)
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12"
     );
 }
 

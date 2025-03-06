@@ -264,7 +264,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\ext_kyber.c"
+				RelativePath=".\wolfcrypt\src\ext_mlkem.c"
 				>
 			</File>
 			<File
@@ -300,11 +300,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\wc_kyber.c"
+				RelativePath=".\wolfcrypt\src\wc_mlkem.c"
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\wc_kyber_poly.c"
+				RelativePath=".\wolfcrypt\src\wc_mlkem_poly.c"
 				>
 			</File>
 			<File

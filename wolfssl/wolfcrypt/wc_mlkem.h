@@ -30,38 +30,48 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha3.h>
-#include <wolfssl/wolfcrypt/kyber.h>
+#include <wolfssl/wolfcrypt/mlkem.h>
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
+
+#ifdef WOLFSSL_KYBER_NO_MAKE_KEY
+    #define WOLFSSL_MLKEM_NO_MAKE_KEY
+#endif
+#ifdef WOLFSSL_KYBER_NO_ENCAPSULATE
+    #define WOLFSSL_MLKEM_NO_ENCAPSULATE
+#endif
+#ifdef WOLFSSL_KYBER_NO_DECAPSULATE
+    #define WOLFSSL_MLKEM_NO_DECAPSULATE
+#endif
 
 #ifdef noinline
-    #define KYBER_NOINLINE noinline
+    #define MLKEM_NOINLINE noinline
 #elif defined(_MSC_VER)
-    #define KYBER_NOINLINE __declspec(noinline)
+    #define MLKEM_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__)
-    #define KYBER_NOINLINE __attribute__((noinline))
+    #define MLKEM_NOINLINE __attribute__((noinline))
 #else
-    #define KYBER_NOINLINE
+    #define MLKEM_NOINLINE
 #endif
 
 enum {
     /* Flags of Kyber keys. */
-    KYBER_FLAG_PRIV_SET = 0x0001,
-    KYBER_FLAG_PUB_SET  = 0x0002,
-    KYBER_FLAG_BOTH_SET = 0x0003,
-    KYBER_FLAG_H_SET    = 0x0004,
-    KYBER_FLAG_A_SET    = 0x0008,
+    MLKEM_FLAG_PRIV_SET = 0x0001,
+    MLKEM_FLAG_PUB_SET  = 0x0002,
+    MLKEM_FLAG_BOTH_SET = 0x0003,
+    MLKEM_FLAG_H_SET    = 0x0004,
+    MLKEM_FLAG_A_SET    = 0x0008,
 
     /* 2 bits of random used to create noise value. */
-    KYBER_CBD_ETA2          = 2,
+    MLKEM_CBD_ETA2      = 2,
     /* 3 bits of random used to create noise value. */
-    KYBER_CBD_ETA3          = 3,
+    MLKEM_CBD_ETA3      = 3,
 
     /* Number of bits to compress to. */
-    KYBER_COMP_4BITS    =  4,
-    KYBER_COMP_5BITS    =  5,
-    KYBER_COMP_10BITS   = 10,
-    KYBER_COMP_11BITS   = 11,
+    MLKEM_COMP_4BITS    =  4,
+    MLKEM_COMP_5BITS    =  5,
+    MLKEM_COMP_10BITS   = 10,
+    MLKEM_COMP_11BITS   = 11,
 };
 
 
@@ -69,38 +79,38 @@ enum {
 #define XOF_BLOCK_SIZE      168
 
 /* Modulus of co-efficients of polynomial. */
-#define KYBER_Q             3329
+#define MLKEM_Q             3329
 
 
 /* Kyber-512 parameters */
-#ifdef WOLFSSL_KYBER512
+#ifdef WOLFSSL_WC_ML_KEM_512
 /* Number of bits of random to create noise from. */
-#define KYBER512_ETA1       KYBER_CBD_ETA3
-#endif /* WOLFSSL_KYBER512 */
+#define WC_ML_KEM_512_ETA1       MLKEM_CBD_ETA3
+#endif /* WOLFSSL_WC_ML_KEM_512 */
 
 /* Kyber-768 parameters */
-#ifdef WOLFSSL_KYBER768
+#ifdef WOLFSSL_WC_ML_KEM_768
 /* Number of bits of random to create noise from. */
-#define KYBER768_ETA1       KYBER_CBD_ETA2
-#endif /* WOLFSSL_KYBER768 */
+#define WC_ML_KEM_768_ETA1       MLKEM_CBD_ETA2
+#endif /* WOLFSSL_WC_ML_KEM_768 */
 
 /* Kyber-1024 parameters */
-#ifdef WOLFSSL_KYBER1024
+#ifdef WOLFSSL_WC_ML_KEM_1024
 /* Number of bits of random to create noise from. */
-#define KYBER1024_ETA1      KYBER_CBD_ETA2
+#define WC_ML_KEM_1024_ETA1      MLKEM_CBD_ETA2
 #endif /* WOLFSSL_KYBER1024 */
 
 
 
 /* The data type of the hash function. */
-#define KYBER_HASH_T    wc_Sha3
+#define MLKEM_HASH_T    wc_Sha3
 
 /* The data type of the pseudo-random function. */
-#define KYBER_PRF_T     wc_Shake
+#define MLKEM_PRF_T     wc_Shake
 
 /* ML-KEM key. */
 struct MlKemKey {
-    /* Type of key: KYBER512, KYBER768, KYBER1024 */
+    /* Type of key: WC_ML_KEM_512, WC_ML_KEM_768, WC_ML_KEM_1024 */
     int type;
     /* Dynamic memory allocation hint. */
     void* heap;
@@ -112,23 +122,23 @@ struct MlKemKey {
     int flags;
 
     /* A pseudo-random function object. */
-    KYBER_HASH_T hash;
+    MLKEM_HASH_T hash;
     /* A pseudo-random function object. */
-    KYBER_PRF_T prf;
+    MLKEM_PRF_T prf;
 
     /* Private key as a vector. */
-    sword16 priv[KYBER_MAX_K * KYBER_N];
+    sword16 priv[WC_ML_KEM_MAX_K * MLKEM_N];
     /* Public key as a vector. */
-    sword16 pub[KYBER_MAX_K * KYBER_N];
+    sword16 pub[WC_ML_KEM_MAX_K * MLKEM_N];
     /* Public seed. */
-    byte pubSeed[KYBER_SYM_SZ];
+    byte pubSeed[WC_ML_KEM_SYM_SZ];
     /* Public hash - hash of encoded public key. */
-    byte h[KYBER_SYM_SZ];
+    byte h[WC_ML_KEM_SYM_SZ];
     /* Randomizer for decapsulation. */
-    byte z[KYBER_SYM_SZ];
+    byte z[WC_ML_KEM_SYM_SZ];
 #ifdef WOLFSSL_MLKEM_CACHE_A
     /* A matrix from key generation. */
-    sword16 a[KYBER_MAX_K * KYBER_MAX_K * KYBER_N];
+    sword16 a[WC_ML_KEM_MAX_K * WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 };
 
@@ -140,220 +150,218 @@ struct MlKemKey {
 typedef struct MlKemKey KyberKey;
 
 WOLFSSL_LOCAL
-void kyber_init(void);
+void mlkem_init(void);
 
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 WOLFSSL_LOCAL
-void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
+void mlkem_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
 #else
 WOLFSSL_LOCAL
-int kyber_keygen_seeds(sword16* priv, sword16* pub, KYBER_PRF_T* prf,
+int mlkem_keygen_seeds(sword16* priv, sword16* pub, MLKEM_PRF_T* prf,
     sword16* e, int kp, byte* seed, byte* noiseSeed);
 #endif
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
-void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
+void mlkem_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
 #else
 WOLFSSL_LOCAL
-int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* bp,
+int mlkem_encapsulate_seeds(const sword16* pub, MLKEM_PRF_T* prf, sword16* bp,
     sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
     byte* coins);
 #endif
 WOLFSSL_LOCAL
-void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
+void mlkem_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
 
 WOLFSSL_LOCAL
-int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+int mlkem_gen_matrix(MLKEM_PRF_T* prf, sword16* a, int kp, byte* seed,
     int transposed);
 WOLFSSL_LOCAL
-int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1, sword16* vec2,
+int mlkem_get_noise(MLKEM_PRF_T* prf, int kp, sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed);
 
 #if defined(USE_INTEL_SPEEDUP) || \
         (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 WOLFSSL_LOCAL
-int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen);
+int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen);
 #endif
 WOLFSSL_LOCAL
-void kyber_hash_init(KYBER_HASH_T* hash);
+void mlkem_hash_init(MLKEM_HASH_T* hash);
 WOLFSSL_LOCAL
-int kyber_hash_new(KYBER_HASH_T* hash, void* heap, int devId);
+int mlkem_hash_new(MLKEM_HASH_T* hash, void* heap, int devId);
 WOLFSSL_LOCAL
-void kyber_hash_free(KYBER_HASH_T* hash);
+void mlkem_hash_free(MLKEM_HASH_T* hash);
 WOLFSSL_LOCAL
-int kyber_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out);
+int mlkem_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out);
 WOLFSSL_LOCAL
-int kyber_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
+int mlkem_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
     const byte* data2, word32 data2Len, byte* out);
 
 WOLFSSL_LOCAL
-void kyber_prf_init(KYBER_PRF_T* prf);
+void mlkem_prf_init(MLKEM_PRF_T* prf);
 WOLFSSL_LOCAL
-int kyber_prf_new(KYBER_PRF_T* prf, void* heap, int devId);
+int mlkem_prf_new(MLKEM_PRF_T* prf, void* heap, int devId);
 WOLFSSL_LOCAL
-void kyber_prf_free(KYBER_PRF_T* prf);
+void mlkem_prf_free(MLKEM_PRF_T* prf);
 
 WOLFSSL_LOCAL
-int kyber_cmp(const byte* a, const byte* b, int sz);
+int mlkem_cmp(const byte* a, const byte* b, int sz);
 
 WOLFSSL_LOCAL
-void kyber_vec_compress_10(byte* r, sword16* v, unsigned int kp);
+void mlkem_vec_compress_10(byte* r, sword16* v, unsigned int kp);
 WOLFSSL_LOCAL
-void kyber_vec_compress_11(byte* r, sword16* v);
+void mlkem_vec_compress_11(byte* r, sword16* v);
 WOLFSSL_LOCAL
-void kyber_vec_decompress_10(sword16* v, const unsigned char* b,
+void mlkem_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp);
 WOLFSSL_LOCAL
-void kyber_vec_decompress_11(sword16* v, const unsigned char* b);
+void mlkem_vec_decompress_11(sword16* v, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void kyber_compress_4(byte* b, sword16* p);
+void mlkem_compress_4(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void kyber_compress_5(byte* b, sword16* p);
+void mlkem_compress_5(byte* b, sword16* p);
 WOLFSSL_LOCAL
-void kyber_decompress_4(sword16* p, const unsigned char* b);
+void mlkem_decompress_4(sword16* p, const unsigned char* b);
 WOLFSSL_LOCAL
-void kyber_decompress_5(sword16* p, const unsigned char* b);
+void mlkem_decompress_5(sword16* p, const unsigned char* b);
 
 WOLFSSL_LOCAL
-void kyber_from_msg(sword16* p, const byte* msg);
+void mlkem_from_msg(sword16* p, const byte* msg);
 WOLFSSL_LOCAL
-void kyber_to_msg(byte* msg, sword16* p);
+void mlkem_to_msg(byte* msg, sword16* p);
 WOLFSSL_LOCAL
-void kyber_from_bytes(sword16* p, const byte* b, int k);
+void mlkem_from_bytes(sword16* p, const byte* b, int k);
 WOLFSSL_LOCAL
-void kyber_to_bytes(byte* b, sword16* p, int k);
+void mlkem_to_bytes(byte* b, sword16* p, int k);
 
 #ifdef USE_INTEL_SPEEDUP
 WOLFSSL_LOCAL
-void kyber_keygen_avx2(sword16* priv, sword16* pub, sword16* e,
+void mlkem_keygen_avx2(sword16* priv, sword16* pub, sword16* e,
     const sword16* a, int kp);
 WOLFSSL_LOCAL
-void kyber_encapsulate_avx2(const sword16* pub, sword16* bp, sword16* v,
+void mlkem_encapsulate_avx2(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
 WOLFSSL_LOCAL
-void kyber_decapsulate_avx2(const sword16* priv, sword16* mp, sword16* bp,
+void mlkem_decapsulate_avx2(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
 
 WOLFSSL_LOCAL
-unsigned int kyber_rej_uniform_n_avx2(sword16* p, unsigned int len,
+unsigned int mlkem_rej_uniform_n_avx2(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 WOLFSSL_LOCAL
-unsigned int kyber_rej_uniform_avx2(sword16* p, unsigned int len, const byte* r,
+unsigned int mlkem_rej_uniform_avx2(sword16* p, unsigned int len, const byte* r,
     unsigned int rLen);
 WOLFSSL_LOCAL
-void kyber_redistribute_21_rand_avx2(const word64* s, byte* r0, byte* r1,
+void mlkem_redistribute_21_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
-void kyber_redistribute_17_rand_avx2(const word64* s, byte* r0, byte* r1,
+void mlkem_redistribute_17_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
-void kyber_redistribute_16_rand_avx2(const word64* s, byte* r0, byte* r1,
+void mlkem_redistribute_16_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
-void kyber_redistribute_8_rand_avx2(const word64* s, byte* r0, byte* r1,
+void mlkem_redistribute_8_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
 
 WOLFSSL_LOCAL
-void kyber_sha3_blocksx4_avx2(word64* s);
+void mlkem_sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
 WOLFSSL_LOCAL
-void kyber_sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
-WOLFSSL_LOCAL
-void kyber_sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);
+void mlkem_sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);
 
 WOLFSSL_LOCAL
-void kyber_cbd_eta2_avx2(sword16* p, const byte* r);
+void mlkem_cbd_eta2_avx2(sword16* p, const byte* r);
 WOLFSSL_LOCAL
-void kyber_cbd_eta3_avx2(sword16* p, const byte* r);
+void mlkem_cbd_eta3_avx2(sword16* p, const byte* r);
 
 WOLFSSL_LOCAL
-void kyber_from_msg_avx2(sword16* p, const byte* msg);
+void mlkem_from_msg_avx2(sword16* p, const byte* msg);
 WOLFSSL_LOCAL
-void kyber_to_msg_avx2(byte* msg, sword16* p);
+void mlkem_to_msg_avx2(byte* msg, sword16* p);
 
 WOLFSSL_LOCAL
-void kyber_from_bytes_avx2(sword16* p, const byte* b);
+void mlkem_from_bytes_avx2(sword16* p, const byte* b);
 WOLFSSL_LOCAL
-void kyber_to_bytes_avx2(byte* b, sword16* p);
+void mlkem_to_bytes_avx2(byte* b, sword16* p);
 
 WOLFSSL_LOCAL
-void kyber_compress_10_avx2(byte* r, const sword16* p, int n);
+void mlkem_compress_10_avx2(byte* r, const sword16* p, int n);
 WOLFSSL_LOCAL
-void kyber_decompress_10_avx2(sword16* p, const byte* r, int n);
+void mlkem_decompress_10_avx2(sword16* p, const byte* r, int n);
 WOLFSSL_LOCAL
-void kyber_compress_11_avx2(byte* r, const sword16* p, int n);
+void mlkem_compress_11_avx2(byte* r, const sword16* p, int n);
 WOLFSSL_LOCAL
-void kyber_decompress_11_avx2(sword16* p, const byte* r, int n);
+void mlkem_decompress_11_avx2(sword16* p, const byte* r, int n);
 
 WOLFSSL_LOCAL
-void kyber_compress_4_avx2(byte* r, const sword16* p);
+void mlkem_compress_4_avx2(byte* r, const sword16* p);
 WOLFSSL_LOCAL
-void kyber_decompress_4_avx2(sword16* p, const byte* r);
+void mlkem_decompress_4_avx2(sword16* p, const byte* r);
 WOLFSSL_LOCAL
-void kyber_compress_5_avx2(byte* r, const sword16* p);
+void mlkem_compress_5_avx2(byte* r, const sword16* p);
 WOLFSSL_LOCAL
-void kyber_decompress_5_avx2(sword16* p, const byte* r);
+void mlkem_decompress_5_avx2(sword16* p, const byte* r);
 
 
 WOLFSSL_LOCAL
-int kyber_cmp_avx2(const byte* a, const byte* b, int sz);
+int mlkem_cmp_avx2(const byte* a, const byte* b, int sz);
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
-WOLFSSL_LOCAL void kyber_ntt(sword16* r);
-WOLFSSL_LOCAL void kyber_invntt(sword16* r);
-WOLFSSL_LOCAL void kyber_ntt_sqrdmlsh(sword16* r);
-WOLFSSL_LOCAL void kyber_invntt_sqrdmlsh(sword16* r);
-WOLFSSL_LOCAL void kyber_basemul_mont(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_ntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_invntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_ntt_sqrdmlsh(sword16* r);
+WOLFSSL_LOCAL void mlkem_invntt_sqrdmlsh(sword16* r);
+WOLFSSL_LOCAL void mlkem_basemul_mont(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_basemul_mont_add(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_add_reduce(sword16* r, const sword16* a);
-WOLFSSL_LOCAL void kyber_add3_reduce(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_add_reduce(sword16* r, const sword16* a);
+WOLFSSL_LOCAL void mlkem_add3_reduce(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_rsub_reduce(sword16* r, const sword16* a);
-WOLFSSL_LOCAL void kyber_to_mont(sword16* p);
-WOLFSSL_LOCAL void kyber_to_mont_sqrdmlsh(sword16* p);
-WOLFSSL_LOCAL void kyber_sha3_blocksx3_neon(word64* state);
-WOLFSSL_LOCAL void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed);
-WOLFSSL_LOCAL unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len,
+WOLFSSL_LOCAL void mlkem_rsub_reduce(sword16* r, const sword16* a);
+WOLFSSL_LOCAL void mlkem_to_mont(sword16* p);
+WOLFSSL_LOCAL void mlkem_to_mont_sqrdmlsh(sword16* p);
+WOLFSSL_LOCAL void mlkem_sha3_blocksx3_neon(word64* state);
+WOLFSSL_LOCAL void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed);
+WOLFSSL_LOCAL void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed);
+WOLFSSL_LOCAL unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
-WOLFSSL_LOCAL int kyber_cmp_neon(const byte* a, const byte* b, int sz);
-WOLFSSL_LOCAL void kyber_csubq_neon(sword16* p);
-WOLFSSL_LOCAL void kyber_from_msg_neon(sword16* p, const byte* msg);
-WOLFSSL_LOCAL void kyber_to_msg_neon(byte* msg, sword16* p);
+WOLFSSL_LOCAL int mlkem_cmp_neon(const byte* a, const byte* b, int sz);
+WOLFSSL_LOCAL void mlkem_csubq_neon(sword16* p);
+WOLFSSL_LOCAL void mlkem_from_msg_neon(sword16* p, const byte* msg);
+WOLFSSL_LOCAL void mlkem_to_msg_neon(byte* msg, sword16* p);
 #elif defined(WOLFSSL_ARMASM_THUMB2) && defined(WOLFSSL_ARMASM)
-#define kyber_ntt                   kyber_thumb2_ntt
-#define kyber_invntt                kyber_thumb2_invntt
-#define kyber_basemul_mont          kyber_thumb2_basemul_mont
-#define kyber_basemul_mont_add      kyber_thumb2_basemul_mont_add
-#define kyber_rej_uniform_c         kyber_thumb2_rej_uniform
+#define mlkem_ntt                   mlkem_thumb2_ntt
+#define mlkem_invntt                mlkem_thumb2_invntt
+#define mlkem_basemul_mont          mlkem_thumb2_basemul_mont
+#define mlkem_basemul_mont_add      mlkem_thumb2_basemul_mont_add
+#define mlkem_rej_uniform_c         mlkem_thumb2_rej_uniform
 
-WOLFSSL_LOCAL void kyber_thumb2_ntt(sword16* r);
-WOLFSSL_LOCAL void kyber_thumb2_invntt(sword16* r);
-WOLFSSL_LOCAL void kyber_thumb2_basemul_mont(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_thumb2_ntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_thumb2_invntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_thumb2_csubq(sword16* p);
-WOLFSSL_LOCAL unsigned int kyber_thumb2_rej_uniform(sword16* p,
+WOLFSSL_LOCAL void mlkem_thumb2_csubq(sword16* p);
+WOLFSSL_LOCAL unsigned int mlkem_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
 #elif defined(WOLFSSL_ARMASM)
-#define kyber_ntt                   kyber_arm32_ntt
-#define kyber_invntt                kyber_arm32_invntt
-#define kyber_basemul_mont          kyber_arm32_basemul_mont
-#define kyber_basemul_mont_add      kyber_arm32_basemul_mont_add
-#define kyber_rej_uniform_c         kyber_arm32_rej_uniform
+#define mlkem_ntt                   mlkem_arm32_ntt
+#define mlkem_invntt                mlkem_arm32_invntt
+#define mlkem_basemul_mont          mlkem_arm32_basemul_mont
+#define mlkem_basemul_mont_add      mlkem_arm32_basemul_mont_add
+#define mlkem_rej_uniform_c         mlkem_arm32_rej_uniform
 
-WOLFSSL_LOCAL void kyber_arm32_ntt(sword16* r);
-WOLFSSL_LOCAL void kyber_arm32_invntt(sword16* r);
-WOLFSSL_LOCAL void kyber_arm32_basemul_mont(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_arm32_ntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_arm32_invntt(sword16* r);
+WOLFSSL_LOCAL void mlkem_arm32_basemul_mont(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_arm32_basemul_mont_add(sword16* r, const sword16* a,
+WOLFSSL_LOCAL void mlkem_arm32_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b);
-WOLFSSL_LOCAL void kyber_arm32_csubq(sword16* p);
-WOLFSSL_LOCAL unsigned int kyber_arm32_rej_uniform(sword16* p, unsigned int len,
+WOLFSSL_LOCAL void mlkem_arm32_csubq(sword16* p);
+WOLFSSL_LOCAL unsigned int mlkem_arm32_rej_uniform(sword16* p, unsigned int len,
     const byte* r, unsigned int rLen);
 #endif
 
@@ -361,52 +369,6 @@ WOLFSSL_LOCAL unsigned int kyber_arm32_rej_uniform(sword16* p, unsigned int len,
     } /* extern "C" */
 #endif
 
-/* ML-KEM API */
-WOLFSSL_API int wc_MlKemKey_Init(MlKemKey* key, int type);
-WOLFSSL_API void wc_MlKemKey_Free(MlKemKey* key);
-WOLFSSL_API int wc_MlKemKey_PrivateKeySize(MlKemKey* key);
-WOLFSSL_API int wc_MlKemKey_PublicKeySize(MlKemKey* key);
-WOLFSSL_API int wc_MlKemKey_CipherTextSize(MlKemKey* key);
-WOLFSSL_API int wc_MlKemKey_SharedSecretSize(MlKemKey* key);
-WOLFSSL_API int wc_MlKemKey_MakeKey(MlKemKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, WC_RNG* rng, 
-                                             const byte* seed, word32 seedSz);
-WOLFSSL_API int wc_MlKemKey_Encapsulate(MlKemKey* key, WC_RNG* rng,
-                                       byte* ct, word32 ctSz,
-                                       byte* ss, word32 ssSz);
-WOLFSSL_API int wc_MlKemKey_EncapsulateWithRandom(MlKemKey* key, WC_RNG* rng,
-                                                 byte* ct, word32 ctSz,
-                                                 byte* ss, word32 ssSz,
-                                                 const byte* seed, word32 seedSz);
-WOLFSSL_API int wc_MlKemKey_Decapsulate(MlKemKey* key,
-                                       byte* ss, word32 ssSz,
-                                       const byte* ct, word32 ctSz);
-WOLFSSL_API int wc_MlKemKey_DecodePrivateKey(MlKemKey* key,
-                                            const byte* priv, word32 privSz);
-WOLFSSL_API int wc_MlKemKey_DecodePublicKey(MlKemKey* key,
-                                           const byte* pub, word32 pubSz);
-WOLFSSL_API int wc_MlKemKey_EncodePrivateKey(MlKemKey* key,
-                                            byte* priv, word32 privSz);
-WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key,
-                                           byte* pub, word32 pubSz);
-
-/* Backward compatibility defines */
-#define wc_KyberKey_Init(type, key)           wc_MlKemKey_Init((key), (type))
-#define wc_KyberKey_Free                      wc_MlKemKey_Free
-#define wc_KyberKey_PrivateKeySize            wc_MlKemKey_PrivateKeySize
-#define wc_KyberKey_PublicKeySize             wc_MlKemKey_PublicKeySize
-#define wc_KyberKey_CipherTextSize            wc_MlKemKey_CipherTextSize
-#define wc_KyberKey_SharedSecretSize          wc_MlKemKey_SharedSecretSize
-#define wc_KyberKey_MakeKey                   wc_MlKemKey_MakeKey
-#define wc_KyberKey_MakeKeyWithRandom         wc_MlKemKey_MakeKeyWithRandom
-#define wc_KyberKey_Encapsulate               wc_MlKemKey_Encapsulate
-#define wc_KyberKey_EncapsulateWithRandom     wc_MlKemKey_EncapsulateWithRandom
-#define wc_KyberKey_Decapsulate               wc_MlKemKey_Decapsulate
-#define wc_KyberKey_DecodePrivateKey          wc_MlKemKey_DecodePrivateKey
-#define wc_KyberKey_DecodePublicKey           wc_MlKemKey_DecodePublicKey
-#define wc_KyberKey_EncodePrivateKey          wc_MlKemKey_EncodePrivateKey
-#define wc_KyberKey_EncodePublicKey           wc_MlKemKey_EncodePublicKey
-
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 #endif /* WOLF_CRYPT_WC_MLKEM_H */

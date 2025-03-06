@@ -24018,7 +24018,7 @@ static void AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz)
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
         XMEMCPY(counter, iv, ivSz);
         XMEMSET(counter + GCM_NONCE_MID_SZ, 0,
-                                         WC_AES_BLOCK_SIZE - GCM_NONCE_MID_SZ - 1);
+                                      WC_AES_BLOCK_SIZE - GCM_NONCE_MID_SZ - 1);
         counter[WC_AES_BLOCK_SIZE - 1] = 1;
     }
     else {
@@ -25001,8 +25001,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
  * in    input plain text buffer to encrypt
  * sz    size of both out and in buffers
  * i     value to use for tweak
- * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this input
- *       adds a sanity check on how the user calls the function.
+ * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this
+ *       input adds a sanity check on how the user calls the function.
  *
  * returns 0 on success
  */
@@ -25321,8 +25321,8 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * in    input cipher text buffer to decrypt
  * sz    size of both out and in buffers
  * i     value to use for tweak
- * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this input
- *       adds a sanity check on how the user calls the function.
+ * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this
+ *       input adds a sanity check on how the user calls the function.
  *
  * returns 0 on success
  */
@@ -25842,8 +25842,8 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * in    input plain text buffer to encrypt
  * sz    size of both out and in buffers
  * i     value to use for tweak
- * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this input
- *       adds a sanity check on how the user calls the function.
+ * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this
+ *       input adds a sanity check on how the user calls the function.
  *
  * returns 0 on success
  */
@@ -25976,8 +25976,8 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * in    input cipher text buffer to decrypt
  * sz    size of both out and in buffers
  * i     value to use for tweak
- * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this input
- *       adds a sanity check on how the user calls the function.
+ * iSz   size of i buffer, should always be WC_AES_BLOCK_SIZE but having this
+ *       input adds a sanity check on how the user calls the function.
  *
  * returns 0 on success
  */
@@ -26152,7 +26152,8 @@ extern void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
 extern void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
     unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved. */
+/* in pre-C2x C, constness conflicts for dimensioned arrays can't be resolved.
+ */
 extern void GCM_gmult_len(byte* x, /* const */ byte m[32][WC_AES_BLOCK_SIZE],
     const unsigned char* data, unsigned long len);
 #endif
@@ -26165,7 +26166,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 {
 #if defined(AES_MAX_KEY_SIZE)
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
-    word32 userKey_aligned[AES_MAX_KEY_SIZE / WOLFSSL_BIT_SIZE / sizeof(word32)];
+    word32 userKey_aligned[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)];
 #endif
 
     if (((keylen != 16) && (keylen != 24) && (keylen != 32)) ||
@@ -26206,7 +26207,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 #if defined(AES_MAX_KEY_SIZE)
     if ((unsigned long)userKey & (sizeof(aes->key[0]) - 1U)) {
         XMEMCPY(userKey_aligned, userKey, keylen);
-        AES_set_encrypt_key((byte *)userKey_aligned, keylen * 8, (byte*)aes->key);
+        AES_set_encrypt_key((byte *)userKey_aligned, keylen * 8,
+                            (byte*)aes->key);
     }
     else
 #endif
@@ -26462,8 +26464,8 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         byte zeros[WC_AES_BLOCK_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                        0, 0, 0, 0, 0, 0, 0, 0 };
 
-        AES_CTR_encrypt(zeros, (byte*)aes->tmp, WC_AES_BLOCK_SIZE, (byte*)aes->key,
-            aes->rounds, (byte*)aes->reg);
+        AES_CTR_encrypt(zeros, (byte*)aes->tmp, WC_AES_BLOCK_SIZE,
+            (byte*)aes->key, aes->rounds, (byte*)aes->reg);
 
         aes->left = WC_AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;
@@ -27027,7 +27029,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         initialCounter[WC_AES_BLOCK_SIZE - 1] = 1;
     }
     else {
-        gcm_ghash_arm32(aes, NULL, 0, iv, ivSz, initialCounter, WC_AES_BLOCK_SIZE);
+        gcm_ghash_arm32(aes, NULL, 0, iv, ivSz, initialCounter,
+                        WC_AES_BLOCK_SIZE);
     }
     XMEMCPY(counter, initialCounter, WC_AES_BLOCK_SIZE);
 
@@ -27129,7 +27132,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         initialCounter[WC_AES_BLOCK_SIZE - 1] = 1;
     }
     else {
-        gcm_ghash_arm32(aes, NULL, 0, iv, ivSz, initialCounter, WC_AES_BLOCK_SIZE);
+        gcm_ghash_arm32(aes, NULL, 0, iv, ivSz, initialCounter,
+                        WC_AES_BLOCK_SIZE);
     }
     XMEMCPY(counter, initialCounter, WC_AES_BLOCK_SIZE);
 

@@ -812,16 +812,16 @@ function(generate_lib_src_list LIB_SOURCES)
          endif()
 
          if(BUILD_WC_KYBER)
-              list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber.c)
-              list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber_poly.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_mlkem.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_mlkem_poly.c)
 
               if(BUILD_INTELASM)
-                   list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber_asm.S)
+                   list(APPEND LIB_SOURCES wolfcrypt/src/wc_mlkem_asm.S)
               endif()
          endif()
 
          if(BUILD_EXT_KYBER)
-              list(APPEND LIB_SOURCES wolfcrypt/src/ext_kyber.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/ext_mlkem.c)
          endif()
 
          if(BUILD_WC_LMS)

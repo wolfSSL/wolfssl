@@ -175,10 +175,10 @@
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
-    #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
-    #include <wolfssl/wolfcrypt/wc_kyber.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#ifdef WOLFSSL_WC_MLKEM
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #endif
 #ifdef HAVE_DILITHIUM
@@ -69974,8 +69974,8 @@ static int test_tls13_apis(void)
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
-#ifdef WOLFSSL_HAVE_KYBER
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_HAVE_MLKEM
+#ifdef WOLFSSL_MLKEM_KYBER
     #ifndef WOLFSSL_NO_KYBER512
                                WOLFSSL_KYBER_LEVEL1
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -70018,11 +70018,11 @@ static int test_tls13_apis(void)
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256:secp256r1"
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_MALLOC) && \
-    !defined(WOLFSSL_KYBER_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#ifdef WOLFSSL_MLKEM_KYBER
     #ifndef WOLFSSL_NO_KYBER512
             ":P256_KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -70042,11 +70042,11 @@ static int test_tls13_apis(void)
 #endif
 #endif
 #endif /* !defined(NO_ECC_SECP) */
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_MALLOC) && \
-    !defined(WOLFSSL_KYBER_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+#ifdef WOLFSSL_MLKEM_KYBER
     #ifndef WOLFSSL_NO_KYBER512
             ":KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -70066,11 +70066,11 @@ static int test_tls13_apis(void)
 #endif
             "";
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_MALLOC) && \
-    !defined(WOLFSSL_KYBER_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
-    int kyberLevel;
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    int mlkemLevel;
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
@@ -70225,38 +70225,39 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_MALLOC) && \
-    !defined(WOLFSSL_KYBER_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MALLOC) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 #ifndef WOLFSSL_NO_ML_KEM
 #ifndef WOLFSSL_NO_ML_KEM_768
-    kyberLevel = WOLFSSL_ML_KEM_768;
+    mlkemLevel = WOLFSSL_ML_KEM_768;
 #elif !defined(WOLFSSL_NO_ML_KEM_1024)
-    kyberLevel = WOLFSSL_ML_KEM_1024;
+    mlkemLevel = WOLFSSL_ML_KEM_1024;
 #else
-    kyberLevel = WOLFSSL_ML_KEM_512;
+    mlkemLevel = WOLFSSL_ML_KEM_512;
 #endif
 #else
 #ifndef WOLFSSL_NO_KYBER768
-    kyberLevel = WOLFSSL_KYBER_LEVEL3;
+    mlkemLevel = WOLFSSL_KYBER_LEVEL3;
 #elif !defined(WOLFSSL_NO_KYBER1024)
-    kyberLevel = WOLFSSL_KYBER_LEVEL5;
+    mlkemLevel = WOLFSSL_KYBER_LEVEL5;
 #else
-    kyberLevel = WOLFSSL_KYBER_LEVEL1;
+    mlkemLevel = WOLFSSL_KYBER_LEVEL1;
 #endif
 #endif
-    ExpectIntEQ(wolfSSL_UseKeyShare(NULL, kyberLevel), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_UseKeyShare(NULL, mlkemLevel),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
-    ExpectIntEQ(wolfSSL_UseKeyShare(serverSsl, kyberLevel),
+    ExpectIntEQ(wolfSSL_UseKeyShare(serverSsl, mlkemLevel),
         WOLFSSL_SUCCESS);
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
-    ExpectIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, kyberLevel),
+    ExpectIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, mlkemLevel),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-    ExpectIntEQ(wolfSSL_UseKeyShare(clientSsl, kyberLevel),
+    ExpectIntEQ(wolfSSL_UseKeyShare(clientSsl, mlkemLevel),
         WOLFSSL_SUCCESS);
 #endif
 #endif
@@ -87237,7 +87238,7 @@ static int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     int group = WOLFSSL_KYBER_LEVEL5;
 #else
     int group = WOLFSSL_ML_KEM_1024;
@@ -87251,7 +87252,7 @@ static int test_dtls13_frag_ch_pq(void)
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "KYBER_LEVEL5");
     ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "KYBER_LEVEL5");
 #else
@@ -87775,7 +87776,7 @@ static int test_dtls13_missing_finished_server(void)
     defined(HAVE_LIBOQS)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     int group = WOLFSSL_KYBER_LEVEL5;
 #else
     int group = WOLFSSL_ML_KEM_1024;
@@ -87785,7 +87786,7 @@ static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
 #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");

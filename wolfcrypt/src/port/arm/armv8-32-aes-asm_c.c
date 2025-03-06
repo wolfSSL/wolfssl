@@ -122,8 +122,8 @@ static const word32 L_AES_ARM32_td_data[] = {
 
 #endif /* HAVE_AES_DECRYPT */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const word32 L_AES_ARM32_te_data[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
@@ -197,8 +197,8 @@ static const word32 L_AES_ARM32_te_data[] = {
 static const word32* L_AES_ARM32_td = L_AES_ARM32_td_data;
 #endif /* HAVE_AES_DECRYPT */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
-        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const word32* L_AES_ARM32_te = L_AES_ARM32_te_data;
 #endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
         * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
@@ -1591,7 +1591,7 @@ void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
 }
 
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const word32* L_AES_ARM32_te_ecb = L_AES_ARM32_te_data;
 void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p);
@@ -2395,7 +2395,7 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
 
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
         defined(HAVE_AES_CBC)
 void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p);
 void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p)

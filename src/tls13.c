@@ -13594,7 +13594,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     }
 #endif
 
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group) ||
         WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
 

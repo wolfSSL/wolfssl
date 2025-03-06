@@ -74,9 +74,9 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/siphash.h \
                          wolfssl/wolfcrypt/cpuid.h \
                          wolfssl/wolfcrypt/cryptocb.h \
-                         wolfssl/wolfcrypt/kyber.h \
-                         wolfssl/wolfcrypt/wc_kyber.h \
-                         wolfssl/wolfcrypt/ext_kyber.h \
+                         wolfssl/wolfcrypt/mlkem.h \
+                         wolfssl/wolfcrypt/wc_mlkem.h \
+                         wolfssl/wolfcrypt/ext_mlkem.h \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
                          wolfssl/wolfcrypt/sm4.h \

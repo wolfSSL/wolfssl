@@ -26,7 +26,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha3-asm.S
+ *   ruby ./sha3/sha3.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha3-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__

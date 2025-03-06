@@ -44,7 +44,7 @@
 
 /* Reminder: Vanilla FreeRTOS is words, Espressif is bytes. */
 #if defined(WOLFSSL_ESP8266)
-    #if defined(WOLFSSL_HAVE_KYBER)
+    #if defined(WOLFSSL_HAVE_MLKEM)
         /* Minimum ESP8266 stack size = 10K with Kyber.
          * Note there's a maximum not far away as Kyber needs heap
          * and the total DRAM is typically only 80KB total. */
@@ -54,7 +54,7 @@
         #define TLS_SMP_CLIENT_TASK_BYTES (6 * 1024)
     #endif
 #else
-    #if defined(WOLFSSL_HAVE_KYBER)
+    #if defined(WOLFSSL_HAVE_MLKEM)
         /* Minimum ESP32 stack size = 12K with Kyber enabled. */
         #define TLS_SMP_CLIENT_TASK_BYTES (12 * 1024)
     #else

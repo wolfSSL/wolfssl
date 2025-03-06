@@ -96,7 +96,8 @@ static const word64 L_SHA512_transform_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p);
+void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
+    word32 len_p);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
@@ -7573,7 +7574,8 @@ static const word64 L_SHA512_transform_neon_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p);
+void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
+    word32 len_p);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
