@@ -402,7 +402,8 @@ static int test_quic_crypt(void) {
     ExpectTrue(wolfSSL_quic_aead_is_ccm(aead_cipher) == 0);
     ExpectTrue(wolfSSL_quic_aead_is_chacha20(aead_cipher) == 0);
 
-    ExpectTrue((tag_len = wolfSSL_quic_get_aead_tag_len(aead_cipher)) == 16);
+    tag_len = wolfSSL_quic_get_aead_tag_len(aead_cipher);
+    ExpectTrue(tag_len == 16);
     dec_len = sizeof(plaintext);
     enc_len = dec_len + tag_len;
     encrypted = (uint8_t*)XMALLOC(enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1569,7 +1570,8 @@ static int test_quic_resumption(int verbose) {
      * a session works. */
     ExpectTrue(tclient.ticket_len > 0);
     ExpectNotNull(session = wolfSSL_get1_session(tclient.ssl));
-    ExpectTrue((session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, NULL)) > 0);
+    session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, NULL);
+    ExpectTrue(session_size > 0);
     ExpectTrue((size_t)session_size < sizeof(session_buffer));
     session_data2 = session_data = session_buffer;
     session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session,
