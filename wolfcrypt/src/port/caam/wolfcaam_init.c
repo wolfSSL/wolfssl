@@ -501,6 +501,11 @@ int wc_caamAddAndWait(CAAM_BUFFER* buf, int sz, word32 arg[4], word32 type)
             return RAN_BLOCK_E;
         }
 
+        if (ret == CRYPTOCB_UNAVAILABLE) {
+            WOLFSSL_MSG("Driver does not support requested operation");
+            return ret;
+        }
+
         if (ret == ResourceNotAvailable) {
             WOLFSSL_MSG("Waiting on CAAM driver");
             return WC_HW_WAIT_E;
