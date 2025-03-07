@@ -6617,8 +6617,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                         ret = wc_HashFinal(&pkcs7->stream->hashAlg,
                             pkcs7->stream->hashType, streamHash);
                         hashBuf = streamHash;
-                        hashSz  = wc_HashGetDigestSize(pkcs7->stream->hashType);
-
+                        length  = wc_HashGetDigestSize(pkcs7->stream->hashType);
+                        if (length < 0) {
+                            WOLFSSL_MSG("Error getting digest size");
+                            ret = ASN_PARSE_E;
+                        }
+                        else {
+                            hashSz = (word32)length;
+                        }
                         wc_HashFree(&pkcs7->stream->hashAlg,
                             pkcs7->stream->hashType);
                         if (ret != 0)
@@ -12739,7 +12745,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                             return ret;
                         }
                         localIdx += ofsetIdx;
-                        pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
+                        pkiMsgSz = (pkcs7->stream->length > 0)?
+                            pkcs7->stream->length: inSz;
                     #else
                         ret = BUFFER_E;
                     #endif
@@ -12796,7 +12803,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                         if (pkcs7->streamOutCb) {
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
-                                encryptedContentSz, pkcs7->streamCtx);
+                                (word32)encryptedContentSz, pkcs7->streamCtx);
                         }
                     #endif /* ASN_BER_TO_DER */
                     }
@@ -12848,7 +12855,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifdef ASN_BER_TO_DER
             if (pkcs7->streamOutCb) {
                 ret = pkcs7->streamOutCb(pkcs7, encryptedContent,
-                                encryptedContentSz - padLen, pkcs7->streamCtx);
+                                (word32)encryptedContentSz - padLen,
+                                pkcs7->streamCtx);
                 if (ret != 0) {
                     WOLFSSL_MSG("Stream out callback returned failure");
                     ret = BUFFER_E;
