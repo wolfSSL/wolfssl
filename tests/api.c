@@ -1229,6 +1229,400 @@ static int do_dual_alg_tls13_connection(byte *caCert, word32 caCertSz,
     return EXPECT_RESULT();
 }
 
+/**
+ * Function to generate a root certificate with dual algorithm support and
+ * configurable criticality for extensions and path length constraints.
+ *
+ * @param out         [out] Pointer to store the generated certificate
+ * @param caKeyFile   [in]  Path to the CA key file
+ * @param sapkiFile   [in]  Path to the subject alternative public key info file
+ * @param altPrivFile [in]  Path to the alternative private key file
+ * @param setCrit     [in]  Flag to set criticality of extensions (1=critical, 0=non-critical)
+ * @param setPathLen  [in]  Flag to set path length constraint (1=set, 0=don't set)
+ * @param pathLen     [in]  Path length value (only used if setPathLen=1)
+ * @return            Size of the generated certificate or negative on error
+ */
+static int do_dual_alg_root_certgen_crit(byte **out, char *caKeyFile,
+                                      char *sapkiFile, char *altPrivFile,
+                                      int setCrit, int setPathLen, int pathLen)
+{
+    EXPECT_DECLS;
+    FILE* file = NULL;
+    Cert newCert;
+    DecodedCert preTBS;
+
+    byte caKeyBuf[LARGE_TEMP_SZ];
+    word32 caKeySz = LARGE_TEMP_SZ;
+    byte sapkiBuf[LARGE_TEMP_SZ];
+    word32 sapkiSz = LARGE_TEMP_SZ;
+    byte altPrivBuf[LARGE_TEMP_SZ];
+    word32 altPrivSz = LARGE_TEMP_SZ;
+    byte altSigAlgBuf[LARGE_TEMP_SZ];
+    word32 altSigAlgSz = LARGE_TEMP_SZ;
+    byte scratchBuf[LARGE_TEMP_SZ];
+    word32 scratchSz = LARGE_TEMP_SZ;
+    byte preTbsBuf[LARGE_TEMP_SZ];
+    word32 preTbsSz = LARGE_TEMP_SZ;
+    byte altSigValBuf[LARGE_TEMP_SZ];
+    word32 altSigValSz = LARGE_TEMP_SZ;
+    byte *outBuf = NULL;
+    word32 outSz = LARGE_TEMP_SZ;
+    WC_RNG rng;
+    RsaKey caKey;
+    ecc_key altCaKey;
+    word32 idx = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&caKey, 0, sizeof(RsaKey));
+    XMEMSET(&altCaKey, 0, sizeof(ecc_key));
+
+    ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
+                  DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    XMEMSET(caKeyBuf, 0, caKeySz);
+    ExpectNotNull(file = fopen(caKeyFile, "rb"));
+    ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz),
+                0);
+    XMEMSET(sapkiBuf, 0, sapkiSz);
+    ExpectNotNull(file = fopen(sapkiFile, "rb"));
+    ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    XMEMSET(altPrivBuf, 0, altPrivSz);
+    ExpectNotNull(file = fopen(altPrivFile, "rb"));
+    ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    wc_ecc_init(&altCaKey);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
+                                       (word32)altPrivSz), 0);
+    XMEMSET(altSigAlgBuf, 0, altSigAlgSz);
+    ExpectIntGT(altSigAlgSz = SetAlgoID(CTC_SHA256wECDSA, altSigAlgBuf,
+                                         oidSigType, 0), 0);
+    wc_InitCert(&newCert);
+    strncpy(newCert.subject.country, "US", CTC_NAME_SIZE);
+    strncpy(newCert.subject.state, "MT", CTC_NAME_SIZE);
+    strncpy(newCert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    strncpy(newCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(newCert.subject.unit, "Engineering", CTC_NAME_SIZE);
+    strncpy(newCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+    strncpy(newCert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+    strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
+        CTC_DATE_SIZE);
+    newCert.beforeDateSz = 17;
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+        CTC_DATE_SIZE);
+    newCert.afterDateSz = 17;
+    newCert.sigType = CTC_SHA256wRSA;
+    newCert.isCA    = 1;
+
+    /* Set criticality of basic constraint extension if requested */
+    if (setCrit) {
+        newCert.basicConstCrit = 1;
+    }
+
+    /* Set pathlen if requested */
+    if (setPathLen) {
+        newCert.pathLen = pathLen;
+        newCert.pathLenSet = 1;
+    }
+
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "1.2.3.4.5",
+                (const byte *)"This is NOT a critical extension", 32), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.72", sapkiBuf,
+                sapkiSz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.73",
+                                      altSigAlgBuf, altSigAlgSz), 0);
+
+    XMEMSET(scratchBuf, 0, scratchSz);
+    ExpectIntGT(scratchSz = wc_MakeSelfCert(&newCert, scratchBuf, scratchSz,
+                &caKey, &rng), 0);
+
+    wc_InitDecodedCert(&preTBS, scratchBuf, scratchSz, 0);
+    ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+    XMEMSET(preTbsBuf, 0, preTbsSz);
+    ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
+    XMEMSET(altSigValBuf, 0, altSigValSz);
+    ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
+                CTC_SHA256wECDSA, preTbsBuf, preTbsSz, ECC_TYPE, &altCaKey,
+                &rng), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.74",
+                                      altSigValBuf, altSigValSz), 0);
+
+    /* Finally, generate the new certificate. */
+    if (outBuf != NULL) {
+        XMEMSET(outBuf, 0, outSz);
+        ExpectIntGT(outSz = wc_MakeSelfCert(&newCert, outBuf, outSz, &caKey,
+                    &rng), 0);
+        *out = outBuf;
+    }
+    else {
+        outSz = 0;
+    }
+
+    wc_FreeDecodedCert(&preTBS);
+    wc_ecc_free(&altCaKey);
+    wc_FreeRsaKey(&caKey);
+    wc_FreeRng(&rng);
+
+    return (int)outSz;
+}
+
+/**
+ * Function to generate a server certificate with dual algorithm support and
+ * configurable criticality for extensions and path length constraints.
+ *
+ * @param out           [out] Pointer to store the generated certificate
+ * @param caKeyFile     [in]  Path to the CA key file
+ * @param sapkiFile     [in]  Path to the subject alternative public key info file
+ * @param altPrivFile   [in]  Path to the alternative private key file
+ * @param serverKeyFile [in]  Path to the server key file
+ * @param caCertBuf     [in]  Buffer containing the CA certificate
+ * @param caCertSz      [in]  Size of the CA certificate buffer
+ * @param setCrit       [in]  Flag to set criticality of extensions (1=critical, 0=non-critical)
+ * @param setPathLen    [in]  Flag to set path length constraint (1=set, 0=don't set)
+ * @param pathLen       [in]  Path length value (only used if setPathLen=1)
+ * @return              Size of the generated certificate or negative on error
+ */
+static int do_dual_alg_server_certgen_crit(byte **out, char *caKeyFile,
+                                        char *sapkiFile, char *altPrivFile,
+                                        char *serverKeyFile,
+                                        byte *caCertBuf, int caCertSz,
+                                        int setCrit)
+{
+    EXPECT_DECLS;
+    FILE* file = NULL;
+    Cert newCert;
+    DecodedCert preTBS;
+
+    byte serverKeyBuf[LARGE_TEMP_SZ];
+    word32 serverKeySz = LARGE_TEMP_SZ;
+    byte caKeyBuf[LARGE_TEMP_SZ];
+    word32 caKeySz = LARGE_TEMP_SZ;
+    byte sapkiBuf[LARGE_TEMP_SZ];
+    word32 sapkiSz = LARGE_TEMP_SZ;
+    byte altPrivBuf[LARGE_TEMP_SZ];
+    word32 altPrivSz = LARGE_TEMP_SZ;
+    byte altSigAlgBuf[LARGE_TEMP_SZ];
+    word32 altSigAlgSz = LARGE_TEMP_SZ;
+    byte scratchBuf[LARGE_TEMP_SZ];
+    word32 scratchSz = LARGE_TEMP_SZ;
+    byte preTbsBuf[LARGE_TEMP_SZ];
+    word32 preTbsSz = LARGE_TEMP_SZ;
+    byte altSigValBuf[LARGE_TEMP_SZ];
+    word32 altSigValSz = LARGE_TEMP_SZ;
+    byte *outBuf = NULL;
+    word32 outSz = LARGE_TEMP_SZ;
+    WC_RNG rng;
+    RsaKey caKey;
+    RsaKey serverKey;
+    ecc_key altCaKey;
+    word32 idx = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&caKey, 0, sizeof(RsaKey));
+    XMEMSET(&serverKey, 0, sizeof(RsaKey));
+    XMEMSET(&altCaKey, 0, sizeof(ecc_key));
+
+    ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
+                  DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    XMEMSET(serverKeyBuf, 0, serverKeySz);
+    ExpectNotNull(file = fopen(serverKeyFile, "rb"));
+    ExpectIntGT(serverKeySz = (word32)fread(serverKeyBuf, 1, serverKeySz, file),
+                0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    ExpectIntEQ(wc_InitRsaKey_ex(&serverKey, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(serverKeyBuf, &idx, &serverKey,
+                                       serverKeySz), 0);
+    XMEMSET(caKeyBuf, 0, caKeySz);
+    ExpectNotNull(file = fopen(caKeyFile, "rb"));
+    ExpectIntGT(caKeySz = (word32)fread(caKeyBuf, 1, caKeySz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    ExpectIntEQ(wc_InitRsaKey_ex(&caKey, NULL, INVALID_DEVID), 0);
+    idx = 0;
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(caKeyBuf, &idx, &caKey, caKeySz), 0);
+    XMEMSET(sapkiBuf, 0, sapkiSz);
+    ExpectNotNull(file = fopen(sapkiFile, "rb"));
+    ExpectIntGT(sapkiSz = (word32)fread(sapkiBuf, 1, sapkiSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    XMEMSET(altPrivBuf, 0, altPrivSz);
+    ExpectNotNull(file = fopen(altPrivFile, "rb"));
+    ExpectIntGT(altPrivSz = (word32)fread(altPrivBuf, 1, altPrivSz, file), 0);
+    if (file) {
+        fclose(file);
+        file = NULL;
+    }
+    wc_ecc_init(&altCaKey);
+    idx = 0;
+    ExpectIntEQ(wc_EccPrivateKeyDecode(altPrivBuf, &idx, &altCaKey,
+                                       (word32)altPrivSz), 0);
+    XMEMSET(altSigAlgBuf, 0, altSigAlgSz);
+    ExpectIntGT(altSigAlgSz = SetAlgoID(CTC_SHA256wECDSA, altSigAlgBuf,
+                                         oidSigType, 0), 0);
+    wc_InitCert(&newCert);
+    strncpy(newCert.subject.country, "US", CTC_NAME_SIZE);
+    strncpy(newCert.subject.state, "MT", CTC_NAME_SIZE);
+    strncpy(newCert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    strncpy(newCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(newCert.subject.unit, "Engineering", CTC_NAME_SIZE);
+    strncpy(newCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+    strncpy(newCert.subject.email, "server@wolfssl.com", CTC_NAME_SIZE);
+    strncpy((char*)newCert.beforeDate, "\x18\x0f""20250101000000Z",
+        CTC_DATE_SIZE);
+    newCert.beforeDateSz = 17;
+    strncpy((char*)newCert.afterDate, "\x18\x0f""20493112115959Z",
+        CTC_DATE_SIZE);
+    newCert.afterDateSz = 17;
+
+    newCert.sigType = CTC_SHA256wRSA;
+    newCert.isCA    = 0;
+    ExpectIntEQ(wc_SetIssuerBuffer(&newCert, caCertBuf, caCertSz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.72", sapkiBuf,
+                                      sapkiSz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.73",
+                                      altSigAlgBuf, altSigAlgSz), 0);
+    XMEMSET(scratchBuf, 0, scratchSz);
+    ExpectIntGT(wc_MakeCert(&newCert, scratchBuf, scratchSz, &serverKey, NULL,
+                &rng), 0);
+    ExpectIntGT(scratchSz = wc_SignCert(newCert.bodySz, newCert.sigType,
+                scratchBuf, scratchSz, &caKey, NULL, &rng), 0);
+    wc_InitDecodedCert(&preTBS, scratchBuf, scratchSz, 0);
+    ExpectIntEQ(wc_ParseCert(&preTBS, CERT_TYPE, NO_VERIFY, NULL), 0);
+    XMEMSET(preTbsBuf, 0, preTbsSz);
+    ExpectIntGT(preTbsSz = wc_GeneratePreTBS(&preTBS, preTbsBuf, preTbsSz), 0);
+    XMEMSET(altSigValBuf, 0, altSigValSz);
+    ExpectIntGT(altSigValSz = wc_MakeSigWithBitStr(altSigValBuf, altSigValSz,
+                CTC_SHA256wECDSA, preTbsBuf, preTbsSz, ECC_TYPE, &altCaKey,
+                &rng), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&newCert, setCrit, "2.5.29.74",
+                                      altSigValBuf, altSigValSz), 0);
+
+    /* Finally, generate the new certificate. */
+    if (outBuf != NULL) {
+        XMEMSET(outBuf, 0, outSz);
+        ExpectIntGT(outSz = wc_SignCert(newCert.bodySz, newCert.sigType, scratchBuf,
+                    outSz, &caKey, NULL, &rng), 0);
+        *out = outBuf;
+    }
+    else {
+        outSz = 0;
+    }
+
+    wc_FreeDecodedCert(&preTBS);
+    wc_ecc_free(&altCaKey);
+    wc_FreeRsaKey(&serverKey);
+    wc_FreeRsaKey(&caKey);
+    wc_FreeRng(&rng);
+
+    return (int)outSz;
+}
+
+/**
+ * Test dual-alg ECDSA + ML-DSA with critical extensions and path length
+ * constraints:
+ *  - keygen + certgen
+ *
+ * TLS tests not designed to pass with these extensions marked critical. No
+ * TLS connection.
+ * */
+static int test_dual_alg_crit_ext_support(void)
+{
+    EXPECT_DECLS;
+    /* Root CA and server keys will be the same. This is only appropriate for
+     * testing. */
+    char keyFile[] = "./certs/ca-key.der";
+    char sapkiFile[] = "./certs/ecc-keyPub.der";
+    char altPrivFile[] = "./certs/ecc-key.der";
+    byte *serverKey = NULL;
+    size_t serverKeySz = 0;
+    byte *root = NULL;
+    int rootSz = 0;
+    byte *server = NULL;
+    int serverSz = 0;
+
+    ExpectIntEQ(load_file(keyFile, &serverKey, &serverKeySz), 0);
+
+    /* Test with critical extensions and pathlen set to 1 */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_crit(&root, keyFile, sapkiFile,
+            altPrivFile, 1, 1, 1);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen_crit(&server, keyFile, sapkiFile,
+            altPrivFile, keyFile, root, rootSz, 1);
+    }
+    ExpectNotNull(server);
+    ExpectIntGT(serverSz, 0);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
+    XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    server = NULL;
+
+    /* Test with critical extensions and pathlen set to 0 */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_crit(&root, keyFile, sapkiFile,
+            altPrivFile, 1, 1, 0);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen_crit(&server, keyFile, sapkiFile,
+            altPrivFile, keyFile, root, rootSz, 1);
+    }
+    ExpectNotNull(server);
+    ExpectIntGT(serverSz, 0);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
+    XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    server = NULL;
+
+    /* Test with critical alt extensions and no pathlen set */
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen_crit(&root, keyFile, sapkiFile,
+            altPrivFile, 1, 0, 0);
+    }
+    ExpectNotNull(root);
+    ExpectIntGT(rootSz, 0);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen_crit(&server, keyFile, sapkiFile,
+            altPrivFile, keyFile, root, rootSz, 0);
+    }
+    ExpectNotNull(server);
+    ExpectIntGT(serverSz, 0);
+    XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    free(serverKey);
+
+    return EXPECT_RESULT();
+}
+
 static int test_dual_alg_support(void)
 {
     EXPECT_DECLS;
@@ -1308,6 +1702,12 @@ static int test_dual_alg_support(void)
 {
     return TEST_SKIPPED;
 }
+
+static int test_dual_alg_crit_ext_support(void)
+{
+    return TEST_SKIPPED;
+}
+
 #endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_FILESYSTEM */
 
 /**
@@ -89495,6 +89895,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Init),
 
     TEST_DECL(test_dual_alg_support),
+    TEST_DECL(test_dual_alg_crit_ext_support),
 
     TEST_DECL(test_dual_alg_ecdsa_mldsa),
 
