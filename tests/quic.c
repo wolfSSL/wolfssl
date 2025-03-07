@@ -50,8 +50,8 @@
 
 #define testingFmt "   %s:"
 #define resultFmt  " %s\n"
-static const char* passed = "passed";
-static const char* failed = "failed";
+static const char* pass = "pass";
+static const char* fail = "fail";
 
 typedef struct {
     const char *name;
@@ -59,27 +59,34 @@ typedef struct {
     int is_server;
 } ctx_setups;
 
-static int dummy_set_encryption_secrets(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
-                                         const uint8_t *read_secret,
-                                         const uint8_t *write_secret, size_t secret_len)
+static int dummy_set_encryption_secrets(WOLFSSL *ssl,
+                                        WOLFSSL_ENCRYPTION_LEVEL level,
+                                        const uint8_t *read_secret,
+                                        const uint8_t *write_secret,
+                                        size_t secret_len)
 {
     (void)ssl;
     printf("QUIC_set_encryption_secrets(level=%d, length=%d, rx=%s, tx=%s)\n",
-           level, (int)secret_len, read_secret? "yes" : "no", write_secret? "yes" : "no");
+           level, (int)secret_len, read_secret? "yes" : "no",
+           write_secret? "yes" : "no");
     return 1;
 }
 
-static int dummy_set_encryption_secrets_fail(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
-                                         const uint8_t *read_secret,
-                                         const uint8_t *write_secret, size_t secret_len)
+static int dummy_set_encryption_secrets_fail(WOLFSSL *ssl,
+                                             WOLFSSL_ENCRYPTION_LEVEL level,
+                                             const uint8_t *read_secret,
+                                             const uint8_t *write_secret,
+                                             size_t secret_len)
 {
     (void)ssl;
     printf("QUIC_set_encryption_secrets(level=%d, length=%d, rx=%s, tx=%s)\n",
-           level, (int)secret_len, read_secret? "yes" : "no", write_secret? "yes" : "no");
+           level, (int)secret_len, read_secret? "yes" : "no",
+           write_secret? "yes" : "no");
     return 0;
 }
 
-static int dummy_add_handshake_data(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
+static int dummy_add_handshake_data(WOLFSSL *ssl,
+                                    WOLFSSL_ENCRYPTION_LEVEL level,
                                     const uint8_t *data, size_t len)
 {
     (void)ssl;
@@ -95,7 +102,8 @@ static int dummy_flush_flight(WOLFSSL *ssl)
     return 1;
 }
 
-static int dummy_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t err)
+static int dummy_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
+                            uint8_t err)
 {
     (void)ssl;
     printf("QUIC_send_alert(level=%d, err=%d)\n", level, err);
@@ -209,7 +217,7 @@ static int test_set_quic_method(void) {
         wolfSSL_CTX_free(ctx);
     }
 
-    printf("    test_set_quic_method: %s\n", (EXPECT_SUCCESS()) ? passed : failed);
+    printf("    test_set_quic_method: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -337,7 +345,7 @@ static int test_provide_quic_data(void) {
 
     wolfSSL_CTX_free(ctx);
 
-    printf("    test_provide_quic_data: %s\n", (EXPECT_SUCCESS()) ? passed : failed);
+    printf("    test_provide_quic_data: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -347,6 +355,38 @@ static int test_quic_crypt(void) {
     WOLFSSL_CTX * ctx = NULL;
     WOLFSSL *     ssl = NULL;
     const WOLFSSL_EVP_CIPHER * aead_cipher = NULL;
+    /* check that our enc-/decrypt support in quic rount-trips */
+    static const uint8_t key[16] =
+    {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+     0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+    static const uint8_t aad[] =
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    static const uint8_t iv[] =
+    {20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+    static const uint8_t plaintext[] =
+    "hello world\nhello world\nhello world\nhello world\nhello world\n"
+    "hello world\nhello world\n";
+    static const uint8_t expected[] =
+    {0xd3, 0xa8, 0x1d, 0x96, 0x4c, 0x9b, 0x02, 0xd7,
+     0x9a, 0xb0, 0x41, 0x07, 0x4c, 0x8c, 0xe2, 0xe0,
+     0x2e, 0x83, 0x54, 0x52, 0x45, 0xcb, 0xd4, 0x68,
+     0xc8, 0x43, 0x45, 0xca, 0x91, 0xfb, 0xa3, 0x7a,
+     0x67, 0xed, 0xe8, 0xd7, 0x5e, 0xe2, 0x33, 0xd1,
+     0x3e, 0xbf, 0x50, 0xc2, 0x4b, 0x86, 0x83, 0x55,
+     0x11, 0xbb, 0x17, 0x4f, 0xf5, 0x78, 0xb8, 0x65,
+     0xeb, 0x9a, 0x2b, 0x8f, 0x77, 0x08, 0xa9, 0x60,
+     0x17, 0x73, 0xc5, 0x07, 0xf3, 0x04, 0xc9, 0x3f,
+     0x67, 0x4d, 0x12, 0xa1, 0x02, 0x93, 0xc2, 0x3c,
+     0xd3, 0xf8, 0x59, 0x33, 0xd5, 0x01, 0xc3, 0xbb,
+     0xaa, 0xe6, 0x3f, 0xbb, 0x23, 0x66, 0x94, 0x26,
+     0x28, 0x43, 0xa5, 0xfd, 0x2f};
+    WOLFSSL_EVP_CIPHER_CTX * enc_ctx = NULL;
+    WOLFSSL_EVP_CIPHER_CTX * dec_ctx = NULL;
+    uint8_t * encrypted = NULL;
+    uint8_t * decrypted = NULL;
+    size_t tag_len = 0;
+    size_t enc_len = 0;
+    size_t dec_len = 0;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method) == WOLFSSL_SUCCESS);
@@ -359,59 +399,35 @@ static int test_quic_crypt(void) {
     ExpectTrue(wolfSSL_quic_aead_is_ccm(aead_cipher) == 0);
     ExpectTrue(wolfSSL_quic_aead_is_chacha20(aead_cipher) == 0);
 
-    if (1) {
-        /* check that our enc-/decrypt support in quic rount-trips */
-        static const uint8_t key[16] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                                        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
-        static const uint8_t aad[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-        static const uint8_t iv[] = {20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-        static const uint8_t plaintext[] = "hello world\nhello world\nhello world\nhello world\nhello world\nhello world\nhello world\n";
-        static const uint8_t expected[] = {0xd3, 0xa8, 0x1d, 0x96, 0x4c, 0x9b, 0x02, 0xd7, 0x9a, 0xb0, 0x41, 0x07, 0x4c, 0x8c, 0xe2,
-                                           0xe0, 0x2e, 0x83, 0x54, 0x52, 0x45, 0xcb, 0xd4, 0x68, 0xc8, 0x43, 0x45, 0xca, 0x91, 0xfb,
-                                           0xa3, 0x7a, 0x67, 0xed, 0xe8, 0xd7, 0x5e, 0xe2, 0x33, 0xd1, 0x3e, 0xbf, 0x50, 0xc2, 0x4b,
-                                           0x86, 0x83, 0x55, 0x11, 0xbb, 0x17, 0x4f, 0xf5, 0x78, 0xb8, 0x65, 0xeb, 0x9a, 0x2b, 0x8f,
-                                           0x77, 0x08, 0xa9, 0x60, 0x17, 0x73, 0xc5, 0x07, 0xf3, 0x04, 0xc9, 0x3f, 0x67, 0x4d, 0x12,
-                                           0xa1, 0x02, 0x93, 0xc2, 0x3c, 0xd3, 0xf8, 0x59, 0x33, 0xd5, 0x01, 0xc3, 0xbb, 0xaa, 0xe6,
-                                           0x3f, 0xbb, 0x23, 0x66, 0x94, 0x26, 0x28, 0x43, 0xa5, 0xfd, 0x2f};
-        WOLFSSL_EVP_CIPHER_CTX * enc_ctx = NULL;
-        WOLFSSL_EVP_CIPHER_CTX * dec_ctx = NULL;
-        uint8_t * encrypted = NULL;
-        uint8_t * decrypted = NULL;
-        size_t tag_len = 0;
-        size_t enc_len = 0;
-        size_t dec_len = 0;
+    ExpectTrue((tag_len = wolfSSL_quic_get_aead_tag_len(aead_cipher)) == 16);
+    dec_len = sizeof(plaintext);
+    enc_len = dec_len + tag_len;
+    encrypted = (uint8_t*)XMALLOC(enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(encrypted);
+    decrypted = (uint8_t*)XMALLOC(dec_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(decrypted);
 
-        ExpectTrue((tag_len = wolfSSL_quic_get_aead_tag_len(aead_cipher)) == 16);
-        dec_len = sizeof(plaintext);
-        enc_len = dec_len + tag_len;
-        encrypted = (uint8_t*)XMALLOC(enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        ExpectNotNull(encrypted);
-        decrypted = (uint8_t*)XMALLOC(dec_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        ExpectNotNull(decrypted);
+    ExpectNotNull(enc_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 1));
+    ExpectTrue(wolfSSL_quic_aead_encrypt(encrypted, enc_ctx,
+                                         plaintext, sizeof(plaintext),
+                                         NULL, aad, sizeof(aad)) == WOLFSSL_SUCCESS);
+    ExpectTrue(memcmp(expected, encrypted, dec_len) == 0);
+    ExpectTrue(memcmp(expected+dec_len, encrypted+dec_len, tag_len) == 0);
 
-        ExpectNotNull(enc_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 1));
-        ExpectTrue(wolfSSL_quic_aead_encrypt(encrypted, enc_ctx,
-                                             plaintext, sizeof(plaintext),
-                                             NULL, aad, sizeof(aad)) == WOLFSSL_SUCCESS);
-        ExpectTrue(memcmp(expected, encrypted, dec_len) == 0);
-        ExpectTrue(memcmp(expected+dec_len, encrypted+dec_len, tag_len) == 0);
+    ExpectNotNull(dec_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 0));
+    ExpectTrue(wolfSSL_quic_aead_decrypt(decrypted, dec_ctx,
+                                         encrypted, enc_len,
+                                         NULL, aad, sizeof(aad)) == WOLFSSL_SUCCESS);
+    ExpectTrue(memcmp(plaintext, decrypted, dec_len) == 0);
 
-        ExpectNotNull(dec_ctx = wolfSSL_quic_crypt_new(aead_cipher, key, iv, 0));
-        ExpectTrue(wolfSSL_quic_aead_decrypt(decrypted, dec_ctx,
-                                             encrypted, enc_len,
-                                             NULL, aad, sizeof(aad)) == WOLFSSL_SUCCESS);
-        ExpectTrue(memcmp(plaintext, decrypted, dec_len) == 0);
-
-        XFREE(encrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(decrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        wolfSSL_EVP_CIPHER_CTX_free(enc_ctx);
-        wolfSSL_EVP_CIPHER_CTX_free(dec_ctx);
-    }
+    XFREE(encrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(decrypted, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_EVP_CIPHER_CTX_free(enc_ctx);
+    wolfSSL_EVP_CIPHER_CTX_free(dec_ctx);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-
-    printf("    test_quic_crypt: %s\n", (EXPECT_SUCCESS()) ? passed : failed);
+    printf("    test_quic_crypt: %s\n", (EXPECT_SUCCESS()) ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -441,13 +457,16 @@ typedef struct {
     word32 session_len;
 } QuicTestContext;
 
-static int ctx_set_encryption_secrets(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
+static int ctx_set_encryption_secrets(WOLFSSL *ssl,
+                                      WOLFSSL_ENCRYPTION_LEVEL level,
                                       const uint8_t *read_secret,
-                                      const uint8_t *write_secret, size_t secret_len);
+                                      const uint8_t *write_secret,
+                                      size_t secret_len);
 static int ctx_add_handshake_data(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
                                   const uint8_t *data, size_t len);
 static int ctx_flush_flight(WOLFSSL *ssl);
-static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level, uint8_t err);
+static int ctx_send_alert(WOLFSSL *ssl, WOLFSSL_ENCRYPTION_LEVEL level,
+                          uint8_t err);
 #ifdef HAVE_SESSION_TICKET
 static int ctx_session_ticket_cb(WOLFSSL* ssl,
                                  const unsigned char* ticket, int ticketSz,
@@ -627,7 +646,8 @@ static int ctx_session_ticket_cb(WOLFSSL* ssl,
 
     (void)cb_ctx;
     if (ticketSz < 0 || (size_t)ticketSz > sizeof(ctx->ticket)) {
-        printf("SESSION TICKET callback: ticket given is too large: %d bytes\n", ticketSz);
+        printf("SESSION TICKET callback: ticket given is too large: %d bytes\n",
+               ticketSz);
         return 1;
     }
     memset(ctx->ticket, 0, sizeof(ctx->ticket));
@@ -646,7 +666,8 @@ static void ctx_dump_output(QuicTestContext *ctx)
     dump_buffer("Output", ctx->output.data, ctx->output.len, 0);
 }
 
-static void check_handshake_record(const byte *data, size_t data_len, int *ptype, size_t *prlen)
+static void check_handshake_record(const byte *data, size_t data_len,
+                                   int *ptype, size_t *prlen)
 {
     word32 rlen;
     AssertTrue(data_len >= HANDSHAKE_HEADER_SZ);
@@ -706,7 +727,8 @@ static void ext_equals(const byte *data, size_t data_len, int ext_type,
     AssertTrue(memcmp(ext + 4, exp_data, exp_len) == 0);
 }
 
-static void check_quic_client_hello(const byte *data, size_t data_len, int verbose, int indent)
+static void check_quic_client_hello(const byte *data, size_t data_len,
+                                    int verbose, int indent)
 {
     size_t idx;
     word16 len16;
@@ -749,7 +771,8 @@ static void check_quic_client_hello(const byte *data, size_t data_len, int verbo
     }
 }
 
-static void check_quic_client_hello_tp(OutputBuffer *out, int tp_v1, int tp_draft)
+static void check_quic_client_hello_tp(OutputBuffer *out, int tp_v1,
+                                       int tp_draft)
 {
     size_t idx;
     word16 len16;
@@ -776,7 +799,8 @@ static void check_quic_client_hello_tp(OutputBuffer *out, int tp_v1, int tp_draf
     AssertTrue(!ext_has(exts, exts_len, TLSX_KEY_QUIC_TP_PARAMS_DRAFT) == !tp_draft);
 }
 
-static void check_secrets(QuicTestContext *ctx, WOLFSSL_ENCRYPTION_LEVEL level, size_t rx_len, size_t tx_len)
+static void check_secrets(QuicTestContext *ctx, WOLFSSL_ENCRYPTION_LEVEL level,
+                          size_t rx_len, size_t tx_len)
 {
     int idx = (int)level;
     AssertTrue(idx < 4);
@@ -791,11 +815,14 @@ static void assert_secrets_EQ(QuicTestContext *ctx1, QuicTestContext *ctx2,
     /* rx secrets are the other ones tx secrets */
     AssertIntEQ(ctx1->rx_secret_len[idx], ctx2->tx_secret_len[idx]);
     AssertIntEQ(ctx1->tx_secret_len[idx], ctx2->rx_secret_len[idx]);
-    AssertIntEQ(memcmp(ctx1->rx_secret[idx], ctx2->tx_secret[idx], ctx1->rx_secret_len[idx]), 0);
-    AssertIntEQ(memcmp(ctx1->tx_secret[idx], ctx2->rx_secret[idx], ctx1->tx_secret_len[idx]), 0);
+    AssertIntEQ(memcmp(ctx1->rx_secret[idx], ctx2->tx_secret[idx],
+                ctx1->rx_secret_len[idx]), 0);
+    AssertIntEQ(memcmp(ctx1->tx_secret[idx], ctx2->rx_secret[idx],
+                ctx1->tx_secret_len[idx]), 0);
 }
 
-static void check_ee(const byte *data, size_t data_len, int verbose, int indent)
+static void check_ee(const byte *data, size_t data_len, int verbose,
+                     int indent)
 {
     size_t rec_len, exts_len, idx;
     word16 len16;
@@ -816,7 +843,8 @@ static void check_ee(const byte *data, size_t data_len, int verbose, int indent)
     }
 }
 
-static void check_quic_server_hello(const byte *data, size_t data_len, int verbose, int indent)
+static void check_quic_server_hello(const byte *data, size_t data_len,
+                                    int verbose, int indent)
 {
     size_t idx;
     word16 len16, cipher;
@@ -856,7 +884,8 @@ static void check_quic_server_hello(const byte *data, size_t data_len, int verbo
                ext_sup_version, sizeof(ext_sup_version));
 }
 
-static void check_crypto_rec(const byte *data, size_t data_len, int verbose, int indent)
+static void check_crypto_rec(const byte *data, size_t data_len, int verbose,
+                             int indent)
 {
     size_t rec_len;
     int rec_type;
@@ -867,7 +896,9 @@ static void check_crypto_rec(const byte *data, size_t data_len, int verbose, int
     }
 }
 
-static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int indent, char *rec_log, size_t rec_log_size)
+static void check_crypto_records(QuicTestContext *from, OutputBuffer *out,
+                                 int indent, char *rec_log,
+                                 size_t rec_log_size)
 {
     const byte *data = out->data;
     size_t data_len = out->len;
@@ -928,7 +959,8 @@ static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int i
     }
 }
 
-static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to, char *rec_log, size_t rec_log_size)
+static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to,
+                                    char *rec_log, size_t rec_log_size)
 {
     int ret;
     OutputBuffer *out, *old;
@@ -940,12 +972,15 @@ static void QuicTestContext_forward(QuicTestContext *from, QuicTestContext *to, 
                    from->name, to->name, (int)out->len, out->level);
         }
         if (out->level == wolfssl_encryption_early_data) {
-            if (from->verbose) dump_buffer("EarlyData", out->data, out->len, 4);
+            if (from->verbose) {
+                dump_buffer("EarlyData", out->data, out->len, 4);
+            }
         }
         else {
             check_crypto_records(from, out, 4, rec_log, rec_log_size);
         }
-        ret = wolfSSL_provide_quic_data(to->ssl, out->level, out->data, out->len);
+        ret = wolfSSL_provide_quic_data(to->ssl, out->level, out->data,
+                                        out->len);
         out->len = 0;
         AssertIntEQ(ret, WOLFSSL_SUCCESS);
         if (out->next) {
@@ -969,7 +1004,8 @@ typedef struct {
 } QuicConversation;
 
 static void QuicConversation_init(QuicConversation *conv,
-                                  QuicTestContext *tclient, QuicTestContext *tserver)
+                                  QuicTestContext *tclient,
+                                  QuicTestContext *tserver)
 {
     memset(conv, 0, sizeof(*conv));
     conv->client = tclient;
@@ -985,16 +1021,19 @@ static int QuicConversation_start(QuicConversation *conv, const byte *data,
     AssertFalse(conv->started);
 
     if (conv->verbose) {
-        printf("[%s <-> %s] starting\n", conv->client->name, conv->server->name);
+        printf("[%s <-> %s] starting\n", conv->client->name,
+               conv->server->name);
     }
     if (data && data_len > 0) {
 #ifdef WOLFSSL_EARLY_DATA
         int written;
-        ret = wolfSSL_write_early_data(conv->client->ssl, data, (int)data_len, &written);
+        ret = wolfSSL_write_early_data(conv->client->ssl, data, (int)data_len,
+                                       &written);
         if (ret < 0) {
             int err = wolfSSL_get_error(conv->client->ssl, ret);
             char lbuffer[1024];
-            printf("EARLY DATA ret = %d, error = %d, %s\n", ret, err, wolfSSL_ERR_error_string((unsigned long)err, lbuffer));
+            printf("EARLY DATA ret = %d, error = %d, %s\n", ret, err,
+                   wolfSSL_ERR_error_string((unsigned long)err, lbuffer));
             AssertTrue(0);
         }
         *pwritten = (size_t)written;
@@ -1007,7 +1046,8 @@ static int QuicConversation_start(QuicConversation *conv, const byte *data,
     else {
         ret = wolfSSL_connect(conv->client->ssl);
         if (ret != WOLFSSL_SUCCESS) {
-            AssertIntEQ(wolfSSL_get_error(conv->client->ssl, 0), WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+            AssertIntEQ(wolfSSL_get_error(conv->client->ssl, 0),
+                        WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
         }
         if (pwritten) *pwritten = 0;
     }
@@ -1021,25 +1061,31 @@ static int QuicConversation_step(QuicConversation *conv, int may_fail)
 
     if (!conv->started) {
         n = wolfSSL_connect(conv->client->ssl);
-        if (n != WOLFSSL_SUCCESS
-            && wolfSSL_get_error(conv->client->ssl, 0) != WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ)) {
+        if ((n != WOLFSSL_SUCCESS) &&
+            (wolfSSL_get_error(conv->client->ssl, 0) !=
+            WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ))) {
             if (may_fail) return 0;
-            AssertIntEQ(WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ), wolfSSL_get_error(conv->client->ssl, 0));
+            AssertIntEQ(WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ),
+                        wolfSSL_get_error(conv->client->ssl, 0));
         }
         conv->started = 1;
     }
     if (conv->server->output.len > 0) {
-        QuicTestContext_forward(conv->server, conv->client, conv->rec_log, sizeof(conv->rec_log));
+        QuicTestContext_forward(conv->server, conv->client, conv->rec_log,
+                                sizeof(conv->rec_log));
         n = wolfSSL_quic_read_write(conv->client->ssl);
-        if (n != WOLFSSL_SUCCESS
-            && wolfSSL_get_error(conv->client->ssl, 0) != WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ)) {
+        if ((n != WOLFSSL_SUCCESS) &&
+            (wolfSSL_get_error(conv->client->ssl, 0) !=
+             WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ))) {
             if (may_fail) return 0;
-            AssertIntEQ(WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ), wolfSSL_get_error(conv->client->ssl, 0));
+            AssertIntEQ(WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ),
+                        wolfSSL_get_error(conv->client->ssl, 0));
         }
         return 1;
     }
     else if (conv->client->output.len > 0) {
-        QuicTestContext_forward(conv->client, conv->server, conv->rec_log, sizeof(conv->rec_log));
+        QuicTestContext_forward(conv->client, conv->server, conv->rec_log,
+                                sizeof(conv->rec_log));
 #ifdef WOLFSSL_EARLY_DATA
         if (conv->accept_early_data) {
             int written;
@@ -1050,13 +1096,15 @@ static int QuicConversation_step(QuicConversation *conv, int may_fail)
             if (n < 0) {
                 if (wolfSSL_get_error(conv->server->ssl, 0) != WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ)) {
                     if (may_fail) return 0;
-                    AssertIntEQ(wolfSSL_get_error(conv->server->ssl, 0), WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+                    AssertIntEQ(wolfSSL_get_error(conv->server->ssl, 0),
+                                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
                 }
             }
             else if (n > 0) {
                 conv->early_data_len += (size_t)n;
                 if (conv->verbose)
-                    printf("RECVed early data, len now=%d\n", (int)conv->early_data_len);
+                    printf("RECVed early data, len now=%d\n",
+                           (int)conv->early_data_len);
             }
         }
         else
@@ -1066,7 +1114,8 @@ static int QuicConversation_step(QuicConversation *conv, int may_fail)
             if (n != WOLFSSL_SUCCESS
                 && wolfSSL_get_error(conv->server->ssl, 0) != WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ)) {
                 if (may_fail) return 0;
-                AssertIntEQ(wolfSSL_get_error(conv->server->ssl, 0), WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+                AssertIntEQ(wolfSSL_get_error(conv->server->ssl, 0),
+                            WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
             }
         }
         return 1;
@@ -1128,7 +1177,8 @@ static int test_quic_client_hello(int verbose) {
     /* Without any QUIC transport params, this needs to fail */
     ExpectTrue(wolfSSL_set_quic_transport_params(tctx.ssl, NULL, 0) == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_quic_read_write(tctx.ssl) != 0);
-    ExpectIntEQ(wolfSSL_get_error(tctx.ssl, 0), WC_NO_ERR_TRACE(QUIC_TP_MISSING_E));
+    ExpectIntEQ(wolfSSL_get_error(tctx.ssl, 0),
+                WC_NO_ERR_TRACE(QUIC_TP_MISSING_E));
     QuicTestContext_free(&tctx);
 
     /* Set transport params, expect both extensions */
@@ -1138,7 +1188,8 @@ static int test_quic_client_hello(int verbose) {
                    "wolfssl.com", sizeof("wolfssl.com")-1);
 #endif
     ExpectTrue(wolfSSL_connect(tctx.ssl) != 0);
-    ExpectIntEQ(wolfSSL_get_error(tctx.ssl, 0), WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+    ExpectIntEQ(wolfSSL_get_error(tctx.ssl, 0),
+                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
     check_quic_client_hello_tp(&tctx.output, 1, 1);
     QuicTestContext_free(&tctx);
 
@@ -1151,7 +1202,8 @@ static int test_quic_client_hello(int verbose) {
 
     /* Set transport params draft, expect draft extension */
     QuicTestContext_init(&tctx, ctx, "client", verbose);
-    wolfSSL_set_quic_transport_version(tctx.ssl, TLSX_KEY_QUIC_TP_PARAMS_DRAFT);
+    wolfSSL_set_quic_transport_version(tctx.ssl,
+                                       TLSX_KEY_QUIC_TP_PARAMS_DRAFT);
     ExpectTrue(wolfSSL_connect(tctx.ssl) != 0);
     check_quic_client_hello_tp(&tctx.output, 0, 1);
     QuicTestContext_free(&tctx);
@@ -1164,7 +1216,7 @@ static int test_quic_client_hello(int verbose) {
     QuicTestContext_free(&tctx);
 
     wolfSSL_CTX_free(ctx);
-    printf("    test_quic_client_hello: %s\n", (EXPECT_SUCCESS())? passed : failed);
+    printf("    test_quic_client_hello: %s\n", EXPECT_SUCCESS() ? pass : fail);
 
     return EXPECT_RESULT();
 }
@@ -1178,8 +1230,10 @@ static int test_quic_server_hello(int verbose) {
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
 
     /* setup ssls */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
@@ -1241,8 +1295,7 @@ static int test_quic_server_hello(int verbose) {
 
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    printf("    test_quic_server_hello: %s\n", (EXPECT_RESULT())? passed : failed);
-
+    printf("    test_quic_server_hello: %s\n", EXPECT_RESULT() ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1255,8 +1308,10 @@ static int test_quic_server_hello_fail(int verbose) {
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+                                                WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+                                               WOLFSSL_FILETYPE_PEM));
 
     /* setup ssls */
     QuicTestContext_init_fail_cb(&tclient, ctx_c, "client", verbose);
@@ -1286,8 +1341,8 @@ static int test_quic_server_hello_fail(int verbose) {
 
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    printf("    test_quic_server_hello_fail: %s\n", (EXPECT_RESULT())? passed : failed);
-
+    printf("    test_quic_server_hello_fail: %s\n",
+           EXPECT_RESULT() ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1349,8 +1404,10 @@ static int test_quic_alpn(int verbose) {
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
 
     stripe.stripe[0] = '\0';
     wolfSSL_CTX_set_servername_callback(ctx_s, inspect_SNI);
@@ -1384,8 +1441,7 @@ static int test_quic_alpn(int verbose) {
 
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    printf("    test_quic_alpn: %s\n", (EXPECT_SUCCESS())? passed : failed);
-
+    printf("    test_quic_alpn: %s\n", (EXPECT_SUCCESS())? pass : fail);
     return EXPECT_RESULT();
 }
 #endif /* REALLY_HAVE_ALPN_AND_SNI */
@@ -1402,8 +1458,10 @@ static int test_quic_key_share(int verbose) {
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
 
     /* setup & handshake defaults */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
@@ -1458,15 +1516,17 @@ static int test_quic_key_share(int verbose) {
                == WOLFSSL_SUCCESS);
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_fail(&conv);
-    ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0), WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
-    ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0), WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA));
+    ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0),
+                WC_NO_ERR_TRACE(SSL_ERROR_WANT_READ));
+    ExpectIntEQ(wolfSSL_get_error(tclient.ssl, 0),
+                WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA));
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
     printf("    test_quic_key_share: no match ok\n");
 
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    printf("    test_quic_key_share: %s\n", (EXPECT_RESULT())? passed : failed);
+    printf("    test_quic_key_share: %s\n", EXPECT_SUCCESS() ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1485,8 +1545,10 @@ static int test_quic_resumption(int verbose) {
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
 
     /* setup ssls */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
@@ -1507,8 +1569,10 @@ static int test_quic_resumption(int verbose) {
     ExpectTrue((session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, NULL)) > 0);
     ExpectTrue((size_t)session_size < sizeof(session_buffer));
     session_data2 = session_data = session_buffer;
-    session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, &session_data);
-    session_restored = wolfSSL_d2i_SSL_SESSION(NULL, &session_data2, session_size);
+    session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session,
+                                                         &session_data);
+    session_restored = wolfSSL_d2i_SSL_SESSION(NULL, &session_data2,
+                                               session_size);
     ExpectNotNull(session_restored);
 
     QuicTestContext_free(&tserver);
@@ -1530,7 +1594,8 @@ static int test_quic_resumption(int verbose) {
     /* Do a Session resumption with the restored session object */
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
     QuicTestContext_init(&tclient, ctx_c, "client_resume_restored", verbose);
-    ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session_restored), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session_restored),
+                WOLFSSL_SUCCESS);
     /* let them talk */
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
@@ -1544,12 +1609,15 @@ static int test_quic_resumption(int verbose) {
         /* Do a Session resumption with a new server ctx */
         WOLFSSL_CTX * ctx_s2 = NULL;
         ExpectNotNull(ctx_s2 = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-        ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s2, eccCertFile, WOLFSSL_FILETYPE_PEM));
-        ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, eccKeyFile, WOLFSSL_FILETYPE_PEM));
+        ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s2, eccCertFile,
+                                                    WOLFSSL_FILETYPE_PEM));
+        ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s2, eccKeyFile,
+                                                   WOLFSSL_FILETYPE_PEM));
 
         QuicTestContext_init(&tserver, ctx_s2, "server2", verbose);
         QuicTestContext_init(&tclient, ctx_c, "client_resume2", verbose);
-        ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session_restored), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_session(tclient.ssl, session_restored),
+                                        WOLFSSL_SUCCESS);
         /* let them talk */
         QuicConversation_init(&conv, &tclient, &tserver);
         QuicConversation_do(&conv);
@@ -1565,7 +1633,7 @@ static int test_quic_resumption(int verbose) {
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
 
-    printf("    test_quic_resumption: %s\n", (EXPECT_SUCCESS())? passed : failed);
+    printf("    test_quic_resumption: %s\n", EXPECT_SUCCESS() ? pass : fail);
     return EXPECT_RESULT();
 }
 
@@ -1585,8 +1653,10 @@ static int test_quic_early_data(int verbose) {
     wolfSSL_CTX_UseSessionTicket(ctx_c);
 
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
 
     /* setup ssls */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
@@ -1624,7 +1694,8 @@ static int test_quic_early_data(int verbose) {
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_start(&conv, early_data, sizeof(early_data), &ed_written);
     QuicConversation_do(&conv);
-    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl), WOLFSSL_EARLY_DATA_ACCEPTED);
+    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl),
+                WOLFSSL_EARLY_DATA_ACCEPTED);
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
@@ -1638,7 +1709,8 @@ static int test_quic_early_data(int verbose) {
     conv.accept_early_data = 1;
     QuicConversation_start(&conv, early_data, sizeof(early_data), &ed_written);
     QuicConversation_do(&conv);
-    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl), WOLFSSL_EARLY_DATA_ACCEPTED);
+    ExpectIntEQ(wolfSSL_get_early_data_status(tclient.ssl),
+                WOLFSSL_EARLY_DATA_ACCEPTED);
     ExpectIntEQ(conv.early_data_len, sizeof(early_data));
     ExpectStrEQ(conv.early_data, (const char*)early_data);
 
@@ -1648,8 +1720,7 @@ static int test_quic_early_data(int verbose) {
     wolfSSL_SESSION_free(session);
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-    printf("    test_quic_early_data: %s\n", (EXPECT_SUCCESS())? passed : failed);
-
+    printf("    test_quic_early_data: %s\n", EXPECT_SUCCESS() ? pass : fail);
     return EXPECT_RESULT();
 }
 #endif /* WOLFSSL_EARLY_DATA */
@@ -1695,8 +1766,10 @@ static int test_quic_session_export(int verbose)
 
     ExpectNotNull(ctx_c = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     ExpectNotNull(ctx_s = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
-    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx_s, svrCertFile,
+               WOLFSSL_FILETYPE_PEM));
+    ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx_s, svrKeyFile,
+               WOLFSSL_FILETYPE_PEM));
 
     /* Uses CTX session callback for new sessions */
     wolfSSL_CTX_sess_set_new_cb(ctx_c, new_session_cb);
@@ -1709,7 +1782,9 @@ static int test_quic_session_export(int verbose)
     /* run till end */
     QuicConversation_do(&conv);
     /* what have we seen? */
-    ExpectStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Certificate:CertificateVerify:Finished:Finished:SessionTicket");
+    ExpectStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+                "Certificate:CertificateVerify:Finished:Finished:"
+                "SessionTicket");
 
     /* Should have received a session, save it */
     ExpectTrue(tclient.session_len > 0);
@@ -1733,15 +1808,15 @@ static int test_quic_session_export(int verbose)
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     /* this is what should happen. Look Ma, no certificate! */
-    ExpectStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:Finished:Finished:SessionTicket");
+    ExpectStrEQ(conv.rec_log, "ClientHello:ServerHello:EncryptedExtension:"
+                "Finished:Finished:SessionTicket");
 
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
     wolfSSL_CTX_free(ctx_c);
     wolfSSL_CTX_free(ctx_s);
-
-    printf("    test_quic_session_export: %s\n", (EXPECT_RESULT())? passed : failed);
+    printf("    test_quic_session_export: %s\n", EXPECT_RESULT() ? pass : fail);
     return EXPECT_RESULT();
 }
 #endif /* WOLFSSL_SESSION_EXPORT */
