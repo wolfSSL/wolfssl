@@ -1775,9 +1775,10 @@ int QuicTest(void)
 #endif /* HAVE_SESSION_TICKET */
 
 leave:
-    if (ret != TEST_SUCCESS)
+    if (ret != TEST_SUCCESS) {
         printf("  FAILED: some tests did not pass.\n");
+    }
     printf(" End QUIC Tests\n");
 #endif
-    return ret;
+    return ret == TEST_SUCCESS ? 0 : -1;
 }
