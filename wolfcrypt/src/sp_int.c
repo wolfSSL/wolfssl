@@ -8025,10 +8025,12 @@ static void sp_clamp_ct(sp_int* a)
     ((SP_WORD_SIZE == 32) && defined(NO_64BIT))
         sp_int_digit negVal = ~a->dp[i];
         sp_int_digit minusOne = a->dp[i] - 1;
-        sp_int_digit zeroMask = (sp_int_sdigit)(negVal & minusOne) >>
-                                (SP_WORD_SIZE - 1);
+        sp_int_digit zeroMask =
+            (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
+                           (SP_WORD_SIZE - 1));
 #else
-        sp_int_digit zeroMask = (((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE;
+        sp_int_digit zeroMask =
+            (sp_int_digit)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
 #endif
         mask &= (sp_size_t)zeroMask;
         used = (sp_size_t)(used + mask);
@@ -8879,7 +8881,7 @@ static int _sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem,
     if ((!done) && (err == MP_OKAY)) {
     #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
         !defined(WOLFSSL_SP_NO_MALLOC)
-        int cnt = 4;
+        unsigned int cnt = 4;
         /* Reuse remainder sp_int where possible. */
         if ((rem != NULL) && (rem != d) && (rem->size > a->used)) {
             sa = rem;
@@ -8908,7 +8910,7 @@ static int _sp_div(const sp_int* a, const sp_int* d, sp_int* r, sp_int* rem,
         }
         if (tr == NULL) {
             tr = td[i];
-            _sp_init_size(tr, a->used - d->used + 2);
+            _sp_init_size(tr, (unsigned int)(a->used - d->used + 2));
         }
     #else
         sa    = td[2];
@@ -9255,8 +9257,9 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
-        DYNAMIC_TYPE_BIGINT);
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) *
+                               (size_t)(a->used + b->used), NULL,
+                               DYNAMIC_TYPE_BIGINT);
     if (t == NULL) {
         err = MP_MEM;
     }
@@ -9331,8 +9334,9 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used + b->used), NULL,
-        DYNAMIC_TYPE_BIGINT);
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) *
+                               (size_t)(a->used + b->used), NULL,
+                               DYNAMIC_TYPE_BIGINT);
     if (t == NULL) {
         err = MP_MEM;
     }
@@ -14881,7 +14885,7 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     t = (sp_int_digit*)XMALLOC(
-        sizeof(sp_int_digit) * (((a->used + 1) / 2) * 2 + 1), NULL,
+        sizeof(sp_int_digit) * (size_t)(((a->used + 1) / 2) * 2 + 1), NULL,
         DYNAMIC_TYPE_BIGINT);
     if (t == NULL) {
         err = MP_MEM;
@@ -14995,8 +14999,9 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) * (a->used * 2), NULL,
-        DYNAMIC_TYPE_BIGINT);
+    t = (sp_int_digit*)XMALLOC(sizeof(sp_int_digit) *
+                               (size_t)(a->used * 2), NULL,
+                               DYNAMIC_TYPE_BIGINT);
     if (t == NULL) {
         err = MP_MEM;
     }

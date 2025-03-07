@@ -1,0 +1,41 @@
+name: wolfCrypt conversion warnings
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_library:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
+          '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
+          '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
+          '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"'
+        ]
+    name: build library
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Build wolfCrypt with extra type conversion warnings
+        run: |
+          ./autogen.sh || $(exit 2)
+          echo "running ./configure ${{ matrix.config }}"
+          ./configure ${{ matrix.config }} || $(exit 3)
+          make -j 4 || $(exit 4)

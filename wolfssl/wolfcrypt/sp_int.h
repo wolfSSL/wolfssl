@@ -262,7 +262,7 @@ extern "C" {
 #define SP_WORD_SIZEOF  (SP_WORD_SIZE / 8)
 
 /* Define the types used. */
-#ifdef HAVE___UINT128_T
+#if defined(HAVE___UINT128_T) && !defined(NO_INT128)
     #ifdef __SIZEOF_INT128__
         typedef __uint128_t   sp_uint128;
         typedef  __int128_t    sp_int128;

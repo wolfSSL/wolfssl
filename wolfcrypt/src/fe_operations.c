@@ -150,7 +150,7 @@ int curve25519(byte* q, const byte* n, const byte* p)
   swap = 0;
   for (pos = 254;pos >= 0;--pos) {
     unsigned int b;
-    b = n[pos / 8] >> (pos & 7);
+    b = (unsigned int)(n[pos / 8]) >> (pos & 7);
     b &= 1;
     swap ^= b;
     fe_cswap(x2,x3,(int)swap);
