@@ -100,6 +100,12 @@ config WOLFCRYPT_ARMASM
 	  wolfCrypt ARM (ARMv8/ARMv7) assembly support for AES, SHA-2, SHA-3,
 	  ChaCha20/Poly1305 and Curve25519
 
+config WOLFCRYPT_ARMASM_THUMB2
+	bool "wolfCrypt ARM Thumb2 Assembly support"
+	depends on WOLFCRYPT_ARMASM
+	help
+	  Enable Thumb2 assembly optimizations for ARM processors
+
 config WOLFCRYPT_INTELASM
 	bool "wolfCrypt Intel Assembly support"
 	depends on WOLFSSL_BUILTIN
