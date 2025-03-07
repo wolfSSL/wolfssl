@@ -55,7 +55,7 @@ static const char* fail = "fail";
 
 typedef struct {
     const char *name;
-    WOLFSSL_METHOD *method;
+    WOLFSSL_METHOD * (*method)(void);
     int is_server;
 } ctx_setups;
 
@@ -121,6 +121,27 @@ static WOLFSSL_QUIC_METHOD null_method = {
     NULL, NULL, NULL, NULL
 };
 
+static ctx_setups valids[] = {
+#ifdef WOLFSSL_TLS13
+    { "TLSv1.3 server", wolfTLSv1_3_server_method, 1},
+    { "TLSv1.3 client", wolfTLSv1_3_client_method, 0},
+#endif
+    { NULL, NULL, 0}
+};
+
+static ctx_setups invalids[] = {
+#ifndef WOLFSSL_NO_TLS12
+    { "TLSv1.2 server", wolfTLSv1_2_server_method, 1},
+    { "TLSv1.2 client", wolfTLSv1_2_client_method, 0},
+#endif
+#ifndef NO_OLD_TLS
+    { "TLSv1.1 server", wolfTLSv1_1_server_method, 1},
+    { "TLSv1.1 client", wolfTLSv1_1_client_method, 0},
+#endif
+    { NULL, NULL, 0}
+};
+
+
 static int test_set_quic_method(void) {
     EXPECT_DECLS;
     WOLFSSL_CTX *   ctx = NULL;
@@ -128,27 +149,9 @@ static int test_set_quic_method(void) {
     int             i = 0;
     const uint8_t * data = NULL;
     size_t          data_len = 0;;
-    ctx_setups      valids[] = {
-#ifdef WOLFSSL_TLS13
-        { "TLSv1.3 server", wolfTLSv1_3_server_method(), 1},
-        { "TLSv1.3 client", wolfTLSv1_3_client_method(), 0},
-#endif
-        { NULL, NULL, 0}
-    };
-    ctx_setups invalids[] = {
-#ifndef WOLFSSL_NO_TLS12
-        { "TLSv1.2 server", wolfTLSv1_2_server_method(), 1},
-        { "TLSv1.2 client", wolfTLSv1_2_client_method(), 0},
-#endif
-#ifndef NO_OLD_TLS
-        { "TLSv1.1 server", wolfTLSv1_1_server_method(), 1},
-        { "TLSv1.1 client", wolfTLSv1_1_client_method(), 0},
-#endif
-        { NULL, NULL, 0}
-    };
 
     for (i = 0; valids[i].name != NULL; ++i) {
-        ExpectNotNull(ctx = wolfSSL_CTX_new(valids[i].method));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(valids[i].method()));
         if (valids[i].is_server) {
             ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
                                                         WOLFSSL_FILETYPE_PEM));
@@ -201,7 +204,7 @@ static int test_set_quic_method(void) {
 
     for (i = 0; invalids[i].name != NULL; ++i) {
 
-        ExpectNotNull(ctx = wolfSSL_CTX_new(invalids[i].method));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(invalids[i].method()));
         ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
                                                     WOLFSSL_FILETYPE_PEM));
         ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
