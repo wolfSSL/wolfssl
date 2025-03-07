@@ -39262,8 +39262,12 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 
     ExpectTrue((f = XFOPEN(testStream, "rb")) != XBADFILE);
     do {
-        ExpectIntGT(testStreamBufferSz = (int)XFREAD(testStreamBuffer, 1,
-            sizeof(testStreamBuffer), f), 0);
+        testStreamBufferSz = (int)XFREAD(testStreamBuffer, 1,
+            sizeof(testStreamBuffer), f);
+        ExpectIntGE(testStreamBufferSz, 0);
+        if (testStreamBufferSz < 0) {
+            break;
+        }
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testStreamBuffer,
             testStreamBufferSz, NULL, 0);
