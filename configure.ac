@@ -10064,6 +10064,13 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
 fi
 
+AS_IF([test "$ENABLED_ASM" = "no" && (test "$ENABLED_INTELASM" != "no" || \
+                                      test "$ENABLED_AESNI" != "no" || \
+                                      test "$ENABLED_ARMASM" != "no" || \
+                                      test "$ENABLED_RISCV_ASM" != "no" || \
+                                      test "$ENABLED_SP_ASM" != "no")],
+      [AC_MSG_WARN([Conflicting asm settings.])])
+
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
 # Some of these affect build targets and objects, some trigger different
 # test scripts for make check.
