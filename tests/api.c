@@ -39219,6 +39219,95 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 #endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && !NO_AES_256 */
 
 
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
+#define MAX_TEST_DECODE_SIZE 6000
+static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
+    const byte* output, word32 outputSz, void* ctx) {
+     WOLFSSL_BUFFER_INFO* out = (WOLFSSL_BUFFER_INFO*)ctx;
+
+    if (out == NULL) {
+        return -1;
+    }
+
+    if (outputSz + out->length > MAX_TEST_DECODE_SIZE) {
+        printf("Example buffer size needs increased");
+    }
+
+    /* printf("Decoded in %d bytes\n", outputSz);
+     * for (word32 z = 0; z < outputSz; z++) printf("%02X", output[z]);
+     * printf("\n");
+    */
+
+    XMEMCPY(out->buffer + out->length, output, outputSz);
+    out->length += outputSz;
+
+    (void)pkcs7;
+    return 0;
+}
+#endif /* HAVE_PKCS7 && ASN_BER_TO_DER */
+
+/*
+ * Testing wc_PKCS7_DecodeEnvelopedData with streaming
+ */
+static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
+{
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
+    EXPECT_DECLS;
+    PKCS7*      pkcs7 = NULL;
+    int ret = 0;
+    XFILE f = XBADFILE;
+    const char* testStream = "./certs/test-stream-dec.p7b";
+    byte testStreamBuffer[100];
+    size_t testStreamBufferSz = 0;
+    byte decodedData[MAX_TEST_DECODE_SIZE]; /* large enough to hold result of decode, which is ca-cert.pem */
+    WOLFSSL_BUFFER_INFO out;
+
+    out.length = 0;
+    out.buffer = decodedData;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+        sizeof_client_cert_der_2048), 0);
+
+    ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+        sizeof_client_key_der_2048), 0);
+    ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, NULL,
+        test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb, (void*)&out), 0);
+
+    ExpectTrue((f = XFOPEN(testStream, "rb")) != XBADFILE);
+    if (EXPECT_SUCCESS()) {
+        do {
+            testStreamBufferSz = XFREAD(testStreamBuffer, 1,
+                sizeof(testStreamBuffer), f);
+            if (testStreamBufferSz == 0) {
+                break;
+            }
+
+            ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testStreamBuffer,
+                (word32)testStreamBufferSz, NULL, 0);
+            if (testStreamBufferSz < sizeof(testStreamBuffer)) {
+                break;
+            }
+        } while (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+    #ifdef NO_DES3
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
+        ExpectIntGT(ret, 0);
+    #endif
+    }
+
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
+} /* END test_wc_PKCS7_DecodeEnvelopedData_stream() */
+
 /*
  * Testing wc_PKCS7_EncodeEnvelopedData()
  */
@@ -89473,6 +89562,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_EncodeSignedData_ex),
     TEST_DECL(test_wc_PKCS7_VerifySignedData_RSA),
     TEST_DECL(test_wc_PKCS7_VerifySignedData_ECC),
+    TEST_DECL(test_wc_PKCS7_DecodeEnvelopedData_stream),
     TEST_DECL(test_wc_PKCS7_EncodeDecodeEnvelopedData),
     TEST_DECL(test_wc_PKCS7_EncodeEncryptedData),
     TEST_DECL(test_wc_PKCS7_Degenerate),

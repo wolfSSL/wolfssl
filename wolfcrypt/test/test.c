@@ -53195,7 +53195,8 @@ static wc_test_ret_t verifyBundle(byte* derBuf, word32 derSz, int keyHint)
 #endif /* !NO_SHA */
     };
 
-    decoded = (byte *)XMALLOC(decodedSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (byte *)XMALLOC((word32)decodedSz, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded == NULL) {
         ret = MEMORY_E;
         goto out;
@@ -53353,7 +53354,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7encrypted_test(void)
 {
     wc_test_ret_t ret = 0;
     int i, testSz;
-    int encryptedSz, decodedSz, attribIdx;
+    int encryptedSz, decodedSz;
+    word32 attribIdx;
     wc_PKCS7* pkcs7;
     byte  *encrypted;
     byte  *decoded;
@@ -54721,7 +54723,7 @@ static wc_test_ret_t pkcs7signed_run_SingleShotVectors(
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
             /* compare decrypted to expected */
             if (((word32)ret != testVectors[i].contentSz) ||
-                XMEMCMP(out, testVectors[i].content, ret))
+                XMEMCMP(out, testVectors[i].content, (word32)ret))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
     #endif
