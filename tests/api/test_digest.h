@@ -68,6 +68,17 @@ do {                                                                           \
                                                                                \
     wc_##name##Free(NULL)
 
+#define DIGEST_INIT_ONLY_TEST(type, name)                                      \
+do {                                                                           \
+    type dgst;                                                                 \
+                                                                               \
+    /* Test bad arg. */                                                        \
+    wc_Init##name(NULL);                                                       \
+                                                                               \
+    /* Test good arg. */                                                       \
+    wc_Init##name(&dgst);                                                      \
+} while (0)
+
 #define DIGEST_UPDATE_TEST(type, name)                                         \
     type dgst;                                                                 \
                                                                                \
@@ -79,6 +90,8 @@ do {                                                                           \
     ExpectIntEQ(wc_##name##Update(&dgst, NULL, 1),                             \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Update(NULL, NULL, 0),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Update(NULL, (byte*)"a", 1),                        \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Update(&dgst, NULL, 0), 0);                         \
@@ -99,12 +112,28 @@ do {                                                                           \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##_Update(NULL, NULL, 0),                             \
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##_Update(NULL, (byte*)"a", 1),                       \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##_Update(&dgst, NULL, 0), 0);                        \
     ExpectIntEQ(wc_##name##_Update(&dgst, (byte*)"a", 1), 0);                  \
                                                                                \
     wc_##name##_Free(&dgst);                                                   \
 } while (0)
+
+#define DIGEST_UPDATE_ONLY_TEST(type, name)                                    \
+    type dgst;                                                                 \
+                                                                               \
+    wc_Init##name(&dgst);                                                      \
+                                                                               \
+    /* Pass in bad values. */                                                  \
+    wc_##name##Update(NULL, NULL, 1);                                          \
+    wc_##name##Update(&dgst, NULL, 1);                                         \
+    wc_##name##Update(NULL, NULL, 0);                                          \
+    wc_##name##Update(NULL, (byte*)"a", 1);                                    \
+                                                                               \
+    wc_##name##Update(&dgst, NULL, 0);                                         \
+    wc_##name##Update(&dgst, (byte*)"a", 1)
 
 #define DIGEST_FINAL_TEST(type, name, upper)                                   \
     type dgst;                                                                 \
@@ -164,6 +193,21 @@ do {                                                                           \
                                                                                \
     wc_##name##_Free(&dgst);                                                   \
 } while (0)
+
+#define DIGEST_FINAL_ONLY_TEST(type, name, upper)                              \
+    type dgst;                                                                 \
+    byte hash[WC_##upper##_DIGEST_SIZE];                                       \
+                                                                               \
+    /* Initialize */                                                           \
+    wc_Init##name(&dgst);                                                      \
+                                                                               \
+    /* Test bad args. */                                                       \
+    wc_##name##Final(NULL, NULL);                                              \
+    wc_##name##Final(&dgst, NULL);                                             \
+    wc_##name##Final(NULL, hash);                                              \
+                                                                               \
+    /* Test good args. */                                                      \
+    wc_##name##Final(&dgst, hash);                                             \
 
 #define DIGEST_FINAL_RAW_TEST(type, name, upper, hashStr)                      \
     type dgst;                                                                 \
@@ -240,6 +284,23 @@ do {                                                                           \
     }                                                                          \
                                                                                \
     wc_##name##_Free(&dgst)
+
+#define DIGEST_KATS_ONLY_TEST(name, upper)                                     \
+do {                                                                           \
+    (void)i;                                                                   \
+                                                                               \
+    /* Initialize */                                                           \
+    wc_Init##name(&dgst);                                                      \
+                                                                               \
+    for (i = 0; i < upper##_KAT_CNT; i++) {                                    \
+        /* Do KAT. */                                                          \
+        wc_##name##Update(&dgst, (byte*)dgst_kat[i].input,                     \
+            (word32)dgst_kat[i].inLen);                                        \
+        wc_##name##Final(&dgst, hash);                                         \
+        ExpectBufEQ(hash, (byte*)dgst_kat[i].output,                           \
+            WC_##upper##_DIGEST_SIZE);                                         \
+    }                                                                          \
+} while (0)
 
 #define DIGEST_OTHER_TEST(type, name, upper, hashStr)                          \
     type dgst;                                                                 \
@@ -365,6 +426,46 @@ do {                                                                           \
     }                                                                          \
                                                                                \
     wc_##name##_Free(&dgst);                                                   \
+} while (0)
+
+#define DIGEST_OTHER_ONLY_TEST(type, name, upper, hashStr)                     \
+do {                                                                           \
+    type dgst;                                                                 \
+    byte hash[WC_##upper##_DIGEST_SIZE + 1];                                   \
+    byte data[WC_##upper##_DIGEST_SIZE * 8 + 1];                               \
+    int dataLen = WC_##upper##_DIGEST_SIZE * 8;                                \
+    const char* expHash = hashStr;                                             \
+    int i;                                                                     \
+    int j;                                                                     \
+                                                                               \
+    XMEMSET(data, 0xa5, sizeof(data));                                         \
+                                                                               \
+    /* Initialize */                                                           \
+    wc_Init##name(&dgst);                                                      \
+                                                                               \
+    /* Unaligned input and output buffer. */                                   \
+    wc_##name##Update(&dgst, data + 1, dataLen);                               \
+    wc_##name##Final(&dgst, hash + 1);                                         \
+    ExpectBufEQ(hash + 1, (byte*)expHash, WC_##upper##_DIGEST_SIZE);           \
+                                                                               \
+    /* Test that empty updates work. */                                        \
+    wc_##name##Update(&dgst, NULL, 0);                                         \
+    wc_##name##Update(&dgst, (byte*)"", 0);                                    \
+    wc_##name##Update(&dgst, data, dataLen);                                   \
+    wc_##name##Final(&dgst, hash);                                             \
+    ExpectBufEQ(hash, (byte*)expHash, WC_##upper##_DIGEST_SIZE);               \
+                                                                               \
+    /* Ensure chunking works. */                                               \
+    for (i = 1; i < dataLen; i++) {                                            \
+        for (j = 0; j < dataLen; j += i) {                                     \
+             int len = dataLen - j;                                            \
+             if (i < len)                                                      \
+                 len = i;                                                      \
+             wc_##name##Update(&dgst, data + j, len);                          \
+        }                                                                      \
+        wc_##name##Final(&dgst, hash);                                         \
+        ExpectBufEQ(hash, (byte*)expHash, WC_##upper##_DIGEST_SIZE);           \
+    }                                                                          \
 } while (0)
 
 #define DIGEST_COPY_TEST(type, name, upper, emptyHashStr, abcHashStr)          \
@@ -541,10 +642,12 @@ do {                                                                           \
     ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
                                                                                \
     /* Test bad args. */                                                       \
-    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
-    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL),                             \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
-        BAD_FUNC_ARG);                                                         \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abc##name##Data), 0);       \
     ExpectBufEQ((byte*)dgst.digest, (byte*)abcHash, WC_##upper##_DIGEST_SIZE); \
@@ -564,10 +667,12 @@ do {                                                                           \
     ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
                                                                                \
     /* Test bad args. */                                                       \
-    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
-    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL),                             \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
-        BAD_FUNC_ARG);                                                         \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
     ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
@@ -587,10 +692,12 @@ do {                                                                           \
     ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
                                                                                \
     /* Test bad args. */                                                       \
-    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
-    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL),                             \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
-        BAD_FUNC_ARG);                                                         \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ByteReverseWords((word32*)abc##name##DataBE, (word32*)abc##name##Data,     \
         WC_##upper##_BLOCK_SIZE);                                              \
@@ -613,10 +720,12 @@ do {                                                                           \
     ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
                                                                                \
     /* Test bad args. */                                                       \
-    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
-    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL),                             \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
-        BAD_FUNC_ARG);                                                         \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ByteReverseWords((word32*)abc##name##DataBE, (word32*)abc##name##Data,     \
         WC_##upper##_BLOCK_SIZE);                                              \
@@ -641,10 +750,12 @@ do {                                                                           \
     ExpectIntEQ(wc_Init##name(&dgst), 0);                                      \
                                                                                \
     /* Test bad args. */                                                       \
-    ExpectIntEQ(wc_##name##Transform(NULL, NULL), BAD_FUNC_ARG);               \
-    ExpectIntEQ(wc_##name##Transform(&dgst, NULL), BAD_FUNC_ARG);              \
+    ExpectIntEQ(wc_##name##Transform(NULL, NULL),                              \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Transform(&dgst, NULL),                             \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
     ExpectIntEQ(wc_##name##Transform(NULL, (byte*)abc##name##Data),            \
-        BAD_FUNC_ARG);                                                         \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
                                                                                \
     ExpectIntEQ(wc_##name##Transform(&dgst, (byte*)abcData), 0);               \
     ExpectIntEQ(wc_##name##FinalRaw(&dgst, hash), 0);                          \
@@ -713,4 +824,63 @@ do {                                                                           \
                                                                                \
     wc_##inst##_Free(&dgst_copy);                                              \
     wc_##inst##_Free(&dgst)
+
+#define DIGEST_HASH_TEST(name, upper)                                          \
+do {                                                                           \
+    byte data[WC_##upper##_BLOCK_SIZE];                                        \
+    byte hash[WC_##upper##_DIGEST_SIZE];                                       \
+                                                                               \
+    XMEMSET(data, 0xa5, sizeof(data));                                         \
+                                                                               \
+    /* Invalid parameters. */                                                  \
+    ExpectIntEQ(wc_##name##Hash(NULL, sizeof(data), hash),                     \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), NULL),                     \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Hash_ex(NULL, sizeof(data), hash, HEAP_HINT,        \
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));                        \
+    ExpectIntEQ(wc_##name##Hash_ex(data, sizeof(data), NULL, HEAP_HINT,        \
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));                        \
+                                                                               \
+    /* Valid parameters. */                                                    \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), hash), 0);                 \
+    ExpectIntEQ(wc_##name##Hash_ex(data, sizeof(data), hash, HEAP_HINT,        \
+        INVALID_DEVID), 0);                                                    \
+} while (0)
+
+#define DIGEST_COUNT_HASH_TEST(name, upper)                                    \
+do {                                                                           \
+    byte data[WC_##upper##_COUNT * 8];                                         \
+    byte hash[WC_##upper##_COUNT * 8];                                         \
+                                                                               \
+    XMEMSET(data, 0xa5, sizeof(data));                                         \
+                                                                               \
+    /* Invalid parameters. */                                                  \
+    ExpectIntEQ(wc_##name##Hash(NULL, sizeof(data), hash),                     \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), NULL),                     \
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));                                        \
+    ExpectIntEQ(wc_##name##Hash_ex(NULL, sizeof(data), hash, HEAP_HINT,        \
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));                        \
+    ExpectIntEQ(wc_##name##Hash_ex(data, sizeof(data), NULL, HEAP_HINT,        \
+        INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));                        \
+                                                                               \
+    /* Valid parameters. */                                                    \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), hash), 0);                 \
+    ExpectIntEQ(wc_##name##Hash_ex(data, sizeof(data), hash, HEAP_HINT,        \
+        INVALID_DEVID), 0);                                                    \
+} while (0)
+
+#define DIGEST_HASH_ONLY_TEST(name, upper)                                     \
+    byte data[WC_##upper##_BLOCK_SIZE];                                        \
+    byte hash[WC_##upper##_DIGEST_SIZE];                                       \
+                                                                               \
+    XMEMSET(data, 0xa5, sizeof(data));                                         \
+                                                                               \
+    /* Invalid parameters. */                                                  \
+    ExpectIntEQ(wc_##name##Hash(NULL, sizeof(data), hash), 0);                 \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), NULL), 0);                 \
+                                                                               \
+    /* Valid parameters. */                                                    \
+    ExpectIntEQ(wc_##name##Hash(data, sizeof(data), hash), 0)
 
