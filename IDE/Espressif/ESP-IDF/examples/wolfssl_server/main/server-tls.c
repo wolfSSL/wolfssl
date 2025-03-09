@@ -54,9 +54,9 @@
     #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
     CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
-#if defined(WOLFSSL_WC_KYBER)
-    #include <wolfssl/wolfcrypt/kyber.h>
-    #include <wolfssl/wolfcrypt/wc_kyber.h>
+#if defined(WOLFSSL_WC_MLKEM)
+    #include <wolfssl/wolfcrypt/mlkem.h>
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)
     #include <wolfssl/certs_test.h>
@@ -329,7 +329,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");
         }
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
         else {
             /* If success creating CTX and Kyber enabled, set key share: */
             ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_P521_KYBER_LEVEL5);
@@ -341,7 +341,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
             }
         }
 #else
-        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is not enabled, not using PQ.");
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is not enabled, not using PQ.");
 #endif
         /* show what cipher connected for this WOLFSSL* object */
         ShowCiphers(ssl);

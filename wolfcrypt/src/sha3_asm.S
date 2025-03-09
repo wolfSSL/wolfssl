@@ -9520,15 +9520,15 @@ L_sha3_block_avx2_start:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_blocksx4_avx2
-.type	kyber_sha3_blocksx4_avx2,@function
+.globl	sha3_blocksx4_avx2
+.type	sha3_blocksx4_avx2,@function
 .align	16
-kyber_sha3_blocksx4_avx2:
+sha3_blocksx4_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_blocksx4_avx2
+.globl	_sha3_blocksx4_avx2
 .p2align	4
-_kyber_sha3_blocksx4_avx2:
+_sha3_blocksx4_avx2:
 #endif /* __APPLE__ */
         leaq	L_sha3_x4_avx2_r(%rip), %rdx
         vmovdqu	(%rdi), %ymm15
@@ -14874,7 +14874,7 @@ _kyber_sha3_blocksx4_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_sha3_blocksx4_avx2,.-kyber_sha3_blocksx4_avx2
+.size	sha3_blocksx4_avx2,.-sha3_blocksx4_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 

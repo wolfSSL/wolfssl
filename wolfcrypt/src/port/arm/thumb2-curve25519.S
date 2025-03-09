@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./x25519/x25519.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-curve25519.S
+ *   ruby ./x25519/x25519.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-curve25519.S
  */
 
 #ifdef HAVE_CONFIG_H

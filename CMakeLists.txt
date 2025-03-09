@@ -569,9 +569,9 @@ add_option(WOLFSSL_OQS
     "Enable integration with the OQS (Open Quantum Safe) liboqs library (default: disabled)"
     "no" "yes;no")
 
-# Kyber
-add_option(WOLFSSL_KYBER
-    "Enable the wolfSSL PQ Kyber library (default: disabled)"
+# ML-KEM/Kyber
+add_option(WOLFSSL_MMLKEM
+    "Enable the wolfSSL PQ ML-KEM library (default: disabled)"
     "no" "yes;no")
 
 # Experimental features
@@ -620,8 +620,8 @@ if (WOLFSSL_EXPERIMENTAL)
         set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
 
         message(STATUS "Automatically set related requirements for Kyber:")
-        set_wolfssl_definitions("WOLFSSL_HAVE_KYBER" RESUlT)
-        set_wolfssl_definitions("WOLFSSL_WC_KYBER"   RESUlT)
+        set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESUlT)
+        set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESUlT)
         set_wolfssl_definitions("WOLFSSL_SHA3"       RESUlT)
         set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESUlT)
         set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESUlT)

@@ -1,4 +1,4 @@
-/* thumb2-kyber-asm
+/* thumb2-mlkem-asm
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./kyber/kyber.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-kyber-asm.c
+ *   ruby ./kyber/kyber.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-mlkem-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -43,10 +44,10 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
-#include <wolfssl/wolfcrypt/wc_kyber.h>
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
 
-#ifdef WOLFSSL_WC_KYBER
-XALIGNED(16) static const word16 L_kyber_thumb2_ntt_zetas[] = {
+#ifdef WOLFSSL_WC_MLKEM
+XALIGNED(16) static const word16 L_mlkem_thumb2_ntt_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -66,19 +67,21 @@ XALIGNED(16) static const word16 L_kyber_thumb2_ntt_zetas[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void kyber_thumb2_ntt(sword16* r_p)
+void mlkem_thumb2_ntt(sword16* r_p)
 #else
-void kyber_thumb2_ntt(sword16* r)
+void mlkem_thumb2_ntt(sword16* r)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
-    register word16* L_kyber_thumb2_ntt_zetas_c __asm__ ("r1") = (word16*)&L_kyber_thumb2_ntt_zetas;
+    register word16* L_mlkem_thumb2_ntt_zetas_c __asm__ ("r1") =
+        (word16*)&L_mlkem_thumb2_ntt_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
-        "MOV	r1, %[L_kyber_thumb2_ntt_zetas]\n\t"
+        "MOV	r1, %[L_mlkem_thumb2_ntt_zetas]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
         "MOVT	r12, #0xcff\n\t"
@@ -86,9 +89,9 @@ void kyber_thumb2_ntt(sword16* r)
         "MOV	r2, #0x10\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_ntt_loop_123:\n\t"
+    "L_mlkem_thumb2_ntt_loop_123:\n\t"
 #else
-    "L_kyber_thumb2_ntt_loop_123_%=:\n\t"
+    "L_mlkem_thumb2_ntt_loop_123_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
         "LDRH	lr, [r1, #2]\n\t"
@@ -523,19 +526,19 @@ void kyber_thumb2_ntt(sword16* r)
         "SUBS	r2, r2, #0x1\n\t"
         "ADD	%[r], %[r], #0x4\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_ntt_loop_123_%=\n\t"
+        "BNE	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_ntt_loop_123\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_123\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_ntt_loop_123_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_123_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x40\n\t"
         "MOV	r3, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_ntt_loop_4_j:\n\t"
+    "L_mlkem_thumb2_ntt_loop_4_j:\n\t"
 #else
-    "L_kyber_thumb2_ntt_loop_4_j_%=:\n\t"
+    "L_mlkem_thumb2_ntt_loop_4_j_%=:\n\t"
 #endif
         "STR	r3, [sp, #4]\n\t"
         "ADD	lr, r1, r3, LSR #4\n\t"
@@ -543,9 +546,9 @@ void kyber_thumb2_ntt(sword16* r)
         "LDR	lr, [lr, #16]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_ntt_loop_4_i:\n\t"
+    "L_mlkem_thumb2_ntt_loop_4_i:\n\t"
 #else
-    "L_kyber_thumb2_ntt_loop_4_i_%=:\n\t"
+    "L_mlkem_thumb2_ntt_loop_4_i_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
         "LDR	r2, [%[r]]\n\t"
@@ -704,29 +707,29 @@ void kyber_thumb2_ntt(sword16* r)
         "SUBS	r2, r2, #0x1\n\t"
         "ADD	%[r], %[r], #0x4\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_ntt_loop_4_i_%=\n\t"
+        "BNE	L_mlkem_thumb2_ntt_loop_4_i_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_ntt_loop_4_i\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_4_i\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_ntt_loop_4_i_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_4_i_%=\n\t"
 #endif
         "ADD	r3, r3, #0x40\n\t"
         "RSBS	r10, r3, #0x100\n\t"
         "ADD	%[r], %[r], #0x70\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_ntt_loop_4_j_%=\n\t"
+        "BNE	L_mlkem_thumb2_ntt_loop_4_j_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_ntt_loop_4_j\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_4_j\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_ntt_loop_4_j_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_4_j_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x200\n\t"
         "MOV	r3, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_ntt_loop_567:\n\t"
+    "L_mlkem_thumb2_ntt_loop_567:\n\t"
 #else
-    "L_kyber_thumb2_ntt_loop_567_%=:\n\t"
+    "L_mlkem_thumb2_ntt_loop_567_%=:\n\t"
 #endif
         "ADD	lr, r1, r3, LSR #3\n\t"
         "STR	r3, [sp, #4]\n\t"
@@ -1348,27 +1351,22 @@ void kyber_thumb2_ntt(sword16* r)
         "RSBS	r10, r3, #0x100\n\t"
         "ADD	%[r], %[r], #0x20\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_ntt_loop_567_%=\n\t"
+        "BNE	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_ntt_loop_567\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_567\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_ntt_loop_567_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_ntt_loop_567_%=\n\t"
 #endif
         "ADD	sp, sp, #0x8\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
-          [L_kyber_thumb2_ntt_zetas] "+r" (L_kyber_thumb2_ntt_zetas_c)
+          [L_mlkem_thumb2_ntt_zetas] "+r" (L_mlkem_thumb2_ntt_zetas_c)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [r] "+r" (r)
-        : [L_kyber_thumb2_ntt_zetas] "r" (L_kyber_thumb2_ntt_zetas)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11", "r12", "lr"
     );
 }
 
-XALIGNED(16) static const word16 L_kyber_thumb2_invntt_zetas_inv[] = {
+XALIGNED(16) static const word16 L_mlkem_invntt_zetas_inv[] = {
     0x06a5, 0x070f, 0x05b4, 0x0943, 0x0922, 0x091d, 0x0134, 0x006c,
     0x0b23, 0x0366, 0x0356, 0x05e6, 0x09e7, 0x04fe, 0x05fa, 0x04a1,
     0x067b, 0x04a3, 0x0c25, 0x036a, 0x0537, 0x083f, 0x0088, 0x04bf,
@@ -1388,19 +1386,21 @@ XALIGNED(16) static const word16 L_kyber_thumb2_invntt_zetas_inv[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void kyber_thumb2_invntt(sword16* r_p)
+void mlkem_thumb2_invntt(sword16* r_p)
 #else
-void kyber_thumb2_invntt(sword16* r)
+void mlkem_thumb2_invntt(sword16* r)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
-    register word16* L_kyber_thumb2_invntt_zetas_inv_c __asm__ ("r1") = (word16*)&L_kyber_thumb2_invntt_zetas_inv;
+    register word16* L_mlkem_invntt_zetas_inv_c __asm__ ("r1") =
+        (word16*)&L_mlkem_invntt_zetas_inv;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "SUB	sp, sp, #0x8\n\t"
-        "MOV	r1, %[L_kyber_thumb2_invntt_zetas_inv]\n\t"
+        "MOV	r1, %[L_mlkem_invntt_zetas_inv]\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
         "MOVT	r12, #0xcff\n\t"
@@ -1408,9 +1408,9 @@ void kyber_thumb2_invntt(sword16* r)
         "MOV	r3, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_invntt_loop_765:\n\t"
+    "L_mlkem_invntt_loop_765:\n\t"
 #else
-    "L_kyber_thumb2_invntt_loop_765_%=:\n\t"
+    "L_mlkem_invntt_loop_765_%=:\n\t"
 #endif
         "ADD	lr, r1, r3, LSR #1\n\t"
         "STR	r3, [sp, #4]\n\t"
@@ -2003,19 +2003,19 @@ void kyber_thumb2_invntt(sword16* r)
         "RSBS	r10, r3, #0x100\n\t"
         "ADD	%[r], %[r], #0x20\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_invntt_loop_765_%=\n\t"
+        "BNE	L_mlkem_invntt_loop_765_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_invntt_loop_765\n\t"
+        "BNE.N	L_mlkem_invntt_loop_765\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_invntt_loop_765_%=\n\t"
+        "BNE.N	L_mlkem_invntt_loop_765_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x200\n\t"
         "MOV	r3, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_invntt_loop_4_j:\n\t"
+    "L_mlkem_invntt_loop_4_j:\n\t"
 #else
-    "L_kyber_thumb2_invntt_loop_4_j_%=:\n\t"
+    "L_mlkem_invntt_loop_4_j_%=:\n\t"
 #endif
         "STR	r3, [sp, #4]\n\t"
         "ADD	lr, r1, r3, LSR #4\n\t"
@@ -2023,9 +2023,9 @@ void kyber_thumb2_invntt(sword16* r)
         "LDR	lr, [lr, #224]\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_invntt_loop_4_i:\n\t"
+    "L_mlkem_invntt_loop_4_i:\n\t"
 #else
-    "L_kyber_thumb2_invntt_loop_4_i_%=:\n\t"
+    "L_mlkem_invntt_loop_4_i_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
         "LDR	r2, [%[r]]\n\t"
@@ -2204,29 +2204,29 @@ void kyber_thumb2_invntt(sword16* r)
         "SUBS	r2, r2, #0x1\n\t"
         "ADD	%[r], %[r], #0x4\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_invntt_loop_4_i_%=\n\t"
+        "BNE	L_mlkem_invntt_loop_4_i_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_invntt_loop_4_i\n\t"
+        "BNE.N	L_mlkem_invntt_loop_4_i\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_invntt_loop_4_i_%=\n\t"
+        "BNE.N	L_mlkem_invntt_loop_4_i_%=\n\t"
 #endif
         "ADD	r3, r3, #0x40\n\t"
         "RSBS	r10, r3, #0x100\n\t"
         "ADD	%[r], %[r], #0x70\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_invntt_loop_4_j_%=\n\t"
+        "BNE	L_mlkem_invntt_loop_4_j_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_invntt_loop_4_j\n\t"
+        "BNE.N	L_mlkem_invntt_loop_4_j\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_invntt_loop_4_j_%=\n\t"
+        "BNE.N	L_mlkem_invntt_loop_4_j_%=\n\t"
 #endif
         "SUB	%[r], %[r], #0x200\n\t"
         "MOV	r2, #0x10\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_invntt_loop_321:\n\t"
+    "L_mlkem_invntt_loop_321:\n\t"
 #else
-    "L_kyber_thumb2_invntt_loop_321_%=:\n\t"
+    "L_mlkem_invntt_loop_321_%=:\n\t"
 #endif
         "STR	r2, [sp]\n\t"
         "LDRH	lr, [r1, #2]\n\t"
@@ -3037,27 +3037,22 @@ void kyber_thumb2_invntt(sword16* r)
         "SUBS	r2, r2, #0x1\n\t"
         "ADD	%[r], %[r], #0x4\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_invntt_loop_321_%=\n\t"
+        "BNE	L_mlkem_invntt_loop_321_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_invntt_loop_321\n\t"
+        "BNE.N	L_mlkem_invntt_loop_321\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_invntt_loop_321_%=\n\t"
+        "BNE.N	L_mlkem_invntt_loop_321_%=\n\t"
 #endif
         "ADD	sp, sp, #0x8\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
-          [L_kyber_thumb2_invntt_zetas_inv] "+r" (L_kyber_thumb2_invntt_zetas_inv_c)
+          [L_mlkem_invntt_zetas_inv] "+r" (L_mlkem_invntt_zetas_inv_c)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [r] "+r" (r)
-        : [L_kyber_thumb2_invntt_zetas_inv] "r" (L_kyber_thumb2_invntt_zetas_inv)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11", "r12", "lr"
     );
 }
 
-XALIGNED(16) static const word16 L_kyber_thumb2_basemul_mont_zetas[] = {
+XALIGNED(16) static const word16 L_mlkem_basemul_mont_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -3077,20 +3072,23 @@ XALIGNED(16) static const word16 L_kyber_thumb2_basemul_mont_zetas[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void kyber_thumb2_basemul_mont(sword16* r_p, const sword16* a_p, const sword16* b_p)
+void mlkem_thumb2_basemul_mont(sword16* r_p, const sword16* a_p,
+    const sword16* b_p)
 #else
-void kyber_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
+void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
     register const sword16* a __asm__ ("r1") = (const sword16*)a_p;
     register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
-    register word16* L_kyber_thumb2_basemul_mont_zetas_c __asm__ ("r3") = (word16*)&L_kyber_thumb2_basemul_mont_zetas;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, %[L_kyber_thumb2_basemul_mont_zetas]\n\t"
+        "MOV	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
         "ADD	r3, r3, #0x80\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
@@ -3099,12 +3097,12 @@ void kyber_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "MOV	r8, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_basemul_mont_loop:\n\t"
+    "L_mlkem_basemul_mont_loop:\n\t"
 #else
-    "L_kyber_thumb2_basemul_mont_loop_%=:\n\t"
+    "L_mlkem_basemul_mont_loop_%=:\n\t"
 #endif
-        "LDM	%[a]!, {r4, r5}\n\t"
-        "LDM	%[b]!, {r6, r7}\n\t"
+        "ldm   %[a]!, {r4, r5}\n\t"
+        "ldm   %[b]!, {r6, r7}\n\t"
         "LDR	lr, [r3, r8]\n\t"
         "ADD	r8, r8, #0x2\n\t"
         "PUSH	{r8}\n\t"
@@ -3205,40 +3203,39 @@ void kyber_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "STM	%[r]!, {r4, r5}\n\t"
         "POP	{r8}\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_basemul_mont_loop_%=\n\t"
+        "BNE	L_mlkem_basemul_mont_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_basemul_mont_loop\n\t"
+        "BNE.N	L_mlkem_basemul_mont_loop\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_basemul_mont_loop_%=\n\t"
+        "BNE.N	L_mlkem_basemul_mont_loop_%=\n\t"
 #endif
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
-          [L_kyber_thumb2_basemul_mont_zetas] "+r" (L_kyber_thumb2_basemul_mont_zetas_c)
+          [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_kyber_thumb2_basemul_mont_zetas] "r" (L_kyber_thumb2_basemul_mont_zetas)
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12", "lr"
     );
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void kyber_thumb2_basemul_mont_add(sword16* r_p, const sword16* a_p, const sword16* b_p)
+void mlkem_thumb2_basemul_mont_add(sword16* r_p, const sword16* a_p,
+    const sword16* b_p)
 #else
-void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
+void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
+    const sword16* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
     register const sword16* a __asm__ ("r1") = (const sword16*)a_p;
     register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
-    register word16* L_kyber_thumb2_basemul_mont_zetas_c __asm__ ("r3") = (word16*)&L_kyber_thumb2_basemul_mont_zetas;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "MOV	r3, %[L_kyber_thumb2_basemul_mont_zetas]\n\t"
+        "MOV	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
         "ADD	r3, r3, #0x80\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "MOV	r12, #0xd01\n\t"
@@ -3247,12 +3244,12 @@ void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a, const sword16* 
         "MOV	r8, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_basemul_mont_add_loop:\n\t"
+    "L_mlkem_thumb2_basemul_mont_add_loop:\n\t"
 #else
-    "L_kyber_thumb2_basemul_mont_add_loop_%=:\n\t"
+    "L_mlkem_thumb2_basemul_mont_add_loop_%=:\n\t"
 #endif
-        "LDM	%[a]!, {r4, r5}\n\t"
-        "LDM	%[b]!, {r6, r7}\n\t"
+        "ldm   %[a]!, {r4, r5}\n\t"
+        "ldm   %[b]!, {r6, r7}\n\t"
         "LDR	lr, [r3, r8]\n\t"
         "ADD	r8, r8, #0x2\n\t"
         "PUSH	{r8}\n\t"
@@ -3281,7 +3278,7 @@ void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a, const sword16* 
         "SMULTB	r7, r12, r11\n\t"
         "SMLABB	r9, r12, r6, r9\n\t"
         "SMLABB	r11, r12, r7, r11\n\t"
-        "LDM	%[r], {r4, r5}\n\t"
+        "ldm   %[r], {r4, r5}\n\t"
         "PKHTB	r9, r9, r8, ASR #16\n\t"
         "PKHTB	r11, r11, r10, ASR #16\n\t"
         "SADD16	r4, r4, r9\n\t"
@@ -3348,7 +3345,7 @@ void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a, const sword16* 
         "SBFX	r5, r7, #0, #16\n\t"
         "MLA	r9, r12, r4, r9\n\t"
         "MLA	r11, r12, r5, r11\n\t"
-        "LDM	%[r], {r4, r5}\n\t"
+        "ldm   %[r], {r4, r5}\n\t"
         "BFC	r9, #0, #16\n\t"
         "BFC	r11, #0, #16\n\t"
         "ORR	r9, r9, r8, LSR #16\n\t"
@@ -3365,34 +3362,31 @@ void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a, const sword16* 
         "STM	%[r]!, {r4, r5}\n\t"
         "POP	{r8}\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_basemul_mont_add_loop_%=\n\t"
+        "BNE	L_mlkem_thumb2_basemul_mont_add_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_basemul_mont_add_loop\n\t"
+        "BNE.N	L_mlkem_thumb2_basemul_mont_add_loop\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_basemul_mont_add_loop_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_basemul_mont_add_loop_%=\n\t"
 #endif
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
-          [L_kyber_thumb2_basemul_mont_zetas] "+r" (L_kyber_thumb2_basemul_mont_zetas_c)
+          [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_kyber_thumb2_basemul_mont_zetas] "r" (L_kyber_thumb2_basemul_mont_zetas)
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12", "lr"
     );
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void kyber_thumb2_csubq(sword16* p_p)
+void mlkem_thumb2_csubq(sword16* p_p)
 #else
-void kyber_thumb2_csubq(sword16* p)
+void mlkem_thumb2_csubq(sword16* p)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* p __asm__ ("r0") = (sword16*)p_p;
-    register word16* L_kyber_thumb2_basemul_mont_zetas_c __asm__ ("r1") = (word16*)&L_kyber_thumb2_basemul_mont_zetas;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r1") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3406,11 +3400,11 @@ void kyber_thumb2_csubq(sword16* p)
         "MOV	r1, #0x100\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_csubq_loop:\n\t"
+    "L_mlkem_thumb2_csubq_loop:\n\t"
 #else
-    "L_kyber_thumb2_csubq_loop_%=:\n\t"
+    "L_mlkem_thumb2_csubq_loop_%=:\n\t"
 #endif
-        "LDM	%[p], {r2, r3, r4, r5}\n\t"
+        "ldm   %[p], {r2, r3, r4, r5}\n\t"
 #ifndef WOLFSSL_ARM_ARCH_7M
         "SSUB16	r2, r2, r12\n\t"
         "SSUB16	r3, r3, r12\n\t"
@@ -3477,29 +3471,26 @@ void kyber_thumb2_csubq(sword16* p)
         "STM	%[p]!, {r2, r3, r4, r5}\n\t"
         "SUBS	r1, r1, #0x8\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_csubq_loop_%=\n\t"
+        "BNE	L_mlkem_thumb2_csubq_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_csubq_loop\n\t"
+        "BNE.N	L_mlkem_thumb2_csubq_loop\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_csubq_loop_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_csubq_loop_%=\n\t"
 #endif
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p),
-          [L_kyber_thumb2_basemul_mont_zetas] "+r" (L_kyber_thumb2_basemul_mont_zetas_c)
+          [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [p] "+r" (p)
-        : [L_kyber_thumb2_basemul_mont_zetas] "r" (L_kyber_thumb2_basemul_mont_zetas)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11", "r12", "lr"
     );
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-unsigned int kyber_thumb2_rej_uniform(sword16* p_p, unsigned int len_p, const byte* r_p, unsigned int rLen_p)
+unsigned int mlkem_thumb2_rej_uniform(sword16* p_p, unsigned int len_p,
+    const byte* r_p, unsigned int rLen_p)
 #else
-unsigned int kyber_thumb2_rej_uniform(sword16* p, unsigned int len, const byte* r, unsigned int rLen)
+unsigned int mlkem_thumb2_rej_uniform(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3507,7 +3498,9 @@ unsigned int kyber_thumb2_rej_uniform(sword16* p, unsigned int len, const byte* 
     register unsigned int len __asm__ ("r1") = (unsigned int)len_p;
     register const byte* r __asm__ ("r2") = (const byte*)r_p;
     register unsigned int rLen __asm__ ("r3") = (unsigned int)rLen_p;
-    register word16* L_kyber_thumb2_basemul_mont_zetas_c __asm__ ("r4") = (word16*)&L_kyber_thumb2_basemul_mont_zetas;
+    register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r4") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3515,19 +3508,19 @@ unsigned int kyber_thumb2_rej_uniform(sword16* p, unsigned int len, const byte* 
         "MOV	r9, #0x0\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_loop_no_fail:\n\t"
+    "L_mlkem_thumb2_rej_uniform_loop_no_fail:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_loop_no_fail_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_loop_no_fail_%=:\n\t"
 #endif
         "CMP	%[len], #0x8\n\t"
 #if defined(__GNUC__)
-        "BLT	L_kyber_thumb2_rej_uniform_done_no_fail_%=\n\t"
+        "BLT	L_mlkem_thumb2_rej_uniform_done_no_fail_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BLT.N	L_kyber_thumb2_rej_uniform_done_no_fail\n\t"
+        "BLT.N	L_mlkem_thumb2_rej_uniform_done_no_fail\n\t"
 #else
-        "BLT.N	L_kyber_thumb2_rej_uniform_done_no_fail_%=\n\t"
+        "BLT.N	L_mlkem_thumb2_rej_uniform_done_no_fail_%=\n\t"
 #endif
-        "LDM	%[r]!, {r4, r5, r6}\n\t"
+        "ldm   %[r]!, {r4, r5, r6}\n\t"
         "UBFX	r7, r4, #0, #12\n\t"
         "STRH	r7, [%[p], r9]\n\t"
         "SUB	r10, r7, r8\n\t"
@@ -3580,272 +3573,266 @@ unsigned int kyber_thumb2_rej_uniform(sword16* p, unsigned int len, const byte* 
         "ADD	r9, r9, r10, LSL #1\n\t"
         "SUBS	%[rLen], %[rLen], #0xc\n\t"
 #if defined(__GNUC__)
-        "BNE	L_kyber_thumb2_rej_uniform_loop_no_fail_%=\n\t"
+        "BNE	L_mlkem_thumb2_rej_uniform_loop_no_fail_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BNE.N	L_kyber_thumb2_rej_uniform_loop_no_fail\n\t"
+        "BNE.N	L_mlkem_thumb2_rej_uniform_loop_no_fail\n\t"
 #else
-        "BNE.N	L_kyber_thumb2_rej_uniform_loop_no_fail_%=\n\t"
+        "BNE.N	L_mlkem_thumb2_rej_uniform_loop_no_fail_%=\n\t"
 #endif
 #if defined(__GNUC__)
-        "B	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "B	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "B.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "B.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "B.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "B.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_done_no_fail:\n\t"
+    "L_mlkem_thumb2_rej_uniform_done_no_fail:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_done_no_fail_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_done_no_fail_%=:\n\t"
 #endif
         "CMP	%[len], #0x0\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_loop:\n\t"
+    "L_mlkem_thumb2_rej_uniform_loop:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_loop_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_loop_%=:\n\t"
 #endif
-        "LDM	%[r]!, {r4, r5, r6}\n\t"
+        "ldm   %[r]!, {r4, r5, r6}\n\t"
         "UBFX	r7, r4, #0, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_0_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_0_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_0\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_0\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_0_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_0_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_0:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_0:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_0_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_0_%=:\n\t"
 #endif
         "UBFX	r7, r4, #12, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_1_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_1_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_1\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_1\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_1_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_1_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_1:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_1:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_1_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_1_%=:\n\t"
 #endif
         "UBFX	r7, r4, #24, #8\n\t"
         "BFI	r7, r5, #8, #4\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_2_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_2_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_2\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_2\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_2_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_2_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_2:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_2:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_2_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_2_%=:\n\t"
 #endif
         "UBFX	r7, r5, #4, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_3_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_3_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_3\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_3\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_3_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_3_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_3:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_3:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_3_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_3_%=:\n\t"
 #endif
         "UBFX	r7, r5, #16, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_4_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_4_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_4\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_4\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_4_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_4_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_4:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_4:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_4_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_4_%=:\n\t"
 #endif
         "UBFX	r7, r5, #28, #4\n\t"
         "BFI	r7, r6, #4, #8\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_5_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_5_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_5\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_5\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_5_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_5_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_5:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_5:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_5_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_5_%=:\n\t"
 #endif
         "UBFX	r7, r6, #8, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_6_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_6_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_6\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_6\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_6_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_6_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_6:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_6:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_6_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_6_%=:\n\t"
 #endif
         "UBFX	r7, r6, #20, #12\n\t"
         "CMP	r7, r8\n\t"
 #if defined(__GNUC__)
-        "BGE	L_kyber_thumb2_rej_uniform_fail_7_%=\n\t"
+        "BGE	L_mlkem_thumb2_rej_uniform_fail_7_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_7\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_7\n\t"
 #else
-        "BGE.N	L_kyber_thumb2_rej_uniform_fail_7_%=\n\t"
+        "BGE.N	L_mlkem_thumb2_rej_uniform_fail_7_%=\n\t"
 #endif
         "STRH	r7, [%[p], r9]\n\t"
         "SUBS	%[len], %[len], #0x1\n\t"
         "ADD	r9, r9, #0x2\n\t"
 #if defined(__GNUC__)
-        "BEQ	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done\n\t"
 #else
-        "BEQ.N	L_kyber_thumb2_rej_uniform_done_%=\n\t"
+        "BEQ.N	L_mlkem_thumb2_rej_uniform_done_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_fail_7:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_7:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_fail_7_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_fail_7_%=:\n\t"
 #endif
         "SUBS	%[rLen], %[rLen], #0xc\n\t"
 #if defined(__GNUC__)
-        "BGT	L_kyber_thumb2_rej_uniform_loop_%=\n\t"
+        "BGT	L_mlkem_thumb2_rej_uniform_loop_%=\n\t"
 #elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-        "BGT.N	L_kyber_thumb2_rej_uniform_loop\n\t"
+        "BGT.N	L_mlkem_thumb2_rej_uniform_loop\n\t"
 #else
-        "BGT.N	L_kyber_thumb2_rej_uniform_loop_%=\n\t"
+        "BGT.N	L_mlkem_thumb2_rej_uniform_loop_%=\n\t"
 #endif
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
-    "L_kyber_thumb2_rej_uniform_done:\n\t"
+    "L_mlkem_thumb2_rej_uniform_done:\n\t"
 #else
-    "L_kyber_thumb2_rej_uniform_done_%=:\n\t"
+    "L_mlkem_thumb2_rej_uniform_done_%=:\n\t"
 #endif
         "LSR	r0, r9, #1\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
-          [L_kyber_thumb2_basemul_mont_zetas] "+r" (L_kyber_thumb2_basemul_mont_zetas_c)
+          [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
-        : "memory", "r5", "r6", "r7", "r8", "r9", "r10", "cc"
-#else
-        : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen)
-        : [L_kyber_thumb2_basemul_mont_zetas] "r" (L_kyber_thumb2_basemul_mont_zetas)
-        : "memory", "r5", "r6", "r7", "r8", "r9", "r10", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r5", "r6", "r7", "r8", "r9", "r10"
     );
     return (word32)(size_t)p;
 }
 
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_WC_MLKEM */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

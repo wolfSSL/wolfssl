@@ -225,6 +225,7 @@ WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,
     word64 c);
 WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);
 WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
+WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3

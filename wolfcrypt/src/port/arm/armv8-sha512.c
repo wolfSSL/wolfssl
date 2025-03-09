@@ -376,7 +376,8 @@ static void Transform_Sha512(wc_Sha512* sha512)
 #undef DATA
 
 #define DATA    ((word64*)data)
-static void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
+static void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+    word32 len)
 {
     const word64* K = K512;
     word32 j;
@@ -471,7 +472,8 @@ static WC_INLINE void AddLength(wc_Sha512* sha512, word32 len)
         sha512->hiLen++;                       /* carry low to high */
 }
 
-static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
+static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data,
+    word32 len)
 {
     int ret = 0;
     /* do block size increments */

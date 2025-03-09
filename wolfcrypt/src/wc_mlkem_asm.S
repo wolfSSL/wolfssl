@@ -1,4 +1,4 @@
-/* wc_kyber_asm.S */
+/* wc_mlkem_asm.S */
 /*
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -45,7 +45,7 @@
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_MLKEM
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
 .data
@@ -57,7 +57,7 @@
 #else
 .p2align	4
 #endif /* __APPLE__ */
-kyber_q:
+mlkem_q:
 .value	0xd01,0xd01
 .value	0xd01,0xd01
 .value	0xd01,0xd01
@@ -76,7 +76,7 @@ kyber_q:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-kyber_qinv:
+mlkem_qinv:
 .value	0xf301,0xf301
 .value	0xf301,0xf301
 .value	0xf301,0xf301
@@ -95,7 +95,7 @@ kyber_qinv:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-kyber_f:
+mlkem_f:
 .value	0x549,0x549
 .value	0x549,0x549
 .value	0x549,0x549
@@ -114,7 +114,7 @@ kyber_f:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-kyber_f_qinv:
+mlkem_f_qinv:
 .value	0x5049,0x5049
 .value	0x5049,0x5049
 .value	0x5049,0x5049
@@ -133,7 +133,7 @@ kyber_f_qinv:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-kyber_v:
+mlkem_v:
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
@@ -152,7 +152,7 @@ kyber_v:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_avx2_zetas:
+L_mlkem_avx2_zetas:
 .value	0xa0b,0xa0b
 .value	0xa0b,0xa0b
 .value	0xa0b,0xa0b
@@ -787,7 +787,7 @@ L_kyber_avx2_zetas:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_avx2_zetas_basemul:
+L_mlkem_avx2_zetas_basemul:
 .value	0x8b2,0x81e
 .value	0xf74e,0xf7e2
 .value	0x1ae,0x367
@@ -926,7 +926,7 @@ L_kyber_avx2_zetas_basemul:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_avx2_zetas_inv:
+L_mlkem_avx2_zetas_inv:
 .value	0x6a5,0x6a5
 .value	0x5b4,0x5b4
 .value	0x70f,0x70f
@@ -1569,23 +1569,23 @@ L_kyber_avx2_zetas_inv:
 .value	0xd8a1,0xd8a1
 #ifndef __APPLE__
 .text
-.globl	kyber_keygen_avx2
-.type	kyber_keygen_avx2,@function
+.globl	mlkem_keygen_avx2
+.type	mlkem_keygen_avx2,@function
 .align	16
-kyber_keygen_avx2:
+mlkem_keygen_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_keygen_avx2
+.globl	_mlkem_keygen_avx2
 .p2align	4
-_kyber_keygen_avx2:
+_mlkem_keygen_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	kyber_q(%rip), %ymm14
-        vmovdqu	kyber_v(%rip), %ymm15
+        vmovdqu	mlkem_q(%rip), %ymm14
+        vmovdqu	mlkem_v(%rip), %ymm15
         movslq	%r8d, %r9
         movq	%rdi, %r10
-L_kyber_keygen_avx2_priv:
+L_mlkem_keygen_avx2_priv:
         # ntt
-        leaq	L_kyber_avx2_zetas(%rip), %r11
+        leaq	L_mlkem_avx2_zetas(%rip), %r11
         vmovdqu	(%r11), %ymm10
         vmovdqu	32(%r11), %ymm12
         vmovdqu	128(%r10), %ymm0
@@ -2240,15 +2240,15 @@ L_kyber_keygen_avx2_priv:
         vmovdqu	%ymm9, 480(%r10)
         addq	$0x200, %r10
         subq	$0x01, %r9
-        jg	L_kyber_keygen_avx2_priv
-        vmovdqu	kyber_qinv(%rip), %ymm13
+        jg	L_mlkem_keygen_avx2_priv
+        vmovdqu	mlkem_qinv(%rip), %ymm13
         movslq	%r8d, %rax
         movq	%rsi, %r10
-L_kyber_keygen_avx2_acc:
+L_mlkem_keygen_avx2_acc:
         # Pointwise acc mont
         movslq	%r8d, %r9
         # Base mul mont
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r11
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r11
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -2607,7 +2607,7 @@ L_kyber_keygen_avx2_acc:
         jz	L_pointwise_acc_mont_end_keygen
 L_pointwise_acc_mont_start_keygen:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r11
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r11
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -2998,7 +2998,7 @@ L_pointwise_acc_mont_start_keygen:
         jg	L_pointwise_acc_mont_start_keygen
 L_pointwise_acc_mont_end_keygen:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r11
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r11
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -3422,13 +3422,13 @@ L_pointwise_acc_mont_end_keygen:
         subq	%r9, %rdi
         addq	$0x200, %r10
         subq	$0x01, %rax
-        jg	L_kyber_keygen_avx2_acc
+        jg	L_mlkem_keygen_avx2_acc
         movslq	%r8d, %rax
-        vmovdqu	kyber_f(%rip), %ymm12
-        vmovdqu	kyber_f_qinv(%rip), %ymm13
+        vmovdqu	mlkem_f(%rip), %ymm12
+        vmovdqu	mlkem_f_qinv(%rip), %ymm13
         movslq	%r8d, %rax
         movq	%rsi, %r10
-L_kyber_keygen_avx2_to_mont:
+L_mlkem_keygen_avx2_to_mont:
         # To Mont
         vmovdqu	(%r10), %ymm0
         vmovdqu	32(%r10), %ymm1
@@ -3528,11 +3528,11 @@ L_kyber_keygen_avx2_to_mont:
         vmovdqu	%ymm3, 480(%r10)
         addq	$0x200, %r10
         subq	$0x01, %rax
-        jg	L_kyber_keygen_avx2_to_mont
+        jg	L_mlkem_keygen_avx2_to_mont
         movslq	%r8d, %rax
-L_kyber_keygen_avx2_to_mont_ntt_err:
+L_mlkem_keygen_avx2_to_mont_ntt_err:
         # ntt
-        leaq	L_kyber_avx2_zetas(%rip), %r11
+        leaq	L_mlkem_avx2_zetas(%rip), %r11
         vmovdqu	(%r11), %ymm10
         vmovdqu	32(%r11), %ymm12
         vmovdqu	128(%rdx), %ymm0
@@ -4253,23 +4253,23 @@ L_kyber_keygen_avx2_to_mont_ntt_err:
         addq	$0x200, %rdx
         addq	$0x200, %rsi
         subq	$0x01, %rax
-        jg	L_kyber_keygen_avx2_to_mont_ntt_err
+        jg	L_mlkem_keygen_avx2_to_mont_ntt_err
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_keygen_avx2,.-kyber_keygen_avx2
+.size	mlkem_keygen_avx2,.-mlkem_keygen_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_encapsulate_avx2
-.type	kyber_encapsulate_avx2,@function
+.globl	mlkem_encapsulate_avx2
+.type	mlkem_encapsulate_avx2,@function
 .align	16
-kyber_encapsulate_avx2:
+mlkem_encapsulate_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_encapsulate_avx2
+.globl	_mlkem_encapsulate_avx2
 .p2align	4
-_kyber_encapsulate_avx2:
+_mlkem_encapsulate_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
         pushq	%r13
@@ -4279,13 +4279,13 @@ _kyber_encapsulate_avx2:
         movq	48(%rsp), %r10
         movq	56(%rsp), %r11
         subq	$48, %rsp
-        vmovdqu	kyber_q(%rip), %ymm14
-        vmovdqu	kyber_v(%rip), %ymm15
+        vmovdqu	mlkem_q(%rip), %ymm14
+        vmovdqu	mlkem_v(%rip), %ymm15
         movslq	%r11d, %r13
         movq	%r8, %r14
-L_kyber_encapsulate_avx2_trans:
+L_mlkem_encapsulate_avx2_trans:
         # ntt
-        leaq	L_kyber_avx2_zetas(%rip), %r15
+        leaq	L_mlkem_avx2_zetas(%rip), %r15
         vmovdqu	(%r15), %ymm10
         vmovdqu	32(%r15), %ymm12
         vmovdqu	128(%r14), %ymm0
@@ -4876,14 +4876,14 @@ L_kyber_encapsulate_avx2_trans:
         vmovdqu	%ymm7, 480(%r14)
         addq	$0x200, %r14
         subq	$0x01, %r13
-        jg	L_kyber_encapsulate_avx2_trans
+        jg	L_mlkem_encapsulate_avx2_trans
         movslq	%r11d, %r12
-L_kyber_encapsulate_avx2_calc:
-        vmovdqu	kyber_qinv(%rip), %ymm12
+L_mlkem_encapsulate_avx2_calc:
+        vmovdqu	mlkem_qinv(%rip), %ymm12
         # Pointwise acc mont
         movslq	%r11d, %r13
         # Base mul mont
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -5242,7 +5242,7 @@ L_kyber_encapsulate_avx2_calc:
         jz	L_pointwise_acc_mont_end_encap_bp
 L_pointwise_acc_mont_start_encap_bp:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -5633,7 +5633,7 @@ L_pointwise_acc_mont_start_encap_bp:
         jg	L_pointwise_acc_mont_start_encap_bp
 L_pointwise_acc_mont_end_encap_bp:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rcx), %ymm2
         vmovdqu	32(%rcx), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -6056,7 +6056,7 @@ L_pointwise_acc_mont_end_encap_bp:
         shl	$9, %r13d
         subq	%r13, %r8
         # invntt
-        leaq	L_kyber_avx2_zetas_inv(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_inv(%rip), %r15
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vmovdqu	64(%rsi), %ymm2
@@ -6956,12 +6956,12 @@ L_pointwise_acc_mont_end_encap_bp:
         addq	$0x200, %r9
         addq	$0x200, %rsi
         subq	$0x01, %r12
-        jg	L_kyber_encapsulate_avx2_calc
-        vmovdqu	kyber_qinv(%rip), %ymm12
+        jg	L_mlkem_encapsulate_avx2_calc
+        vmovdqu	mlkem_qinv(%rip), %ymm12
         # Pointwise acc mont
         movslq	%r11d, %r13
         # Base mul mont
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -7320,7 +7320,7 @@ L_pointwise_acc_mont_end_encap_bp:
         jz	L_pointwise_acc_mont_end_encap_v
 L_pointwise_acc_mont_start_encap_v:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -7711,7 +7711,7 @@ L_pointwise_acc_mont_start_encap_v:
         jg	L_pointwise_acc_mont_start_encap_v
 L_pointwise_acc_mont_end_encap_v:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -8134,7 +8134,7 @@ L_pointwise_acc_mont_end_encap_v:
         shl	$9, %r13d
         subq	%r13, %r8
         # invntt
-        leaq	L_kyber_avx2_zetas_inv(%rip), %r15
+        leaq	L_mlkem_avx2_zetas_inv(%rip), %r15
         vmovdqu	(%rdx), %ymm0
         vmovdqu	32(%rdx), %ymm1
         vmovdqu	64(%rdx), %ymm2
@@ -9104,27 +9104,27 @@ L_pointwise_acc_mont_end_encap_v:
         popq	%r12
         repz retq
 #ifndef __APPLE__
-.size	kyber_encapsulate_avx2,.-kyber_encapsulate_avx2
+.size	mlkem_encapsulate_avx2,.-mlkem_encapsulate_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_decapsulate_avx2
-.type	kyber_decapsulate_avx2,@function
+.globl	mlkem_decapsulate_avx2
+.type	mlkem_decapsulate_avx2,@function
 .align	16
-kyber_decapsulate_avx2:
+mlkem_decapsulate_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_decapsulate_avx2
+.globl	_mlkem_decapsulate_avx2
 .p2align	4
-_kyber_decapsulate_avx2:
+_mlkem_decapsulate_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	kyber_q(%rip), %ymm14
-        vmovdqu	kyber_v(%rip), %ymm15
+        vmovdqu	mlkem_q(%rip), %ymm14
+        vmovdqu	mlkem_v(%rip), %ymm15
         movslq	%r8d, %rax
         movq	%rdx, %r9
-L_kyber_decapsulate_avx2_trans:
+L_mlkem_decapsulate_avx2_trans:
         # ntt
-        leaq	L_kyber_avx2_zetas(%rip), %r10
+        leaq	L_mlkem_avx2_zetas(%rip), %r10
         vmovdqu	(%r10), %ymm10
         vmovdqu	32(%r10), %ymm12
         vmovdqu	128(%r9), %ymm0
@@ -9779,12 +9779,12 @@ L_kyber_decapsulate_avx2_trans:
         vmovdqu	%ymm9, 480(%r9)
         addq	$0x200, %r9
         subq	$0x01, %rax
-        jg	L_kyber_decapsulate_avx2_trans
-        vmovdqu	kyber_qinv(%rip), %ymm12
+        jg	L_mlkem_decapsulate_avx2_trans
+        vmovdqu	mlkem_qinv(%rip), %ymm12
         # Pointwise acc mont
         movslq	%r8d, %rax
         # Base mul mont
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r10
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r10
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -10143,7 +10143,7 @@ L_kyber_decapsulate_avx2_trans:
         jz	L_pointwise_acc_mont_end_decap
 L_pointwise_acc_mont_start_decap:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r10
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r10
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -10534,7 +10534,7 @@ L_pointwise_acc_mont_start_decap:
         jg	L_pointwise_acc_mont_start_decap
 L_pointwise_acc_mont_end_decap:
         # Base mul mont add
-        leaq	L_kyber_avx2_zetas_basemul(%rip), %r10
+        leaq	L_mlkem_avx2_zetas_basemul(%rip), %r10
         vmovdqu	(%rdi), %ymm2
         vmovdqu	32(%rdi), %ymm3
         vpslld	$16, %ymm3, %ymm6
@@ -10957,7 +10957,7 @@ L_pointwise_acc_mont_end_decap:
         shl	$9, %eax
         subq	%rax, %rdx
         # invntt
-        leaq	L_kyber_avx2_zetas_inv(%rip), %r10
+        leaq	L_mlkem_avx2_zetas_inv(%rip), %r10
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vmovdqu	64(%rsi), %ymm2
@@ -11857,21 +11857,21 @@ L_pointwise_acc_mont_end_decap:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_decapsulate_avx2,.-kyber_decapsulate_avx2
+.size	mlkem_decapsulate_avx2,.-mlkem_decapsulate_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_csubq_avx2
-.type	kyber_csubq_avx2,@function
+.globl	mlkem_csubq_avx2
+.type	mlkem_csubq_avx2,@function
 .align	16
-kyber_csubq_avx2:
+mlkem_csubq_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_csubq_avx2
+.globl	_mlkem_csubq_avx2
 .p2align	4
-_kyber_csubq_avx2:
+_mlkem_csubq_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	kyber_q(%rip), %ymm12
+        vmovdqu	mlkem_q(%rip), %ymm12
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
         vmovdqu	64(%rdi), %ymm2
@@ -11971,7 +11971,7 @@ _kyber_csubq_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_csubq_avx2,.-kyber_csubq_avx2
+.size	mlkem_csubq_avx2,.-mlkem_csubq_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -11983,7 +11983,7 @@ _kyber_csubq_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_rej_idx:
+L_mlkem_rej_idx:
 .quad	0xffffffffffffffff,0xffffffffffffff00
 .quad	0xffffffffffffff02,0xffffffffffff0200
 .quad	0xffffffffffffff04,0xffffffffffff0400
@@ -12122,7 +12122,7 @@ L_kyber_rej_idx:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_rej_q:
+L_mlkem_rej_q:
 .quad	0xd010d010d010d01, 0xd010d010d010d01
 .quad	0xd010d010d010d01, 0xd010d010d010d01
 #ifndef __APPLE__
@@ -12135,7 +12135,7 @@ L_kyber_rej_q:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_rej_ones:
+L_mlkem_rej_ones:
 .quad	0x101010101010101, 0x101010101010101
 .quad	0x101010101010101, 0x101010101010101
 #ifndef __APPLE__
@@ -12148,7 +12148,7 @@ L_kyber_rej_ones:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_rej_mask:
+L_mlkem_rej_mask:
 .quad	0xfff0fff0fff0fff, 0xfff0fff0fff0fff
 .quad	0xfff0fff0fff0fff, 0xfff0fff0fff0fff
 #ifndef __APPLE__
@@ -12161,20 +12161,20 @@ L_kyber_rej_mask:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_rej_shuffle:
+L_mlkem_rej_shuffle:
 .quad	0x504040302010100, 0xb0a0a0908070706
 .quad	0x908080706050504, 0xf0e0e0d0c0b0b0a
 #ifndef __APPLE__
 .text
-.globl	kyber_rej_uniform_n_avx2
-.type	kyber_rej_uniform_n_avx2,@function
+.globl	mlkem_rej_uniform_n_avx2
+.type	mlkem_rej_uniform_n_avx2,@function
 .align	16
-kyber_rej_uniform_n_avx2:
+mlkem_rej_uniform_n_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_rej_uniform_n_avx2
+.globl	_mlkem_rej_uniform_n_avx2
 .p2align	4
-_kyber_rej_uniform_n_avx2:
+_mlkem_rej_uniform_n_avx2:
 #endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
@@ -12184,11 +12184,11 @@ _kyber_rej_uniform_n_avx2:
         pushq	%rbp
         movq	%rcx, %r8
         movl	%esi, %eax
-        vmovdqu	L_kyber_rej_q(%rip), %ymm6
-        vmovdqu	L_kyber_rej_ones(%rip), %ymm7
-        vmovdqu	L_kyber_rej_mask(%rip), %ymm8
-        vmovdqu	L_kyber_rej_shuffle(%rip), %ymm9
-        leaq	L_kyber_rej_idx(%rip), %r9
+        vmovdqu	L_mlkem_rej_q(%rip), %ymm6
+        vmovdqu	L_mlkem_rej_ones(%rip), %ymm7
+        vmovdqu	L_mlkem_rej_mask(%rip), %ymm8
+        vmovdqu	L_mlkem_rej_shuffle(%rip), %ymm9
+        leaq	L_mlkem_rej_idx(%rip), %r9
         movq	$0x1111111111111111, %r14
         movq	$0xe0c0a0806040200, %rbp
         movq	$0x101010101010101, %r13
@@ -12621,7 +12621,7 @@ _kyber_rej_uniform_n_avx2:
         subl	%r12d, %esi
         addq	$0x150, %rdx
         subl	$0x150, %r8d
-L_kyber_rej_uniform_n_avx2_start_256:
+L_mlkem_rej_uniform_n_avx2_start_256:
         vpermq	$0x94, (%rdx), %ymm0
         vpermq	$0x94, 24(%rdx), %ymm1
         vpshufb	%ymm9, %ymm0, %ymm0
@@ -12686,15 +12686,15 @@ L_kyber_rej_uniform_n_avx2_start_256:
         addq	$48, %rdx
         subl	$48, %r8d
         cmpl	$48, %r8d
-        jl	L_kyber_rej_uniform_n_avx2_done_256
+        jl	L_mlkem_rej_uniform_n_avx2_done_256
         cmpl	$32, %esi
-        jge	L_kyber_rej_uniform_n_avx2_start_256
-L_kyber_rej_uniform_n_avx2_done_256:
+        jge	L_mlkem_rej_uniform_n_avx2_start_256
+L_mlkem_rej_uniform_n_avx2_done_256:
         cmpl	$8, %esi
-        jl	L_kyber_rej_uniform_n_avx2_done_128
+        jl	L_mlkem_rej_uniform_n_avx2_done_128
         cmpl	$12, %r8d
-        jl	L_kyber_rej_uniform_n_avx2_done_128
-L_kyber_rej_uniform_n_avx2_start_128:
+        jl	L_mlkem_rej_uniform_n_avx2_done_128
+L_mlkem_rej_uniform_n_avx2_start_128:
         vmovdqu	(%rdx), %xmm0
         vpshufb	%xmm9, %xmm0, %xmm0
         vpsrlw	$4, %xmm0, %xmm2
@@ -12715,58 +12715,58 @@ L_kyber_rej_uniform_n_avx2_start_128:
         addq	$12, %rdx
         subl	$12, %r8d
         cmpl	$12, %r8d
-        jl	L_kyber_rej_uniform_n_avx2_done_128
+        jl	L_mlkem_rej_uniform_n_avx2_done_128
         cmpl	$8, %esi
-        jge	L_kyber_rej_uniform_n_avx2_start_128
-L_kyber_rej_uniform_n_avx2_done_128:
+        jge	L_mlkem_rej_uniform_n_avx2_start_128
+L_mlkem_rej_uniform_n_avx2_done_128:
         cmpl	$0x00, %r8d
-        je	L_kyber_rej_uniform_n_avx2_done_64
+        je	L_mlkem_rej_uniform_n_avx2_done_64
         cmpl	$0x00, %esi
-        je	L_kyber_rej_uniform_n_avx2_done_64
+        je	L_mlkem_rej_uniform_n_avx2_done_64
         movq	$0xfff0fff0fff0fff, %r15
         movq	$0x2000200020002000, %r10
         movq	$0xd010d010d010d01, %r11
         movq	$0x1000100010001000, %r12
-L_kyber_rej_uniform_n_avx2_start_64:
+L_mlkem_rej_uniform_n_avx2_start_64:
         movq	(%rdx), %rcx
         pdepq	%r15, %rcx, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_0_avx2_rej_large_0
+        jge	L_mlkem_rej_uniform_0_avx2_rej_large_0
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_n_avx2_done_64
-L_kyber_rej_uniform_0_avx2_rej_large_0:
+        je	L_mlkem_rej_uniform_n_avx2_done_64
+L_mlkem_rej_uniform_0_avx2_rej_large_0:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_0_avx2_rej_large_1
+        jge	L_mlkem_rej_uniform_0_avx2_rej_large_1
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_n_avx2_done_64
-L_kyber_rej_uniform_0_avx2_rej_large_1:
+        je	L_mlkem_rej_uniform_n_avx2_done_64
+L_mlkem_rej_uniform_0_avx2_rej_large_1:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_0_avx2_rej_large_2
+        jge	L_mlkem_rej_uniform_0_avx2_rej_large_2
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_n_avx2_done_64
-L_kyber_rej_uniform_0_avx2_rej_large_2:
+        je	L_mlkem_rej_uniform_n_avx2_done_64
+L_mlkem_rej_uniform_0_avx2_rej_large_2:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_0_avx2_rej_large_3
+        jge	L_mlkem_rej_uniform_0_avx2_rej_large_3
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_n_avx2_done_64
-L_kyber_rej_uniform_0_avx2_rej_large_3:
+        je	L_mlkem_rej_uniform_n_avx2_done_64
+L_mlkem_rej_uniform_0_avx2_rej_large_3:
         addq	$6, %rdx
         subl	$6, %r8d
-        jle	L_kyber_rej_uniform_n_avx2_done_64
+        jle	L_mlkem_rej_uniform_n_avx2_done_64
         cmpl	$0x00, %esi
-        jg	L_kyber_rej_uniform_n_avx2_start_64
-L_kyber_rej_uniform_n_avx2_done_64:
+        jg	L_mlkem_rej_uniform_n_avx2_start_64
+L_mlkem_rej_uniform_n_avx2_done_64:
         vzeroupper
         subl	%esi, %eax
         popq	%rbp
@@ -12777,19 +12777,19 @@ L_kyber_rej_uniform_n_avx2_done_64:
         popq	%rbx
         repz retq
 #ifndef __APPLE__
-.size	kyber_rej_uniform_n_avx2,.-kyber_rej_uniform_n_avx2
+.size	mlkem_rej_uniform_n_avx2,.-mlkem_rej_uniform_n_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_rej_uniform_avx2
-.type	kyber_rej_uniform_avx2,@function
+.globl	mlkem_rej_uniform_avx2
+.type	mlkem_rej_uniform_avx2,@function
 .align	16
-kyber_rej_uniform_avx2:
+mlkem_rej_uniform_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_rej_uniform_avx2
+.globl	_mlkem_rej_uniform_avx2
 .p2align	4
-_kyber_rej_uniform_avx2:
+_mlkem_rej_uniform_avx2:
 #endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
@@ -12800,19 +12800,19 @@ _kyber_rej_uniform_avx2:
         movq	%rcx, %r8
         movl	%esi, %eax
         cmpl	$0x00, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
+        je	L_mlkem_rej_uniform_avx2_done_64
         cmpl	$8, %esi
-        jl	L_kyber_rej_uniform_avx2_done_128
-        vmovdqu	L_kyber_rej_q(%rip), %ymm6
-        vmovdqu	L_kyber_rej_ones(%rip), %ymm7
-        vmovdqu	L_kyber_rej_mask(%rip), %ymm8
-        vmovdqu	L_kyber_rej_shuffle(%rip), %ymm9
-        leaq	L_kyber_rej_idx(%rip), %r9
+        jl	L_mlkem_rej_uniform_avx2_done_128
+        vmovdqu	L_mlkem_rej_q(%rip), %ymm6
+        vmovdqu	L_mlkem_rej_ones(%rip), %ymm7
+        vmovdqu	L_mlkem_rej_mask(%rip), %ymm8
+        vmovdqu	L_mlkem_rej_shuffle(%rip), %ymm9
+        leaq	L_mlkem_rej_idx(%rip), %r9
         movq	$0x1111111111111111, %r14
         movq	$0xe0c0a0806040200, %rbp
         movq	$0x101010101010101, %r13
         cmpl	$32, %esi
-        jl	L_kyber_rej_uniform_avx2_done_256
+        jl	L_mlkem_rej_uniform_avx2_done_256
         vpermq	$0x94, (%rdx), %ymm0
         vpermq	$0x94, 24(%rdx), %ymm1
         vpshufb	%ymm9, %ymm0, %ymm0
@@ -12877,7 +12877,7 @@ _kyber_rej_uniform_avx2:
         addq	$48, %rdx
         subl	$48, %r8d
         cmpl	$32, %esi
-        jl	L_kyber_rej_uniform_avx2_done_256
+        jl	L_mlkem_rej_uniform_avx2_done_256
         vpermq	$0x94, (%rdx), %ymm0
         vpermq	$0x94, 24(%rdx), %ymm1
         vpshufb	%ymm9, %ymm0, %ymm0
@@ -12942,8 +12942,8 @@ _kyber_rej_uniform_avx2:
         addq	$48, %rdx
         subl	$48, %r8d
         cmpl	$32, %esi
-        jl	L_kyber_rej_uniform_avx2_done_256
-L_kyber_rej_uniform_avx2_start_256:
+        jl	L_mlkem_rej_uniform_avx2_done_256
+L_mlkem_rej_uniform_avx2_start_256:
         vpermq	$0x94, (%rdx), %ymm0
         vpermq	$0x94, 24(%rdx), %ymm1
         vpshufb	%ymm9, %ymm0, %ymm0
@@ -13008,15 +13008,15 @@ L_kyber_rej_uniform_avx2_start_256:
         addq	$48, %rdx
         subl	$48, %r8d
         cmpl	$48, %r8d
-        jl	L_kyber_rej_uniform_avx2_done_256
+        jl	L_mlkem_rej_uniform_avx2_done_256
         cmpl	$32, %esi
-        jge	L_kyber_rej_uniform_avx2_start_256
-L_kyber_rej_uniform_avx2_done_256:
+        jge	L_mlkem_rej_uniform_avx2_start_256
+L_mlkem_rej_uniform_avx2_done_256:
         cmpl	$8, %esi
-        jl	L_kyber_rej_uniform_avx2_done_128
+        jl	L_mlkem_rej_uniform_avx2_done_128
         cmpl	$12, %r8d
-        jl	L_kyber_rej_uniform_avx2_done_128
-L_kyber_rej_uniform_avx2_start_128:
+        jl	L_mlkem_rej_uniform_avx2_done_128
+L_mlkem_rej_uniform_avx2_start_128:
         vmovdqu	(%rdx), %xmm0
         vpshufb	%xmm9, %xmm0, %xmm0
         vpsrlw	$4, %xmm0, %xmm2
@@ -13037,58 +13037,58 @@ L_kyber_rej_uniform_avx2_start_128:
         addq	$12, %rdx
         subl	$12, %r8d
         cmpl	$12, %r8d
-        jl	L_kyber_rej_uniform_avx2_done_128
+        jl	L_mlkem_rej_uniform_avx2_done_128
         cmpl	$8, %esi
-        jge	L_kyber_rej_uniform_avx2_start_128
-L_kyber_rej_uniform_avx2_done_128:
+        jge	L_mlkem_rej_uniform_avx2_start_128
+L_mlkem_rej_uniform_avx2_done_128:
         cmpl	$0x00, %r8d
-        je	L_kyber_rej_uniform_avx2_done_64
+        je	L_mlkem_rej_uniform_avx2_done_64
         cmpl	$0x00, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
+        je	L_mlkem_rej_uniform_avx2_done_64
         movq	$0xfff0fff0fff0fff, %r15
         movq	$0x2000200020002000, %r10
         movq	$0xd010d010d010d01, %r11
         movq	$0x1000100010001000, %r12
-L_kyber_rej_uniform_avx2_start_64:
+L_mlkem_rej_uniform_avx2_start_64:
         movq	(%rdx), %rcx
         pdepq	%r15, %rcx, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_avx2_rej_large_0
+        jge	L_mlkem_rej_uniform_avx2_rej_large_0
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
-L_kyber_rej_uniform_avx2_rej_large_0:
+        je	L_mlkem_rej_uniform_avx2_done_64
+L_mlkem_rej_uniform_avx2_rej_large_0:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_avx2_rej_large_1
+        jge	L_mlkem_rej_uniform_avx2_rej_large_1
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
-L_kyber_rej_uniform_avx2_rej_large_1:
+        je	L_mlkem_rej_uniform_avx2_done_64
+L_mlkem_rej_uniform_avx2_rej_large_1:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_avx2_rej_large_2
+        jge	L_mlkem_rej_uniform_avx2_rej_large_2
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
-L_kyber_rej_uniform_avx2_rej_large_2:
+        je	L_mlkem_rej_uniform_avx2_done_64
+L_mlkem_rej_uniform_avx2_rej_large_2:
         shrq	$16, %rcx
         cmpw	$0xd01, %cx
-        jge	L_kyber_rej_uniform_avx2_rej_large_3
+        jge	L_mlkem_rej_uniform_avx2_rej_large_3
         movw	%cx, (%rdi)
         addq	$2, %rdi
         subl	$0x01, %esi
-        je	L_kyber_rej_uniform_avx2_done_64
-L_kyber_rej_uniform_avx2_rej_large_3:
+        je	L_mlkem_rej_uniform_avx2_done_64
+L_mlkem_rej_uniform_avx2_rej_large_3:
         addq	$6, %rdx
         subl	$6, %r8d
-        jle	L_kyber_rej_uniform_avx2_done_64
+        jle	L_mlkem_rej_uniform_avx2_done_64
         cmpl	$0x00, %esi
-        jg	L_kyber_rej_uniform_avx2_start_64
-L_kyber_rej_uniform_avx2_done_64:
+        jg	L_mlkem_rej_uniform_avx2_start_64
+L_mlkem_rej_uniform_avx2_done_64:
         vzeroupper
         subl	%esi, %eax
         popq	%rbp
@@ -13099,7 +13099,7 @@ L_kyber_rej_uniform_avx2_done_64:
         popq	%rbx
         repz retq
 #ifndef __APPLE__
-.size	kyber_rej_uniform_avx2,.-kyber_rej_uniform_avx2
+.size	mlkem_rej_uniform_avx2,.-mlkem_rej_uniform_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -13111,7 +13111,7 @@ L_kyber_rej_uniform_avx2_done_64:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_249:
+L_mlkem_mask_249:
 .quad	0x24924900249249, 0x24924900249249
 .quad	0x24924900249249, 0x24924900249249
 #ifndef __APPLE__
@@ -13124,7 +13124,7 @@ L_kyber_mask_249:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_6db:
+L_mlkem_mask_6db:
 .quad	0x6db6db006db6db, 0x6db6db006db6db
 .quad	0x6db6db006db6db, 0x6db6db006db6db
 #ifndef __APPLE__
@@ -13137,7 +13137,7 @@ L_kyber_mask_6db:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_07:
+L_mlkem_mask_07:
 .quad	0x700000007, 0x700000007
 .quad	0x700000007, 0x700000007
 #ifndef __APPLE__
@@ -13150,7 +13150,7 @@ L_kyber_mask_07:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_70:
+L_mlkem_mask_70:
 .quad	0x7000000070000, 0x7000000070000
 .quad	0x7000000070000, 0x7000000070000
 #ifndef __APPLE__
@@ -13163,7 +13163,7 @@ L_kyber_mask_70:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_3:
+L_mlkem_mask_3:
 .quad	0x3000300030003, 0x3000300030003
 .quad	0x3000300030003, 0x3000300030003
 #ifndef __APPLE__
@@ -13176,27 +13176,27 @@ L_kyber_mask_3:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_shuff:
+L_mlkem_shuff:
 .quad	0xff050403ff020100, 0xff0b0a09ff080706
 .quad	0xff090807ff060504, 0xff0f0e0dff0c0b0a
 #ifndef __APPLE__
 .text
-.globl	kyber_cbd_eta3_avx2
-.type	kyber_cbd_eta3_avx2,@function
+.globl	mlkem_cbd_eta3_avx2
+.type	mlkem_cbd_eta3_avx2,@function
 .align	16
-kyber_cbd_eta3_avx2:
+mlkem_cbd_eta3_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_cbd_eta3_avx2
+.globl	_mlkem_cbd_eta3_avx2
 .p2align	4
-_kyber_cbd_eta3_avx2:
+_mlkem_cbd_eta3_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_mask_249(%rip), %ymm8
-        vmovdqu	L_kyber_mask_6db(%rip), %ymm9
-        vmovdqu	L_kyber_mask_07(%rip), %ymm10
-        vmovdqu	L_kyber_mask_70(%rip), %ymm11
-        vmovdqu	L_kyber_mask_3(%rip), %ymm12
-        vmovdqu	L_kyber_shuff(%rip), %ymm13
+        vmovdqu	L_mlkem_mask_249(%rip), %ymm8
+        vmovdqu	L_mlkem_mask_6db(%rip), %ymm9
+        vmovdqu	L_mlkem_mask_07(%rip), %ymm10
+        vmovdqu	L_mlkem_mask_70(%rip), %ymm11
+        vmovdqu	L_mlkem_mask_3(%rip), %ymm12
+        vmovdqu	L_mlkem_shuff(%rip), %ymm13
         vmovdqu	(%rsi), %ymm0
         vmovdqu	24(%rsi), %ymm1
         vpermq	$0x94, %ymm0, %ymm0
@@ -13440,7 +13440,7 @@ _kyber_cbd_eta3_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_cbd_eta3_avx2,.-kyber_cbd_eta3_avx2
+.size	mlkem_cbd_eta3_avx2,.-mlkem_cbd_eta3_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -13452,7 +13452,7 @@ _kyber_cbd_eta3_avx2:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_55:
+L_mlkem_mask_55:
 .quad	0x5555555555555555, 0x5555555555555555
 .quad	0x5555555555555555, 0x5555555555555555
 #ifndef __APPLE__
@@ -13465,7 +13465,7 @@ L_kyber_mask_55:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_33:
+L_mlkem_mask_33:
 .quad	0x3333333333333333, 0x3333333333333333
 .quad	0x3333333333333333, 0x3333333333333333
 #ifndef __APPLE__
@@ -13478,7 +13478,7 @@ L_kyber_mask_33:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_03:
+L_mlkem_mask_03:
 .quad	0x303030303030303, 0x303030303030303
 .quad	0x303030303030303, 0x303030303030303
 #ifndef __APPLE__
@@ -13491,25 +13491,25 @@ L_kyber_mask_03:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_mask_0f:
+L_mlkem_mask_0f:
 .quad	0xf0f0f0f0f0f0f0f, 0xf0f0f0f0f0f0f0f
 .quad	0xf0f0f0f0f0f0f0f, 0xf0f0f0f0f0f0f0f
 #ifndef __APPLE__
 .text
-.globl	kyber_cbd_eta2_avx2
-.type	kyber_cbd_eta2_avx2,@function
+.globl	mlkem_cbd_eta2_avx2
+.type	mlkem_cbd_eta2_avx2,@function
 .align	16
-kyber_cbd_eta2_avx2:
+mlkem_cbd_eta2_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_cbd_eta2_avx2
+.globl	_mlkem_cbd_eta2_avx2
 .p2align	4
-_kyber_cbd_eta2_avx2:
+_mlkem_cbd_eta2_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_mask_55(%rip), %ymm8
-        vmovdqu	L_kyber_mask_33(%rip), %ymm9
-        vmovdqu	L_kyber_mask_03(%rip), %ymm10
-        vmovdqu	L_kyber_mask_0f(%rip), %ymm11
+        vmovdqu	L_mlkem_mask_55(%rip), %ymm8
+        vmovdqu	L_mlkem_mask_33(%rip), %ymm9
+        vmovdqu	L_mlkem_mask_03(%rip), %ymm10
+        vmovdqu	L_mlkem_mask_0f(%rip), %ymm11
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vpsrlw	$0x01, %ymm0, %ymm2
@@ -13621,7 +13621,7 @@ _kyber_cbd_eta2_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_cbd_eta2_avx2,.-kyber_cbd_eta2_avx2
+.size	mlkem_cbd_eta2_avx2,.-mlkem_cbd_eta2_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -13633,7 +13633,7 @@ _kyber_cbd_eta2_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_mask:
+L_mlkem_compress_10_avx2_mask:
 .value	0x3ff,0x3ff
 .value	0x3ff,0x3ff
 .value	0x3ff,0x3ff
@@ -13652,7 +13652,7 @@ L_kyber_compress_10_avx2_mask:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_shift:
+L_mlkem_compress_10_avx2_shift:
 .quad	0x400000104000001, 0x400000104000001
 .quad	0x400000104000001, 0x400000104000001
 #ifndef __APPLE__
@@ -13665,7 +13665,7 @@ L_kyber_compress_10_avx2_shift:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_shlv:
+L_mlkem_compress_10_avx2_shlv:
 .quad	0xc, 0xc
 .quad	0xc, 0xc
 #ifndef __APPLE__
@@ -13678,7 +13678,7 @@ L_kyber_compress_10_avx2_shlv:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_shuf:
+L_mlkem_compress_10_avx2_shuf:
 .value	0x100,0x302
 .value	0x804,0xa09
 .value	0xc0b,0xffff
@@ -13697,7 +13697,7 @@ L_kyber_compress_10_avx2_shuf:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_v:
+L_mlkem_compress_10_avx2_v:
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
@@ -13716,7 +13716,7 @@ L_kyber_compress_10_avx2_v:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_offset:
+L_mlkem_compress_10_avx2_offset:
 .value	0xf,0xf
 .value	0xf,0xf
 .value	0xf,0xf
@@ -13735,7 +13735,7 @@ L_kyber_compress_10_avx2_offset:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_10_avx2_shift12:
+L_mlkem_compress_10_avx2_shift12:
 .value	0x1000,0x1000
 .value	0x1000,0x1000
 .value	0x1000,0x1000
@@ -13746,26 +13746,26 @@ L_kyber_compress_10_avx2_shift12:
 .value	0x1000,0x1000
 #ifndef __APPLE__
 .text
-.globl	kyber_compress_10_avx2
-.type	kyber_compress_10_avx2,@function
+.globl	mlkem_compress_10_avx2
+.type	mlkem_compress_10_avx2,@function
 .align	16
-kyber_compress_10_avx2:
+mlkem_compress_10_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_compress_10_avx2
+.globl	_mlkem_compress_10_avx2
 .p2align	4
-_kyber_compress_10_avx2:
+_mlkem_compress_10_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rsi), %ymm0
-        vmovdqu	L_kyber_compress_10_avx2_mask(%rip), %ymm9
-        vmovdqu	L_kyber_compress_10_avx2_shift(%rip), %ymm8
-        vmovdqu	L_kyber_compress_10_avx2_shlv(%rip), %ymm10
-        vmovdqu	L_kyber_compress_10_avx2_shuf(%rip), %ymm11
-        vmovdqu	L_kyber_compress_10_avx2_v(%rip), %ymm6
-        vmovdqu	L_kyber_compress_10_avx2_offset(%rip), %ymm12
-        vmovdqu	L_kyber_compress_10_avx2_shift12(%rip), %ymm13
+        vmovdqu	L_mlkem_compress_10_avx2_mask(%rip), %ymm9
+        vmovdqu	L_mlkem_compress_10_avx2_shift(%rip), %ymm8
+        vmovdqu	L_mlkem_compress_10_avx2_shlv(%rip), %ymm10
+        vmovdqu	L_mlkem_compress_10_avx2_shuf(%rip), %ymm11
+        vmovdqu	L_mlkem_compress_10_avx2_v(%rip), %ymm6
+        vmovdqu	L_mlkem_compress_10_avx2_offset(%rip), %ymm12
+        vmovdqu	L_mlkem_compress_10_avx2_shift12(%rip), %ymm13
         vpsllw	$3, %ymm6, %ymm7
-L_kyber_compress_10_avx2_start:
+L_mlkem_compress_10_avx2_start:
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vpmullw	%ymm7, %ymm0, %ymm2
@@ -14073,18 +14073,18 @@ L_kyber_compress_10_avx2_start:
         addq	$0x140, %rdi
         addq	$0x200, %rsi
         subl	$0x01, %edx
-        jg	L_kyber_compress_10_avx2_start
+        jg	L_mlkem_compress_10_avx2_start
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_compress_10_avx2,.-kyber_compress_10_avx2
+.size	mlkem_compress_10_avx2,.-mlkem_compress_10_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_decompress_10_avx2_mask:
+L_mlkem_decompress_10_avx2_mask:
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 .long	0x7fe01ff8,0x7fe01ff8,0x7fe01ff8,0x7fe01ff8
 #ifndef __APPLE__
@@ -14097,7 +14097,7 @@ L_kyber_decompress_10_avx2_mask:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_decompress_10_avx2_sllv:
+L_mlkem_decompress_10_avx2_sllv:
 .quad	0x4, 0x4
 .quad	0x4, 0x4
 #ifndef __APPLE__
@@ -14105,7 +14105,7 @@ L_kyber_decompress_10_avx2_sllv:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_decompress_10_avx2_q:
+L_mlkem_decompress_10_avx2_q:
 .long	0xd013404,0xd013404,0xd013404,0xd013404
 .long	0xd013404,0xd013404,0xd013404,0xd013404
 #ifndef __APPLE__
@@ -14118,7 +14118,7 @@ L_kyber_decompress_10_avx2_q:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_10_avx2_shuf:
+L_mlkem_decompress_10_avx2_shuf:
 .value	0x100,0x201
 .value	0x302,0x403
 .value	0x605,0x706
@@ -14129,21 +14129,21 @@ L_kyber_decompress_10_avx2_shuf:
 .value	0xa09,0xb0a
 #ifndef __APPLE__
 .text
-.globl	kyber_decompress_10_avx2
-.type	kyber_decompress_10_avx2,@function
+.globl	mlkem_decompress_10_avx2
+.type	mlkem_decompress_10_avx2,@function
 .align	16
-kyber_decompress_10_avx2:
+mlkem_decompress_10_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_decompress_10_avx2
+.globl	_mlkem_decompress_10_avx2
 .p2align	4
-_kyber_decompress_10_avx2:
+_mlkem_decompress_10_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_decompress_10_avx2_mask(%rip), %ymm4
-        vmovdqu	L_kyber_decompress_10_avx2_q(%rip), %ymm5
-        vmovdqu	L_kyber_decompress_10_avx2_shuf(%rip), %ymm6
-        vmovdqu	L_kyber_decompress_10_avx2_sllv(%rip), %ymm7
-L_kyber_decompress_10_avx2_start:
+        vmovdqu	L_mlkem_decompress_10_avx2_mask(%rip), %ymm4
+        vmovdqu	L_mlkem_decompress_10_avx2_q(%rip), %ymm5
+        vmovdqu	L_mlkem_decompress_10_avx2_shuf(%rip), %ymm6
+        vmovdqu	L_mlkem_decompress_10_avx2_sllv(%rip), %ymm7
+L_mlkem_decompress_10_avx2_start:
         vpermq	$0x94, (%rsi), %ymm0
         vpermq	$0x94, 20(%rsi), %ymm1
         vpermq	$0x94, 40(%rsi), %ymm2
@@ -14259,11 +14259,11 @@ L_kyber_decompress_10_avx2_start:
         addq	$0x140, %rsi
         addq	$0x200, %rdi
         subl	$0x01, %edx
-        jg	L_kyber_decompress_10_avx2_start
+        jg	L_mlkem_decompress_10_avx2_start
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_decompress_10_avx2,.-kyber_decompress_10_avx2
+.size	mlkem_decompress_10_avx2,.-mlkem_decompress_10_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -14275,7 +14275,7 @@ L_kyber_decompress_10_avx2_start:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_v:
+L_mlkem_compress_11_avx2_v:
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
@@ -14294,7 +14294,7 @@ L_kyber_compress_11_avx2_v:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_off:
+L_mlkem_compress_11_avx2_off:
 .value	0x24,0x24
 .value	0x24,0x24
 .value	0x24,0x24
@@ -14313,7 +14313,7 @@ L_kyber_compress_11_avx2_off:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_shift13:
+L_mlkem_compress_11_avx2_shift13:
 .value	0x2000,0x2000
 .value	0x2000,0x2000
 .value	0x2000,0x2000
@@ -14332,7 +14332,7 @@ L_kyber_compress_11_avx2_shift13:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_mask:
+L_mlkem_compress_11_avx2_mask:
 .value	0x7ff,0x7ff
 .value	0x7ff,0x7ff
 .value	0x7ff,0x7ff
@@ -14351,7 +14351,7 @@ L_kyber_compress_11_avx2_mask:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_shift:
+L_mlkem_compress_11_avx2_shift:
 .quad	0x800000108000001, 0x800000108000001
 .quad	0x800000108000001, 0x800000108000001
 #ifndef __APPLE__
@@ -14359,7 +14359,7 @@ L_kyber_compress_11_avx2_shift:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_sllvd:
+L_mlkem_compress_11_avx2_sllvd:
 .long	0xa,0x0,0xa,0x0
 .long	0xa,0x0,0xa,0x0
 #ifndef __APPLE__
@@ -14372,7 +14372,7 @@ L_kyber_compress_11_avx2_sllvd:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_srlvq:
+L_mlkem_compress_11_avx2_srlvq:
 .quad	0xa, 0x1e
 .quad	0xa, 0x1e
 #ifndef __APPLE__
@@ -14385,7 +14385,7 @@ L_kyber_compress_11_avx2_srlvq:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_11_avx2_shuf:
+L_mlkem_compress_11_avx2_shuf:
 .value	0x100,0x302
 .value	0x504,0x706
 .value	0x908,0xff0a
@@ -14396,27 +14396,27 @@ L_kyber_compress_11_avx2_shuf:
 .value	0x201,0x403
 #ifndef __APPLE__
 .text
-.globl	kyber_compress_11_avx2
-.type	kyber_compress_11_avx2,@function
+.globl	mlkem_compress_11_avx2
+.type	mlkem_compress_11_avx2,@function
 .align	16
-kyber_compress_11_avx2:
+mlkem_compress_11_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_compress_11_avx2
+.globl	_mlkem_compress_11_avx2
 .p2align	4
-_kyber_compress_11_avx2:
+_mlkem_compress_11_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rsi), %ymm0
-        vmovdqu	L_kyber_compress_11_avx2_v(%rip), %ymm7
-        vmovdqu	L_kyber_compress_11_avx2_off(%rip), %ymm8
-        vmovdqu	L_kyber_compress_11_avx2_shift13(%rip), %ymm9
-        vmovdqu	L_kyber_compress_11_avx2_mask(%rip), %ymm10
-        vmovdqu	L_kyber_compress_11_avx2_shift(%rip), %ymm11
-        vmovdqu	L_kyber_compress_11_avx2_sllvd(%rip), %ymm12
-        vmovdqu	L_kyber_compress_11_avx2_srlvq(%rip), %ymm13
-        vmovdqu	L_kyber_compress_11_avx2_shuf(%rip), %ymm14
+        vmovdqu	L_mlkem_compress_11_avx2_v(%rip), %ymm7
+        vmovdqu	L_mlkem_compress_11_avx2_off(%rip), %ymm8
+        vmovdqu	L_mlkem_compress_11_avx2_shift13(%rip), %ymm9
+        vmovdqu	L_mlkem_compress_11_avx2_mask(%rip), %ymm10
+        vmovdqu	L_mlkem_compress_11_avx2_shift(%rip), %ymm11
+        vmovdqu	L_mlkem_compress_11_avx2_sllvd(%rip), %ymm12
+        vmovdqu	L_mlkem_compress_11_avx2_srlvq(%rip), %ymm13
+        vmovdqu	L_mlkem_compress_11_avx2_shuf(%rip), %ymm14
         vpsllw	$3, %ymm7, %ymm6
-L_kyber_compress_11_avx2_start:
+L_mlkem_compress_11_avx2_start:
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm3
         vpmullw	%ymm6, %ymm0, %ymm1
@@ -14772,11 +14772,11 @@ L_kyber_compress_11_avx2_start:
         addq	$0x160, %rdi
         addq	$0x200, %rsi
         subl	$0x01, %edx
-        jg	L_kyber_compress_11_avx2_start
+        jg	L_mlkem_compress_11_avx2_start
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_compress_11_avx2,.-kyber_compress_11_avx2
+.size	mlkem_compress_11_avx2,.-mlkem_compress_11_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -14788,7 +14788,7 @@ L_kyber_compress_11_avx2_start:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_q:
+L_mlkem_decompress_11_avx2_q:
 .value	0xd01,0xd01
 .value	0xd01,0xd01
 .value	0xd01,0xd01
@@ -14807,7 +14807,7 @@ L_kyber_decompress_11_avx2_q:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_shuf:
+L_mlkem_decompress_11_avx2_shuf:
 .value	0x100,0x201
 .value	0x302,0x504
 .value	0x605,0x706
@@ -14821,7 +14821,7 @@ L_kyber_decompress_11_avx2_shuf:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_sllv:
+L_mlkem_decompress_11_avx2_sllv:
 .long	0x0,0x1,0x0,0x0
 .long	0x0,0x1,0x0,0x0
 #ifndef __APPLE__
@@ -14834,7 +14834,7 @@ L_kyber_decompress_11_avx2_sllv:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_srlv:
+L_mlkem_decompress_11_avx2_srlv:
 .quad	0x0, 0x2
 .quad	0x0, 0x2
 #ifndef __APPLE__
@@ -14847,7 +14847,7 @@ L_kyber_decompress_11_avx2_srlv:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_shift:
+L_mlkem_decompress_11_avx2_shift:
 .value	0x20,0x4
 .value	0x1,0x20
 .value	0x8,0x1
@@ -14866,7 +14866,7 @@ L_kyber_decompress_11_avx2_shift:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_11_avx2_mask:
+L_mlkem_decompress_11_avx2_mask:
 .value	0x7ff0,0x7ff0
 .value	0x7ff0,0x7ff0
 .value	0x7ff0,0x7ff0
@@ -14877,23 +14877,23 @@ L_kyber_decompress_11_avx2_mask:
 .value	0x7ff0,0x7ff0
 #ifndef __APPLE__
 .text
-.globl	kyber_decompress_11_avx2
-.type	kyber_decompress_11_avx2,@function
+.globl	mlkem_decompress_11_avx2
+.type	mlkem_decompress_11_avx2,@function
 .align	16
-kyber_decompress_11_avx2:
+mlkem_decompress_11_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_decompress_11_avx2
+.globl	_mlkem_decompress_11_avx2
 .p2align	4
-_kyber_decompress_11_avx2:
+_mlkem_decompress_11_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_decompress_11_avx2_q(%rip), %ymm4
-        vmovdqu	L_kyber_decompress_11_avx2_shuf(%rip), %ymm5
-        vmovdqu	L_kyber_decompress_11_avx2_sllv(%rip), %ymm6
-        vmovdqu	L_kyber_decompress_11_avx2_srlv(%rip), %ymm7
-        vmovdqu	L_kyber_decompress_11_avx2_shift(%rip), %ymm8
-        vmovdqu	L_kyber_decompress_11_avx2_mask(%rip), %ymm9
-L_kyber_decompress_11_avx2_start:
+        vmovdqu	L_mlkem_decompress_11_avx2_q(%rip), %ymm4
+        vmovdqu	L_mlkem_decompress_11_avx2_shuf(%rip), %ymm5
+        vmovdqu	L_mlkem_decompress_11_avx2_sllv(%rip), %ymm6
+        vmovdqu	L_mlkem_decompress_11_avx2_srlv(%rip), %ymm7
+        vmovdqu	L_mlkem_decompress_11_avx2_shift(%rip), %ymm8
+        vmovdqu	L_mlkem_decompress_11_avx2_mask(%rip), %ymm9
+L_mlkem_decompress_11_avx2_start:
         vpermq	$0x94, (%rsi), %ymm0
         vpermq	$0x94, 22(%rsi), %ymm1
         vpermq	$0x94, 44(%rsi), %ymm2
@@ -15041,11 +15041,11 @@ L_kyber_decompress_11_avx2_start:
         addq	$0x160, %rsi
         addq	$0x200, %rdi
         subl	$0x01, %edx
-        jg	L_kyber_decompress_11_avx2_start
+        jg	L_mlkem_decompress_11_avx2_start
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_decompress_11_avx2,.-kyber_decompress_11_avx2
+.size	mlkem_decompress_11_avx2,.-mlkem_decompress_11_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -15057,7 +15057,7 @@ L_kyber_decompress_11_avx2_start:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_4_avx2_mask:
+L_mlkem_compress_4_avx2_mask:
 .value	0xf,0xf
 .value	0xf,0xf
 .value	0xf,0xf
@@ -15076,7 +15076,7 @@ L_kyber_compress_4_avx2_mask:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_4_avx2_shift:
+L_mlkem_compress_4_avx2_shift:
 .value	0x200,0x200
 .value	0x200,0x200
 .value	0x200,0x200
@@ -15090,7 +15090,7 @@ L_kyber_compress_4_avx2_shift:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_compress_4_avx2_perm:
+L_mlkem_compress_4_avx2_perm:
 .long	0x0,0x4,0x1,0x5
 .long	0x2,0x6,0x3,0x7
 #ifndef __APPLE__
@@ -15103,7 +15103,7 @@ L_kyber_compress_4_avx2_perm:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_4_avx2_v:
+L_mlkem_compress_4_avx2_v:
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
@@ -15122,7 +15122,7 @@ L_kyber_compress_4_avx2_v:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_4_avx2_shift12:
+L_mlkem_compress_4_avx2_shift12:
 .value	0x1001,0x1001
 .value	0x1001,0x1001
 .value	0x1001,0x1001
@@ -15133,21 +15133,21 @@ L_kyber_compress_4_avx2_shift12:
 .value	0x1001,0x1001
 #ifndef __APPLE__
 .text
-.globl	kyber_compress_4_avx2
-.type	kyber_compress_4_avx2,@function
+.globl	mlkem_compress_4_avx2
+.type	mlkem_compress_4_avx2,@function
 .align	16
-kyber_compress_4_avx2:
+mlkem_compress_4_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_compress_4_avx2
+.globl	_mlkem_compress_4_avx2
 .p2align	4
-_kyber_compress_4_avx2:
+_mlkem_compress_4_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_compress_4_avx2_mask(%rip), %ymm8
-        vmovdqu	L_kyber_compress_4_avx2_shift(%rip), %ymm9
-        vmovdqu	L_kyber_compress_4_avx2_perm(%rip), %ymm10
-        vmovdqu	L_kyber_compress_4_avx2_v(%rip), %ymm11
-        vmovdqu	L_kyber_compress_4_avx2_shift12(%rip), %ymm12
+        vmovdqu	L_mlkem_compress_4_avx2_mask(%rip), %ymm8
+        vmovdqu	L_mlkem_compress_4_avx2_shift(%rip), %ymm9
+        vmovdqu	L_mlkem_compress_4_avx2_perm(%rip), %ymm10
+        vmovdqu	L_mlkem_compress_4_avx2_v(%rip), %ymm11
+        vmovdqu	L_mlkem_compress_4_avx2_shift12(%rip), %ymm12
         vpmulhw	(%rsi), %ymm11, %ymm0
         vpmulhw	32(%rsi), %ymm11, %ymm1
         vpmulhw	64(%rsi), %ymm11, %ymm2
@@ -15227,14 +15227,14 @@ _kyber_compress_4_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_compress_4_avx2,.-kyber_compress_4_avx2
+.size	mlkem_compress_4_avx2,.-mlkem_compress_4_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_decompress_4_avx2_mask:
+L_mlkem_decompress_4_avx2_mask:
 .long	0xf0000f,0xf0000f,0xf0000f,0xf0000f
 .long	0xf0000f,0xf0000f,0xf0000f,0xf0000f
 #ifndef __APPLE__
@@ -15242,7 +15242,7 @@ L_kyber_decompress_4_avx2_mask:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_decompress_4_avx2_shift:
+L_mlkem_decompress_4_avx2_shift:
 .long	0x800800,0x800800,0x800800,0x800800
 .long	0x800800,0x800800,0x800800,0x800800
 #ifndef __APPLE__
@@ -15255,7 +15255,7 @@ L_kyber_decompress_4_avx2_shift:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_4_avx2_q:
+L_mlkem_decompress_4_avx2_q:
 .value	0xd01,0xd01
 .value	0xd01,0xd01
 .value	0xd01,0xd01
@@ -15274,7 +15274,7 @@ L_kyber_decompress_4_avx2_q:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_4_avx2_shuf:
+L_mlkem_decompress_4_avx2_shuf:
 .value	0x0,0x0
 .value	0x101,0x101
 .value	0x202,0x202
@@ -15285,20 +15285,20 @@ L_kyber_decompress_4_avx2_shuf:
 .value	0x707,0x707
 #ifndef __APPLE__
 .text
-.globl	kyber_decompress_4_avx2
-.type	kyber_decompress_4_avx2,@function
+.globl	mlkem_decompress_4_avx2
+.type	mlkem_decompress_4_avx2,@function
 .align	16
-kyber_decompress_4_avx2:
+mlkem_decompress_4_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_decompress_4_avx2
+.globl	_mlkem_decompress_4_avx2
 .p2align	4
-_kyber_decompress_4_avx2:
+_mlkem_decompress_4_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_decompress_4_avx2_mask(%rip), %ymm4
-        vmovdqu	L_kyber_decompress_4_avx2_shift(%rip), %ymm5
-        vmovdqu	L_kyber_decompress_4_avx2_shuf(%rip), %ymm6
-        vmovdqu	L_kyber_decompress_4_avx2_q(%rip), %ymm7
+        vmovdqu	L_mlkem_decompress_4_avx2_mask(%rip), %ymm4
+        vmovdqu	L_mlkem_decompress_4_avx2_shift(%rip), %ymm5
+        vmovdqu	L_mlkem_decompress_4_avx2_shuf(%rip), %ymm6
+        vmovdqu	L_mlkem_decompress_4_avx2_q(%rip), %ymm7
         vpbroadcastq	(%rsi), %ymm0
         vpbroadcastq	8(%rsi), %ymm1
         vpbroadcastq	16(%rsi), %ymm2
@@ -15398,7 +15398,7 @@ _kyber_decompress_4_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_decompress_4_avx2,.-kyber_decompress_4_avx2
+.size	mlkem_decompress_4_avx2,.-mlkem_decompress_4_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -15410,7 +15410,7 @@ _kyber_decompress_4_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_v:
+L_mlkem_compress_5_avx2_v:
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
 .value	0x4ebf,0x4ebf
@@ -15429,7 +15429,7 @@ L_kyber_compress_5_avx2_v:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_shift:
+L_mlkem_compress_5_avx2_shift:
 .value	0x400,0x400
 .value	0x400,0x400
 .value	0x400,0x400
@@ -15448,7 +15448,7 @@ L_kyber_compress_5_avx2_shift:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_mask:
+L_mlkem_compress_5_avx2_mask:
 .value	0x1f,0x1f
 .value	0x1f,0x1f
 .value	0x1f,0x1f
@@ -15467,7 +15467,7 @@ L_kyber_compress_5_avx2_mask:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_shift1:
+L_mlkem_compress_5_avx2_shift1:
 .value	0x2001,0x2001
 .value	0x2001,0x2001
 .value	0x2001,0x2001
@@ -15481,7 +15481,7 @@ L_kyber_compress_5_avx2_shift1:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_shift2:
+L_mlkem_compress_5_avx2_shift2:
 .long	0x4000001,0x4000001,0x4000001,0x4000001
 .long	0x4000001,0x4000001,0x4000001,0x4000001
 #ifndef __APPLE__
@@ -15494,7 +15494,7 @@ L_kyber_compress_5_avx2_shift2:
 #else
 .p2align	5
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_shlv:
+L_mlkem_compress_5_avx2_shlv:
 .quad	0xc, 0xc
 .quad	0xc, 0xc
 #ifndef __APPLE__
@@ -15507,7 +15507,7 @@ L_kyber_compress_5_avx2_shlv:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_compress_5_avx2_shuffle:
+L_mlkem_compress_5_avx2_shuffle:
 .value	0x100,0x302
 .value	0xff04,0xffff
 .value	0xffff,0x908
@@ -15518,24 +15518,24 @@ L_kyber_compress_5_avx2_shuffle:
 .value	0xffff,0x8ff
 #ifndef __APPLE__
 .text
-.globl	kyber_compress_5_avx2
-.type	kyber_compress_5_avx2,@function
+.globl	mlkem_compress_5_avx2
+.type	mlkem_compress_5_avx2,@function
 .align	16
-kyber_compress_5_avx2:
+mlkem_compress_5_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_compress_5_avx2
+.globl	_mlkem_compress_5_avx2
 .p2align	4
-_kyber_compress_5_avx2:
+_mlkem_compress_5_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rsi), %ymm0
-        vmovdqu	L_kyber_compress_5_avx2_v(%rip), %ymm2
-        vmovdqu	L_kyber_compress_5_avx2_shift(%rip), %ymm3
-        vmovdqu	L_kyber_compress_5_avx2_mask(%rip), %ymm4
-        vmovdqu	L_kyber_compress_5_avx2_shift1(%rip), %ymm5
-        vmovdqu	L_kyber_compress_5_avx2_shift2(%rip), %ymm6
-        vmovdqu	L_kyber_compress_5_avx2_shlv(%rip), %ymm7
-        vmovdqu	L_kyber_compress_5_avx2_shuffle(%rip), %ymm8
+        vmovdqu	L_mlkem_compress_5_avx2_v(%rip), %ymm2
+        vmovdqu	L_mlkem_compress_5_avx2_shift(%rip), %ymm3
+        vmovdqu	L_mlkem_compress_5_avx2_mask(%rip), %ymm4
+        vmovdqu	L_mlkem_compress_5_avx2_shift1(%rip), %ymm5
+        vmovdqu	L_mlkem_compress_5_avx2_shift2(%rip), %ymm6
+        vmovdqu	L_mlkem_compress_5_avx2_shlv(%rip), %ymm7
+        vmovdqu	L_mlkem_compress_5_avx2_shuffle(%rip), %ymm8
         vpmulhw	(%rsi), %ymm2, %ymm0
         vpmulhw	32(%rsi), %ymm2, %ymm1
         vpmulhrsw	%ymm3, %ymm0, %ymm0
@@ -15667,7 +15667,7 @@ _kyber_compress_5_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_compress_5_avx2,.-kyber_compress_5_avx2
+.size	mlkem_compress_5_avx2,.-mlkem_compress_5_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -15679,7 +15679,7 @@ _kyber_compress_5_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_5_avx2_q:
+L_mlkem_decompress_5_avx2_q:
 .value	0xd01,0xd01
 .value	0xd01,0xd01
 .value	0xd01,0xd01
@@ -15698,7 +15698,7 @@ L_kyber_decompress_5_avx2_q:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_5_avx2_shuf:
+L_mlkem_decompress_5_avx2_shuf:
 .value	0x0,0x100
 .value	0x101,0x201
 .value	0x302,0x303
@@ -15717,7 +15717,7 @@ L_kyber_decompress_5_avx2_shuf:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_5_avx2_mask:
+L_mlkem_decompress_5_avx2_mask:
 .value	0x1f,0x3e0
 .value	0x7c,0xf80
 .value	0x1f0,0x3e
@@ -15736,7 +15736,7 @@ L_kyber_decompress_5_avx2_mask:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_decompress_5_avx2_shift:
+L_mlkem_decompress_5_avx2_shift:
 .value	0x400,0x20
 .value	0x100,0x8
 .value	0x40,0x200
@@ -15747,20 +15747,20 @@ L_kyber_decompress_5_avx2_shift:
 .value	0x10,0x80
 #ifndef __APPLE__
 .text
-.globl	kyber_decompress_5_avx2
-.type	kyber_decompress_5_avx2,@function
+.globl	mlkem_decompress_5_avx2
+.type	mlkem_decompress_5_avx2,@function
 .align	16
-kyber_decompress_5_avx2:
+mlkem_decompress_5_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_decompress_5_avx2
+.globl	_mlkem_decompress_5_avx2
 .p2align	4
-_kyber_decompress_5_avx2:
+_mlkem_decompress_5_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_decompress_5_avx2_q(%rip), %ymm1
-        vmovdqu	L_kyber_decompress_5_avx2_shuf(%rip), %ymm2
-        vmovdqu	L_kyber_decompress_5_avx2_mask(%rip), %ymm3
-        vmovdqu	L_kyber_decompress_5_avx2_shift(%rip), %ymm4
+        vmovdqu	L_mlkem_decompress_5_avx2_q(%rip), %ymm1
+        vmovdqu	L_mlkem_decompress_5_avx2_shuf(%rip), %ymm2
+        vmovdqu	L_mlkem_decompress_5_avx2_mask(%rip), %ymm3
+        vmovdqu	L_mlkem_decompress_5_avx2_shift(%rip), %ymm4
         vbroadcasti128	(%rsi), %ymm0
         vpshufb	%ymm2, %ymm0, %ymm0
         vpand	%ymm3, %ymm0, %ymm0
@@ -15860,14 +15860,14 @@ _kyber_decompress_5_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_decompress_5_avx2,.-kyber_decompress_5_avx2
+.size	mlkem_decompress_5_avx2,.-mlkem_decompress_5_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_from_msg_avx2_shift:
+L_mlkem_from_msg_avx2_shift:
 .long	0x3,0x2,0x1,0x0
 .long	0x3,0x2,0x1,0x0
 #ifndef __APPLE__
@@ -15880,7 +15880,7 @@ L_kyber_from_msg_avx2_shift:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_from_msg_avx2_shuf:
+L_mlkem_from_msg_avx2_shuf:
 .value	0x100,0x504
 .value	0x908,0xd0c
 .value	0x302,0x706
@@ -15899,7 +15899,7 @@ L_kyber_from_msg_avx2_shuf:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_from_msg_avx2_hqs:
+L_mlkem_from_msg_avx2_hqs:
 .value	0x681,0x681
 .value	0x681,0x681
 .value	0x681,0x681
@@ -15910,20 +15910,20 @@ L_kyber_from_msg_avx2_hqs:
 .value	0x681,0x681
 #ifndef __APPLE__
 .text
-.globl	kyber_from_msg_avx2
-.type	kyber_from_msg_avx2,@function
+.globl	mlkem_from_msg_avx2
+.type	mlkem_from_msg_avx2,@function
 .align	16
-kyber_from_msg_avx2:
+mlkem_from_msg_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_from_msg_avx2
+.globl	_mlkem_from_msg_avx2
 .p2align	4
-_kyber_from_msg_avx2:
+_mlkem_from_msg_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rsi), %ymm0
-        vmovdqu	L_kyber_from_msg_avx2_shift(%rip), %ymm9
-        vmovdqu	L_kyber_from_msg_avx2_shuf(%rip), %ymm10
-        vmovdqu	L_kyber_from_msg_avx2_hqs(%rip), %ymm11
+        vmovdqu	L_mlkem_from_msg_avx2_shift(%rip), %ymm9
+        vmovdqu	L_mlkem_from_msg_avx2_shuf(%rip), %ymm10
+        vmovdqu	L_mlkem_from_msg_avx2_hqs(%rip), %ymm11
         vpshufd	$0x00, %ymm0, %ymm4
         vpsllvd	%ymm9, %ymm4, %ymm4
         vpshufb	%ymm10, %ymm4, %ymm4
@@ -16031,7 +16031,7 @@ _kyber_from_msg_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_from_msg_avx2,.-kyber_from_msg_avx2
+.size	mlkem_from_msg_avx2,.-mlkem_from_msg_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -16043,7 +16043,7 @@ _kyber_from_msg_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_to_msg_avx2_hqs:
+L_mlkem_to_msg_avx2_hqs:
 .value	0x680,0x680
 .value	0x680,0x680
 .value	0x680,0x680
@@ -16062,7 +16062,7 @@ L_kyber_to_msg_avx2_hqs:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_to_msg_avx2_hhqs:
+L_mlkem_to_msg_avx2_hhqs:
 .value	0xfcc1,0xfcc1
 .value	0xfcc1,0xfcc1
 .value	0xfcc1,0xfcc1
@@ -16073,18 +16073,18 @@ L_kyber_to_msg_avx2_hhqs:
 .value	0xfcc1,0xfcc1
 #ifndef __APPLE__
 .text
-.globl	kyber_to_msg_avx2
-.type	kyber_to_msg_avx2,@function
+.globl	mlkem_to_msg_avx2
+.type	mlkem_to_msg_avx2,@function
 .align	16
-kyber_to_msg_avx2:
+mlkem_to_msg_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_to_msg_avx2
+.globl	_mlkem_to_msg_avx2
 .p2align	4
-_kyber_to_msg_avx2:
+_mlkem_to_msg_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	L_kyber_to_msg_avx2_hqs(%rip), %ymm8
-        vmovdqu	L_kyber_to_msg_avx2_hhqs(%rip), %ymm9
+        vmovdqu	L_mlkem_to_msg_avx2_hqs(%rip), %ymm8
+        vmovdqu	L_mlkem_to_msg_avx2_hhqs(%rip), %ymm9
         vpsubw	(%rsi), %ymm8, %ymm0
         vpsubw	32(%rsi), %ymm8, %ymm1
         vpsubw	64(%rsi), %ymm8, %ymm2
@@ -16184,7 +16184,7 @@ _kyber_to_msg_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_to_msg_avx2,.-kyber_to_msg_avx2
+.size	mlkem_to_msg_avx2,.-mlkem_to_msg_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -16196,7 +16196,7 @@ _kyber_to_msg_avx2:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_from_bytes_avx2_shuf:
+L_mlkem_from_bytes_avx2_shuf:
 .value	0x100,0xff02
 .value	0x403,0xff05
 .value	0x706,0xff08
@@ -16210,24 +16210,24 @@ L_kyber_from_bytes_avx2_shuf:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_from_bytes_avx2_mask:
+L_mlkem_from_bytes_avx2_mask:
 .long	0xfff,0xfff,0xfff,0xfff
 .long	0xfff,0xfff,0xfff,0xfff
 #ifndef __APPLE__
 .text
-.globl	kyber_from_bytes_avx2
-.type	kyber_from_bytes_avx2,@function
+.globl	mlkem_from_bytes_avx2
+.type	mlkem_from_bytes_avx2,@function
 .align	16
-kyber_from_bytes_avx2:
+mlkem_from_bytes_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_from_bytes_avx2
+.globl	_mlkem_from_bytes_avx2
 .p2align	4
-_kyber_from_bytes_avx2:
+_mlkem_from_bytes_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rsi), %ymm0
-        vmovdqu	L_kyber_from_bytes_avx2_shuf(%rip), %ymm12
-        vmovdqu	L_kyber_from_bytes_avx2_mask(%rip), %ymm13
+        vmovdqu	L_mlkem_from_bytes_avx2_shuf(%rip), %ymm12
+        vmovdqu	L_mlkem_from_bytes_avx2_mask(%rip), %ymm13
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vmovdqu	64(%rsi), %ymm2
@@ -16371,14 +16371,14 @@ _kyber_from_bytes_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_from_bytes_avx2,.-kyber_from_bytes_avx2
+.size	mlkem_from_bytes_avx2,.-mlkem_from_bytes_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_to_bytes_avx2_mask:
+L_mlkem_to_bytes_avx2_mask:
 .long	0xfff,0xfff,0xfff,0xfff
 .long	0xfff,0xfff,0xfff,0xfff
 #ifndef __APPLE__
@@ -16391,7 +16391,7 @@ L_kyber_to_bytes_avx2_mask:
 #else
 .p2align	4
 #endif /* __APPLE__ */
-L_kyber_to_bytes_avx2_shuf:
+L_mlkem_to_bytes_avx2_shuf:
 .value	0x100,0x402
 .value	0x605,0x908
 .value	0xc0a,0xe0d
@@ -16405,25 +16405,25 @@ L_kyber_to_bytes_avx2_shuf:
 #else
 .section	__DATA,__data
 #endif /* __APPLE__ */
-L_kyber_to_bytes_avx2_perm:
+L_mlkem_to_bytes_avx2_perm:
 .long	0x0,0x1,0x2,0x7
 .long	0x4,0x5,0x3,0x6
 #ifndef __APPLE__
 .text
-.globl	kyber_to_bytes_avx2
-.type	kyber_to_bytes_avx2,@function
+.globl	mlkem_to_bytes_avx2
+.type	mlkem_to_bytes_avx2,@function
 .align	16
-kyber_to_bytes_avx2:
+mlkem_to_bytes_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_to_bytes_avx2
+.globl	_mlkem_to_bytes_avx2
 .p2align	4
-_kyber_to_bytes_avx2:
+_mlkem_to_bytes_avx2:
 #endif /* __APPLE__ */
-        vmovdqu	kyber_q(%rip), %ymm12
-        vmovdqu	L_kyber_to_bytes_avx2_mask(%rip), %ymm13
-        vmovdqu	L_kyber_to_bytes_avx2_shuf(%rip), %ymm14
-        vmovdqu	L_kyber_to_bytes_avx2_perm(%rip), %ymm15
+        vmovdqu	mlkem_q(%rip), %ymm12
+        vmovdqu	L_mlkem_to_bytes_avx2_mask(%rip), %ymm13
+        vmovdqu	L_mlkem_to_bytes_avx2_shuf(%rip), %ymm14
+        vmovdqu	L_mlkem_to_bytes_avx2_perm(%rip), %ymm15
         vmovdqu	(%rsi), %ymm0
         vmovdqu	32(%rsi), %ymm1
         vmovdqu	64(%rsi), %ymm2
@@ -16647,19 +16647,19 @@ _kyber_to_bytes_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_to_bytes_avx2,.-kyber_to_bytes_avx2
+.size	mlkem_to_bytes_avx2,.-mlkem_to_bytes_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_cmp_avx2
-.type	kyber_cmp_avx2,@function
+.globl	mlkem_cmp_avx2
+.type	mlkem_cmp_avx2,@function
 .align	16
-kyber_cmp_avx2:
+mlkem_cmp_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_cmp_avx2
+.globl	_mlkem_cmp_avx2
 .p2align	4
-_kyber_cmp_avx2:
+_mlkem_cmp_avx2:
 #endif /* __APPLE__ */
         vpxor	%ymm2, %ymm2, %ymm2
         vpxor	%ymm3, %ymm3, %ymm3
@@ -16738,7 +16738,7 @@ _kyber_cmp_avx2:
         vpor	%ymm0, %ymm2, %ymm2
         vpor	%ymm1, %ymm3, %ymm3
         subl	$0x300, %edx
-        jz	L_kyber_cmp_avx2_done
+        jz	L_mlkem_cmp_avx2_done
         vmovdqu	768(%rdi), %ymm0
         vmovdqu	800(%rdi), %ymm1
         vpxor	768(%rsi), %ymm0, %ymm0
@@ -16770,7 +16770,7 @@ _kyber_cmp_avx2:
         vpor	%ymm0, %ymm2, %ymm2
         vpor	%ymm1, %ymm3, %ymm3
         subl	$0x140, %edx
-        jz	L_kyber_cmp_avx2_done
+        jz	L_mlkem_cmp_avx2_done
         vmovdqu	1088(%rdi), %ymm0
         vmovdqu	1120(%rdi), %ymm1
         vpxor	1088(%rsi), %ymm0, %ymm0
@@ -16813,7 +16813,7 @@ _kyber_cmp_avx2:
         vpxor	1504(%rsi), %ymm1, %ymm1
         vpor	%ymm0, %ymm2, %ymm2
         vpor	%ymm1, %ymm3, %ymm3
-L_kyber_cmp_avx2_done:
+L_mlkem_cmp_avx2_done:
         vpor	%ymm3, %ymm2, %ymm2
         vptest	%ymm2, %ymm2
         cmovzl	%ecx, %eax
@@ -16821,19 +16821,19 @@ L_kyber_cmp_avx2_done:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_cmp_avx2,.-kyber_cmp_avx2
+.size	mlkem_cmp_avx2,.-mlkem_cmp_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_redistribute_21_rand_avx2
-.type	kyber_redistribute_21_rand_avx2,@function
+.globl	mlkem_redistribute_21_rand_avx2
+.type	mlkem_redistribute_21_rand_avx2,@function
 .align	16
-kyber_redistribute_21_rand_avx2:
+mlkem_redistribute_21_rand_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_redistribute_21_rand_avx2
+.globl	_mlkem_redistribute_21_rand_avx2
 .p2align	4
-_kyber_redistribute_21_rand_avx2:
+_mlkem_redistribute_21_rand_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
@@ -16926,19 +16926,19 @@ _kyber_redistribute_21_rand_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_redistribute_21_rand_avx2,.-kyber_redistribute_21_rand_avx2
+.size	mlkem_redistribute_21_rand_avx2,.-mlkem_redistribute_21_rand_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_redistribute_17_rand_avx2
-.type	kyber_redistribute_17_rand_avx2,@function
+.globl	mlkem_redistribute_17_rand_avx2
+.type	mlkem_redistribute_17_rand_avx2,@function
 .align	16
-kyber_redistribute_17_rand_avx2:
+mlkem_redistribute_17_rand_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_redistribute_17_rand_avx2
+.globl	_mlkem_redistribute_17_rand_avx2
 .p2align	4
-_kyber_redistribute_17_rand_avx2:
+_mlkem_redistribute_17_rand_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
@@ -17015,19 +17015,19 @@ _kyber_redistribute_17_rand_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_redistribute_17_rand_avx2,.-kyber_redistribute_17_rand_avx2
+.size	mlkem_redistribute_17_rand_avx2,.-mlkem_redistribute_17_rand_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_redistribute_16_rand_avx2
-.type	kyber_redistribute_16_rand_avx2,@function
+.globl	mlkem_redistribute_16_rand_avx2
+.type	mlkem_redistribute_16_rand_avx2,@function
 .align	16
-kyber_redistribute_16_rand_avx2:
+mlkem_redistribute_16_rand_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_redistribute_16_rand_avx2
+.globl	_mlkem_redistribute_16_rand_avx2
 .p2align	4
-_kyber_redistribute_16_rand_avx2:
+_mlkem_redistribute_16_rand_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
@@ -17096,19 +17096,19 @@ _kyber_redistribute_16_rand_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_redistribute_16_rand_avx2,.-kyber_redistribute_16_rand_avx2
+.size	mlkem_redistribute_16_rand_avx2,.-mlkem_redistribute_16_rand_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_redistribute_8_rand_avx2
-.type	kyber_redistribute_8_rand_avx2,@function
+.globl	mlkem_redistribute_8_rand_avx2
+.type	mlkem_redistribute_8_rand_avx2,@function
 .align	16
-kyber_redistribute_8_rand_avx2:
+mlkem_redistribute_8_rand_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_redistribute_8_rand_avx2
+.globl	_mlkem_redistribute_8_rand_avx2
 .p2align	4
-_kyber_redistribute_8_rand_avx2:
+_mlkem_redistribute_8_rand_avx2:
 #endif /* __APPLE__ */
         vmovdqu	(%rdi), %ymm0
         vmovdqu	32(%rdi), %ymm1
@@ -17145,7 +17145,7 @@ _kyber_redistribute_8_rand_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_redistribute_8_rand_avx2,.-kyber_redistribute_8_rand_avx2
+.size	mlkem_redistribute_8_rand_avx2,.-mlkem_redistribute_8_rand_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -17221,15 +17221,15 @@ L_sha3_128_blockx4_seed_avx2_end_mark:
 .quad	0x8000000000000000, 0x8000000000000000
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_128_blocksx4_seed_avx2
-.type	kyber_sha3_128_blocksx4_seed_avx2,@function
+.globl	mlkem_sha3_128_blocksx4_seed_avx2
+.type	mlkem_sha3_128_blocksx4_seed_avx2,@function
 .align	16
-kyber_sha3_128_blocksx4_seed_avx2:
+mlkem_sha3_128_blocksx4_seed_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_128_blocksx4_seed_avx2
+.globl	_mlkem_sha3_128_blocksx4_seed_avx2
 .p2align	4
-_kyber_sha3_128_blocksx4_seed_avx2:
+_mlkem_sha3_128_blocksx4_seed_avx2:
 #endif /* __APPLE__ */
         leaq	L_sha3_parallel_4_r(%rip), %rdx
         movq	%rdi, %rax
@@ -22581,7 +22581,7 @@ _kyber_sha3_128_blocksx4_seed_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_sha3_128_blocksx4_seed_avx2,.-kyber_sha3_128_blocksx4_seed_avx2
+.size	mlkem_sha3_128_blocksx4_seed_avx2,.-mlkem_sha3_128_blocksx4_seed_avx2
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
@@ -22598,15 +22598,15 @@ L_sha3_256_blockx4_seed_avx2_end_mark:
 .quad	0x8000000000000000, 0x8000000000000000
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_256_blocksx4_seed_avx2
-.type	kyber_sha3_256_blocksx4_seed_avx2,@function
+.globl	mlkem_sha3_256_blocksx4_seed_avx2
+.type	mlkem_sha3_256_blocksx4_seed_avx2,@function
 .align	16
-kyber_sha3_256_blocksx4_seed_avx2:
+mlkem_sha3_256_blocksx4_seed_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_256_blocksx4_seed_avx2
+.globl	_mlkem_sha3_256_blocksx4_seed_avx2
 .p2align	4
-_kyber_sha3_256_blocksx4_seed_avx2:
+_mlkem_sha3_256_blocksx4_seed_avx2:
 #endif /* __APPLE__ */
         leaq	L_sha3_parallel_4_r(%rip), %rdx
         movq	%rdi, %rax
@@ -27959,10 +27959,10 @@ _kyber_sha3_256_blocksx4_seed_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_sha3_256_blocksx4_seed_avx2,.-kyber_sha3_256_blocksx4_seed_avx2
+.size	mlkem_sha3_256_blocksx4_seed_avx2,.-mlkem_sha3_256_blocksx4_seed_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_WC_MLKEM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
