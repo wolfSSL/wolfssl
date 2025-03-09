@@ -25,7 +25,10 @@
 */
 
 /* Define a macro to display user settings version in example code: */
-#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.7.4"
+#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.7.6"
+
+/* Disable wolfcrypt cryptographic security hardening. Comment out to enable: */
+#define WC_NO_HARDEN
 
 /* Due to limited build control, we'll ignore file warnings. */
 /* See https://github.com/arduino/arduino-cli/issues/631     */
@@ -84,8 +87,9 @@
     /* Provide a hint to application that neither WOLFSSL_CLIENT_EXAMPLE
      * or WOLFSSL_SERVER_EXAMPLE macro hint was desired but not found. */
     #define NO_WOLFSSL_SERVER_CLIENT_MISSING
-    #warning "Define WOLFSSL_CLIENT_EXAMPLE or WOLFSSL_SERVER_EXAMPLE to" \
-             " optimize memory for small embedded devices."
+
+    #define NO_WOLFSSL_CLIENT
+    #define NO_WOLFSSL_SERVER
     /* Both can be disabled in wolfssl test & benchmark */
 #endif
 
@@ -97,6 +101,10 @@
 #define SINGLE_THREADED
 #define WOLFSSL_LOW_MEMORY
 #define HAVE_AESGCM
+
+/* Added for AES_CTR example: */
+#define WOLFSSL_AES
+#define WOLFSSL_AES_COUNTER
 
 /* optionally turn off SHA512/224 SHA512/256 */
 /* #define WOLFSSL_NOSHA512_224 */
@@ -354,7 +362,7 @@
 */
 
 /* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm
-/* The section below defines macros used in typically all of the wolfSSL
+ * The section below defines macros used in typically all of the wolfSSL
  * examples such as the client and server for certs stored in header files.
  *
  * There are various certificate examples in this header file:
