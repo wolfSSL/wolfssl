@@ -61,6 +61,7 @@ include IDE/WINCE/include.am
 include IDE/WORKBENCH/include.am
 include IDE/XCODE-FIPSv2/include.am
 include IDE/XCODE-FIPSv5/include.am
+include IDE/XCODE-FIPSv6/include.am
 include IDE/XCODE/include.am
 include IDE/XilinxSDK/include.am
 include IDE/zephyr/include.am
