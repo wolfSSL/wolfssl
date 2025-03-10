@@ -13476,8 +13476,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->altNamesNext   = x509->altNames;  /* index hint */
 
     x509->isCa = dCert->isCA;
-    x509->basicConstCrit = dCert->extBasicConstCrit;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->pathLength = dCert->pathLength;
     x509->pathLengthSet = dCert->pathLengthSet;
     x509->keyUsage = dCert->extKeyUsage;
