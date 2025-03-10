@@ -50140,7 +50140,7 @@ static int test_wolfSSL_Tls13_ECH_params(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_Tls13_ECH(void)
+static int test_wolfSSL_Tls13_ECH_ex(int hrr)
 {
     EXPECT_DECLS;
     tcp_ready ready;
@@ -50211,8 +50211,14 @@ static int test_wolfSSL_Tls13_ECH(void)
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
         privateName, privateNameLen));
 
+    /* force hello retry request */
+    if (hrr)
+        ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_NoKeyShares(ssl));
+
+    /* connect like normal */
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    ExpectIntEQ(ssl->options.echAccepted, 1);
     ExpectIntEQ(wolfSSL_write(ssl, privateName, privateNameLen),
         privateNameLen);
     ExpectIntGT((replyLen = wolfSSL_read(ssl, reply, sizeof(reply))), 0);
@@ -50230,6 +50236,16 @@ static int test_wolfSSL_Tls13_ECH(void)
     FreeTcpReady(&ready);
 
     return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_Tls13_ECH(void)
+{
+    return test_wolfSSL_Tls13_ECH_ex(0);
+}
+
+static int test_wolfSSL_Tls13_ECH_HRR(void)
+{
+    return test_wolfSSL_Tls13_ECH_ex(1);
 }
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
@@ -90415,6 +90431,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Tls13_ECH_params),
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_Tls13_ECH),
+    TEST_DECL(test_wolfSSL_Tls13_ECH_HRR),
 #endif
 
     TEST_DECL(test_wolfSSL_X509_TLS_version_test_1),

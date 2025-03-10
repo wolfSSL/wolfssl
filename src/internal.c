@@ -7298,7 +7298,7 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
 
     /* save the original so we can put it back afterward */
     tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = NULL;
+    ssl->hsHashes = *destination;
 
     ret = InitHandshakeHashes(ssl);
     if (ret != 0) {
@@ -8435,6 +8435,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     FreeSuites(ssl);
     FreeHandshakeHashes(ssl);
+#ifdef HAVE_ECH
+    /* try to free the ech hashes in case we errored out */
+    ssl->hsHashes = ssl->hsHashesEch;
+    FreeHandshakeHashes(ssl);
+    ssl->hsHashes = ssl->hsHashesEchInner;
+    FreeHandshakeHashes(ssl);
+#endif
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     /* clear keys struct after session */
@@ -8448,9 +8455,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->options.useEch == 1) {
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
-        /* free the ech specific hashes */
-        ssl->hsHashes = ssl->hsHashesEch;
-        FreeHandshakeHashes(ssl);
         ssl->options.useEch = 0;
     }
 #endif /* HAVE_ECH */
