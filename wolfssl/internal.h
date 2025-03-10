@@ -5405,6 +5405,7 @@ struct WOLFSSL_X509 {
     byte             keyUsageCrit:1;
     byte             extKeyUsageCrit:1;
     byte             subjKeyIdSet:1;
+    byte             pathLengthSet:1;
 
     byte             subjKeyIdCrit:1;
     byte             basicConstSet:1;
@@ -5457,6 +5458,10 @@ struct WOLFSSL_X509 {
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
+
+    byte sapkiCrit:1;
+    byte altSigAlgCrit:1;
+    byte altSigValCrit:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 

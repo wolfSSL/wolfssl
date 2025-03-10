@@ -2133,11 +2133,6 @@ struct DecodedCert {
 #ifdef WOLFSSL_SUBJ_INFO_ACC
     WC_BITFIELD extSubjInfoAccSet:1;
 #endif
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-    WC_BITFIELD extSapkiSet:1;
-    WC_BITFIELD extAltSigAlgSet:1;
-    WC_BITFIELD extAltSigValSet:1;
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_SEP
     WC_BITFIELD extCertPolicyCrit:1;
 #endif
@@ -2164,6 +2159,13 @@ struct DecodedCert {
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
+
+    WC_BITFIELD extSapkiSet:1;
+    WC_BITFIELD extAltSigAlgSet:1;
+    WC_BITFIELD extAltSigValSet:1;
+    WC_BITFIELD extSapkiCrit:1;
+    WC_BITFIELD extAltSigAlgCrit:1;
+    WC_BITFIELD extAltSigValCrit:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 
