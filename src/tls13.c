@@ -5009,14 +5009,12 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
             WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
-    if (ret == 0) {
-        /* free hsHashesEch, if this is an HRR we will start at client hello 2*/
-        FreeHandshakeHashes(ssl);
-        ssl->hsHashesEch = NULL;
-        /* mark that ech was accepted */
-        if (msgType != hello_retry_request)
-            ssl->options.echAccepted = 1;
-    }
+    /* mark that ech was accepted */
+    if (ret == 0 && msgType != hello_retry_request)
+        ssl->options.echAccepted = 1;
+    /* free hsHashesEch, if this is an HRR we will start at client hello 2*/
+    FreeHandshakeHashes(ssl);
+    ssl->hsHashesEch = NULL;
     ssl->hsHashes = tmpHashes;
     return ret;
 }
@@ -7062,7 +7060,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if defined(HAVE_ECH)
     /* hash clientHelloInner to hsHashesEch independently since it can't include
      * the HRR */
-    if (!ssl->options.disableECH) {
+    if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
         tmpHashes = ssl->hsHashes;
         ssl->hsHashes = NULL;
         ret = InitHandshakeHashes(ssl);
