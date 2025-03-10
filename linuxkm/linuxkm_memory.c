@@ -1,6 +1,6 @@
 /* linuxkm_memory.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -71,214 +71,6 @@ void *lkm_realloc(void *ptr, size_t newsize) {
 }
 #endif /* HAVE_KVMALLOC */
 
-#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
-
-static unsigned int wc_linuxkm_fpu_states_n_tracked = 0;
-
-struct wc_thread_fpu_count_ent {
-    volatile pid_t pid;
-    unsigned int fpu_state;
-};
-struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_states = NULL;
-#define WC_FPU_COUNT_MASK 0x7fffffffU
-#define WC_FPU_SAVED_MASK 0x80000000U
-
-WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
-{
-    if (wc_linuxkm_fpu_states != NULL) {
-        static int warned_for_repeat_alloc = 0;
-        if (! warned_for_repeat_alloc) {
-            pr_err("attempt at repeat allocation"
-                   " in allocate_wolfcrypt_linuxkm_fpu_states\n");
-            warned_for_repeat_alloc = 1;
-        }
-        return BAD_STATE_E;
-    }
-
-    if (nr_cpu_ids >= 16)
-        wc_linuxkm_fpu_states_n_tracked = nr_cpu_ids * 2;
-    else
-        wc_linuxkm_fpu_states_n_tracked = 32;
-
-    wc_linuxkm_fpu_states =
-        (struct wc_thread_fpu_count_ent *)malloc(
-            wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
-
-    if (! wc_linuxkm_fpu_states) {
-        pr_err("allocation of %lu bytes for "
-               "wc_linuxkm_fpu_states failed.\n",
-               nr_cpu_ids * sizeof(struct fpu_state *));
-        return MEMORY_E;
-    }
-
-    memset(wc_linuxkm_fpu_states, 0, wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
-
-    return 0;
-}
-
-void free_wolfcrypt_linuxkm_fpu_states(void) {
-    struct wc_thread_fpu_count_ent *i, *i_endptr;
-    pid_t i_pid;
-
-    if (wc_linuxkm_fpu_states == NULL) {
-        pr_err("free_wolfcrypt_linuxkm_fpu_states called"
-               " before allocate_wolfcrypt_linuxkm_fpu_states.\n");
-        return;
-    }
-
-    for (i = wc_linuxkm_fpu_states,
-             i_endptr = &wc_linuxkm_fpu_states[wc_linuxkm_fpu_states_n_tracked];
-         i < i_endptr;
-         ++i)
-    {
-        i_pid = __atomic_load_n(&i->pid, __ATOMIC_CONSUME);
-        if (i_pid == 0)
-            continue;
-        if (i->fpu_state != 0) {
-            pr_err("free_wolfcrypt_linuxkm_fpu_states called"
-                   " with nonzero state 0x%x for pid %d.\n", i->fpu_state, i_pid);
-            i->fpu_state = 0;
-        }
-    }
-
-    free(wc_linuxkm_fpu_states);
-    wc_linuxkm_fpu_states = NULL;
-}
-
-/* lock-(mostly)-free thread-local storage facility for tracking recursive fpu pushing/popping */
-static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) {
-    struct wc_thread_fpu_count_ent *i, *i_endptr, *i_empty;
-    pid_t my_pid = task_pid_nr(current), i_pid;
-
-    {
-        static int _warned_on_null = 0;
-        if (wc_linuxkm_fpu_states == NULL)
-        {
-            if (_warned_on_null == 0) {
-                pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
-                       " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
-                _warned_on_null = 1;
-            }
-            return NULL;
-        }
-    }
-
-    i_endptr = &wc_linuxkm_fpu_states[wc_linuxkm_fpu_states_n_tracked];
-
-    for (;;) {
-        for (i = wc_linuxkm_fpu_states,
-                 i_empty = NULL;
-             i < i_endptr;
-             ++i)
-        {
-            i_pid = __atomic_load_n(&i->pid, __ATOMIC_CONSUME);
-            if (i_pid == my_pid)
-                return i;
-            if ((i_empty == NULL) && (i_pid == 0))
-                i_empty = i;
-        }
-        if ((i_empty == NULL) || (! create_p))
-            return NULL;
-
-        i_pid = 0;
-        if (__atomic_compare_exchange_n(
-                &(i_empty->pid),
-                &i_pid,
-                my_pid,
-                0 /* weak */,
-                __ATOMIC_SEQ_CST /* success_memmodel */,
-                __ATOMIC_SEQ_CST /* failure_memmodel */))
-        {
-            return i_empty;
-        }
-    }
-}
-
-static void wc_linuxkm_fpu_state_free(struct wc_thread_fpu_count_ent *ent) {
-    if (ent->fpu_state != 0) {
-        static int warned_nonzero_fpu_state = 0;
-        if (! warned_nonzero_fpu_state) {
-            pr_err("wc_linuxkm_fpu_state_free for pid %d"
-                   " with nonzero fpu_state 0x%x.\n", ent->pid, ent->fpu_state);
-            warned_nonzero_fpu_state = 1;
-        }
-        ent->fpu_state = 0;
-    }
-    __atomic_store_n(&ent->pid, 0, __ATOMIC_RELEASE);
-}
-
-WARN_UNUSED_RESULT int save_vector_registers_x86(void)
-{
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(1);
-    if (pstate == NULL)
-        return ENOMEM;
-
-    /* allow for nested calls */
-    if (pstate->fpu_state != 0U) {
-        if ((pstate->fpu_state & WC_FPU_COUNT_MASK)
-            == WC_FPU_COUNT_MASK)
-        {
-            pr_err("save_vector_registers_x86 recursion register overflow for "
-                   "pid %d.\n", pstate->pid);
-            return BAD_STATE_E;
-        } else {
-            ++pstate->fpu_state;
-            return 0;
-        }
-    }
-
-    if (irq_fpu_usable()) {
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-        /* inhibit migration, which gums up the algorithm in kernel_fpu_{begin,end}(). */
-        migrate_disable();
-#endif
-        kernel_fpu_begin();
-        pstate->fpu_state = 1U; /* set msb 0 to trigger kernel_fpu_end() at cleanup. */
-    } else if (in_nmi() || (hardirq_count() > 0) || (softirq_count() > 0)) {
-        static int warned_fpu_forbidden = 0;
-        if (! warned_fpu_forbidden)
-            pr_err("save_vector_registers_x86 called from IRQ handler.\n");
-        wc_linuxkm_fpu_state_free(pstate);
-        return EPERM;
-    } else {
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-        migrate_disable();
-#endif
-        /* assume already safely in_kernel_fpu. */
-        pstate->fpu_state =
-            WC_FPU_SAVED_MASK + 1U; /* set msb 1 to inhibit kernel_fpu_end() at cleanup. */
-    }
-
-    return 0;
-}
-
-void restore_vector_registers_x86(void)
-{
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0);
-    if (pstate == NULL) {
-        pr_err("restore_vector_registers_x86 called by pid %d "
-               "with no saved state.\n", task_pid_nr(current));
-        return;
-    }
-
-    if ((--pstate->fpu_state & WC_FPU_COUNT_MASK) > 0U) {
-        return;
-    }
-
-    if (pstate->fpu_state == 0U)
-        kernel_fpu_end();
-    else
-        pstate->fpu_state = 0U;
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-    migrate_enable();
-#endif
-
-    wc_linuxkm_fpu_state_free(pstate);
-
-    return;
-}
-#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS && CONFIG_X86 */
-
 #if defined(__PIE__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
 /* needed in 6.1+ because show_free_areas() static definition in mm.h calls
  * __show_free_areas(), which isn't exported (neither was show_free_areas()).
@@ -292,5 +84,13 @@ void my__show_free_areas(
     (void)nodemask;
     (void)max_zone_idx;
     return;
+}
+#endif
+
+#if defined(__PIE__) && defined(CONFIG_FORTIFY_SOURCE)
+/* needed because FORTIFY_SOURCE inline implementations call fortify_panic(). */
+void __my_fortify_panic(const char *name) {
+    pr_emerg("__my_fortify_panic in %s\n", name);
+    BUG();
 }
 #endif

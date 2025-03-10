@@ -1,6 +1,6 @@
 /* cryptocb.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -55,7 +55,6 @@
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
-
 /* TODO: Consider linked list with mutex */
 #ifndef MAX_CRYPTO_DEVID_CALLBACKS
 #define MAX_CRYPTO_DEVID_CALLBACKS 8
@@ -66,7 +65,7 @@ typedef struct CryptoCb {
     CryptoDevCallbackFunc cb;
     void* ctx;
 } CryptoCb;
-static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
+static WC_THREADSHARED CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
 #ifdef WOLF_CRYPTO_CB_FIND
 static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
@@ -85,6 +84,8 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_RNG:    return "RNG";
         case WC_ALGO_TYPE_SEED:   return "Seed";
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
+        case WC_ALGO_TYPE_CMAC:   return "CMAC";
+        case WC_ALGO_TYPE_CERT:   return "Cert";
     }
     return NULL;
 }
@@ -104,6 +105,7 @@ static const char* GetPkTypeStr(int pk)
     }
     return NULL;
 }
+#if !defined(NO_AES) || !defined(NO_DES3)
 static const char* GetCipherTypeStr(int cipher)
 {
     switch (cipher) {
@@ -119,6 +121,7 @@ static const char* GetCipherTypeStr(int cipher)
     }
     return NULL;
 }
+#endif /* !NO_AES || !NO_DES3 */
 static const char* GetHashTypeStr(int hash)
 {
     switch (hash) {
@@ -140,6 +143,16 @@ static const char* GetHashTypeStr(int hash)
     }
     return NULL;
 }
+
+#ifdef WOLFSSL_CMAC
+static const char* GetCmacTypeStr(int type)
+{
+    switch (type) {
+        case WC_CMAC_AES: return "AES";
+    }
+    return NULL;
+}
+#endif  /* WOLFSSL_CMAC */
 
 #ifndef NO_RSA
 static const char* GetRsaType(int type)
@@ -186,12 +199,14 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
                 GetPkTypeStr(info->pk.type), info->pk.type);
         }
     }
+#if !defined(NO_AES) || !defined(NO_DES3)
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
         printf("Crypto CB: %s %s (%d) (%p ctx)\n",
             GetAlgoTypeStr(info->algo_type),
             GetCipherTypeStr(info->cipher.type),
             info->cipher.type, info->cipher.ctx);
     }
+#endif /* !NO_AES || !NO_DES3 */
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
@@ -206,6 +221,17 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             info->hmac.macType, info->hmac.hmac,
             (info->hmac.in != NULL) ? "Update" : "Final");
     }
+#ifdef WOLFSSL_CMAC
+    else if (info->algo_type == WC_ALGO_TYPE_CMAC) {
+        printf("Crypto CB: %s %s (%d) (%p ctx) %s %s %s\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetCmacTypeStr(info->cmac.type),
+            info->cmac.type, info->cmac.cmac,
+            (info->cmac.key != NULL) ? "Init " : "",
+            (info->cmac.in != NULL) ? "Update " : "",
+            (info->cmac.out != NULL) ? "Final" : "");
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB_CMD
     else if (info->algo_type == WC_ALGO_TYPE_NONE) {
         printf("Crypto CB: %s %s (%d)\n",
@@ -260,9 +286,9 @@ static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
 
 static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
 {
-    if (ret == NOT_COMPILED_IN) {
+    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         /* backwards compatibility for older NOT_COMPILED_IN syntax */
-        ret = CRYPTOCB_UNAVAILABLE;
+        ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
     return ret;
 }
@@ -344,8 +370,8 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
             /* Success.  Update dev->ctx */
             dev->ctx = info.cmd.ctx;
         }
-        else if ((rc == CRYPTOCB_UNAVAILABLE) ||
-                 (rc == NOT_COMPILED_IN)) {
+        else if ((rc == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) ||
+                 (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) {
             /* Not implemented.  Return success*/
             rc = 0;
         }
@@ -391,7 +417,7 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
 int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -418,10 +444,64 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
+                       word32* outLen, int type, RsaKey* key, WC_RNG* rng,
+                       RsaPadding *padding)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+    int pk_type;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+
+    if (padding != NULL) {
+        switch (padding->pad_type) {
+        case WC_RSA_PKCSV15_PAD:
+            pk_type = WC_PK_TYPE_RSA_PKCS;
+            break;
+        case WC_RSA_PSS_PAD:
+            pk_type = WC_PK_TYPE_RSA_PSS;
+            break;
+        case WC_RSA_OAEP_PAD:
+            pk_type = WC_PK_TYPE_RSA_OAEP;
+            break;
+        default:
+            pk_type = WC_PK_TYPE_RSA;
+        }
+    } else {
+        pk_type = WC_PK_TYPE_RSA;
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = pk_type;
+        cryptoInfo.pk.rsa.in = in;
+        cryptoInfo.pk.rsa.inLen = inLen;
+        cryptoInfo.pk.rsa.out = out;
+        cryptoInfo.pk.rsa.outLen = outLen;
+        cryptoInfo.pk.rsa.type = type;
+        cryptoInfo.pk.rsa.key = key;
+        cryptoInfo.pk.rsa.rng = rng;
+        cryptoInfo.pk.rsa.padding = padding;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_RSA_PAD */
+
 #ifdef WOLFSSL_KEY_GEN
 int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -449,7 +529,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
     word32 pubKeySz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -474,7 +554,7 @@ int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
 
 int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -500,7 +580,7 @@ int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 #ifdef HAVE_ECC
 int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -527,7 +607,7 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
     byte* out, word32* outlen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (private_key == NULL)
@@ -554,7 +634,7 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
 int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, WC_RNG* rng, ecc_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -583,7 +663,7 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
 int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -612,7 +692,7 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
 int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
     word32 pubKeySz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -640,7 +720,7 @@ int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
     curve25519_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -666,7 +746,7 @@ int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
 int wc_CryptoCb_Curve25519(curve25519_key* private_key,
     curve25519_key* public_key, byte* out, word32* outlen, int endian)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (private_key == NULL)
@@ -696,7 +776,7 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
 int wc_CryptoCb_Ed25519Gen(WC_RNG* rng, int keySize,
     ed25519_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -723,7 +803,7 @@ int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen, byte* out,
                             word32 *outLen, ed25519_key* key, byte type,
                             const byte* context, byte contextLen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -755,7 +835,7 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
     const byte* context, byte contextLen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -785,6 +865,297 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
 }
 #endif /* HAVE_ED25519 */
 
+#if defined(WOLFSSL_HAVE_KYBER)
+int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
+{
+    int devId = INVALID_DEVID;
+
+    if (key == NULL)
+        return devId;
+
+    /* get devId */
+    if (type == WC_PQC_KEM_TYPE_KYBER) {
+        devId = ((KyberKey*) key)->devId;
+    }
+
+    return devId;
+}
+
+int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type, int keySize, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_KEYGEN;
+        cryptoInfo.pk.pqc_kem_kg.rng = rng;
+        cryptoInfo.pk.pqc_kem_kg.size = keySize;
+        cryptoInfo.pk.pqc_kem_kg.key = key;
+        cryptoInfo.pk.pqc_kem_kg.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
+    byte* sharedSecret, word32 sharedSecretLen, WC_RNG* rng, int type,
+    void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_ENCAPS;
+        cryptoInfo.pk.pqc_encaps.ciphertext = ciphertext;
+        cryptoInfo.pk.pqc_encaps.ciphertextLen = ciphertextLen;
+        cryptoInfo.pk.pqc_encaps.sharedSecret = sharedSecret;
+        cryptoInfo.pk.pqc_encaps.sharedSecretLen = sharedSecretLen;
+        cryptoInfo.pk.pqc_encaps.rng = rng;
+        cryptoInfo.pk.pqc_encaps.key = key;
+        cryptoInfo.pk.pqc_encaps.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
+    byte* sharedSecret, word32 sharedSecretLen, int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcKemGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_KEM_DECAPS;
+        cryptoInfo.pk.pqc_decaps.ciphertext = ciphertext;
+        cryptoInfo.pk.pqc_decaps.ciphertextLen = ciphertextLen;
+        cryptoInfo.pk.pqc_decaps.sharedSecret = sharedSecret;
+        cryptoInfo.pk.pqc_decaps.sharedSecretLen = sharedSecretLen;
+        cryptoInfo.pk.pqc_decaps.key = key;
+        cryptoInfo.pk.pqc_decaps.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_HAVE_KYBER */
+
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
+{
+    int devId = INVALID_DEVID;
+
+    if (key == NULL)
+        return devId;
+
+    /* get devId */
+#if defined(HAVE_DILITHIUM)
+    if (type == WC_PQC_SIG_TYPE_DILITHIUM) {
+        devId = ((dilithium_key*) key)->devId;
+    }
+#endif
+#if defined(HAVE_FALCON)
+    if (type == WC_PQC_SIG_TYPE_FALCON) {
+        devId = ((falcon_key*) key)->devId;
+    }
+#endif
+
+    return devId;
+}
+
+int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
+    void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_KEYGEN;
+        cryptoInfo.pk.pqc_sig_kg.rng = rng;
+        cryptoInfo.pk.pqc_sig_kg.size = keySize;
+        cryptoInfo.pk.pqc_sig_kg.key = key;
+        cryptoInfo.pk.pqc_sig_kg.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
+    const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
+    int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_SIGN;
+        cryptoInfo.pk.pqc_sign.in = in;
+        cryptoInfo.pk.pqc_sign.inlen = inlen;
+        cryptoInfo.pk.pqc_sign.out = out;
+        cryptoInfo.pk.pqc_sign.outlen = outlen;
+        cryptoInfo.pk.pqc_sign.context = context;
+        cryptoInfo.pk.pqc_sign.contextLen = contextLen;
+        cryptoInfo.pk.pqc_sign.preHashType = preHashType;
+        cryptoInfo.pk.pqc_sign.rng = rng;
+        cryptoInfo.pk.pqc_sign.key = key;
+        cryptoInfo.pk.pqc_sign.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
+    word32 msglen, const byte* context, byte contextLen, word32 preHashType,
+    int* res, int type, void* key)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_VERIFY;
+        cryptoInfo.pk.pqc_verify.sig = sig;
+        cryptoInfo.pk.pqc_verify.siglen = siglen;
+        cryptoInfo.pk.pqc_verify.msg = msg;
+        cryptoInfo.pk.pqc_verify.msglen = msglen;
+        cryptoInfo.pk.pqc_verify.context = context;
+        cryptoInfo.pk.pqc_verify.contextLen = contextLen;
+        cryptoInfo.pk.pqc_verify.preHashType = preHashType;
+        cryptoInfo.pk.pqc_verify.res = res;
+        cryptoInfo.pk.pqc_verify.key = key;
+        cryptoInfo.pk.pqc_verify.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
+    const byte* pubKey, word32 pubKeySz)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    int devId = INVALID_DEVID;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* get devId */
+    devId = wc_CryptoCb_PqcSigGetDevId(type, key);
+    if (devId == INVALID_DEVID)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_PK);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY;
+        cryptoInfo.pk.pqc_sig_check.key = key;
+        cryptoInfo.pk.pqc_sig_check.pubKey = pubKey;
+        cryptoInfo.pk.pqc_sig_check.pubKeySz = pubKeySz;
+        cryptoInfo.pk.pqc_sig_check.type = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_FALCON || HAVE_DILITHIUM */
+
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
 int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
@@ -793,7 +1164,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -834,7 +1205,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -877,7 +1248,7 @@ int wc_CryptoCb_AesCcmEncrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -918,7 +1289,7 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -958,7 +1329,7 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -990,7 +1361,7 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1023,7 +1394,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1056,7 +1427,7 @@ int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1088,7 +1459,7 @@ int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1123,7 +1494,7 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1155,7 +1526,7 @@ int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
 int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1189,7 +1560,7 @@ int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
 int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1222,7 +1593,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
 int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1255,7 +1626,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1291,7 +1662,7 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1323,11 +1694,45 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
 }
 #endif /* WOLFSSL_SHA512 */
 
+#if defined(WOLFSSL_SHA3) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0))
+int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (sha3) {
+        dev = wc_CryptoCb_FindDevice(sha3->devId, WC_ALGO_TYPE_HASH);
+    }
+    else
+    {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = type;
+        cryptoInfo.hash.sha3 = sha3;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_SHA3 && (!HAVE_FIPS || FIPS_VERSION_GE(6, 0)) */
+
 #ifndef NO_HMAC
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
     byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (hmac == NULL)
@@ -1355,7 +1760,7 @@ int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
 #ifndef WC_NO_RNG
 int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1383,7 +1788,7 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 
 int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1402,12 +1807,44 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !WC_NO_RNG */
-#ifdef WOLFSSL_CMAC
+
+#ifndef NO_CERTS
+int wc_CryptoCb_GetCert(int devId, const char *label, word32 labelLen,
+                        const byte *id, word32 idLen, byte** out,
+                        word32* outSz, int *format, void *heap)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_CERT);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CERT;
+        cryptoInfo.cert.label = label;
+        cryptoInfo.cert.labelLen = labelLen;
+        cryptoInfo.cert.id = id;
+        cryptoInfo.cert.idLen = idLen;
+        cryptoInfo.cert.heap = heap;
+        cryptoInfo.cert.certDataOut = out;
+        cryptoInfo.cert.certSz = outSz;
+        cryptoInfo.cert.certFormatOut = format;
+        cryptoInfo.cert.heap = heap;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* ifndef NO_CERTS */
+
+#if defined(WOLFSSL_CMAC)
 int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32* outSz, int type,
         void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1418,7 +1855,6 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }
-
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -1439,7 +1875,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif
+#endif /* WOLFSSL_CMAC */
 
 /* returns the default dev id for the current build */
 int wc_CryptoCb_DefaultDevID(void)

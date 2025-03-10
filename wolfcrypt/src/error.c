@@ -1,6 +1,6 @@
 /* error.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,10 +34,30 @@
 #endif
 
 #ifndef NO_ERROR_STRINGS
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+#include <wolfssl/debug-untrace-error-codes.h>
+#endif
+
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
-    switch (error) {
+    switch ((enum wolfCrypt_ErrorCodes)error) {
+
+    case WC_FAILURE:
+        return "wolfCrypt generic failure";
+
+    case MP_MEM :
+        return "MP integer dynamic memory allocation failed";
+
+    case MP_VAL :
+        return "MP integer invalid argument";
+
+    case MP_WOULDBLOCK :
+        return "MP integer non-blocking operation would block";
+
+    case MP_NOT_INF:
+        return "MP point not at infinity";
 
     case OPEN_RAN_E :
         return "opening random device error";
@@ -347,13 +367,13 @@ const char* wc_GetErrorString(int error)
         return "ECC is point on curve failed";
 
     case ECC_INF_E:
-        return " ECC point at infinity error";
+        return "ECC point at infinity error";
 
     case ECC_OUT_OF_RANGE_E:
-        return " ECC Qx or Qy out of range error";
+        return "ECC Qx or Qy out of range error";
 
     case ECC_PRIV_KEY_E:
-        return " ECC private key is not valid error";
+        return "ECC private key is not valid error";
 
     case SRP_CALL_ORDER_E:
         return "SRP function called in the wrong order error";
@@ -601,11 +621,50 @@ const char* wc_GetErrorString(int error)
     case AES_EAX_AUTH_E:
         return "AES-EAX Authentication check fail";
 
+    case KEY_EXHAUSTED_E:
+        return "Key no longer usable for operation";
+
+    case FIPS_INVALID_VER_E:
+        return "Invalid FIPS version defined, check length";
+
+    case FIPS_DATA_SZ_E:
+        return "FIPS Module Data too large adjust MAX_FIPS_DATA_SZ";
+
+    case FIPS_CODE_SZ_E:
+        return "FIPS Module Code too large adjust MAX_FIPS_CODE_SZ";
+
+    case KDF_SRTP_KAT_FIPS_E:
+        return "wolfCrypt FIPS SRTP-KDF Known Answer Test Failure";
+
+    case ED25519_KAT_FIPS_E:
+        return "wolfCrypt FIPS Ed25519 Known Answer Test Failure";
+
+    case ED448_KAT_FIPS_E:
+        return "wolfCrypt FIPS Ed448 Known Answer Test Failure";
+
+    case PBKDF2_KAT_FIPS_E:
+        return "wolfCrypt FIPS PBKDF2 Known Answer Test Failure";
+
+    case WC_KEY_MISMATCH_E:
+        return "key values mismatch";
+
+    case DEADLOCK_AVERTED_E:
+        return "Deadlock averted -- retry the call";
+
+    case ASCON_AUTH_E:
+        return "ASCON Authentication check fail";
+
+    case MAX_CODE_E:
+    case WC_SPAN1_MIN_CODE_E:
+    case MIN_CODE_E:
     default:
         return "unknown error number";
-
     }
 }
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#include <wolfssl/debug-trace-error-codes.h>
+#endif
 
 void wc_ErrorString(int error, char* buffer)
 {
@@ -613,4 +672,3 @@ void wc_ErrorString(int error, char* buffer)
     buffer[WOLFSSL_MAX_ERROR_SZ-1] = 0;
 }
 #endif /* !NO_ERROR_STRINGS */
-

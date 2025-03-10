@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # check if IDF_PATH is set
 if [ -z "$IDF_PATH" ]; then
@@ -159,4 +159,3 @@ if [ "${WOLFSSL_SETUP_VERBOSE}" == "true" ]; then
   echo "Copy complete!"
 fi
 
-exit 1

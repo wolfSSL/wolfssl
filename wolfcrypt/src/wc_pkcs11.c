@@ -1,6 +1,6 @@
 /* wc_pkcs11.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -107,6 +107,8 @@ static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 /* Pointer to secret key class required for templates. */
 static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #endif
+
+static CK_OBJECT_CLASS certClass  = CKO_CERTIFICATE;
 
 #ifdef WOLFSSL_DEBUG_PKCS11
 /* Enable logging of PKCS#11 calls and return value. */
@@ -238,6 +240,10 @@ static void pkcs11_dump_template(const char* name, CK_ATTRIBUTE* templ,
             }
             else if (keyClass == CKO_SECRET_KEY) {
                 XSNPRINTF(line, sizeof(line), "%25s: SECRET", type);
+                WOLFSSL_MSG(line);
+            }
+            else if (keyClass == CKO_CERTIFICATE) {
+                XSNPRINTF(line, sizeof(line), "%25s: CERTIFICATE", type);
                 WOLFSSL_MSG(line);
             }
             else
@@ -531,22 +537,36 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
     const char* tokenName, size_t tokenNameSz)
 {
+    int           ret = -1;
     CK_RV         rv;
     CK_ULONG      slotCnt = 0;
     CK_TOKEN_INFO tinfo;
-    int           slotId = -1;
+    int           index = -1;
+    CK_SLOT_ID*   slot = NULL;
+
     rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
     if (rv == CKR_OK) {
-        for (slotId = 0; slotId < (int)slotCnt; slotId++) {
-            rv = dev->func->C_GetTokenInfo(slotId, &tinfo);
+        slot = (CK_SLOT_ID*)XMALLOC(slotCnt * sizeof(*slot), dev->heap,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+        if (slot == NULL)
+            goto out;
+        rv = dev->func->C_GetSlotList(CK_TRUE, slot, &slotCnt);
+        if (rv != CKR_OK)
+            goto out;
+        for (index = 0; index < (int)slotCnt; index++) {
+            rv = dev->func->C_GetTokenInfo(slot[index], &tinfo);
             PKCS11_RV("C_GetTokenInfo", rv);
             if (rv == CKR_OK &&
                 XMEMCMP(tinfo.label, tokenName, tokenNameSz) == 0) {
-                return slotId;
+                ret =  (int)slot[index];
+                break;
             }
         }
     }
-    return -1;
+
+out:
+    XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
 }
 
 /* lookup by slotId or tokenName */
@@ -613,9 +633,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPinLogin = 0;
     }
 
-    if (slot != NULL) {
-        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -645,7 +663,7 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         tokenNameSz = XSTRLEN(tokenName);
     }
     ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
-    if (ret == 0) {
+    if (ret == 0 && userPin != NULL) {
         token->userPin = (CK_UTF8CHAR_PTR)userPin;
         token->userPinSz = (CK_ULONG)userPinSz;
         token->userPinLogin = 1;
@@ -696,7 +714,7 @@ int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
     const unsigned char* userPin, int userPinSz)
 {
     int ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
-    if (ret == 0) {
+    if (ret == 0 && userPin != NULL) {
         token->userPin = (CK_UTF8CHAR_PTR)userPin;
         token->userPinSz = (CK_ULONG)userPinSz;
         token->userPinLogin = 1;
@@ -947,7 +965,7 @@ static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
 }
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 /**
  * Create a PKCS#11 object containing the RSA private key data.
  *
@@ -1024,7 +1042,7 @@ static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
 
     return ret;
 }
-#endif
+#endif /* !NO_RSA && WOLFSSL_KEY_GEN */
 
 #ifdef HAVE_ECC
 /**
@@ -1138,8 +1156,7 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         }
     }
 
-    if (ecPoint != NULL)
-        XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -1355,7 +1372,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 int keyType;
 
                 ret = Pkcs11HmacTypes(hmac->macType, &mechType, &keyType);
-                if (ret == NOT_COMPILED_IN)
+                if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                     break;
 
                 if (ret == 0)
@@ -1367,7 +1384,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 (unsigned char*)hmac->id,
                                                 hmac->idLen, hmac->label,
                                                 hmac->labelLen, CKA_SIGN);
-                    if (ret == WC_HW_E) {
+                    if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                         ret = Pkcs11CreateSecretKey(&privKey, &session,
                                                    CKK_GENERIC_SECRET,
                                                    (unsigned char*)hmac->keyRaw,
@@ -1380,7 +1397,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 break;
             }
     #endif
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
             case PKCS11_KEY_TYPE_RSA: {
                 RsaKey* rsaKey = (RsaKey*)key;
 
@@ -1402,7 +1419,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
     #ifdef HAVE_ECC
             case PKCS11_KEY_TYPE_EC: {
                 ecc_key* eccKey = (ecc_key*)key;
-                int      ret2 = NOT_COMPILED_IN;
+                int      ret2 = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
         #ifndef NO_PKCS11_ECDH
                 if ((eccKey->flags & WC_ECC_FLAG_DEC_SIGN) == 0) {
@@ -1414,7 +1431,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                     }
                 }
          #endif
-                if (ret == 0 || ret == NOT_COMPILED_IN) {
+                if (ret == 0 || ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                     /* Try ECDSA mechanism next. */
                     ret2 = Pkcs11MechAvail(&session, CKM_ECDSA);
                     if (ret2 == 0) {
@@ -1428,7 +1445,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                         }
                     }
                     /* OK for this to fail if set for ECDH. */
-                    if (ret == NOT_COMPILED_IN)
+                    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                         ret = ret2;
                 }
                 if (ret == 0 && clear)
@@ -1452,7 +1469,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
-           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
+           !defined(NO_HMAC) || !defined(NO_CERTS)
 
 /**
  * Find the PKCS#11 object containing key data using template.
@@ -1716,10 +1734,8 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
     if (ret == 0)
         ret = wc_RsaPublicKeyDecodeRaw(mod, modSz, exp, expSz, key);
 
-    if (exp != NULL)
-        XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (mod != NULL)
-        XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1774,7 +1790,12 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
     int     ret;
 
     if (sessionKey) {
+    #ifdef WOLFSSL_KEY_GEN
         ret = Pkcs11CreateRsaPrivateKey(privateKey, session, rsaKey, 0);
+    #else
+        /* RSA Key Generation support not compiled in */
+        ret = NOT_COMPILED_IN;
+    #endif
     }
     else if (rsaKey->labelLen > 0) {
         ret = Pkcs11FindKeyByLabel(privateKey, CKO_PRIVATE_KEY, CKK_RSA,
@@ -1796,6 +1817,84 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
 }
 
 /**
+ * Get the hash length associated with the WolfCrypt hash type.
+ *
+ * @param  [in]   hType   Hash Type.
+ * @return  -1 if hash type not recognized.
+ * @return  hash length on success.
+ */
+int wc_hash2sz(int hType)
+{
+    switch(hType) {
+    case WC_HASH_TYPE_SHA:
+        return 20;
+    case WC_HASH_TYPE_SHA224:
+        return 24;
+    case WC_HASH_TYPE_SHA256:
+        return 32;
+    case WC_HASH_TYPE_SHA384:
+        return 48;
+    case WC_HASH_TYPE_SHA512:
+        return 64;
+    default:
+        /* unsupported WC_HASH_TYPE_XXXX */
+        return -1;
+    }
+}
+
+/**
+ * Get PKCS11 hash mechanism associated with the WolfCrypt hash type.
+ *
+ * @param  [in]   hType   Hash Type.
+ * @return  0 if hash type not recognized.
+ * @return  PKCS11 mechanism on success.
+ */
+CK_MECHANISM_TYPE wc_hash2ckm(int hType)
+{
+    switch(hType) {
+    case WC_HASH_TYPE_SHA:
+        return CKM_SHA_1;
+    case WC_HASH_TYPE_SHA224:
+        return CKM_SHA224;
+    case WC_HASH_TYPE_SHA256:
+        return CKM_SHA256;
+    case WC_HASH_TYPE_SHA384:
+        return CKM_SHA384;
+    case WC_HASH_TYPE_SHA512:
+        return CKM_SHA512;
+    default:
+        /* unsupported WC_HASH_TYPE_XXXX */
+        return 0UL;
+    }
+}
+
+/**
+ * Get PKCS11 MGF hash mechanism associated with the WolfCrypt MGF hash type.
+ *
+ * @param  [in]   mgf   MGF Type.
+ * @return  0 if MGF type not recognized.
+ * @return  PKCS11 MGF hash mechanism on success.
+ */
+CK_MECHANISM_TYPE wc_mgf2ckm(int mgf)
+{
+    switch(mgf) {
+    case WC_MGF1SHA1:
+        return CKG_MGF1_SHA1;
+    case WC_MGF1SHA224:
+        return CKG_MGF1_SHA224;
+    case WC_MGF1SHA256:
+        return CKG_MGF1_SHA256;
+    case WC_MGF1SHA384:
+        return CKG_MGF1_SHA384;
+    case WC_MGF1SHA512:
+        return CKG_MGF1_SHA512;
+    default:
+        /* unsupported WC_MGF1XXXX */
+        return 0x0UL;
+    }
+}
+
+/**
  * Exponentiate the input with the public part of the RSA key.
  * Used in public encrypt and decrypt.
  *
@@ -1808,9 +1907,13 @@ static int Pkcs11RsaEncrypt(Pkcs11Session* session, wc_CryptoInfo* info,
                             CK_OBJECT_HANDLE key)
 {
     int              ret = 0;
+    CK_MECHANISM_TYPE mechanism = 0x0UL;
     CK_RV            rv;
     CK_MECHANISM     mech;
     CK_ULONG         outLen;
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    CK_RSA_PKCS_OAEP_PARAMS oaepParams;
+#endif
 
     WOLFSSL_MSG("PKCS#11: RSA Public Key Operation");
 
@@ -1818,11 +1921,36 @@ static int Pkcs11RsaEncrypt(Pkcs11Session* session, wc_CryptoInfo* info,
         ret = BAD_FUNC_ARG;
     }
 
+    switch(info->pk.type) {
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    case WC_PK_TYPE_RSA_PKCS:
+        mechanism = CKM_RSA_PKCS;
+        break;
+    case WC_PK_TYPE_RSA_OAEP:
+        mechanism = CKM_RSA_PKCS_OAEP;
+        break;
+#endif
+    case WC_PK_TYPE_RSA:
+        mechanism = CKM_RSA_X_509;
+        break;
+    }
+
     if (ret == 0) {
         /* Raw RSA encrypt/decrypt operation. */
-        mech.mechanism      = CKM_RSA_X_509;
+        mech.mechanism      = mechanism;
         mech.ulParameterLen = 0;
         mech.pParameter     = NULL;
+
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+        if (mechanism == CKM_RSA_PKCS_OAEP) {
+            XMEMSET(&oaepParams, 0, sizeof(oaepParams));
+            mech.ulParameterLen = sizeof(CK_RSA_PKCS_OAEP_PARAMS);
+            mech.pParameter = &oaepParams;
+            oaepParams.source = CKZ_DATA_SPECIFIED;
+            oaepParams.hashAlg = wc_hash2ckm(info->pk.rsa.padding->hash);
+            oaepParams.mgf = wc_mgf2ckm(info->pk.rsa.padding->mgf);
+        }
+#endif
 
         rv = session->func->C_EncryptInit(session->handle, &mech, key);
         PKCS11_RV("C_EncryptInit", rv);
@@ -1861,9 +1989,13 @@ static int Pkcs11RsaDecrypt(Pkcs11Session* session, wc_CryptoInfo* info,
                             CK_OBJECT_HANDLE key)
 {
     int              ret = 0;
+    CK_MECHANISM_TYPE mechanism = 0x0UL;
     CK_RV            rv;
     CK_MECHANISM     mech;
     CK_ULONG         outLen;
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    CK_RSA_PKCS_OAEP_PARAMS oaepParams;
+#endif
 
     WOLFSSL_MSG("PKCS#11: RSA Private Key Operation");
 
@@ -1871,11 +2003,36 @@ static int Pkcs11RsaDecrypt(Pkcs11Session* session, wc_CryptoInfo* info,
         ret = BAD_FUNC_ARG;
     }
 
+    switch(info->pk.type) {
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    case WC_PK_TYPE_RSA_PKCS:
+        mechanism = CKM_RSA_PKCS;
+        break;
+    case WC_PK_TYPE_RSA_OAEP:
+        mechanism = CKM_RSA_PKCS_OAEP;
+        break;
+#endif
+    case WC_PK_TYPE_RSA:
+        mechanism = CKM_RSA_X_509;
+        break;
+    }
+
     if (ret == 0) {
         /* Raw RSA encrypt/decrypt operation. */
-        mech.mechanism      = CKM_RSA_X_509;
+        mech.mechanism      = mechanism;
         mech.ulParameterLen = 0;
         mech.pParameter     = NULL;
+
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+        if (mechanism == CKM_RSA_PKCS_OAEP) {
+            XMEMSET(&oaepParams, 0, sizeof(oaepParams));
+            mech.ulParameterLen = sizeof(CK_RSA_PKCS_OAEP_PARAMS);
+            mech.pParameter = &oaepParams;
+            oaepParams.source = CKZ_DATA_SPECIFIED;
+            oaepParams.hashAlg = wc_hash2ckm(info->pk.rsa.padding->hash);
+            oaepParams.mgf = wc_mgf2ckm(info->pk.rsa.padding->mgf);
+        }
+#endif
 
         rv = session->func->C_DecryptInit(session->handle, &mech, key);
         PKCS11_RV("C_DecryptInit", rv);
@@ -1919,6 +2076,12 @@ static int Pkcs11RsaSign(Pkcs11Session* session, wc_CryptoInfo* info,
     CK_RV            rv;
     CK_MECHANISM     mech;
     CK_ULONG         outLen;
+    CK_MECHANISM_TYPE      mechanism;
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    CK_RSA_PKCS_PSS_PARAMS pssParams;
+    int hLen;
+    int saltLen;
+#endif
 
     WOLFSSL_MSG("PKCS#11: RSA Private Key Operation");
 
@@ -1926,11 +2089,66 @@ static int Pkcs11RsaSign(Pkcs11Session* session, wc_CryptoInfo* info,
         ret = BAD_FUNC_ARG;
     }
 
+    switch(info->pk.type) {
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+    case WC_PK_TYPE_RSA_PKCS:
+        mechanism = CKM_RSA_PKCS;
+        break;
+    case WC_PK_TYPE_RSA_PSS:
+        mechanism = CKM_RSA_PKCS_PSS;
+        break;
+#endif /* WOLF_CRYPTO_CB_RSA_PAD */
+    default:
+        mechanism = CKM_RSA_X_509;
+        break;
+    }
+
     if (ret == 0) {
         /* Raw RSA encrypt/decrypt operation. */
-        mech.mechanism      = CKM_RSA_X_509;
+        mech.mechanism      = mechanism;
         mech.ulParameterLen = 0;
         mech.pParameter     = NULL;
+
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+        if (mechanism == CKM_RSA_PKCS_PSS) {
+            mech.ulParameterLen = sizeof(CK_RSA_PKCS_PSS_PARAMS);
+            mech.pParameter = &pssParams;
+            pssParams.hashAlg = wc_hash2ckm(info->pk.rsa.padding->hash);
+            pssParams.mgf = wc_mgf2ckm(info->pk.rsa.padding->mgf);
+
+            saltLen = info->pk.rsa.padding->saltLen;
+            hLen = wc_hash2sz(info->pk.rsa.padding->hash);
+
+            /* Same salt length code as rsa.c */
+            if (saltLen == RSA_PSS_SALT_LEN_DEFAULT)
+                saltLen = hLen;
+#ifndef WOLFSSL_PSS_LONG_SALT
+            else if (saltLen > hLen) {
+                return PSS_SALTLEN_E;
+            }
+#endif
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+            else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT) {
+                return PSS_SALTLEN_E;
+            }
+#else
+            else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
+                saltLen = *(info->pk.rsa.outLen) - hLen - 2;
+                if (saltLen < 0) {
+                    return PSS_SALTLEN_E;
+                }
+            }
+            else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
+                return PSS_SALTLEN_E;
+            }
+#endif
+            if (*(info->pk.rsa.outLen) - hLen < (word32)(saltLen + 2)) {
+                return PSS_SALTLEN_E;
+            }
+
+            pssParams.sLen = saltLen;
+        }
+#endif /* WOLF_CRYPTO_CB_RSA_PAD */
 
         rv = session->func->C_SignInit(session->handle, &mech, key);
         PKCS11_RV("C_SignInit", rv);
@@ -1970,13 +2188,31 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
     int               ret = 0;
     CK_RV             rv;
     CK_MECHANISM_INFO mechInfo;
+    CK_MECHANISM_TYPE mechanism = 0x0UL;
     int               sessionKey = 0;
     CK_OBJECT_HANDLE  key;
     RsaKey*           rsaKey = info->pk.rsa.key;
     int               type = info->pk.rsa.type;
 
+    switch(info->pk.type) {
+#ifndef NO_PKCS11_RSA_PKCS
+    case WC_PK_TYPE_RSA_PKCS:
+        mechanism = CKM_RSA_PKCS;
+        break;
+    case WC_PK_TYPE_RSA_PSS:
+        mechanism = CKM_RSA_PKCS_PSS;
+        break;
+    case WC_PK_TYPE_RSA_OAEP:
+        mechanism = CKM_RSA_PKCS_OAEP;
+        break;
+#endif /* !NO_PKCS11_RSA_PKCS */
+    case WC_PK_TYPE_RSA:
+        mechanism = CKM_RSA_X_509;
+        break;
+    }
+
     /* Check operation is supported. */
-    rv = session->func->C_GetMechanismInfo(session->slotId, CKM_RSA_X_509,
+    rv = session->func->C_GetMechanismInfo(session->slotId, mechanism,
                                                                      &mechInfo);
     PKCS11_RV("C_GetMechanismInfo", rv);
     if (rv != CKR_OK) {
@@ -1996,7 +2232,8 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
             /* Make a handle to a private key. */
             ret = Pkcs11RsaPrivateKey(session, rsaKey, sessionKey, &key);
         }
-
+    }
+    if (ret == 0) {
         if (type == RSA_PUBLIC_ENCRYPT) {
             WOLFSSL_MSG("PKCS#11: Public Encrypt");
             if ((mechInfo.flags & CKF_ENCRYPT) != 0) {
@@ -2008,7 +2245,7 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
         }
         else if (type == RSA_PUBLIC_DECRYPT) {
             WOLFSSL_MSG("PKCS#11: Public Decrypt");
-            if ((mechInfo.flags & CKF_DECRYPT) != 0) {
+            if ((mechInfo.flags & CKF_ENCRYPT) != 0) {
                 ret = Pkcs11RsaEncrypt(session, info, key);
             }
             else {
@@ -2216,8 +2453,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         }
     }
 
-    if (ecPoint != NULL)
-        XFREE(ecPoint, eccKey->heap, DYNAMIC_TYPE_ECC);
+    XFREE(ecPoint, eccKey->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -2300,8 +2536,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
         key->type = ECC_PUBLICKEY;
     }
 
-    if (point != NULL)
-        XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -2514,7 +2749,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_export_x963(info->pk.ecdh.public_key, NULL, &pointLen);
         PRIVATE_KEY_LOCK();
-        if (ret == LENGTH_ONLY_E) {
+        if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             point = (unsigned char*)XMALLOC(pointLen,
                                                  info->pk.ecdh.public_key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
@@ -2986,9 +3221,7 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
         wc_FreeRsaKey(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
     #endif
 
     return ret;
@@ -3133,9 +3366,7 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
         wc_ecc_free(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
     #endif
 
     return ret;
@@ -3447,7 +3678,7 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         mech.mechanism      = CKM_AES_CBC;
-        mech.ulParameterLen = AES_BLOCK_SIZE;
+        mech.ulParameterLen = WC_AES_BLOCK_SIZE;
         mech.pParameter     = (CK_BYTE_PTR)info->cipher.aescbc.aes->reg;
 
         rv = session->func->C_EncryptInit(session->handle, &mech, key);
@@ -3523,7 +3754,7 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         mech.mechanism      = CKM_AES_CBC;
-        mech.ulParameterLen = AES_BLOCK_SIZE;
+        mech.ulParameterLen = WC_AES_BLOCK_SIZE;
         mech.pParameter     = (CK_BYTE_PTR)info->cipher.aescbc.aes->reg;
 
         rv = session->func->C_DecryptInit(session->handle, &mech, key);
@@ -3604,7 +3835,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
             ret = Pkcs11CreateSecretKey(&key, session, keyType,
                                     (unsigned char*)hmac->keyRaw, hmac->keyLen,
                                     NULL, 0, NULL, 0, CKA_SIGN);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11CreateSecretKey(&key, session, CKK_GENERIC_SECRET,
                                     (unsigned char*)hmac->keyRaw, hmac->keyLen,
                                     NULL, 0, NULL, 0, CKA_SIGN);
@@ -3614,7 +3845,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
         else if (ret == 0 && hmac->labelLen != 0) {
             ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY, keyType, session,
                                        hmac->label, hmac->labelLen);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY,
                                            CKK_GENERIC_SECRET, session,
                                            hmac->label, hmac->labelLen);
@@ -3623,7 +3854,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
         else if (ret == 0) {
             ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, keyType, session,
                                     hmac->id, hmac->idLen);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY,
                                         CKK_GENERIC_SECRET, session, hmac->id,
                                         hmac->idLen);
@@ -3741,6 +3972,90 @@ static int Pkcs11RandomSeed(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 #endif
 
+#ifndef NO_CERTS
+
+static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
+    int                 ret = 0;
+    CK_RV               rv  = 0;
+    CK_ULONG            count = 0;
+    CK_OBJECT_HANDLE    certHandle = CK_INVALID_HANDLE;
+    byte               *certData = NULL;
+    CK_ATTRIBUTE    certTemplate[2] = {
+        { CKA_CLASS,           &certClass, sizeof(certClass)   }
+    };
+    CK_ATTRIBUTE   tmpl[] = {
+        { CKA_VALUE,         NULL_PTR, 0 }
+    };
+    CK_ULONG        certTmplCnt = sizeof(certTemplate) / sizeof(*certTemplate);
+    CK_ULONG        tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
+
+    WOLFSSL_MSG("PKCS#11: Retrieve certificate");
+    if (info->cert.labelLen > 0) {
+        certTemplate[1].type = CKA_LABEL;
+        certTemplate[1].pValue = (CK_VOID_PTR)info->cert.label;
+        certTemplate[1].ulValueLen = info->cert.labelLen;
+    }
+    else if (info->cert.idLen > 0) {
+        certTemplate[1].type = CKA_ID;
+        certTemplate[1].pValue = (CK_VOID_PTR)info->cert.id;
+        certTemplate[1].ulValueLen = info->cert.idLen;
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+        goto exit;
+    }
+
+    ret = Pkcs11FindKeyByTemplate(
+        &certHandle, session, certTemplate, certTmplCnt, &count);
+    if (ret == 0 && count == 0) {
+        ret = WC_HW_E;
+        goto exit;
+    }
+
+    PKCS11_DUMP_TEMPLATE("Get Certificate Length", tmpl, tmplCnt);
+    rv = session->func->C_GetAttributeValue(
+        session->handle, certHandle, tmpl, tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+        goto exit;
+    }
+
+    if (tmpl[0].ulValueLen <= 0) {
+        ret = WC_HW_E;
+        goto exit;
+    }
+
+    certData = (byte *)XMALLOC(
+        (int)tmpl[0].ulValueLen, info->cert.heap, DYNAMIC_TYPE_CERT);
+    if (certData == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+
+    tmpl[0].pValue = certData;
+    rv = session->func->C_GetAttributeValue(
+        session->handle, certHandle, tmpl, tmplCnt);
+    PKCS11_RV("C_GetAttributeValue", rv);
+    if (rv != CKR_OK) {
+        ret = WC_HW_E;
+        goto exit;
+    }
+
+    *info->cert.certDataOut = certData;
+    *info->cert.certSz = (word32)tmpl[0].ulValueLen;
+    if (info->cert.certFormatOut != NULL) {
+        *info->cert.certFormatOut = CTC_FILETYPE_ASN1;
+    }
+    certData = NULL;
+
+exit:
+    XFREE(certData, info->cert.heap, DYNAMIC_TYPE_CERT);
+    return ret;
+}
+
+#endif /* !NO_CERTS */
+
 /**
  * Perform a cryptographic operation using PKCS#11 device.
  *
@@ -3774,6 +4089,11 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             switch (info->pk.type) {
     #ifndef NO_RSA
                 case WC_PK_TYPE_RSA:
+        #ifdef WOLF_CRYPTO_CB_RSA_PAD
+                case WC_PK_TYPE_RSA_PKCS:
+                case WC_PK_TYPE_RSA_PSS:
+                case WC_PK_TYPE_RSA_OAEP:
+        #endif
                     ret = Pkcs11OpenSession(token, &session, readWrite);
                     if (ret == 0) {
                         ret = Pkcs11Rsa(&session, info);
@@ -3924,6 +4244,17 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = Pkcs11OpenSession(token, &session, readWrite);
             if (ret == 0) {
                 ret = Pkcs11RandomSeed(&session, info);
+                Pkcs11CloseSession(token, &session);
+            }
+    #else
+            ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else if (info->algo_type == WC_ALGO_TYPE_CERT) {
+    #ifndef NO_CERTS
+            ret = Pkcs11OpenSession(token, &session, readWrite);
+            if (ret == 0) {
+                ret = Pkcs11GetCert(&session, info);
                 Pkcs11CloseSession(token, &session);
             }
     #else

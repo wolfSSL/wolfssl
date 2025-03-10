@@ -1,6 +1,6 @@
 /* quic.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,6 +31,8 @@
 #endif
 
 #ifdef WOLFSSL_QUIC
+
+#include <stdint.h>
 
 /* QUIC operates on three encryption levels which determine
  * which keys/algos are used for de-/encryption. These are
@@ -287,6 +289,15 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
                       const uint8_t* secret, size_t secretlen,
                       const uint8_t* salt, size_t saltlen,
                       const uint8_t* info, size_t infolen);
+
+/* most common QUIC packet size as of 2022 was 1,200 bytes
+ * largest packet size listed in the RFC is 1,392 bytes
+ * this gives plenty of breathing room for capacity of records but keeps sizes
+ * read from the wire sane */
+#ifndef WOLFSSL_QUIC_MAX_RECORD_CAPACITY
+    /* 1024*1024 -- 1 MB */
+    #define WOLFSSL_QUIC_MAX_RECORD_CAPACITY (1048576)
+#endif
 
 #endif /* WOLFSSL_QUIC */
 

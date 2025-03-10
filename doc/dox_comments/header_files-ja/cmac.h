@@ -23,6 +23,8 @@
      \sa wc_InitCmac_ex
      \sa wc_CmacUpdate
      \sa wc_CmacFinal
+     \sa wc_CmacFinalNoFree
+     \sa wc_CmacFree
 */
 int wc_InitCmac(Cmac* cmac,
                  const byte* key、word32 keySz、
@@ -55,6 +57,8 @@ int wc_InitCmac(Cmac* cmac,
      \sa wc_InitCmac_ex
      \sa wc_CmacUpdate
      \sa wc_CmacFinal
+     \sa wc_CmacFinalNoFree
+     \sa wc_CmacFree
 */
 int wc_InitCmac_ex(Cmac* cmac,
                  const byte* key, word32 keySz,
@@ -75,17 +79,40 @@ int wc_InitCmac_ex(Cmac* cmac,
 
      \sa wc_InitCmac
      \sa wc_CmacFinal
+     \sa wc_CmacFinalNoFree
+     \sa wc_CmacFree
 */
 int wc_CmacUpdate(Cmac* cmac,
                    const byte* in, word32 inSz);
 
 /*!
+    \ingroup CMAC
+    \brief 暗号ベースのメッセージ認証コードの最終結果を生成します。ただし、使用したコンテキストのクリーンアップは行いません。
+    \return 成功したら0を返します
+    \param cmac Cmac構造体へのポインタ
+    \param out 結果を格納するバッファへのポインタ
+    \param outSz 結果出力先バッファのサイズ
+
+    _Example_
+    \code
+    ret = wc_CmacFinalNoFree(cmac, out, &outSz);
+    (void)wc_CmacFree(cmac);
+    \endcode
+
+    \sa wc_InitCmac
+    \sa wc_CmacFinal
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFree
+*/
+int wc_CmacFinalNoFree(Cmac* cmac,
+                 byte* out, word32* outSz);
+/*!
      \ingroup CMAC
-     \brief 暗号ベースのメッセージ認証コードを使用して最終結果を生成します
+     \brief 暗号ベースのメッセージ認証コードを使用して最終結果を生成します。加えて、内部でwc_CmacFreeを呼び出してコンテキスとをクリーンアップします。
      \return 成功したら0を返します
      \param cmac Cmac構造体へのポインタ
-     \param out 結果の出力先バッファへのポインタ
-     \param outSz 結果の出力先バッファサイズ (in/out)
+     \param out 結果を格納するバッファへのポインタ
+     \param outSz 結果出力先バッファのサイズ
 
      _例_
      \code
@@ -94,9 +121,30 @@ int wc_CmacUpdate(Cmac* cmac,
 
      \sa wc_InitCmac
      \sa wc_CmacFinal
+     \sa wc_CmacFinalNoFree
+     \sa wc_CmacFree
 */
 int wc_CmacFinal(Cmac* cmac,
                   byte* out, word32* outSz);
+
+/*!
+    \ingroup CMAC
+    \brief CMAC処理中にCmac構造体内に確保されたオブジェクトを開放します。
+    \return 成功したら0を返します
+    \param cmac Cmac構造体へのポインタ
+
+    _Example_
+    \code
+    ret = wc_CmacFinalNoFree(cmac, out, &outSz);
+    (void)wc_CmacFree(cmac);
+    \endcode
+
+    \sa wc_InitCmac
+    \sa wc_CmacFinalNoFree
+    \sa wc_CmacFinal
+    \sa wc_CmacFree
+*/
+int wc_CmacFree(Cmac* cmac);
 
 /*!
      \ingroup CMAC

@@ -1557,6 +1557,219 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
                                      word32 inLen, int with_AlgCurve, int comp);
 
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 private key (only) from a DER
+    encoded buffer
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded private key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+
+    if (wc_Curve25519PrivateKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding private key
+    }
+    \endcode
+*/
+int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                  curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 public key (only) from a DER
+    encoded buffer.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded public key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PrivateKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519PublicKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding public key
+    }
+    \endcode
+*/
+int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                 curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 key from a DER encoded buffer. It
+    can decode either a private key, a public key, or both.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519PrivateKeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519KeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding key
+    }
+    \endcode
+*/
+int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
+                           curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 private key to DER format. If the
+    input key structure contains a public key, it will be ignored.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing private key to
+    encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519PrivateKeyToDer(&key, der, derSz);
+    \endcode
+*/
+int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
+                                 word32 inLen);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 public key to DER format. If the
+    input key structure contains a private key, it will be ignored.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing public key to
+    encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+    \param withAlg Whether to include algorithm identifier in the DER encoding
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PrivateKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519PublicKeyToDer(&key, der, derSz, 1);
+    \endcode
+*/
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                                int withAlg);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 key to DER format. It can encode
+    either a private key, a public key, or both.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing key to encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+    \param withAlg Whether to include algorithm identifier in the DER encoding
+
+    \sa wc_Curve25519PrivateKeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519KeyToDer(&key, der, derSz, 1);
+    \endcode
+*/
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                          int withAlg);
+
 /*!
     \ingroup ASN
 
@@ -1662,7 +1875,7 @@ void wc_SetCert_Free(Cert* cert);
     \return Length of traditional private key on success.
     \return Negative values on failure.
 
-    \param input Buffer containing unencrypted PKCS#8 private key. 
+    \param input Buffer containing unencrypted PKCS#8 private key.
     \param inOutIdx Index into the input buffer. On input, it should be a byte
     offset to the beginning of the the PKCS#8 buffer. On output, it will be the
     byte offset to the traditional private key within the input buffer.
@@ -1691,7 +1904,7 @@ int wc_GetPkcs8TraditionalOffset(byte* input,
 
     \brief This function takes in a DER private key and converts it to PKCS#8
     format. Also used in creating PKCS#12 shrouded key bags. See RFC 5208.
-    
+
     \return The size of the PKCS#8 key placed into out on success.
     \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
     outSz.
@@ -1840,7 +2053,7 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
 
     \brief This function takes a traditional, DER key, converts it to PKCS#8
      format, and encrypts it. It uses wc_CreatePKCS8Key and wc_EncryptPKCS8Key
-     to do this. 
+     to do this.
 
     \return The size of the encrypted key placed in out on success.
     \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
@@ -2199,7 +2412,7 @@ int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
     \return  0 on success.
     \return  BAD_FUNC_ARG when asn1 is NULL.
     \return  BAD_FUNC_ARG when val is out of range for option.
- 
+
     \param opts  The ASN.1 options for printing.
     \param opt   An option to set value for.
     \param val   The value to set.

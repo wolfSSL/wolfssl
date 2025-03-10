@@ -1,6 +1,6 @@
 /* kdf.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,21 +24,20 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef NO_KDF
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
-
+#if FIPS_VERSION3_GE(5,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$m")
-        #pragma const_seg(".fipsB$m")
+        #pragma code_seg(".fipsA$h")
+        #pragma const_seg(".fipsB$h")
     #endif
 #endif
 
@@ -56,6 +55,14 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_kdf_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000009 };
+    int wolfCrypt_FIPS_KDF_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC)
 
@@ -78,11 +85,9 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     word32 lastTime;
     int    ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    byte*  previous;
     byte*  current;
     Hmac*  hmac;
 #else
-    byte   previous[P_HASH_MAX_SIZE];  /* max size */
     byte   current[P_HASH_MAX_SIZE];   /* max size */
     Hmac   hmac[1];
 #endif
@@ -147,19 +152,16 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     lastTime = times - 1;
 
 #ifdef WOLFSSL_SMALL_STACK
-    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
-    if (previous == NULL || current == NULL || hmac == NULL) {
-        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
-        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+    current = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    hmac    = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
+    if (current == NULL || hmac == NULL) {
+        XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
         return MEMORY_E;
     }
 #endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    XMEMSET(previous, 0xff, P_HASH_MAX_SIZE);
-    wc_MemZero_Add("wc_PRF previous", previous, P_HASH_MAX_SIZE);
+    XMEMSET(current, 0xff, P_HASH_MAX_SIZE);
     wc_MemZero_Add("wc_PRF current", current, P_HASH_MAX_SIZE);
     wc_MemZero_Add("wc_PRF hmac", hmac, sizeof(Hmac));
 #endif
@@ -170,53 +172,53 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         if (ret == 0)
             ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
         if (ret == 0)
-            ret = wc_HmacFinal(hmac, previous);       /* A1 */
+            ret = wc_HmacFinal(hmac, current);        /* A1 */
         if (ret == 0) {
             word32 i;
             word32 idx = 0;
 
             for (i = 0; i < times; i++) {
-                ret = wc_HmacUpdate(hmac, previous, len);
+                ret = wc_HmacUpdate(hmac, current, len);
                 if (ret != 0)
                     break;
                 ret = wc_HmacUpdate(hmac, seed, seedLen);
                 if (ret != 0)
                     break;
-                ret = wc_HmacFinal(hmac, current);
-                if (ret != 0)
-                    break;
+                if ((i != lastTime) || !lastLen) {
+                    ret = wc_HmacFinal(hmac, &result[idx]);
+                    if (ret != 0)
+                        break;
+                    idx += len;
 
-                if ((i == lastTime) && lastLen)
+                    ret = wc_HmacUpdate(hmac, current, len);
+                    if (ret != 0)
+                        break;
+                    ret = wc_HmacFinal(hmac, current);
+                    if (ret != 0)
+                        break;
+                }
+                else {
+                    ret = wc_HmacFinal(hmac, current);
+                    if (ret != 0)
+                        break;
                     XMEMCPY(&result[idx], current,
                                              min(lastLen, P_HASH_MAX_SIZE));
-                else {
-                    XMEMCPY(&result[idx], current, len);
-                    idx += len;
-                    ret = wc_HmacUpdate(hmac, previous, len);
-                    if (ret != 0)
-                        break;
-                    ret = wc_HmacFinal(hmac, previous);
-                    if (ret != 0)
-                        break;
                 }
             }
         }
         wc_HmacFree(hmac);
     }
 
-    ForceZero(previous,  P_HASH_MAX_SIZE);
-    ForceZero(current,   P_HASH_MAX_SIZE);
-    ForceZero(hmac,      sizeof(Hmac));
+    ForceZero(current, P_HASH_MAX_SIZE);
+    ForceZero(hmac,    sizeof(Hmac));
 
 #if defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(previous, P_HASH_MAX_SIZE);
-    wc_MemZero_Check(current,  P_HASH_MAX_SIZE);
-    wc_MemZero_Check(hmac,     sizeof(Hmac));
+    wc_MemZero_Check(current, P_HASH_MAX_SIZE);
+    wc_MemZero_Check(hmac,    sizeof(Hmac));
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
 #endif
 
@@ -300,6 +302,16 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 {
     int ret = 0;
 
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("  secret");
+    WOLFSSL_BUFFER(secret, secLen);
+    WOLFSSL_MSG("  label");
+    WOLFSSL_BUFFER(label, labLen);
+    WOLFSSL_MSG("  seed");
+    WOLFSSL_BUFFER(seed, seedLen);
+#endif
+
+
     if (useAtLeastSha256) {
     #ifdef WOLFSSL_SMALL_STACK
         byte* labelSeed;
@@ -343,6 +355,12 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = BAD_FUNC_ARG;
 #endif
     }
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("  digest");
+    WOLFSSL_BUFFER(digest, digLen);
+    WOLFSSL_MSG_EX("hash_type %d", hash_type);
+#endif
 
     return ret;
 }
@@ -542,14 +560,14 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         const byte* info, word32 infoLen, int digest, void* heap)
     {
         int    ret = 0;
-        int    idx = 0;
-        int    len;
+        word32 idx = 0;
+        size_t len;
         byte   *data;
 
         (void)heap;
         /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
          * labellen + infolen */
-        len = 4 + protocolLen + labelLen + infoLen;
+        len = 4U + protocolLen + labelLen + infoLen;
 
         data = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (data == NULL)
@@ -637,7 +655,7 @@ typedef union {
 static
 int _HashInit(byte hashId, _hash* hash)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -662,6 +680,9 @@ int _HashInit(byte hashId, _hash* hash)
             ret = wc_InitSha512(&hash->sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -671,7 +692,7 @@ static
 int _HashUpdate(byte hashId, _hash* hash,
         const byte* data, word32 dataSz)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -696,6 +717,9 @@ int _HashUpdate(byte hashId, _hash* hash,
             ret = wc_Sha512Update(&hash->sha512, data, dataSz);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -704,7 +728,7 @@ int _HashUpdate(byte hashId, _hash* hash,
 static
 int _HashFinal(byte hashId, _hash* hash, byte* digest)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -729,6 +753,9 @@ int _HashFinal(byte hashId, _hash* hash, byte* digest)
             ret = wc_Sha512Final(&hash->sha512, digest);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -787,7 +814,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_HmacSizeByType(enmhashId);
+    ret = wc_HmacSizeByType((int)enmhashId);
     if (ret <= 0) {
         return BAD_FUNC_ARG;
     }
@@ -888,12 +915,12 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
  * @param [out] block    First block to encrypt.
  */
 static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
-        const byte* index, byte indexSz, unsigned char* block)
+        const byte* index, int indexSz, unsigned char* block)
 {
-    word32 i;
+    int i;
 
     /* XOR salt into zeroized buffer. */
-    for (i = 0; i < WC_SRTP_MAX_SALT - saltSz; i++) {
+    for (i = 0; i < WC_SRTP_MAX_SALT - (int)saltSz; i++) {
         block[i] = 0;
     }
     XMEMCPY(block + WC_SRTP_MAX_SALT - saltSz, salt, saltSz);
@@ -915,11 +942,11 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
         }
         else {
             /* XOR in as bit shifted index. */
-            block[WC_SRTP_MAX_SALT - indexSz] ^= index[0] >> bits;
+            block[WC_SRTP_MAX_SALT - indexSz] ^= (byte)(index[0] >> bits);
             for (i = 1; i < indexSz; i++) {
                 block[i + WC_SRTP_MAX_SALT - indexSz] ^=
-                    (index[i-1] << (8 - bits)) |
-                    (index[i+0] >>      bits );
+                    (byte)((index[i-1] << (8 - bits)) |
+                           (index[i+0] >>      bits ));
             }
         }
     }
@@ -936,33 +963,33 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * @param [in]      aes      AES object to encrypt with.
  * @return  0 on success.
  */
-static int wc_srtp_kdf_derive_key(byte* block, byte indexSz, byte label,
+static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
         byte* key, word32 keySz, Aes* aes)
 {
     int i;
     int ret = 0;
     /* Calculate the number of full blocks needed for derived key. */
-    int blocks = keySz / AES_BLOCK_SIZE;
+    int blocks = (int)(keySz / WC_AES_BLOCK_SIZE);
 
     /* XOR in label. */
     block[WC_SRTP_MAX_SALT - indexSz - 1] ^= label;
     for (i = 0; (ret == 0) && (i < blocks); i++) {
         /* Set counter. */
-        block[15] = i;
+        block[15] = (byte)i;
         /* Encrypt block into key buffer. */
-        ret = wc_AesEcbEncrypt(aes, key, block, AES_BLOCK_SIZE);
+        ret = wc_AesEcbEncrypt(aes, key, block, WC_AES_BLOCK_SIZE);
         /* Reposition for more derived key. */
-        key += AES_BLOCK_SIZE;
+        key += WC_AES_BLOCK_SIZE;
         /* Reduce the count of key bytes required. */
-        keySz -= AES_BLOCK_SIZE;
+        keySz -= WC_AES_BLOCK_SIZE;
     }
     /* Do any partial blocks. */
     if ((ret == 0) && (keySz > 0)) {
-        byte enc[AES_BLOCK_SIZE];
+        byte enc[WC_AES_BLOCK_SIZE];
         /* Set counter. */
-        block[15] = i;
+        block[15] = (byte)i;
         /* Encrypt block into temporary. */
-        ret = wc_AesEcbEncrypt(aes, enc, block, AES_BLOCK_SIZE);
+        ret = wc_AesEcbEncrypt(aes, enc, block, WC_AES_BLOCK_SIZE);
         if (ret == 0) {
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
@@ -1003,7 +1030,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         word32 key2Sz, byte* key3, word32 key3Sz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1093,18 +1120,27 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
  */
-int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
+int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
-        word32 key2Sz, byte* key3, word32 key3Sz)
+        word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
     Aes aes[1];
 #endif
     int aes_inited = 0;
+    int idxLen;
+
+    if (idxLenIndicator == WC_SRTCP_32BIT_IDX) {
+        idxLen = WC_SRTCP_INDEX_LEN;
+    } else if (idxLenIndicator == WC_SRTCP_48BIT_IDX) {
+        idxLen = WC_SRTP_INDEX_LEN;
+    } else {
+        return BAD_FUNC_ARG; /* bad or invalid idxLenIndicator */
+    }
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1136,23 +1172,22 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, WC_SRTCP_INDEX_LEN,
-            block);
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, idxLen, block);
     }
 
     /* Calculate first key if required. */
     if ((ret == 0) && (key1 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_ENCRYPTION, key1, key1Sz, aes);
     }
     /* Calculate second key if required. */
     if ((ret == 0) && (key2 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_MSG_AUTH, key2, key2Sz, aes);
     }
     /* Calculate third key if required. */
     if ((ret == 0) && (key3 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_SALT, key3, key3Sz, aes);
     }
 
@@ -1164,6 +1199,15 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     return ret;
 }
 
+int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
+        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        word32 key2Sz, byte* key3, word32 key3Sz)
+{
+    /* The default 32-bit IDX expected by many implementations */
+    return wc_SRTCP_KDF_ex(key, keySz, salt, saltSz, kdrIdx, index,
+                           key1, key1Sz, key2, key2Sz, key3, key3Sz,
+                           WC_SRTCP_32BIT_IDX);
+}
 /* Derive key with label using SRTP KDF algorithm.
  *
  * SP 800-135 (RFC 3711).
@@ -1190,7 +1234,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         word32 outKeySz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1273,7 +1317,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         word32 outKeySz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1349,5 +1393,105 @@ int wc_SRTP_KDF_kdr_to_idx(word32 kdr)
     return idx;
 }
 #endif /* WC_SRTP_KDF */
+
+#ifdef WC_KDF_NIST_SP_800_56C
+static int wc_KDA_KDF_iteration(const byte* z, word32 zSz, word32 counter,
+    const byte* fixedInfo, word32 fixedInfoSz, enum wc_HashType hashType,
+    byte* output)
+{
+    byte counterBuf[4];
+    wc_HashAlg hash;
+    int ret;
+
+    ret = wc_HashInit(&hash, hashType);
+    if (ret != 0)
+        return ret;
+    c32toa(counter, counterBuf);
+    ret = wc_HashUpdate(&hash, hashType, counterBuf, 4);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, z, zSz);
+    }
+    if (ret == 0 && fixedInfoSz > 0) {
+        ret = wc_HashUpdate(&hash, hashType, fixedInfo, fixedInfoSz);
+    }
+    if (ret == 0) {
+        ret = wc_HashFinal(&hash, hashType, output);
+    }
+    wc_HashFree(&hash, hashType);
+    return ret;
+}
+
+/**
+ * \brief Performs the single-step key derivation function (KDF) as specified in
+ * SP800-56C option 1.
+ *
+ * \param [in] z The input keying material.
+ * \param [in] zSz The size of the input keying material.
+ * \param [in] fixedInfo The fixed information to be included in the KDF.
+ * \param [in] fixedInfoSz The size of the fixed information.
+ * \param [in] derivedSecretSz The desired size of the derived secret.
+ * \param [in] hashType The hash algorithm to be used in the KDF.
+ * \param [out] output The buffer to store the derived secret.
+ * \param [in] outputSz The size of the output buffer.
+ *
+ * \return 0 if the KDF operation is successful.
+ * \return BAD_FUNC_ARG if the input parameters are invalid.
+ * \return negative error code if the KDF operation fails.
+ */
+int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
+    word32 fixedInfoSz, word32 derivedSecretSz, enum wc_HashType hashType,
+    byte* output, word32 outputSz)
+{
+    byte hashTempBuf[WC_MAX_DIGEST_SIZE];
+    word32 counter, outIdx;
+    int hashOutSz;
+    int ret;
+
+    if (output == NULL || outputSz < derivedSecretSz)
+        return BAD_FUNC_ARG;
+    if (z == NULL || zSz == 0 || (fixedInfoSz > 0 && fixedInfo == NULL))
+        return BAD_FUNC_ARG;
+    if (derivedSecretSz == 0)
+        return BAD_FUNC_ARG;
+
+    hashOutSz = wc_HashGetDigestSize(hashType);
+    if (hashOutSz == WC_NO_ERR_TRACE(HASH_TYPE_E))
+        return BAD_FUNC_ARG;
+
+    /* According to SP800_56C, table 1, the max input size (max_H_inputBits)
+     * depends on the HASH algo. The smaller value in the table is (2**64-1)/8.
+     * This is larger than the possible length using word32 integers. */
+
+    counter = 1;
+    outIdx = 0;
+    ret = 0;
+
+    /* According to SP800_56C the number of iterations shall not be greater than
+     * 2**32-1. This is not possible using word32 integers.*/
+    while (outIdx + hashOutSz <= derivedSecretSz) {
+        ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
+            hashType, output + outIdx);
+        if (ret != 0)
+            break;
+        counter++;
+        outIdx += hashOutSz;
+    }
+
+    if (ret == 0 && outIdx < derivedSecretSz) {
+        ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
+            hashType, hashTempBuf);
+        if (ret == 0) {
+            XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
+        }
+        ForceZero(hashTempBuf, hashOutSz);
+    }
+
+    if (ret != 0) {
+        ForceZero(output, derivedSecretSz);
+    }
+
+    return ret;
+}
+#endif /* WC_KDF_NIST_SP_800_56C */
 
 #endif /* NO_KDF */

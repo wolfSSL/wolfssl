@@ -1,14 +1,17 @@
 # configure.ac
 #
-# Copyright (C) 2006-2023 wolfSSL Inc.
+# Copyright (C) 2006-2024 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
 #
-AC_COPYRIGHT([Copyright (C) 2006-2023 wolfSSL Inc.])
+AC_COPYRIGHT([Copyright (C) 2006-2024 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.6.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.7.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
+
+# Inhibit unwanted regeneration of autotools artifacts by Makefile.
+AM_MAINTAINER_MODE([disable])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
@@ -45,22 +48,20 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 
 # shared library versioning
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
-# these numbers don't always line up nicely with the library version.
-WOLFSSL_LIBRARY_VERSION_FIRST=42
+
+# increment if interfaces have been removed or changed
+WOLFSSL_LIBRARY_VERSION_FIRST=43
+
+# increment if interfaces have been added
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
 WOLFSSL_LIBRARY_VERSION_SECOND=0
+
+# increment if source code has changed
+# set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
+# WOLFSSL_LIBRARY_VERSION_SECOND is incremented
 WOLFSSL_LIBRARY_VERSION_THIRD=0
-WOLFSSL_LIBRARY_VERSION=42:0:0
-#                        | | |
-#                 +------+ | +---+
-#                 |        |     |
-#                current:revision:age
-#                 |        |     |
-#                 |        |     +- increment if interfaces have been added
-#                 |        |        set to zero if interfaces have been removed
-#                 |        |        or changed
-#                 |        +- increment if source code has changed
-#                 |           set to zero if current is incremented
-#                 +- increment if interfaces have been added, removed or changed
+
+WOLFSSL_LIBRARY_VERSION=${WOLFSSL_LIBRARY_VERSION_FIRST}:${WOLFSSL_LIBRARY_VERSION_SECOND}:${WOLFSSL_LIBRARY_VERSION_THIRD}
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_FIRST])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_SECOND])
 AC_SUBST([WOLFSSL_LIBRARY_VERSION_THIRD])
@@ -71,7 +72,7 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
        ])
 
-WOLFSSL_BUILD_DATE=$(date -R)
+WOLFSSL_BUILD_DATE=$(LC_TIME=C date +"%a, %d %b %Y %T %z")
 AC_SUBST([WOLFSSL_BUILD_DATE])
 
 
@@ -102,6 +103,21 @@ else
     REPRODUCIBLE_BUILD_DEFAULT=no
 fi
 
+# Fail when an option is passed that is not recognized
+m4_divert_once([DEFAULTS], [enable_option_checking=fatal])
+
+# Allow experimental settings
+AC_ARG_ENABLE([experimental],
+    [AS_HELP_STRING([--enable-experimental],[Allow experimental settings in the configuration (default: disabled)])],
+    [ ENABLED_EXPERIMENTAL=$enableval ],
+    [ ENABLED_EXPERIMENTAL=no ]
+    )
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    AS_IF([ test "$ENABLED_DISTRO" = "yes" && test "$ENABLED_EXPERIMENTAL" = "yes" ],[ AC_MSG_ERROR([--enable-distro and --enable-experimental are mutually exclusive.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
+fi
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h])
 AC_CHECK_LIB([network],[socket])
@@ -187,6 +203,34 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
+AC_ARG_ENABLE([debug-code-points],
+    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-verbose messages.]) ],
+    [ ENABLED_DEBUG_CODEPOINTS=$enableval ],
+    [ ENABLED_DEBUG_CODEPOINTS=no ]
+    )
+
+if test "$ENABLED_DEBUG_CODEPOINTS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_CODEPOINTS"
+fi
+
+AC_ARG_ENABLE([debug-trace-errcodes],
+    [ AS_HELP_STRING([--enable-debug-trace-errcodes],[Print trace messages when library errors are thrown.]) ],
+    [ ENABLED_DEBUG_TRACE_ERRCODES=$enableval ],
+    [ ENABLED_DEBUG_TRACE_ERRCODES=no ]
+    )
+
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_TRACE_ERROR_CODES"
+fi
+
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "backtrace"
+then
+    AM_CFLAGS="$AM_CFLAGS -g -funwind-tables -DWOLFSSL_DEBUG_BACKTRACE_ERROR_CODES"
+    AM_LDFLAGS="$AM_LDFLAGS -lbacktrace"
+fi
+
 # Start without certificates enabled and enable if a certificate algorithm is
 # enabled
 ENABLED_CERTS="no"
@@ -251,6 +295,25 @@ AC_ARG_ENABLE([hmac],
     [ ENABLED_HMAC=yes ]
     )
 
+# enable HMAC hash copying automatically for x86_64 and aarch64 (except Linux kernel module)
+HMAC_COPY_DEFAULT=no
+if test "$ENABLED_LINUXKM_DEFAULTS" = "no"
+then
+    if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
+    then
+        HMAC_COPY_DEFAULT=yes
+    fi
+fi
+AC_ARG_ENABLE([hmac-copy],
+    [AS_HELP_STRING([--enable-hmac-copy],[Enables digest copying implementation for HMAC (default: disabled)])],
+    [ ENABLED_HMAC_COPY=$enableval ],
+    [ ENABLED_HMAC_COPY=$HMAC_COPY_DEFAULT ]
+    )
+if test "$ENABLED_HMAC_COPY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HMAC_COPY_HASH"
+fi
+
 AC_ARG_ENABLE([do178],
     [AS_HELP_STRING([--enable-do178],[Enable DO-178, Will NOT work w/o DO178 license (default: disabled)])],
     [ENABLED_DO178=$enableval],
@@ -275,7 +338,6 @@ then
 fi
 AC_SUBST([ENABLED_ASM])
 
-
 # Default math is SP Math all and not fast math
 # FIPS v1 and v2 must use fast math
 DEF_SP_MATH="yes"
@@ -287,12 +349,33 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+# wolfProvider Options
+AC_ARG_ENABLE([wolfprovider],
+    [AS_HELP_STRING([--enable-wolfprovider],[Enable wolfProvider options (default: disabled)])],
+    [ ENABLED_WOLFPROVIDER=$enableval ],
+    [ ENABLED_WOLFPROVIDER=no ]
+    )
+if test "x$ENABLED_WOLFPROVIDER" != "xno"
+then
+    test -z "$enable_all_crypto" && enable_all_crypto=yes
+    test -z "$enable_opensslcoexist" && enable_opensslcoexist=yes
+    test -z "$enable_sha" && enable_sha=yes
+    test -z "$with_eccminsz" && with_eccminsz=192
+    test -z "$with_max_ecc_bits" && with_max_ecc_bits=1024
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WOLFPROVIDER -DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
+fi
+
 # wolfEngine Options
 AC_ARG_ENABLE([engine],
     [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
     [ ENABLED_WOLFENGINE=$enableval ],
     [ ENABLED_WOLFENGINE=no ]
     )
+
+if test "x$ENABLED_WOLFENGINE" != "xno"
+then
+    test -z "$with_eccminsz" && with_eccminsz=192
+fi
 
 AS_CASE([$ENABLED_WOLFENGINE],
     [no],[
@@ -308,6 +391,10 @@ AS_CASE([$ENABLED_WOLFENGINE],
     [fips-v5],[
         ENABLED_WOLFENGINE="yes"
         ENABLED_FIPS="v5"
+    ],
+    [fips-v6],[
+        ENABLED_WOLFENGINE="yes"
+        ENABLED_FIPS="v6"
     ],
     [fips-ready],[
         ENABLED_WOLFENGINE="yes"
@@ -329,12 +416,13 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v2 - FIPS 140-2 Cert 3389
 #   cert3389 - alias for v2
 #   rand - wolfRand
-#   v5-RC12 - FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
-#   v5 - currently, alias for v5-RC12
+#   v5 - FIPS 140-3 Cert 4718
+#   cert4718 - alias for v5
 #   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
 #   v5-ready - Alias for ready.
 #   v5-dev - Alias for dev.
+#   v6     - The SRTP-KDF-full-submission
 #
 # These options have been retired, but are listed here for historical reference:
 #   v5-RC8 - historical FIPS 140-3 (wolfCrypt WCv5.0-RC8).
@@ -345,6 +433,7 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
 #   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
+#   v5-RC12 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
@@ -353,16 +442,16 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="disabled"
         ENABLED_FIPS="no"
     ],
-    [v1|yes|cert2425],[
+    [v1|cert2425],[
         FIPS_VERSION="v1"
-        HAVE_FIPS_VERSION=1
+        HAVE_FIPS_VERSION_MAJOR=1
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
     [v2|cert3389],[
         FIPS_VERSION="v2"
-        HAVE_FIPS_VERSION=2
+        HAVE_FIPS_VERSION_MAJOR=2
         HAVE_FIPS_VERSION_MINOR=0
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
@@ -370,46 +459,95 @@ AS_CASE([$ENABLED_FIPS],
     ],
     [rand],[
         FIPS_VERSION="rand"
-        HAVE_FIPS_VERSION=2
+        HAVE_FIPS_VERSION_MAJOR=2
         HAVE_FIPS_VERSION_MINOR=1
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="no"
     ],
-    [v5|v5-RC12],[
-        FIPS_VERSION="v5-RC12"
-        HAVE_FIPS_VERSION=5
+    [v5|cert4718],[
+        FIPS_VERSION="v5"
+        HAVE_FIPS_VERSION_MAJOR=5
         HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=1
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [ready|v5-ready],[
-        FIPS_VERSION="ready"
-        HAVE_FIPS_VERSION=5
+    [v5-RC12],[
+        FIPS_VERSION="v5-RC12"
+        HAVE_FIPS_VERSION_MAJOR=5
+        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=0
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
+    ],
+    [v5-ready],[
+        FIPS_VERSION="v5-ready"
+        HAVE_FIPS_VERSION_MAJOR=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
     ],
-    [dev|v5-dev],[
-        FIPS_VERSION="dev"
-        HAVE_FIPS_VERSION=5
+    [v5-dev],[
+        FIPS_VERSION="v5-dev"
+        HAVE_FIPS_VERSION_MAJOR=5
         HAVE_FIPS_VERSION_MINOR=3
         ENABLED_FIPS="yes"
         # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
     ],
+    [v6],[
+        FIPS_VERSION="v6"
+        HAVE_FIPS_VERSION=6
+        HAVE_FIPS_VERSION_MAJOR=6
+        HAVE_FIPS_VERSION_MINOR=0
+        HAVE_FIPS_VERSION_PATCH=0
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="yes"
+        DEF_FAST_MATH="no"
+    ],
+    # Should always remain one ahead of the latest so as not to be confused with
+    # the latest
+    [ready|v6-ready],[
+        FIPS_VERSION="ready"
+        HAVE_FIPS_VERSION=7
+        HAVE_FIPS_VERSION_MAJOR=7
+        HAVE_FIPS_VERSION_MINOR=0
+        HAVE_FIPS_VERSION_PATCH=0
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="yes"
+        DEF_FAST_MATH="no"
+    ],
+    [dev|v6-dev],[
+        FIPS_VERSION="dev"
+        HAVE_FIPS_VERSION_MAJOR=7
+        HAVE_FIPS_VERSION_MINOR=0
+        HAVE_FIPS_VERSION_PATCH=0
+        ENABLED_FIPS="yes"
+        # for dev, DEF_SP_MATH and DEF_FAST_MATH follow non-FIPS defaults (currently sp-math-all)
+    ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (main options: v1, v2, v5, ready, dev, rand, no, disabled)])
+        AS_IF([test "$ENABLED_FIPS" = "yes"],[ENABLED_FIPS="(unset)"],[ENABLED_FIPS=\"$ENABLED_FIPS\"])
+        AC_MSG_ERROR([Invalid value for --enable-fips $ENABLED_FIPS (main options: v1, v2, v5, v6, ready, dev, rand, no, disabled)])
     ])
 
+if test -z "$HAVE_FIPS_VERSION_MAJOR"
+then
+    HAVE_FIPS_VERSION_MAJOR=0
+fi
 if test -z "$HAVE_FIPS_VERSION_MINOR"
 then
     HAVE_FIPS_VERSION_MINOR=0
 fi
+if test -z "$HAVE_FIPS_VERSION_PATCH"
+then
+    HAVE_FIPS_VERSION_PATCH=0
+fi
 if test -z "$HAVE_FIPS_VERSION"
 then
-    HAVE_FIPS_VERSION=0
+    HAVE_FIPS_VERSION="$HAVE_FIPS_VERSION_MAJOR"
 fi
 
 if test "$ENABLED_FIPS" != "no"
@@ -451,9 +589,37 @@ then
         RANLIB=ranlib
     fi
     xxx_ranlib_flags=$(${RANLIB} --help 2>&1)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
+
     AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr" lt_ar_flags="Dcr"])
     AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
+
+    if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "backtrace"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD -g0"
+    fi
+
+    # opportunistically use -ffile-prefix-map (added in GCC8 and LLVM10)
+
+    if "$CC" -ffile-prefix-map=/tmp=. -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+        #include <stdlib.h>
+        int main(int argc, char **argv) {
+            (void)argc; (void)argv; return 0;
+        }
+        EOF
+    then
+        AM_CFLAGS="$AM_CFLAGS -ffile-prefix-map=\$(abs_top_srcdir)/= -ffile-prefix-map=\$(top_srcdir)/="
+    fi
+
+    # opportunistically force linker option --build-id=sha1 (usually the default)
+    if "$CC" -Wl,--build-id=sha1 -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+        #include <stdlib.h>
+        int main(int argc, char **argv) {
+            (void)argc; (void)argv; return 0;
+        }
+        EOF
+    then
+        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=sha1"
+    fi
 fi
 
 
@@ -557,6 +723,17 @@ fi
 
 # MATH LIBRARY SELECTION
 
+# Assure consistency of defaults
+if test "$DEF_FAST_MATH" = "yes" && ( (test "$enable_sp_math" != "no" && test "$enable_sp_math" != "") || test "$enable_heapmath" = "yes")
+then
+    DEF_FAST_MATH=no
+fi
+
+if test "$DEF_SP_MATH" = "yes" && (test "$enable_fastmath" = "yes" || test "$enable_fasthugemath" = "yes" || test "$enable_heapmath" = "yes")
+then
+    DEF_SP_MATH=no
+fi
+
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
@@ -628,14 +805,14 @@ fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
+    [AS_HELP_STRING([--enable-fastmath],[Enable legacy Tom's Fast Math back end (default: disabled)])],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=$DEF_FAST_MATH ]
     )
 
 # fast HUGE math
 AC_ARG_ENABLE([fasthugemath],
-    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
+    [AS_HELP_STRING([--enable-fasthugemath],[Enable legacy Tom's Fast Math + huge code (default: disabled)])],
     [ ENABLED_FASTHUGEMATH=$enableval ],
     [ ENABLED_FASTHUGEMATH=no ]
     )
@@ -658,6 +835,69 @@ if test "$host_cpu" = "x86"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
 fi
+
+
+AC_ARG_ENABLE([leanpsk],
+    [AS_HELP_STRING([--enable-leanpsk],[Enable Lean PSK build (default: disabled)])],
+    [ ENABLED_LEANPSK=$enableval ],
+    [ ENABLED_LEANPSK=no ]
+    )
+
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    ENABLED_SLOWMATH="no"
+    ENABLED_SINGLETHREADED="yes"
+    enable_lowresource=yes
+fi
+
+
+# ASN
+
+# disabling ASN implicitly disables certs, RSA, DSA, and ECC,
+# and also disables MPI unless DH is enabled.
+
+# turn off ASN if leanpsk on
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    enable_asn=no
+fi
+
+AC_ARG_ENABLE([asn],
+    [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
+    [ ENABLED_ASN=$enableval ],
+    [ ENABLED_ASN=yes ]
+    )
+
+for v in `echo $ENABLED_ASN | tr "," " "`
+do
+    case $v in
+    all)
+        # Enable all ASN features
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
+        ENABLED_ASN=yes
+        ;;
+    template | yes)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+        ENABLED_ASN=yes
+        ;;
+    original)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
+        ;;
+    nocrypt)
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
+        enable_pwdbased=no
+        ;;
+    no)
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
+        enable_pwdbased=no
+        ;;
+    *)
+        AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
+        break;;
+esac
+done
+
 
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
@@ -700,9 +940,54 @@ then
     ENABLED_SP_MATH_ALL="no"
 fi
 
+# wolfCrypt Only Build
+AC_ARG_ENABLE([cryptonly],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [ENABLED_CRYPTONLY=$enableval],
+    [ENABLED_CRYPTONLY=no])
+
+AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
+
+# TLS
+AC_ARG_ENABLE([tls],
+    [AS_HELP_STRING([--enable-tls],[Enable TLS support (default: enabled)])],
+    [ ENABLED_TLS=$enableval ],
+    [ ENABLED_TLS=yes ]
+    )
+
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_TLS=no
+fi
+if test "$ENABLED_TLS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_TLS"
+    test "$enable_tls13" = "" && enable_tls13=no
+    test "$enable_tlsv12" = "" && enable_tlsv12=no
+    test "$enable_tlsv10" = "" && enable_tlsv10=no
+    test "$enable_dtls" = "" && enable_dtls=no
+    test "$enable_dtls13" = "" && enable_dtls13=no
+    test "$enable_dtls_mtu" = "" && enable_dtls_mtu=no
+    test "$enable_dtlscid" = "" && enable_dtlscid=no
+    test "$enable_dtls_frag_ch" = "" && enable_dtls_frag_ch=no
+    test "$enable_mcast" = "" && enable_mcast=no
+    test "$enable_srtp" = "" && enable_srtp=no
+    test "$enable_ocsp" = "" && enable_ocsp=no
+    test "$enable_tlsx" = "" && enable_tlsx=no
+    test "$enable_sni" = "" && enable_sni=no
+    test "$enable_crl_monitor" = "" && enable_crl_monitor=no
+    test "$enable_alpn" = "" && enable_alpn=no
+    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=no
+    test "$enable_quic" = "" && enable_quic=no
+    test "$enable_ech" = "" && enable_ech=no
+    test "$enable_ocspstapling" = "" && enable_ocspstapling=no
+
+    # Disable all open source compatibility enables that might get set with all
+    test "$enable_all_osp" = "" && enable_all_osp=no
+fi
 
 
-# ALL FEATURES
+# All features, except conflicting or experimental:
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
     [ ENABLED_ALL=$enableval ],
@@ -710,182 +995,65 @@ AC_ARG_ENABLE([all],
     )
 if test "$ENABLED_ALL" = "yes"
 then
+    test "$enable_all_crypto" = "" && enable_all_crypto=yes
+
+    test "$enable_all_osp" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_all_osp=yes
+
     test "$enable_dtls" = "" && enable_dtls=yes
+    test "$enable_dtls_mtu" = "" && enable_dtls_mtu=yes
+    test "$enable_dtlscid" = "" && enable_dtlscid=yes
+    test "$enable_dtls_frag_ch" = "" && enable_dtls_frag_ch=yes
     if test "x$FIPS_VERSION" != "xv1"
     then
         test "$enable_tls13" = "" && enable_tls13=yes
-        test "$enable_rsapss" = "" && enable_rsapss=yes
+        test "$enable_dtls13" = "" && enable_dtls13=yes
     fi
-
-    # this set is also enabled by enable-all-crypto:
-    test "$enable_atomicuser" = "" && enable_atomicuser=yes
-    test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesccm" = "" && enable_aesccm=yes
-    test "$enable_aesctr" = "" && enable_aesctr=yes
-    test "$enable_aeseax" = "" && enable_aeseax=yes
-    test "$enable_aesofb" = "" && enable_aesofb=yes
-    test "$enable_aescfb" = "" && enable_aescfb=yes
-    test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
-    test "$enable_camellia" = "" && enable_camellia=yes
-    test "$enable_ripemd" = "" && enable_ripemd=yes
-    test "$enable_sha224" = "" && enable_sha224=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
-    test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
-    test "$enable_keygen" = "" && enable_keygen=yes
-    test "$enable_certgen" = "" && enable_certgen=yes
-    test "$enable_certreq" = "" && enable_certreq=yes
-    test "$enable_certext" = "" && enable_certext=yes
-    test "$enable_sep" = "" && enable_sep=yes
-    test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_curve25519" = "" && enable_curve25519=yes
-    test "$enable_curve448" = "" && enable_curve448=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
-    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-    test "$enable_psk" = "" && enable_psk=yes
-    test "$enable_cmac" = "" && enable_cmac=yes
-    test "$enable_siphash" = "" && enable_siphash=yes
-    test "$enable_xts" = "" && enable_xts=yes
-    test "$enable_ocsp" = "" && enable_ocsp=yes
-    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
-    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
-    test "$enable_crl" = "" && enable_crl=yes
-    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
-    test "$enable_tlsx" = "" && enable_tlsx=yes
-    test "$enable_pwdbased" = "" && enable_pwdbased=yes
-    test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
-    test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
-    test "$enable_indef" = "" && enable_indef=yes
-    test "$enable_enckeys" = "" && enable_enckeys=yes
-    test "$enable_hashflags" = "" && enable_hashflags=yes
-    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
-    test "$enable_base64encode" = "" && enable_base64encode=yes
-    test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_arc4" = "" && enable_arc4=yes
-    test "$enable_des3" = "" && enable_des3=yes
-    test "$enable_blake2" = "" && enable_blake2=yes
-    test "$enable_blake2s" = "" && enable_blake2s=yes
-    test "$enable_md2" = "" && enable_md2=yes
-    test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_cryptocb" = "" && enable_cryptocb=yes
-    test "$enable_anon" = "" && enable_anon=yes
-    test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
     test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
-    test "$enable_webserver" = "" && enable_webserver=yes
     test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
     test "$enable_sni" = "" && enable_sni=yes
     test "$enable_maxfragment" = "" && enable_maxfragment=yes
     test "$enable_alpn" = "" && enable_alpn=yes
     test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
-    test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
+    test "$enable_trustedca" = "" && enable_trustedca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_ech" = "" && enable_ech=yes
-
-    if test "$ENABLED_32BIT" != "yes"
-    then
-        test "$enable_sha512" = "" && enable_sha512=yes
-        test "$enable_sha3" = "" && enable_sha3=yes
-    fi
+    test "$enable_rpk" = "" && enable_rpk=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
-        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
-        test "$enable_compkey" = "" && enable_compkey=yes
         test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
-    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
-    if test "$ENABLED_SP_MATH" = "no"
+    if test "$ENABLED_SP_MATH" != "yes"
     then
-        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
-        test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
-        test "$enable_brainpool" = "" && enable_brainpool=yes
-        test "$enable_srp" = "" && enable_srp=yes
         # linuxkm is incompatible with opensslextra and its dependents.
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
-            if test "$ENABLED_FIPS" = "no"
-            then
-                if test "$ENABLED_32BIT" != "yes"
-                then
-                    test "$enable_openssh" = "" && enable_openssh=yes
-                fi
-                # S/MIME support requires PKCS7, which requires no FIPS.
-                test "$enable_smime" = "" && enable_smime=yes
-            fi
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
             test "$enable_certservice" = "" && enable_certservice=yes
-            test "$enable_lighty" = "" && enable_lighty=yes
-            test "$enable_nginx" = "" && enable_nginx=yes
-            test "$enable_openvpn" = "" && enable_openvpn=yes
-            test "$enable_asio" = "" && enable_asio=yes
-            test "$enable_libwebsockets" = "" && enable_libwebsockets=yes
-            test "$enable_qt" = "" && enable_qt=yes
         fi
     fi
 
     if test "$ENABLED_FIPS" = "no"
     then
-        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-        test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
-        test "$enable_pkcs7" = "" && enable_pkcs7=yes
-        test "$enable_nullcipher" = "" && enable_nullcipher=yes
         test "$enable_mcast" = "" && enable_mcast=yes
-        if test "$ENABLED_32BIT" != "yes"
-        then
-            test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-            test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
-        fi
-
-        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
-        then
-            # these use DES3:
-            test "$enable_stunnel" = "" && enable_stunnel=yes
-            test "$enable_curl" = "" && enable_curl=yes
-            test "$enable_tcpdump" = "" && enable_tcpdump=yes
-
-            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
-            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
-        fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "dev"; then
-        test "$enable_aessiv" = "" && enable_aessiv=yes
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_srtp" = "" && enable_srtp=yes
     fi
 
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
-    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-
-    # Enable multiple attribute additions such as DC
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
-
-    # Enable AES Decrypt, AES ECB
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB"
-
-    # Enable Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
-
-    # Enable DH Extra
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
-
-    # Enable deterministic ECC signing API with variant
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
-
-    # Store issuer name components when parsing certificates.
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
 
     # Certificate extensions and alt. names for FPKI use
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SUBJ_DIR_ATTR -DWOLFSSL_FPKI -DWOLFSSL_SUBJ_INFO_ACC"
@@ -898,7 +1066,154 @@ then
 fi
 
 
-# ALL CRYPTO FEATURES
+# All OSP meta-features:
+AC_ARG_ENABLE([all-osp],
+    [AS_HELP_STRING([--enable-all-osp],[Enable all OSP meta feature sets (default: disabled)])],
+    [ ENABLED_ALL_OSP=$enableval ],
+    [ ENABLED_ALL_OSP=no]
+    )
+
+if test "$ENABLED_ALL_OSP" = "yes"
+then
+    if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+    then
+        AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
+    fi
+
+    test "$enable_webserver" = "" && enable_webserver=yes
+
+    if test "$ENABLED_SP_MATH" != "yes"
+    then
+        if test "$ENABLED_FIPS" = "no"
+        then
+            # S/MIME support requires PKCS7, which requires no FIPS.
+            test "$enable_smime" = "" && enable_smime=yes
+            if test "$ENABLED_32BIT" != "yes"
+            then
+                test "$enable_openssh" = "" && enable_openssh=yes
+            fi
+        fi
+
+        if test "$ENABLED_ALL_OSP" != "no"
+        then
+            test "$enable_lighty" = "" && enable_lighty=yes
+            test "$enable_nginx" = "" && enable_nginx=yes
+            test "$enable_openvpn" = "" && enable_openvpn=yes
+            test "$enable_asio" = "" && enable_asio=yes
+            test "$enable_libwebsockets" = "" && enable_libwebsockets=yes
+            if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
+                test "$enable_qt" = "" && enable_qt=yes
+            fi
+        fi
+    fi
+
+    if test "$ENABLED_FIPS" = "no"
+    then
+        # these use DES3:
+        test "$enable_stunnel" = "" && enable_stunnel=yes
+        test "$enable_curl" = "" && enable_curl=yes
+        test "$enable_tcpdump" = "" && enable_tcpdump=yes
+    fi
+fi
+
+
+# Auto-selected activation of all applicable asm accelerations
+
+# Enable asm automatically only if the compiler advertises itself as full Gnu C.
+if "$CC" $AM_CFLAGS $CPPFLAGS $CFLAGS -x c - -o /dev/null >/dev/null 2>&1 <<'    EOF'
+    #include <stdlib.h>
+    int main(int argc, char **argv) {
+        (void)argc; (void)argv;
+    #ifdef __STRICT_ANSI__
+        #error __STRICT_ANSI__
+    #endif
+    #ifndef __GNUC__
+        #error !__GNUC__
+    #endif
+        return 0;
+    }
+    EOF
+then
+    HAVE_GNUC=yes
+fi
+
+if test "$enable_all_crypto" = "yes" &&
+   test "$ENABLED_LINUXKM_DEFAULTS" = "no" &&
+   test "$ENABLED_ASM" != "no" &&
+   test "$HAVE_GNUC" = "yes" &&
+   test "$enable_sp_asm" != "no" &&
+   test "$enable_intelasm" != "no" &&
+   test "$enable_armasm" != "no" &&
+   test "$enable_afalg" != "yes" &&
+   test "$ENABLED_32BIT" = "no"
+then
+    DEFAULT_ENABLED_ALL_ASM=yes
+else
+    DEFAULT_ENABLED_ALL_ASM=no
+fi
+
+AC_ARG_ENABLE([all-asm],
+    [AS_HELP_STRING([--enable-all-asm],[Enable all applicable assembly accelerations (default: disabled)])],
+    [ ENABLED_ALL_ASM=$enableval ],
+    [ ENABLED_ALL_ASM=$DEFAULT_ENABLED_ALL_ASM ]
+    )
+
+if test "$ENABLED_ALL_ASM" != "no"
+then
+    if test "$ENABLED_ASM" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-asm])
+    fi
+
+    if test "$enable_sp_asm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-sp-asm])
+    fi
+
+    if test "$enable_intelasm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-intelasm])
+    fi
+
+    if test "$enable_armasm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
+    fi
+
+    case "$host_cpu" in
+        *x86_64*|*amd64*)
+            if test "$enable_intelasm" = ""
+            then
+                enable_intelasm=yes
+            fi
+            if test "$ENABLED_SP" != "no"
+            then
+                ENABLED_SP_ASM=yes
+                if test "$ENABLED_SP" = ""
+                then
+                    ENABLED_SP=yes
+                fi
+            fi
+            ;;
+        *aarch64*)
+            if test "$enable_armasm" = ""
+            then
+               enable_armasm=yes
+            fi
+            if test "$ENABLED_SP" != "no"
+            then
+                ENABLED_SP_ASM=yes
+                if test "$ENABLED_SP" = ""
+                then
+                    ENABLED_SP=yes
+                fi
+            fi
+            ;;
+    esac
+fi
+
+
+# All wolfCrypt features:
 AC_ARG_ENABLE([all-crypto],
     [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
     [ ENABLED_ALL_CRYPT=$enableval ],
@@ -917,8 +1232,8 @@ then
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha224" = "" && enable_sha224=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
     test "$enable_keygen" = "" && enable_keygen=yes
     test "$enable_certgen" = "" && enable_certgen=yes
@@ -933,7 +1248,6 @@ then
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
     test "$enable_siphash" = "" && enable_siphash=yes
-    test "$enable_xts" = "" && enable_xts=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
     test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
@@ -951,48 +1265,41 @@ then
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
     test "$enable_arc4" = "" && enable_arc4=yes
-    test "$enable_des3" = "" && enable_des3=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
-    if test "$ENABLED_32BIT" != "yes"
+    if test "x$FIPS_VERSION" != "xv1"
     then
-        test "$enable_sha512" = "" && enable_sha512=yes
-        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
 
-    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
-    then
-        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
-        test "$enable_compkey" = "" && enable_compkey=yes
-    fi
-
-    if test "$ENABLED_SP_MATH" = "no"
+    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
+    if test "$ENABLED_SP_MATH" != "yes"
     then
         test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
-        test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
-        test "$enable_brainpool" = "" && enable_brainpool=yes
+        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
+            test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+            test "$enable_ecccustcurves" != "no" && test "$enable_brainpool" = "" && enable_brainpool=yes
+            test "$enable_ecccustcurves" != "no" && AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH -DHAVE_ECC_KOBLITZ -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3"
+        fi
         test "$enable_srp" = "" && enable_srp=yes
     fi
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_cryptocb" = "" && enable_cryptocb=yes
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
-        if test "$ENABLED_32BIT" != "yes"
-        then
-            test "$enable_ed25519" = "" && enable_ed25519=yes
-            test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-            test "$enable_ed448" = "" && enable_ed448=yes
-            test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
-        fi
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -1001,19 +1308,32 @@ then
         fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$ENABLED_FIPS" = "dev"; then
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
+        test "$enable_aesxts" = "" && enable_aesxts=yes
+        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+        test "$enable_compkey" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_compkey=yes
+        # AFALG lacks AES-ECB
+        test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
     fi
 
-    # Enable AES Decrypt, AES ECB, Alt Names, DER Load
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD"
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
+        test "$enable_des3" = "" && enable_des3=yes
+        test "$enable_des3" != "no" && AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
-    # Enable multiple attribute additions such as DC
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
+    # Enable all parsing features for ASN */
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
 
     # Enable DH Extra
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
@@ -1029,10 +1349,12 @@ fi
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
 AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
         LIBS="$LIBS -loqs"
+        AM_CFLAGS="$AM_CFLAGS -pthread"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
@@ -1044,7 +1366,7 @@ AC_ARG_WITH([liboqs],
                 tryliboqsdir="/usr/local"
             fi
 
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include"
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
             LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
@@ -1074,8 +1396,7 @@ AC_ARG_WITH([liboqs],
 
 # KYBER
 # Used:
-#  - SHA3, Shake128 and Shake256, or
-#  - SHA256, SHA512, AES-CTR
+#  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([kyber],
     [AS_HELP_STRING([--enable-kyber],[Enable KYBER (default: disabled)])],
     [ ENABLED_KYBER=$enableval ],
@@ -1083,22 +1404,28 @@ AC_ARG_ENABLE([kyber],
     )
 
 ENABLED_WC_KYBER=no
+ENABLED_ML_KEM=unset
+ENABLED_KYBER_MAKE_KEY=no
+ENABLED_KYBER_ENCAPSULATE=no
+ENABLED_KYBER_DECAPSULATE=no
 for v in `echo $ENABLED_KYBER | tr "," " "`
 do
   case $v in
-  yes | all)
+  yes)
     ENABLED_KYBER512=yes
     ENABLED_KYBER768=yes
     ENABLED_KYBER1024=yes
+    ENABLED_KYBER_MAKE_KEY=yes
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ENABLED_KYBER_DECAPSULATE=yes
     ;;
   no)
     ;;
-  wolfssl)
-    ENABLED_WC_KYBER=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
-    ;;
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_SMALL"
+    ;;
+  cache-a)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_CACHE_A"
     ;;
   512)
     ENABLED_KYBER512=yes
@@ -1109,6 +1436,26 @@ do
   1024)
     ENABLED_KYBER1024=yes
     ;;
+  make)
+    ENABLED_KYBER_MAKE_KEY=yes
+    ;;
+  encapsulate|enc)
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ;;
+  decapsulate|dec)
+    ENABLED_KYBER_DECAPSULATE=yes
+    ;;
+  all)
+    ENABLED_KYBER_MAKE_KEY=yes
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ENABLED_KYBER_DECAPSULATE=yes
+    ;;
+  original)
+    ENABLED_ORIGINAL=yes
+    ;;
+  ml-kem)
+    ENABLED_ML_KEM=yes
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
     break;;
@@ -1118,15 +1465,52 @@ done
 if test "$ENABLED_KYBER" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
+    # Use liboqs if specified.
+    if test "$ENABLED_LIBOQS" = "no"; then
+        ENABLED_WC_KYBER=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
+    fi
 
-    if test "$ENABLED_KYBER512" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+    if test "$ENABLED_ORIGINAL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_ORIGINAL"
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+        fi
+        if test "$ENABLED_ML_KEM" = "unset"; then
+            ENABLED_ML_KEM=no
+        fi
     fi
-    if test "$ENABLED_KYBER768" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+    if test "$ENABLED_ML_KEM" = "unset"; then
+        ENABLED_ML_KEM=yes
     fi
-    if test "$ENABLED_KYBER1024" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+    if test "$ENABLED_ML_KEM" = "yes"; then
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
+        fi
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
+    fi
+    if test "$ENABLED_KYBER_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_KYBER_ENCAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_ENCAPSULATE"
+    fi
+    if test "$ENABLED_KYBER_DECAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_DECAPSULATE"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"
@@ -1134,24 +1518,114 @@ then
         test "$enable_sha3" = "" && enable_sha3=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
-    else
-        # Default is to use liboqs. Make sure its enabled.
-        if test "$ENABLED_LIBOQS" = "no"; then
-            AC_MSG_ERROR([The default implementation for kyber is liboqs.
-            Please use --with-liboqs.])
-        fi
     fi
 fi
 
+# Dilithium
+#  - SHA3, Shake128, Shake256 and AES-CTR
+AC_ARG_ENABLE([dilithium],
+    [AS_HELP_STRING([--enable-dilithium],[Enable DILITHIUM (default: disabled)])],
+    [ ENABLED_DILITHIUM=$enableval ],
+    [ ENABLED_DILITHIUM=no ]
+    )
+
+ENABLED_DILITHIUM_OPTS=$ENABLED_DILITHIUM
+ENABLED_DILITHIUM_MAKE_KEY=no
+ENABLED_DILITHIUM_SIGN=no
+ENABLED_DILITHIUM_VERIFY=no
+for v in `echo $ENABLED_DILITHIUM_OPTS | tr "," " "`
+do
+  case $v in
+  yes)
+    ENABLED_MLDSA44=yes
+    ENABLED_MLDSA65=yes
+    ENABLED_MLDSA87=yes
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ENABLED_DILITHIUM_SIGN=yes
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  no)
+    ;;
+  all)
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ENABLED_DILITHIUM_SIGN=yes
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  make)
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ;;
+  sign)
+    ENABLED_DILITHIUM_SIGN=yes
+    ;;
+  verify)
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  verify-only)
+    ENABLED_DILITHIUM_MAKE_KEY=no
+    ENABLED_DILITHIUM_SIGN=no
+    ENABLED_DILITHIUM_VERIFY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_VERIFY_ONLY"
+    ;;
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_SMALL"
+    ;;
+  44)
+    ENABLED_MLDSA44=yes
+    ;;
+  65)
+    ENABLED_MLDSA65=yes
+    ;;
+  87)
+    ENABLED_MLDSA87=yes
+    ;;
+  draft|fips204-draft)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_FIPS204_DRAFT"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for DILITHIUM [all,make,sign,verify,verify-only,small,44,65,87]: $ENABLED_DILITHIUM.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_DILITHIUM" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
+
+    if test "$ENABLED_MLDSA44" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_44"
+    fi
+    if test "$ENABLED_MLDSA65" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_65"
+    fi
+    if test "$ENABLED_MLDSA87" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_87"
+    fi
+    if test "$ENABLED_DILITHIUM_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_DILITHIUM_SIGN" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_SIGN"
+    fi
+    if test "$ENABLED_DILITHIUM_VERIFY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_VERIFY"
+    fi
+
+    if test "$ENABLED_LIBOQS" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
+fi
 
 # XMSS
+ENABLED_WC_XMSS=no
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
     [ ENABLED_XMSS=$enableval ],
     [ ENABLED_XMSS=no ]
     )
 
-ENABLED_WC_XMSS=no
 for v in `echo $ENABLED_XMSS | tr "," " "`
 do
   case $v in
@@ -1160,12 +1634,10 @@ do
   no)
     ;;
   verify-only)
-    XMSS_VERIFY_ONLY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XMSS_VERIFY_ONLY -DXMSS_VERIFY_ONLY"
     ;;
-  wolfssl)
-    ENABLED_WC_XMSS=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS_SMALL"
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for XMSS []: $ENABLED_XMSS.])
@@ -1173,27 +1645,14 @@ do
   esac
 done
 
-if test "$ENABLED_XMSS" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
-
-    if test "$ENABLED_WC_XMSS" = "no";
-    then
-        # Default is to use hash-sigs XMSS lib. Make sure it's enabled.
-        if test "$ENABLED_LIBXMSS" = "no"; then
-            AC_MSG_ERROR([The default implementation for XMSS is the xmss-reference lib.
-            Please use --with-libxmss.])
-        fi
-    fi
-fi
-
 # libxmss
 # Get the path to xmss-reference.
 ENABLED_LIBXMSS="no"
 trylibxmssdir=""
 AC_ARG_WITH([libxmss],
-    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([libxmss requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for libxmss])
 
         trylibxmssdir=$withval
@@ -1238,14 +1697,27 @@ AC_ARG_WITH([libxmss],
     [XMSS_ROOT=""]
 )
 
+if test "$ENABLED_XMSS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
+
+    # Use hash-sigs XMSS lib if enabled.
+    if test "$ENABLED_LIBXMSS" = "yes"; then
+        ENABLED_WC_XMSS=no
+    else
+        ENABLED_WC_XMSS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
+    fi
+fi
+
 # LMS
+ENABLED_WC_LMS=no
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
     [ ENABLED_LMS=$enableval ],
     [ ENABLED_LMS=no ]
     )
 
-ENABLED_WC_LMS=no
 for v in `echo $ENABLED_LMS | tr "," " "`
 do
   case $v in
@@ -1254,12 +1726,16 @@ do
   no)
     ;;
   verify-only)
-    LMS_VERIFY_ONLY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY"
     ;;
-  wolfssl)
-    ENABLED_WC_LMS=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS_SMALL"
+    ;;
+  no-sha256-256)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_LMS_SHA256_256"
+    ;;
+  sha256-192)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_SHA256_192"
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for LMS []: $ENABLED_LMS.])
@@ -1267,27 +1743,14 @@ do
   esac
 done
 
-if test "$ENABLED_LMS" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
-
-    if test "$ENABLED_WC_LMS" = "no";
-    then
-        # Default is to use hash-sigs LMS lib. Make sure it's enabled.
-        if test "$ENABLED_LIBLMS" = "no"; then
-            AC_MSG_ERROR([The default implementation for LMS is the hash-sigs LMS/HSS lib.
-            Please use --with-liblms.])
-        fi
-    fi
-fi
-
 # liblms
 # Get the path to the hash-sigs LMS HSS lib.
 ENABLED_LIBLMS="no"
 tryliblmsdir=""
 AC_ARG_WITH([liblms],
-    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) EXPERIMENTAL!])],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) (requires --enable-experimental)!])],
     [
+        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([liblms requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liblms])
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
@@ -1348,6 +1811,19 @@ AC_ARG_WITH([liblms],
     ]
 )
 
+if test "$ENABLED_LMS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
+
+    # Use hash-sigs LMS lib if enabled.
+    if test "$ENABLED_LIBLMS" = "yes"; then
+        ENABLED_WC_LMS=no
+    else
+        ENABLED_WC_LMS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+    fi
+fi
+
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
     [AS_HELP_STRING([--enable-singlethreaded],[Enable wolfSSL single threaded (default: disabled)])],
@@ -1379,14 +1855,6 @@ if test "$ENABLED_RWLOCK" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_USE_RWLOCK"
 fi
-
-# wolfCrypt Only Build
-AC_ARG_ENABLE([cryptonly],
-    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
-    [ENABLED_CRYPTONLY=$enableval],
-    [ENABLED_CRYPTONLY=no])
-
-AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
 # ECH
 AC_ARG_ENABLE([ech],
@@ -1602,6 +2070,7 @@ AC_ARG_ENABLE([mcast],
 # OpenLDAP (--enable-openldap)
 # hitch (--enable-hitch)
 # memcached (--enable-memcached)
+# Mosquitto (--enable-mosquitto) HAVE_MOSQUITTO
 
 # Bind DNS compatibility Build
 AC_ARG_ENABLE([bind],
@@ -1665,12 +2134,25 @@ AC_ARG_ENABLE([openldap],
     [ ENABLED_OPENLDAP=no ]
     )
 
+# Mosquitto support
+AC_ARG_ENABLE([mosquitto],
+    [AS_HELP_STRING([--enable-mosquitto],[Enable Mosquitto support (default: disabled)])],
+    [ ENABLED_MOSQUITTO=$enableval ],
+    [ ENABLED_MOSQUITTO=no ]
+    )
+
+if test "x$ENABLED_MOSQUITTO" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MOSQUITTO"
+fi
+
 # lighty Support
 AC_ARG_ENABLE([lighty],
     [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
     [ ENABLED_LIGHTY=$enableval ],
     [ ENABLED_LIGHTY=no ]
     )
+
 # rsyslog Support
 AC_ARG_ENABLE([rsyslog],
     [AS_HELP_STRING([--enable-rsyslog],[Enable rsyslog (default: disabled)])],
@@ -1758,7 +2240,7 @@ AC_ARG_ENABLE([ffmpeg],
     )
 
 
-#IP alternative name Support
+# IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],
     [AS_HELP_STRING([--enable-ip-alt-name],[Enable IP subject alternative name (default: disabled)])],
     [ ENABLE_IP_ALT_NAME=$enableval ],
@@ -1770,7 +2252,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IP_ALT_NAME"
 fi
 
-#Qt Support
+# QT Support
 AC_ARG_ENABLE([qt],
     [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
     [ ENABLED_QT=$enableval ],
@@ -1828,9 +2310,9 @@ AC_ARG_ENABLE([opensslcoexist],
 
 if test "x$ENABLED_OPENSSLCOEXIST" = "xyes" || test "$ENABLED_WOLFENGINE" = "yes"
 then
-    # make sure old names are disabled
-    enable_oldnames=no
-
+    # make sure old names are disabled (except RNG)
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES -DNO_OLD_MD5_NAME"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
 fi
 
@@ -1930,14 +2412,14 @@ if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
    test "$ENABLED_OPENRESTY" = "yes" || test "$ENABLED_RSYSLOG" = "yes" || \
    test "$ENABLED_KRB" = "yes" || test "$ENABLED_CHRONY" = "yes" || \
    test "$ENABLED_FFMPEG" = "yes" || test "$ENABLED_STRONGSWAN" = "yes" || \
-   test "$ENABLED_OPENLDAP" = "yes" || test "$ENABLED_HITCH" = "yes"
+   test "$ENABLED_OPENLDAP" = "yes" || test "x$ENABLED_MOSQUITTO" = "xyes" || test "$ENABLED_HITCH" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
-    [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
+    [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled). Skip compat header install using "noinstall"])],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
@@ -1996,6 +2478,16 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN -DWC_NO_CACHE_RESISTANT"
 fi
 
+# Fault protection hardening
+AC_ARG_ENABLE([faultharden],
+    [AS_HELP_STRING([--enable-faultharden],[Enable Fault Hardened build (default: disabled)])],
+    [ENABLED_FAULTHARDEN=$enableval],
+    [ENABLED_FAULTHARDEN=no])
+
+if test "$ENABLED_FAULTHARDEN" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHECK_SIG_FAULTS -DWOLFSSL_CHECK_VER_FAULTS"
+fi
 
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
@@ -2057,21 +2549,6 @@ if test "$ENABLED_BUMP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-fi
-
-# lean psk build
-AC_ARG_ENABLE([leanpsk],
-    [AS_HELP_STRING([--enable-leanpsk],[Enable Lean PSK build (default: disabled)])],
-    [ ENABLED_LEANPSK=$enableval ],
-    [ ENABLED_LEANPSK=no ]
-    )
-
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
-    ENABLED_SLOWMATH="no"
-    ENABLED_SINGLETHREADED="yes"
-    enable_lowresource=yes
 fi
 
 
@@ -2306,7 +2783,7 @@ AC_ARG_WITH([se050],
     [
         AC_MSG_CHECKING([for SE050])
 
-        LIBS="$LIBS -lSSS_APIs"
+        LIBS="$LIBS -lSSS_APIs -lex_common"
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0);]])],[ libse050_linked=yes ],[ libse050_linked=no ])
 
         if test "x$libse050_linked" = "xno" ; then
@@ -2604,8 +3081,9 @@ then
 fi
 
 
+ENABLED_ARMASM_CRYPTO="unknown"
 ENABLED_ARMASM_INLINE="no"
-ENABLED_ARMASM_SHA3="no"
+ENABLED_ARMASM_SHA3="unknown"
 ENABLED_ARMASM_CRYPTO_SM4="no"
 # ARM Assembly
 # Both SHA3 and SHA512 instructions available with ARMV8.2-a
@@ -2625,6 +3103,9 @@ then
         inline)
             ENABLED_ARMASM_INLINE=yes
             ;;
+        no-crypto)
+            ENABLED_ARMASM_CRYPTO=no
+            ;;
         sha512-crypto | sha3-crypto)
             case $host_cpu in
             *aarch64*)
@@ -2635,6 +3116,16 @@ then
             esac
             ENABLED_ARMASM_SHA3=yes
             ENABLED_ARMASM_PLUS=yes
+            ;;
+        no-sha512-crypto | no-sha3-crypto)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA512/SHA3 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SHA3=no
             ;;
         sm4)
             case $host_cpu in
@@ -2680,8 +3171,10 @@ then
         *aarch64*)
             case $host_os in
             *darwin*)
-                # All known Aarch64 Mac computers support SHA-512 instructions
-                ENABLED_ARMASM_SHA3=yes
+                # Turn it on unless explicitly turned off.
+                if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+                    ENABLED_ARMASM_SHA3="yes"
+                fi
                 ;;
             *)
                 # +crypto needed for hardware acceleration
@@ -2694,14 +3187,17 @@ then
                         AM_CPPFLAGS="$AM_CPPFLAGS+sm4"
                     fi
                 else
-                    AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+                    AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto -DWOLFSSL_AARCH64_NO_SQRDMLSH"
                 fi
                 ;;
             esac
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
-            ENABLED_ARMASM_CRYPTO=yes
+            if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
+                ENABLED_ARMASM_CRYPTO=yes
+            fi
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_64=yes
 
             # Check for and set -mstrict-align compiler flag
             # Used to set assumption that Aarch64 systems will not handle
@@ -2720,24 +3216,44 @@ then
             esac
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto])
             ;;
-        armv7a*)
+        armv7a* | armv7l*)
             AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7 -marm"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
+            if test "$ENABLED_FIPS" != "no" ||
+                test "$HAVE_FIPS_VERSION_MAJOR" -ge 5;
+            then
+                # Use inline ASM with FIPS because of known "issue" with the
+                # assembly code
+                ENABLED_ARMASM_INLINE=yes
+                AC_MSG_NOTICE([32bit ARMv7-a found, setting inline for FIPS])
+            fi
             ;;
         armv7m*)
             # QEMU doesn't work with armv7-m
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_THUMB2"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_THUMB=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv7-m found])
+            if test "$ENABLED_FIPS" != "no" ||
+                test "$HAVE_FIPS_VERSION_MAJOR" -ge 5;
+            then
+                # Use inline ASM with FIPS because of known "issue" with the
+                # assembly code
+                ENABLED_ARMASM_INLINE=yes
+                AC_MSG_NOTICE([32bit ARMv7-m found, setting inline for FIPS])
+            fi
             ;;
         armv6*)
             AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
@@ -2745,6 +3261,7 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv6 found])
             ;;
         armv4*)
@@ -2753,6 +3270,7 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
@@ -2761,6 +3279,7 @@ then
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
             ;;
         esac
@@ -2771,11 +3290,17 @@ if test "$ENABLED_ARMASM_SHA3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
 fi
+if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+    ENABLED_ARMASM_SHA3="no"
+fi
 if test "$ENABLED_ARMASM_SM3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM3"
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
+fi
+if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
+    ENABLED_ARMASM_CRYPTO=no
 fi
 if test "$ENABLED_ARMASM_CRYPTO" = "no"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_HW_CRYPTO"
@@ -2788,6 +3313,84 @@ fi
 if test "$ENABLED_ARMASM_INLINE" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_INLINE"
 fi
+
+# RISC-V Assembly
+AC_ARG_ENABLE([riscv-asm],
+    [AS_HELP_STRING([--enable-riscv-asm],[Enable wolfSSL RISC-V ASM support (default: disabled).])],
+    [ ENABLED_RISCV_ASM=$enableval ],
+    [ ENABLED_RISCV_ASM=no ]
+    )
+if test "$ENABLED_RISCV_ASM" != "no" && test "$ENABLED_ASM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_ASM"
+    ENABLED_AESGCM_STREAM=no # not yet implemented
+    AC_MSG_NOTICE([64bit RISC-V assembly for AES])
+fi
+
+ENABLED_RISCV_ASM_OPTS=$ENABLED_RISCV_ASM
+for v in `echo $ENABLED_RISCV_ASM_OPTS | tr "," " "`
+do
+  case $v in
+  yes)
+    ;;
+  no)
+    ;;
+  zbb)
+    # REV8
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BASE_BIT_MANIPULATION"
+    ;;
+  zbc|zbkc)
+    # CLMUL, CLMULH
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_CARRYLESS"
+    ;;
+  zbkb)
+    # PACK, REV8
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BIT_MANIPULATION"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BASE_BIT_MANIPULATION"
+    ;;
+  zbt)
+    # FSL, FSR, FSRI, CMOV, CMIX - QEMU doesn't know about these instructions
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_BIT_MANIPULATION_TERNARY"
+    ;;
+  zkn|zkned)
+    # AES encrypt/decrpyt, SHA-2
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_SCALAR_CRYPTO_ASM"
+    ;;
+  zv)
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR"
+    ;;
+  zvbb|zvkb)
+    # VBREV8
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION"
+    ;;
+  zvbc)
+    # VCLMUL, VCLMULH
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_CARRYLESS"
+    ;;
+  zvkg)
+    # VGMUL, VHHSH
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_GCM"
+    ;;
+  zvkned)
+    # Vector AES, SHA-2
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_CRYPTO_ASM"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zv,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
+    break
+    ;;
+  esac
+done
+
 
 # Xilinx hardened crypto
 AC_ARG_ENABLE([xilinx],
@@ -2906,7 +3509,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
         if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
         then
-                AM_CFLAGS="$AM_CFLAGS -DWC_AES_C_DYNAMIC_FALLBACK"
+                AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"
         fi
         if test "$CC" != "icc"
         then
@@ -3250,11 +3853,6 @@ AC_ARG_ENABLE([nullcipher],
     [ ENABLED_NULL_CIPHER=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
-then
-    ENABLED_NULL_CIPHER="yes"
-fi
-
 if test "$ENABLED_NULL_CIPHER" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_NULL_CIPHER"
@@ -3331,7 +3929,8 @@ fi
 
 # set sha3 default
 SHA3_DEFAULT=no
-if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64") && test "$ENABLED_32BIT" = "no"
+if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" ||
+    test "$host_cpu" = "amd64")
 then
     if test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" -ge 2
     then
@@ -3373,7 +3972,7 @@ AC_ARG_ENABLE([sha512],
     )
 
 # options that don't require sha512
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
     ENABLED_SHA512="no"
 fi
@@ -3399,7 +3998,7 @@ AC_ARG_ENABLE([sha384],
     )
 
 # options that don't require sha384
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
     ENABLED_SHA384="no"
 fi
@@ -3440,7 +4039,7 @@ AC_ARG_ENABLE([sessioncerts],
 
 if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
    test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
-   test "x$ENABLED_STRONGSWAN" = "xyes" || test "x$ENABLED_HITCH" = "xyes"
+   test "x$ENABLED_STRONGSWAN" = "xyes" || test "x$ENABLED_HITCH" = "xyes" || test "x$ENABLED_MOSQUITTO" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -3457,7 +4056,7 @@ fi
 
 # KEY GENERATION
 AC_ARG_ENABLE([keygen],
-    [AS_HELP_STRING([--enable-keygen],[Enable key generation (default: disabled)])],
+    [AS_HELP_STRING([--enable-keygen],[Enable key generation (only applies to RSA key generation) (default: disabled)])],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
@@ -3470,6 +4069,12 @@ then
     ENABLED_KEYGEN=yes
 fi
 
+# ATTRIBUTE CERTIFICATES
+AC_ARG_ENABLE([acert],
+    [AS_HELP_STRING([--enable-acert],[Enable attribute certificate support (default: disabled)])],
+    [ ENABLED_ACERT=$enableval ],
+    [ ENABLED_ACERT=no ]
+    )
 
 # CERT GENERATION
 AC_ARG_ENABLE([certgen],
@@ -3580,15 +4185,6 @@ AC_ARG_ENABLE([srtp-kdf],
     [ ENABLED_SRTP_KDF=$enableval ],
     [ ENABLED_SRTP_KDF=no ]
     )
-if test "$ENABLED_SRTP" = "yes"
-then
-  ENABLED_SRTP_KDF="yes"
-fi
-if test "$ENABLED_SRTP_KDF" = "yes"
-then
-  AM_CFLAGS="$AM_CFLAGS -DWC_SRTP_KDF -DHAVE_AES_ECB -DWOLFSSL_AES_DIRECT"
-fi
-
 
 # DSA
 AC_ARG_ENABLE([dsa],
@@ -3690,36 +4286,20 @@ then
     ENABLED_ECCCUSTCURVES="all"
 fi
 
-if test "$ENABLED_ECCCUSTCURVES" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
-
-    # For distro, all or ecccustcurves=all builds, enable all curve types
-    if test "$ENABLED_DISTRO" = "yes" || test "$ENABLED_ALL" = "yes" || test "$ENABLED_ECCCUSTCURVES" = "all"
-    then
-        # Enable ECC SECPR2, SECPR3, BRAINPOOL and KOBLITZ curves
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
-
-        # Enable ECC Cofactor support
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH"
-
-        # If fastmath enabled and on x86 use speedups
-        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64" -o "$host_cpu" = "amd64"
-        then
-            AM_CFLAGS="$AM_CFLAGS -DTFM_ECC192 -DTFM_ECC224 -DTFM_ECC256 -DTFM_ECC384 -DTFM_ECC521"
-        fi
-    fi
-fi
-
 # ECC Minimum Key Size
-ENABLED_ECCMINSZ=224
 AC_ARG_WITH([eccminsz],
-    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
+    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits non-FIPS / 192 bits with FIPS)])],
+    [ ENABLED_ECCMINSZ=$withval ],
     [
-        ENABLED_ECCMINSZ=$withval
-        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
+        if test "x$ENABLED_FIPS" = "xno"
+        then
+            ENABLED_ECCMINSZ=224
+        else
+            ENABLED_ECCMINSZ=192
+        fi
     ]
 )
+AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$ENABLED_ECCMINSZ"
 
 # Compressed Key
 AC_ARG_ENABLE([compkey],
@@ -3728,7 +4308,8 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
+if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes") &&
+   (test "$HAVE_FIPS_VERSION" != "5")
 then
     ENABLED_COMPKEY=yes
 fi
@@ -3794,6 +4375,17 @@ then
         ENABLED_CURVE25519=yes
     fi
 
+    if test "$ENABLED_CURVE25519" = "noasm"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
+    fi
+
+    if test "$ENABLED_CURVE25519" = "yes" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+    then
+        ENABLED_CURVE25519=noasm
+        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CURVE25519"
     ENABLED_FEMATH=yes
@@ -3830,25 +4422,6 @@ AC_ARG_ENABLE([curve448],
     [ ENABLED_CURVE448=no ]
     )
 
-if test "$ENABLED_CURVE448" != "no"
-then
-    if test "$ENABLED_CURVE448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DCURVE448_SMALL"
-        ENABLED_CURVE448_SMALL=yes
-        ENABLED_CURVE448=yes
-    fi
-
-    if test "$ENABLED_CURVE448" = "no128bit" || test "$ENABLED_32BIT" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED448_128BIT"
-        ENABLED_CURVE448=yes
-    fi
-
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"
-    ENABLED_FE448=yes
-fi
-
 # ED448
 AC_ARG_ENABLE([ed448],
     [AS_HELP_STRING([--enable-ed448],[Enable ED448 (default: disabled)])],
@@ -3860,50 +4433,6 @@ AC_ARG_ENABLE([ed448-stream],
     [ ENABLED_ED448_STREAM=$enableval ],
     [ ENABLED_ED448_STREAM=no ]
     )
-
-if test "$ENABLED_ED448" != "no" && test "$ENABLED_32BIT" = "no"
-then
-    if test "$ENABLED_ED448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DED448_SMALL"
-        ENABLED_ED448_SMALL=yes
-        ENABLED_CURVE448_SMALL=yes
-        ENABLED_ED448=yes
-    fi
-
-    if test "$ENABLED_SHA512" = "no"
-    then
-        AC_MSG_ERROR([cannot enable ed448 without enabling sha512.])
-    fi
-    if test "$HAVE_FIPS_VERSION" = 2
-    then
-        AC_MSG_ERROR([cannot enable ed448 w/ dependency shake256 in FIPSv2 mode])
-    fi
-    ENABLED_FE448=yes
-    ENABLED_GE448=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
-
-    # EdDSA448 requires SHAKE256 which requires SHA-3
-    if test "$ENABLED_SHA3" = "no"
-    then
-        ENABLED_SHA3=yes
-    fi
-    ENABLED_SHAKE256=yes
-
-    ENABLED_CERTS=yes
-fi
-
-if test "$ENABLED_ED448_STREAM" != "no"
-then
-    if test "$ENABLED_ED448" = "no"
-    then
-        AC_MSG_ERROR([ED448 verify streaming enabled but ED448 is disabled])
-    else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
-    fi
-fi
-
 
 # FP ECC, Fixed Point cache ECC
 AC_ARG_ENABLE([fpecc],
@@ -4000,6 +4529,11 @@ AC_ARG_ENABLE([psk],
     [ ENABLED_PSK=$enableval ],
     [ ENABLED_PSK=no ]
     )
+
+if test "x$ENABLED_MOSQUITTO" = "xyes"
+then
+    ENABLED_PSK=yes
+fi
 
 # Single PSK identity
 AC_ARG_ENABLE([psk-one-id],
@@ -4145,7 +4679,7 @@ fi
 
 if test "$ENABLED_STACKSIZE" = "verbose"
 then
-    if test "$thread_ls_on" != "yes"
+    if test "$thread_ls_on" != "yes" && test "x$ENABLED_SINGLETHREADED" = "xno"
     then
         AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
     fi
@@ -4283,6 +4817,11 @@ fi
 if test "$ENABLED_WOLFSENTRY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
+    if test "$ENABLED_OPENSSLEXTRA" = "no"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
     WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
 fi
 
@@ -4494,45 +5033,6 @@ then
 fi
 
 
-# ASN
-# turn off asn, which means no certs, no rsa, no dsa, no ecc,
-# and no big int (unless dh is on)
-AC_ARG_ENABLE([asn],
-    [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
-    [ ENABLED_ASN=$enableval ],
-    [ ENABLED_ASN=yes ]
-    )
-
-if test "$ENABLED_ASN" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
-    enable_pwdbased=no
-else
-    if test "$ENABLED_ASN" = "template"; then
-        ENABLED_ASN="yes"
-    fi
-    if test "$ENABLED_ASN" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
-    else
-        if test "$ENABLED_ASN" != "original"; then
-            AC_MSG_ERROR([Invalid asn option. Valid are: template or original. Seen: $ENABLED_ASN.])
-        fi
-    fi
-
-    # turn off ASN if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_BIG_INT"
-        ENABLED_ASN=no
-    else
-        if test "$ENABLED_ASN" = "nocrypt"
-        then
-            AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
-            enable_pwdbased=no
-        fi
-    fi
-fi
-
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && \
    test "$ENABLED_ASN" = "no" && test "$ENABLED_LOWRESOURCE" = "no"
 then
@@ -4542,11 +5042,6 @@ fi
 if test "$ENABLED_DSA" = "yes" && test "$ENABLED_ASN" = "no"
 then
     AC_MSG_ERROR([please disable dsa if disabling asn.])
-fi
-
-if test "x$ENABLED_ECC" != "xno" && test "x$ENABLED_ASN" = "xno"
-then
-    AC_MSG_ERROR([please disable ecc if disabling asn.])
 fi
 
 # No Big Int (ASN, DSA, RSA, DH, ECC and compatibility layer need bigint)
@@ -4656,10 +5151,6 @@ AC_ARG_ENABLE([dtlscid],
     )
 if test "x$ENABLED_DTLS_CID" = "xyes"
 then
-        if test "x$ENABLED_DTLS13" != "xyes"
-        then
-                AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ConnectionID])
-        fi
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
 fi
 
@@ -4759,6 +5250,13 @@ then
     ENABLED_DES3="yes"
 fi
 
+# DES3 TLS suites
+AC_ARG_ENABLE([des3-tls-suites],
+    [AS_HELP_STRING([--enable-des3-tls-suites],[Enable DES3 TLS cipher suites (default: disabled)])],
+    [ ENABLED_DES3_TLS_SUITES=$enableval ],
+    [ ENABLED_DES3_TLS_SUITES=no ]
+    )
+
 # ARC4
 if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
    test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
@@ -4832,18 +5330,28 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes"],
 
 
 # AES-XTS
-AC_ARG_ENABLE([xts],
-    [AS_HELP_STRING([--enable-xts],[Enable XTS (default: disabled)])],
-    [ ENABLED_XTS=$enableval ],
-    [ ENABLED_XTS=no ]
+AC_ARG_ENABLE([aesxts],
+    [AS_HELP_STRING([--enable-aesxts],[Enable AES XTS (default: disabled)])],
+    [ ENABLED_AESXTS=$enableval ],
+    [ ENABLED_AESXTS=no ]
     )
 
-AS_IF([test "x$ENABLED_XTS" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
-AS_IF([test "x$ENABLED_XTS" = "xyes" && test "x$ENABLED_INTELASM" = "xyes"],
-      [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
-AS_IF([test "x$ENABLED_XTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
-      [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
+AS_IF([test "$ENABLED_AESXTS" = "yes" && test "$ENABLED_ARMASM" = "no"],
+    [ ENABLED_AESXTS_STREAM_DEFAULT=yes ],
+    [ ENABLED_AESXTS_STREAM_DEFAULT=no ]
+    )
+
+AC_ARG_ENABLE([aesxts-stream],
+    [AS_HELP_STRING([--enable-aesxts-stream],[Enable wolfSSL AES-XTS support with streaming APIs (default: disabled)])],
+    [ ENABLED_AESXTS_STREAM=$enableval ],
+    [ ENABLED_AESXTS_STREAM=$ENABLED_AESXTS_STREAM_DEFAULT ]
+    )
+
+# legacy old option name, for compatibility:
+AC_ARG_ENABLE([xts],
+    [AS_HELP_STRING([--enable-xts],[Please use --enable-aesxts])],
+    [ ENABLED_AESXTS=$enableval ]
+    )
 
 # Web Server Build
 AC_ARG_ENABLE([webserver],
@@ -4881,15 +5389,251 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_RC2"
 fi
 
+# CUDA
+AC_ARG_ENABLE([cuda],
+    [AS_HELP_STRING([--enable-cuda],[Enable NVidia CUDA support (default: disabled)])],
+    [ ENABLED_CUDA=$enableval ],
+    [ ENABLED_CUDA=no ]
+    )
+
+if test "$ENABLED_CUDA" = "yes"
+then
+    CC=nvcc
+    AM_CFLAGS="$AM_CFLAGS -DWC_CUDA -DHAVE_CUDA"
+fi
+
+# Certificate Service Support (CFLAG sections later) keep above FIPS section
+AC_ARG_ENABLE([certservice],
+    [AS_HELP_STRING([--enable-certservice],[Enable cert service (default: disabled)])],
+    [ ENABLED_CERT_SERVICE=$enableval ],
+    [ ENABLED_CERT_SERVICE=no ]
+    )
+
+# PWDBASED (CFLAG sections later) keep above FIPS section
+AC_ARG_ENABLE([pwdbased],
+    [AS_HELP_STRING([--enable-pwdbased],[Enable PWDBASED (default: disabled)])],
+    [ ENABLED_PWDBASED=$enableval ],
+    [ ENABLED_PWDBASED=no ]
+    )
+
+# MemUse Entropy
+# wolfEntropy Software Jitter SP800-90B certifiable entropy source
+AC_ARG_ENABLE([wolfEntropy],
+    [AS_HELP_STRING([--enable-wolfEntropy],[Enable memuse entropy support (default: disabled)])],
+    [ ENABLED_ENTROPY_MEMUSE=$enableval ],
+    [ ENABLED_ENTROPY_MEMUSE=no ]
+    )
+AC_ARG_ENABLE([entropy-memuse],
+    [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
+    [ ENABLED_ENTROPY_MEMUSE=$enableval ]
+    )
+
+# AES key wrap
+AC_ARG_ENABLE([aeskeywrap],
+    [AS_HELP_STRING([--enable-aeskeywrap],[Enable AES key wrap support (default: disabled)])],
+    [ ENABLED_AESKEYWRAP=$enableval ],
+    [ ENABLED_AESKEYWRAP=no ]
+    )
 
 # FIPS feature and macro setup
+
+AS_IF([test "$FIPS_VERSION" = "dev"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"])
+AS_IF([test "$FIPS_VERSION" = "ready"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_READY"])
+
 AS_CASE([$FIPS_VERSION],
-    [v5*|ready|dev], [ # FIPS 140-3
+    [v6|ready|dev],[ # FIPS 140-3 SRTP-KDF
+        AM_CFLAGS="$AM_CFLAGS \
+            -DHAVE_FIPS \
+            -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
+            -DHAVE_FIPS_VERSION_MAJOR=$HAVE_FIPS_VERSION_MAJOR \
+            -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
+            -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH \
+            -DHAVE_ECC_CDH \
+            -DWC_RSA_NO_PADDING \
+            -DECC_USER_CURVES \
+            -DHAVE_ECC384 \
+            -DHAVE_ECC521 \
+            -DWOLFSSL_VALIDATE_FFC_IMPORT \
+            -DHAVE_FFDHE_Q \
+            -DHAVE_FFDHE_3072 \
+            -DHAVE_FFDHE_4096 \
+            -DHAVE_FFDHE_6144 \
+            -DHAVE_FFDHE_8192"
+
+        # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and do not use seed callback
+        AS_IF([test "x$ENABLED_KCAPI_ECC" = "xno"],
+            [AM_CFLAGS="$AM_CFLAGS \
+                -DWC_RNG_SEED_CB \
+                -DWOLFSSL_ECDSA_SET_K \
+                -DWOLFSSL_VALIDATE_ECC_IMPORT \
+                -DWOLFSSL_VALIDATE_ECC_KEYGEN \
+                -DHAVE_ECC192 \
+                -DHAVE_ECC224 \
+                -DHAVE_ECC256"])
+
+        DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=8192
+# optimizations section
+
+# protocol section
+        AS_IF([test "$ENABLED_WOLFSSH" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ssh" != "no")],
+            [enable_ssh="yes"])
+
+        AS_IF([test "$ENABLED_HKDF" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_hkdf" != "no")],
+            [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+
+        AS_IF([test "x$ENABLED_PWDBASED" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_pwdbased" != "no")],
+            [ENABLED_PWDBASED="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_PBKDF2 -DHAVE_AESGCM"])
+
+        AS_IF([test "x$ENABLED_SRTP" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_srtp" != "no")],
+            [ENABLED_SRTP="yes"])
+        AS_IF([test "x$ENABLED_SRTP_KDF" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_srtp_kdf" != "no")],
+            [ENABLED_SRTP_KDF="yes"])
+
+# public key section
+        AS_IF([test "$ENABLED_KEYGEN" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_keygen" != "no")],
+            [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
+
+#        AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
+#               (test "$FIPS_VERSION" != "dev" || test "$enable_compkey" != "yes")],
+#            [ENABLED_COMPKEY="yes"])
+
+        AS_IF([test "$ENABLED_RSAPSS" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_rsapss" != "no")],
+            [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+
+        AS_IF([test "$ENABLED_ECC" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ecc" != "no")],
+            [ENABLED_ECC="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+             AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes"],
+                 [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+
+        AS_IF([test "x$ENABLED_ED25519" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519" != "no")],
+            [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
+        AS_IF([test "$ENABLED_CURVE25519" = "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_curve25519" != "no")],
+            [ENABLED_CURVE25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"])
+
+        AS_IF([test "x$ENABLED_ED448" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ed448" != "no")],
+            [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
+        AS_IF([test "x$ENABLED_CURVE448" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_curve448" != "no")],
+            [ENABLED_CURVE448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"])
+
+        AS_IF([test "x$ENABLED_ED25519_STREAM" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519_stream" != "no")],
+            [ENABLED_ED25519_STREAM="yes"])
+        AS_IF([test "x$ENABLED_ED448_STREAM" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_ed448_stream" != "no")],
+            [ENABLED_ED448_STREAM="yes"])
+
+        AS_IF([test "x$ENABLED_ECCCUSTCURVES" != "xno" &&
+               test "$FIPS_VERSION" != "dev"],
+            [AC_MSG_WARN([Forcing off ecccustcurves for FIPS ${FIPS_VERSION}.])
+             ENABLED_ECCCUSTCURVES="no"])
+
+# Hashing section
+        AS_IF([test "x$ENABLED_SHA3" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_sha3" != "no")],
+            [ENABLED_SHA3="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"])
+
+        AS_IF([test "$ENABLED_SHA224" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_sha224" != "no")],
+            [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
+
+        AS_IF([test "$ENABLED_SHA512" = "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_sha512" != "no")],
+            [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
+
+        # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
+
+        # Shake128 because we're testing SHAKE256
+        AS_IF([test "x$ENABLED_SHAKE128" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_shake128" != "no")],
+            [ENABLED_SHAKE128="yes"])
+
+        # Shake256 mandated for ED448
+        AS_IF([test "x$ENABLED_SHAKE256" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_shake256" != "no")],
+            [ENABLED_SHAKE256="yes"])
+
+# Aes section
+        AS_IF([test "$ENABLED_AESCCM" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesccm" != "no")],
+            [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+
+        AS_IF([test "$ENABLED_AESCTR" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesctr" != "no")],
+            [ENABLED_AESCTR="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+
+        AS_IF([test "$ENABLED_CMAC" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_cmac" != "no")],
+            [ENABLED_CMAC="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+
+        AS_IF([test "$ENABLED_AESGCM" = "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
+            [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"; AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
+
+        # AES-GCM streaming is part of the v6 FIPS suite, but isn't implemented
+        # for armasm on arm-v7 or earlier (see armasm setup above).
+        AS_IF([test "$ENABLED_AESGCM_STREAM" != "yes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no") &&
+               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+            [ENABLED_AESGCM_STREAM="yes"])
+
+        AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesofb" != "no")],
+            [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])
+
+        AS_IF([test "x$ENABLED_AESCFB" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aescfb" != "no")],
+            [ENABLED_AESCFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"])
+
+        AS_IF([test "x$ENABLED_AESXTS" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts" != "no")],
+            [ENABLED_AESXTS="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS"])
+        AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
+            [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
+
+        AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no") &&
+               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+            [ENABLED_AESXTS_STREAM="yes"])
+
+        AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
+               (test "$ENABLED_AESCTR" = "yes" && test "$HAVE_AESCTR_PORT" != "yes") ||
+               (test "$ENABLED_AESGCM" = "yes" && test "$HAVE_AESGCM_PORT" != "yes") ||
+               (test "$ENABLED_AESOFB" = "yes" && test "$HAVE_AESOFB_PORT" != "yes")],
+            [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"])
+
+        AS_IF([test "x$ENABLED_AESKEYWRAP" != "xyes" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aeskeywrap" != "no")],
+            [ENABLED_AESKEYWRAP="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP"])
+
+# Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
+        AS_IF([test "$ENABLED_OLD_TLS" != "no"],
+            [AC_MSG_WARN([Forcing off oldtls for FIPS ${FIPS_VERSION}.])
+             ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
+
+    ],
+    [v5*], [ # FIPS 140-3
 
         AM_CFLAGS="$AM_CFLAGS \
             -DHAVE_FIPS \
             -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
+            -DHAVE_FIPS_VERSION_MAJOR=$HAVE_FIPS_VERSION_MAJOR \
             -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
+            -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH \
             -DHAVE_ECC_CDH \
             -DWC_RSA_NO_PADDING \
             -DECC_USER_CURVES \
@@ -4917,74 +5661,116 @@ AS_CASE([$FIPS_VERSION],
 
         # force various features to FIPS 140-3 defaults, unless overridden with dev:
 
-        AS_IF([test "$ENABLED_KEYGEN" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_keygen" != "no")],
+        AS_IF([test "$ENABLED_KEYGEN" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
-        AS_IF([test "$ENABLED_COMPKEY" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_compkey" != "yes")],
-            [ENABLED_COMPKEY="no"])
+        AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_compkey" = "yes")],
+            [AC_MSG_WARN([Forcing off compkey for FIPS ${FIPS_VERSION}.])
+             ENABLED_COMPKEY="no"])
 
-        AS_IF([test "$ENABLED_SHA224" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_sha224" != "no")],
+        AS_IF([test "$ENABLED_SHA224" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
             [ENABLED_SHA224="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224"])
 
-        AS_IF([test "$ENABLED_WOLFSSH" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_ssh" != "no")],
+        AS_IF([test "$ENABLED_SHA3" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha3" != "no")],
+            [ENABLED_SHA3="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"])
+
+        AS_IF([test "$ENABLED_WOLFSSH" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ssh" != "no")],
             [enable_ssh="yes"])
 
-        # Shake128 is a SHA-3 algorithm not in our FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE128" != "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_shake128" != "yes")],
-            [ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
+        # Shake128 is a SHA-3 algorithm outside the v5 FIPS algorithm list
+        AS_IF([test "$ENABLED_SHAKE128" != "no" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake128" = "yes")],
+            [AC_MSG_WARN([Forcing off shake128 for FIPS ${FIPS_VERSION}.])
+             ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
 
-        # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
-        AS_IF([test "$ENABLED_SHAKE256" != "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_shake256" != "yes")],
-            [ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
+        # Shake256 is a SHA-3 algorithm outside the v5 FIPS algorithm list
+        AS_IF([test "$ENABLED_SHAKE256" != "no" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake256" = "yes")],
+            [AC_MSG_WARN([Forcing off shake256 for FIPS ${FIPS_VERSION}.])
+             ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
 
-        # SHA512-224 and SHA512-256 are SHA-2 algorithms not in our FIPS algorithm list
+        # SHA512-224 and SHA512-256 are SHA-2 algorithms outside the v5 FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
 
-        AS_IF([test "$ENABLED_AESCCM" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesccm" != "no")],
+        AS_IF([test "$ENABLED_AESCCM" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesccm" != "no")],
             [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
 
-        AS_IF([test "$ENABLED_RSAPSS" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_rsapss" != "no")],
+        AS_IF([test "$ENABLED_AESXTS" = "yes" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesxts" = "yes")],
+            [AC_MSG_WARN([Forcing off aesxts for FIPS ${FIPS_VERSION}.])
+             ENABLED_AESXTS="no"])
+
+        AS_IF([test "$ENABLED_RSAPSS" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_rsapss" != "no")],
             [ENABLED_RSAPSS="yes"; AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
 
-        AS_IF([test "$ENABLED_ECC" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_ecc" != "no")],
+        AS_IF([test "$ENABLED_ECC" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_ecc" != "no")],
             [ENABLED_ECC="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
-             AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_eccshamir" != "no")],
+             AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes" &&
+                    (test "$FIPS_VERSION" != "v5-dev" || test "$enable_eccshamir" != "no")],
                  [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
 
-        AS_IF([test "$ENABLED_AESCTR" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesctr" != "no")],
+        AS_IF([test "$ENABLED_AESCTR" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesctr" != "no")],
             [ENABLED_AESCTR="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
 
-        AS_IF([test "$ENABLED_CMAC" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_cmac" != "no")],
+        AS_IF([test "$ENABLED_CMAC" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_cmac" != "no")],
             [ENABLED_CMAC="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
 
-        AS_IF([test "$ENABLED_HKDF" != "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_hkdf" != "no")],
+        AS_IF([test "$ENABLED_HKDF" != "yes" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_hkdf" != "no")],
             [ENABLED_HKDF="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
 
         AS_IF([test "$ENABLED_INTELASM" = "yes"],
             [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
 
-        AS_IF([test "$ENABLED_SHA512" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_sha512" != "no")],
+        AS_IF([test "$ENABLED_SHA512" = "no" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha512" != "no")],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
 
-        AS_IF([test "$ENABLED_AESGCM" = "no" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
+        AS_IF([test "$ENABLED_AESGCM" = "no" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesgcm" != "no")],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"; AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 
-        # AES-GCM streaming isn't part of the current FIPS suite.
-        AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "yes")],
-            [ENABLED_AESGCM_STREAM="no"])
+        # AES-GCM streaming isn't part of the v5 FIPS suite.
+        AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesgcm_stream" = "yes")],
+            [AC_MSG_WARN([Forcing off aesgcm-stream for FIPS ${FIPS_VERSION}.])
+             ENABLED_AESGCM_STREAM="no"])
 
         # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
-            [ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
+            [AC_MSG_WARN([Forcing off oldtls for FIPS ${FIPS_VERSION}.])
+             ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
 
         AS_IF([test $HAVE_FIPS_VERSION_MINOR -ge 2],
-            [AS_IF([test "x$ENABLED_AESOFB" = "xno" && (test "$FIPS_VERSION" != "dev" || test "$enable_aesofb" != "no")],
+            [AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
+                    (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesofb" != "no")],
                 [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])])
+
+        AS_IF([test "$ENABLED_SRTP" != "no" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp" = "yes")],
+            [AC_MSG_WARN([Forcing off srtp for FIPS ${FIPS_VERSION}.])
+             ENABLED_SRTP="no"])
+
+        AS_IF([test "$ENABLED_SRTP_KDF" != "no" &&
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp_kdf" = "yes")],
+            [AC_MSG_WARN([Forcing off srtp-kdf for FIPS ${FIPS_VERSION}.])
+             ENABLED_SRTP_KDF="no"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
                (test "$ENABLED_AESCTR" = "yes" && test "$HAVE_AESCTR_PORT" != "yes") ||
                (test "$ENABLED_AESGCM" = "yes" && test "$HAVE_AESGCM_PORT" != "yes") ||
-               (test "$ENABLED_AESOFB" = "yes" && test "$HAVE_AESOFB_PORT" != "yes")],
+               (test "$ENABLED_AESOFB" = "yes" && test "$HAVE_AESOFB_PORT" != "yes") ||
+               (test "$ENABLED_AESXTS" = "yes" && test "$HAVE_AESXTS_PORT" != "yes")],
             [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"])
     ],
 
@@ -4992,7 +5778,9 @@ AS_CASE([$FIPS_VERSION],
         AM_CFLAGS="$AM_CFLAGS \
             -DHAVE_FIPS \
             -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
+            -DHAVE_FIPS_VERSION_MAJOR=$HAVE_FIPS_VERSION_MAJOR \
             -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
+            -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH \
             -DWOLFSSL_KEY_GEN \
             -DWOLFSSL_SHA224 \
             -DWOLFSSL_AES_DIRECT \
@@ -5043,11 +5831,22 @@ AS_CASE([$FIPS_VERSION],
     ],
 
     ["rand"],[
-        AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR"
+        AM_CFLAGS="$AM_CFLAGS \
+            -DWOLFCRYPT_FIPS_RAND \
+            -DHAVE_FIPS \
+            -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
+            -DHAVE_FIPS_VERSION_MAJOR=$HAVE_FIPS_VERSION_MAJOR \
+            -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
+            -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH"
     ],
 
     ["v1"],[ # FIPS 140-2, Cert 2425
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+        AM_CFLAGS="$AM_CFLAGS \
+            -DHAVE_FIPS \
+            -DHAVE_FIPS_VERSION=$HAVE_FIPS_VERSION \
+            -DHAVE_FIPS_VERSION_MAJOR=$HAVE_FIPS_VERSION_MAJOR \
+            -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
+            -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH"
         AS_IF([test "x$ENABLED_SHA512" = "xno"],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
         AS_IF([test "x$ENABLED_AESGCM" = "xno"],
@@ -5058,7 +5857,7 @@ AS_CASE([$FIPS_VERSION],
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno" && test "$ENABLE_LINUXKM" = "no"],
     [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
 
-AS_IF([(test "$ENABLED_NULL_CIPHER" = "yes" || test "$ENABLED_LEANPSK" = "yes") && test "$ENABLED_FIPS" != "no" && test "$FIPS_VERSION" != "dev"],
+AS_IF([(test "$ENABLED_NULL_CIPHER" = "yes" || test "$ENABLED_LEANPSK" = "yes") && test "$ENABLED_FIPS" != "no" && test "$FIPS_VERSION" != "dev" && test "$FIPS_VERSION" != "v5-dev"],
     [AC_MSG_ERROR([FIPS is incompatible with nullcipher])])
 
 # SELFTEST
@@ -5089,38 +5888,143 @@ AS_CASE([$SELFTEST_VERSION],
         AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST -DHAVE_PUBLIC_FFDHE"
     ])
 
+AS_IF([test "x$ENABLED_AESXTS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
+AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_INTELASM" = "xyes"],
+      [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
+AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
+      [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
+
+# ECC Custom Curves
+if test "$ENABLED_ECCCUSTCURVES" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
+
+    # For distro, all or ecccustcurves=all builds, enable all curve types
+    if test "$ENABLED_DISTRO" = "yes" || test "$ENABLED_ALL" = "yes" || test "$ENABLED_ECCCUSTCURVES" = "all"
+    then
+        # Enable ECC SECPR2, SECPR3, BRAINPOOL and KOBLITZ curves
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
+
+        # Enable ECC Cofactor support
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH"
+
+        # If fastmath enabled and on x86 use speedups
+        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64" -o "$host_cpu" = "amd64"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DTFM_ECC192 -DTFM_ECC224 -DTFM_ECC256 -DTFM_ECC384 -DTFM_ECC521"
+        fi
+    fi
+fi
+
+# Curve448
+if test "$ENABLED_CURVE448" != "no"
+then
+    if test "$ENABLED_CURVE448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DCURVE448_SMALL"
+        ENABLED_CURVE448_SMALL=yes
+        ENABLED_CURVE448=yes
+    fi
+
+    if test "$ENABLED_CURVE448" = "no128bit" || test "$ENABLED_32BIT" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED448_128BIT"
+        ENABLED_CURVE448=yes
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"
+    ENABLED_FE448=yes
+fi
+
+# Ed448
+if test "$ENABLED_ED448" != "no"
+then
+    if test "$ENABLED_ED448" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DED448_SMALL"
+        ENABLED_ED448_SMALL=yes
+        ENABLED_CURVE448_SMALL=yes
+        ENABLED_ED448=yes
+    fi
+
+    if test "$ENABLED_SHA512" = "no"
+    then
+        AC_MSG_ERROR([cannot enable ed448 without enabling sha512.])
+    fi
+    if test "x$HAVE_FIPS_VERSION" = "x2"
+    then
+        AC_MSG_ERROR([cannot enable ed448 w/ dependency shake256 in FIPSv2 mode])
+    fi
+    ENABLED_FE448=yes
+    ENABLED_GE448=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
+
+    # EdDSA448 requires SHAKE256 which requires SHA-3
+    if test "$ENABLED_SHA3" = "no"
+    then
+        ENABLED_SHA3=yes
+    fi
+    ENABLED_SHAKE256=yes
+
+    ENABLED_CERTS=yes
+fi
+
+if test "$ENABLED_ED448_STREAM" != "no"
+then
+    if test "$ENABLED_ED448" = "no"
+    then
+        AC_MSG_ERROR([ED448 verify streaming enabled but ED448 is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+    fi
+fi
+
+
+# SRTP-KDF
+if test "$ENABLED_SRTP" = "yes"
+then
+  ENABLED_SRTP_KDF="yes"
+fi
+if test "$ENABLED_SRTP_KDF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DWC_SRTP_KDF -DHAVE_AES_ECB -DWOLFSSL_AES_DIRECT"
+fi
 
 # Set SHA-3 flags
-if test "$ENABLED_SHA3" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHA3" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
 fi
 
 # Set SHAKE128 flags
-# FIPS does not support SHAKE 128
-AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE128="no"])
+# FIPS traditionally does not support SHAKE 128, v6 does
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
+        [ENABLED_SHAKE128="no"])
 
-if test "$ENABLED_SHAKE128" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE128" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE128"
     if test "$ENABLED_SHA3" = "no"
     then
-        AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
+        AC_MSG_ERROR([shake128 requires SHA-3: --enable-sha3])
     fi
 else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"
 fi
 
 # Set SHAKE256 flags
-# FIPS does not support SHAKE 256
-AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256="no"])
+# FIPS traditionally does not support SHAKE 256, v6 does
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test $HAVE_FIPS_VERSION -lt 6],
+        [ENABLED_SHAKE256="no"])
 
-if test "$ENABLED_SHAKE256" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHAKE256" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
     if test "$ENABLED_SHA3" = "no"
     then
-        AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
+        AC_MSG_ERROR([shake256 requires SHA-3: --enable-sha3])
     fi
 else
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
@@ -5201,6 +6105,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_XCHACHA"
 fi
 
+# ASCON
+AC_ARG_ENABLE([ascon],
+    [AS_HELP_STRING([--enable-ascon],[Enable ASCON (default: disabled).])],
+    [ ENABLED_ASCON=$enableval ],
+    [ ENABLED_ASCON=no]
+    )
+
+if test "$ENABLED_ASCON" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ASCON"
+fi
 
 # Hash DRBG
 AC_ARG_ENABLE([hashdrbg],
@@ -5223,14 +6138,7 @@ else
     fi
 fi
 
-
-# MemUse Entropy
-AC_ARG_ENABLE([entropy-memuse],
-    [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
-    [ ENABLED_ENTROPY_MEMUSE=$enableval ],
-    [ ENABLED_ENTROPY_MEMUSE=no ]
-    )
-
+# MemUse Entropy (AKA wolfEntropy)
 if test "x$ENABLED_ENTROPY_MEMUSE" != "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ENTROPY_MEMUSE"
@@ -5281,6 +6189,19 @@ else
 fi
 
 
+# C89 build
+AC_ARG_ENABLE([c89],
+    [AS_HELP_STRING([--enable-c89],[Build with C89 toolchain (default: disabled)])],
+    [ ENABLED_C89=$enableval ],
+    [ ENABLED_C89=no ]
+    )
+
+if test "$ENABLED_C89" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_C89"
+    test "$enable_inline" = "" && enable_inline=no
+fi
+
 # inline Build
 AC_ARG_ENABLE([inline],
     [AS_HELP_STRING([--enable-inline],[Enable inline functions (default: enabled)])],
@@ -5295,7 +6216,8 @@ fi
 
 
 # OCSP
-if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || \
+   test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_MOSQUITTO" = "xyes"
 then
     test "$enable_ocsp" = "" && enable_ocsp=yes
 fi
@@ -5322,12 +6244,31 @@ fi
 
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
-    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling (default: disabled)])],
+    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling ((options: yes, no-multi, no, disabled default: disabled)])],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=$enableval ],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
+AS_CASE([$ENABLED_CERTIFICATE_STATUS_REQUEST],
+    [no],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="no"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ],
+    [disabled],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="no"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ],
+    [yes],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        ENABLED_TLS_OCSP_MULTI="yes"
+    ],
+    [no-multi],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ])
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || \
+   test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || \
+   test "x$ENABLED_MOSQUITTO" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
 fi
@@ -5375,9 +6316,11 @@ AC_ARG_ENABLE([crl],
     [ ENABLED_CRL=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || \
-   test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
-   test "x$ENABLED_KRB" = "xyes" || test "x$ENABLED_STRONGSWAN" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || \
+   test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" ||  \
+   test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_NETSNMP" = "xyes" || \
+   test "x$ENABLED_KRB" = "xyes" || test "x$ENABLED_STRONGSWAN" = "xyes" || \
+   test "x$ENABLED_MOSQUITTO" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -5418,65 +6361,6 @@ then
         fi
         break;;
     esac
-fi
-
-
-# USER CRYPTO
-ENABLED_USER_CRYPTO="no"
-ENABLED_USER_RSA="no"
-AC_DEFINE([BUILD_USER_RSA], [], [User RSA is being defined])
-trycryptodir=""
-AC_ARG_WITH([user-crypto],
-    [AS_HELP_STRING([--with-user-crypto=PATH],[Path to USER_CRYPTO install (default /usr/local)])],
-    [
-        CPPFLAGS="$CPPFLAGS -DHAVE_USER_CRYPTO"
-        LIBS="$LIBS -lusercrypto"
-
-        if test "x$withval" != "xno" ; then
-            trycryptodir=$withval
-        fi
-        if test "x$withval" = "xyes" ; then
-            trycryptodir="/usr/local"
-        fi
-
-        LDFLAGS="$LDFLAGS -L$trycryptodir/lib"
-        CPPFLAGS="$CPPFLAGS -I$trycryptodir/include"
-
-        #Look for RSA Init function in usercrypto lib
-        AC_CHECK_LIB([usercrypto], [wc_InitRsaKey], [user_rsa_linked=yes], [user_rsa_linked=no])
-
-       if test "x$user_rsa_linked" = "xyes" ; then
-            AC_MSG_NOTICE([User user_rsa.h being used])
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_RSA"
-            ENABLED_USER_RSA=yes
-            ENABLED_USER_CRYPTO=yes
-       fi
-
-
-        #Display check and find result of link attempts
-        AC_MSG_CHECKING([for USER_CRYPTO])
-        if test "x$ENABLED_USER_CRYPTO" = "xno" ; then
-            AC_MSG_RESULT([no])
-            AC_MSG_ERROR([USER_CRYPTO not found. Either move to /usr/include and /usr/lib or
-                    Specify its path using --with-user-crypto=/dir/])
-        else
-            AC_MSG_RESULT([yes])
-            # Check if .la is available if not then rely on exported path
-            if test -e $trycryptodir/lib/libusercrypto.la
-            then
-                LIB_ADD="$trycryptodir/lib/libusercrypto.la $LIB_ADD"
-            else
-                LIB_ADD="-lusercrypto $LIB_ADD"
-            fi
-            AM_LDFLAGS="$AM_LDFLAGS -L$trycryptodir/lib"
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_CRYPTO"
-        fi
-    ]
-)
-
-if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
-then
-    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto possibility of using code in fips boundary.])
 fi
 
 # Whitewood netRandom client library
@@ -5751,7 +6635,7 @@ fi
 AC_ARG_ENABLE([ticket-nonce-malloc],
     [AS_HELP_STRING([--enable-ticket-nonce-malloc], [Enable dynamic allocation of ticket nonces (default: disabled)])],
     [ ENABLED_TICKET_NONCE_MALLOC=$enableval ],
-    [ ENABLED_TICKET_NONCE_MALLOC=no ]
+    [ ENABLED_TICKET_NONCE_MALLOC=no_implicit ]
     )
 
 if test "$ENABLED_TICKET_NONCE_MALLOC" = "yes"
@@ -5797,7 +6681,7 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
-    AS_IF([test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
+    AS_IF([test "x$ENABLED_ECC" != "xno" || test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
@@ -6063,13 +6947,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_IO_POOL -DXMALLOC_USER"
 fi
 
-
 # Certificate Service Support
-AC_ARG_ENABLE([certservice],
-    [AS_HELP_STRING([--enable-certservice],[Enable cert service (default: disabled)])],
-    [ ENABLED_CERT_SERVICE=$enableval ],
-    [ ENABLED_CERT_SERVICE=no ]
-    )
 if test "$ENABLED_CERT_SERVICE" = "yes"
 then
     # Requires ecc,certgen, and opensslextra make sure on
@@ -6109,6 +6987,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
@@ -6116,6 +6996,28 @@ then
         ENABLED_DTLS="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
     fi
+
+    if test "x$ENABLED_DTLS13" = "xno"
+    then
+        ENABLED_DTLS13="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS13 -DWOLFSSL_W64_WRAPPER"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_DROP_STATS"
+        if test "x$ENABLED_SEND_HRR_COOKIE" = "xundefined"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEND_HRR_COOKIE"
+            ENABLED_SEND_HRR_COOKIE="yes"
+        fi
+        if test "x$ENABLED_AES" = "xyes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+        fi
+    fi
+
+    if test "x$ENABLED_DTLS_MTU" = "xno"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
+    fi
+
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
@@ -6216,6 +7118,12 @@ then
     then
         ENABLED_ALT_CERT_CHAINS="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_CERT_CHAINS"
+    fi
+
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
     # cert gen requires alt names
@@ -6636,7 +7544,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
 
         # Check the ECC supported curves prereq
-        AS_IF([test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_CURVE25519" = "xyes"],
+        AS_IF([test "x$ENABLED_ECC" != "xno" || test "$ENABLED_CURVE25519" != "no"],
               [ENABLED_SUPPORTED_CURVES=yes
                AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
@@ -6706,7 +7614,7 @@ then
         ENABLED_WOLFSSH="yes"
     fi
 
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
     fi
@@ -6762,6 +7670,13 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+
+    # support longer session ticket nonce
+    if test "$ENABLED_TICKET_NONCE_MALLOC" = "no_implicit"
+    then
+        ENABLED_TICKET_NONCE_MALLOC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
+    fi
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -6954,13 +7869,6 @@ then
 fi
 
 # PWDBASED has to come after certservice since we want it on w/o explicit on
-# PWDBASED
-AC_ARG_ENABLE([pwdbased],
-    [AS_HELP_STRING([--enable-pwdbased],[Enable PWDBASED (default: disabled)])],
-    [ ENABLED_PWDBASED=$enableval ],
-    [ ENABLED_PWDBASED=no ]
-    )
-
 if test "$ENABLED_PWDBASED" = "no"
 then
     if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || \
@@ -7538,10 +8446,12 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
 
     case $host_cpu in
     *x86_64* | *aarch64* | *amd64*)
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
-      ;;
+        if test "$ENABLED_SP_SMALL" = "no"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
+        fi
+        ;;
     *)
-      ;;
+        ;;
     esac
 fi
 if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
@@ -7731,7 +8641,7 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
     ENABLED_SP_ARM64_ASM=yes
     ;;
-  *armv7a*)
+  *armv7a* | *armv7l*)
     if test "$ENABLED_ARMASM" = "no"; then
       AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-a -mfpu=neon -DWOLFSSL_ARM_ARCH=7 -marm"
     fi
@@ -7741,11 +8651,13 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     ;;
   *cortex* | *armv7m*)
     if test "$ENABLED_ARMASM" = "no"; then
-        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -DWOLFSSL_ARM_ARCH=7"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_THUMB2"
+        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -DWOLFSSL_ARM_ARCH=7"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
     ENABLED_SP_ARM_CORTEX_ASM=yes
+    ENABLED_ARM_THUMB=yes
     ;;
   *armv6*)
     if test "$ENABLED_ARMASM" = "no"; then
@@ -7795,171 +8707,6 @@ fi
 # End - Single Precision option handling                                       #
 ################################################################################
 
-# Fast RSA using Intel IPP
-ippdir="${srcdir}/IPP"
-ipplib="lib" # if autoconf guesses 32bit system changes lib directory
-fastRSA_found=no
-abs_path=`pwd`
-
-# set up variables used
-IPPLIBS=
-IPPHEADERS=
-IPPLINK=
-
-AC_ARG_ENABLE([fast-rsa],
-    [AS_HELP_STRING([--enable-fast-rsa],[Enable RSA using Intel IPP (default: disabled)])],
-    [ ENABLED_FAST_RSA=$enableval ],
-    [ ENABLED_FAST_RSA=no ],
-    )
-
-# Fast RSA does not support RSA-PSS
-if test "$ENABLED_RSAPSS" = "yes"; then
-    ENABLED_FAST_RSA=no
-fi
-
-if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
-
-    if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-        ipplib="lib_32" # 32 bit OS detected
-    fi
-
-#   Use static IPP Libraries
-if test "$enable_shared" = "no" && test "$ENABLED_FAST_RSA" = "yes"; then
-    case $host_os in
-    *darwin*)
-        ipplib="$ipplib/mac_static"
-        AC_MSG_ERROR([Issue with static linking to libippcp.a on Mac.
-                Dynamic IPP libraries supported on Mac])
-        break;;
-
-    *linux*)
-        ipplib="$ipplib/linux_static"
-        break;;
-    *)
-        ENABLED_FAST_RSA=no
-    esac
-
-    if test -e $srcdir/IPP/$ipplib/libippcore.a && test -e $srcdir/IPP/$ipplib/libippcp.a
-    then
-        :
-    else
-        ENABLED_FAST_RSA=no
-    fi
-    AC_CHECK_HEADERS([IPP/include/ipp.h IPP/include/ippcp.h], [AM_CPPFLAGS="-I$srcdir/IPP/include $AM_CPPFLAGS"], [ENABLED_FAST_RSA=no])
-    LIB_STATIC_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_STATIC_ADD"
-    if test "$ENABLED_FAST_RSA" = "no"; then
-        AC_MSG_ERROR([Could not find fast rsa libraries])
-    fi
-else
-
-#   Check for and use bundled IPP libraries
-if test "$ENABLED_FAST_RSA" = "yes"; then
-    AC_MSG_NOTICE([Using local IPP crypto library])
-
-    AC_CHECK_HEADER([$abs_path/IPP/include/ippcp.h],
-    [
-        # build and default locations on linux and mac
-        STORE_LDFLAGS=${LDFLAGS}
-        STORE_CPPFLAGS=${CPPFLAGS}
-
-        # using LDFLAGS instead of AM_ temporarily to test link to library
-        LDFLAGS="-L$ippdir/$ipplib -lippcp -lippcore"
-        CPPFLAGS="-I$ippdir/include"
-        AC_CHECK_HEADERS([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15], [fastRSA_found=yes], [fastRSA_found=no])], [fastRSA_found=no])
-        name="$ippdir/$ipplib/libippcp"
-        case $host_os in
-        *darwin*)
-            # check file existence and conditionally set variables
-            if test -e $abs_path/IPP/$ipplib/libippcp.dylib
-            then
-                IPPLIBS="${name}.dylib ${name}-9.0.dylib ${name}e9-9.0.dylib ${name}g9-9.0.dylib ${name}h9-9.0.dylib ${name}k0-9.0.dylib ${name}l9-9.0.dylib ${name}n8-9.0.dylib ${name}p8-9.0.dylib ${name}s8-9.0.dylib ${name}y8-9.0.dylib IPP/lib/libippcore.dylib IPP/lib/libippcore-9.0.dylib"
-                IPPLINK="mkdir -p src/.libs && ln -f ${name}.dylib src/.libs/libippcp.dylib && ln -f ${srcdir}/${name}-9.0.dylib src/.libs/libippcp-9.0.dylib && ln -f ${srcdir}/${name}e9-9.0.dylib src/.libs/libippcpe9-9.0.dylib && ln -f ${srcdir}/${name}g9-9.0.dylib src/.libs/libippcpg9-9.0.dylib && ln -f ${srcdir}/${name}h9-9.0.dylib src/.libs/libippcph9-9.0.dylib && ln -f ${srcdir}/${name}k0-9.0.dylib src/.libs/libippcpk0-9.0.dylib && ln -f ${srcdir}/${name}l9-9.0.dylib src/.libs/libippcpl9-9.0.dylib && ln -f ${srcdir}/${name}n8-9.0.dylib src/.libs/libippcpn8-9.0.dylib && ln -f ${srcdir}/${name}p8-9.0.dylib src/.libs/libippcpp8-9.0.dylib && ln -f ${srcdir}/${name}s8-9.0.dylib src/.libs/libippcps8-9.0.dylib && ln -f ${srcdir}/${name}y8-9.0.dylib src/.libs/libippcpy8-9.0.dylib && ln -f ${srcdir}/IPP/lib/libippcore.dylib src/.libs/libippcore.dylib && ln -f ${srcdir}/IPP/lib/libippcore-9.0.dylib src/.libs/libippcore-9.0.dylib"
-            else
-                fastRSA_found=no
-            fi
-            break;;
-
-        *linux*)
-            # check file existence and conditionally set variables
-            if test -e $abs_path/IPP/$ipplib/libippcp.so.9.0
-            then
-                if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
-                    IPPLIBS="${name}.so.9.0 ${name}g9.so.9.0 ${name}h9.so.9.0 ${name}p8.so.9.0 ${name}px.so.9.0 ${name}s8.so.9.0 ${name}.so ${name}w7.so.9.0 IPP/$ipplib/libippcore.so IPP/$ipplib/libippcore.so.9.0"
-                    IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}g9.so.9.0 src/.libs/libippcpg9.so.9.0 && ln -f ${name}h9.so.9.0 src/.libs/libippcph9.so.9.0 && ln -f ${name}p8.so.9.0 src/.libs/libippcpp8.so.9.0 && ln -f ${name}px.so.9.0 src/.libs/libippcppx.so.9.0 && ln -f ${name}s8.so.9.0 src/.libs/libippcps8.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}w7.so.9.0 src/.libs/libippcpw7.so.9.0 && ln -f IPP/$ipplib/libippcore.so src/.libs/libippcore.so && ln -f IPP/$ipplib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
-                else
-                    IPPLIBS="${name}.so.9.0 ${name}e9.so.9.0 ${name}k0.so.9.0 ${name}l9.so.9.0 ${name}m7.so.9.0 ${name}mx.so.9.0 ${name}.so ${name}n8.so.9.0 ${name}y8.so.9.0 IPP/lib/libippcore.so IPP/lib/libippcore.so.9.0"
-                    IPPLINK="mkdir -p src/.libs && ln -f ${name}.so.9.0 src/.libs/libippcp.so.9.0 && ln -f ${name}e9.so.9.0 src/.libs/libippcpe9.so.9.0 && ln -f ${name}k0.so.9.0 src/.libs/libippcpk0.so.9.0 && ln -f ${name}l9.so.9.0 src/.libs/libippcpl9.so.9.0 && ln -f ${name}m7.so.9.0 src/.libs/libippcpm7.so.9.0 && ln -f ${name}mx.so.9.0 src/.libs/libippcpmx.so.9.0 && ln -f ${name}.so src/.libs/libippcp.so && ln -f ${name}n8.so.9.0 src/.libs/libippcpn8.so.9.0 && ln -f ${name}y8.so.9.0 src/.libs/libippcpy8.so.9.0 && ln -f IPP/lib/libippcore.so src/.libs/libippcore.so && ln -f IPP/lib/libippcore.so.9.0 src/.libs/libippcore.so.9.0"
-                fi
-            else
-                fastRSA_found=no
-            fi
-            break;;
-        *)
-            fastRSA_found=no
-        esac
-
-        if test "$fastRSA_found" = "yes"; then
-            # was successful so add tested LDFLAGS to AM_ flags
-            AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
-            AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
-            IPPHEADERS="${srcdir}/IPP/include/*.h"
-        fi
-
-        # restore LDFLAGS to user set
-        LDFLAGS=${STORE_LDFLAGS}
-        CPPFLAGS=${STORE_CPPFLAGS}
-    ], [fastRSA_found=no])
-fi
-
-# Don't cache the result so it can be checked
-AS_UNSET([ac_cv_header_ippcp_h])
-AS_UNSET([ac_cv_header_ipp_h])
-AS_UNSET([ac_cv_lib_ippcp_ippsRSAEncrypt_PKCSv15]);
-
-#   Check link and see if user has pre-existing IPP Libraries if not using local
-if test "$ENABLED_FAST_RSA" = "yes" && test "$fastRSA_found" = "no"; then
-    AC_MSG_NOTICE([Checking if IPP crypto library installed])
-    AC_CHECK_HEADER([ippcp.h], [AC_CHECK_LIB([ippcp], [ippsRSAEncrypt_PKCSv15],
-        [
-            fastRSA_found=yes
-            AM_LDFLAGS="${AM_LDFLAGS} -lippcore -lippcp"
-        ], [ fastRSA_found=no])
-    ], [fastRSA_found=no])
-
-    # Error out on not finding libraries
-    if test "$fastRSA_found" = "no"; then
-        AC_MSG_ERROR([Could not find fast rsa libraries])
-    fi
-fi
-fi # end of if for shared library
-else # if user rsa is set than do not use fast rsa option
-    if test "$ENABLED_FAST_RSA" = "yes"; then
-        AC_MSG_ERROR([Could not use fast rsa libraries with user crypto or fips])
-    fi
-fi # end of if for user rsa crypto or fips
-
-#   End result of checking for IPP Libraries
-AC_MSG_CHECKING([for fast RSA])
-if test "$ENABLED_FAST_RSA" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FAST_RSA -DHAVE_USER_RSA"
-    # add in user crypto header that uses Intel IPP
-    AM_CPPFLAGS="$AM_CPPFLAGS -I$srcdir/wolfcrypt/user-crypto/include"
-    if test "$enable_shared" = "yes"; then
-        LIBS="$LIBS -lippcore -lippcp"
-        LIB_ADD="-lippcp -lippcore $LIB_ADD"
-    else
-        LIB_ADD="$srcdir/IPP/$ipplib/libippcp.a $srcdir/IPP/$ipplib/libippcore.a $LIB_ADD"
-    fi
-    AC_MSG_RESULT([yes])
-else
-    AC_MSG_RESULT([no])
-fi
-
-AC_SUBST([IPPLIBS])
-AC_SUBST([IPPHEADERS])
-AC_SUBST([IPPLINK])
-
-
 # static memory use
 AC_ARG_ENABLE([staticmemory],
     [AS_HELP_STRING([--enable-staticmemory],[Enable static memory use (default: disabled)])],
@@ -7967,13 +8714,34 @@ AC_ARG_ENABLE([staticmemory],
     [ ENABLED_STATICMEMORY=no ]
     )
 
+for v in `echo $ENABLED_STATICMEMORY | tr "," " "`
+do
+  case $v in
+  yes)
+    ;;
+  no)
+    ;;
+  small|lean)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_LEAN"
+    ;;
+  debug)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for staticmemory.])
+    break;;
+  esac
+done
+
 if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
 
     if test "x$ENABLED_HEAPMATH" = "xyes"
     then
-        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+        AC_MSG_ERROR([--enable-heapmath is incompatible with --enable-staticmemory.])
     fi
     if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
     then
@@ -8032,6 +8800,19 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
+# Enable testing of cryptoCb using software crypto. On platforms where wolfCrypt tests
+# are used to test a custom cryptoCb, it may be desired to disable this so wolfCrypt tests
+# don't also test software implementations of every algorithm
+AC_ARG_ENABLE([cryptocb-sw-test],
+    [AS_HELP_STRING([--disable-cryptocb-sw-test],[Disable wolfCrypt crypto callback tests using software crypto (default: enabled). Only valid with --enable-cryptocb])],
+    [ if test "x$ENABLED_CRYPTOCB" = "xno"; then
+          AC_MSG_ERROR([--disable-cryptocb-sw-test requires --enable-cryptocb])
+      else
+          ENABLED_CRYPTOCB_SW_TEST=$enableval
+      fi ],
+    [ ENABLED_CRYPTOCB_SW_TEST=yes ]
+    )
+
 if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
 then
     ENABLED_CRYPTOCB=yes
@@ -8039,6 +8820,11 @@ fi
 if test "$ENABLED_CRYPTOCB" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
+fi
+
+if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"
+then
+        AM_CFLAGS="$AM_CFLAGS -DWC_TEST_NO_CRYPTOCB_SW_TEST"
 fi
 
 
@@ -8113,6 +8899,19 @@ else
 fi
 
 
+# Support for autosar shim
+AC_ARG_ENABLE([autosar],
+    [AS_HELP_STRING([--enable-autosar],[Enable AutoSAR support (default: disabled)])],
+    [ ENABLED_AUTOSAR=$enableval ],
+    [ ENABLED_AUTOSAR=no ]
+    )
+
+if test "$ENABLED_AUTOSAR" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR"
+fi
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -8132,14 +8931,8 @@ then
 fi
 
 
-# AES key wrap
-AC_ARG_ENABLE([aeskeywrap],
-    [AS_HELP_STRING([--enable-aeskeywrap],[Enable AES key wrap support (default: disabled)])],
-    [ ENABLED_AESKEYWRAP=$enableval ],
-    [ ENABLED_AESKEYWRAP=no ]
-    )
-
-if test "$ENABLED_WPAS" != "no" && test "$ENABLED_FIPS" = "no"
+if test "$ENABLED_WPAS" != "no" &&
+    ( test "$ENABLED_FIPS" = "no" || test "x$FIPS_VERSION" = "xv6" )
 then
     ENABLED_AESKEYWRAP="yes"
 fi
@@ -8226,7 +9019,7 @@ fi
 AC_ARG_WITH([max-ecc-bits],
     [AS_HELP_STRING([--with-max-ecc-bits=number],[number of bits to support for ECC algorithms])],
     [WITH_MAX_ECC_BITS=$withval],
-    [WITH_MAX_ECC_BITS="$DEFAULT_MAX_ECC_BITS"])
+    )
 
 if test -n "$WITH_MAX_ECC_BITS"; then
    if test "$WITH_MAX_ECC_BITS" -lt 112 -o "$WITH_MAX_ECC_BITS" -gt 1024; then
@@ -8248,6 +9041,46 @@ if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
    fi
 fi
 
+AC_ARG_ENABLE([linuxkm-lkcapi-register],
+    [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.  Possible values are "none", "all", "cbc(aes)", "cfb(aes)", "gcm(aes)", and "xts(aes)", or a comma-separate combination. (default: none)])],
+    [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
+    [ENABLED_LINUXKM_LKCAPI_REGISTER=none]
+    )
+if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" != "none"
+then
+    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER"
+
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$ENABLED_ARMASM" = "no" && test "$ENABLED_RISCV_ASM" = "no" && test "$ENABLED_FIPS" = "no"; then
+        ENABLED_AESGCM_STREAM=yes
+    fi
+
+    if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" = "yes"
+    then
+        ENABLED_LINUXKM_LKCAPI_REGISTER=all
+    fi
+
+    for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
+    do
+        case "$lkcapi_alg" in
+        all) test "$ENABLED_EXPERIMENTAL" = "yes" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: requires --enable-experimental.])
+             AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL"           ;;
+        'cbc(aes)') test "$ENABLED_AESCBC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CBC implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCBC" ;;
+        'cfb(aes)') test "$ENABLED_AESCFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CFB implementation not enabled.])
+                    test "$ENABLED_EXPERIMENTAL" = "yes" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: requires --enable-experimental.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCFB" ;;
+        'gcm(aes)') test "$ENABLED_AESGCM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-GCM implementation not enabled.])
+                    test "$ENABLED_AESGCM_STREAM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: --enable-aesgcm-stream is required for LKCAPI.])
+                    test "$ENABLED_EXPERIMENTAL" = "yes" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: requires --enable-experimental.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESGCM" ;;
+        'xts(aes)') test "$ENABLED_AESXTS" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-XTS implementation not enabled.])
+                    test "$ENABLED_AESXTS_STREAM" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: --enable-aesxts-stream is required for LKCAPI.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESXTS" ;;
+        *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
+        esac
+    done
+fi
+
 # Library Suffix
 LIBSUFFIX=""
 AC_ARG_WITH([libsuffix],
@@ -8262,6 +9095,25 @@ AC_ARG_WITH([libsuffix],
     ]
 )
 AC_SUBST(LIBSUFFIX)
+
+# Support system wide crypto-policy file:
+#   - Pass path to your wolfssl.config system crypto-policy file.
+#   - Pass no argument to use default.
+AC_ARG_WITH([sys-crypto-policy],
+    [AS_HELP_STRING([--with-sys-crypto-policy=PATH],[Support for system-wide crypto-policy file. (default: disabled)])],
+    [ SYS_CRYPTO_POLICY=$withval],
+    [ SYS_CRYPTO_POLICY=no ]
+    )
+
+if test "$SYS_CRYPTO_POLICY" != "no"; then
+    if test "$SYS_CRYPTO_POLICY" = "yes"; then
+        # Default to the wolfssl fedora crypto-policy file.
+        SYS_CRYPTO_POLICY="/etc/crypto-policies/back-ends/wolfssl.config"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SYS_CRYPTO_POLICY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CRYPTO_POLICY_FILE=\"$SYS_CRYPTO_POLICY\""
+fi
 
 AC_ARG_ENABLE([context-extra-user-data],
     [AS_HELP_STRING([--enable-context-extra-user-data],[Enables option for storing user-defined data in TLS API contexts, with optional argument the number of slots to allocate (default: disabled)])],
@@ -8321,6 +9173,23 @@ AC_ARG_ENABLE([sys-ca-certs],
     [ ENABLED_SYS_CA_CERTS=yes ]
     )
 
+AC_ARG_ENABLE([dual-alg-certs],
+    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (requires --enable-experimental) (default: disabled)])],
+    [ ENABLED_DUAL_ALG_CERTS=$enableval ],
+    [ ENABLED_DUAL_ALG_CERTS=no ]
+    )
+
+AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([dual-alg-certs requires --enable-experimental.]) ])
+
+AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_CRYPTONLY" = "yes" ],[ AC_MSG_ERROR([dual-alg-certs is incompatible with --enable-cryptonly.]) ])
+
+# Adds functionality to support Raw Public Key (RPK) RFC7250
+AC_ARG_ENABLE([rpk],
+    [AS_HELP_STRING([--enable-rpk],[Enable support for Raw Public Key (RPK) RFC7250 (default: disabled)])],
+    [ ENABLED_RPK=$enableval ],
+    [ ENABLED_RPK=no ]
+    )
+
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
@@ -8345,7 +9214,6 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PRIORITIZE_PSK"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHECK_ALERT_ON_ERR"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_HAVE_ID"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OCSP_ISSUER_CHECK"
         ENABLED_TRUSTED_PEER_CERT=yes
     else
         CFLAGS=$(printf "%s" "$CFLAGS" | sed 's/-DOPENSSL_COMPATIBLE_DEFAULTS//g')
@@ -8357,7 +9225,7 @@ fi
 # determine if we have key validation mechanism
 if test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_RSA" = "xyes"
 then
-    if test "x$ENABLED_ASN" = "xyes"
+    if test "$ENABLED_ASN" != "no" && test "$ENABLED_ASN" != "nocrypt"
     then
         ENABLED_PKI="yes"
     fi
@@ -8387,6 +9255,7 @@ case $host_cpu in
   *arm*)
     if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -mthumb -march=armv6"
+      ENABLED_ARM_THUMB=yes
     else
       if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
         AM_CFLAGS="$AM_CFLAGS -mcpu=cortex-r5"
@@ -8504,6 +9373,12 @@ then
         ENABLED_DES3="yes"
     fi
 
+    # Has support for PKCS7
+    if test "$ENABLED_PKCS7" = "no"
+    then
+        ENABLED_PKCS7=yes
+    fi
+
     # Uses alt name
     ENABLED_ALTNAMES="yes"
 
@@ -8531,12 +9406,12 @@ if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || \
    test "$ENABLED_LIBWEBSOCKETS" = "yes" || \
    test "x$ENABLED_LIGHTY" = "xyes" || test "$ENABLED_LIBSSH2" = "yes" || \
    test "x$ENABLED_NTP" = "xyes" || test "$ENABLED_RSYSLOG" = "yes" || \
-   test "$ENABLED_OPENLDAP" = "yes" || test "$ENABLED_HITCH" = "yes"
+   test "$ENABLED_OPENLDAP" = "yes" || test "$ENABLED_HITCH" = "yes" || test "x$ENABLED_MOSQUITTO" = "xyes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_ED25519" != "no" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_ED25519" != "no"
 then
     if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
@@ -8686,11 +9561,20 @@ AS_IF([test "x$ENABLED_ASN" = "xno"],
 AS_IF([test "x$ENABLED_SYS_CA_CERTS" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SYS_CA_CERTS"])
 
+AS_IF([test "x$ENABLED_DUAL_ALG_CERTS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DUAL_ALG_CERTS"])
+
+AS_IF([test "x$ENABLED_RPK" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_RPK"])
+
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
 
 AS_IF([test "x$ENABLED_KEYGEN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
+
+AS_IF([test "x$ENABLED_ACERT" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ACERT"])
 
 AS_IF([test "x$ENABLED_CERTREQ" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"])
@@ -8701,9 +9585,9 @@ AS_IF([test "x$ENABLED_CERTGEN" = "xyes"],
 AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"])
 
-AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
+AS_IF([test "x$ENABLED_ED25519" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"])
-AS_IF([test "x$ENABLED_ED25519" = "xyes" && test "x$ENABLED_32BIT" = "xno"],
+AS_IF([test "x$ENABLED_ED25519" = "xyes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
@@ -8716,6 +9600,8 @@ AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"])
 
 AS_IF([test "x$ENABLED_OPENLDAP" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"])
+
+AS_IF([test "x$ENABLED_MOSQUITTO" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"])
 
 if test "$ENABLED_ED25519_STREAM" != "no" && test "$ENABLED_SE050" != "yes"
 then
@@ -8749,7 +9635,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_HMAC"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
@@ -8818,6 +9704,14 @@ else
     fi
 fi
 
+if test "x$ENABLED_DES3_TLS_SUITES" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3_TLS_SUITES"
+else
+    AS_IF([test "x$ENABLED_DES3" = "xno"],
+        [AC_MSG_ERROR([DES3 TLS suites require DES3])])
+fi
+
 if test "$ENABLED_AESGCM" != "no"
 then
     if test "$ENABLED_AESGCM" = "word"
@@ -8862,6 +9756,17 @@ then
     fi
 fi
 
+if test "$ENABLED_AESXTS_STREAM" != "no"
+then
+    if test "$ENABLED_AESXTS" = "no"
+    then
+        AC_MSG_ERROR([AES-XTS streaming enabled but AES-XTS is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESXTS_STREAM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESXTS_STREAM"
+    fi
+fi
+
 if test "$ENABLED_IOTSAFE" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IOTSAFE"
@@ -8880,7 +9785,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
     AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
-    AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=192"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WOLFENGINE"
 fi
 
 if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" != "no"
@@ -8951,9 +9856,6 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
     if test "x$ENABLED_OPENSSLALL" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslall])
     fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xyes"; then
-        AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
-    fi
 fi
 
 if test "$ENABLED_WOLFSSH" = "yes" && test "$ENABLED_HMAC" = "no"
@@ -8993,7 +9895,17 @@ if test "$ENABLED_DH" != "no" && test "$ENABLED_DH" != "const"; then
    LT_LIB_M
 fi
 
-
+# multiple OCSP stapling for TLS 1.3 Certificate extension
+if test "$ENABLED_CERTIFICATE_STATUS_REQUEST" = "yes"
+then
+    if test "$ENABLED_TLS13" = "yes"
+    then
+        if test "$ENABLED_TLS_OCSP_MULTI" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_OCSP_MULTI"
+        fi
+    fi
+fi
 ################################################################################
 
 # USER SETTINGS
@@ -9016,7 +9928,10 @@ fi
 # For distro disable custom build options that interfere with symbol generation
 if test "$GCC" = "yes" && test "$ENABLED_DISTRO" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
+    if test "$ENABLED_CUDA" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
+    fi
     if test "$ax_enable_debug" = "no"
     then
     AS_IF([test "x$ENABLED_OPTFLAGS" = "xyes"], [
@@ -9093,8 +10008,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
     AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
-    if test "$ENABLED_OPENSSLEXTRA" != "no" && test "$ENABLED_CRYPTONLY" = "no"; then
-        AC_MSG_ERROR([--enable-opensslextra without --enable-cryptonly is incompatible with --enable-linuxkm.])
+    if test "$ENABLED_OPENSSLEXTRA" != "no" && test "$ENABLED_LINUXKM_PIE" = "yes" && test "$ENABLED_CRYPTONLY" = "no"; then
+        AC_MSG_ERROR([--enable-opensslextra with --enable-linuxkm-pie and without --enable-cryptonly is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_FILESYSTEM" = "yes"; then
         AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])
@@ -9123,9 +10038,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_FASTMATH" = "yes"; then
         AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (exceeds stack limit).])
     fi
-    if test "$ENABLED_FAST_RSA" = "yes"; then
-        AC_MSG_ERROR([--enable-fastrsa is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_LIBZ_RSA" = "yes"; then
         AC_MSG_ERROR([--with-libz is incompatible with --enable-linuxkm.])
     fi
@@ -9138,7 +10050,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no" && test "$ENABLED_BIGNUM" != "no"; then
+    if test "$ENABLED_SP_MATH" != "yes" && test "$ENABLED_SP_MATH_ALL" = "no" && test "$ENABLED_BIGNUM" != "no"; then
         AC_MSG_ERROR([--enable-sp-math or --enable-sp-math-all is required for --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" != "no"; then
@@ -9152,10 +10064,18 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
 fi
 
+AS_IF([test "$ENABLED_ASM" = "no" && (test "$ENABLED_INTELASM" != "no" || \
+                                      test "$ENABLED_AESNI" != "no" || \
+                                      test "$ENABLED_ARMASM" != "no" || \
+                                      test "$ENABLED_RISCV_ASM" != "no" || \
+                                      test "$ENABLED_SP_ASM" != "no")],
+      [AC_MSG_WARN([Conflicting asm settings.])])
+
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
 # Some of these affect build targets and objects, some trigger different
 # test scripts for make check.
 AM_CONDITIONAL([BUILD_DISTRO],[test "x$ENABLED_DISTRO" = "xyes"])
+AM_CONDITIONAL([BUILD_OPENSSL_COMPAT],[test "x$ENABLED_OPENSSLEXTRA" != "xnoinstall"])
 AM_CONDITIONAL([BUILD_ALL],[test "x$ENABLED_ALL" = "xyes"])
 AM_CONDITIONAL([BUILD_TLS13],[test "x$ENABLED_TLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG],[test "x$ENABLED_RNG" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9172,11 +10092,16 @@ AM_CONDITIONAL([BUILD_SNIFFER],  [ test "x$ENABLED_SNIFFER"   = "xyes" || test "
 AM_CONDITIONAL([BUILD_SNIFFTEST],[ test "x$ENABLED_SNIFFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_XTS],[test "x$ENABLED_XTS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_AESXTS],[test "x$ENABLED_AESXTS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_NEON],[test "x$ENABLED_ARMASM_NEON" = "xyes"])
+AM_CONDITIONAL([BUILD_ARM_THUMB],[test "$ENABLED_ARM_THUMB" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_NONTHUMB],[test "$ENABLED_ARM_THUMB" != "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_32],[test "$ENABLED_ARM_32" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_64],[test "$ENABLED_ARM_64" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -9196,7 +10121,8 @@ AM_CONDITIONAL([BUILD_ED25519],[test "x$ENABLED_ED25519" = "xyes" || test "x$ENA
 AM_CONDITIONAL([BUILD_ED25519_SMALL],[test "x$ENABLED_ED25519_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FEMATH], [test "x$ENABLED_FEMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_GEMATH], [test "x$ENABLED_GEMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CURVE25519],[test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVE25519],[test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVE25519_INTELASM],[test "$ENABLED_CURVE25519" != "noasm" && test "$ENABLED_INTELASM" = "yes"])
 AM_CONDITIONAL([BUILD_CURVE25519_SMALL],[test "x$ENABLED_CURVE25519_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED448],[test "x$ENABLED_ED448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED448_SMALL],[test "x$ENABLED_ED448_SMALL" = "xyes"])
@@ -9207,6 +10133,7 @@ AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" 
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9224,6 +10151,7 @@ AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 0])
 AM_CONDITIONAL([BUILD_FIPS_RAND],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V5],[test "$HAVE_FIPS_VERSION" = 5])
+AM_CONDITIONAL([BUILD_FIPS_V6],[test $HAVE_FIPS_VERSION -ge 6])
 AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "$HAVE_FIPS_VERSION" -ge 2 ])
     # BUILD_FIPS_CURRENT is for builds after cert 2425.
 AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9234,17 +10162,17 @@ AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ASCON],[test "x$ENABLED_ASCON" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM2],[test "x$ENABLED_SM2" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM3],[test "x$ENABLED_SM3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM4],[test "x$ENABLED_SM4" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes" && test "x$ENABLED_TLS13" = "xyes" && test "x$ENABLED_TLS_OCSP_MULTI" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])
-AM_CONDITIONAL([BUILD_USER_RSA],[test "x$ENABLED_USER_RSA" = "xyes"] )
-AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBLMS],[test "x$ENABLED_LIBLMS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBXMSS],[test "x$ENABLED_LIBXMSS" = "xyes"])
 AM_CONDITIONAL([BUILD_LIBOQS],[test "x$ENABLED_LIBOQS" = "xyes"])
@@ -9254,12 +10182,12 @@ AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
+AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
-AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes"] && [test "x$ENABLED_ASN_PRINT" = "xyes"] && [test "x$ENABLED_ASN" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_ASN_PRINT" = "xyes" && test "$ENABLED_ASN" != "no"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
@@ -9290,7 +10218,6 @@ AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENAB
 AM_COND_IF([BUILD_SP], [INCLUDE_SP_INT="yes"])
 AM_COND_IF([BUILD_SP_INT], [INCLUDE_SP_INT="yes"])
 AC_SUBST([INCLUDE_SP_INT])
-AM_CONDITIONAL([BUILD_FAST_RSA],[test "x$ENABLED_FAST_RSA" = "xyes"])
 AM_CONDITIONAL([BUILD_MCAPI],[test "x$ENABLED_MCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_WOLFEVENT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
@@ -9306,6 +10233,7 @@ AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
+AM_CONDITIONAL([BUILD_CUDA],[test "x$ENABLED_CUDA" = "xyes"])
 AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" != "xno"])
 AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
@@ -9323,6 +10251,8 @@ AM_CONDITIONAL([BUILD_HPKE],[test "x$ENABLED_HPKE" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 AM_CONDITIONAL([BUILD_ARIA],[test "x$ENABLED_ARIA" = "xyes"])
+AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
+AM_CONDITIONAL([BUILD_AUTOSAR],[test "x$ENABLED_AUTOSAR" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -9351,6 +10281,7 @@ AC_SUBST([AM_LDFLAGS])
 AC_SUBST([AM_CCASFLAGS])
 AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
+AC_SUBST([LIBM])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
@@ -9370,7 +10301,7 @@ AX_AM_JOBSERVER([yes])
 
 # See Automake 9.4.1 Built Sources Example
 AC_DEFUN([AX_OUT_OF_TREE_FILE],[
-  AC_CONFIG_COMMANDS([$1], [test ! -f $srcdir/$1 && >> $srcdir/$1])
+  AC_CONFIG_COMMANDS([$1], [test ! -f $srcdir/$1 && echo -n >> $srcdir/$1])
 ])
 
 AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/async.h])
@@ -9419,14 +10350,16 @@ rm -f $OPTION_FILE
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2023 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2024 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
 echo "" >> $OPTION_FILE
-echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "#ifdef WOLFSSL_NO_OPTIONS_H" >> $OPTION_FILE
+echo "/* options.h inhibited by configuration */" >> $OPTION_FILE
+echo "#elif !defined(WOLFSSL_OPTIONS_H)" >> $OPTION_FILE
 echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
@@ -9439,7 +10372,7 @@ echo "" >> $OPTION_FILE
 # note: cut requires an argument to exit with success.
 if colrm >/dev/null 2>&1 </dev/null; then
     TRIM="colrm 3"
-elif cut --version >/dev/null 2>&1 </dev/null; then
+elif echo "" | cut -c1 >/dev/null 2>&1 </dev/null; then
     TRIM="cut -c1-2"
 else
     AC_MSG_ERROR([Could not find colrm or cut to make options file])
@@ -9502,6 +10435,11 @@ echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
+then
+    support/gen-debug-trace-error-codes.sh || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
+fi
+
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then
     SAVE_CFLAGS=$CFLAGS
@@ -9559,7 +10497,6 @@ echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
-echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS"
 
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
@@ -9568,6 +10505,12 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
+if test "$ENABLED_EXPERIMENTAL" = "yes"
+then
+    echo "   * Experimental settings:      Allowed"
+else
+    echo "   * Experimental settings:      Forbidden"
+fi
 if test "$ENABLED_FIPS" = "yes"; then
 echo "   * FIPS:                       $FIPS_VERSION"
 else
@@ -9589,7 +10532,7 @@ if test "$ENABLED_SP_MATH_ALL" != "no"
 then
     ENABLED_SP_MATH_DESC="all"
 else
-    if test "$ENABLED_SP_MATH" != "no"
+    if test "$ENABLED_SP_MATH" = "yes"
     then
         ENABLED_SP_MATH_DESC="restricted"
     else
@@ -9613,12 +10556,18 @@ echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * AES-OFB:                    $ENABLED_AESOFB"
+echo "   * AES-XTS:                    $ENABLED_AESXTS"
+echo "   * AES-XTS streaming:          $ENABLED_AESXTS_STREAM"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"
+echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * ARIA:                       $ENABLED_ARIA"
+echo "   * ASCON:                      $ENABLED_ASCON"
 echo "   * DES3:                       $ENABLED_DES3"
+echo "   * DES3 TLS Suites:            $ENABLED_DES3_TLS_SUITES"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
+echo "   * CUDA:                       $ENABLED_CUDA"
 echo "   * SM4-ECB:                    $ENABLED_SM4_ECB"
 echo "   * SM4-CBC:                    $ENABLED_SM4_CBC"
 echo "   * SM4-CTR:                    $ENABLED_SM4_CTR"
@@ -9642,6 +10591,7 @@ echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
+echo "   * acert:                      $ENABLED_ACERT"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
@@ -9649,7 +10599,8 @@ echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
 echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
-echo "   * MmemUse Entropy:            $ENABLED_ENTROPY_MEMUSE"
+echo "   * MmemUse Entropy:"
+echo "   * (AKA: wolfEntropy):         $ENABLED_ENTROPY_MEMUSE"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * Encrypted keys:             $ENABLED_ENCKEYS"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
@@ -9689,6 +10640,7 @@ echo "   * XMSS_ROOT:                  $XMSS_ROOT"
 fi
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
+echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
@@ -9718,6 +10670,7 @@ echo "   * strongSwan:                 $ENABLED_STRONGSWAN"
 echo "   * OpenLDAP:                   $ENABLED_OPENLDAP"
 echo "   * hitch:                      $ENABLED_HITCH"
 echo "   * memcached:                  $ENABLED_MEMCACHED"
+echo "   * Mosquitto                   $ENABLED_MOSQUITTO"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * DTLS v1.3:                  $ENABLED_DTLS13"
@@ -9730,6 +10683,7 @@ echo "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
 echo "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
 echo "   * TLS v1.2:                   $ENABLED_TLSV12"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
+echo "   * RPK:                        $ENABLED_RPK"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
 echo "   * QUIC:                       $ENABLED_QUIC"
@@ -9774,14 +10728,17 @@ echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
+
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS" && \
+echo "   * Linux kernel alg register:  $ENABLED_LINUXKM_LKCAPI_REGISTER"
+
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
-echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
-echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Asynchronous Crypto:        $ENABLED_ASYNCCRYPT"
 echo "   * Asynchronous Crypto (sim):  $ENABLED_ASYNCCRYPT_SW"
 echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
@@ -9794,9 +10751,10 @@ fi
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * ARM ASM SHA512/SHA3 Crypto  $ENABLED_ARMASM_SHA3"
 echo "   * ARM ASM SM3/SM4 Crypto      $ENABLED_ARMASM_CRYPTO_SM4"
-echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
+echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+echo "   * C89:                        $ENABLED_C89"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"
@@ -9810,11 +10768,15 @@ echo "   * NXP SE050:                  $ENABLED_SE050"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
+echo "   * Dual alg cert support:      $ENABLED_DUAL_ALG_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
+echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo ""
 echo "---"
+
+echo "./configure flags: $(./config.status --config)"
 
 fi # $silent != yes
 
@@ -9824,7 +10786,7 @@ fi # $silent != yes
 
 if test "$ENABLED_ASYNCCRYPT" = "yes" && ! test -s $srcdir/wolfcrypt/src/async.c
 then
-    AC_MSG_WARN([Make sure real async files are loaded. Contact wolfSSL for details on using the asynccrypt option.])
+    AC_MSG_WARN([Make sure real async files are loaded. See async-check.sh or the wolfssl/wolfAsyncCrypt GitHub repo.])
 fi
 
 # MinGW static vs shared library
@@ -9843,4 +10805,18 @@ fi
 if test "$MINGW_LIB_WARNING" = "yes"
 then
     AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
+fi
+
+if test -n "$WITH_MAX_ECC_BITS"; then
+    if test "$WITH_MAX_ECC_BITS" -lt "$ENABLED_ECCMINSZ"; then
+        AC_MSG_ERROR([--with-max-ecc-bits argument ($WITH_MAX_ECC_BITS) must be greater than --with-eccminsz argument ($ENABLED_ECCMINSZ)])
+    fi
+fi
+
+if test "$silent" != "yes"; then
+
+echo "---"
+echo "Note: Make sure your application includes \"wolfssl/options.h\" before any other wolfSSL headers."
+echo "      You can define \"WOLFSSL_USE_OPTIONS_H\" in your application to include this automatically."
+
 fi

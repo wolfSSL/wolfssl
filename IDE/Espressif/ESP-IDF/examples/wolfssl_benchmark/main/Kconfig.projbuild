@@ -22,7 +22,7 @@ config BENCH_ARGV
         -lng <num>  Display benchmark result by specified language.
                     0: English, 1: Japanese
         <num>       Size of block in bytes
-        
+
         e.g -lng 1
         e.g sha
 

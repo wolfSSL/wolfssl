@@ -1,6 +1,6 @@
 /* caam_qnx.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1641,8 +1641,9 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
 #if 0
 static int getSupported(char* in)
 {
-        //printf("CAAM Status [0x%8.8x]   = 0x%8.8x\n",
-        //    CAAM_STATUS, WC_CAAM_READ(CAAM_STATUS));
+        /* printf("CAAM Status [0x%8.8x]   = 0x%8.8x\n",
+         *    CAAM_STATUS, WC_CAAM_READ(CAAM_STATUS));
+         */
         printf("CAAM Version MS Register [0x%8.8x]  = 0x%8.8x\n",
             CAAM_VERSION_MS, CAAM_READ(CAAM_VERSION_MS));
         printf("CAAM Version LS Register [0x%8.8x]  = 0x%8.8x\n",

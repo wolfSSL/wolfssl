@@ -264,9 +264,4 @@ config WOLFSSL_HAVE_ASM
 	  of asymmetric cryptography, however this might have an impact on the
 	  code size.
 
-config WOLFSSL_USER_SETTTINGS
-	string "User settings file for wolfSSL"
-	help
-	  User settings file that contains wolfSSL defines.
-
 endmenu

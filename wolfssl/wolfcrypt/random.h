@@ -1,6 +1,6 @@
 /* random.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,13 +30,17 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_drbg_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_DRBG_sanity(void);
 #endif
 
  /* Maximum generate block length */
@@ -205,7 +209,10 @@ WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif /* HAVE_WNR */
 
 
-WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap);
+WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz,
+                                           void* heap);
+WOLFSSL_API int wc_rng_new_ex(WC_RNG **rng, byte* nonce, word32 nonceSz,
+                              void* heap, int devId);
 WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG* rng);
 
 
@@ -239,8 +246,8 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #endif
 
 #ifdef HAVE_HASHDRBG
-    WOLFSSL_LOCAL int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,
-                                        word32 entropySz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,
+                                       word32 entropySz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,

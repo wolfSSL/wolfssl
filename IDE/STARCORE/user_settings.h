@@ -1,23 +1,23 @@
 /* user_settings.h
 *
-* Copyright (C) 2006-2023 wolfSSL Inc.
-*
-* This file is part of wolfSSL.
-*
-* wolfSSL is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-* wolfSSL is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
-*/
+ * Copyright (C) 2006-2025 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
 
 /* Custom wolfSSL user settings for Vortec Scheduler,
  *                                  VxWorks 6.9 and VxWorks 7.0  */
@@ -417,6 +417,7 @@ extern "C" {
 
     /* prototypes for user heap override functions */
     /* Note: Realloc only required for normal math */
+    /* Note2: XFREE(NULL) must be properly handled */
     #include <stddef.h> /* for size_t */
     extern void *myMalloc(size_t n, void* heap, int type);
     extern void myFree(void *p, void* heap, int type);
@@ -560,7 +561,7 @@ extern "C" {
 
 #undef NO_FILESYSTEM
 /* #define NO_FILESYSTEM */
-    
+
 #undef NO_WRITE_TEMP_FILES
 #define NO_WRITE_TEMP_FILES
 
@@ -569,7 +570,7 @@ extern "C" {
 
 #undef NO_WRITEV
 #define NO_WRITEV
-    
+
 #undef WOLFSSL_NO_SOCK
 #define WOLFSSL_NO_SOCK
 
@@ -593,10 +594,10 @@ extern "C" {
 
 #undef NO_MD4
 #define NO_MD4
-    
+
 #undef WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE128
-    
+
 #undef WOLFSSL_NO_SHAKE256
 #define WOLFSSL_NO_SHAKE256
 

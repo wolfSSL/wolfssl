@@ -1,0 +1,96 @@
+name: jwt-cpp Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          # Don't run tests as this config is tested in many other places
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-jwt-cpp
+          path: build-dir.tgz
+          retention-days: 5
+
+  build_pam-ipmi:
+    if: github.repository_owner == 'wolfssl'
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - ref: 0.7.0
+            runner: ubuntu-22.04
+          - ref: 0.6.0
+            runner: ubuntu-22.04
+    name: ${{ matrix.config.ref }}
+    runs-on: ${{ matrix.config.runner }}
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install libgtest-dev
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-jwt-cpp
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout jwt-cpp
+        uses: actions/checkout@v4
+        with:
+          repository: Thalhammer/jwt-cpp
+          path: jwt-cpp
+          ref: v${{ matrix.config.ref }}
+
+      - name: Build pam-ipmi
+        working-directory: jwt-cpp
+        run: |
+          patch -p1 < ../osp/jwt-cpp/${{ matrix.config.ref }}.patch
+          PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig \
+            cmake -B build -DJWT_SSL_LIBRARY:STRING=wolfSSL -DJWT_BUILD_TESTS=ON .
+          make -j -C build
+          ldd ./build/tests/jwt-cpp-test | grep wolfssl
+
+      - name: Run jwt-cpp tests
+        working-directory: jwt-cpp
+        run: ./build/tests/jwt-cpp-test

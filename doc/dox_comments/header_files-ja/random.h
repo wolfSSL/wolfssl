@@ -1,5 +1,5 @@
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  Init Global WhiteWood Netrandomのコンテキスト
     \return 0  成功
     \return BAD_FUNC_ARG  configfileがnullまたはタイムアウトのどちらかが否定的です。
@@ -21,7 +21,7 @@
 int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  無料のGlobal WhiteWood Netrandomコンテキスト。
     \return 0  成功
     \return BAD_MUTEX_E  Wnr_Mutexでミューテックスをロックするエラー
@@ -38,7 +38,7 @@ int  wc_InitNetRandom(const char* configFile, wnr_hmac_key hmac_cb, int timeout)
 int  wc_FreeNetRandom(void);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  RNGのシード（OSから）とキー暗号を取得します。割り当てられたRNG-> DRBG（決定論的ランダムビットジェネレータ）が割り当てられます（WC_FREERNGで割り当てられている必要があります）。これはブロッキング操作です。
     \return 0  成功しています。
     \return MEMORY_E  XMallocに失敗しました
@@ -74,7 +74,7 @@ int  wc_FreeNetRandom(void);
 int  wc_InitRng(WC_RNG*);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  疑似ランダムデータのSZバイトを出力にコピーします。必要に応じてRNG（ブロッキング）します。
     \return 0  成功した
     \return BAD_FUNC_ARG  入力はNULLまたはSZがMAX_REQUEST_LENを超えています
@@ -106,7 +106,7 @@ int  wc_InitRng(WC_RNG*);
 int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  新しいWC_RNG構造を作成します。
     \return WC_RNG  成功の構造
     \return NULL  誤りに
@@ -130,7 +130,7 @@ int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
 WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  wc_rng_generateBlockを呼び出して、疑似ランダムデータのバイトをbにコピーします。必要に応じてRNGが再販されます。
     \return 0  成功した
     \return BAD_FUNC_ARG  入力はNULLまたはSZがMAX_REQUEST_LENを超えています
@@ -162,7 +162,7 @@ WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
 int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  RNGがDRGBを安全に解放するために必要なときに呼び出されるべきです。ゼロとXfrees RNG-DRBG。
     \return 0  成功した
     \return BAD_FUNC_ARG  RNGまたはRNG-> DRGB NULL
@@ -189,7 +189,7 @@ int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 int  wc_FreeRng(WC_RNG*);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  RNGを安全に自由に解放するためにRNGが不要になったときに呼び出されるべきです。
     _Example_
     \code
@@ -212,7 +212,7 @@ int  wc_FreeRng(WC_RNG*);
 WC_RNG* wc_rng_free(WC_RNG* rng);
 
 /*!
-    \ingroup Random 
+    \ingroup Random
     \brief  DRBGの機能を作成しテストします。
     \return 0  成功した
     \return BAD_FUNC_ARG  ELTOPYAと出力はNULLにしないでください。Reseed Set EntropybがNULLでなければならない場合

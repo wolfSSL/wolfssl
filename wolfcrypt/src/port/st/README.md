@@ -1,10 +1,12 @@
 # ST Ports
 
-Support for the STM32 L4, F1, F2, F4 and F7 on-board crypto hardware acceleration:
+Support for the STM32 L4, F1, F2, F4, F7 and MP13 on-board crypto hardware
+acceleration:
  - symmetric AES (ECB/CBC/CTR/GCM)
- - MD5/SHA1/SHA224/SHA256
+ - MD5/SHA1/SHA224/SHA256 (MP13 does not have MD5 acceleration)
 
-Support for the STM32 PKA on WB55, H7 and other devices with on-board public-key acceleration:
+Support for the STM32 PKA on WB55, H7, MP13 and other devices with on-board
+public-key acceleration:
  - ECC192/ECC224/ECC256/ECC384
 
 Support for the STSAFE-A100 crypto hardware accelerator co-processor via I2C for ECC supporting NIST or Brainpool 256-bit and 384-bit curves. It requires the ST-Safe SDK including wolf stsafe_interface.c/.h files. Please contact ST for these.
@@ -73,7 +75,7 @@ At the wolfCrypt level we also support ECC native API's for `wc_ecc_*` using the
 
 `./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_STSAFEA100"`
 
-or 
+or
 
 `#define HAVE_PK_CALLBACKS`
 `#define WOLFSSL_STSAFEA100`

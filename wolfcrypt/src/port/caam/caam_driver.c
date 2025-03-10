@@ -1,6 +1,6 @@
 /* caam_driver.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,6 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
     (defined(__QNX__) || defined(__QNXNTO__))
@@ -129,7 +133,7 @@ static Error caamDebugDesc(struct DescStruct* desc)
     }
 
 
-    //D0JQCR_LS
+    /* D0JQCR_LS */
     printf("Next command to be executed = 0x%08X\n", CAAM_READ(0x8804));
     printf("Desc          = 0x%08X\n", desc->caam->ring.Desc);
 

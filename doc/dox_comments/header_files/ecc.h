@@ -1722,7 +1722,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
     \param ctx pointer to the ecEncCtx for which to set the salt
     \param salt pointer to salt buffer
-    \param len length salt in bytes
+    \param sz length salt in bytes
 
     _Example_
     \code
@@ -1742,7 +1742,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
     \sa wc_ecc_ctx_get_peer_salt
 */
 
-int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len);
+int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz);
 
 /*!
     \ingroup ECC
@@ -2006,3 +2006,29 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \endcode
 */
 int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
+
+/*!
+    \ingroup ECC
+
+    \brief Compare a curve which has larger key than specified size or the curve matched curve ID,
+         set a curve with smaller key size to the key.
+
+    \return 0 Returned upon successfully setting the key
+
+    \param keysize Key size in bytes
+    \param curve_id Curve ID
+
+                                                                                                        _Example_
+    \code int ret;
+    ecc_key ecc;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret != 0)
+        return ret;
+        ret = wc_ecc_set_curve(&ecc, 32, ECC_SECP256R1));
+        if (ret != 0)
+            return ret;
+
+    \endcode
+*/
+int wc_ecc_set_curve(ecc_key *key, int keysize, int curve_id);

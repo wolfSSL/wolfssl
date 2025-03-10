@@ -4,7 +4,7 @@ This example shows how to build a wolfSSL static library for Apple targets on al
 The example was created using Xcode version 14.3.1.
 
 # Why?
-Configuring and building wolfSSL through the `configure` interface can be simpler and more user friendly than manually adding the wolfSSL source files to your project and customizing through `user_settings.h`. Building via `configure` also streamlines integration with other open-source projects that expect an installation directory, such as `cURL`'s `--with-wolfssl` option. Finally, some developer teams might prefer to build wolfSSL once with the desired settings and then distribute it as a library framework for app developers to use. Packaging wolfSSL as a framework makes it highly portable and allows for drag-and-drop integration into Xcode projects without needing to worry about compiling the library every time they build their app.
+Configuring and building wolfSSL through the `configure` interface can be simpler and more user friendly than manually adding the wolfSSL source files to your project and customizing through `user_settings.h`. Building via `configure` also streamlines integration with other open-source projects that expect an installation directory, such as `curl`'s `--with-wolfssl` option. Finally, some developer teams might prefer to build wolfSSL once with the desired settings and then distribute it as a library framework for app developers to use. Packaging wolfSSL as a framework makes it highly portable and allows for drag-and-drop integration into Xcode projects without needing to worry about compiling the library every time they build their app.
 
 However, if you do want to compile wolfSSL from source manually in your Xcode project using `user_settings.h`, see the example in [IDE/XCODE](https://github.com/wolfSSL/wolfssl/tree/master/IDE/XCODE).
 
@@ -16,7 +16,7 @@ This example consists of a build script and an Xcode example project. The build 
 
 To use the build script, you can run it without arguments to build a default configuration, or you can use the `-c` option to pass in a quoted string containing any additional flags to `configure` that you need. Note that `--enable-static --disable-shared` is always passed to `configure` by default. Consider the following usage example, with descriptions in the comments:
 
-```
+```sh
 # default configuration
 ./build-wolfssl-framework.sh
 
@@ -60,7 +60,7 @@ If you are developing on a macOS machine and want to compile wolfSSL to run on m
 
 The generic `configure` invocation required to cross compile a static library for an Apple device is as follows:
 
-```
+```sh
 ./configure --disable-shared --enable-static \
             --prefix=${INSTALL_DIR} \
             --host=${HOST} \
@@ -88,5 +88,44 @@ Low-level programming in the Apple ecosystem is sparsely documented, and certain
 1. Apps meant to run on a simulator require building for/linking against universal binaries containing architecture slices for both `x86_64` and `arm64`. Even if you have the correct architecture (e.g. compiling on `arm64` and targeting an `arm64` simulator host) Xcode will complain that you have compiled the binary for the wrong host if the elf file does not include an `x86_64` architecture slice. Therefore, `build-wolfssl-framework.sh` builds all libraries for simulator targets for both `x86_64` and `arm64` architectures and links them as universal binaries with `lipo`. Again, it DOES NOT MATTER if you are targeting the correct architecture with your cross-compilation, Xcode will not recognize the binary as targeting the correct architecture unless it contains both.
 
 2. Cross compiling for the **iOS simulator** with a min version specifier present (`-miphoneos-version-min`) requires the `-target ${ARCH}-apple-ios-simulator` compiler flag in order to build . It is unclear why this is required, as The GNU documentation claims that the `target` option is only required if cross-compiling a compiler to run on architecture X but emit code for architecture Y (known as a canadian cross-compilation scenario). Regardless, if you do not include a `-target` option, the build will generate a large number of warnings when linking against system libraries with messages like: `ld: warning: building for iOS, but linking in .tbd file (/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator16.4.sdk/usr/lib/libnetwork.tbd) built for iOS Simulator`. It was thought that perhaps the host option should instead be `--host=${ARCH}-apple-ios-simulator` but this is not a valid option, and `configure` will fail with a different error: `checking host system type... Invalid configuration 'arm64-apple-ios-simulator': Kernel 'ios' not known to work with OS 'simulator`. If you do not specify a min iOS version, this is not required. Mysteriously, the other simulators (tvOS, watchOS) do not have this issue....
+
+## Building wolfSSL and curl
+
+Building curl with wolfSSL for Apple targets using configure/autotools can be accomplished with the following procedure:
+
+1. Build wolfSSL as described in the above steps with curl compatibility enabled, either as a framework using the helper script, or as a cross-compiled library for your desired platform
+
+```sh
+cd /path/to/wolfssl/IDE/apple-universal
+
+# build wolfSSL as a framework using the helper script
+./build-wolfssl-framework.sh -c "--enable-curl"
+
+# or build as a static library for one platform (using iOS as an example)
+ARCH=arm64
+WOLFSSL_INSTALL=/path/to/output/install/wolfssl-iphoneos-${ARCH}
+./configure --host=${ARCH}-apple-darwin \
+            --enable-curl \
+            --enable-static --disable-shared \
+            --prefix=${WOLFSSL_INSTALL} \
+            CFLAGS="-arch ${ARCH} -isysroot $(xcrun --sdk iphoneos --show-sdk-path)"
+
+make
+```
+
+2. Configure and build curl to use the wolfSSL library for your platform that was built in step 1. Note that you must use `--with-wolfssl` to point curl to the wolfSSL *library install* for your specific platform, not to the xcframework.
+
+```sh
+cd /path/to/curl
+
+# Note that it is necessary to manually link curl against the Apple CoreFoundation and Security frameworks,
+# as they are required by wolfSSL on Apple platforms. Using iOS as an example:
+./configure --host=${ARCH}-apple-darwin \
+            --with-wolfssl=${WOLFSSL_INSTALL} \
+            CFLAGS="-arch ${ARCH} -isysroot $(xcrun -sdk iphoneos --show-sdk-path)" \
+            LDFLAGS="-framework CoreFoundation -framework Security"
+
+make
+```
 
 

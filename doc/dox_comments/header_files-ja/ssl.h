@@ -2464,9 +2464,9 @@ int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
     \ingroup Setup
     \brief  この関数はSSLセッションキャッシュ機能を有効または無効にします。
     動作はモードに使用される値によって異なります。
-    モードの値は次のとおりです：  
-    SSL_SESS_CACHE_OFF  - セッションキャッシングを無効にします。デフォルトでセッションキャッシングがオンになっています。  
-    SSL_SESS_CACHE_NO_AUTO_CLEAR  - セッションキャッシュのオートフラッシュを無効にします。デフォルトで自動フラッシングはオンになっています。  
+    モードの値は次のとおりです：
+    SSL_SESS_CACHE_OFF  - セッションキャッシングを無効にします。デフォルトでセッションキャッシングがオンになっています。
+    SSL_SESS_CACHE_NO_AUTO_CLEAR  - セッションキャッシュのオートフラッシュを無効にします。デフォルトで自動フラッシングはオンになっています。
 
     \return SSL_SUCCESS  成功に戻ります。
     \param ctx  wolfSSL_CTX_new()で作成されたSSLコンテキストへのポインタ。
@@ -10877,7 +10877,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
 /*!
- \ingroup Setup 
+ \ingroup Setup
  \brief  この関数はクライアント側で呼び出される場合には、サーバー側にCertificateメッセージで送信できる証明書タイプを設定します。
  サーバー側で呼び出される場合には、受入れ可能なクライアント証明書タイプを設定します。
  Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
@@ -10910,7 +10910,7 @@ WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
 
 /*!
- \ingroup Setup 
+ \ingroup Setup
  \brief  この関数はサーバー側で呼び出される場合には、クライアント側にCertificateメッセージで送信できる証明書タイプを設定します。
  クライアント側で呼び出される場合には、受入れ可能なサーバー証明書タイプを設定します。
  Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
@@ -10944,7 +10944,7 @@ int wolfSSL_CTX_set_client_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
 int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len);
 
 /*!
- \ingroup Setup 
+ \ingroup Setup
  \brief  この関数はクライアント側で呼び出される場合には、サーバー側にCertificateメッセージで送信できる証明書タイプを設定します。
  サーバー側で呼び出される場合には、受入れ可能なクライアント証明書タイプを設定します。
  Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
@@ -10978,7 +10978,7 @@ int wolfSSL_CTX_set_server_cert_type(WOLFSSL_CTX* ctx, const char* buf, int len)
 int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
 
 /*!
- \ingroup Setup 
+ \ingroup Setup
  \brief  この関数はサーバー側で呼び出される場合には、クライアント側にCertificateメッセージで送信できる証明書タイプを設定します。
  クライアント側で呼び出される場合には、受入れ可能なサーバー証明書タイプを設定します。
  Raw Public Key 証明書を送受信したい場合にはこの関数を使って証明書タイプを設定しなければなりません。
@@ -11012,7 +11012,7 @@ int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
 int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はハンドシェーク終了後に呼び出し、相手とのネゴシエーションの結果得られたクライアント証明書のタイプを返します。
  ネゴシエーションが発生しない場合には戻り値としてWOLFSSL_SUCCESSが返されますが、
  証明書タイプとしてはWOLFSSL_CERT_TYPE_UNKNOWNが返されます。
@@ -11040,7 +11040,7 @@ int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
 int wolfSSL_get_negotiated_client_cert_type(WOLFSSL* ssl, int* tp);
 
 /*!
- \ingroup SSL 
+ \ingroup SSL
  \brief  この関数はハンドシェーク終了後に呼び出し、相手とのネゴシエーションの結果得られたサーバー証明書のタイプを返します。
  ネゴシエーションが発生しない場合には戻り値としてWOLFSSL_SUCCESSが返されますが、証明書タイプとしてはWOLFSSL_CERT_TYPE_UNKNOWNが返されます。
  \return WOLFSSL_SUCCESS 成功時にかえります。tpに返された証明書タイプはWOLFSSL_CERT_TYPE_X509,
@@ -11213,7 +11213,7 @@ int wolfSSL_dtls_cid_is_enabled(WOLFSSL* ssl);
 
  \brief このコネクションで他のピアに対してレコードを送信するためのコネクションIDをセットします。
  RFC9146とRFC9147を参照してください。コネクションIDは最大値がDTLS_CID_MAX_SIZEでなければなりません。
- DTLS_CID_MAX_SIZEはビルド時に値を指定が可能ですが255バイトをこえることはできません。 
+ DTLS_CID_MAX_SIZEはビルド時に値を指定が可能ですが255バイトをこえることはできません。
 
 
  \return WOLFSSL_SUCCESS コネクションIDがセットできた場合に返されます。それ以外はエラーコードが返されます。

@@ -1,6 +1,6 @@
 /* aria-crypt.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -114,6 +114,11 @@ int wc_AriaSetKey(wc_Aria* aria, byte* key)
 {
     MC_RV rv = MC_OK;
     MC_UINT keylen;
+
+    if (aria == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (aria->algo == MC_ALGID_ARIA_128BITKEY) {
         keylen = ARIA_128_KEY_SIZE;
     } else if (aria->algo == MC_ALGID_ARIA_192BITKEY) {

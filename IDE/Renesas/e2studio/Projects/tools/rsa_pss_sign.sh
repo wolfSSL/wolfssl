@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SIGOPT=rsa_padding_mode:pss
 SIGOPT2=rsa_pss_saltlen:-1

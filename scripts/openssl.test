@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # openssl.test
 
@@ -64,6 +64,7 @@ anon_wolfssl_pid=$no_pid
 wolf_cases_tested=0
 wolf_cases_total=0
 counter=0
+wolfssl_no_resume=""
 testing_summary="OpenSSL Interop Testing Summary:\nVersion\tTested\t#Found\t#wolf\t#Found\t#OpenSSL\n"
 versionName="Invalid"
 if [ "$OPENSSL" = "" ]; then
@@ -279,7 +280,7 @@ check_server_ready() {
     server_ready=0
     while [ "$counter" -lt 20 ]; do
         echo -e "waiting for $server_name ready..."
-        echo -e Checking | nc localhost $server_port
+        echo -e Checking | nc -w 5 localhost $server_port
         nc_result=$?
         if [ $nc_result = 0 ]
         then
@@ -325,6 +326,10 @@ do_wolfssl_client() {
     fi
     wolfssl_resume="-r"
     if [ "$openssl_psk_resume_bug" != "" -a "$tls13_suite" != "" ]
+    then
+        wolfssl_resume=
+    fi
+    if [ "$wolfssl_no_resume" = "yes" ]
     then
         wolfssl_resume=
     fi
@@ -515,6 +520,19 @@ then
     esac
     if [ "$wolf_rsa" != "" ]; then
         echo "wolfSSL supports RSA"
+    fi
+    # Check if RSA-PSS certificates supported in wolfSSL
+    wolf_rsapss=`$WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1`
+    case $wolf_rsapss in
+    *"ca file"*)
+        echo "wolfSSL does not support RSA-PSS"
+        wolf_rsapss=""
+        ;;
+    *)
+        ;;
+    esac
+    if [ "$wolf_rsapss" != "" ]; then
+        echo "wolfSSL supports RSA-PSS"
     fi
     # Check if ECC certificates supported in wolfSSL
     wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1`
@@ -1143,7 +1161,7 @@ do
                 do_wolfssl_client
                 psk=""
                 adh=""
-                openssl_psk="-psk 0123456789abcdef0123456789abcdef"
+                openssl_psk="-psk 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                 open_temp_cases_total=$((open_temp_cases_total + 1))
                 port=$wolfssl_port
                 do_openssl_client
@@ -1228,6 +1246,49 @@ do
 done
 IFS="$OIFS" #restore separator
 
+# Skip RSA-PSS interop test when RSA-PSS is not supported
+if [ "$wolf_rsapss" != "" -a "$ecdhe_avail" = "yes" -a "$wolf_rsa" = "yes" ]
+then
+    # Test for RSA-PSS certs interop
+    # Was running into alert sent by openssl server with version 1.1.1 released
+    # in Sep 2018. To avoid this issue check that openssl version 3.0.0 or later
+    # is used.
+
+    $OPENSSL version | awk '{print $2}' | \
+        awk -F. '{if ($1 >= 3) exit 1; else exit 0;}'
+    RESULT=$?
+    if [ "$RESULT" = "0" ]; then
+        echo -e "Old version of openssl detected, skipping interop RSA-PSS test"
+    else
+        echo -e "Doing interop RSA-PSS test"
+
+        key_file=${CERT_DIR}/rsapss/server-rsapss-priv.pem
+        cert_file=${CERT_DIR}/rsapss/server-rsapss.pem
+        ca_file=${CERT_DIR}/client-cert.pem
+        openssl_suite="RSAPSS"
+        start_openssl_server
+
+        cert="${CERT_DIR}/client-cert.pem"
+        key="${CERT_DIR}/client-key.pem"
+        caCert="${CERT_DIR}/rsapss/ca-rsapss.pem"
+        crl="-C"
+        wolfSuite="ALL"
+        wolfssl_no_resume="yes"
+        port=$server_port
+
+        if [ "$wolf_tls13" != "" ]
+        then
+            version="4"
+            do_wolfssl_client
+        fi
+
+        if [ "$wolf_tls" != "" ]
+        then
+            version="3"
+            do_wolfssl_client
+        fi
+    fi
+fi
 do_cleanup
 
 echo -e "wolfSSL total cases   $wolf_cases_total"

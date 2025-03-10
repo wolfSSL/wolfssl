@@ -2,7 +2,7 @@
  *
  * Contributed by Johnson Controls Tyco IP Holdings LLP.
  *
- * Use of this Software is subject to the GPLv2 License
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -13,7 +13,7 @@
  *
  * wolfSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -159,10 +159,8 @@ static void RX64_HashFree(wolfssl_RX64_HW_Hash* hash)
     if (hash == NULL)
         return;
 
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 }
 
 /**

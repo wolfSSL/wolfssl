@@ -1,6 +1,6 @@
 /* md5.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,8 @@ WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX* md5, const unsigned char*
 WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char* data, size_t len,
             unsigned char* hash);
 
+#ifndef OPENSSL_COEXIST
+
 typedef WOLFSSL_MD5_CTX MD5_CTX;
 
 #define MD5_Init wolfSSL_MD5_Init
@@ -94,6 +96,8 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
 #else
     #define MD5_DIGEST_LENGTH MD5_DIGEST_SIZE
 #endif
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     }  /* extern "C" */

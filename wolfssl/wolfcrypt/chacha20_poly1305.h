@@ -1,6 +1,6 @@
 /* chacha20_poly1305.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -72,7 +72,7 @@ typedef struct ChaChaPoly_Aead {
     word32   dataLen;
 
     byte     state;
-    byte     isEncrypt:1;
+    WC_BITFIELD isEncrypt:1;
 } ChaChaPoly_Aead;
 
 

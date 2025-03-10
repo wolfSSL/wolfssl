@@ -1,0 +1,116 @@
+name: rng-tools Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-rng-tools
+          path: build-dir.tgz
+          retention-days: 5
+
+  rng-tools_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 6.16 ]
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libjansson-dev libp11-dev librtlsdr-dev libcap-dev
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-rng-tools
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout jitterentropy-library
+        uses: actions/checkout@v4
+        with:
+          repository: smuellerDD/jitterentropy-library
+          path: jitterentropy-library
+          ref: v3.5.0
+
+      - name: Build jitterentropy-library
+        working-directory: jitterentropy-library
+        run: make -j
+
+      - name: Build rng-tools
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: nhorman/rng-tools
+          ref: v${{ matrix.ref }}
+          path: rng-tools
+          patch-file: $GITHUB_WORKSPACE/osp/rng-tools/${{ matrix.ref }}.patch
+          configure: --without-pkcs11 --enable-jitterentropy=$GITHUB_WORKSPACE/jitterentropy-library --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          check: false
+
+      - name: Testing rng-tools
+        id: testing
+        working-directory: rng-tools
+        run: |
+          # Retry up to five times
+          for i in {1..5}; do
+            TEST_RES=0
+            LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib make check || TEST_RES=$?
+            if [ "$TEST_RES" -eq "0" ]; then
+               break
+            fi
+          done
+          if [ "$TEST_RES" -ne "0" ]; then
+            exit $TEST_RES
+          fi
+
+      - name: Print logs
+        if: ${{ failure() && steps.testing.outcome == 'failure' }}
+        working-directory: rng-tools/tests
+        run: cat test-suite.log

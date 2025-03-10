@@ -1,6 +1,6 @@
 /* ocsp.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -48,6 +48,16 @@ typedef struct OcspEntry WOLFSSL_OCSP_SINGLERESP;
 typedef struct OcspRequest WOLFSSL_OCSP_ONEREQ;
 
 typedef struct OcspRequest WOLFSSL_OCSP_REQUEST;
+
+typedef struct {
+    WOLFSSL_BIO *bio;
+    WOLFSSL_BIO *reqResp; /* First used for request then for response */
+    byte* buf;
+    int bufLen;
+    int state;
+    int ioState;
+    int sent;
+} WOLFSSL_OCSP_REQ_CTX;
 #endif
 
 WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm);
@@ -67,13 +77,11 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
 WOLFSSL_LOCAL int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert,
                                      void* vp);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIGHTY)
-
-    WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
-                                                  WOLFSSL_OCSP_CERTID *id, int *status, int *reason,
-                                                  WOLFSSL_ASN1_TIME **revtime, WOLFSSL_ASN1_TIME **thisupd,
-                                                  WOLFSSL_ASN1_TIME **nextupd);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
+                                              WOLFSSL_OCSP_CERTID *id, int *status, int *reason,
+                                              WOLFSSL_ASN1_TIME **revtime, WOLFSSL_ASN1_TIME **thisupd,
+                                              WOLFSSL_ASN1_TIME **nextupd);
 WOLFSSL_API const char *wolfSSL_OCSP_cert_status_str(long s);
 WOLFSSL_API int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec);
@@ -132,8 +140,21 @@ WOLFSSL_API int wolfSSL_OCSP_resp_count(WOLFSSL_OCSP_BASICRESP *bs);
 WOLFSSL_API WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(
     WOLFSSL_OCSP_BASICRESP *bs, int idx);
 
-#endif
-#ifdef OPENSSL_EXTRA
+WOLFSSL_API WOLFSSL_OCSP_REQ_CTX* wolfSSL_OCSP_REQ_CTX_new(WOLFSSL_BIO *bio,
+        int maxline);
+WOLFSSL_API void wolfSSL_OCSP_REQ_CTX_free(WOLFSSL_OCSP_REQ_CTX *ctx);
+WOLFSSL_API WOLFSSL_OCSP_REQ_CTX *wolfSSL_OCSP_sendreq_new(WOLFSSL_BIO *bio,
+        const char *path, OcspRequest *req, int maxline);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_set1_req(WOLFSSL_OCSP_REQ_CTX *ctx,
+        OcspRequest *req);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
+                             const char *name, const char *value);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_http(WOLFSSL_OCSP_REQ_CTX *ctx,
+        const char *op, const char *path);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx);
+WOLFSSL_API int wolfSSL_OCSP_sendreq_nbio(OcspResponse **presp,
+        WOLFSSL_OCSP_REQ_CTX *rctx);
+
 WOLFSSL_API int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req,
         WOLFSSL_X509_EXTENSION* ext, int idx);
 WOLFSSL_API OcspResponse* wolfSSL_OCSP_response_create(int status,
@@ -148,7 +169,7 @@ WOLFSSL_API int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req,
         unsigned char* val, int sz);
 WOLFSSL_API int wolfSSL_OCSP_check_nonce(OcspRequest* req,
         WOLFSSL_OCSP_BASICRESP* bs);
-#endif
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef __cplusplus

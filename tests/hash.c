@@ -1,6 +1,6 @@
 /* hash.c has unit tests
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,11 +20,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #include <stdio.h>
 
@@ -35,8 +31,6 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-
-#include <tests/unit.h>
 
 typedef struct testVector {
     const char*  input;

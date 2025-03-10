@@ -1,6 +1,6 @@
 /* time_helper.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -94,7 +94,7 @@ int set_time(void)
     if (NTP_SERVER_COUNT) {
         /* next, let's setup NTP time servers
          *
-         * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#sntp-time-synchronization
+         * see Espressif api-reference/system/system_time
          */
         sntp_setoperatingmode(SNTP_OPMODE_POLL);
 

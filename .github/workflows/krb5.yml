@@ -1,29 +1,46 @@
 name: Kerberos 5 Tests
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 5
     steps:
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-krb CFLAGS='-fsanitize=address'
+          configure: --enable-krb CC='gcc -fsanitize=address'
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wolf-install-krb5
-          path: build-dir
-          retention-days: 1
+          path: build-dir.tgz
+          retention-days: 5
 
   krb5_check:
     strategy:
@@ -32,25 +49,28 @@ jobs:
         # List of releases to test
         ref: [ 1.21.1 ]
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 8
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wolf-install-krb5
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
 
       - name: Checkout krb5
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: krb5/krb5
           ref: krb5-${{ matrix.ref }}-final
@@ -61,6 +81,10 @@ jobs:
         run: |
           patch -p1 < $GITHUB_WORKSPACE/osp/krb5/Patch-for-Kerberos-5-${{ matrix.ref }}.patch
 
+      - name: workaround high-entropy ASLR
+        # not needed after either an update to llvm or runner is done
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
       - name: Build krb5
         working-directory: ./krb5/src
         run: |
@@ -68,7 +92,7 @@ jobs:
           # Using rpath because LD_LIBRARY_PATH is overwritten during testing
           export WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl  -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
           export WOLFSSL_LIBS="-lwolfssl -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
-          ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit \
+          ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit --with-spake-openssl \
             CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address'
           CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address' make -j
 

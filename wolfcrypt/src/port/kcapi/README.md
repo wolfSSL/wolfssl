@@ -27,7 +27,7 @@ cd libkcapi
 
 autoreconf -i
 
-./configure	--enable-kcapi-test \
+./configure --enable-kcapi-test \
     --enable-kcapi-speed \
     --enable-kcapi-hasher \
     --enable-kcapi-rngapp \

@@ -326,9 +326,9 @@
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/fe_operations.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt/src/fe_x25519_128.i</name>
+			<name>src/wolfcrypt/src/fe_x25519_128.h</name>
 			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/fe_x25519_128.i</locationURI>
+			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/fe_x25519_128.h</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/fp_mont_small.i</name>

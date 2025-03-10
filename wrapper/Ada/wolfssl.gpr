@@ -1,0 +1,96 @@
+library project WolfSSL is
+
+   for Library_Name use "wolfssl";
+   --  for Library_Version use Project'Library_Name & ".so";
+   type OS_Kind is ("Windows", "Linux_Or_Mac");
+
+   OS : OS_Kind := external ("OS", "Linux_Or_Mac");
+
+   for Languages use ("C", "Ada");
+
+   for Source_Dirs use (".",
+                        "../../",
+                        "../../src",
+                        "../../wolfcrypt/src");
+
+   --  Don't build the tls client or server application.
+   --  They are not needed in order to build the library.
+   for Excluded_Source_Files use ("tls_client_main.adb",
+                                  "tls_client.ads",
+                                  "tls_client.adb",
+				  "tls_server_main.adb",
+				  "tls_server.ads",
+				  "tls_server.adb");
+
+   for Object_Dir use "obj";
+   for Library_Dir use "lib";
+   for Create_Missing_Dirs use "True";
+
+   type Library_Type_Type is ("relocatable", "static", "static-pic");
+   Library_Type : Library_Type_Type := external("LIBRARY_TYPE", "static");
+   for Library_Kind use Library_Type;
+
+   package Naming is
+      for Spec_Suffix ("C") use ".h";
+   end Naming;
+
+   package Builder is
+      for Global_Configuration_Pragmas use "gnat.adc";
+   end Builder;
+
+   package Compiler is
+      for Switches ("C") use
+         ("-DWOLFSSL_USER_SETTINGS", --  Use the user_settings.h file.
+          "-Wno-pragmas",
+          "-Wall",
+          "-Wextra",
+          "-Wunknown-pragmas",
+          "--param=ssp-buffer-size=1",
+          "-Waddress",
+          "-Warray-bounds",
+          "-Wbad-function-cast",
+          "-Wchar-subscripts",
+          "-Wcomment",
+          "-Wfloat-equal",
+          "-Wformat-security",
+          "-Wformat=2",
+          "-Wmaybe-uninitialized",
+          "-Wmissing-field-initializers",
+          "-Wmissing-noreturn",
+          "-Wmissing-prototypes",
+          "-Wnested-externs",
+          "-Wnormalized=id",
+          "-Woverride-init",
+          "-Wpointer-arith",
+          "-Wpointer-sign",
+          "-Wshadow",
+          "-Wsign-compare",
+          "-Wstrict-overflow=1",
+          "-Wstrict-prototypes",
+          "-Wswitch-enum",
+          "-Wundef",
+          "-Wunused",
+          "-Wunused-result",
+          "-Wunused-variable",
+          "-Wwrite-strings",
+          "-fwrapv") & External_As_List ("CFLAGS", " ");
+
+      for Switches ("Ada") use ("-g") & External_As_List ("ADAFLAGS", " ");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");  --  To include stack traces.
+   end Binder;
+ 
+--     case OS is
+--        when "Windows" =>
+--           for Library_Options use ("-lm",  --  To include the math library (used by WolfSSL).
+--  		                  "-lcrypt32");  --  Needed on Windows.
+--        when "Linux_Or_Mac" =>
+--  	 for Library_Options use ("-lm");  --  To include the math library (used by WolfSSL).
+--     end case;
+--  
+--     --  Put user options in front, for options like --as-needed.
+--     for Leading_Library_Options use External_As_List ("LDFLAGS", " ");
+
+end WolfSSl;

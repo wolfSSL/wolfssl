@@ -15,7 +15,7 @@
 
 #include <wolfssl/ssl.h>
 
-#define MAIN_TASK 	1
+#define MAIN_TASK 1
 
 extern void Main_task(uint32_t);
 extern void setup_ethernet(void);
@@ -34,10 +34,10 @@ static inline void err_sys(const char* msg)
         _mqx_exit(1);
 }
 
-/* PPP device must be set manually and 
+/* PPP device must be set manually and
  * must be different from the default IO channel (BSP_DEFAULT_IO_CHANNEL)
  */
-#define PPP_DEVICE      "ittyb:" 
+#define PPP_DEVICE      "ittyb:"
 
 /*
  * Define PPP_DEVICE_DUN only when using PPP to communicate
@@ -54,7 +54,7 @@ static inline void err_sys(const char* msg)
     #define ENET_IPMASK   IPADDR(255,255,255,0)
 #endif
 
-#define GATE_IPADDR		  IPADDR(192,168,1,1)
+#define GATE_IPADDR       IPADDR(192,168,1,1)
 
 #endif /* __main_h_ */
 

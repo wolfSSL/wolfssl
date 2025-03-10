@@ -29,7 +29,14 @@ EXTRA_DIST += \
          certs/test/cert-ext-joi.cfg \
          certs/test/cert-ext-multiple.cfg \
          certs/test/cert-ext-multiple.der \
-         certs/test/cert-ext-multiple.pem
+         certs/test/cert-ext-multiple.pem \
+         certs/test/cert-bad-neg-int.der \
+         certs/test/cert-bad-oid.der \
+         certs/test/cert-bad-utf8.der \
+         certs/test/cert-over-max-altnames.cfg \
+         certs/test/cert-over-max-altnames.pem \
+         certs/test/cert-over-max-nc.cfg \
+         certs/test/cert-over-max-nc.pem
 
 # The certs/server-cert with the last byte (signature byte) changed
 EXTRA_DIST += \
@@ -60,6 +67,7 @@ EXTRA_DIST += \
          certs/test/server-badaltname.pem \
          certs/test/server-localhost.der \
          certs/test/server-localhost.pem \
+         certs/test/ossl-trusted-cert.pem \
          certs/test/ktri-keyid-cms.msg \
          certs/test/smime-test.p7s \
          certs/test/smime-test-canon.p7s \

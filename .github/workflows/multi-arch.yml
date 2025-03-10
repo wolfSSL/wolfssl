@@ -1,7 +1,16 @@
 name: Multiple architectures
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 jobs:
   my_matrix:
@@ -27,7 +36,8 @@ jobs:
             CFLAGS: -marm -DWOLFSSL_SP_ARM_ARCH=6
             ARCH: armel
             EXTRA_OPTS: --enable-sp-asm
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -35,14 +45,14 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build
         env:
             CC: ${{ matrix.CC }}
             CFLAGS: ${{ matrix.CFLAGS }}
             QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
         run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples ${{ matrix.EXTRA_OPTS }} && make
-      - name: Print errors 
+      - name: Print errors
         if: ${{ failure() }}
         run: |
           if [ -f config.log ] ; then

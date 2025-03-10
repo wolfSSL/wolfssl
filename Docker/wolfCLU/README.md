@@ -1,6 +1,6 @@
 This is a small container that has wolfCLU installed for quick access. To build your own run the following:
 ```
-docker build --pull --build-arg DUMMY=$(date +%s) -t wolfclu . 
+docker build --pull --build-arg DUMMY=$(date +%s) -t wolfclu .
 ```
 
 To run the container, you can use:

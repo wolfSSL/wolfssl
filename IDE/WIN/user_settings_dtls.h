@@ -8,8 +8,8 @@
 
 /* DTLS configuration including DTLS v.1.3 which requires TLS v.1.3. */
 
-/* The below DTLS configurations can be copied in to another user_settings.h 
-   file that may have other settings that need to be preserved. 
+/* The below DTLS configurations can be copied in to another user_settings.h
+   file that may have other settings that need to be preserved.
 */
 #define WOLFSSL_TLS13
 #define WOLFSSL_DTLS

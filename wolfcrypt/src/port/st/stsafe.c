@@ -1,6 +1,6 @@
 /* stsafe.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,6 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/port/st/stsafe.h>
@@ -539,7 +543,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 &otherKeyY[0], (word32*)&otherKeyY_len);
             if (rc == 0) {
                 /* Compute shared secret */
-            	*info->pk.ecdh.outlen = 0;
+                *info->pk.ecdh.outlen = 0;
                 rc = stsafe_interface_shared_secret(
         #ifdef WOLFSSL_STSAFE_TAKES_SLOT
                     STSAFE_A_SLOT_0,
@@ -559,7 +563,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 #endif /* HAVE_ECC */
 
     /* need to return negative here for error */
-    if (rc != 0 && rc != CRYPTOCB_UNAVAILABLE) {
+    if (rc != 0 && rc != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
         WOLFSSL_MSG("STSAFE: CryptoCb failed");
     #ifdef USE_STSAFE_VERBOSE
         STSAFE_INTERFACE_PRINTF("STSAFE: CryptoCb failed %d\n", rc);

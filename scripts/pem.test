@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # pem.test
 # Copyright wolfSSL 2023-2023

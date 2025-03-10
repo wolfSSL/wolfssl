@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -141,12 +141,14 @@ enum EncPkcs8Types {
 enum CertType {
     CERT_TYPE       = 0,
     PRIVATEKEY_TYPE,
+    ALT_PRIVATEKEY_TYPE,
     DH_PARAM_TYPE,
     DSA_PARAM_TYPE,
     CRL_TYPE,
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
     DSA_PRIVATEKEY_TYPE,
+    ACERT_TYPE,
     CERTREQ_TYPE,
     DSA_TYPE,
     ECC_TYPE,
@@ -169,6 +171,9 @@ enum CertType {
     DILITHIUM_LEVEL2_TYPE,
     DILITHIUM_LEVEL3_TYPE,
     DILITHIUM_LEVEL5_TYPE,
+    ML_DSA_LEVEL2_TYPE,
+    ML_DSA_LEVEL3_TYPE,
+    ML_DSA_LEVEL5_TYPE,
     SPHINCS_FAST_LEVEL1_TYPE,
     SPHINCS_FAST_LEVEL3_TYPE,
     SPHINCS_FAST_LEVEL5_TYPE,
@@ -176,7 +181,9 @@ enum CertType {
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
     ECC_PARAM_TYPE,
-    CHAIN_CERT_TYPE
+    CHAIN_CERT_TYPE,
+    PKCS7_TYPE,
+    TRUSTED_CERT_TYPE
 };
 
 
@@ -214,12 +221,15 @@ enum Ctc_SigType {
     CTC_ED25519      = 256,
     CTC_ED448        = 257,
 
-    CTC_FALCON_LEVEL1 = 268,
-    CTC_FALCON_LEVEL5 = 271,
+    CTC_FALCON_LEVEL1 = 273,
+    CTC_FALCON_LEVEL5 = 276,
 
-    CTC_DILITHIUM_LEVEL2     = 213,
-    CTC_DILITHIUM_LEVEL3     = 216,
-    CTC_DILITHIUM_LEVEL5     = 220,
+    CTC_DILITHIUM_LEVEL2     = 218,
+    CTC_DILITHIUM_LEVEL3     = 221,
+    CTC_DILITHIUM_LEVEL5     = 225,
+    CTC_ML_DSA_LEVEL2        = 431,
+    CTC_ML_DSA_LEVEL3        = 432,
+    CTC_ML_DSA_LEVEL5        = 433,
 
     CTC_SPHINCS_FAST_LEVEL1  = 281,
     CTC_SPHINCS_FAST_LEVEL3  = 283,
@@ -323,7 +333,7 @@ typedef struct EncryptedInfo {
     char     name[NAME_SZ];    /* cipher name, such as "DES-CBC" */
     byte     iv[IV_SZ];        /* salt or encrypted IV */
 
-    word16   set:1;            /* if encryption set */
+    WC_BITFIELD set:1;         /* if encryption set */
 #endif
 } EncryptedInfo;
 
@@ -338,7 +348,7 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
-    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+    WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
     int length;   /* Length of DER encoding. */
     int type;     /* ASN.1 type. Includes negative flag. */
@@ -359,7 +369,6 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 #endif
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
-#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_MULTI_ATTRIB
 #ifndef CTC_MAX_ATTRIB
     #define CTC_MAX_ATTRIB 4
@@ -373,7 +382,6 @@ typedef struct NameAttrib {
     char value[CTC_NAME_SIZE];   /* name */
 } NameAttrib;
 #endif /* WOLFSSL_MULTI_ATTRIB */
-#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {
@@ -513,6 +521,19 @@ typedef struct Cert {
     byte     issRaw[sizeof(CertName)];   /* raw issuer info */
     byte     sbjRaw[sizeof(CertName)];   /* raw subject info */
 #endif
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    /* These will not point to managed buffers. They will point to buffers that
+     * are managed by others. No cleanup necessary. */
+    /* Subject Alternative Public Key Info */
+    byte *sapkiDer;
+    int sapkiLen;
+    /* Alternative Signature Algorithm */
+    byte *altSigAlgDer;
+    int altSigAlgLen;
+    /* Alternative Signature Value */
+    byte *altSigValDer;
+    int altSigValLen;
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
     char     unstructuredName[CTC_NAME_SIZE];
@@ -529,13 +550,13 @@ typedef struct Cert {
     void*   decodedCert;      /* internal DecodedCert allocated from heap */
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
-    byte    basicConstSet:1;  /* Indicator for when Basic Constraint is set */
+    WC_BITFIELD basicConstSet:1;  /* Indicator for when Basic Constraint is set */
 #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
-    byte    isCaSet:1;        /* Indicator for when isCA is set */
+    WC_BITFIELD isCaSet:1;        /* Indicator for when isCA is set */
 #endif
-    byte    pathLenSet:1;     /* Indicator for when path length is set */
+    WC_BITFIELD pathLenSet:1;     /* Indicator for when path length is set */
 #ifdef WOLFSSL_ALT_NAMES
-    byte    altNamesCrit:1;   /* Indicator of criticality of SAN extension */
+    WC_BITFIELD altNamesCrit:1;   /* Indicator of criticality of SAN extension */
 #endif
 } Cert;
 
@@ -572,6 +593,11 @@ WOLFSSL_API int wc_SignCert_ex(int requestSz, int sType, byte* buf,
                                WC_RNG* rng);
 WOLFSSL_API int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                             RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng);
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+WOLFSSL_API int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
+                                     word32 bufSz, int keyType, void* key,
+                                     WC_RNG* rng);
+#endif
 WOLFSSL_ABI
 WOLFSSL_API int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
                                 RsaKey* key, WC_RNG* rng);
@@ -703,8 +729,9 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
 
+WOLFSSL_API word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);
+
 #ifndef NO_RSA
-    #if !defined(HAVE_USER_RSA)
     WOLFSSL_API int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
         word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
     /* For FIPS v1/v2 and selftest this is in rsa.h */
@@ -717,7 +744,6 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
          (! ((HAVE_FIPS_VERSION == 5) && (HAVE_FIPS_VERSION_MINOR == 0)))))
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen);
     #endif
-    #endif /* !HAVE_USER_RSA */
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
     WOLFSSL_API int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
         int with_header);
@@ -782,8 +808,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -792,8 +817,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -820,12 +844,16 @@ WOLFSSL_API int wc_Curve25519PrivateKeyDecode(
     const byte* input, word32* inOutIdx, curve25519_key* key, word32 inSz);
 WOLFSSL_API int wc_Curve25519PublicKeyDecode(
     const byte* input, word32* inOutIdx, curve25519_key* key, word32 inSz);
+WOLFSSL_API int wc_Curve25519KeyDecode(const byte *input, word32 *inOutIdx,
+                                       curve25519_key *key, word32 inSz);
 #endif
 #ifdef HAVE_CURVE25519_KEY_EXPORT
 WOLFSSL_API int wc_Curve25519PrivateKeyToDer(
     curve25519_key* key, byte* output, word32 inLen);
 WOLFSSL_API int wc_Curve25519PublicKeyToDer(
     curve25519_key* key, byte* output, word32 inLen, int withAlg);
+WOLFSSL_API int wc_Curve25519KeyToDer(curve25519_key* key, byte* output,
+                                      word32 inLen, int withAlg);
 #endif
 #endif /* HAVE_CURVE25519 */
 
@@ -916,9 +944,9 @@ typedef struct _wc_CertPIV {
     word32       signedNonceSz; /* Identiv Only */
 
     /* flags */
-    word16       compression:2;
-    word16       isX509:1;
-    word16       isIdentiv:1;
+    WC_BITFIELD  compression:2;
+    WC_BITFIELD  isX509:1;
+    WC_BITFIELD  isIdentiv:1;
 } wc_CertPIV;
 
 WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);
@@ -942,6 +970,24 @@ WOLFSSL_API int wc_GetUUIDFromCert(struct DecodedCert* cert,
 WOLFSSL_API int wc_GetFASCNFromCert(struct DecodedCert* cert,
                                     byte* fascn, word32* fascnSz);
 #endif /* WOLFSSL_FPKI */
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+WOLFSSL_API int wc_GeneratePreTBS(struct DecodedCert* cert, byte *der,
+                                  int derSz);
+#endif
+
+#if defined(WOLFSSL_ACERT)
+/* Forward declaration needed, as DecodedAcert is defined in asn.h.*/
+struct DecodedAcert;
+WOLFSSL_API void wc_InitDecodedAcert(struct DecodedAcert* acert,
+                                     const byte* source, word32 inSz,
+                                     void* heap);
+WOLFSSL_API void wc_FreeDecodedAcert(struct DecodedAcert * acert);
+WOLFSSL_API int  wc_ParseX509Acert(struct DecodedAcert* acert, int verify);
+WOLFSSL_API int  wc_VerifyX509Acert(const byte* acert, word32 acertSz,
+                                    const byte* pubKey, word32 pubKeySz,
+                                    int pubKeyOID, void * heap);
+#endif /* WOLFSSL_ACERT */
 
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \
     defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_ASN_PRINT)
@@ -968,7 +1014,7 @@ enum Asn1PrintOpt {
     /* Don't show text representations of primitive types. */
     ASN1_PRINT_OPT_SHOW_NO_TEXT,
     /* Don't show dump text representations of primitive types. */
-    ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT,
+    ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT
 };
 
 /* ASN.1 print options. */
@@ -980,17 +1026,17 @@ typedef struct Asn1PrintOptions {
     /* Number of spaces to indent for each change in depth. */
     word8 indent;
     /* Draw branches instead of indenting. */
-    word8 draw_branch:1;
+    WC_BITFIELD draw_branch:1;
     /* Show raw data of primitive types as octets. */
-    word8 show_data:1;
+    WC_BITFIELD show_data:1;
     /* Show header data as octets. */
-    word8 show_header_data:1;
+    WC_BITFIELD show_header_data:1;
     /* Show the wolfSSL OID value for OBJECT_ID. */
-    word8 show_oid:1;
+    WC_BITFIELD show_oid:1;
     /* Don't show text representations of primitive types. */
-    word8 show_no_text:1;
+    WC_BITFIELD show_no_text:1;
     /* Don't show dump text representations of primitive types. */
-    word8 show_no_dump_text:1;
+    WC_BITFIELD show_no_dump_text:1;
 } Asn1PrintOptions;
 
 /* ASN.1 item data. */

@@ -1,6 +1,6 @@
 /* wc_encrypt.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -244,7 +244,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
 #else
@@ -318,7 +318,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
 #else
@@ -545,9 +545,15 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
                 ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
                                     iterations, (int)derivedLen, typeH, 1);
+                if (ret < 0)
+                    break;
                 if (id != PBE_SHA1_RC4_128) {
-                    ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
+                    i = ret;
+                    ret = wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
                                     saltSz, iterations, 8, typeH, 2);
+                    if (ret < 0)
+                        break;
+                    ret += i;
                 }
                 break;
             }
@@ -658,15 +664,21 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                                                             AES_ENCRYPTION);
                     }
                     else {
+                    #ifdef HAVE_AES_DECRYPT
                         ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
                                                             AES_DECRYPTION);
+                    #else
+                        ret = NOT_COMPILED_IN;
+                    #endif
                     }
                 }
                 if (ret == 0) {
                     if (enc)
                         ret = wc_AesCbcEncrypt(aes, input, input, (word32)length);
+                    #ifdef HAVE_AES_DECRYPT
                     else
                         ret = wc_AesCbcDecrypt(aes, input, input, (word32)length);
+                    #endif
                 }
                 if (free_aes)
                     wc_AesFree(aes);

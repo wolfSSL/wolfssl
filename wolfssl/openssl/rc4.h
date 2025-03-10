@@ -1,6 +1,6 @@
 /* rc4.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,15 +41,20 @@ typedef struct WOLFSSL_RC4_KEY {
     /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
     void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_RC4_KEY;
-typedef WOLFSSL_RC4_KEY RC4_KEY;
 
 WOLFSSL_API void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
         const unsigned char* data);
 WOLFSSL_API void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len,
         const unsigned char* in, unsigned char* out);
 
+#ifndef OPENSSL_COEXIST
+
+typedef WOLFSSL_RC4_KEY RC4_KEY;
+
 #define RC4         wolfSSL_RC4
 #define RC4_set_key wolfSSL_RC4_set_key
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     }  /* extern "C" */

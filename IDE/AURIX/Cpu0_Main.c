@@ -1,6 +1,6 @@
 /* Cpu0_Main.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -63,7 +63,7 @@ int fputc(int ch, FILE *f)
     if (ch == (int)'\n') {
         int chcr = (int)'\r';
         count = 1;
-        IfxAsclin_Asc_write(&g_asc, &chcr, &count, TIME_INFINITE);    
+        IfxAsclin_Asc_write(&g_asc, &chcr, &count, TIME_INFINITE);
     }
     count = 1;
     IfxAsclin_Asc_write(&g_asc, &ch, &count, TIME_INFINITE);

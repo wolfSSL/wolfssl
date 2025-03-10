@@ -1,6 +1,6 @@
 /* user_settings_wolftpm.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -131,7 +131,7 @@ extern "C" {
 #else
     #define NO_RSA
 #endif
-#ifndef USE_LOW_RESOURCE /* ECC */
+#if 1 /* ECC - needed for encrypt ECC salt */
     #define HAVE_ECC
     #define ECC_USER_CURVES /* default to only SECP256R1 */
 #endif

@@ -1,5 +1,5 @@
 /*!
-    \ingroup Signature 
+    \ingroup Signature
     \brief  この関数は、結果のシグネチャの最大サイズを返します。
     \return Returns  sig_type_e sig_typeがサポートされていない場合sig_typeが無効な場合はbad_func_argを返します。正の戻り値は、署名の最大サイズを示します。
     \param sig_type  wc_signature_type_eccまたはwc_signature_type_rsaなどの署名型列挙型値。
@@ -24,7 +24,7 @@ int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len);
 
 /*!
-    \ingroup Signature 
+    \ingroup Signature
     \brief  この関数は、データをハッシュし、結果のハッシュとキーを使用して署名を使用して署名を使用して署名を検証します。
     \return 0  成功
     \return SIG_TYPE_E  -231、署名タイプが有効/利用可能です
@@ -65,7 +65,7 @@ int wc_SignatureVerify(
     const void* key, word32 key_len);
 
 /*!
-    \ingroup Signature 
+    \ingroup Signature
     \brief  この関数は、キーを使用してデータから署名を生成します。まずデータのハッシュを作成し、キーを使用してハッシュに署名します。
     \return 0  成功
     \return SIG_TYPE_E  -231、署名タイプが有効/利用可能です

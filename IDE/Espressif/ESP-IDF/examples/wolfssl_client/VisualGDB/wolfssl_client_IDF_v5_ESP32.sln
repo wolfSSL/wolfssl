@@ -18,6 +18,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "include", "include", "{5326
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A51226B3-88A7-4463-B443-0E321C4A3D53}"
 	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\..\..\wolfssl\wolfcrypt\error-crypt.h = ..\..\..\..\..\..\wolfssl\wolfcrypt\error-crypt.h
+		..\..\..\..\..\..\wolfssl\error-ssl.h = ..\..\..\..\..\..\wolfssl\error-ssl.h
+		..\main\Kconfig.projbuild = ..\main\Kconfig.projbuild
+		..\build\VisualGDB\Debug\esp-idf\esp_system\ld\memory.ld = ..\build\VisualGDB\Debug\esp-idf\esp_system\ld\memory.ld
 		..\..\..\..\..\..\..\my_private_config.h = ..\..\..\..\..\..\..\my_private_config.h
 		..\partitions_singleapp_large.csv = ..\partitions_singleapp_large.csv
 		..\README.md = ..\README.md
@@ -25,6 +29,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\build\VisualGDB\Debug\config\sdkconfig.cmake = ..\build\VisualGDB\Debug\config\sdkconfig.cmake
 		..\sdkconfig.defaults = ..\sdkconfig.defaults
 		..\build\VisualGDB\Debug\config\sdkconfig.h = ..\build\VisualGDB\Debug\config\sdkconfig.h
+		..\build\VisualGDB\Debug\esp-idf\esp_system\ld\sections.ld = ..\build\VisualGDB\Debug\esp-idf\esp_system\ld\sections.ld
 	EndProjectSection
 EndProject
 Global

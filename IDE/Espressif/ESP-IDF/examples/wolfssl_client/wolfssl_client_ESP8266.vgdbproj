@@ -1,0 +1,292 @@
+<?xml version="1.0"?>
+<VisualGDBProjectSettings2 xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Project xsi:type="com.visualgdb.project.external.esp-idf">
+    <CustomSourceDirectories>
+      <Directories />
+      <PathStyle>Unknown</PathStyle>
+    </CustomSourceDirectories>
+    <AutoProgramSPIFFSPartition>true</AutoProgramSPIFFSPartition>
+    <ProjectModeSettings>
+      <ProjectGUID>c9687472-a434-43a7-9026-7914f425b9b4</ProjectGUID>
+      <GroupSourcesByTypes>true</GroupSourcesByTypes>
+      <GroupSourcesByPaths>true</GroupSourcesByPaths>
+      <HeaderScanMode>SourceDirs</HeaderScanMode>
+    </ProjectModeSettings>
+  </Project>
+  <Build xsi:type="com.visualgdb.build.external.esp-idf">
+    <BuildLogMode xsi:nil="true" />
+    <ToolchainID>
+      <ID>com.visualgdb.xtensa-lx106-elf</ID>
+      <Version>
+        <GCC>8.4.0</GCC>
+        <GDB>8.1</GDB>
+        <Revision>1</Revision>
+      </Version>
+    </ToolchainID>
+    <IDFCheckout>
+      <Version>release/v3.4</Version>
+      <Subdirectory>rtos-sdk/v3.4</Subdirectory>
+      <Type>RTOS_SDK</Type>
+    </IDFCheckout>
+    <BuildThreadCount>0</BuildThreadCount>
+  </Build>
+  <CustomBuild>
+    <PreSyncActions />
+    <PreBuildActions />
+    <PostBuildActions />
+    <PreCleanActions />
+    <PostCleanActions />
+  </CustomBuild>
+  <CustomDebug>
+    <PreDebugActions />
+    <PostDebugActions />
+    <DebugStopActions />
+    <BreakMode>Default</BreakMode>
+    <CustomBreakCommand>
+      <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
+      <RemoteHost>
+        <HostName>BuildMachine</HostName>
+        <Transport>BuiltinShortcut</Transport>
+      </RemoteHost>
+      <BackgroundMode xsi:nil="true" />
+    </CustomBreakCommand>
+  </CustomDebug>
+  <DeviceTerminalSettings>
+    <Connection xsi:type="com.sysprogs.terminal.connection.serial">
+      <ComPortName>COM80</ComPortName>
+      <AdvancedSettings>
+        <BaudRate>74880</BaudRate>
+        <DataBits>8</DataBits>
+        <Parity>None</Parity>
+        <StopBits>One</StopBits>
+        <FlowControl>None</FlowControl>
+      </AdvancedSettings>
+    </Connection>
+    <LastConnectionTime>0</LastConnectionTime>
+    <EchoTypedCharacters>false</EchoTypedCharacters>
+    <ClearContentsWhenReconnecting>true</ClearContentsWhenReconnecting>
+    <ReconnectAutomatically>false</ReconnectAutomatically>
+    <DisplayMode>ASCII</DisplayMode>
+    <Colors>
+      <Background>
+        <Alpha>255</Alpha>
+        <Red>0</Red>
+        <Green>0</Green>
+        <Blue>0</Blue>
+      </Background>
+      <Disconnected>
+        <Alpha>255</Alpha>
+        <Red>169</Red>
+        <Green>169</Green>
+        <Blue>169</Blue>
+      </Disconnected>
+      <Text>
+        <Alpha>255</Alpha>
+        <Red>211</Red>
+        <Green>211</Green>
+        <Blue>211</Blue>
+      </Text>
+      <Echo>
+        <Alpha>255</Alpha>
+        <Red>144</Red>
+        <Green>238</Green>
+        <Blue>144</Blue>
+      </Echo>
+      <Inactive>
+        <Alpha>255</Alpha>
+        <Red>169</Red>
+        <Green>169</Green>
+        <Blue>169</Blue>
+      </Inactive>
+    </Colors>
+    <HexSettings>
+      <MaximumBytesPerLine>16</MaximumBytesPerLine>
+      <ShowTextView>true</ShowTextView>
+      <BreaksAroundEcho>true</BreaksAroundEcho>
+      <AutoSend>true</AutoSend>
+      <SendAsHex>true</SendAsHex>
+      <TimeoutForAutoBreak>0</TimeoutForAutoBreak>
+    </HexSettings>
+    <LineEnding>LF</LineEnding>
+    <TreatLFAsCRLF>false</TreatLFAsCRLF>
+    <KeepOpenAfterExit>false</KeepOpenAfterExit>
+    <ShowAfterProgramming>false</ShowAfterProgramming>
+  </DeviceTerminalSettings>
+  <CustomShortcuts>
+    <Shortcuts />
+    <ShowMessageAfterExecuting>true</ShowMessageAfterExecuting>
+  </CustomShortcuts>
+  <UserDefinedVariables />
+  <ImportedPropertySheets />
+  <CodeSense>
+    <Enabled>True</Enabled>
+    <ExtraSettings>
+      <HideErrorsInSystemHeaders>true</HideErrorsInSystemHeaders>
+      <SupportLightweightReferenceAnalysis>true</SupportLightweightReferenceAnalysis>
+      <DiscoverySettings>
+        <Mode>Enabled</Mode>
+        <SearchInProjectDir>true</SearchInProjectDir>
+        <SearchInSourceDirs>true</SearchInSourceDirs>
+        <SearchInIncludeSubdirs>true</SearchInIncludeSubdirs>
+      </DiscoverySettings>
+      <CheckForClangFormatFiles>true</CheckForClangFormatFiles>
+      <FormattingEngine xsi:nil="true" />
+    </ExtraSettings>
+    <CodeAnalyzerSettings>
+      <Enabled>false</Enabled>
+      <SelectedAnalyzers>
+        <string>apiModeling.google.GTest</string>
+        <string>core.builtin.BuiltinFunctions</string>
+        <string>core.builtin.NoReturnFunctions</string>
+        <string>core.CallAndMessage</string>
+        <string>core.DivideZero</string>
+        <string>core.DynamicTypePropagation</string>
+        <string>core.NonnilStringConstants</string>
+        <string>core.NonNullParamChecker</string>
+        <string>core.NullDereference</string>
+        <string>core.StackAddressEscape</string>
+        <string>core.UndefinedBinaryOperatorResult</string>
+        <string>core.uninitialized.ArraySubscript</string>
+        <string>core.uninitialized.Assign</string>
+        <string>core.uninitialized.Branch</string>
+        <string>core.uninitialized.CapturedBlockVariable</string>
+        <string>core.uninitialized.UndefReturn</string>
+        <string>core.VLASize</string>
+        <string>cplusplus.NewDelete</string>
+        <string>cplusplus.NewDeleteLeaks</string>
+        <string>cplusplus.SelfAssignment</string>
+        <string>deadcode.DeadStores</string>
+        <string>nullability.NullPassedToNonnull</string>
+        <string>nullability.NullReturnedFromNonnull</string>
+        <string>security.insecureAPI.getpw</string>
+        <string>security.insecureAPI.gets</string>
+        <string>security.insecureAPI.mkstemp</string>
+        <string>security.insecureAPI.mktemp</string>
+        <string>security.insecureAPI.UncheckedReturn</string>
+        <string>security.insecureAPI.vfork</string>
+        <string>unix.API</string>
+        <string>unix.cstring.BadSizeArg</string>
+        <string>unix.cstring.NullArg</string>
+        <string>unix.Malloc</string>
+        <string>unix.MallocSizeof</string>
+        <string>unix.MismatchedDeallocator</string>
+        <string>unix.StdCLibraryFunctions</string>
+        <string>unix.Vfork</string>
+      </SelectedAnalyzers>
+      <ExtraArguments>
+        <string>-analyzer-store=region</string>
+        <string>-analyzer-opt-analyze-nested-blocks</string>
+        <string>-analyzer-eagerly-assume</string>
+      </ExtraArguments>
+    </CodeAnalyzerSettings>
+  </CodeSense>
+  <Configurations>
+    <VisualGDBConfiguration>
+      <Name>Debug</Name>
+      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.extension">
+        <OutputSubdirectory>build/Debug</OutputSubdirectory>
+        <SDKConfigFile>sdkconfig-debug</SDKConfigFile>
+        <EnableVerboseBuild>false</EnableVerboseBuild>
+      </BuildSettingsExtension>
+    </VisualGDBConfiguration>
+    <VisualGDBConfiguration>
+      <Name>Release</Name>
+      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.extension">
+        <OutputSubdirectory>build/Release</OutputSubdirectory>
+        <SDKConfigFile>sdkconfig-release</SDKConfigFile>
+        <EnableVerboseBuild>false</EnableVerboseBuild>
+      </BuildSettingsExtension>
+    </VisualGDBConfiguration>
+  </Configurations>
+  <ProgramArgumentsSuggestions />
+  <Debug xsi:type="com.visualgdb.debug.embedded">
+    <AdditionalStartupCommands>
+      <GDBPreStartupCommands />
+      <GDBStartupCommands />
+      <GDBFinalizationCommands />
+    </AdditionalStartupCommands>
+    <AdditionalGDBSettings>
+      <Features>
+        <DisableAutoDetection>false</DisableAutoDetection>
+        <UseFrameParameter>false</UseFrameParameter>
+        <SimpleValuesFlagSupported>false</SimpleValuesFlagSupported>
+        <ListLocalsSupported>false</ListLocalsSupported>
+        <ByteLevelMemoryCommandsAvailable>false</ByteLevelMemoryCommandsAvailable>
+        <ThreadInfoSupported>false</ThreadInfoSupported>
+        <PendingBreakpointsSupported>false</PendingBreakpointsSupported>
+        <SupportTargetCommand>false</SupportTargetCommand>
+        <ReliableBreakpointNotifications>false</ReliableBreakpointNotifications>
+      </Features>
+      <EnableSmartStepping>false</EnableSmartStepping>
+      <FilterSpuriousStoppedNotifications>false</FilterSpuriousStoppedNotifications>
+      <ForceSingleThreadedMode>false</ForceSingleThreadedMode>
+      <UseAppleExtensions>false</UseAppleExtensions>
+      <CanAcceptCommandsWhileRunning>false</CanAcceptCommandsWhileRunning>
+      <MakeLogFile>false</MakeLogFile>
+      <IgnoreModuleEventsWhileStepping>true</IgnoreModuleEventsWhileStepping>
+      <UseRelativePathsOnly>false</UseRelativePathsOnly>
+      <ExitAction>None</ExitAction>
+      <DisableDisassembly>false</DisableDisassembly>
+      <ExamineMemoryWithXCommand>false</ExamineMemoryWithXCommand>
+      <StepIntoNewInstanceEntry />
+      <ExamineRegistersInRawFormat>true</ExamineRegistersInRawFormat>
+      <DisableSignals>false</DisableSignals>
+      <EnableAsyncExecutionMode>false</EnableAsyncExecutionMode>
+      <AsyncModeSupportsBreakpoints>true</AsyncModeSupportsBreakpoints>
+      <TemporaryBreakConsolidationTimeout>0</TemporaryBreakConsolidationTimeout>
+      <EnableNonStopMode>false</EnableNonStopMode>
+      <MaxBreakpointLimit>0</MaxBreakpointLimit>
+      <EnableVerboseMode>true</EnableVerboseMode>
+      <EnablePrettyPrinters>false</EnablePrettyPrinters>
+    </AdditionalGDBSettings>
+    <DebugMethod>
+      <ID>openocd</ID>
+      <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp8266">
+        <CommandLine>-f interface/ftdi/tigard.cfg -f target/esp8266.cfg</CommandLine>
+        <ExtraParameters>
+          <Frequency xsi:nil="true" />
+          <BoostedFrequency xsi:nil="true" />
+          <ConnectUnderReset>false</ConnectUnderReset>
+        </ExtraParameters>
+        <LoadProgressGUIThreshold>131072</LoadProgressGUIThreshold>
+        <ProgramMode>Enabled</ProgramMode>
+        <StartupCommands>
+          <string>set remotetimeout 60</string>
+          <string>target remote :$$SYS:GDB_PORT$$</string>
+          <string>mon reset halt</string>
+          <string>load</string>
+          <string>mon xtensa_no_interrupts_during_steps on</string>
+          <string>mon esp8266_autofeed_watchdog on</string>
+        </StartupCommands>
+        <ProgramFLASHUsingExternalTool>false</ProgramFLASHUsingExternalTool>
+        <PreferredGDBPort>0</PreferredGDBPort>
+        <PreferredTelnetPort>0</PreferredTelnetPort>
+        <AlwaysPassSerialNumber>false</AlwaysPassSerialNumber>
+        <SelectedCoreIndex xsi:nil="true" />
+        <SuggestionLogicRevision>0</SuggestionLogicRevision>
+        <ResetMode>Soft</ResetMode>
+        <ProgramSectorSize>4096</ProgramSectorSize>
+        <EraseSectorSize>4096</EraseSectorSize>
+        <FLASHSettings>
+          <Size>size4M</Size>
+          <Frequency>freq40M</Frequency>
+          <Mode>QIO</Mode>
+        </FLASHSettings>
+      </Configuration>
+    </DebugMethod>
+    <AutoDetectRTOS>true</AutoDetectRTOS>
+    <SemihostingSupport>Disabled</SemihostingSupport>
+    <SemihostingPollingDelay>0</SemihostingPollingDelay>
+    <StepIntoEntryPoint>false</StepIntoEntryPoint>
+    <ReloadFirmwareOnReset>false</ReloadFirmwareOnReset>
+    <ValidateEndOfStackAddress>true</ValidateEndOfStackAddress>
+    <StopAtEntryPoint>false</StopAtEntryPoint>
+    <EnableVirtualHalts>false</EnableVirtualHalts>
+    <DynamicAnalysisSettings />
+    <EndOfStackSymbol>_estack</EndOfStackSymbol>
+    <TimestampProviderTicksPerSecond>0</TimestampProviderTicksPerSecond>
+    <KeepConsoleAfterExit>false</KeepConsoleAfterExit>
+    <UnusedStackFillPattern xsi:nil="true" />
+    <CheckInterfaceDrivers>true</CheckInterfaceDrivers>
+  </Debug>
+</VisualGDBProjectSettings2>

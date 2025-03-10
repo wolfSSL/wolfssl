@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,13 +32,17 @@
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha512_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA512_sanity(void);
 #endif
 
 /* avoid redefinition of structs */
@@ -67,6 +71,10 @@
 #if defined(WOLFSSL_IMXRT1170_CAAM)
     #include "fsl_device_registers.h"
     #include "fsl_caam.h"
+#endif
+
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
 #if defined(_MSC_VER)
@@ -131,12 +139,16 @@ enum {
     #include "mcapi.h"
     #include "mcapi_error.h"
 #endif
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
+#endif
 /* wc_Sha512 digest */
 struct wc_Sha512 {
 #ifdef WOLFSSL_PSOC6_CRYPTO
     cy_stc_crypto_sha_state_t hash_state;
     cy_en_crypto_sha_mode_t sha_mode;
     cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
+    void*   heap;
 #else
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
@@ -147,15 +159,20 @@ struct wc_Sha512 {
 #ifdef USE_INTEL_SPEEDUP
     const byte* data;
 #endif
+#ifdef WC_C_DYNAMIC_FALLBACK
+    int sha_method;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
 #endif
+
 #if defined(WOLFSSL_ESP32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
-   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
+    (!defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384))
     WC_ESP32SHA ctx;
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
@@ -176,6 +193,9 @@ struct wc_Sha512 {
     int    devId;
     void*  devCtx; /* generic crypto callback context */
 #endif
+#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
+    wc_MXC_Sha mxcCtx;
+#endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
@@ -185,6 +205,9 @@ struct wc_Sha512 {
 #endif
 #ifdef HAVE_ARIA
     MC_HSESSION hSession;
+#endif
+#if defined(STM32_HASH_SHA512)
+    STM32_HASH_Context stmCtx;
 #endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
@@ -201,18 +224,15 @@ struct wc_Sha512 {
 
 #endif /* HAVE_FIPS */
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
     void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data,
         word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_neon
-#else
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
     void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
         word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_crypto
 #endif
 #else
 extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,

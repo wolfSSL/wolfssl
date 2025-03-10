@@ -49,7 +49,7 @@ make clean && make
 ### Others...
 
 ```
-# Success: Linux Client to ESP32 Server TLS1.2 
+# Success: Linux Client to ESP32 Server TLS1.2
 ./examples/client/client  -h 192.168.1.113 -v 3 -l ECDHE-ECDSA-SM4-CBC-SM3 -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem -A ./certs/sm2/root-sm2.pem -C
 ./examples/client/client  -h 192.168.1.113 -v 3 -l ECDHE-ECDSA-SM4-GCM-SM3 -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem -A ./certs/sm2/root-sm2.pem -C
 ./examples/client/client  -h 192.168.1.113 -v 3 -l ECDHE-ECDSA-SM4-CCM-SM3 -c ./certs/sm2/client-sm2.pem -k ./certs/sm2/client-sm2-priv.pem -A ./certs/sm2/root-sm2.pem -C
@@ -81,7 +81,7 @@ be the same as the Linux server files.
 
 |  Usage |            Certificate             |        Key                          |   Certificate Authority file, default ./certs/client-cert.pem |
 | -----  | ---------------------------------- | ----------------------------------- | --------------------------------- |
-| server | -c ./certs/sm2/server-sm2.pem      | -k ./certs/sm2/server-sm2-priv.pem  | -A ./certs/sm2/client-sm2.pem -V  |                      
+| server | -c ./certs/sm2/server-sm2.pem      | -k ./certs/sm2/server-sm2-priv.pem  | -A ./certs/sm2/client-sm2.pem -V  |
 | client | -c ./certs/sm2/client-sm2.pem      | -k ./certs/sm2/client-sm2-priv.pem  | -A ./certs/sm2/root-sm2.pem -C    |
 | emdedded:
 | server | wolfSSL_CTX_use_certificate_buffer<br/> server_sm2 | wolfSSL_CTX_use_PrivateKey_buffer<br/> server_sm2_priv | wolfSSL_CTX_load_verify_buffer<br/> client-sm2  |
@@ -156,7 +156,7 @@ I (622) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
 I (628) heap_init: At 40094DC8 len 0000B238 (44 KiB): IRAM
 I (636) spi_flash: detected chip: generic
 I (639) spi_flash: flash io: dio
-W (643) spi_flash: Detected size(4096k) larger than the size in the binary image header(2048k). Using the 
+W (643) spi_flash: Detected size(4096k) larger than the size in the binary image header(2048k). Using the
 size in the binary image header.
 I (657) cpu_start: Starting scheduler on PRO CPU.
 I (0) cpu_start: Starting scheduler on APP CPU.
@@ -167,7 +167,7 @@ I (735) system_api: read default base MAC address from EFUSE
 I (755) wifi:wifi firmware version: 0d470ef
 I (755) wifi:wifi certification version: v7.0
 I (755) wifi:config NVS flash: enabled
-I (755) wifi:config nano formating: disabled
+I (755) wifi:config nano formatting: disabled
 I (755) wifi:Init data frame dynamic rx buffer num: 32
 I (765) wifi:Init management frame dynamic rx buffer num: 32
 I (765) wifi:Init management short buffer num: 32
@@ -358,12 +358,12 @@ I (14715) internal.c: GrowOutputBuffer ok
 I (14715) wolfssl: wolfSSL Entering wolfSSL_get_options
 I (14725) wolfssl: Point Formats extension to write
 W (14735) wolfio: ssl->wflags = 0
-I (14735) wolfio: 16 03 03 00 52 02 00 00 4e 03 03 af 87 e2 58 57 
-I (14735) wolfio: 73 c3 c1 35 1a 59 39 b2 03 9d 14 03 e0 b8 fb e8 
-I (14745) wolfio: 9d 5b 9c 44 4f 57 4e 47 52 44 01 20 85 77 75 20 
-I (14755) wolfio: 95 dd 00 e2 91 f8 42 33 f8 61 3f 1f de 81 15 58 
-I (14755) wolfio: 23 0c e7 1e 71 e6 10 e5 67 23 e0 40 e0 11 00 00 
-I (14765) wolfio: 06 00 0b 00 02 01 00 
+I (14735) wolfio: 16 03 03 00 52 02 00 00 4e 03 03 af 87 e2 58 57
+I (14735) wolfio: 73 c3 c1 35 1a 59 39 b2 03 9d 14 03 e0 b8 fb e8
+I (14745) wolfio: 9d 5b 9c 44 4f 57 4e 47 52 44 01 20 85 77 75 20
+I (14755) wolfio: 95 dd 00 e2 91 f8 42 33 f8 61 3f 1f de 81 15 58
+I (14755) wolfio: 23 0c e7 1e 71 e6 10 e5 67 23 e0 40 e0 11 00 00
+I (14765) wolfio: 06 00 0b 00 02 01 00
 W (14775) wolfio: sz          = 87
 I (14775) wolfssl: Shrinking output buffer
 I (14775) wolfssl: wolfSSL Leaving SendServerHello, return 0
@@ -372,53 +372,53 @@ I (14795) wolfssl: wolfSSL Entering SendCertificate
 I (14795) wolfssl: growing output buffer
 I (14805) internal.c: GrowOutputBuffer ok
 W (14815) wolfio: ssl->wflags = 0
-I (14815) wolfio: 16 03 03 02 e6 0b 00 02 e2 00 02 df 00 02 dc 30 
-I (14815) wolfio: 82 02 d8 30 82 02 7e a0 03 02 01 02 02 01 01 30 
-I (14825) wolfio: 0a 06 08 2a 81 1c cf 55 01 83 75 30 81 ac 31 0b 
-I (14835) wolfio: 30 09 06 03 55 04 06 13 02 55 53 31 10 30 0e 06 
-I (14835) wolfio: 03 55 04 08 0c 07 4d 6f 6e 74 61 6e 61 31 10 30 
-I (14845) wolfio: 0e 06 03 55 04 07 0c 07 42 6f 7a 65 6d 61 6e 31 
-I (14855) wolfio: 14 30 12 06 03 55 04 0a 0c 0b 77 6f 6c 66 53 53 
-I (14855) wolfio: 4c 5f 73 6d 32 31 0f 30 0d 06 03 55 04 0b 0c 06 
-I (14865) wolfio: 43 41 2d 73 6d 32 31 18 30 16 06 03 55 04 03 0c 
-I (14875) wolfio: 0f 77 77 77 2e 77 6f 6c 66 73 73 6c 2e 63 6f 6d 
-I (14875) wolfio: 31 1f 30 1d 06 09 2a 86 48 86 f7 0d 01 09 01 16 
-I (14885) wolfio: 10 69 6e 66 6f 40 77 6f 6c 66 73 73 6c 2e 63 6f 
-I (14895) wolfio: 6d 31 17 30 15 06 0a 09 92 26 89 93 f2 2c 64 01 
-I (14895) wolfio: 01 0c 07 77 6f 6c 66 53 53 4c 30 1e 17 0d 32 33 
-I (14905) wolfio: 30 32 31 35 30 36 32 33 30 37 5a 17 0d 32 35 31 
-I (14915) wolfio: 31 31 31 30 36 32 33 30 37 5a 30 81 b0 31 0b 30 
-I (14915) wolfio: 09 06 03 55 04 06 13 02 55 53 31 10 30 0e 06 03 
-I (14925) wolfio: 55 04 08 0c 07 4d 6f 6e 74 61 6e 61 31 10 30 0e 
-I (14935) wolfio: 06 03 55 04 07 0c 07 42 6f 7a 65 6d 61 6e 31 14 
-I (14945) wolfio: 30 12 06 03 55 04 0a 0c 0b 77 6f 6c 66 53 53 4c 
-I (14945) wolfio: 5f 73 6d 32 31 13 30 11 06 03 55 04 0b 0c 0a 53 
-I (14955) wolfio: 65 72 76 65 72 2d 73 6d 32 31 18 30 16 06 03 55 
-I (14965) wolfio: 04 03 0c 0f 77 77 77 2e 77 6f 6c 66 73 73 6c 2e 
-I (14965) wolfio: 63 6f 6d 31 1f 30 1d 06 09 2a 86 48 86 f7 0d 01 
-I (14975) wolfio: 09 01 16 10 69 6e 66 6f 40 77 6f 6c 66 73 73 6c 
-I (14985) wolfio: 2e 63 6f 6d 31 17 30 15 06 0a 09 92 26 89 93 f2 
-I (14985) wolfio: 2c 64 01 01 0c 07 77 6f 6c 66 53 53 4c 30 5a 30 
-I (14995) wolfio: 14 06 08 2a 81 1c cf 55 01 82 2d 06 08 2a 81 1c 
-I (15005) wolfio: cf 55 01 82 2d 03 42 00 04 94 70 2b 46 e4 5e 0f 
-I (15005) wolfio: 41 fb 8f 2d 34 0a 41 40 19 5e fb d4 1d 11 ac fa 
-I (15015) wolfio: f5 93 37 c6 fa 87 08 f7 16 1f 2c ce 30 40 9d 4f 
-I (15025) wolfio: a6 2a 0a a1 d6 95 33 c3 a6 03 98 e6 8d 05 34 b0 
-I (15025) wolfio: 97 0c de a4 c7 cf 53 8f d1 a3 81 89 30 81 86 30 
-I (15035) wolfio: 1d 06 03 55 1d 0e 04 16 04 14 67 ae 60 ff 7e 1b 
-I (15045) wolfio: 0f 95 ae 1f 82 59 f2 6c 56 2d 93 ef 17 32 30 1f 
-I (15045) wolfio: 06 03 55 1d 23 04 18 30 16 80 14 47 0a 48 7e bb 
-I (15055) wolfio: 02 a8 5a 26 57 2b 19 a9 7b 61 8b 7f 5d 99 6e 30 
-I (15065) wolfio: 0c 06 03 55 1d 13 01 01 ff 04 02 30 00 30 0e 06 
-I (15075) wolfio: 03 55 1d 0f 01 01 ff 04 04 03 02 03 a8 30 13 06 
-I (15075) wolfio: 03 55 1d 25 04 0c 30 0a 06 08 2b 06 01 05 05 07 
-I (15085) wolfio: 03 01 30 11 06 09 60 86 48 01 86 f8 42 01 01 04 
-I (15095) wolfio: 04 03 02 06 40 30 0a 06 08 2a 81 1c cf 55 01 83 
-I (15095) wolfio: 75 03 48 00 30 45 02 20 1b ca 94 28 7f f6 b2 0d 
-I (15105) wolfio: 31 43 50 e1 d5 34 17 dd af 3a de 81 06 67 9a b3 
-I (15115) wolfio: 06 22 7e 64 ec fd 0e b9 02 21 00 a1 48 a8 32 d1 
-I (15115) wolfio: 05 09 6b 1c eb 89 12 66 d8 38 a1 c4 5c 89 09 0f 
-I (15125) wolfio: fd e9 c0 3b 1d fb cd b5 4c 31 68 
+I (14815) wolfio: 16 03 03 02 e6 0b 00 02 e2 00 02 df 00 02 dc 30
+I (14815) wolfio: 82 02 d8 30 82 02 7e a0 03 02 01 02 02 01 01 30
+I (14825) wolfio: 0a 06 08 2a 81 1c cf 55 01 83 75 30 81 ac 31 0b
+I (14835) wolfio: 30 09 06 03 55 04 06 13 02 55 53 31 10 30 0e 06
+I (14835) wolfio: 03 55 04 08 0c 07 4d 6f 6e 74 61 6e 61 31 10 30
+I (14845) wolfio: 0e 06 03 55 04 07 0c 07 42 6f 7a 65 6d 61 6e 31
+I (14855) wolfio: 14 30 12 06 03 55 04 0a 0c 0b 77 6f 6c 66 53 53
+I (14855) wolfio: 4c 5f 73 6d 32 31 0f 30 0d 06 03 55 04 0b 0c 06
+I (14865) wolfio: 43 41 2d 73 6d 32 31 18 30 16 06 03 55 04 03 0c
+I (14875) wolfio: 0f 77 77 77 2e 77 6f 6c 66 73 73 6c 2e 63 6f 6d
+I (14875) wolfio: 31 1f 30 1d 06 09 2a 86 48 86 f7 0d 01 09 01 16
+I (14885) wolfio: 10 69 6e 66 6f 40 77 6f 6c 66 73 73 6c 2e 63 6f
+I (14895) wolfio: 6d 31 17 30 15 06 0a 09 92 26 89 93 f2 2c 64 01
+I (14895) wolfio: 01 0c 07 77 6f 6c 66 53 53 4c 30 1e 17 0d 32 33
+I (14905) wolfio: 30 32 31 35 30 36 32 33 30 37 5a 17 0d 32 35 31
+I (14915) wolfio: 31 31 31 30 36 32 33 30 37 5a 30 81 b0 31 0b 30
+I (14915) wolfio: 09 06 03 55 04 06 13 02 55 53 31 10 30 0e 06 03
+I (14925) wolfio: 55 04 08 0c 07 4d 6f 6e 74 61 6e 61 31 10 30 0e
+I (14935) wolfio: 06 03 55 04 07 0c 07 42 6f 7a 65 6d 61 6e 31 14
+I (14945) wolfio: 30 12 06 03 55 04 0a 0c 0b 77 6f 6c 66 53 53 4c
+I (14945) wolfio: 5f 73 6d 32 31 13 30 11 06 03 55 04 0b 0c 0a 53
+I (14955) wolfio: 65 72 76 65 72 2d 73 6d 32 31 18 30 16 06 03 55
+I (14965) wolfio: 04 03 0c 0f 77 77 77 2e 77 6f 6c 66 73 73 6c 2e
+I (14965) wolfio: 63 6f 6d 31 1f 30 1d 06 09 2a 86 48 86 f7 0d 01
+I (14975) wolfio: 09 01 16 10 69 6e 66 6f 40 77 6f 6c 66 73 73 6c
+I (14985) wolfio: 2e 63 6f 6d 31 17 30 15 06 0a 09 92 26 89 93 f2
+I (14985) wolfio: 2c 64 01 01 0c 07 77 6f 6c 66 53 53 4c 30 5a 30
+I (14995) wolfio: 14 06 08 2a 81 1c cf 55 01 82 2d 06 08 2a 81 1c
+I (15005) wolfio: cf 55 01 82 2d 03 42 00 04 94 70 2b 46 e4 5e 0f
+I (15005) wolfio: 41 fb 8f 2d 34 0a 41 40 19 5e fb d4 1d 11 ac fa
+I (15015) wolfio: f5 93 37 c6 fa 87 08 f7 16 1f 2c ce 30 40 9d 4f
+I (15025) wolfio: a6 2a 0a a1 d6 95 33 c3 a6 03 98 e6 8d 05 34 b0
+I (15025) wolfio: 97 0c de a4 c7 cf 53 8f d1 a3 81 89 30 81 86 30
+I (15035) wolfio: 1d 06 03 55 1d 0e 04 16 04 14 67 ae 60 ff 7e 1b
+I (15045) wolfio: 0f 95 ae 1f 82 59 f2 6c 56 2d 93 ef 17 32 30 1f
+I (15045) wolfio: 06 03 55 1d 23 04 18 30 16 80 14 47 0a 48 7e bb
+I (15055) wolfio: 02 a8 5a 26 57 2b 19 a9 7b 61 8b 7f 5d 99 6e 30
+I (15065) wolfio: 0c 06 03 55 1d 13 01 01 ff 04 02 30 00 30 0e 06
+I (15075) wolfio: 03 55 1d 0f 01 01 ff 04 04 03 02 03 a8 30 13 06
+I (15075) wolfio: 03 55 1d 25 04 0c 30 0a 06 08 2b 06 01 05 05 07
+I (15085) wolfio: 03 01 30 11 06 09 60 86 48 01 86 f8 42 01 01 04
+I (15095) wolfio: 04 03 02 06 40 30 0a 06 08 2a 81 1c cf 55 01 83
+I (15095) wolfio: 75 03 48 00 30 45 02 20 1b ca 94 28 7f f6 b2 0d
+I (15105) wolfio: 31 43 50 e1 d5 34 17 dd af 3a de 81 06 67 9a b3
+I (15115) wolfio: 06 22 7e 64 ec fd 0e b9 02 21 00 a1 48 a8 32 d1
+I (15115) wolfio: 05 09 6b 1c eb 89 12 66 d8 38 a1 c4 5c 89 09 0f
+I (15125) wolfio: fd e9 c0 3b 1d fb cd b5 4c 31 68
 W (15135) wolfio: sz          = 747
 I (15135) wolfssl: Shrinking output buffer
 I (15135) wolfssl: wolfSSL Leaving SendCertificate, return 0
@@ -440,16 +440,16 @@ I (15915) wolfssl: wolfSSL Entering SendHandshakeMsg
 I (15925) wolfssl: growing output buffer
 I (15925) internal.c: GrowOutputBuffer ok
 W (15925) wolfio: ssl->wflags = 0
-I (15935) wolfio: 16 03 03 00 95 0c 00 00 91 03 00 29 41 04 fd f5 
-I (15935) wolfio: 5e 74 15 30 1d f3 84 ae a5 69 96 a9 5b dd 27 b3 
-I (15945) wolfio: 00 7d 40 3a 59 93 93 6f 4d 1f 62 dc 60 48 34 1f 
-I (15955) wolfio: a8 1d 34 b8 76 8f 8b 27 4a 1b 77 64 8e 2e d5 27 
-I (15955) wolfio: 03 95 8b 9d a5 ed a4 a6 b9 40 1b ea aa 10 07 08 
-I (15965) wolfio: 00 48 30 46 02 21 00 cb 89 61 e9 21 f9 c6 4d ad 
-I (15975) wolfio: aa e7 f1 3f 6f 27 46 f0 35 ec 45 4e 8a ae f3 ac 
-I (15985) wolfio: 7c c0 cf 68 11 44 e2 02 21 00 f6 40 5c bc 66 5a 
-I (15985) wolfio: 74 1e 92 5d 9a 03 75 e7 7f 16 c2 b3 c8 fe 8d 5c 
-I (15995) wolfio: 63 35 36 da 61 38 76 dc 4e d6 
+I (15935) wolfio: 16 03 03 00 95 0c 00 00 91 03 00 29 41 04 fd f5
+I (15935) wolfio: 5e 74 15 30 1d f3 84 ae a5 69 96 a9 5b dd 27 b3
+I (15945) wolfio: 00 7d 40 3a 59 93 93 6f 4d 1f 62 dc 60 48 34 1f
+I (15955) wolfio: a8 1d 34 b8 76 8f 8b 27 4a 1b 77 64 8e 2e d5 27
+I (15955) wolfio: 03 95 8b 9d a5 ed a4 a6 b9 40 1b ea aa 10 07 08
+I (15965) wolfio: 00 48 30 46 02 21 00 cb 89 61 e9 21 f9 c6 4d ad
+I (15975) wolfio: aa e7 f1 3f 6f 27 46 f0 35 ec 45 4e 8a ae f3 ac
+I (15985) wolfio: 7c c0 cf 68 11 44 e2 02 21 00 f6 40 5c bc 66 5a
+I (15985) wolfio: 74 1e 92 5d 9a 03 75 e7 7f 16 c2 b3 c8 fe 8d 5c
+I (15995) wolfio: 63 35 36 da 61 38 76 dc 4e d6
 W (15995) wolfio: sz          = 154
 I (16005) wolfssl: Shrinking output buffer
 I (16005) wolfssl: wolfSSL Leaving SendServerKeyExchange, return 0
@@ -459,7 +459,7 @@ I (16025) wolfssl: wolfSSL Entering SendServerHelloDone
 I (16035) wolfssl: growing output buffer
 I (16035) internal.c: GrowOutputBuffer ok
 W (16045) wolfio: ssl->wflags = 0
-I (16045) wolfio: 16 03 03 00 04 0e 00 00 00 
+I (16045) wolfio: 16 03 03 00 04 0e 00 00 00
 W (16045) wolfio: sz          = 9
 I (16055) wolfssl: Embed Send error
 I (16055) wolfssl:      Connection reset
@@ -479,14 +479,14 @@ I (16125) wolfssl: User calling wolfSSL_read in error state, not allowed
 I (16135) wolfssl: wolfSSL Leaving wolfSSL_read_internal, return -308
 E (16145) tls_server: ERROR: failed to read
 I (16145) wolfssl: Client sends:
-I (16145) wolfssl: 
+I (16145) wolfssl:
 I (16155) wolfssl: wolfSSL Entering wolfSSL_write
 I (16155) wolfssl: handshake not complete, trying to finish
 I (16165) wolfssl: wolfSSL Entering wolfSSL_negotiate
 I (16165) wolfssl: wolfSSL Entering wolfSSL_accept
 I (16175) wolfssl: wolfSSL Entering ReinitSSL
 W (16185) wolfio: ssl->wflags = 0
-I (16185) wolfio: 16 03 03 00 04 0e 00 00 00 
+I (16185) wolfio: 16 03 03 00 04 0e 00 00 00
 W (16185) wolfio: sz          = 9
 I (16195) wolfssl: Embed Send error
 I (16195) wolfssl:      General error

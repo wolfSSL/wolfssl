@@ -1,0 +1,71 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the
+
+if BUILD_TESTS
+# Digests
+tests_unit_test_SOURCES += tests/api/test_md5.c
+tests_unit_test_SOURCES += tests/api/test_sha.c
+tests_unit_test_SOURCES += tests/api/test_sha256.c
+tests_unit_test_SOURCES += tests/api/test_sha512.c
+tests_unit_test_SOURCES += tests/api/test_sha3.c
+tests_unit_test_SOURCES += tests/api/test_blake2.c
+tests_unit_test_SOURCES += tests/api/test_sm3.c
+tests_unit_test_SOURCES += tests/api/test_ripemd.c
+tests_unit_test_SOURCES += tests/api/test_hash.c
+# MAC
+tests_unit_test_SOURCES += tests/api/test_hmac.c
+tests_unit_test_SOURCES += tests/api/test_cmac.c
+# Cipher
+tests_unit_test_SOURCES += tests/api/test_des3.c
+tests_unit_test_SOURCES += tests/api/test_chacha.c
+tests_unit_test_SOURCES += tests/api/test_poly1305.c
+tests_unit_test_SOURCES += tests/api/test_chacha20_poly1305.c
+tests_unit_test_SOURCES += tests/api/test_camellia.c
+tests_unit_test_SOURCES += tests/api/test_arc4.c
+tests_unit_test_SOURCES += tests/api/test_rc2.c
+tests_unit_test_SOURCES += tests/api/test_aes.c
+tests_unit_test_SOURCES += tests/api/test_ascon.c
+tests_unit_test_SOURCES += tests/api/test_sm4.c
+tests_unit_test_SOURCES += tests/api/test_wc_encrypt.c
+# Signature Algorithm
+tests_unit_test_SOURCES += tests/api/test_mlkem.c
+# TLS Protocol
+tests_unit_test_SOURCES += tests/api/test_dtls.c
+# TLS Feature
+tests_unit_test_SOURCES += tests/api/test_ocsp.c
+tests_unit_test_SOURCES += tests/api/test_evp.c
+endif
+
+EXTRA_DIST += tests/api/api.h
+EXTRA_DIST += tests/api/test_md5.h
+EXTRA_DIST += tests/api/test_sha.h
+EXTRA_DIST += tests/api/test_sha256.h
+EXTRA_DIST += tests/api/test_sha512.h
+EXTRA_DIST += tests/api/test_sha3.h
+EXTRA_DIST += tests/api/test_blake2.h
+EXTRA_DIST += tests/api/test_sm3.h
+EXTRA_DIST += tests/api/test_ripemd.h
+EXTRA_DIST += tests/api/test_digest.h
+EXTRA_DIST += tests/api/test_hash.h
+EXTRA_DIST += tests/api/test_hmac.h
+EXTRA_DIST += tests/api/test_cmac.h
+EXTRA_DIST += tests/api/test_des3.h
+EXTRA_DIST += tests/api/test_chacha.h
+EXTRA_DIST += tests/api/test_poly1305.h
+EXTRA_DIST += tests/api/test_chacha20_poly1305.h
+EXTRA_DIST += tests/api/test_camellia.h
+EXTRA_DIST += tests/api/test_arc4.h
+EXTRA_DIST += tests/api/test_rc2.h
+EXTRA_DIST += tests/api/test_aes.h
+EXTRA_DIST += tests/api/test_ascon.h
+EXTRA_DIST += tests/api/test_sm4.h
+EXTRA_DIST += tests/api/test_ascon_kats.h
+EXTRA_DIST += tests/api/test_wc_encrypt.h
+EXTRA_DIST += tests/api/test_mlkem.h
+EXTRA_DIST += tests/api/test_dtls.h
+EXTRA_DIST += tests/api/test_ocsp.h
+EXTRA_DIST += tests/api/test_ocsp_test_blobs.h
+EXTRA_DIST += tests/api/create_ocsp_test_blobs.py
+EXTRA_DIST += tests/api/test_evp.h
+

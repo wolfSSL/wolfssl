@@ -102,3 +102,12 @@ west build -p auto -b qemu_x86 modules/crypto/wolfssl/zephyr/samples/wolfssl_tls
 west build -t run
 ```
 
+## How to setup wolfSSL support for Zephyr TLS Sockets and RNG
+
+wolfSSL can also be used as the underlying implementation for the default Zephyr TLS socket interface.
+With this enabled, all existing applications using the Zephyr TLS sockets will now use wolfSSL inside
+for all TLS operations. This will also enable wolfSSL as the default RNG implementation. To enable this
+feature, use the patch file and instructions found here:
+
+https://github.com/wolfSSL/osp/tree/master/zephyr
+

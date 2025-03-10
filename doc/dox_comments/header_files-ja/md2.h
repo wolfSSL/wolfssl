@@ -1,5 +1,5 @@
 /*!
-    \ingroup MD2 
+    \ingroup MD2
     \brief  この関数はMD2を初期化します。これはWC_MD2HASHによって自動的に呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -20,7 +20,7 @@
 void wc_InitMd2(Md2*);
 
 /*!
-    \ingroup MD2 
+    \ingroup MD2
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param md2  暗号化に使用するMD2構造へのポインタ
@@ -46,7 +46,7 @@ void wc_InitMd2(Md2*);
 void wc_Md2Update(Md2* md2, const byte* data, word32 len);
 
 /*!
-    \ingroup MD2 
+    \ingroup MD2
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。
     \return 0  ファイナライズに成功したときに返されます。
     \param md2  暗号化に使用するMD2構造へのポインタ
@@ -71,7 +71,7 @@ void wc_Md2Update(Md2* md2, const byte* data, word32 len);
 void wc_Md2Final(Md2* md2, byte* hash);
 
 /*!
-    \ingroup MD2 
+    \ingroup MD2
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  データを正常にハッシュしたときに返されます。
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。

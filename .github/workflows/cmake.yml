@@ -1,0 +1,108 @@
+name: WolfSSL CMake Build Tests
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+# pull wolfSSL
+    - uses: actions/checkout@master
+
+# install cmake
+    - name: Install cmake
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake
+
+# pull wolfssl
+    - name: Checkout wolfssl
+      uses: actions/checkout@master
+      with:
+        repository: wolfssl/wolfssl
+        path: wolfssl
+
+# build wolfssl
+    - name: Build wolfssl
+      working-directory: ./wolfssl
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DWOLFSSL_INSTALL=yes -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" \
+            -DWOLFSSL_16BIT:BOOL=no -DWOLFSSL_32BIT:BOOL=no -DWOLFSSL_AES:BOOL=yes \
+            -DWOLFSSL_AESCBC:BOOL=yes -DWOLFSSL_AESCCM:BOOL=yes -DWOLFSSL_AESCFB:BOOL=yes \
+            -DWOLFSSL_AESCTR:BOOL=yes -DWOLFSSL_AESGCM:STRING=yes -DWOLFSSL_AESKEYWRAP:BOOL=yes \
+            -DWOLFSSL_AESOFB:BOOL=yes -DWOLFSSL_AESSIV:BOOL=yes -DWOLFSSL_ALIGN_DATA:BOOL=yes \
+            -DWOLFSSL_ALPN:BOOL=ON -DWOLFSSL_ALT_CERT_CHAINS:BOOL=ON -DWOLFSSL_ARC4:BOOL=yes \
+            -DWOLFSSL_ARIA:BOOL=no -DWOLFSSL_ASIO:BOOL=no -DWOLFSSL_ASM:BOOL=yes -DWOLFSSL_ASN:BOOL=yes \
+            -DWOLFSSL_ASYNC_THREADS:BOOL=no -DWOLFSSL_BASE64_ENCODE:BOOL=yes -DWOLFSSL_CAAM:BOOL=no \
+            -DWOLFSSL_CERTEXT:BOOL=yes -DWOLFSSL_CERTGEN:BOOL=yes -DWOLFSSL_CERTGENCACHE:BOOL=no \
+            -DWOLFSSL_CERTREQ:BOOL=yes -DWOLFSSL_CHACHA:STRING=yes -DWOLFSSL_CMAC:BOOL=yes \
+            -DWOLFSSL_CODING:BOOL=yes -DWOLFSSL_CONFIG_H:BOOL=yes -DWOLFSSL_CRL:STRING=yes \
+            -DWOLFSSL_CRYPTOCB:BOOL=yes -DWOLFSSL_CRYPTOCB_NO_SW_TEST:BOOL=no \
+            -DWOLFSSL_CRYPT_TESTS:BOOL=yes -DWOLFSSL_CRYPT_TESTS_HELP:BOOL=no \
+            -DWOLFSSL_CRYPT_TESTS_LIBS:BOOL=no -DWOLFSSL_CURL:BOOL=yes -DWOLFSSL_CURVE25519:STRING=yes \
+            -DWOLFSSL_CURVE448:STRING=yes -DWOLFSSL_DEBUG:BOOL=yes -DWOLFSSL_DES3:BOOL=ON \
+            -DWOLFSSL_DES3_TLS_SUITES:BOOL=no -DWOLFSSL_DH:STRING=yes -DWOLFSSL_DH_DEFAULT_PARAMS:BOOL=yes \
+            -DWOLFSSL_DSA:BOOL=yes -DWOLFSSL_DTLS:BOOL=ON -DWOLFSSL_DTLS13:BOOL=yes \
+            -DWOLFSSL_DTLS_CID:BOOL=yes -DWOLFSSL_ECC:STRING=yes \
+            -DWOLFSSL_ECCCUSTCURVES:STRING=all -DWOLFSSL_ECCSHAMIR:BOOL=yes \
+            -DWOLFSSL_ECH:BOOL=yes -DWOLFSSL_ED25519:BOOL=yes -DWOLFSSL_ED448:STRING=yes \
+            -DWOLFSSL_ENCKEYS:BOOL=yes -DWOLFSSL_ENC_THEN_MAC:BOOL=yes -DWOLFSSL_ERROR_QUEUE:BOOL=yes \
+            -DWOLFSSL_ERROR_STRINGS:BOOL=yes -DWOLFSSL_EXAMPLES:BOOL=yes -DWOLFSSL_EXPERIMENTAL:BOOL=yes \
+            -DWOLFSSL_EXTENDED_MASTER:BOOL=yes -DWOLFSSL_EX_DATA:BOOL=yes -DWOLFSSL_FAST_MATH:BOOL=no \
+            -DWOLFSSL_FILESYSTEM:BOOL=yes -DWOLFSSL_HARDEN:BOOL=yes -DWOLFSSL_HASH_DRBG:BOOL=yes \
+            -DWOLFSSL_HKDF:BOOL=yes -DWOLFSSL_HPKE:BOOL=yes -DWOLFSSL_HRR_COOKIE:STRING=yes \
+            -DWOLFSSL_INLINE:BOOL=yes -DWOLFSSL_INSTALL:BOOL=yes -DWOLFSSL_IP_ALT_NAME:BOOL=ON \
+            -DWOLFSSL_KEYGEN:BOOL=yes -DWOLFSSL_KEYING_MATERIAL:BOOL=ON \
+            -DWOLFSSL_MD4:BOOL=ON -DWOLFSSL_MD5:BOOL=yes -DWOLFSSL_MEMORY:BOOL=yes -DWOLFSSL_NO_STUB:BOOL=no \
+            -DWOLFSSL_OAEP:BOOL=yes -DWOLFSSL_OCSP:BOOL=yes -DWOLFSSL_OCSPSTAPLING:BOOL=ON \
+            -DWOLFSSL_OCSPSTAPLING_V2:BOOL=ON -DWOLFSSL_OLD_NAMES:BOOL=yes -DWOLFSSL_OLD_TLS:BOOL=yes \
+            -DWOLFSSL_OPENSSLALL:BOOL=yes -DWOLFSSL_OPENSSLEXTRA:BOOL=ON -DWOLFSSL_OPTFLAGS:BOOL=yes \
+            -DWOLFSSL_OQS:BOOL=no -DWOLFSSL_PKCALLBACKS:BOOL=yes -DWOLFSSL_PKCS12:BOOL=yes \
+            -DWOLFSSL_PKCS7:BOOL=yes -DWOLFSSL_POLY1305:BOOL=yes -DWOLFSSL_POSTAUTH:BOOL=yes \
+            -DWOLFSSL_PWDBASED:BOOL=yes -DWOLFSSL_QUIC:BOOL=yes -DWOLFSSL_REPRODUCIBLE_BUILD:BOOL=no \
+            -DWOLFSSL_RNG:BOOL=yes -DWOLFSSL_RSA:BOOL=yes -DWOLFSSL_RSA_PSS:BOOL=yes \
+            -DWOLFSSL_SESSION_TICKET:BOOL=ON -DWOLFSSL_SHA:BOOL=yes -DWOLFSSL_SHA224:BOOL=yes \
+            -DWOLFSSL_SHA3:STRING=yes -DWOLFSSL_SHA384:BOOL=yes -DWOLFSSL_SHA512:BOOL=yes \
+            -DWOLFSSL_SHAKE128:STRING=yes -DWOLFSSL_SHAKE256:STRING=yes -DWOLFSSL_SINGLE_THREADED:BOOL=no \
+            -DWOLFSSL_SNI:BOOL=yes -DWOLFSSL_SP_MATH_ALL:BOOL=yes -DWOLFSSL_SRTP:BOOL=yes \
+            -DWOLFSSL_STUNNEL:BOOL=yes -DWOLFSSL_SUPPORTED_CURVES:BOOL=yes -DWOLFSSL_SYS_CA_CERTS:BOOL=yes \
+            -DWOLFSSL_TICKET_NONCE_MALLOC:BOOL=yes -DWOLFSSL_TLS13:BOOL=yes -DWOLFSSL_TLSV12:BOOL=yes \
+            -DWOLFSSL_TLSX:BOOL=yes -DWOLFSSL_TPM:BOOL=yes -DWOLFSSL_USER_SETTINGS:BOOL=no \
+            -DWOLFSSL_USER_SETTINGS_ASM:BOOL=no -DWOLFSSL_WOLFSSH:BOOL=ON -DWOLFSSL_X86_64_BUILD_ASM:BOOL=yes \
+            -DWOLFSSL_X963KDF:BOOL=yes \
+            -DCMAKE_C_FLAGS="-DWOLFSSL_DTLS_CH_FRAG" \
+            ..
+        cmake --build .
+        ctest -j $(nproc)
+        cmake --install .
+
+        # clean up
+        cd ..
+        rm -rf build
+
+        # Kyber Cmake broken
+        # -DWOLFSSL_KYBER:BOOL=yes
+
+# build "lean-tls" wolfssl
+    - name: Build wolfssl with lean-tls
+      working-directory: ./wolfssl
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DWOLFSSL_INSTALL=yes -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" \
+            -DWOLFSSL_LEAN_TLS:BOOL=yes \
+            ..
+        cmake --build .
+        cmake --install .
+
+        # clean up
+        cd ..
+        rm -rf build

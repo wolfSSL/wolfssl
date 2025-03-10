@@ -95,7 +95,7 @@ to use PKCS#5 v2 instead of v1.5 which is default add
 
 -v2 des3       # file Pkcs8Enc2
 
-to use PKCS#12 instead use -v1 witch a 12 algo like
+to use PKCS#12 instead use -v1 which a 12 algo like
 
 -v1 PBE-SHA1-3DES   # file Pkcs8Enc12 , see man pkcs8 for more info
 -v1 PBE-SHA1-RC4-128   # no longer file Pkcs8Enc12, arc4 now off by default

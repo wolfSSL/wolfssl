@@ -223,3 +223,39 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 */
 int wc_SRTP_KDF_kdr_to_idx(word32 kdr);
 
+/**
+ * \brief Performs the single-step key derivation function (KDF) as specified in
+ * SP800-56C option 1.
+ *
+ * \param [in] z The input keying material.
+ * \param [in] zSz The size of the input keying material.
+ * \param [in] fixedInfo The fixed information to be included in the KDF.
+ * \param [in] fixedInfoSz The size of the fixed information.
+ * \param [in] derivedSecretSz The desired size of the derived secret.
+ * \param [in] hashType The hash algorithm to be used in the KDF.
+ * \param [out] output The buffer to store the derived secret.
+ * \param [in] outputSz The size of the output buffer.
+ *
+
+ * \return 0 if the KDF operation is successful,
+ * \return BAD_FUNC_ARG if the input parameters are invalid.
+ * \return negative error code if the KDF operation fails.
+ *
+ *    _Example_
+    \code
+    unsigned char z[32] = { ... };
+    unsigned char fixedInfo[16] = { ... };
+    unsigned char output[32];
+    int ret;
+
+    ret = wc_KDA_KDF_onestep(z, sizeof(z), fixedInfo, sizeof(fixedInfo),
+        sizeof(output), WC_HASH_TYPE_SHA256, output, sizeof(output));
+    if (ret != 0) {
+        WOLFSSL_MSG("wc_KDA_KDF_onestep failed");
+    }
+    \endcode
+ */
+int wc_KDA_KDF_onestep(const byte* z, word32 zSz,
+    const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
+    enum wc_HashType hashType, byte* output, word32 outputSz);
+

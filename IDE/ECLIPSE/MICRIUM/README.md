@@ -40,7 +40,7 @@ The folder hierarchy is the same as the wolfSSL folders with an exception of the
 
 4. Right click on each folders, add or link all the source code in the corresponding folder in wolfSSL.
 
-5. Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm, aes_gcm_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
+5. Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm, aes_gcm_asm.asm, aes_xts_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
 
 6. In your C/C++ compiler preprocessor settings, add the wolfSSL directories to your include paths.
 Here's an example of the paths that must be added.

@@ -3,8 +3,8 @@
     \brief  この関数はHMACオブジェクトを初期化し、その暗号化タイプ、キー、およびHMACの長さを設定します。
     \return 0  HMACオブジェクトの初期化に成功しました
     \return BAD_FUNC_ARG  入力タイプが無効な場合は返されます。有効なオプションは次のとおりです.MD5、SHA、SHA256、SHA384、SHA3-224、SHA3-256、SHA3-384、SHA3-512
-    \return MEMORY_E  ハッシュに使用する構造体の割り当てメモリの割り当てがある場合
-    \return HMAC_MIN_KEYLEN_E  FIPS実装を使用するときに返されることがあり、指定されたキー長は最小許容FIPS規格よりも短いです。
+    \return MEMORY_E  ハッシュに使用する構造体の割り当てメモリの割り当てエラーがある場合
+    \return HMAC_MIN_KEYLEN_E  FIPS実装を使用するときに、指定されたキーがFIPS規格の最小許容(14バイト)よりも短い
     \param hmac  初期化するHMACオブジェクトへのポインタ
     \param type  HMACオブジェクトを使用する暗号化方式を指定します。有効なオプションは次のとおりです.MD5、SHA、SHA256、SHA384、SHA3-224、SHA3-256、SHA3-384、SHA3-512
     \param key  HMACオブジェクトを初期化するキーを含むバッファへのポインタ
@@ -13,7 +13,7 @@
     Hmac hmac;
     byte key[] = { // initialize with key to use for encryption };
     if (wc_HmacSetKey(&hmac, MD5, key, sizeof(key)) != 0) {
-    	// error initializing Hmac object
+        // error initializing Hmac object
     }
     \endcode
     \sa wc_HmacUpdate
@@ -25,7 +25,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
     \ingroup HMAC
     \brief  この関数は、HMACを使用して認証するメッセージを更新します。HMACオブジェクトがWC_HMACSETKEYで初期化された後に呼び出されるべきです。この関数は、ハッシュへのメッセージを更新するために複数回呼び出されることがあります。必要に応じてwc_hmacupdateを呼び出した後、最終認証済みメッセージタグを取得するためにwc_hmacfinalを呼び出す必要があります。
     \return 0  認証するメッセージの更新に成功しました
-    \return MEMORY_E  ハッシュアルゴリズムで使用するためにメモリを割り当てるエラーがある場合
+    \return MEMORY_E  ハッシュアルゴリズムで使用するためのメモリ割り当てエラーがある場合
     \param hmac  メッセージを更新するHMACオブジェクトへのポインタ
     \param msg  追加するメッセージを含むバッファへのポインタ
     _Example_

@@ -4,9 +4,9 @@
     \brief This function is similar to malloc(), but calls the memory
     allocation function which wolfSSL has been configured to use. By default,
     wolfSSL uses malloc().  This can be changed using the wolfSSL memory
-    abstraction layer - see wolfSSL_SetAllocators(). Note wolfSSL_Malloc is not 
+    abstraction layer - see wolfSSL_SetAllocators(). Note wolfSSL_Malloc is not
     called directly by wolfSSL, but instead called by macro XMALLOC.
-    For the default build only the size argument exists. If using 
+    For the default build only the size argument exists. If using
     WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return pointer If successful, this function returns a pointer to
@@ -37,9 +37,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \brief This function is similar to free(), but calls the memory free
     function which wolfSSL has been configured to use. By default, wolfSSL
     uses free(). This can be changed using the wolfSSL memory abstraction
-    layer - see wolfSSL_SetAllocators(). Note wolfSSL_Free is not 
+    layer - see wolfSSL_SetAllocators(). Note wolfSSL_Free is not
     called directly by wolfSSL, but instead called by macro XFREE.
-    For the default build only the ptr argument exists. If using 
+    For the default build only the ptr argument exists. If using
     WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return none No returns.
@@ -73,8 +73,8 @@ void  wolfSSL_Free(void *ptr, void* heap, int type);
     \brief This function is similar to realloc(), but calls the memory
     re-allocation function which wolfSSL has been configured to use.
     By default, wolfSSL uses realloc().  This can be changed using the
-    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators(). 
-    Note wolfSSL_Realloc is not called directly by wolfSSL, but instead called 
+    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators().
+    Note wolfSSL_Realloc is not called directly by wolfSSL, but instead called
     by macro XREALLOC. For the default build only the size argument exists.
     If using WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
@@ -217,3 +217,195 @@ int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     \sa wolfSSL_Free
 */
 int wolfSSL_MemoryPaddingSz(void);
+
+/*!
+    \ingroup Memory
+
+    \brief This function is used to set aside static memory for a CTX.
+    Memory set aside is then used for the CTX’s lifetime and for any SSL objects created
+    from the CTX. By passing in a NULL ctx pointer and a wolfSSL_method_func function the creation
+    of the CTX itself will also use static memory. wolfSSL_method_func has the function signature
+    of WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);.
+    Passing in 0 for max makes it behave as if not set and no max concurrent use restrictions
+    is in place.
+    The flag value passed in determines how the memory is used and behavior while operating.
+    Available flags are the following.
+
+    0 - default general memory
+
+    WOLFMEM_IO_POOL - used for input/output buffer when sending receiving messages.
+    Overrides general memory, so all memory in buffer passed in is used for IO.
+    WOLFMEM_IO_FIXED - same as WOLFMEM_IO_POOL but each SSL now keeps two
+    buffers to themselves for their lifetime.
+    WOLFMEM_TRACK_STATS - each SSL keeps track of memory stats while running.
+
+    \return If successful, SSL_SUCCESS will be returned.
+    \return All unsuccessful return values will be less than 0 or equal to SSL_FAILURE.
+
+    \param ctx address of pointer to a WOLFSSL_CTX structure.
+    \param method function to create protocol. (should be NULL if ctx is not also NULL)
+    \param buf memory to use for all operations.
+    \param sz size of memory buffer being passed in.
+    \param flag type of memory.
+    \param max max concurrent operations.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    int ret;
+    unsigned char memory[MAX];
+    int memorySz = MAX;
+    unsigned char IO[MAX];
+    int IOSz = MAX;
+    int flag = WOLFMEM_IO_FIXED | WOLFMEM_TRACK_STATS;
+    ...
+    // create ctx also using static memory, start with general memory to use
+    ctx = NULL:
+    ret = wolfSSL_CTX_load_static_memory(&ctx, wolfSSLv23_server_method_ex, memory, memorySz, 0,
+    MAX_CONCURRENT_HANDSHAKES);
+    if (ret != SSL_SUCCESS) {
+    // handle error case
+    }
+    // load in memory for use with IO
+    ret = wolfSSL_CTX_load_static_memory(&ctx, NULL, IO, IOSz, flag, MAX_CONCURRENT_IO);
+    if (ret != SSL_SUCCESS) {
+    // handle error case
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_new
+    \sa wolfSSL_CTX_is_static_memory
+    \sa wolfSSL_is_static_memory
+*/
+int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method,
+        unsigned char* buf, unsigned int sz, int flag, int max);
+
+/*!
+    \ingroup Memory
+
+    \brief This function does not change any of the connections behavior and is used only for
+    gathering information about the static memory usage.
+
+    \return A value of 1 is returned if using static memory for the CTX is true.
+    \return 0 is returned if not using static memory.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
+    \param mem_stats structure to hold information about staic memory usage.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    int ret;
+    WOLFSSL_MEM_STATS mem_stats;
+    ...
+    //get information about static memory with CTX
+
+    ret = wolfSSL_CTX_is_static_memory(ctx, &mem_stats);
+
+    if (ret == 1) {
+        // handle case of is using static memory
+        // print out or inspect elements of mem_stats
+    }
+
+    if (ret == 0) {
+        //handle case of ctx not using static memory
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_new
+    \sa wolfSSL_CTX_load_static_memory
+    \sa wolfSSL_is_static_memory
+*/
+int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats);
+
+/*!
+    \ingroup Memory
+
+    \brief wolfSSL_is_static_memory is used to gather information about a SSL’s static
+    memory usage. The return value indicates if static memory is being used and
+    WOLFSSL_MEM_CONN_STATS will be filled out if and only if the flag WOLFMEM_TRACK_STATS was
+    passed to the parent CTX when loading in static memory.
+
+    \return A value of 1 is returned if using static memory for the CTX is true.
+    \return 0 is returned if not using static memory.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param mem_stats structure to contain static memory usage
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int ret;
+    WOLFSSL_MEM_CONN_STATS mem_stats;
+
+    ...
+
+    ret = wolfSSL_is_static_memory(ssl, mem_stats);
+
+    if (ret == 1) {
+        // handle case when is static memory
+        // investigate elements in mem_stats if WOLFMEM_TRACK_STATS flag
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_new
+    \sa wolfSSL_CTX_is_static_memory
+*/
+int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
+
+/*!
+    \ingroup Memory
+
+    \brief This function is used to set aside static memory for wolfCrypt use. Memory can be
+    used by passing the created heap hint into functions. An example of this is when calling
+    wc_InitRng_ex. The flag value passed in determines how the memory is used and behavior
+    while operating, in general wolfCrypt operations will use memory from a WOLFMEM_GENERAL pool.
+    Available flags are the following.
+
+    WOLFMEM_GENERAL - default general memory
+
+    WOLFMEM_IO_POOL - used for input/output buffer when sending receiving messages.
+        Overrides general memory, so all memory in buffer passed in is used for IO.
+    WOLFMEM_IO_FIXED - same as WOLFMEM_IO_POOL but each SSL now keeps two
+        buffers to themselves for their lifetime.
+    WOLFMEM_TRACK_STATS - each SSL keeps track of memory stats while running
+
+    \return If successful, 0 will be returned.
+    \return All unsuccessful return values will be less than 0.
+
+    \param hint WOLFSSL_HEAP_HINT structure to use
+    \param buf memory to use for all operations.
+    \param sz size of memory buffer being passed in.
+    \param flag type of memory.
+    \param max max concurrent operations (handshakes, IO).
+
+    _Example_
+    \code
+    WOLFSSL_HEAP_HINT hint;
+    int ret;
+    unsigned char memory[MAX];
+    int memorySz = MAX;
+    int flag = WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS;
+    ...
+
+    // load in memory for use
+
+    ret = wc_LoadStaticMemory(&hint, memory, memorySz, flag, 0);
+    if (ret != SSL_SUCCESS) {
+        // handle error case
+    }
+    ...
+
+    ret = wc_InitRng_ex(&rng, hint, 0);
+
+    // check ret value
+    \endcode
+
+    \sa none
+*/
+int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
+                int flag, int max);

@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,15 +22,11 @@
 
 /* Name change compatibility layer no longer need to be included here */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <tests/unit.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #include <stdio.h>
-#include <tests/unit.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 
 
@@ -68,7 +64,6 @@ int unit_test(int argc, char** argv)
 
     (void)argc;
     (void)argv;
-
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (argc > 1) {
         int memFailCount = atoi(argv[1]);
@@ -161,7 +156,7 @@ int unit_test(int argc, char** argv)
         err_sys("KDF TLSv1.2 CAST failed");
     }
 #endif
-#if defined(WOLFSSL_HAVE_PRF) && defined(WOLFSSL_TLS13)
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
     if (wc_RunCast_fips(FIPS_CAST_KDF_TLS13) != 0) {
         err_sys("KDF TLSv1.3 CAST failed");
     }
@@ -172,6 +167,11 @@ int unit_test(int argc, char** argv)
     }
 #endif
 #endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
+#if FIPS_VERSION3_GT(5,2,0)
+    if (wc_RunAllCast_fips() != 0) {
+        err_sys("wc_RunAllCast_fips() failed\n");
+    }
+#endif
 
     while (argc > 1) {
         if (argv[1][0] != '-') {
@@ -192,8 +192,15 @@ int unit_test(int argc, char** argv)
         else if (XSTRCMP(argv[1], "--no-api") == 0) {
             apiTesting = 0;
         }
-        else if (argv[1][1] >= '0' && argv[1][1] <= '9') {
+        else if (argv[1][0] == '-' && argv[1][1] >= '0' && argv[1][1] <= '9') {
             ret = ApiTest_RunIdx(atoi(argv[1] + 1));
+            if (ret != 0) {
+                goto exit;
+            }
+            allTesting = 0;
+        }
+        else if (argv[1][0] == '-' && argv[1][1] == '~') {
+            ret = ApiTest_RunPartName(argv[1] + 2);
             if (ret != 0) {
                 goto exit;
             }
@@ -247,16 +254,15 @@ int unit_test(int argc, char** argv)
         SrpTest();
     }
 
-#ifndef NO_WOLFSSL_CIPHER_SUITE_TEST
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-#ifndef SINGLE_THREADED
+#if !defined(NO_WOLFSSL_CIPHER_SUITE_TEST) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS) && \
+    !defined(SINGLE_THREADED)
     if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;
     }
 #endif
-#endif
-#endif /* NO_WOLFSSL_CIPHER_SUITE_TEST */
 
 exit:
 #ifdef HAVE_WNR

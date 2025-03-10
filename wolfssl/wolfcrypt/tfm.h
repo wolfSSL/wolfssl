@@ -1,6 +1,6 @@
 /* tfm.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -40,6 +40,7 @@
 #define WOLF_CRYPT_TFM_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifndef CHAR_BIT
     #include <limits.h>
 #endif
@@ -305,10 +306,10 @@
 
 /* return codes */
 #define FP_OKAY      0
-#define FP_VAL      (-1)
-#define FP_MEM      (-2)
-#define FP_NOT_INF  (-3)
-#define FP_WOULDBLOCK (-4)
+#define FP_VAL      MP_VAL
+#define FP_MEM      MP_MEM
+#define FP_NOT_INF  MP_NOT_INF
+#define FP_WOULDBLOCK MP_WOULDBLOCK
 
 /* equalities */
 #define FP_LT        (-1)   /* less than */
@@ -364,7 +365,7 @@ while (0)
 /* Initialize an mp_int. */
 #define INIT_MP_INT_SIZE(name, bits) \
     mp_init(name)
-/* Type to cast to when using size marcos. */
+/* Type to cast to when using size macros. */
 #define MP_INT_SIZE     mp_int
 
 
@@ -377,6 +378,9 @@ while (0)
     } WC_BIGINT;
     #define WOLF_BIGINT_DEFINED
 #endif
+
+#define wc_mp_size_t int
+#define wc_mp_sign_t int
 
 /* a FP type */
 typedef struct fp_int {
@@ -776,9 +780,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_LT   FP_LT   /* less than    */
 #define MP_EQ   FP_EQ   /* equal to     */
 #define MP_GT   FP_GT   /* greater than */
-#define MP_VAL  FP_VAL  /* invalid */
-#define MP_MEM  FP_MEM  /* memory error */
-#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
+#define MP_RANGE MP_NOT_INF
 #define MP_OKAY FP_OKAY /* ok result    */
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */
@@ -877,8 +879,9 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 MP_API int mp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
+MP_API int mp_sqr(fp_int *a, fp_int *b);
+
 #ifdef HAVE_ECC
-    MP_API int mp_sqr(fp_int *a, fp_int *b);
     MP_API int mp_div_2(fp_int * a, fp_int * b);
     MP_API int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c);
 #endif

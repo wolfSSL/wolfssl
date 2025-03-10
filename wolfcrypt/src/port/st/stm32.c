@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,12 @@
 #elif defined(WOLFSSL_STM32WL)
 #include <stm32wlxx_hal_conf.h>
 #include <stm32wlxx_hal_pka.h>
+#elif defined(WOLFSSL_STM32MP13)
+#include <stm32mp13xx_hal_conf.h>
+#include <stm32mp13xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32H7S)
+#include <stm32h7rsxx_hal_conf.h>
+#include <stm32h7rsxx_hal_pka.h>
 #else
 #error Please add the hal_pk.h include
 #endif
@@ -134,6 +140,9 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     ctx->HASH_IMR = HASH->IMR;
     ctx->HASH_STR = HASH->STR;
     ctx->HASH_CR  = HASH->CR;
+#ifdef STM32_HASH_SHA3
+    ctx->SHA3CFGR  = HASH->SHA3CFGR;
+#endif
     for (i=0; i<HASH_CR_SIZE; i++) {
         ctx->HASH_CSR[i] = HASH->CSR[i];
     }
@@ -181,6 +190,9 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
         HASH->CR = ctx->HASH_CR;
+#ifdef STM32_HASH_SHA3
+        HASH->SHA3CFGR = ctx->SHA3CFGR;
+#endif
 
         /* Initialize the hash processor */
         HASH->CR |= HASH_CR_INIT;
@@ -303,12 +315,11 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     int ret = 0;
     byte* local = (byte*)stmCtx->buffer;
     int wroteToFifo = 0;
-    const word32 fifoSz = (STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE);
     word32 chunkSz;
 
 #ifdef DEBUG_STM32_HASH
-    printf("STM Hash Update: algo %x, len %d, blockSz %d\n",
-        algo, len, blockSize);
+    printf("STM Hash Update: algo %x, len %d, buffLen %d, fifoBytes %d\n",
+        algo, len, stmCtx->buffLen, stmCtx->fifoBytes);
 #endif
     (void)blockSize;
 
@@ -323,40 +334,27 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     /* restore hash context or init as new hash */
     wc_Stm32_Hash_RestoreContext(stmCtx, algo);
 
-    chunkSz = fifoSz;
-#ifdef STM32_HASH_FIFO_WORKAROUND
-    /* if FIFO already has bytes written then fill remainder first */
-    if (stmCtx->fifoBytes > 0) {
-        chunkSz -= stmCtx->fifoBytes;
-        stmCtx->fifoBytes = 0;
-    }
-#endif
-
     /* write blocks to FIFO */
     while (len) {
-        word32 add = min(len, chunkSz - stmCtx->buffLen);
+        word32 add;
+
+        chunkSz = blockSize;
+        /* fill the FIFO plus one additional to flush the first block */
+        if (!stmCtx->fifoBytes) {
+            chunkSz += STM32_HASH_REG_SIZE;
+        }
+
+        add = min(len, chunkSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
 
         stmCtx->buffLen += add;
         data            += add;
         len             -= add;
 
-    #ifdef STM32_HASH_FIFO_WORKAROUND
-        /* We cannot leave the FIFO full and do save/restore
-         * the last must be large enough to flush block from FIFO */
-        if (stmCtx->buffLen + len <= fifoSz * 2) {
-            chunkSz = fifoSz + STM32_HASH_REG_SIZE;
-        }
-    #endif
-
         if (stmCtx->buffLen == chunkSz) {
             wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
             wroteToFifo = 1;
-        #ifdef STM32_HASH_FIFO_WORKAROUND
-            if (chunkSz > fifoSz)
-                stmCtx->fifoBytes = chunkSz - fifoSz;
-            chunkSz = fifoSz;
-        #endif
+            stmCtx->fifoBytes += chunkSz;
         }
     }
 
@@ -380,7 +378,8 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     int ret = 0;
 
 #ifdef DEBUG_STM32_HASH
-    printf("STM Hash Final: algo %x, digestSz %d\n", algo, digestSize);
+    printf("STM Hash Final: algo %x, digestSz %d, buffLen %d, fifoBytes %d\n",
+        algo, digestSize, stmCtx->buffLen, stmCtx->fifoBytes);
 #endif
 
     /* turn on hash clock */
@@ -455,8 +454,10 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #ifdef WOLFSSL_STM32MP13
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
+    #elif defined(CRYP_HEADERWIDTHUNIT_BYTE)
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
     #endif
 #endif
 
@@ -820,14 +821,12 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 {
     PKA_ECDSAVerifInTypeDef pka_ecc;
     int size;
-    int szrbin;
     int status;
     uint8_t Rbin[STM32_MAX_ECC_SIZE];
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
     uint8_t Qxbin[STM32_MAX_ECC_SIZE];
     uint8_t Qybin[STM32_MAX_ECC_SIZE];
     uint8_t Hashbin[STM32_MAX_ECC_SIZE];
-    uint8_t privKeybin[STM32_MAX_ECC_SIZE];
     uint8_t prime[STM32_MAX_ECC_SIZE];
     uint8_t coefA[STM32_MAX_ECC_SIZE];
     uint8_t gen_x[STM32_MAX_ECC_SIZE];
@@ -841,21 +840,17 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
-    *res = 0;
+    *res = 0; /* default to failure */
+    size = wc_ecc_size(key); /* get key size in bytes */
 
-    szrbin = mp_unsigned_bin_size(r);
-    size = wc_ecc_size(key);
-
-    status = stm32_get_from_mp_int(Rbin, r, szrbin);
+    /* load R/S and public X/Y using key size */
+    status = stm32_get_from_mp_int(Rbin, r, size);
     if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(Sbin, s, szrbin);
+        status = stm32_get_from_mp_int(Sbin, s, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qxbin, key->pubkey.x, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qybin, key->pubkey.y, size);
-    if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(privKeybin, wc_ecc_key_get_priv(key),
-            size);
     if (status != MP_OKAY)
         return status;
 

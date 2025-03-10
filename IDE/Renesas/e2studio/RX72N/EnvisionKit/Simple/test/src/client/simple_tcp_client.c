@@ -1,6 +1,6 @@
 /* simple_tcp_client.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -88,11 +88,11 @@ void simple_tcp_client( )
 
     #define BUFF_SIZE 256
     static const char sendBuff[]= "Hello Server\n" ;
-    
+
     char    rcvBuff[BUFF_SIZE] = {0};
-    
+
     static T_IPV4EP my_addr = { 0, 0 };
-    
+
     T_IPV4EP dst_addr;
 
     if((dst_addr.ipaddr = getIPaddr(SIMPLE_TCPSEVER_IP)) == 0){
@@ -109,7 +109,7 @@ void simple_tcp_client( )
         goto out;
     }
 
-    if (my_IOSend((char*)sendBuff, strlen(sendBuff), (void*)&cepid) != 
+    if (my_IOSend((char*)sendBuff, strlen(sendBuff), (void*)&cepid) !=
                                                             strlen(sendBuff)) {
         printf("ERROR TCP write \n");
         goto out;

@@ -1,6 +1,6 @@
 /* cavium_octeon_sync.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -506,12 +506,12 @@ static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
         }
         else {
             int blocks, remainder, i;
-            byte aesBlock[AES_BLOCK_SIZE];
+            byte aesBlock[WC_AES_BLOCK_SIZE];
 
-            blocks = ivSz / AES_BLOCK_SIZE;
-            remainder = ivSz % AES_BLOCK_SIZE;
+            blocks = ivSz / WC_AES_BLOCK_SIZE;
+            remainder = ivSz % WC_AES_BLOCK_SIZE;
 
-            for (i = 0; i < blocks; i++, iv += AES_BLOCK_SIZE)
+            for (i = 0; i < blocks; i++, iv += WC_AES_BLOCK_SIZE)
                 Octeon_GHASH_Update(iv);
 
             XMEMSET(aesBlock, 0, sizeof(aesBlock));
@@ -535,7 +535,7 @@ static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
 static NOOPT int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
 {
     word64* p;
-    ALIGN16 byte aesBlock[AES_BLOCK_SIZE];
+    ALIGN16 byte aesBlock[WC_AES_BLOCK_SIZE];
     int blocks, remainder, i;
 
     if (aes == NULL || (aadSz != 0 && aad == NULL))
@@ -544,14 +544,14 @@ static NOOPT int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
     if (aadSz == 0)
         return 0;
 
-    blocks = aadSz / AES_BLOCK_SIZE;
-    remainder = aadSz % AES_BLOCK_SIZE;
+    blocks = aadSz / WC_AES_BLOCK_SIZE;
+    remainder = aadSz % WC_AES_BLOCK_SIZE;
 
     Octeon_GHASH_Restore(0xe100, aes->H);
 
     p = (word64*)aesBlock;
 
-    for (i = 0; i < blocks; i++, aad += AES_BLOCK_SIZE) {
+    for (i = 0; i < blocks; i++, aad += WC_AES_BLOCK_SIZE) {
         CVMX_LOADUNA_INT64(p[0], aad, 0);
         CVMX_LOADUNA_INT64(p[1], aad, 8);
         CVMX_MT_GFM_XOR0(p[0]);
@@ -574,8 +574,8 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
         int encrypt)
 {
     word32 i, blocks, remainder;
-    ALIGN16 byte aesBlockIn[AES_BLOCK_SIZE];
-    ALIGN16 byte aesBlockOut[AES_BLOCK_SIZE];
+    ALIGN16 byte aesBlockIn[WC_AES_BLOCK_SIZE];
+    ALIGN16 byte aesBlockOut[WC_AES_BLOCK_SIZE];
     word64* pIn;
     word64* pOut;
     word64* pIv;
@@ -592,11 +592,11 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
     CVMX_MT_AES_ENC0(pIv[0]);
     CVMX_MT_AES_ENC1(pIv[1]);
 
-    blocks = inSz / AES_BLOCK_SIZE;
-    remainder = inSz % AES_BLOCK_SIZE;
+    blocks = inSz / WC_AES_BLOCK_SIZE;
+    remainder = inSz % WC_AES_BLOCK_SIZE;
 
     for (i = 0; i < blocks;
-            i++, in += AES_BLOCK_SIZE, out += AES_BLOCK_SIZE) {
+            i++, in += WC_AES_BLOCK_SIZE, out += WC_AES_BLOCK_SIZE) {
         CVMX_PREFETCH128(in);
         aes->reg[3]++;
 
@@ -623,7 +623,7 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
     }
 
     if (remainder > 0) {
-        ALIGN16 byte aesBlockMask[AES_BLOCK_SIZE];
+        ALIGN16 byte aesBlockMask[WC_AES_BLOCK_SIZE];
         word64* pMask = (word64*)aesBlockMask;
 
         XMEMSET(aesBlockOut, 0, sizeof(aesBlockOut));
@@ -676,8 +676,8 @@ static NOOPT int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
     word64* pIn;
     word64* pOut;
     uint32_t countSave;
-    ALIGN16 byte aesBlockIn[AES_BLOCK_SIZE];
-    ALIGN16 byte aesBlockOut[AES_BLOCK_SIZE];
+    ALIGN16 byte aesBlockIn[WC_AES_BLOCK_SIZE];
+    ALIGN16 byte aesBlockOut[WC_AES_BLOCK_SIZE];
 
     countSave = aes->reg[3];
     aes->reg[3] = aes->y0;
@@ -775,7 +775,7 @@ static int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 
 static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = NOT_COMPILED_IN; /* return this to bypass HW and use SW */
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN); /* return this to bypass HW and use SW */
 
     if (info == NULL)
         return BAD_FUNC_ARG;

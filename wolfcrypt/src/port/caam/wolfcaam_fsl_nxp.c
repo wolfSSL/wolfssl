@@ -1,6 +1,6 @@
 /* wolfcaam_fsl_nxp.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -160,9 +160,7 @@ static int wc_CAAM_CommonHash(caam_handle_t* hndl, caam_hash_ctx_t *ctx,
         }
 
         status = CAAM_HASH_Update(ctx, alignedIn, inSz);
-        if (tmpIn != NULL) {
-            XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (status != kStatus_Success) {
             return WC_HW_E;
         }
@@ -273,8 +271,8 @@ static int DoAesCBC(unsigned int args[4], CAAM_BUFFER *buf, int sz)
 
         /* store updated CBC state */
         XMEMCPY((byte*)buf[4].TheAddress,
-                (byte*)buf[2].TheAddress + buf[2].Length - AES_BLOCK_SIZE,
-                AES_BLOCK_SIZE);
+                (byte*)buf[2].TheAddress + buf[2].Length - WC_AES_BLOCK_SIZE,
+                WC_AES_BLOCK_SIZE);
     }
     else {
         status = CAAM_AES_EncryptCbc(CAAM, &hndl,
@@ -284,8 +282,8 @@ static int DoAesCBC(unsigned int args[4], CAAM_BUFFER *buf, int sz)
 
         /* store updated CBC state */
         XMEMCPY((byte*)buf[4].TheAddress,
-            (byte*)buf[3].TheAddress + buf[3].Length - AES_BLOCK_SIZE,
-            AES_BLOCK_SIZE);
+            (byte*)buf[3].TheAddress + buf[3].Length - WC_AES_BLOCK_SIZE,
+            WC_AES_BLOCK_SIZE);
     }
 
     if (status != kStatus_Success) {
@@ -339,9 +337,7 @@ static int DoAesCTR(unsigned int args[4], CAAM_BUFFER *buf, int sz)
         XMEMCPY((byte*)buf[3].TheAddress, alignedOut, buf[3].Length);
         XFREE(tmpOut, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (tmpIn != NULL) {
-        XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (status != kStatus_Success) {
         return -1;
     }
@@ -491,9 +487,7 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
 
     status = CAAM_ECC_Sign(CAAM, &hndl, k, kSz, alignedIn, inlen, r, rSz, s,
         sSz, ecdsel, enc);
-    if (tmpIn != NULL) {
-        XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (status != kStatus_Success) {
         ret = -1;
@@ -604,9 +598,7 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
 
     status = CAAM_ECC_Verify(CAAM, &hndl, qxy, qxLen+qyLen, rbuf,
         keySz, sbuf, keySz, alignedIn, hashlen, ecdsel);
-    if (tmpIn != NULL) {
-        XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(tmpIn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     *res = 0;
     if (status == kStatus_Success) {
         *res = 1;

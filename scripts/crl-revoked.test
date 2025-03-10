@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #crl.test
 # if we can, isolate the network namespace to eliminate port collisions.
@@ -217,8 +217,14 @@ else
    exit_hash_dir_code=0
 fi
 
-# run the test
-run_test
+# Check that server is enabled
+./examples/server/server -? 2>&1 | grep -- 'Create Ready file'
+if [ $? -eq 0 ]; then
+    # run the test
+    run_test
+else
+    exit_code=0
+fi
 
 # If we get to this exit, exit_code will be a 1 signaling failure
 echo "exiting with $exit_code certificate was not revoked"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 check_result(){
     if [ $1 -ne 0 ]; then

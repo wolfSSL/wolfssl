@@ -53,7 +53,6 @@ endchoice
 config WOLFSSL_SETTINGS_FILE
 	string "wolfSSL settings file"
 	depends on WOLFSSL_BUILTIN
-	default "user_settings-tls-generic.h"
 	help
 	  Use a specific wolfSSL settings file. The default config file
 	  file can be tweaked with Kconfig. The default settings is
@@ -63,6 +62,55 @@ config WOLFSSL_SETTINGS_FILE
 	  alternative config.
 
 rsource "Kconfig.tls-generic"
+
+config WOLFCRYPT_FIPS
+	bool "wolfCrypt FIPS support"
+	depends on WOLFSSL_BUILTIN
+	help
+	  Enables FIPS support in wolfCrypt. Requires the wolfSSL FIPS ready
+	  download that includes fips.c/fips_test.c.
+
+config WOLFSSL_DTLS
+  bool "wolfSSL DTLS support"
+  help
+    Enable DTLS support
+
+config WOLFSSL_ALPN
+  bool "wolfSSL ALPN support"
+  help
+    Enable ALPN support
+
+config WOLFSSL_PSK
+  bool "wolfSSL PSK support"
+  help
+    Enable PSK support
+
+config WOLFSSL_MAX_FRAGMENT_LEN
+  int
+  default 3
+  range 1 6
+  help
+    Sets the maximum fragment length wolfSSL will use, values 1-6 correspond to enum values
+    WOLFSSL_MFL_* in ssl.h
+
+config WOLFCRYPT_ARMASM
+	bool "wolfCrypt ARM Assembly support"
+	depends on WOLFSSL_BUILTIN
+	help
+	  wolfCrypt ARM (ARMv8/ARMv7) assembly support for AES, SHA-2, SHA-3,
+	  ChaCha20/Poly1305 and Curve25519
+
+config WOLFCRYPT_ARMASM_THUMB2
+	bool "wolfCrypt ARM Thumb2 Assembly support"
+	depends on WOLFCRYPT_ARMASM
+	help
+	  Enable Thumb2 assembly optimizations for ARM processors
+
+config WOLFCRYPT_INTELASM
+	bool "wolfCrypt Intel Assembly support"
+	depends on WOLFSSL_BUILTIN
+	help
+	  wolfCrypt Intel Aassembly support (AVX/AVX2/AESNI)
 
 config WOLFSSL_DEBUG
 	bool "wolfSSL debug activation"

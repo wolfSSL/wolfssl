@@ -2,5 +2,6 @@ EXTRA_DIST += cmake/README.md
 EXTRA_DIST += cmake/Config.cmake.in
 EXTRA_DIST += cmake/config.in
 EXTRA_DIST += cmake/functions.cmake
+EXTRA_DIST += cmake/options.h.in
 EXTRA_DIST += cmake/modules/FindARIA.cmake
 EXTRA_DIST += cmake/modules/FindOQS.cmake

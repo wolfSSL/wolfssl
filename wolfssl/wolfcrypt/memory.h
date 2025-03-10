@@ -1,6 +1,6 @@
 /* memory.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -101,48 +101,72 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     #ifndef WOLFSSL_STATIC_ALIGN
         #define WOLFSSL_STATIC_ALIGN 16
     #endif
-    #ifndef WOLFMEM_MAX_BUCKETS
-        #define WOLFMEM_MAX_BUCKETS  9
+/* WOLFMEM_BUCKETS - list of the sizes of buckets in the pool
+ * WOLFMEM_DIST - list of quantities of buffers in the buckets
+ * WOLFMEM_DEF_BUCKETS - number of values in WOLFMEM_BUCKETS and WOLFMEM_DIST
+ * WOLFMEM_MAX_BUCKETS - size of the arrays used to store the buckets and
+ *     dists in the memory pool; defaults to WOLFMEM_DEF_BUCKETS
+ *
+ * The following defines provide a reasonable set of buckets in the memory
+ * pool for running wolfSSL on a Linux box. The bucket and dist lists below
+ * have nine items each, so WOLFMEM_DEF_BUCKETS is set to 9.
+ *
+ * If WOLFMEM_DEF_BUCKETS is less then WOLFMEM_MAX_BUCKETS, the unused values
+ * are set to zero and ignored. If WOLFMEM_MAX_BUCKETS is less than
+ * WOLFMEM_DEF_BUCKETS, not all the buckets will be created in the pool.
+ */
+    #ifndef WOLFMEM_DEF_BUCKETS
+        #define WOLFMEM_DEF_BUCKETS  9  /* number of default memory blocks */
     #endif
-    #define WOLFMEM_DEF_BUCKETS  9     /* number of default memory blocks */
+
+    #ifndef WOLFMEM_MAX_BUCKETS
+        #define WOLFMEM_MAX_BUCKETS  WOLFMEM_DEF_BUCKETS
+    #endif
+
+    #if WOLFMEM_MAX_BUCKETS < WOLFMEM_DEF_BUCKETS
+        #warning "ignoring excess buckets, MAX_BUCKETS less than DEF_BUCKETS"
+    #endif
+
     #ifndef WOLFMEM_IO_SZ
         #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
     #endif
+
+    #ifndef LARGEST_MEM_BUCKET
+        #ifndef SESSION_CERTS
+            #define LARGEST_MEM_BUCKET 16128
+        #elif defined(OPENSSL_EXTRA)
+            #ifdef WOLFSSL_TLS13
+                #define LARGEST_MEM_BUCKET 30400
+            #else
+                #define LARGEST_MEM_BUCKET 25600
+            #endif
+        #elif defined(WOLFSSL_CERT_EXT)
+            /* certificate extensions requires 24k for the SSL struct */
+            #define LARGEST_MEM_BUCKET 24576
+        #else
+            /* increase 23k for object member of WOLFSSL_X509_NAME_ENTRY */
+            #define LARGEST_MEM_BUCKET 23440
+        #endif
+    #endif
+
     #ifndef WOLFMEM_BUCKETS
         #ifndef SESSION_CERTS
             /* default size of chunks of memory to separate into */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 16128
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
-        #elif defined (OPENSSL_EXTRA)
+        #elif defined(OPENSSL_EXTRA)
             /* extra storage in structs for multiple attributes and order */
-            #ifndef LARGEST_MEM_BUCKET
-                #ifdef WOLFSSL_TLS13
-                    #define LARGEST_MEM_BUCKET 30400
-                #else
-                    #define LARGEST_MEM_BUCKET 25600
-                #endif
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,\
                                     LARGEST_MEM_BUCKET
-        #elif defined (WOLFSSL_CERT_EXT)
-            /* certificate extensions requires 24k for the SSL struct */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 24576
-            #endif
+        #elif defined(WOLFSSL_CERT_EXT)
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
         #else
-            /* increase 23k for object member of WOLFSSL_X509_NAME_ENTRY */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 23440
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
         #endif
     #endif
+
     #ifndef WOLFMEM_DIST
         #ifndef WOLFSSL_STATIC_MEMORY_SMALL
             #define WOLFMEM_DIST    49,10,6,14,5,6,9,1,1
@@ -190,7 +214,14 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     typedef struct wc_Memory wc_Memory; /* internal structure for mem bucket */
     typedef struct WOLFSSL_HEAP {
         wc_Memory* ava[WOLFMEM_MAX_BUCKETS];
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         wc_Memory* io;                  /* list of buffers to use for IO */
+    #endif
+
+    #ifdef WOLFSSL_STATIC_MEMORY_LEAN
+        word32     sizeList[WOLFMEM_MAX_BUCKETS];/* memory sizes in ava list */
+        word32     distList[WOLFMEM_MAX_BUCKETS];/* general distribution */
+    #else
         word32     maxHa;               /* max concurrent handshakes */
         word32     curHa;
         word32     maxIO;               /* max concurrent IO connections */
@@ -199,10 +230,16 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         word32     distList[WOLFMEM_MAX_BUCKETS];/* general distribution */
         word32     inUse; /* amount of memory currently in use */
         word32     ioUse;
+    #endif
+
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         word32     alloc; /* total number of allocs */
         word32     frAlc; /* total number of frees  */
         int        flag;
+    #endif
+    #ifndef SINGLE_THREADED
         wolfSSL_Mutex memory_mutex;
+    #endif
     } WOLFSSL_HEAP;
 
     /* structure passed into XMALLOC as heap hint
@@ -211,22 +248,41 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     typedef struct WOLFSSL_HEAP_HINT {
         WOLFSSL_HEAP*           memory;
         WOLFSSL_MEM_CONN_STATS* stats;  /* hold individual connection stats */
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         wc_Memory*  outBuf; /* set if using fixed io buffers */
         wc_Memory*  inBuf;
         byte        haFlag; /* flag used for checking handshake count */
+    #endif
     } WOLFSSL_HEAP_HINT;
 
+    WOLFSSL_API void* wolfSSL_SetGlobalHeapHint(void* heap);
+    WOLFSSL_API void* wolfSSL_GetGlobalHeapHint(void);
+    WOLFSSL_API int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
+            unsigned int listSz, const word32 *sizeList,
+            const word32 *distList, unsigned char* buf, unsigned int sz,
+            int flag, int max);
+#ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
+    #define WOLFSSL_DEBUG_MEMORY_ALLOC 0
+    #define WOLFSSL_DEBUG_MEMORY_FAIL  1
+    #define WOLFSSL_DEBUG_MEMORY_FREE  2
+    #define WOLFSSL_DEBUG_MEMORY_INIT  3
+
+
+    typedef void (*DebugMemoryCb)(size_t sz, int bucketSz, byte st, int type);
+    WOLFSSL_API void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb);
+#endif
     WOLFSSL_API int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
             unsigned char* buf, unsigned int sz, int flag, int max);
+    WOLFSSL_API void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap);
 
-    WOLFSSL_LOCAL int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap);
-    WOLFSSL_LOCAL int wolfSSL_load_static_memory(byte* buffer, word32 sz,
-                                                  int flag, WOLFSSL_HEAP* heap);
-    WOLFSSL_LOCAL int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
+    WOLFSSL_API int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap,
                                                       WOLFSSL_MEM_STATS* stats);
     WOLFSSL_LOCAL int SetFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
     WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
 
+    WOLFSSL_API int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
+            const word32 *sizeList, const word32 *distList,
+            byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
 #endif /* WOLFSSL_STATIC_MEMORY */
@@ -267,6 +323,16 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         ((void)(CipherLifecycleTag), (void)(heap), (void)(abort_p), 0)
 #endif
 
+#ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+    WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void);
+    #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
+        #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
+    #endif
+    #ifndef CAN_SAVE_VECTOR_REGISTERS
+        #define CAN_SAVE_VECTOR_REGISTERS() (SAVE_VECTOR_REGISTERS2_fuzzer() == 0)
+    #endif
+#endif
+
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
     WOLFSSL_API extern THREAD_LS_T int wc_svr_count;
     WOLFSSL_API extern THREAD_LS_T const char *wc_svr_last_file;
@@ -276,27 +342,29 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE abort();
     #elif defined(DEBUG_VECTOR_REGISTERS_EXIT_ON_FAIL)
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE exit(1);
-    #else
+    #elif !defined(DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE)
         #define DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE
     #endif
 
     #define SAVE_VECTOR_REGISTERS(fail_clause) {                    \
         int _svr_ret = wc_debug_vector_registers_retval;            \
         if (_svr_ret != 0) { fail_clause }                          \
-        ++wc_svr_count;                                             \
-        if (wc_svr_count > 5) {                                     \
-            fprintf(stderr,                                         \
-                    ("%s @ L%d : incr : "                           \
-                     "wc_svr_count %d (last op %s L%d)\n"),         \
-                    __FILE__,                                       \
-                    __LINE__,                                       \
-                    wc_svr_count,                                   \
-                    wc_svr_last_file,                               \
-                    wc_svr_last_line);                              \
-            DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
+        else {                                                      \
+          ++wc_svr_count;                                           \
+          if (wc_svr_count > 5) {                                   \
+              fprintf(stderr,                                       \
+                      ("%s @ L%d : incr : "                         \
+                       "wc_svr_count %d (last op %s L%d)\n"),       \
+                      __FILE__,                                     \
+                      __LINE__,                                     \
+                      wc_svr_count,                                 \
+                      wc_svr_last_file,                             \
+                      wc_svr_last_line);                            \
+              DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE              \
+          }                                                         \
+          wc_svr_last_file = __FILE__;                              \
+          wc_svr_last_line = __LINE__;                              \
         }                                                           \
-        wc_svr_last_file = __FILE__;                                \
-        wc_svr_last_line = __LINE__;                                \
     }
 
     WOLFSSL_API extern THREAD_LS_T int wc_debug_vector_registers_retval;
@@ -320,11 +388,6 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
     } while (0)
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-    #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
-        #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
-    #endif
-        WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void);
-
     #define SAVE_VECTOR_REGISTERS2(...) ({                          \
         int _svr2_val = SAVE_VECTOR_REGISTERS2_fuzzer();            \
         if (_svr2_val == 0) {                                       \
@@ -386,7 +449,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
 
 #endif
 
-    #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) do {         \
+    #define ASSERT_SAVED_VECTOR_REGISTERS() do {                    \
         if (wc_svr_count <= 0) {                                    \
             fprintf(stderr,                                         \
                     ("ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : "  \
@@ -397,7 +460,6 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
                     wc_svr_last_file,                               \
                     wc_svr_last_line);                              \
             DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
-            { fail_clause }                                         \
         }                                                           \
     } while (0)
     #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) do {      \
@@ -414,7 +476,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             { fail_clause }                                         \
         }                                                           \
     } while (0)
-    #define RESTORE_VECTOR_REGISTERS(...) do {                      \
+    #define RESTORE_VECTOR_REGISTERS() do {                         \
         --wc_svr_count;                                             \
         if ((wc_svr_count > 4) || (wc_svr_count < 0)) {             \
             fprintf(stderr,                                         \
@@ -430,6 +492,11 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
         wc_svr_last_file = __FILE__;                                \
         wc_svr_last_line = __LINE__;                                \
     } while(0)
+
+#else /* !DEBUG_VECTOR_REGISTER_ACCESS */
+    #if !defined(SAVE_VECTOR_REGISTERS2) && defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
+        #define SAVE_VECTOR_REGISTERS2(...) SAVE_VECTOR_REGISTERS2_fuzzer()
+    #endif
 #endif
 
 #ifdef __cplusplus

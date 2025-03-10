@@ -84,9 +84,9 @@ The following steps explain how to generate the missing files and where to place
   (Click the drop-down arrow to the left of the project name.)
 + Select and Copy the following folders/files inside dummy_library
 
-    `ra/`  
-    `ra_gen/`  
-    `ra_cfg/`  
+    `ra/`
+    `ra_gen/`
+    `ra_cfg/`
     `script/`
 
 + Paste the copied folders/files into wolfSSL_RA6M3G
@@ -108,7 +108,7 @@ The following steps explain how to generate the missing files and where to place
 
 + Select and Copy the following folder inside dummy_app
 
-    `src/`  
+    `src/`
     `script/`
 
 + Paste the copied folders into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`
@@ -132,17 +132,17 @@ Right-Click each Project and select Build.
 
 ### Run wolfCrypt Test and Benchmark
 
-1.) Right-Click the Project name.  
-2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`  
-3.) Select J-Link ARM. Click OK.  
+1.) Right-Click the Project name.
+2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`
+3.) Select J-Link ARM. Click OK.
 4.) Select R7Fa6M3AH. Click OK.
 
 ### Run the wolfSSL TLS Server Example.
 
-1.) Right-Click the Project name.  
-2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`  
-3.) Select J-Link ARM. Click OK.  
-4.) Select R7Fa6M3AH. Click OK.  
+1.) Right-Click the Project name.
+2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`
+3.) Select J-Link ARM. Click OK.
+4.) Select R7Fa6M3AH. Click OK.
 5.) Run the following wolfSSL example client command inside the base of the wolfssl directory.
 
 ```

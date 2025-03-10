@@ -15,6 +15,9 @@ EXTRA_DIST += wolfcrypt/src/evp.c
 EXTRA_DIST += wolfcrypt/src/asm.c
 EXTRA_DIST += wolfcrypt/src/aes_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_gcm_asm.asm
+EXTRA_DIST += wolfcrypt/src/aes_xts_asm.asm
+EXTRA_DIST += wolfcrypt/src/chacha_asm.asm
+EXTRA_DIST += wolfcrypt/src/poly1305_asm.asm
 EXTRA_DIST += wolfcrypt/src/wc_dsp.c
 EXTRA_DIST += wolfcrypt/src/sp_dsp32.c
 EXTRA_DIST += wolfcrypt/src/sp_x86_64_asm.asm
@@ -52,7 +55,7 @@ EXTRA_DIST += \
               wolfcrypt/src/fp_sqr_comba_8.i \
               wolfcrypt/src/fp_sqr_comba_9.i \
               wolfcrypt/src/fp_sqr_comba_small_set.i \
-              wolfcrypt/src/fe_x25519_128.i
+              wolfcrypt/src/fe_x25519_128.h
 
 EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-des3.c \
@@ -100,6 +103,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/st/stm32.c \
               wolfcrypt/src/port/st/stsafe.c \
               wolfcrypt/src/port/st/README.md \
+              wolfcrypt/src/port/st/STM32MP13.md \
               wolfcrypt/src/port/af_alg/afalg_aes.c \
               wolfcrypt/src/port/af_alg/afalg_hash.c \
               wolfcrypt/src/port/kcapi/kcapi_aes.c \
@@ -117,6 +121,15 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp32_sha.c \
               wolfcrypt/src/port/Espressif/esp32_util.c \
               wolfcrypt/src/port/Espressif/esp32_mp.c \
+              wolfcrypt/src/port/Espressif/esp_sdk_mem_lib.c \
+              wolfcrypt/src/port/Espressif/esp_sdk_time_lib.c \
+              wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.c \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/README.md \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_all.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_deprecated.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/esp_crt_bundle.c \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/gen_crt_bundle.py \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_local.pem \
               wolfcrypt/src/port/Espressif/README.md \
               wolfcrypt/src/port/arm/cryptoCell.c \
               wolfcrypt/src/port/arm/cryptoCellHash.c \
@@ -132,7 +145,12 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c \
               wolfcrypt/src/port/Renesas/renesas_rx64_hw_util.c \
               wolfcrypt/src/port/Renesas/README.md \
-              wolfcrypt/src/port/cypress/psoc6_crypto.c
+              wolfcrypt/src/port/cypress/psoc6_crypto.c \
+              wolfcrypt/src/port/liboqs/liboqs.c \
+              wolfcrypt/src/port/maxim/max3266x.c \
+              wolfcrypt/src/ASN_TEMPLATE.md \
+              wolfcrypt/src/port/rpi_pico/pico.c \
+              wolfcrypt/src/port/rpi_pico/README.md
 
 $(ASYNC_FILES):
 	$(AM_V_at)touch $(srcdir)/$@
@@ -213,3 +231,6 @@ if BUILD_MAXQ10XX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/maxim/maxq10xx.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/maxim/README.md
+
+include wolfcrypt/src/port/autosar/include.am
+

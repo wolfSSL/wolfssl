@@ -1,6 +1,6 @@
 /* compress.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -310,10 +310,8 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
     if (inflateEnd(&stream) != Z_OK)
         result = DECOMPRESS_E;
 
-    if (tmp != NULL) {
-        XFREE(tmp, heap, memoryType);
-        tmp = NULL;
-    }
+    XFREE(tmp, heap, memoryType);
+    tmp = NULL;
 
     return result;
 }

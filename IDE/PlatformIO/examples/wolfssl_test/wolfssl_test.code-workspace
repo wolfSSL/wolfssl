@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"name": "wolfssl_test",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"settings.h": "c",
+			"sdkconfig.h": "c"
+		}
+	}
+}

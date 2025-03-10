@@ -1,6 +1,6 @@
 /* kdf.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -37,6 +37,11 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_kdf_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_KDF_sanity(void);
 #endif
 
 enum max_prf {
@@ -132,6 +137,12 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
 /* Length of index for SRTCP KDF. */
 #define WC_SRTCP_INDEX_LEN              4
 
+/* Indicators */
+enum {
+    WC_SRTCP_32BIT_IDX = 0,
+    WC_SRTCP_48BIT_IDX = 1
+};
+
 /* Maximum length of salt that can be used with SRTP/SRTCP. */
 #define WC_SRTP_MAX_SALT    14
 
@@ -141,6 +152,9 @@ WOLFSSL_API int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt,
 WOLFSSL_API int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt,
     word32 saltSz, int kdrIdx, const byte* index, byte* key1, word32 key1Sz,
     byte* key2, word32 key2Sz, byte* key3, word32 key3Sz);
+WOLFSSL_API int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt,
+    word32 saltSz, int kdrIdx, const byte* index, byte* key1, word32 key1Sz,
+    byte* key2, word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator);
 WOLFSSL_API int wc_SRTP_KDF_label(const byte* key, word32 keySz,
     const byte* salt, word32 saltSz, int kdrIdx, const byte* index, byte label,
     byte* outKey, word32 outKeySz);
@@ -152,6 +166,11 @@ WOLFSSL_API int wc_SRTP_KDF_kdr_to_idx(word32 kdr);
 
 #endif /* WC_SRTP_KDF */
 
+#ifdef WC_KDF_NIST_SP_800_56C
+WOLFSSL_API int wc_KDA_KDF_onestep(const byte* z, word32 zSz,
+    const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
+    enum wc_HashType hashType, byte* output, word32 outputSz);
+#endif
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

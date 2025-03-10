@@ -1,6 +1,6 @@
 /* crypto.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,14 +29,20 @@
 typedef struct WOLFSSL_INIT_SETTINGS {
     char* appname;
 } WOLFSSL_INIT_SETTINGS;
-typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
+#ifndef OPENSSL_COEXIST
+#define OPENSSL_INIT_SETTINGS WOLFSSL_INIT_SETTINGS
+#endif
 
 typedef struct WOLFSSL_CRYPTO_THREADID {
     int dummy;
 } WOLFSSL_CRYPTO_THREADID;
+#ifndef OPENSSL_COEXIST
 typedef struct crypto_threadid_st   CRYPTO_THREADID;
+#endif
 
+#ifndef OPENSSL_COEXIST
 typedef struct CRYPTO_EX_DATA            CRYPTO_EX_DATA;
+#endif
 
 #ifdef HAVE_EX_DATA
 typedef WOLFSSL_CRYPTO_EX_new CRYPTO_new_func;
@@ -68,10 +74,13 @@ WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 WOLFSSL_API int wolfSSL_OPENSSL_hexchar2int(unsigned char c);
 WOLFSSL_API unsigned char *wolfSSL_OPENSSL_hexstr2buf(const char *str, long *len);
 
-WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
+WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const WOLFSSL_INIT_SETTINGS *settings);
 #endif
 
 /* class index for wolfSSL_CRYPTO_get_ex_new_index */
+
+#ifndef OPENSSL_COEXIST
+
 #define CRYPTO_EX_INDEX_SSL             WOLF_CRYPTO_EX_INDEX_SSL
 #define CRYPTO_EX_INDEX_SSL_CTX         WOLF_CRYPTO_EX_INDEX_SSL_CTX
 #define CRYPTO_EX_INDEX_SSL_SESSION     WOLF_CRYPTO_EX_INDEX_SSL_SESSION
@@ -96,13 +105,9 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
 #define OpenSSL_version_num wolfSSL_OpenSSL_version_num
+#define SSLEAY_VERSION_NUMBER OPENSSL_VERSION_NUMBER
+#define SSLEAY_VERSION OPENSSL_VERSION
 
-#if defined(WOLFSSL_QT) || defined(WOLFSSL_HITCH)
-    #define SSLEAY_VERSION 0x10001000L
-#else
-    #define SSLEAY_VERSION 0x0090600fL
-#endif
-#define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 #define CRYPTO_lock wc_LockMutex_ex
 
 /* this function was used to set the default malloc, free, and realloc */
@@ -156,6 +161,8 @@ WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETT
 #define CRYPTO_set_ex_data wolfSSL_CRYPTO_set_ex_data
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || HAVE_EX_DATA */
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     } /* extern "C" */

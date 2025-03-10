@@ -1,0 +1,21 @@
+# Syntax Coloring Map For wolfSSL
+# See https://arduino.github.io/arduino-cli/0.35/library-specification/#keywords
+#
+# Be sure to use tabs, not spaces. This might help:
+#  tr ' ' '\t' < keywords1.txt > keywords.txt
+
+#=============================================
+#	Datatypes	(KEYWORD1)
+#=============================================
+
+
+#=============================================
+#	Methods	and	Functions	(KEYWORD2)
+#=============================================
+wolfSSL_SetIORecv	KEYWORD1
+
+#=============================================
+#	Instances	(KEYWORD2)
+#=============================================
+ctx	KEYWORD2
+

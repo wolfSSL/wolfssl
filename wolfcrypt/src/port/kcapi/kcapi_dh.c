@@ -1,6 +1,6 @@
 /* kcapi_dh.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -52,7 +52,7 @@ static int KcapiDh_SetParams(DhKey* key)
     word32 len;
 
     ret = wc_DhParamsToDer(key, NULL, &len);
-    if (ret == LENGTH_ONLY_E) {
+    if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         ret = 0;
         pkcs3 = (unsigned char*)XMALLOC(len, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -70,9 +70,7 @@ static int KcapiDh_SetParams(DhKey* key)
         }
     }
 
-    if (pkcs3 != NULL) {
-        XFREE(pkcs3, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(pkcs3, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

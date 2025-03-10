@@ -1997,8 +1997,8 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
-    \brief This function returns the file descriptor (fd) used as the
-    input/output facility for the SSL connection.  Typically this
+    \brief This function returns the read file descriptor (fd) used as the
+    input facility for the SSL connection.  Typically this
     will be a socket file descriptor.
 
     \return fd If successful the call will return the SSL session file
@@ -2016,8 +2016,37 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_set_fd
+    \sa wolfSSL_set_read_fd
+    \sa wolfSSL_set_write_fd
 */
 int  wolfSSL_get_fd(const WOLFSSL*);
+
+/*!
+    \ingroup IO
+
+    \brief This function returns the write file descriptor (fd) used as the
+    output facility for the SSL connection.  Typically this
+    will be a socket file descriptor.
+
+    \return fd If successful the call will return the SSL session file
+    descriptor.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+
+    _Example_
+    \code
+    int sockfd;
+    WOLFSSL* ssl = 0;
+    ...
+    sockfd = wolfSSL_get_wfd(ssl);
+    ...
+    \endcode
+
+    \sa wolfSSL_set_fd
+    \sa wolfSSL_set_read_fd
+    \sa wolfSSL_set_write_fd
+*/
+int  wolfSSL_get_wfd(const WOLFSSL*);
 
 /*!
     \ingroup Setup
@@ -2086,15 +2115,18 @@ int  wolfSSL_get_using_nonblock(WOLFSSL*);
     \brief This function writes sz bytes from the buffer, data, to the SSL
     connection, ssl. If necessary, wolfSSL_write() will negotiate an SSL/TLS
     session if the handshake has not already been performed yet by
-    wolfSSL_connect() or wolfSSL_accept(). wolfSSL_write() works with both
-    blocking and non-blocking I/O.  When the underlying I/O is non-blocking,
-    wolfSSL_write() will return when the underlying I/O could not satisfy the
-    needs of wolfSSL_write() to continue.  In this case, a call to
-    wolfSSL_get_error() will yield either SSL_ERROR_WANT_READ or
-    SSL_ERROR_WANT_WRITE.  The calling process must then repeat the call to
-    wolfSSL_write() when the underlying I/O is ready. If the underlying I/O
-    is blocking, wolfSSL_write() will only return once the buffer data of
-    size sz has been completely written or an error occurred.
+    wolfSSL_connect() or wolfSSL_accept(). When using (D)TLSv1.3 and early data
+    feature is compiled in, this function progresses the handshake only up to
+    the point when it is possible to send data. Next invocations of
+    wolfSSL_Connect()/wolfSSL_Accept()/wolfSSL_read() will complete the
+    handshake. wolfSSL_write() works with both blocking and non-blocking I/O.
+    When the underlying I/O is non-blocking, wolfSSL_write() will return when
+    the underlying I/O could not satisfy the needs of wolfSSL_write() to
+    continue.  In this case, a call to wolfSSL_get_error() will yield either
+    SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE.  The calling process must then
+    repeat the call to wolfSSL_write() when the underlying I/O is ready. If the
+    underlying I/O is blocking, wolfSSL_write() will only return once the buffer
+    data of size sz has been completely written or an error occurred.
 
     \return >0 the number of bytes written upon success.
     \return 0 will be returned upon failure.  Call wolfSSL_get_error() for
@@ -2285,6 +2317,48 @@ int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
     \sa wolfSSL_connect
 */
 int  wolfSSL_accept(WOLFSSL*);
+
+/*!
+    \ingroup IO
+
+    \brief This function is called on the server side and statelessly listens
+    for an SSL client to initiate the DTLS handshake.
+
+    \return WOLFSSL_SUCCESS ClientHello containing a valid cookie was received.
+    The connection can be continued with wolfSSL_accept().
+    \return WOLFSSL_FAILURE The I/O layer returned WANT_READ. This is either
+    because there is no data to read and we are using non-blocking sockets or
+    we sent a cookie request and we are waiting for a reply. The user should
+    call wolfDTLS_accept_stateless again after data becomes available in
+    the I/O layer.
+    \return WOLFSSL_FATAL_ERROR A fatal error occurred. The ssl object should be
+    free'd and allocated again to continue.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    int ret = 0;
+    int err = 0;
+    WOLFSSL* ssl;
+    ...
+    do {
+        ret = wolfDTLS_accept_stateless(ssl);
+        if (ret == WOLFSSL_FATAL_ERROR)
+            // re-allocate the ssl object with wolfSSL_free() and wolfSSL_new()
+    } while (ret != WOLFSSL_SUCCESS);
+    ret = wolfSSL_accept(ssl);
+    if (ret != SSL_SUCCESS) {
+        err = wolfSSL_get_error(ssl, ret);
+        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
+    }
+    \endcode
+
+    \sa wolfSSL_accept
+    \sa wolfSSL_get_error
+    \sa wolfSSL_connect
+*/
+int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -3853,11 +3927,52 @@ int  wolfSSL_dtls(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_set_pending_peer
     \sa wolfSSL_dtls_get_peer
     \sa wolfSSL_dtls_got_timeout
     \sa wolfSSL_dtls
 */
 int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
+
+/*!
+    \brief This function sets the pending DTLS peer, peer (sockaddr_in) with
+    size of peerSz. This sets the pending peer that will be upgraded to a
+    regular peer when we successfully de-protect the next record. This is useful
+    in scenarios where the peer's address can change to avoid off-path attackers
+    from changing the peer address. This should be used with Connection ID's to
+    allow seamless and safe transition to a new peer address.
+
+    \return SSL_SUCCESS will be returned upon success.
+    \return SSL_FAILURE will be returned upon failure.
+    \return SSL_NOT_IMPLEMENTED will be returned if wolfSSL was not compiled
+    with DTLS support.
+
+    \param ssl    a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param peer   pointer to peer’s sockaddr_in structure. If NULL then the peer
+                  information in ssl is cleared.
+    \param peerSz size of the sockaddr_in structure pointed to by peer. If 0
+                  then the peer information in ssl is cleared.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    sockaddr_in addr;
+    ...
+    ret = wolfSSL_dtls_set_pending_peer(ssl, &addr, sizeof(addr));
+    if (ret != SSL_SUCCESS) {
+	    // failed to set DTLS peer
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls_get_peer
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls
+*/
+int  wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer,
+                                   unsigned int peerSz);
 
 /*!
     \brief This function gets the sockaddr_in (of size peerSz) of the current
@@ -3895,6 +4010,41 @@ int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
     \sa wolfSSL_dtls
 */
 int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
+
+/*!
+    \brief This function gets the sockaddr_in (of size peerSz) of the current
+    DTLS peer.  This is a zero-copy alternative to wolfSSL_dtls_get_peer().
+
+    \return SSL_SUCCESS will be returned upon success.
+    \return SSL_FAILURE will be returned upon failure.
+    \return SSL_NOT_IMPLEMENTED will be returned if wolfSSL was not compiled
+    with DTLS support.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param peer pointer to return the internal buffer holding the peer address
+    \param peerSz output the size of the actual sockaddr_in structure
+    pointed to by peer.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    sockaddr_in* addr;
+    unsigned int addrSz;
+    ...
+    ret = wolfSSL_dtls_get_peer(ssl, &addr, &addrSz);
+    if (ret != SSL_SUCCESS) {
+	    // failed to get DTLS peer
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls
+*/
+int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
+                            unsigned int* peerSz);
 
 /*!
     \ingroup Debug
@@ -4037,8 +4187,8 @@ int  wolfSSL_session_reused(WOLFSSL* ssl);
 
     \return 0 returned if the connection is not established, i.e. the WOLFSSL
     struct is NULL or the handshake is not done.
-    \return 1 returned if the connection is not established i.e. the WOLFSSL
-    struct is null or the handshake is not done.
+    \return 1 returned if the connection is established i.e. the WOLFSSL
+    handshake is done.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
 
@@ -7596,17 +7746,48 @@ int wolfSSL_writev(WOLFSSL* ssl, const struct iovec* iov,
     WOLFSSL_METHOD method = wolfTLSv1_2_client_method();
     WOLFSSL_CTX* ctx = WOLFSSL_CTX_new(method);
     …
-    if(!wolfSSL_CTX_UnloadCAs(ctx)){
+    if(wolfSSL_CTX_UnloadCAs(ctx) != SSL_SUCCESS){
     	// The function did not unload CAs
     }
     \endcode
 
     \sa wolfSSL_CertManagerUnloadCAs
     \sa LockMutex
-    \sa FreeSignerTable
     \sa UnlockMutex
 */
 int wolfSSL_CTX_UnloadCAs(WOLFSSL_CTX*);
+
+
+/*!
+    \ingroup Setup
+
+    \brief This function unloads intermediate certificates added to the CA
+    signer list and frees them.
+
+    \return SSL_SUCCESS returned on successful execution of the function.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or there
+    are otherwise unpermitted argument values passed in a subroutine.
+    \return BAD_STATE_E returned if the WOLFSSL_CTX has a reference count > 1.
+    \return BAD_MUTEX_E returned if there was a mutex error. The LockMutex()
+    did not return 0.
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using
+    wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    WOLFSSL_METHOD method = wolfTLSv1_2_client_method();
+    WOLFSSL_CTX* ctx = WOLFSSL_CTX_new(method);
+    …
+    if(wolfSSL_CTX_UnloadIntermediateCerts(ctx) != NULL){
+        // The function did not unload CAs
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_UnloadCAs
+    \sa wolfSSL_CertManagerUnloadIntermediateCerts
+*/
+int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx);
 
 /*!
     \ingroup Setup
@@ -7722,9 +7903,9 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
@@ -7779,9 +7960,9 @@ int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     // Example for force loading an expired certificate
@@ -7835,9 +8016,9 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
@@ -7886,9 +8067,9 @@ int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -7936,9 +8117,9 @@ int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte keyBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, keyBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -7985,9 +8166,9 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certChainBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, certChainBuff, sz);
     if (ret != SSL_SUCCESS) {
@@ -8031,10 +8212,10 @@ int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_use_certificate_buffer(ssl, certBuff, buffSz, SSL_FILETYPE_PEM);
@@ -8080,10 +8261,10 @@ int wolfSSL_use_certificate_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte keyBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_PrivateKey_buffer(ssl, keyBuff, buffSz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -8127,10 +8308,10 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certChainBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_certificate_chain_buffer(ssl, certChainBuff, buffSz);
     if (ret != SSL_SUCCESS) {
@@ -9548,17 +9729,44 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
     #include <wolfssl/ssl.h>
 
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(protocol method);
-    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
     ...
-    if(wolfSSL_CertManagerUnloadCAs(ctx->cm) != SSL_SUCCESS){
+    if(wolfSSL_CertManagerUnloadCAs(cm) != SSL_SUCCESS){
+        Failure case.
+    }
+    \endcode
+
+    \sa UnlockMutex
+*/
+int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
+
+/*!
+    \ingroup CertManager
+    \brief This function unloads intermediate certificates add to the CA
+    signer list.
+
+    \return SSL_SUCCESS returned on successful execution of the function.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER is NULL.
+    \return BAD_MUTEX_E returned if there was a mutex error.
+
+    \param cm a pointer to a WOLFSSL_CERT_MANAGER structure,
+    created using wolfSSL_CertManagerNew().
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(protocol method);
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CTX_GetCertManager(ctx);
+    ...
+    if(wolfSSL_CertManagerUnloadIntermediateCerts(cm) != SSL_SUCCESS){
     	Failure case.
     }
     \endcode
 
-    \sa FreeSignerTable
     \sa UnlockMutex
 */
-int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
+int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm);
 
 /*!
     \ingroup CertManager
@@ -9953,6 +10161,85 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
 
 /*!
     \ingroup CertManager
+    \brief This function sets the CRL Update callback. If
+    HAVE_CRL and HAVE_CRL_UPDATE_CB is defined , and an entry with the same
+    issuer and a lower CRL number exists when a CRL is added, then the
+    CbUpdateCRL is called with the details of the existing entry and the
+    new one replacing it.
+
+    \return SSL_SUCCESS returned upon successful execution of the function and
+    subroutines.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER structure is NULL.
+
+    \param cm the WOLFSSL_CERT_MANAGER structure holding the information for
+    the certificate.
+    \param cb a function pointer to (*CbUpdateCRL) that is set to the
+    cbUpdateCRL member of the WOLFSSL_CERT_MANAGER.
+    Signature requirement:
+	void (*CbUpdateCRL)(CrlInfo *old, CrlInfo *new);
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(protocol method);
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    …
+    void cb(CrlInfo *old, CrlInfo *new){
+	    Function body.
+    }
+    …
+    CbUpdateCRL cb = CbUpdateCRL;
+    …
+    if(ctx){
+        return wolfSSL_CertManagerSetCRLUpdate_Cb(SSL_CM(ssl), cb);
+    }
+    \endcode
+
+    \sa CbUpdateCRL
+*/
+int wolfSSL_CertManagerSetCRLUpdate_Cb(WOLFSSL_CERT_MANAGER* cm,
+                                       CbUpdateCRL cb);
+
+/*!
+    \ingroup CertManager
+    \brief This function yields a structure with parsed CRL information from
+    an encoded CRL buffer.
+
+    \return SSL_SUCCESS returned upon successful execution of the function and
+    subroutines.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER structure is NULL.
+
+    \param cm   the WOLFSSL_CERT_MANAGER structure..
+    \param info pointer to caller managed CrlInfo structure that will receive
+                the CRL information.
+    \param buff input buffer containing encoded CRL.
+    \param sz   the length in bytes of the input CRL data in buff.
+    \param type WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_DER
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    CrlInfo info;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    cm = wolfSSL_CertManagerNew();
+
+    // Read crl data from file into buffer
+
+    wolfSSL_CertManagerGetCRLInfo(cm, &info, crlData, crlDataLen,
+                                  WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa CbUpdateCRL
+    \sa wolfSSL_SetCRL_Cb
+*/
+int wolfSSL_CertManagerGetCRLInfo(WOLFSSL_CERT_MANAGER* cm, CrlInfo* info,
+    const byte* buff, long sz, int type)
+
+/*!
+    \ingroup CertManager
     \brief This function frees the CRL stored in the Cert Manager. An
     application can update the CRL by calling wolfSSL_CertManagerFreeCRL
     and then loading the new CRL.
@@ -10136,7 +10423,7 @@ int wolfSSL_CertManagerSetOCSPOverrideURL(WOLFSSL_CERT_MANAGER* cm,
     \sa wolfSSL_CertManagerSetOCSPOverrideURL
     \sa wolfSSL_CertManagerCheckOCSP
     \sa wolfSSL_CertManagerEnableOCSPStapling
-    \sa wolfSSL_ENableOCSP
+    \sa wolfSSL_EnableOCSP
     \sa wolfSSL_DisableOCSP
     \sa wolfSSL_SetOCSP_Cb
 */
@@ -10295,7 +10582,13 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor);
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb);
 
 /*!
-    \brief This function enables OCSP certificate verification.
+    \brief This function enables OCSP certificate verification. The value of
+    options if formed by or’ing one or more of the following options:
+    WOLFSSL_OCSP_URL_OVERRIDE - use the override URL instead of the URL in
+     certificates. The override URL is specified using the
+     wolfSSL_CTX_SetOCSP_OverrideURL() function.
+    WOLFSSL_OCSP_CHECKALL - Set all OCSP checks on
+    WOLFSSL_OCSP_NO_NONCE - Set nonce option for creating OCSP requests
 
     \return SSL_SUCCESS returned if the function and subroutines executes
     without errors.
@@ -10550,10 +10843,13 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb);
     \brief This function sets options to configure behavior of OCSP
     functionality in wolfSSL.  The value of options if formed by or’ing
     one or more of the following options:
-    WOLFSSL_OCSP_ENABLE - enable OCSP lookups	WOLFSSL_OCSP_URL_OVERRIDE -
-    use the override URL instead of the URL in certificates. The override URL
-    is specified using the wolfSSL_CTX_SetOCSP_OverrideURL() function. This
-    function only sets the OCSP options when wolfSSL has been compiled with
+    WOLFSSL_OCSP_URL_OVERRIDE - use the override URL instead of the URL in
+     certificates. The override URL is specified using the
+     wolfSSL_CTX_SetOCSP_OverrideURL() function.
+    WOLFSSL_OCSP_CHECKALL - Set all OCSP checks on
+    WOLFSSL_OCSP_NO_NONCE - Set nonce option for creating OCSP requests
+
+    This function only sets the OCSP options when wolfSSL has been compiled with
     OCSP support (--enable-ocsp, #define HAVE_OCSP).
 
     \return SSL_SUCCESS is returned upon success.
@@ -10566,12 +10862,17 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb);
 
     _Example_
     \code
-    WOLFSSL_CTX* ctx = 0;
-    ...
-    wolfSSL_CTX_OCSP_set_options(ctx, WOLFSSL_OCSP_ENABLE);
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new( method );
+    int options; // initialize to option constant
+    …
+    int ret = wolfSSL_CTX_EnableOCSP(ctx, options);
+    if(ret != SSL_SUCCESS){
+        // OCSP is not enabled
+    }
     \endcode
 
-    \sa wolfSSL_CTX_OCSP_set_override_url
+    \sa wolfSSL_CertManagerEnableOCSP
+    \sa wolfSSL_EnableOCSP
 */
 int wolfSSL_CTX_EnableOCSP(WOLFSSL_CTX* ctx, int options);
 
@@ -11176,7 +11477,7 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
     \return MEMORY_E is the error returned when there is not enough memory.
 
     \param ssl pointer to a SSL object, created with wolfSSL_new().
-    \param mfl indicates witch is the Maximum Fragment Length requested for the
+    \param mfl indicates which is the Maximum Fragment Length requested for the
     session. The available options are: enum { WOLFSSL_MFL_2_9  = 1, 512 bytes
     WOLFSSL_MFL_2_10 = 2, 1024 bytes WOLFSSL_MFL_2_11 = 3, 2048 bytes
     WOLFSSL_MFL_2_12 = 4, 4096 bytes WOLFSSL_MFL_2_13 = 5, 8192
@@ -13938,9 +14239,11 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
 
     \brief This function reads any early data from a client on resumption.
     Call this function instead of wolfSSL_accept() or wolfSSL_accept_TLSv13()
-    to accept a client and read any early data in the handshake.
-    If there is no early data than the handshake will be processed as normal.
-    This function is only used with servers.
+    to accept a client and read any early data in the handshake. The function
+    should be invoked until wolfSSL_is_init_finished() returns true. Early data
+    may be sent by the client in multiple messages. If there is no early data
+    then the handshake will be processed as normal. This function is only used
+    with servers.
 
     \param [in,out] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param [out] data a buffer to hold the early data read from client.
@@ -13951,7 +14254,7 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     not using TLSv1.3.
     \return SIDE_ERROR if called with a client.
     \return WOLFSSL_FATAL_ERROR if accepting a connection fails.
-    \return WOLFSSL_SUCCESS if successful.
+    \return Number of early data bytes read (may be zero).
 
     _Example_
     \code
@@ -13963,19 +14266,16 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     char buffer[80];
     ...
 
-    ret = wolfSSL_read_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
-    if (ret != SSL_SUCCESS) {
-        err = wolfSSL_get_error(ssl, ret);
-        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
-    }
-    if (outSz > 0) {
-        // early data available
-    }
-    ret = wolfSSL_accept_TLSv13(ssl);
-    if (ret != SSL_SUCCESS) {
-        err = wolfSSL_get_error(ssl, ret);
-        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
-    }
+    do {
+        ret = wolfSSL_read_early_data(ssl, earlyData, sizeof(earlyData), &outSz);
+        if (ret < 0) {
+            err = wolfSSL_get_error(ssl, ret);
+            printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
+        }
+        if (outSz > 0) {
+            // early data available
+        }
+    } while (!wolfSSL_is_init_finished(ssl));
     \endcode
 
     \sa wolfSSL_write_early_data
@@ -13984,6 +14284,39 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
 */
 int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     int* outSz);
+
+/*!
+    \ingroup IO
+
+    \brief This function is called to inject data into the WOLFSSL object. This
+    is useful when data needs to be read from a single place and demultiplexed
+    into multiple connections. The caller should then call wolfSSL_read() to
+    extract the plaintext data from the WOLFSSL object.
+
+    \param [in] ssl a pointer to a WOLFSSL structure, created using
+                    wolfSSL_new().
+    \param [in] data data to inject into the ssl object.
+    \param [in] sz number of bytes of data to inject.
+
+    \return BAD_FUNC_ARG if any pointer parameter is NULL or sz <= 0
+    \return APP_DATA_READY if there is application data left to read
+    \return MEMORY_E if allocation fails
+    \return WOLFSSL_SUCCESS on success
+
+    _Example_
+    \code
+    byte buf[2000]
+    sz = recv(fd, buf, sizeof(buf), 0);
+    if (sz <= 0)
+        // error
+    if (wolfSSL_inject(ssl, buf, sz) != WOLFSSL_SUCCESS)
+        // error
+    sz = wolfSSL_read(ssl, buf, sizeof(buf);
+    \endcode
+
+    \sa wolfSSL_read
+*/
+int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
 
 /*!
     \ingroup Setup
@@ -14802,6 +15135,7 @@ connection into the buffer pointed by the parameter buffer. See RFC 9146 and RFC
  \param buffer A buffer where the ConnectionID will be copied
  \param bufferSz available space in buffer
 
+ \sa wolfSSL_dtls_cid_get0_rx
  \sa wolfSSL_dtls_cid_use
  \sa wolfSSL_dtls_cid_is_enabled
  \sa wolfSSL_dtls_cid_set
@@ -14811,6 +15145,26 @@ connection into the buffer pointed by the parameter buffer. See RFC 9146 and RFC
 */
 int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+
+/*!
+
+\brief Get the ConnectionID used by the other peer. See RFC 9146 and RFC
+9147.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly set in cid.
+
+ \param ssl A WOLFSSL object pointern
+ \param cid Pointer that will be set to the internal memory that holds the CID
+
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_get0_rx(WOLFSSL* ssl, unsigned char** cid);
 
 /*!
 
@@ -14845,6 +15199,7 @@ available size need to be provided in bufferSz.
  \param buffer A buffer where the ConnectionID will be copied
  \param bufferSz available space in buffer
 
+ \sa wolfSSL_dtls_cid_get0_tx
  \sa wolfSSL_dtls_cid_use
  \sa wolfSSL_dtls_cid_is_enabled
  \sa wolfSSL_dtls_cid_set
@@ -14854,6 +15209,50 @@ available size need to be provided in bufferSz.
 */
 int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+
+/*!
+
+\brief Get the ConnectionID used when sending records in this connection. See
+RFC 9146 and RFC 9147.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly retrieved, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param cid Pointer that will be set to the internal memory that holds the CID
+
+ \sa wolfSSL_dtls_cid_get_tx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid);
+
+/*!
+
+\brief Extract the ConnectionID from a record datagram/message. See
+RFC 9146 and RFC 9147.
+
+ \param msg buffer holding the datagram read from the network
+ \param msgSz size of msg in bytes
+ \param cid pointer to the start of the CID inside the msg buffer
+ \param cidSz the expected size of the CID. The record layer does not have a CID
+ size field so we have to know beforehand the size of the CID. It is recommended
+ to use a constant CID for all connections.
+
+ \sa wolfSSL_dtls_cid_get_tx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
+        unsigned int msgSz, unsigned int cidSz);
 
 /*!
     \ingroup TLS
@@ -14940,7 +15339,7 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
 
     \return 0            when info was correctly set
-    \return BAD_FUNC_ARG when either input paramters are NULL or the bytes
+    \return BAD_FUNC_ARG when either input parameters are NULL or the bytes
                          are not a recognized sigalg suite
 
     _Example_

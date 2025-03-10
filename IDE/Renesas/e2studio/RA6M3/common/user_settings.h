@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,7 +50,6 @@
 #define HAVE_CHACHA
 #define HAVE_POLY1305
 #define HAVE_ECC
-#define HAVE_RSA
 #define HAVE_SHA256
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_TLS_EXTENSIONS

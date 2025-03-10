@@ -1,5 +1,5 @@
 /*!
-    \ingroup wolfCrypt 
+    \ingroup wolfCrypt
     \brief  WolfCryptによって使用されるリソースを初期化するために使用されます。
     \return 0  成功すると。
     \return <0  initリソースが失敗すると。
@@ -15,7 +15,7 @@
 int wolfCrypt_Init(void);
 
 /*!
-    \ingroup wolfCrypt 
+    \ingroup wolfCrypt
     \brief  WolfCryptによって使用されるリソースをクリーンアップするために使用されます。
     \return 0  成功すると。
     \return <0  リソースのクリーンアップが失敗したとき。

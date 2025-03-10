@@ -1,5 +1,5 @@
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  この関数はSHA512を初期化します。これはWC_SHA512HASHによって自動的に呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -20,7 +20,7 @@
 int wc_InitSha512(wc_Sha512*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param sha512  暗号化に使用するSHA512構造へのポインタ
@@ -46,7 +46,7 @@ int wc_InitSha512(wc_Sha512*);
 int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。
     \return 0  ハッシュを確定するとうまく返されました。
     \param sha512  暗号化に使用するSHA512構造へのポインタ
@@ -71,7 +71,7 @@ int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len);
 int wc_Sha512Final(wc_Sha512* sha512, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  この関数はSHA384を初期化します。これはWC_SHA384HASHによって自動的に呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -92,7 +92,7 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash);
 int wc_InitSha384(wc_Sha384*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param sha384  暗号化に使用するSHA384構造へのポインタ
@@ -118,7 +118,7 @@ int wc_InitSha384(wc_Sha384*);
 int wc_Sha384Update(wc_Sha384* sha, const byte* data, word32 len);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。
     \return 0  ファイナライズに成功したときに返されます。
     \param sha384  暗号化に使用するSHA384構造へのポインタ

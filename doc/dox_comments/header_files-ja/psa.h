@@ -1,5 +1,5 @@
 /*!
-    \ingroup PSA 
+    \ingroup PSA
     \brief  この関数は、与えられたコンテキストでのPSAサポートを可能にします。
     \param ctx  PSAサポートを有効にする必要があるWOLFSSL_CTXオブジェクトへのポインタ
     \return WOLFSSL_SUCCESS  成功した
@@ -19,7 +19,7 @@
 int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
 
 /*!
-    \ingroup PSA 
+    \ingroup PSA
     \brief  与えられたSSLセッションのPSAコンテキストを設定する機能
     \param ssl  CTXが有効になるWolfSSLへのポインタ
     \param ctx  Struct PSA_SSL_CTXへのポインタ（SSLセッションに固有である必要があります）
@@ -41,14 +41,14 @@ int wolfSSL_CTX_psa_enable(WOLFSSL_CTX *ctx);
 int wolfSSL_set_psa_ctx(WOLFSSL *ssl, struct psa_ssl_ctx *ctx);
 
 /*!
-    \ingroup PSA 
+    \ingroup PSA
     \brief  この関数はPSAコンテキストによって使用されるリソースを解放します
     \sa wolfSSL_set_psa_ctx
 */
 void wolfSSL_free_psa_ctx(struct psa_ssl_ctx *ctx);
 
 /*!
-    \ingroup PSA 
+    \ingroup PSA
     \brief  この関数は、SSLセッションによって使用される秘密鍵を設定します
     \param ctx  構造体PSA_SSL_CTXへのポインタ
     _Example_

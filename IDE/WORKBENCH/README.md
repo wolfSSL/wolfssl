@@ -10,6 +10,7 @@ src and wolfcrypt directories. Uncheck the following:
     ```
     wolfcrypt/src/aes_asm.asm
     wolfcrypt/src/aes_gcm_asm.asm
+    wolfcrypt/src/aes_xts_asm.asm
     wolfcrypt/src/aes_asm.s
     examples/echoclient/
     examples/echoserver/
@@ -26,7 +27,7 @@ then "Browse" and select:
     ```
     Click "OK" then "OK" again.
 
-4. Create a new `<path_to_wolfssl>/user_settings.h` file and add your custom 
+4. Create a new `<path_to_wolfssl>/user_settings.h` file and add your custom
 settings. Below is an example but you can expand the settings. For more details,
 see https://github.com/wolfSSL/wolfssl/blob/master/examples/configs/user_settings_template.h
 

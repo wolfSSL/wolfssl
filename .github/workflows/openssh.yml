@@ -1,0 +1,84 @@
+name: openssh Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-openssh --enable-dsa --with-max-rsa-bits=8192
+            --enable-intelasm --enable-sp-asm CFLAGS="-DRSA_MIN_SIZE=1024"
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-openssh
+          path: build-dir.tgz
+          retention-days: 5
+
+  openssh_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - git_ref: 'V_9_6_P1'
+            osp_ver: '9.6'
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-openssh
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Build and test openssh
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: openssh/openssh-portable
+          ref: ${{ matrix.git_ref }}
+          path: openssh
+          patch-file: $GITHUB_WORKSPACE/osp/openssh-patches/openssh-${{ matrix.osp_ver }}.patch
+          configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-rpath=-Wl,-rpath=
+          check: false
+
+      # make tests take >20 minutes. Consider limiting?
+      - name: Run tests
+        working-directory: ./openssh
+        run: |
+          # Run all the tests except (t-exec) as it takes too long
+          make file-tests interop-tests extra-tests unit

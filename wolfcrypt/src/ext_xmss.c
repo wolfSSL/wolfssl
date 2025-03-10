@@ -1,6 +1,6 @@
 /* ext_xmss.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,7 +28,8 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 
-#ifdef WOLFSSL_HAVE_XMSS
+#if defined(WOLFSSL_HAVE_XMSS) && defined(HAVE_LIBXMSS)
+
 #include <wolfssl/wolfcrypt/ext_xmss.h>
 
 #ifdef NO_INLINE
@@ -39,6 +40,7 @@
 #endif
 
 #include <xmss_callbacks.h>
+#include <utils.h>
 
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 static THREAD_LS_T WC_RNG * xmssRng = NULL;
@@ -177,6 +179,11 @@ static int wc_XmssKey_SetOid(XmssKey * key, uint32_t oid, int is_xmssmt)
         WOLFSSL_MSG("error: unsupported XMSS/XMSS^MT parameter set");
         return -1;
     }
+    if ((key->params.full_height < WOLFSSL_XMSS_MIN_HEIGHT) ||
+        (key->params.full_height > WOLFSSL_XMSS_MAX_HEIGHT)) {
+        WOLFSSL_MSG("error: unsupported XMSS/XMSS^MT parameter set - height");
+        return -1;
+    }
 
     ret = xmss_set_sha_cb(sha256_cb);
     if (ret != 0) {
@@ -301,7 +308,7 @@ void wc_XmssKey_Free(XmssKey* key)
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
  *  returns     -1 on failure.
  * */
-int wc_XmssKey_SetWriteCb(XmssKey * key, write_private_key_cb write_cb)
+int wc_XmssKey_SetWriteCb(XmssKey * key, wc_xmss_write_private_key_cb write_cb)
 {
     if (key == NULL || write_cb == NULL) {
         return BAD_FUNC_ARG;
@@ -330,7 +337,7 @@ int wc_XmssKey_SetWriteCb(XmssKey * key, write_private_key_cb write_cb)
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
  *  returns     -1 on failure.
  * */
-int wc_XmssKey_SetReadCb(XmssKey * key, read_private_key_cb read_cb)
+int wc_XmssKey_SetReadCb(XmssKey * key, wc_xmss_read_private_key_cb read_cb)
 {
     if (key == NULL || read_cb == NULL) {
         return BAD_FUNC_ARG;
@@ -747,6 +754,64 @@ int wc_XmssKey_Sign(XmssKey* key, byte * sig, word32 * sigLen, const byte * msg,
 
     return (key->state == WC_XMSS_STATE_OK) ? 0 : -1;
 }
+
+
+/* Check if more signatures are possible with key.
+ *
+ * @param [in] key  XMSS key to check.
+ * @return  1 when signatures possible.
+ * @return  0 when key exhausted.
+ */
+int  wc_XmssKey_SigsLeft(XmssKey* key)
+{
+    int ret = 0;
+
+    /* Validate parameter. */
+    if (key == NULL) {
+        ret = 0;
+    }
+    /* Validate state. */
+    else if (key->state == WC_XMSS_STATE_NOSIGS) {
+        WOLFSSL_MSG("error: XMSS signatures exhausted");
+        ret = 0;
+    }
+    else if (key->state != WC_XMSS_STATE_OK) {
+        WOLFSSL_MSG("error: can't sign, XMSS key not in good state");
+        ret = 0;
+    }
+    /* Read the current secret key from NV storage.*/
+    else if (key->read_private_key(key->sk, key->sk_len, key->context) !=
+             WC_XMSS_RC_READ_TO_MEMORY) {
+        WOLFSSL_MSG("error: XMSS read_private_key failed");
+        ret = 0;
+    }
+    else {
+        /* The following assumes core_fast implementation is used
+         * from patched xmss-reference. */
+        const unsigned char* sk = (key->sk + XMSS_OID_LEN);
+        const xmss_params*   params = &key->params;
+        unsigned long long   idx = 0;
+
+        if (key->is_xmssmt) {
+            for (uint64_t i = 0; i < params->index_bytes; i++) {
+                idx |= ((unsigned long long)sk[i])
+                       << 8 * (params->index_bytes - 1 - i);
+            }
+        }
+        else {
+            idx = ((unsigned long)sk[0] << 24) |
+                  ((unsigned long)sk[1] << 16) |
+                  ((unsigned long)sk[2] <<  8) | sk[3];
+        }
+
+        ret = idx < ((1ULL << params->full_height) - 1);
+
+        /* Force zero the secret key from memory always. */
+        ForceZero(key->sk, key->sk_len);
+    }
+
+    return ret;
+}
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY*/
 
 /* Get the XMSS/XMSS^MT public key length. The public key
@@ -978,4 +1043,4 @@ int wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigLen,
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_XMSS */
+#endif /* WOLFSSL_HAVE_XMSS && HAVE_LIBXMSS */

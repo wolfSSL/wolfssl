@@ -1,0 +1,49 @@
+name: Quantum Resistant Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST"'
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done

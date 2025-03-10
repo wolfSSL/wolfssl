@@ -12,20 +12,20 @@ Support for the ESP32 on-board cryptographic hardware acceleration for symmetric
 
 ## ESP32 Acceleration
 
-More details about ESP32 HW Accelerationcan be found in:
+More details about ESP32 HW Acceleration can be found in:
 
-* [ESP32 Technical Reference Manual](https://espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
-* [ESP32-S2 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s2_technical_reference_manual_en.pdf)
-* [ESP32-S3 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf)
-* [ESP32-C2 (aka ESP8684 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp8684_technical_reference_manual_en.pdf)
-* [ESP32-C3 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf)
-* [ESP32-C6 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-c6_technical_reference_manual_en.pdf)
-* [ESP32-H2 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-h2_technical_reference_manual_en.pdf)
+* `esp32_technical_reference_manual_en.pdf`
+* `esp32-s2_technical_reference_manual_en.pdf`
+* `esp32-s3_technical_reference_manual_en.pdf`
+* `esp8684_technical_reference_manual_en.pdf`
+* `esp32-c3_technical_reference_manual_en.pdf`
+* `esp32-c6_technical_reference_manual_en.pdf`
+* `esp32-h2_technical_reference_manual_en.pdf`
 
 ### Building
 
 Simply run `ESP-IDF.py` in any of the [Espressif/ESP-IDF/Examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples).
-See the respective project README files. Examples are also available using wolfssl as a [Managed Component](https://components.espressif.com/components/wolfssl/wolfssl).
+See the respective project README files. Examples are also available using wolfssl as a [Managed Component](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/).
 
 Hardware acceleration is enabled by default. All settings should be adjusted in the respective project component
 `user_settings.h` file. See the example in [template example](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/user_settings.h).
@@ -69,6 +69,29 @@ To view disassembly, add `__attribute__((section(".iram1")))` decorator. Foe exa
 ```
 static int __attribute__((section(".iram1"))) memblock_peek(volatile u_int32_t mem_address)
 ```
+
+### VisualGDB
+
+Each project example has a `VisuaGDB` directory with sample project files for [Sysprogs VisualGDB](https://visualgdb.com).
+
+For installing multiple toolchains, see the [documentation](https://visualgdb.com/documentation/espidf/).
+
+The library naming format used at wolfSSL:
+
+```
+HKEY_CURRENT_USER\Software\Sysprogs\GNUToolchains
+```
+
+| Registry String Value Name       | Value Data             |
+| -------------------------------- |----------------------- |
+| `SysGCC-xtensa-lx106-elf-8.4.0`  | `C:\SysGCC\esp8266`    |
+| `SysGCC-xtensa-esp32-elf-8.4.0`  | `C:\SysGCC\esp32-8.4`  |
+| `SysGCC-xtensa-esp32-elf-13.2.0` | `C:\SysGCC\esp32`      |
+| `SysGCC-xtensa-esp32-elf-12.4.0` | `C:\SysGCC\esp32-12.4` |
+| `SysGCC-xtensa-esp32-elf-11.2.0` | `C:\SysGCC\esp32-11.2` |
+
+Note the latest toolchain value is the default install name of `C:\SysGCC\esp32`.
+
 
 ### Benchmarks
 
@@ -137,10 +160,10 @@ ECDSA    256 sign            4 ops took 1.101 sec, avg 275.250 ms, 3.633 ops/sec
 ECDSA    256 verify          2 ops took 1.092 sec, avg 546.000 ms, 1.832 ops/sec
 ```
 
-Condition  :  
-- Model    : ESP32-WROOM-32  
-- CPU Speed: 240Mhz  
-- ESP-IDF  : v3.3-beta1-39-g6cb37ecc5(commit hash : 6cb37ecc5)  
+Condition  :
+- Model    : ESP32-WROOM-32
+- CPU Speed: 240Mhz
+- ESP-IDF  : v3.3-beta1-39-g6cb37ecc5(commit hash : 6cb37ecc5)
 - OS       : Ubuntu 18.04.1 LTS (Bionic Beaver)
 
 ## Support

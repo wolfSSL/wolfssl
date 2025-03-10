@@ -1,6 +1,6 @@
 /* util.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,6 +26,7 @@
 #include <wolfssl/ssl.h>
 #include <ifaddrs.h>
 #include <applibs/log.h>
+#include <netdb.h>
 
 #define _GNU_SOURCE /* defines NI_NUMERICHOST */
 #ifndef NI_MAXHOST

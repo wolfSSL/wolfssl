@@ -1,5 +1,5 @@
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、秘密鍵からED448公開鍵を生成します。公開鍵をバッファPubkeyに格納し、Pubkeyszでこのバッファに書き込まれたバイトを設定します。
     \return 0  公開鍵の作成に成功したときに返されます。
     \return BAD_FUNC_ARG  IFIキーまたはPubKeyがNULLに評価された場合、または指定されたキーサイズが57バイトではない場合（ED448には57バイトのキーがあります）。
@@ -31,7 +31,7 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
                          word32 pubKeySz);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は新しいED448キーを生成し、それをキーに格納します。
     \return 0  ED448_Keyを正常に作成したときに返されます。
     \return BAD_FUNC_ARG  RNGまたはKeyがNULLに評価された場合、または指定されたキーサイズが57バイトではない場合（ED448には57バイトのキーがあります）。
@@ -58,7 +58,7 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,
 int wc_ed448_make_key(WC_RNG* rng, int keysize, ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Keyオブジェクトを使用したメッセージに正解を保証します。
     \return 0  メッセージの署名を正常に生成すると返されます。
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLに評価された場合、または出力バッファが小さすぎて生成された署名を保存する場合は返されます。
@@ -94,7 +94,7 @@ int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outlen, ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、Ed448_Keyオブジェクトを使用してメッセージダイジェストに署名して信頼性を保証します。コンテキストは署名されたデータの一部として含まれています。ハッシュは、署名計算前のプリハッシュメッセージです。メッセージダイジェストを作成するために使用されるハッシュアルゴリズムはShake-256でなければなりません。
     \return 0  メッセージダイジェストの署名を正常に生成すると返されます。
     \return BAD_FUNC_ARG  返された入力パラメータはNULLに評価されます。出力バッファが小さすぎて生成された署名を保存するには小さすぎます。
@@ -135,7 +135,7 @@ int wc_ed448ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
                          const byte* context, byte contextLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Keyオブジェクトを使用したメッセージに正解を保証します。コンテキストは署名されたデータの一部として含まれています。署名計算の前にメッセージは事前にハッシュされています。
     \return 0  メッセージの署名を正常に生成すると返されます。
     \return BAD_FUNC_ARG  返された入力パラメータはNULLに評価されます。出力バッファが小さすぎて生成された署名を保存するには小さすぎます。
@@ -176,7 +176,7 @@ int wc_ed448ph_sign_msg(const byte* in, word32 inLen, byte* out,
                         byte contextLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、メッセージのED448署名を確認して信頼性を確保します。文脈はデータ検証済みの一部として含まれています。答えはRESを介して返され、有効な署名に対応する1、無効な署名に対応する0を返します。
     \return 0  署名検証と認証を正常に実行したときに返されます。
     \return BAD_FUNC_ARG  いずれかの入力パラメータがNULLに評価された場合、またはSIGLENが署名の実際の長さと一致しない場合に返されます。
@@ -214,7 +214,7 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           const byte* context, byte contextLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、メッセージのダイジェストのED448シグネチャを検証して、信頼性を確保します。文脈はデータ検証済みの一部として含まれています。ハッシュは、署名計算前のプリハッシュメッセージです。メッセージダイジェストを作成するために使用されるハッシュアルゴリズムはShake-256でなければなりません。答えはRESを介して返され、有効な署名に対応する1、無効な署名に対応する0を返します。
     \return 0  署名検証と認証を正常に実行したときに返されます。
     \return BAD_FUNC_ARG  いずれかの入力パラメータがNULLに評価された場合、またはSIGLENが署名の実際の長さと一致しない場合に返されます。
@@ -252,7 +252,7 @@ int wc_ed448ph_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                           const byte* context, byte contextLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、メッセージのED448署名を確認して信頼性を確保します。文脈はデータ検証済みの一部として含まれています。検証前にメッセージがプリハッシュされています。答えはRESを介して返され、有効な署名に対応する1、無効な署名に対応する0を返します。
     \return 0  署名検証と認証を正常に実行したときに返されます。
     \return BAD_FUNC_ARG  いずれかの入力パラメータがNULLに評価された場合、またはSIGLENが署名の実際の長さと一致しない場合に返されます。
@@ -290,7 +290,7 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           const byte* context, byte contextLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、メッセージ検証で将来の使用のためにED448_Keyオブジェクトを初期化します。
     \return 0  ED448_Keyオブジェクトの初期化に成功したら返されます。
     \return BAD_FUNC_ARG  キーがNULLの場合は返されます。
@@ -306,7 +306,7 @@ int wc_ed448ph_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 int wc_ed448_init(ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、それが使用された後にED448オブジェクトを解放します。
     _Example_
     \code
@@ -321,7 +321,7 @@ int wc_ed448_init(ed448_key* key);
 void wc_ed448_free(ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、公開鍵を含むバッファからPublic ED448_Keyペアをインポートします。この関数は圧縮キーと非圧縮キーの両方を処理します。
     \return 0  ED448_Keyのインポートに成功しました。
     \return BAD_FUNC_ARG  INまたはKEYがNULLに評価されている場合、またはINLENがED448キーのサイズより小さい場合に返されます。
@@ -346,7 +346,7 @@ void wc_ed448_free(ed448_key* key);
 int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ed448秘密鍵をバッファからのみインポートします。
     \return 0  ED448秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  INまたはKEYがNULLに評価された場合、またはPRIVSZがED448_KEY_SIZEよりも小さい場合に返されます。
@@ -373,7 +373,7 @@ int wc_ed448_import_private_only(const byte* priv, word32 privSz,
                                  ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、一対のバッファからパブリック/プライベートED448キーペアをインポートします。この関数は圧縮キーと非圧縮キーの両方を処理します。
     \return 0  ED448キーのインポートに成功しました。
     \return BAD_FUNC_ARG  INまたはKEYがNULLに評価された場合、またはPROVSZがED448_KEY_SIZEまたはPUBSZのいずれかがeD448_PUB_KEY_SIZEよりも小さい場合に返されます。
@@ -404,7 +404,7 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Key構造体から秘密鍵をエクスポートします。公開鍵をバッファアウトに格納し、ounterenでこのバッファに書き込まれたバイトを設定します。
     \return 0  公開鍵のエクスポートに成功したら返されます。
     \return BAD_FUNC_ARG  いずれかの入力値がNULLに評価された場合に返されます。
@@ -432,7 +432,7 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
 int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Key構造体からの秘密鍵のみをエクスポートします。秘密鍵をバッファアウトに格納し、outlenにこのバッファに書き込まれたバイトを設定します。
     \return 0  秘密鍵のエクスポートに成功したら返されます。
     \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
@@ -459,7 +459,7 @@ int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen);
 int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Key構造体からキーペアをエクスポートします。キーペアをバッファOUTに格納し、ounterenでこのバッファに書き込まれたバイトを設定します。
     \return 0  キーペアのエクスポートに成功したら返されます。
     \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
@@ -490,7 +490,7 @@ int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen);
 int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448_Key構造体とは別にプライベートキーと公開鍵をエクスポートします。秘密鍵をバッファーPrivに格納し、PRIVSZでこのバッファに書き込まれたバイトを設定します。公開鍵をバッファPUBに格納し、Pubszでこのバッファに書き込まれたバイトを設定します。
     \return 0  キーペアのエクスポートに成功したら返されます。
     \return ECC_BAD_ARG_E  いずれかの入力値がNULLに評価された場合に返されます。
@@ -524,7 +524,7 @@ int wc_ed448_export_key(ed448_key* key,
                           byte* pub, word32 *pubSz);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ed448_key構造体の公開鍵をチェックします。
     \return 0  プライベートキーと公開鍵が一致した場合に返されます。
     \return BAD_FUNC_ARGS  与えられたキーがNULLの場合に返されます。
@@ -549,7 +549,7 @@ int wc_ed448_check_key(ed448_key* key);
 
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448秘密鍵のサイズ -  57バイトを返します。
     \return ED448_KEY_SIZE  有効な秘密鍵のサイズ（57バイト）。
     \return BAD_FUNC_ARGS  与えられたキーがNULLの場合に返されます。
@@ -569,7 +569,7 @@ int wc_ed448_check_key(ed448_key* key);
 int wc_ed448_size(ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、秘密鍵サイズ（secret + public）をバイト単位で返します。
     \return ED448_PRV_KEY_SIZE  秘密鍵のサイズ（114バイト）。
     \return BAD_FUNC_ARG  key引数がnullの場合は返します。
@@ -590,7 +590,7 @@ int wc_ed448_size(ed448_key* key);
 int wc_ed448_priv_size(ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は圧縮鍵サイズをバイト単位で返します（公開鍵）。
     \return ED448_PUB_KEY_SIZE  圧縮公開鍵のサイズ（57バイト）。
     \return BAD_FUNC_ARG  key引数がnullの場合は返します。
@@ -610,7 +610,7 @@ int wc_ed448_priv_size(ed448_key* key);
 int wc_ed448_pub_size(ed448_key* key);
 
 /*!
-    \ingroup ED448 
+    \ingroup ED448
     \brief  この関数は、ED448シグネチャのサイズ（バイト数114）を返します。
     \return ED448_SIG_SIZE  ED448シグネチャ（114バイト）のサイズ。
     \return BAD_FUNC_ARG  key引数がnullの場合は返します。

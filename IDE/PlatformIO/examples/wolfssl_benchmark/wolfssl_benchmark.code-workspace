@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "wolfssl_benchmark",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"settings.h": "c"
+		}
+	}
+}

@@ -1,6 +1,6 @@
 /* sphincs.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,6 +41,7 @@
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
+#include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
 #endif
 
 #ifdef __cplusplus
@@ -99,7 +100,7 @@ struct sphincs_key {
 
 WOLFSSL_API
 int wc_sphincs_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
-                        sphincs_key* key);
+                        sphincs_key* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_sphincs_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           word32 msgLen, int* res, sphincs_key* key);
@@ -124,7 +125,7 @@ int wc_sphincs_import_private_key(const byte* priv, word32 privSz,
                                   sphincs_key* key);
 
 WOLFSSL_API
-int wc_sphincs_export_public(sphincs_key*, byte* out, word32* outLen);
+int wc_sphincs_export_public(sphincs_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_sphincs_export_private_only(sphincs_key* key, byte* out, word32* outLen);
 WOLFSSL_API

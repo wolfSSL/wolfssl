@@ -1,6 +1,6 @@
 /* ed25519.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,6 +22,12 @@
 
  /* Based On Daniel J Bernstein's ed25519 Public Domain ref10 work. */
 
+
+/* Possible Ed25519 enable options:
+ *   WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN                               Default: OFF
+ *     Check that the private key didn't change during the signing operations.
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -30,8 +36,19 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_ED25519
+#if FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$f")
+               #pragma const_seg(".fipsB$f")
+       #endif
+#endif
 
 #include <wolfssl/wolfcrypt/ed25519.h>
+#include <wolfssl/wolfcrypt/ge_operations.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #ifdef NO_INLINE
@@ -39,6 +56,15 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_ed25519_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000006 };
+    int wolfCrypt_FIPS_ED25519_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #ifdef FREESCALE_LTC_ECC
@@ -183,6 +209,56 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 }
 
 #ifdef HAVE_ED25519_MAKE_KEY
+#if FIPS_VERSION3_GE(6,0,0)
+/* Performs a Pairwise Consistency Test on an Ed25519 key pair.
+ *
+ * @param [in] key  Ed25519 key to test.
+ * @param [in] rng  Random number generator to use to create random digest.
+ * @return  0 on success.
+ * @return  ECC_PCT_E when signing or verification fail.
+ * @return  Other -ve when random number generation fails.
+ */
+static int ed25519_pairwise_consistency_test(ed25519_key* key, WC_RNG* rng)
+{
+    int err = 0;
+    byte digest[WC_SHA512_DIGEST_SIZE];
+    word32 digestLen = WC_SHA512_DIGEST_SIZE;
+    byte sig[ED25519_SIG_SIZE];
+    word32 sigLen = ED25519_SIG_SIZE;
+    int res = 0;
+
+    /* Generate a random digest to sign. */
+    err = wc_RNG_GenerateBlock(rng, digest, digestLen);
+    if (err == 0) {
+        /* Sign digest without context. */
+        err = wc_ed25519_sign_msg_ex(digest, digestLen, sig, &sigLen, key,
+            (byte)Ed25519, NULL, 0);
+        if (err != 0) {
+            /* Any sign failure means test failed. */
+            err = ECC_PCT_E;
+        }
+    }
+    if (err == 0) {
+        /* Verify digest without context. */
+        err = wc_ed25519_verify_msg_ex(sig, sigLen, digest, digestLen, &res,
+            key, (byte)Ed25519, NULL, 0);
+        if (err != 0) {
+            /* Any verification operation failure means test failed. */
+            err = ECC_PCT_E;
+        }
+        /* Check whether the signature verified. */
+        else if (res == 0) {
+            /* Test failed. */
+            err = ECC_PCT_E;
+        }
+    }
+
+    ForceZero(sig, sigLen);
+
+    return err;
+}
+#endif
+
 int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
                            word32 pubKeySz)
 {
@@ -245,7 +321,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Ed25519Gen(rng, keySz, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -265,6 +341,13 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
+
+#if FIPS_VERSION3_GE(6,0,0)
+    ret = wc_ed25519_check_key(key);
+    if (ret == 0) {
+        ret = ed25519_pairwise_consistency_test(key, rng);
+    }
+#endif
 
     return ret;
 }
@@ -304,6 +387,9 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     ALIGN16 byte nonce[WC_SHA512_DIGEST_SIZE];
     ALIGN16 byte hram[WC_SHA512_DIGEST_SIZE];
     ALIGN16 byte az[ED25519_PRV_KEY_SIZE];
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    byte orig_k[ED25519_KEY_SIZE];
+#endif
 
     /* sanity check on arguments */
     if (in == NULL || out == NULL || outLen == NULL || key == NULL ||
@@ -315,7 +401,7 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Ed25519Sign(in, inLen, out, outLen, key, type,
             context, contextLen);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -330,6 +416,10 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
         return BUFFER_E;
     }
     *outLen = ED25519_SIG_SIZE;
+
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    XMEMCPY(orig_k, key->k, ED25519_KEY_SIZE);
+#endif
 
     /* step 1: create nonce to use where nonce is r in
        r = H(h_b, ... ,h_2b-1,M) */
@@ -441,6 +531,18 @@ int wc_ed25519_sign_msg_ex(const byte* in, word32 inLen, byte* out,
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
 #endif
 #endif /* WOLFSSL_SE050 */
+
+#ifdef WOLFSSL_EDDSA_CHECK_PRIV_ON_SIGN
+    {
+        int  i;
+        byte c = 0;
+        for (i = 0; i < ED25519_KEY_SIZE; i++) {
+            c |= key->k[i] ^ orig_k[i];
+        }
+        ret = ctMaskGT(c, 0) & SIG_VERIFY_E;
+    }
+#endif
+
     return ret;
 }
 
@@ -527,6 +629,35 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 
 #ifdef HAVE_ED25519_VERIFY
 #ifndef WOLFSSL_SE050
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+static const byte sha512_empty[] = {
+    0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
+    0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
+    0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
+    0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
+    0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
+    0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
+    0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+    0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
+};
+
+/* sanity check that hash operation happened
+ * returns 0 on success */
+static int ed25519_hash_check(ed25519_key* key, byte* h)
+{
+    (void)key; /* passing in key in case other hash algroithms are used */
+
+    if (XMEMCMP(h, sha512_empty, WC_SHA512_DIGEST_SIZE) != 0) {
+        return 0;
+    }
+    else {
+        return BAD_STATE_E;
+    }
+}
+#endif
+
+
 /*
    sig        is array of bytes containing the signature
    sigLen     is the length of sig byte array
@@ -574,6 +705,22 @@ static int ed25519_verify_msg_init_with_sha(const byte* sig, word32 sigLen,
     }
     if (ret == 0)
         ret = ed25519_hash_update(key, sha, sig, ED25519_SIG_SIZE/2);
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    /* sanity check that hash operation happened */
+    if (ret == 0) {
+        byte h[WC_MAX_DIGEST_SIZE];
+
+        ret = wc_Sha512GetHash(sha, h);
+        if (ret == 0) {
+            ret = ed25519_hash_check(key, h);
+            if (ret != 0) {
+                WOLFSSL_MSG("Unexpected initial state of hash found");
+            }
+        }
+    }
+#endif
+
     if (ret == 0)
         ret = ed25519_hash_update(key, sha, key->p, ED25519_PUB_KEY_SIZE);
 
@@ -597,14 +744,13 @@ static int ed25519_verify_msg_update_with_sha(const byte* msgSegment,
     return ed25519_hash_update(key, sha, msgSegment, msgSegmentLen);
 }
 
-/* Low part of order in big endian. */
-static const byte ed25519_low_order[] = {
-    0x14, 0xde, 0xf9, 0xde, 0xa2, 0xf7, 0x9c, 0xd6,
-    0x58, 0x12, 0x63, 0x1a, 0x5c, 0xf5, 0xd3, 0xed
+/* ed25519 order in little endian. */
+static const byte ed25519_order[] = {
+    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
 };
-
-#define ED25519_SIG_LOW_ORDER_IDX \
-    ((int)(ED25519_SIG_SIZE/2 + sizeof(ed25519_low_order) - 1))
 
 /*
    sig     is array of bytes containing the signature
@@ -624,6 +770,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ge_p2  R;
 #endif
     int    ret;
+    int    i;
 
     /* sanity check on arguments */
     if (sig == NULL || res == NULL || key == NULL)
@@ -639,33 +786,19 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
      *     2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
      *   = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
      */
-    if (sig[ED25519_SIG_SIZE-1] > 0x10)
-        return BAD_FUNC_ARG;
-    if (sig[ED25519_SIG_SIZE-1] == 0x10) {
-        int i = ED25519_SIG_SIZE-1;
-        int j;
 
-        /* Check high zeros. */
-        for (--i; i > ED25519_SIG_LOW_ORDER_IDX; i--) {
-            if (sig[i] > 0x00)
-                break;
-        }
-        /* Did we see all zeros up to lower order index? */
-        if (i == ED25519_SIG_LOW_ORDER_IDX) {
-            /* Check lower part. */
-            for (j = 0; j < (int)sizeof(ed25519_low_order); j++, i--) {
-                /* Check smaller. */
-                if (sig[i] < ed25519_low_order[j])
-                    break;
-                /* Check bigger. */
-                if (sig[i] > ed25519_low_order[j])
-                    return BAD_FUNC_ARG;
-            }
-            /* Check equal - all bytes match. */
-            if (i == ED25519_SIG_SIZE/2 - 1)
-                return BAD_FUNC_ARG;
-        }
+    /* Check S is not larger than or equal to order. */
+    for (i = (int)sizeof(ed25519_order) - 1; i >= 0; i--) {
+        /* Bigger than order. */
+        if (sig[ED25519_SIG_SIZE/2 + i] > ed25519_order[i])
+            return BAD_FUNC_ARG;
+        /* Less than order. */
+        if (sig[ED25519_SIG_SIZE/2 + i] < ed25519_order[i])
+            break;
     }
+    /* Check equal - all bytes match. */
+    if (i == -1)
+        return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
 #ifndef FREESCALE_LTC_ECC
@@ -704,7 +837,16 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2);
     if (ret != 0) {
         ret = SIG_VERIFY_E;
-    } else {
+    }
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    /* redundant comparison as sanity check that first one happened */
+    if (ret == 0 && ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2) != 0) {
+        ret = SIG_VERIFY_E;
+    }
+#endif
+
+    if (ret == 0) {
         /* set the verification status */
         *res = 1;
     }
@@ -771,7 +913,7 @@ int wc_ed25519_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Ed25519Verify(sig, sigLen, msg, msgLen, res, key,
             type, context, contextLen);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -881,6 +1023,39 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 }
 #endif /* HAVE_ED25519_VERIFY */
 
+#ifndef WC_NO_CONSTRUCTORS
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
+{
+    int ret;
+    ed25519_key* key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
+                        DYNAMIC_TYPE_ED25519);
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_ed25519_init_ex(key, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+            key = NULL;
+        }
+    }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
+    return key;
+}
+
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p) {
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    wc_ed25519_free(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_ED25519);
+    if (key_p != NULL)
+        *key_p = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 /* initialize information and memory for key */
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
@@ -929,6 +1104,9 @@ void wc_ed25519_free(ed25519_key* key)
 #endif
 
 #ifdef WOLFSSL_SE050
+#ifdef WOLFSSL_SE050_AUTO_ERASE
+    wc_se050_erase_object(key->keyId);
+#endif
     se050_ed25519_free_key(key);
 #endif
 
@@ -1033,7 +1211,7 @@ int wc_ed25519_import_public_ex(const byte* in, word32 inLen, ed25519_key* key,
 
     if (ret == 0) {
         key->pubKeySet = 1;
-        if (key->privKeySet && (!trusted)) {
+        if (!trusted) {
             ret = wc_ed25519_check_key(key);
         }
     }
@@ -1234,22 +1412,83 @@ int wc_ed25519_export_key(ed25519_key* key,
 
 #endif /* HAVE_ED25519_KEY_EXPORT */
 
-/* check the private and public keys match */
+/* Check the public key is valid.
+ *
+ * When private key available, check the calculated public key matches.
+ * When no private key, check Y is in range and an X is able to be calculated.
+ *
+ * @param [in] key  Ed25519 private/public key.
+ * @return  0 otherwise.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set, doesn't match or is
+ *          invalid.
+ * @return  other -ve value on hash failure.
+ */
 int wc_ed25519_check_key(ed25519_key* key)
 {
     int ret = 0;
-#ifdef HAVE_ED25519_MAKE_KEY
-    ALIGN16 unsigned char pubKey[ED25519_PUB_KEY_SIZE];
 
-    if (!key->pubKeySet)
+    /* Validate parameter. */
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Check we have a public key to check. */
+    if ((ret == 0) && (!key->pubKeySet)) {
         ret = PUBLIC_KEY_E;
-    if (ret == 0)
+    }
+
+#ifdef HAVE_ED25519_MAKE_KEY
+    /* If we have a private key just make the public key and compare. */
+    if ((ret == 0) && (key->privKeySet)) {
+        ALIGN16 unsigned char pubKey[ED25519_PUB_KEY_SIZE];
+
         ret = wc_ed25519_make_public(key, pubKey, sizeof(pubKey));
-    if (ret == 0 && XMEMCMP(pubKey, key->p, ED25519_PUB_KEY_SIZE) != 0)
-        ret = PUBLIC_KEY_E;
+        if (ret == 0 && XMEMCMP(pubKey, key->p, ED25519_PUB_KEY_SIZE) != 0)
+            ret = PUBLIC_KEY_E;
+    }
 #else
-     (void)key;
+    (void)key;
 #endif /* HAVE_ED25519_MAKE_KEY */
+
+    /* No private key (or ability to make a public key), check Y is valid. */
+    if ((ret == 0)
+#ifdef HAVE_ED25519_MAKE_KEY
+        && (!key->privKeySet)
+#endif
+        ) {
+        /* Verify that Q is not identity element 0.
+         * 0 has no representation for Ed25519. */
+
+        /* Verify that xQ and yQ are integers in the interval [0, p - 1].
+         * Only have yQ so check that ordinate. p = 2^255 - 19 */
+        if ((key->p[ED25519_PUB_KEY_SIZE - 1] & 0x7f) == 0x7f) {
+            int i;
+
+            ret = PUBLIC_KEY_E;
+            /* Check up to last byte. */
+            for (i = ED25519_PUB_KEY_SIZE - 2; i > 0; i--) {
+                if (key->p[i] != 0xff) {
+                    ret = 0;
+                    break;
+                }
+            }
+            /* Bits are all one up to last byte - check less than -19. */
+            if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) && (key->p[0] < 0xed)) {
+                ret = 0;
+            }
+        }
+
+        if (ret == 0) {
+            /* Verify that Q is on the curve.
+             * Uncompressing the public key will validate yQ. */
+            ge_p3 A;
+
+            if (ge_frombytes_negate_vartime(&A, key->p) != 0) {
+                ret = PUBLIC_KEY_E;
+            }
+        }
+    }
 
     return ret;
 }

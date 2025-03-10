@@ -100,6 +100,16 @@ openssl ocsp -issuer ./root-ca-cert.pem -cert ./intermediate1-ca-cert.pem -cert 
 kill $PID
 wait $PID
 
+# Create a response DER buffer for testing leaf certificate
+openssl ocsp -port 22221 -ndays 1000 -index \
+./index-intermediate1-ca-issued-certs.txt -rsigner ocsp-responder-cert.pem \
+-rkey ocsp-responder-key.pem -CA intermediate1-ca-cert.pem -partial_chain &
+PID=$!
+sleep 1 # Make sure server is ready
+
+openssl ocsp -issuer ./intermediate1-ca-cert.pem -cert ./server1-cert.pem -url http://localhost:22221/ -respout test-leaf-response.der -noverify
+kill $PID
+wait $PID
 
 # now start up a responder that signs using rsa-pss
 openssl ocsp -port 22221 -ndays 1000 -index index-ca-and-intermediate-cas.txt -rsigner ocsp-responder-cert.pem -rkey ocsp-responder-key.pem -CA root-ca-cert.pem -rsigopt rsa_padding_mode:pss &

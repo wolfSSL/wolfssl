@@ -1,6 +1,6 @@
 /* misc.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -115,22 +115,18 @@ masking and clearing memory logic.
 
 #endif
 
-#ifdef WC_RC2
-
 /* This routine performs a left circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
 {
-    return (x << y) | (x >> (sizeof(x) * 8 - y));
+    return (word16)((x << y) | (x >> (sizeof(x) * 8U - y)));
 }
 
 
 /* This routine performs a right circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 {
-    return (x >> y) | (x << (sizeof(x) * 8 - y));
+    return (word16)((x >> y) | (x << (sizeof(x) * 8U - y)));
 }
-
-#endif /* WC_RC2 */
 
 /* This routine performs a byte swap of 32-bit word value. */
 #if defined(__CCRX__) && !defined(NO_INLINE) /* shortest version for CC-RX */
@@ -193,6 +189,28 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
             out[i] = ByteReverseWord32(in[i]);
     }
 #ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x3) == 0) {
+        byte *out_bytes = (byte *)out;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            scratch = ByteReverseWord32(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x3) == 0) {
+        byte *in_bytes = (byte *)in;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord32(scratch);
+        }
+    }
     else {
         byte *in_bytes = (byte *)in;
         byte *out_bytes = (byte *)out;
@@ -200,7 +218,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 
         byteCount &= ~0x3U;
 
-        for (i = 0; i < byteCount; i += sizeof(word32)) {
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
             XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
             scratch = ByteReverseWord32(scratch);
             XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
@@ -209,8 +227,101 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 #endif
 }
 
+WC_MISC_STATIC WC_INLINE word32 readUnalignedWord32(const byte *in)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0)
+        return *(word32 *)in;
+    else {
+        word32 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
+        XMEMCPY(&out, in, sizeof(out));
+        return out;
+    }
+}
+
+WC_MISC_STATIC WC_INLINE word32 writeUnalignedWord32(void *out, word32 in)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0)
+        *(word32 *)out = in;
+    else {
+        XMEMCPY(out, &in, sizeof(in));
+    }
+    return in;
+}
+
+WC_MISC_STATIC WC_INLINE void readUnalignedWords32(word32 *out, const byte *in,
+                                                   size_t count)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
+        const word32 *in_word32 = (const word32 *)in;
+        while (count-- > 0)
+            *out++ = *in_word32++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(*out));
+    }
+}
+
+WC_MISC_STATIC WC_INLINE void writeUnalignedWords32(byte *out, const word32 *in,
+                                                    size_t count)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word32) - 1U)) == (wc_ptr_t)0) {
+        word32 *out_word32 = (word32 *)out;
+        while (count-- > 0)
+            *out_word32++ = *in++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(*in));
+    }
+}
+
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
+WC_MISC_STATIC WC_INLINE word64 readUnalignedWord64(const byte *in)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+        return *(word64 *)in;
+    else {
+        word64 out = 0; /* else CONFIG_FORTIFY_SOURCE -Wmaybe-uninitialized */
+        XMEMCPY(&out, in, sizeof(out));
+        return out;
+    }
+}
+
+WC_MISC_STATIC WC_INLINE word64 writeUnalignedWord64(void *out, word64 in)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+        *(word64 *)out = in;
+    else {
+        XMEMCPY(out, &in, sizeof(in));
+    }
+    return in;
+}
+
+WC_MISC_STATIC WC_INLINE void readUnalignedWords64(word64 *out, const byte *in,
+                                                   size_t count)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
+        const word64 *in_word64 = (const word64 *)in;
+        while (count-- > 0)
+            *out++ = *in_word64++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(*out));
+    }
+}
+
+WC_MISC_STATIC WC_INLINE void writeUnalignedWords64(byte *out, const word64 *in,
+                                                    size_t count)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
+        word64 *out_word64 = (word64 *)out;
+        while (count-- > 0)
+            *out_word64++ = *in++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(*in));
+    }
+}
 
 WC_MISC_STATIC WC_INLINE word64 rotlFixed64(word64 x, word64 y)
 {
@@ -246,22 +357,68 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 {
     word32 count = byteCount/(word32)sizeof(word64), i;
 
-    for (i = 0; i < count; i++)
-        out[i] = ByteReverseWord64(in[i]);
+#ifdef WOLFSSL_USE_ALIGN
+    if ((((size_t)in & 0x7) == 0) &&
+        (((size_t)out & 0x7) == 0))
+#endif
+    {
+        for (i = 0; i < count; i++)
+            out[i] = ByteReverseWord64(in[i]);
+    }
+#ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x7) == 0) {
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
 
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            scratch = ByteReverseWord64(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x7) == 0) {
+        byte *in_bytes = (byte *)in;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord64(scratch);
+        }
+    }
+    else {
+        byte *in_bytes = (byte *)in;
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            scratch = ByteReverseWord64(scratch);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+#endif
 }
 
 #endif /* WORD64_AVAILABLE && !WOLFSSL_NO_WORD64_OPS */
 
 #ifndef WOLFSSL_NO_XOR_OPS
+
+/* Leave no doubt that WOLFSSL_WORD_SIZE is a power of 2. */
+wc_static_assert((WOLFSSL_WORD_SIZE & (WOLFSSL_WORD_SIZE - 1)) == 0);
+
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
 of wolfssl_words, placing the result in <*r>. */
 WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
                        const wolfssl_word** a, const wolfssl_word** b, word32 n)
 {
-    word32 i;
+    const wolfssl_word *e = *a + n;
 
-    for (i = 0; i < n; i++)
+    while (*a < e)
         *((*r)++) = *((*a)++) ^ *((*b)++);
 }
 
@@ -271,48 +428,68 @@ counts, placing the result in <*buf>. */
 WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
                                         const void* mask, word32 count)
 {
-    word32      i;
-    byte*       o;
-    const byte* b;
-    const byte* m;
+    byte*       o = (byte*)out;
+    const byte* b = (const byte*)buf;
+    const byte* m = (const byte*)mask;
 
-    o = (byte*)out;
-    b = (const byte*)buf;
-    m = (const byte*)mask;
+    /* type-punning helpers */
+    union {
+        byte* bp;
+        wolfssl_word* wp;
+    } tpo;
+    union {
+        const byte* bp;
+        const wolfssl_word* wp;
+    } tpb, tpm;
 
+    if (((((wc_ptr_t)o) & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        ((((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        ((((wc_ptr_t)m) & (WOLFSSL_WORD_SIZE - 1)) == 0))
+    {
+        /* All buffers are already aligned.  Possible to XOR by words without
+         * fixup.
+         */
 
-    if (((wc_ptr_t)o) % WOLFSSL_WORD_SIZE ==
-            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE &&
-            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
-                        ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
-        /* type-punning helpers */
-        union {
-            byte* bp;
-            wolfssl_word* wp;
-        } tpo;
-        union {
-            const byte* bp;
-            const wolfssl_word* wp;
-        } tpb, tpm;
-        /* Alignment checks out. Possible to XOR words. */
-        /* Move alignment so that it lines up with a
-         * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
-            *(o++) = (byte)(*(b++) ^ *(m++));
-            count--;
-        }
         tpo.bp = o;
         tpb.bp = b;
         tpm.bp = m;
-        XorWordsOut( &tpo.wp, &tpb.wp, &tpm.wp, count / WOLFSSL_WORD_SIZE);
+        XorWordsOut(&tpo.wp, &tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
         o = tpo.bp;
         b = tpb.bp;
         m = tpm.bp;
-        count %= WOLFSSL_WORD_SIZE;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+    else if ((((wc_ptr_t)o) & (WOLFSSL_WORD_SIZE - 1)) ==
+             (((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) &&
+             (((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) ==
+             (((wc_ptr_t)m) & (WOLFSSL_WORD_SIZE - 1)))
+    {
+        /* Alignment can be fixed up to allow XOR by words. */
+
+        /* Perform bytewise xor until pointers are aligned to
+         * WOLFSSL_WORD_SIZE.
+         */
+        while ((((wc_ptr_t)b & (WOLFSSL_WORD_SIZE - 1)) != 0) && (count > 0))
+        {
+            *o++ = (byte)(*b++ ^ *m++);
+            count--;
+        }
+
+        tpo.bp = o;
+        tpb.bp = b;
+        tpm.bp = m;
+        XorWordsOut(&tpo.wp, &tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        o = tpo.bp;
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
     }
 
-    for (i = 0; i < count; i++)
-        o[i] = (byte)(b[i] ^ m[i]);
+    while (count > 0) {
+        *o++ = (byte)(*b++ ^ *m++);
+        count--;
+    }
+
 }
 
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
@@ -320,9 +497,9 @@ of wolfssl_words, placing the result in <*r>. */
 WC_MISC_STATIC WC_INLINE void XorWords(wolfssl_word** r, const wolfssl_word** a,
                                        word32 n)
 {
-    word32 i;
+    const wolfssl_word *e = *a + n;
 
-    for (i = 0; i < n; i++)
+    while (*a < e)
         *((*r)++) ^= *((*a)++);
 }
 
@@ -331,47 +508,82 @@ counts, placing the result in <*buf>. */
 
 WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    word32      i;
-    byte*       b;
-    const byte* m;
+    byte*       b = (byte*)buf;
+    const byte* m = (const byte*)mask;
 
-    b = (byte*)buf;
-    m = (const byte*)mask;
+    /* type-punning helpers */
+    union {
+        byte* bp;
+        wolfssl_word* wp;
+    } tpb;
+    union {
+        const byte* bp;
+        const wolfssl_word* wp;
+    } tpm;
 
-    if (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
-            ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
-        /* type-punning helpers */
-        union {
-            byte* bp;
-            wolfssl_word* wp;
-        } tpb;
-        union {
-            const byte* bp;
-            const wolfssl_word* wp;
-        } tpm;
-        /* Alignment checks out. Possible to XOR words. */
-        /* Move alignment so that it lines up with a
-         * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+    if ((((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        (((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)) == 0))
+    {
+        /* Both buffers are already aligned.  Possible to XOR by words without
+         * fixup.
+         */
+
+        tpb.bp = b;
+        tpm.bp = m;
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        XorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+    else if (((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) ==
+             ((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)))
+    {
+        /* Alignment can be fixed up to allow XOR by words. */
+
+        /* Perform bytewise xor until pointers are aligned to
+         * WOLFSSL_WORD_SIZE.
+         */
+        while ((((wc_ptr_t)b & (WOLFSSL_WORD_SIZE - 1)) != 0) && (count > 0))
+        {
             *(b++) ^= *(m++);
             count--;
         }
+
         tpb.bp = b;
         tpm.bp = m;
-        XorWords( &tpb.wp, &tpm.wp, count / WOLFSSL_WORD_SIZE);
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        XorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
         b = tpb.bp;
         m = tpm.bp;
-        count %= WOLFSSL_WORD_SIZE;
+        count &= (WOLFSSL_WORD_SIZE - 1);
     }
 
-    for (i = 0; i < count; i++)
-        b[i] ^= m[i];
+    while (count > 0) {
+        *b++ ^= *m++;
+        count--;
+    }
 }
-#endif
+
+#endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimizations doesn't skip it  */
+   with zeros. It ensures compiler optimization doesn't skip it  */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
@@ -417,134 +629,6 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 }
 #endif
 
-
-#ifndef WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MIN
-    #if defined(HAVE_FIPS) && !defined(min) /* so ifdef check passes */
-        #define min min
-    #endif
-    /* returns the smaller of a and b */
-    WC_MISC_STATIC WC_INLINE word32 min(word32 a, word32 b)
-    {
-        return a > b ? b : a;
-    }
-#endif /* !WOLFSSL_HAVE_MIN */
-
-#ifndef WOLFSSL_HAVE_MAX
-    #define WOLFSSL_HAVE_MAX
-    #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
-        #define max max
-    #endif
-    WC_MISC_STATIC WC_INLINE word32 max(word32 a, word32 b)
-    {
-        return a > b ? a : b;
-    }
-#endif /* !WOLFSSL_HAVE_MAX */
-
-#ifndef WOLFSSL_NO_INT_ENCODE
-/* converts a 32 bit integer to 24 bit */
-WC_MISC_STATIC WC_INLINE void c32to24(word32 in, word24 out)
-{
-    out[0] = (byte)((in >> 16) & 0xff);
-    out[1] = (byte)((in >>  8) & 0xff);
-    out[2] =  (byte)(in        & 0xff);
-}
-
-/* convert 16 bit integer to opaque */
-WC_MISC_STATIC WC_INLINE void c16toa(word16 wc_u16, byte* c)
-{
-    c[0] = (byte)((wc_u16 >> 8) & 0xff);
-    c[1] =  (byte)(wc_u16       & 0xff);
-}
-
-/* convert 32 bit integer to opaque */
-WC_MISC_STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
-{
-    c[0] = (byte)((wc_u32 >> 24) & 0xff);
-    c[1] = (byte)((wc_u32 >> 16) & 0xff);
-    c[2] = (byte)((wc_u32 >>  8) & 0xff);
-    c[3] =  (byte)(wc_u32        & 0xff);
-}
-#endif
-
-#ifndef WOLFSSL_NO_INT_DECODE
-/* convert a 24 bit integer into a 32 bit one */
-WC_MISC_STATIC WC_INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
-{
-    *wc_u32 = ((word32)wc_u24[0] << 16) |
-              ((word32)wc_u24[1] << 8) |
-               (word32)wc_u24[2];
-}
-
-
-/* convert opaque to 24 bit integer */
-WC_MISC_STATIC WC_INLINE void ato24(const byte* c, word32* wc_u24)
-{
-    *wc_u24 = ((word32)c[0] << 16) | ((word32)c[1] << 8) | c[2];
-}
-
-/* convert opaque to 16 bit integer */
-WC_MISC_STATIC WC_INLINE void ato16(const byte* c, word16* wc_u16)
-{
-    *wc_u16 = (word16) ((c[0] << 8) | (c[1]));
-}
-
-/* convert opaque to 32 bit integer */
-WC_MISC_STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
-{
-    *wc_u32 = ((word32)c[0] << 24) |
-              ((word32)c[1] << 16) |
-              ((word32)c[2] << 8) |
-               (word32)c[3];
-}
-
-/* convert opaque to 32 bit integer. Interpret as little endian. */
-WC_MISC_STATIC WC_INLINE void ato32le(const byte* c, word32* wc_u32)
-{
-    *wc_u32 =  (word32)c[0] |
-              ((word32)c[1] << 8) |
-              ((word32)c[2] << 16) |
-              ((word32)c[3] << 24);
-}
-
-
-WC_MISC_STATIC WC_INLINE word32 btoi(byte b)
-{
-    return (word32)(b - 0x30);
-}
-#endif
-
-WC_MISC_STATIC WC_INLINE signed char HexCharToByte(char ch)
-{
-    signed char ret = (signed char)ch;
-    if (ret >= '0' && ret <= '9')
-        ret -= '0';
-    else if (ret >= 'A' && ret <= 'F')
-        ret -= 'A' - 10;
-    else if (ret >= 'a' && ret <= 'f')
-        ret -= 'a' - 10;
-    else
-        ret = -1; /* error case - return code must be signed */
-    return ret;
-}
-
-WC_MISC_STATIC WC_INLINE char ByteToHex(byte in)
-{
-    static const char kHexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-    return (char)(kHexChar[in & 0xF]);
-}
-
-WC_MISC_STATIC WC_INLINE int ByteToHexStr(byte in, char* out)
-{
-    if (out == NULL)
-        return -1;
-
-    out[0] = ByteToHex((byte)(in >> 4));
-    out[1] = ByteToHex((byte)(in & 0xf));
-    return 0;
-}
-
 #ifndef WOLFSSL_NO_CT_OPS
 /* Constant time - mask set when a > b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
@@ -563,6 +647,14 @@ WC_MISC_STATIC WC_INLINE int ctMaskIntGTE(int a, int b)
 {
     return (int)((((word32)a - (word32)b) >> 31) - 1);
 }
+
+#ifdef WORD64_AVAILABLE
+/* Constant time - mask set when a >= b. */
+WC_MISC_STATIC WC_INLINE word32 ctMaskWord32GTE(word32 a, word32 b)
+{
+  return (word32)((((word64)a - (word64)b) >> 63) - 1);
+}
+#endif
 
 /* Constant time - mask set when a < b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskLT(int a, int b)
@@ -655,7 +747,176 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     }
 }
 
+#endif /* !WOLFSSL_NO_CT_OPS */
+
+#ifndef WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
+    #if defined(HAVE_FIPS) && !defined(min) /* so ifdef check passes */
+        #define min min
+    #endif
+    /* returns the smaller of a and b */
+    WC_MISC_STATIC WC_INLINE word32 min(word32 a, word32 b)
+    {
+#if !defined(WOLFSSL_NO_CT_OPS) && defined(WORD64_AVAILABLE)
+        word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
+        return (a & ~gte_mask) | (b & gte_mask);
+#else /* WOLFSSL_NO_CT_OPS */
+        return a > b ? b : a;
+#endif /* WOLFSSL_NO_CT_OPS */
+    }
+#endif /* !WOLFSSL_HAVE_MIN */
+
+#ifndef WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+    #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
+        #define max max
+    #endif
+    WC_MISC_STATIC WC_INLINE word32 max(word32 a, word32 b)
+    {
+#if !defined(WOLFSSL_NO_CT_OPS) && defined(WORD64_AVAILABLE)
+        word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
+        return (a & gte_mask) | (b & ~gte_mask);
+#else /* WOLFSSL_NO_CT_OPS */
+        return a > b ? a : b;
+#endif /* WOLFSSL_NO_CT_OPS */
+    }
+#endif /* !WOLFSSL_HAVE_MAX */
+
+#ifndef WOLFSSL_NO_INT_ENCODE
+/* converts a 32 bit integer to 24 bit */
+WC_MISC_STATIC WC_INLINE void c32to24(word32 in, word24 out)
+{
+    out[0] = (byte)((in >> 16) & 0xff);
+    out[1] = (byte)((in >>  8) & 0xff);
+    out[2] =  (byte)(in        & 0xff);
+}
+
+/* convert 16 bit integer to opaque */
+WC_MISC_STATIC WC_INLINE void c16toa(word16 wc_u16, byte* c)
+{
+    c[0] = (byte)((wc_u16 >> 8) & 0xff);
+    c[1] =  (byte)(wc_u16       & 0xff);
+}
+
+/* convert 32 bit integer to opaque */
+WC_MISC_STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
+{
+#ifdef WOLFSSL_USE_ALIGN
+    c[0] = (byte)((wc_u32 >> 24) & 0xff);
+    c[1] = (byte)((wc_u32 >> 16) & 0xff);
+    c[2] = (byte)((wc_u32 >>  8) & 0xff);
+    c[3] =  (byte)(wc_u32        & 0xff);
+#elif defined(LITTLE_ENDIAN_ORDER)
+    *(word32*)c = ByteReverseWord32(wc_u32);
+#else
+    *(word32*)c = wc_u32;
 #endif
+}
+#endif
+
+#ifndef WOLFSSL_NO_INT_DECODE
+/* convert a 24 bit integer into a 32 bit one */
+WC_MISC_STATIC WC_INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
+{
+    *wc_u32 = ((word32)wc_u24[0] << 16) |
+              ((word32)wc_u24[1] << 8) |
+               (word32)wc_u24[2];
+}
+
+
+/* convert opaque to 24 bit integer */
+WC_MISC_STATIC WC_INLINE void ato24(const byte* c, word32* wc_u24)
+{
+    *wc_u24 = ((word32)c[0] << 16) | ((word32)c[1] << 8) | c[2];
+}
+
+/* convert opaque to 16 bit integer */
+WC_MISC_STATIC WC_INLINE void ato16(const byte* c, word16* wc_u16)
+{
+    *wc_u16 = (word16) ((c[0] << 8) | (c[1]));
+}
+
+/* convert opaque to 32 bit integer */
+WC_MISC_STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
+{
+#ifdef WOLFSSL_USE_ALIGN
+    *wc_u32 = ((word32)c[0] << 24) |
+              ((word32)c[1] << 16) |
+              ((word32)c[2] << 8) |
+               (word32)c[3];
+#elif defined(LITTLE_ENDIAN_ORDER)
+    *wc_u32 = ByteReverseWord32(*(word32*)c);
+#else
+    *wc_u32 = *(word32*)c;
+#endif
+}
+
+/* convert opaque to 32 bit integer. Interpret as little endian. */
+WC_MISC_STATIC WC_INLINE void ato32le(const byte* c, word32* wc_u32)
+{
+    *wc_u32 =  (word32)c[0] |
+              ((word32)c[1] << 8) |
+              ((word32)c[2] << 16) |
+              ((word32)c[3] << 24);
+}
+
+
+WC_MISC_STATIC WC_INLINE word32 btoi(byte b)
+{
+    return (word32)(b - 0x30);
+}
+#endif
+
+WC_MISC_STATIC WC_INLINE signed char HexCharToByte(char ch)
+{
+    signed char ret = (signed char)ch;
+    if (ret >= '0' && ret <= '9')
+        ret = (signed char)(ret - '0');
+    else if (ret >= 'A' && ret <= 'F')
+        ret = (signed char)(ret - ('A' - 10));
+    else if (ret >= 'a' && ret <= 'f')
+        ret = (signed char)(ret - ('a' - 10));
+    else
+        ret = -1; /* error case - return code must be signed */
+    return ret;
+}
+
+WC_MISC_STATIC WC_INLINE char ByteToHex(byte in)
+{
+    static ALIGN64 const char kHexChar[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+    return (char)(kHexChar[in & 0xF]);
+}
+
+WC_MISC_STATIC WC_INLINE int ByteToHexStr(byte in, char* out)
+{
+    if (out == NULL)
+        return -1;
+
+    out[0] = ByteToHex((byte)(in >> 4));
+    out[1] = ByteToHex((byte)(in & 0xf));
+    return 0;
+}
+
+WC_MISC_STATIC WC_INLINE int CharIsWhiteSpace(char ch)
+{
+#ifndef WOLFSSL_NO_CT_OPS
+    return (ctMaskEq(ch, ' ') |
+            ctMaskEq(ch, '\t') |
+            ctMaskEq(ch, '\n')) & 1;
+#else /* WOLFSSL_NO_CT_OPS */
+    switch (ch) {
+        case ' ':
+        case '\t':
+        case '\n':
+            return 1;
+        default:
+            return 0;
+    }
+#endif /* WOLFSSL_NO_CT_OPS */
+}
 
 #if defined(WOLFSSL_W64_WRAPPER)
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_W64_WRAPPER_TEST)
@@ -685,8 +946,18 @@ WC_MISC_STATIC WC_INLINE void w64SetLow32(w64wrapper *n, word32 low) {
 
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 {
-    a.n = a.n + b;
+    a.n += b;
     if (a.n < b && wrap != NULL)
+        *wrap = 1;
+
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
+    byte *wrap)
+{
+    a.n += b.n;
+    if (a.n < b.n && wrap != NULL)
         *wrap = 1;
 
     return a;
@@ -760,7 +1031,27 @@ WC_MISC_STATIC WC_INLINE void w64Zero(w64wrapper *a)
     a->n = 0;
 }
 
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
+{
+    a.n >>= shift;
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
+{
+    a.n <<= shift;
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
+{
+    w64wrapper ret;
+    ret.n = (word64)a * (word64)b;
+    return ret;
+}
+
 #else
+
 WC_MISC_STATIC WC_INLINE void w64Increment(w64wrapper *n)
 {
     n->n[1]++;
@@ -794,11 +1085,29 @@ WC_MISC_STATIC WC_INLINE void w64SetLow32(w64wrapper *n, word32 low)
 
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 {
-    a.n[1] = a.n[1] + b;
+    a.n[1] += b;
     if (a.n[1] < b) {
         a.n[0]++;
         if (wrap != NULL && a.n[0] == 0)
                 *wrap = 1;
+    }
+
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
+    byte *wrap)
+{
+    a.n[1] += b.n[1];
+    if (a.n[1] < b.n[1]) {
+        a.n[0]++;
+        if (wrap != NULL && a.n[0] == 0)
+                *wrap = 1;
+    }
+
+    a.n[0] += b.n[0];
+    if (wrap != NULL && a.n[0] < b.n[0]) {
+        *wrap = 1;
     }
 
     return a;
@@ -857,7 +1166,7 @@ WC_MISC_STATIC WC_INLINE byte w64IsZero(w64wrapper a)
     return a.n[0] == 0 && a.n[1] == 0;
 }
 
-WC_MISC_STATIC WC_INLINE void c64toa(w64wrapper *a, byte *out)
+WC_MISC_STATIC WC_INLINE void c64toa(const w64wrapper *a, byte *out)
 {
 #ifdef BIG_ENDIAN_ORDER
     word32 *_out = (word32*)(out);
@@ -899,6 +1208,55 @@ WC_MISC_STATIC WC_INLINE byte w64LT(w64wrapper a, w64wrapper b)
     return 0;
 }
 
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
+{
+     if (shift < 32) {
+         a.n[1] = (a.n[1] >> shift) | (a.n[0] << (32 - shift));
+         a.n[0] >>= shift;
+     }
+     else {
+         a.n[1] = a.n[0] >> (shift - 32);
+         a.n[0] = 0;
+     }
+     return a;
+}
+WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
+{
+     if (shift < 32) {
+         a.n[0] = (a.n[0] << shift) | (a.n[1] >> (32 - shift));
+         a.n[1] <<= shift;
+     }
+     else {
+         a.n[0] = a.n[1] << (shift - 32);
+         a.n[1] = 0;
+     }
+     return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
+{
+    w64wrapper ret;
+    word16 ltlA, ltlB, ltlC, ltlD;
+    word32 bigA, bigB, bigC, bigD;
+
+    ltlA = a & 0xFFFF;
+    ltlB = (a >> 16) & 0xFFFF;
+    ltlC = b & 0xFFFF;
+    ltlD = (b >> 16) & 0xFFFF;
+
+    bigA = (word32)ltlA * (word32)ltlC;
+    bigC = (word32)ltlB * (word32)ltlC;
+    bigD = (word32)ltlA * (word32)ltlD;
+    bigB = (word32)ltlB * (word32)ltlD;
+
+    ret = w64From32(0, bigB);
+    ret = w64ShiftLeft(ret, 16);
+    ret = w64Add32(ret, bigD, NULL);
+    ret = w64Add32(ret, bigC, NULL);
+    ret = w64ShiftLeft(ret, 16);
+    return w64Add32(ret, bigA, NULL);
+}
+
 #endif /* WORD64_AVAILABLE && !WOLFSSL_W64_WRAPPER_TEST */
 #endif /* WOLFSSL_W64_WRAPPER */
 
@@ -938,6 +1296,25 @@ WC_MISC_STATIC WC_INLINE word32 HashObject(const byte* o, word32 len,
 }
 #endif /* WOLFCRYPT_ONLY && !NO_HASH_WRAPPER &&
         * (!NO_SESSION_CACHE || HAVE_SESSION_TICKET) */
+
+WC_MISC_STATIC WC_INLINE char* CopyString(const char* src, int srcLen,
+        void* heap, int type) {
+    char* dst = NULL;
+
+    if (src == NULL)
+        return NULL;
+
+    if (srcLen <= 0)
+        srcLen = (int)XSTRLEN(src);
+
+    dst = (char*)XMALLOC((size_t)srcLen + 1, heap, type);
+    if (dst != NULL) {
+        XMEMCPY(dst, src, (size_t)srcLen);
+        dst[srcLen] = '\0';
+    }
+
+    return dst;
+}
 
 #endif /* !WOLFSSL_MISC_INCLUDED && !NO_INLINE */
 

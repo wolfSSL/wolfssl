@@ -1,6 +1,6 @@
 
 /*!
-    \ingroup SipHash 
+    \ingroup SipHash
     \brief  この関数は、MacサイズのキーでSiphashを初期化します。
     \return 0  初期化に成功したときに返されます
     \return BAD_FUNC_ARG  SiphashまたはキーがNULLのときに返されます
@@ -31,7 +31,7 @@ int wc_InitSipHash(SipHash* siphash, const unsigned char* key,
     unsigned char outSz);
 
 /*!
-    \ingroup SipHash 
+    \ingroup SipHash
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  Macにデータを追加したら、返されます
     \return BAD_FUNC_ARG  Siphashがnullのとき返されました
@@ -62,7 +62,7 @@ int wc_SipHashUpdate(SipHash* siphash, const unsigned char* in,
     word32 inSz);
 
 /*!
-    \ingroup SipHash 
+    \ingroup SipHash
     \brief  データのMacingを確定します。結果が出入りする。
     \return 0  ファイナライズに成功したときに返されます。
     \return BAD_FUNC_ARG  SiphashのOUTがNULLのときに返されます
@@ -93,7 +93,7 @@ int wc_SipHashFinal(SipHash* siphash, unsigned char* out,
     unsigned char outSz);
 
 /*!
-    \ingroup SipHash 
+    \ingroup SipHash
     \brief  この機能はSiphashを使用してデータを1ショットして、キーに基づいてMACを計算します。
     \return 0  Macingに成功したときに返されました
     \return BAD_FUNC_ARG  キーまたはOUTがNULLのときに返されます

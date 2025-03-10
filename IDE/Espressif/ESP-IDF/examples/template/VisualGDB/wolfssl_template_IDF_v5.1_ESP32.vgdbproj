@@ -18,7 +18,7 @@
     <ToolchainID>
       <ID>com.visualgdb.xtensa-esp32-elf</ID>
       <Version>
-        <GCC>12.2.0</GCC>
+        <GCC>13.2.0</GCC>
         <GDB>12.1</GDB>
         <Revision>1</Revision>
       </Version>
@@ -67,8 +67,8 @@
       <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
       <ESPIDFExtension>
         <IDFCheckout>
-          <Version>release/v5.1</Version>
-          <Subdirectory>esp-idf/v5.1</Subdirectory>
+          <Version>release/v5.2</Version>
+          <Subdirectory>esp-idf/v5.2</Subdirectory>
           <Type>ESPIDF</Type>
         </IDFCheckout>
         <COMPort>COM37</COMPort>

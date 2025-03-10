@@ -1,6 +1,6 @@
 /* rsa.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,18 +27,28 @@
 
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 /* Padding types */
-#define RSA_PKCS1_PADDING      0
-#define RSA_PKCS1_OAEP_PADDING 1
-#define RSA_PKCS1_PSS_PADDING  2
-#define RSA_NO_PADDING         3
+#define WC_RSA_PKCS1_PADDING      0
+#define WC_RSA_PKCS1_OAEP_PADDING 1
+#define WC_RSA_PKCS1_PSS_PADDING  2
+
+#ifndef OPENSSL_COEXIST
+
+/* Padding types */
+#define RSA_PKCS1_PADDING       WC_RSA_PKCS1_PADDING
+#define RSA_PKCS1_OAEP_PADDING  WC_RSA_PKCS1_OAEP_PADDING
+#define RSA_PKCS1_PSS_PADDING   WC_RSA_PKCS1_PSS_PADDING
+#define RSA_NO_PADDING          WC_RSA_NO_PAD
 
 /* Emulate OpenSSL flags */
 #define RSA_METHOD_FLAG_NO_CHECK        (1 << 1)
@@ -60,13 +70,15 @@
 #define RSA_PSS_SALTLEN_MAX      (-3)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#endif /* !OPENSSL_COEXIST */
+
 typedef struct WOLFSSL_RSA_METHOD {
     /* Flags of RSA key implementation. */
     int flags;
     /* Name of RSA key implementation. */
     char *name;
     /* RSA method dynamically allocated. */
-    word16 dynamic:1;
+    WC_BITFIELD dynamic:1;
 } WOLFSSL_RSA_METHOD;
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
@@ -94,16 +106,16 @@ typedef struct WOLFSSL_RSA {
     int flags;                       /* Flags of implementation. */
 
     /* bits */
-    byte inSet:1;                    /* Internal set from external. */
-    byte exSet:1;                    /* External set from internal. */
-    byte ownRng:1;                   /* Rng needs to be free'd. */
+    WC_BITFIELD inSet:1;             /* Internal set from external. */
+    WC_BITFIELD exSet:1;             /* External set from internal. */
+    WC_BITFIELD ownRng:1;            /* Rng needs to be free'd. */
 } WOLFSSL_RSA;
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 typedef WOLFSSL_RSA                   RSA;
 typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new_ex(void* heap, int devId);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
@@ -189,9 +201,14 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
 #define WOLFSSL_RSA_F4           0x10001L
+
+#ifndef OPENSSL_COEXIST
+
+#define OPENSSL_RSA_MAX_MODULUS_BITS RSA_MAX_SIZE
 
 #define RSA_new  wolfSSL_RSA_new
 #define RSA_free wolfSSL_RSA_free
@@ -239,6 +256,11 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 
 #define RSA_F4             WOLFSSL_RSA_F4
+
+#define OPENSSL_RSA_MAX_MODULUS_BITS RSA_MAX_SIZE
+#define OPENSSL_RSA_MAX_PUBEXP_BITS  RSA_MAX_SIZE
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

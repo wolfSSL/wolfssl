@@ -32,6 +32,7 @@ package Tls_Client with SPARK_Mode is
       Pre  => (not Client.Exists and not
                   WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx)),
       Post => (not Client.Exists and not WolfSSL.Is_Valid (Ssl) and
-                  not WolfSSL.Is_Valid (Ctx));
+                  not WolfSSL.Is_Valid (Ctx)),
+     Annotate => (GNATprove, Might_Not_Return);
 
 end Tls_Client;

@@ -36,4 +36,5 @@ EXTRA_DIST += \
         certs/ocsp/test-response.der \
         certs/ocsp/test-response-rsapss.der \
         certs/ocsp/test-response-nointern.der \
-        certs/ocsp/test-multi-response.der
+        certs/ocsp/test-multi-response.der \
+        certs/ocsp/test-leaf-response.der

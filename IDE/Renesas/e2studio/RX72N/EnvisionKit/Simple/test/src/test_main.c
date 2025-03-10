@@ -1,6 +1,6 @@
 /* test_main.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -65,6 +65,7 @@ extern "C" {
 static long tick;
 static void timeTick(void *pdata)
 {
+	(void)pdata;
     tick++;
 }
 
@@ -259,7 +260,7 @@ void main(void)
 #if defined(SIMPLE_TLS_TSIP_CLIENT)
     SetTsiptlsKey();
 #endif
-    
+
     do {
         /* simply use TCP */
         #if defined(SIMPLE_TCP_CLIENT)

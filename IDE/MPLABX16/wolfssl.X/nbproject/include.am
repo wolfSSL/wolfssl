@@ -1,0 +1,7 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST +=                                         \
+                IDE/MPLABX16/wolfssl.X/nbproject/configurations.xml \
+                IDE/MPLABX16/wolfssl.X/nbproject/project.xml

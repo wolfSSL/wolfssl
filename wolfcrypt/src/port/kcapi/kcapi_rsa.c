@@ -1,6 +1,6 @@
 /* kcapi_rsa.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -76,9 +76,7 @@ static int KcapiRsa_SetPrivKey(RsaKey* key)
         }
     }
 
-    if (priv != NULL) {
-        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -167,9 +165,7 @@ static int KcapiRsa_SetPubKey(RsaKey* key)
         }
     }
 
-    if (pub != NULL) {
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

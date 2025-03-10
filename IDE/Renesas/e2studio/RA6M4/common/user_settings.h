@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -115,4 +115,5 @@
 #endif
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
-
+/* use original asn parsing */
+#define WOLFSSL_ASN_ORIGINAL

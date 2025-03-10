@@ -2,7 +2,9 @@
 
 This directory contains the CSharp wrapper for the wolfSSL TLS layer with examples.
 
-* `wolfSSL_CSharp`: wolfSSL TLS layer wrappers (library)
+* `wolfSSL_CSharp`: wolfSSL TLS layer wrappers (library).
+* `wolfCrypt-Test`: wolfCrypt layer wrapper testing.
+* `user_settings.h`: wolfCrypt wrapper user settings.
 
 Examples:
 * `wolfSSL-DTLS-PSK-Server`
@@ -20,42 +22,83 @@ A Visual Studio solution `wolfSSL_CSharp.sln` is provided. This will allow you
 to build the wrapper library and examples. It includes the wolfSSL Visual Studio
 project directly.
 
-## Linux (using Mono)
+To successfully run and build the solution on Windows Visual Studio you will
+need to open a new solution `wolfSSL_CSharp.sln` located in `wrapper\CSharp\wolfSSL_CSharp.sln`.
+
+Select the CPU type, configuration, and target file.
+select `Build` and either `Rebuild Solution` or `Build Solution`.
+
+## Linux (Ubuntu) using mono
 
 Prerequisites for linux:
 
 ```
-apt install mono-tools-devel
+apt-get update
+apt-get upgrade
+apt-get install mono-complete
 ```
 
-Build wolfSSL and install:
+### Build wolfSSL and install
 
 ```
 ./autogen.sh
-./configure --enable-wolftpm
+./configure --enable-keygen --enable-eccencrypt --enable-ed25519 --enable-curve25519 --enable-aesgcm
 make
 make check
 sudo make install
 ```
 
-Build and run the wrapper:
+### Build and run the wolfCrypt test wrapper
+
+From the `wrapper/CSharp` directory (`cd wrapper/CSharp`):
+
+Compile wolfCrypt test:
 
 ```
-cd wrapper/CSharp
+mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs -OUT:wolfcrypttest.exe
+mono wolfcrypttest.exe
+```
 
-csc wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
-    wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs
+### Build and run the wolfSSL client/server test
 
-Run the example:
+From the `wrapper/CSharp` directory (`cd wrapper/CSharp`):
+
+Compile server:
 
 ```
-cp wolfSSL-TLS-Server.exe ../../certs
-cd ../../certs
+mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs -OUT:server.exe
+```
 
-mono wolfSSL-TLS-Server.exe
+Compile client:
 
-Calling ctx Init from wolfSSL
-Finished init of ctx .... now load in cert and key
-Ciphers : TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-CHACHA20-POLY1305:DHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305-OLD:ECDHE-ECDSA-CHACHA20-POLY1305-OLD:DHE-RSA-CHACHA20-POLY1305-OLD
-Started TCP and waiting for a connection
+```
+mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs wolfSSL-TLS-Client/wolfSSL-TLS-Client.cs -OUT:client.exe
+```
+
+#### Run the example
+
+In one terminal instance run the server:
+
+```
+mono server.exe
+```
+
+And in another terminal instance run the client:
+
+```
+mono client.exe
+```
+
+#### Enabling SNI
+
+To enable SNI, just pass the `-S` argument with the specified hostname to the client:
+
+```
+mono client.exe -S hostname
+```
+
+And run the server with the `-S` flag:
+
+```
+mono server.exe -S
 ```

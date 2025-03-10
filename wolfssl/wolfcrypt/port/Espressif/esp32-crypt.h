@@ -1,6 +1,6 @@
 /* esp32-crypt.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,7 @@
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
 
 #ifndef WOLFSSL_USER_SETTINGS
-    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
+    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targets"
 #endif
 
 #include "sdkconfig.h" /* ensure ESP-IDF settings are available everywhere */
@@ -43,6 +43,53 @@
 #include <esp_idf_version.h>
 #include <esp_types.h>
 #include <esp_log.h>
+
+#ifndef _INTPTR_T_DECLARED
+    #define intptr_t (void*)
+#endif
+
+#ifndef _UINTPTR_T_DECLARED
+    #define uintptr_t (void*)
+#endif
+
+#ifndef NULLPTR
+    #define NULLPTR ((uintptr_t)NULL)
+#endif
+
+#if ESP_IDF_VERSION_MAJOR >= 4
+    #define WOLFSSL_ESPIDF_BLANKLINE_MESSAGE ""
+#else
+    /* Older ESP-IDF such as that for ESP8266 do not support empty strings */
+    #define WOLFSSL_ESPIDF_BLANKLINE_MESSAGE "."
+#endif
+
+#if defined(WOLFSSL_STACK_CHECK)
+    #define CTX_STACK_CHECK(ctx) esp_sha_stack_check(ctx)
+#else
+    #define CTX_STACK_CHECK(ctx) {}
+#endif
+
+#if defined(CONFIG_IDF_TARGET)
+    #define FOUND_CONFIG_IDF_TARGET CONFIG_IDF_TARGET
+#else
+    #define FOUND_CONFIG_IDF_TARGET "(unknown device)"
+#endif
+
+/* Optional exit message.
+ * The WOLFSSL_COMPLETE keyword exits wolfSSL test harness script. */
+#define WOLFSSL_ESPIDF_EXIT_MESSAGE \
+    "\n\nDevice: " FOUND_CONFIG_IDF_TARGET  \
+    "\n\nDone!"                 \
+    "\n\nWOLFSSL_COMPLETE"      \
+    "\n\nIf running from idf.py monitor, press twice: Ctrl+]"
+
+#define WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE(s, err) \
+    "\n\nDevice: " FOUND_CONFIG_IDF_TARGET  \
+    "\n\nExit code: %d "        \
+    "\n\n"s                     \
+    "\n\nWOLFSSL_COMPLETE"      \
+    "\n\nIf running from idf.py monitor, press twice: Ctrl+]", \
+    (err)
 
 /* exit codes to be used in tfm.c, sp_int.c, integer.c, etc.
  *
@@ -169,6 +216,10 @@ enum {
 **   Turns on diagnostic messages for SHA mutex. Note that given verbosity,
 **   there may be TLS timing issues encountered. Use with caution.
 **
+** DEBUG_WOLFSSL_ESP32_UNFINISHED_HW
+**   This may be interesting in that HW may have been unnessearily locked
+**   for hash that was never completed. (typically encountered at `free1` time)
+**
 ** LOG_LOCAL_LEVEL
 **   Debugging. Default value is ESP_LOG_DEBUG
 **
@@ -182,11 +233,19 @@ enum {
 ** WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
 **   Shows a warning when mulm falls back for minimum number of bits.
 **
+** WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+**   Shows a marning when multiplication math bits have exceeded hardware
+**   capabilities and will fall back to slower software.
+**
+** WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+**   Shows a marning when modular math bits have exceeded hardware capabilities
+**   and will fall back to slower software.
+**
 ** NO_HW_MATH_TEST
 **   Even if HW is enabled, do not run HW math tests. See HW_MATH_ENABLED.
 **
 ** NO_ESP_MP_MUL_EVEN_ALT_CALC
-**   Used during Z = X × Y mod M
+**   Used during Z = X * Y mod M
 **   By default, even moduli use a two step HW esp_mp_mul with SW mp_mod.
 **   Enable this to instead fall back to pure software mp_mulmod.
 **
@@ -238,6 +297,11 @@ enum {
 **   See NO_HW_MATH_TEST.
 **
 *******************************************************************************
+** WOLFSSL_FULL_WOLFSSH_SUPPORT
+**   TODO - there's a known, unresolved problem with SHA256 in wolfSSH
+**   Until fixed by a release version or this macro being define once resolved,
+**   this macro should remain undefined.
+**
 */
 #ifdef WOLFSSL_ESP32_CRYPT_DEBUG
     #undef LOG_LOCAL_LEVEL
@@ -266,7 +330,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
+    #if ESP_IDF_VERSION_MAJOR == 4 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR < 4)
         #include <esp32/rom/ets_sys.h>
     #else
         #include <rom/ets_sys.h>
@@ -287,11 +351,16 @@ enum {
 
     /* #define NO_ESP32_CRYPT */
     /* #define NO_WOLFSSL_ESP32_CRYPT_HASH */
-    #define NO_WOLFSSL_ESP32_CRYPT_AES /* No AES HW */
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI /* No RSA HW*/
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL /* No RSA, so no mp_mul    */
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD /* No RSA, so no mp_mulmod */
-    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD /* No RSA, no mp_exptmod  */
+    /* No AES HW */
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    /* No RSA HW:               */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /* No RSA, so no mp_mul:    */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    /* No RSA, so no mp_mulmod: */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    /* No RSA, no mp_exptmod:   */
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
 
     #include <soc/dport_access.h>
     #include <soc/hwcrypto_reg.h>
@@ -306,9 +375,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -342,9 +409,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-    /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -378,9 +443,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -399,6 +462,11 @@ enum {
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
     #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512
     /***** END CONFIG_IDF_TARGET_ESP32C6 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+    /*  wolfSSL Hardware Acceleration not yet implemented. Note: no WiFi.  */
+    #define NO_ESP32_CRYPT
+    /***** END CONFIG_IDF_TARGET_ESP32H2 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32S2)
     #include "soc/dport_reg.h"
@@ -420,9 +488,26 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
     #define ESP_PROHIBIT_SMALL_X 0
-
+    /***** END CONFIG_IDF_TARGET_ESP32S3 *****/
 #else
-    /* not yet supported. no HW */
+    /* Unknown: Not yet supported. Assume no HW. */
+    #define NO_ESP32_CRYPT
+    /***** END CONFIG_IDF_TARGET_[x] config unknown *****/
+
+#endif /* CONFIG_IDF_TARGET target check */
+
+#ifdef NO_ESP32_CRYPT
+    /* There's no hardware acceleration, so ensure everything is disabled: */
+    #undef  NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #undef  NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #undef  NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#endif
+
+#ifdef NO_WOLFSSL_ESP32_CRYPT_HASH
+    /* There's no SHA hardware acceleration, so ensure all are disabled: */
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA
     #define NO_WOLFSSL_ESP32_CRYPT_HASH_SHA
     #undef  NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224
@@ -437,7 +522,15 @@ enum {
 
 #endif /* CONFIG_IDF_TARGET target check */
 
-#ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+#ifdef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /* With RSA disabled (or not available), explicitly disable each: */
+    #undef  NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #undef  NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #undef  NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+#else
     #if defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL) && \
         defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD) && \
         defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD)
@@ -452,13 +545,118 @@ enum {
 #endif
 
 #ifdef SINGLE_THREADED
-    #undef ESP_MONITOR_HW_TASK_LOCK
+    #ifdef WOLFSSL_DEBUG_MUTEX
+        #undef  ESP_MONITOR_HW_TASK_LOCK
+        #define ESP_MONITOR_HW_TASK_LOCK
+    #endif
 #else
     /* Unless explicitly disabled, monitor task lock when not single thread. */
     #ifndef ESP_DISABLE_HW_TASK_LOCK
         #define ESP_MONITOR_HW_TASK_LOCK
     #endif
 #endif
+
+/* Resulting settings review for syntax highlighter review only: */
+#if defined(NO_ESP32_CRYPT)                     || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH)        || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_AES)         || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI)     || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA)    || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384) || \
+    defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+    defined(WOLFSSL_ESP32_CRYPT_DEBUG)
+#endif
+
+/*
+******************************************************************************
+** wolfssl component Kconfig file settings
+******************************************************************************
+ * Naming convention:
+ *
+ * CONFIG_
+ *      This prefix indicates the setting came from the sdkconfig / Kconfig.
+ *
+ *      May or may not be related to wolfSSL.
+ *
+ *      The name after this prefix must exactly match that in the Kconfig file.
+ *
+ * WOLFSSL_
+ *      Typical of many, but not all wolfSSL macro names.
+ *
+ *      Applies to all wolfSSL products such as wolfSSH, wolfMQTT, etc.
+ *
+ *      May or may not have a corresponding sdkconfig / Kconfig control.
+ *
+ * ESP_WOLFSSL_
+ *      These are NOT valid wolfSSL macro names. These are names only used in
+ *      the ESP-IDF Kconfig files. When parsed, they will have a "CONFIG_"
+ *      suffix added. See next section.
+ *
+ * CONFIG_ESP_WOLFSSL_
+ *      This is a wolfSSL-specific macro that has been defined in the ESP-IDF
+ *      via the sdkconfig / menuconfig. Any text after this prefix should
+ *      exactly match an existing wolfSSL macro name.
+ *
+ *      Applies to all wolfSSL products such as wolfSSH, wolfMQTT, etc.
+ *
+ *      These macros may also be specific to only the project or environment,
+ *      and possibly not used anywhere else in the wolfSSL libraries.
+ */
+
+
+
+/* Pre-set some hardware acceleration from Kconfig / menuconfig settings */
+#ifdef CONFIG_ESP_WOLFSSL_NO_ESP32_CRYPT
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_RSA_PRI_MP_MUL
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_RSA_PRI_MULMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
+#endif
+#ifdef CONFIG_ESP_WOLFSSL_NO_HW_RSA_PRI_EXPTMOD
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
+#endif
+
+/* wolfCrypt test settings */
+#ifdef CONFIG_ESP_WOLFSSL_ENABLE_TEST
+    #ifdef CONFIG_WOLFSSL_HAVE_WOLFCRYPT_TEST_OPTIONS
+        #define HAVE_WOLFCRYPT_TEST_OPTIONS
+    #endif
+#endif
+
+/* debug options */
+#if defined(CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSL)
+    /* wolfSSH debugging enabled via Kconfig / menuconfig */
+    #define DEBUG_WOLFSSL
+#endif
+
+/*
+******************************************************************************
+** END wolfssl component Kconfig file settings
+******************************************************************************
+*/
 
 #ifdef __cplusplus
 extern "C"
@@ -472,6 +670,10 @@ extern "C"
 */
 
     WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo(void);
+
+    WOLFSSL_LOCAL esp_err_t esp_DisableWatchdog(void);
+
+    WOLFSSL_LOCAL esp_err_t esp_EnableWatchdog(void);
 
     /* Compare MATH_INT_T A to MATH_INT_T B
      * During debug, the strings name_A and name_B can help
@@ -511,21 +713,16 @@ extern "C"
 */
 
 #ifndef NO_AES
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        #include "esp32/rom/aes.h"
-    #else
-        #include "rom/aes.h"
-    #endif
+    /* wolfSSL does not use Espressif rom/aes.h */
+    struct Aes; /* see wolcrypt/aes.h */
 
-    typedef enum tagES32_AES_PROCESS /* TODO what's this ? */
+    typedef enum tagES32_AES_PROCESS
     {
         ESP32_AES_LOCKHW            = 1,
         ESP32_AES_UPDATEKEY_ENCRYPT = 2,
         ESP32_AES_UPDATEKEY_DECRYPT = 3,
         ESP32_AES_UNLOCKHW          = 4
     } ESP32_AESPROCESS;
-
-    struct Aes; /* see aes.h */
 #if  defined(WOLFSSL_HW_METRICS)
     WOLFSSL_LOCAL int esp_hw_show_aes_metrics(void);
     WOLFSSL_LOCAL int wc_esp32AesUnupportedLengthCountAdd(void);
@@ -569,7 +766,14 @@ extern "C"
 
     #define SHA_CTX ETS_SHAContext
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
+    #if ESP_IDF_VERSION_MAJOR > 5 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR >= 4)
+        #include "rom/sha.h"
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            #define WC_ESP_SHA_TYPE enum SHA_TYPE
+        #else
+            #define WC_ESP_SHA_TYPE SHA_TYPE
+        #endif
+    #elif ESP_IDF_VERSION_MAJOR >= 4
         #if defined(CONFIG_IDF_TARGET_ESP32)
             #include "esp32/rom/sha.h"
             #define WC_ESP_SHA_TYPE enum SHA_TYPE
@@ -596,6 +800,8 @@ extern "C"
             #include "rom/sha.h"
             #define WC_ESP_SHA_TYPE SHA_TYPE
         #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        /* there's no HW to include */
     #else
         #include "rom/sha.h"
     #endif
@@ -614,11 +820,14 @@ extern "C"
 
     typedef struct
     {
-        /* pointer to object the initialized HW; to track copies */
-        void* initializer;
-#ifndef SINGLE_THREADED
-        void* task_owner;
-#endif
+    #if defined(WOLFSSL_STACK_CHECK)
+        word32 first_word;
+    #endif
+        /* Pointer to object that initialized HW, to track copies: */
+        uintptr_t initializer;
+    #if defined(ESP_MONITOR_HW_TASK_LOCK) && !defined(SINGLE_THREADED)
+        TaskHandle_t task_owner;
+    #endif
 
         /* an ESP32_MODE value; typically:
         **   0 init,
@@ -642,7 +851,10 @@ extern "C"
         /* 0 (false) this is NOT first block.
         ** 1 (true ) this is first block.  */
         byte isfirstblock : 1; /* 1 bit only for true / false */
-    } WC_ESP32SHA;
+    #if defined(WOLFSSL_STACK_CHECK)
+        word32 last_word;
+    #endif
+    } WC_ESP32SHA __attribute__((aligned(4)));
 
     WOLFSSL_LOCAL int esp_sha_need_byte_reversal(WC_ESP32SHA* ctx);
     WOLFSSL_LOCAL int esp_sha_init(WC_ESP32SHA* ctx,
@@ -652,20 +864,25 @@ extern "C"
     WOLFSSL_LOCAL int esp_sha_hw_unlock(WC_ESP32SHA* ctx);
 
     /* esp_sha_hw_islocked: returns 0 if not locked, otherwise owner address */
-    WOLFSSL_LOCAL int esp_sha_hw_islocked(WC_ESP32SHA* ctx);
-    WOLFSSL_LOCAL int esp_sha_call_count();
-    WOLFSSL_LOCAL int esp_sha_lock_count();
-    WOLFSSL_LOCAL int esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx);
-    WOLFSSL_LOCAL int esp_sha_set_stray(WC_ESP32SHA* ctx);
+    WOLFSSL_LOCAL uintptr_t esp_sha_hw_islocked(WC_ESP32SHA* ctx);
 
+    /* esp_sha_hw_in_use returns 1 (true) if SHA HW in use, otherwise 0 */
+    WOLFSSL_LOCAL int esp_sha_hw_in_use(void);
+    WOLFSSL_LOCAL int esp_sha_call_count(void);
+    WOLFSSL_LOCAL int esp_sha_lock_count(void);
+    WOLFSSL_LOCAL uintptr_t esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx);
+    WOLFSSL_LOCAL uintptr_t esp_sha_set_stray(WC_ESP32SHA* ctx);
+
+#ifndef NO_SHA
     struct wc_Sha;
     WOLFSSL_LOCAL int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst);
     WOLFSSL_LOCAL int esp_sha_digest_process(struct wc_Sha* sha,
                                              byte blockprocess);
     WOLFSSL_LOCAL int esp_sha_process(struct wc_Sha* sha, const byte* data);
+#endif /* NO_SHA */
 
 #ifdef WOLFSSL_DEBUG_MUTEX
-    /* testing HW release in task that did not lock */
+    /* Testing HW release in task that did not lock: */
     extern WC_ESP32SHA* stray_ctx;
 #endif
 
@@ -764,7 +981,7 @@ extern "C"
     #define WOLFSSL_HAS_METRICS
 
     /* Allow sha256 code to keep track of SW fallback during active HW */
-    WOLFSSL_LOCAL int esp_sw_sha256_count_add();
+    WOLFSSL_LOCAL int esp_sw_sha256_count_add(void);
 
     /* show MP HW Metrics*/
     WOLFSSL_LOCAL int esp_hw_show_mp_metrics(void);
@@ -776,11 +993,18 @@ extern "C"
     WOLFSSL_LOCAL int esp_hw_show_metrics(void);
 #endif
 
+
+#if defined(WOLFSSL_STACK_CHECK)
+
+WOLFSSL_LOCAL int esp_sha_stack_check(WC_ESP32SHA* sha);
+
+#endif /* WOLFSSL_STACK_CHECK */
+
 /*
  * Errata Mitigation. See
- * https://www.espressif.com/sites/default/files/documentation/esp32_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-c3_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-s3_errata_en.pdf
+ *   esp32_errata_en.pdf
+ *   esp32-c3_errata_en.pdf
+ *   esp32-s3_errata_en.pdf
  */
 #define ESP_MP_HW_LOCK_MAX_DELAY ( TickType_t ) 0xffUL
 
@@ -796,8 +1020,8 @@ extern "C"
     /* Non-FIFO read may not be needed in chip revision v3.0. */
     #define ESP_EM__READ_NON_FIFO_REG    {DPORT_SEQUENCE_REG_READ(0x3FF40078);}
 
-    /* When the CPU frequency is 160 MHz, add six �nop� between two consecutive
-    ** FIFO reads. When the CPU frequency is 240 MHz, add seven �nop� between
+    /* When the CPU frequency is 160 MHz, add six nops between two consecutive
+    ** FIFO reads. When the CPU frequency is 240 MHz, add seven nops between
     ** two consecutive FIFO reads.  See 3.16 */
     #if defined(CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80)
         #define ESP_EM__3_16 { \
@@ -855,6 +1079,29 @@ extern "C"
 /* end c++ wrapper */
 #ifdef __cplusplus
 }
+#endif
+
+/******************************************************************************
+** Sanity Checks
+******************************************************************************/
+#if defined(CONFIG_ESP_MAIN_TASK_STACK_SIZE)
+    #if defined(WOLFCRYPT_HAVE_SRP)
+        #if defined(FP_MAX_BITS)
+            #if FP_MAX_BITS <  (8192 * 2)
+                #define ESP_SRP_MINIMUM_STACK_8K (24 * 1024)
+            #else
+                #define ESP_SRP_MINIMUM_STACK_8K (28 * 1024)
+            #endif
+        #else
+            #error "Please define FP_MAX_BITS when using WOLFCRYPT_HAVE_SRP."
+        #endif
+
+        #if (CONFIG_ESP_MAIN_TASK_STACK_SIZE < ESP_SRP_MINIMUM_STACK)
+            #warning "WOLFCRYPT_HAVE_SRP enabled with small stack size"
+        #endif
+    #endif
+#else
+    #warning "CONFIG_ESP_MAIN_TASK_STACK_SIZE not defined!"
 #endif
 
 #endif /* WOLFSSL_ESPIDF (entire contents excluded when not Espressif ESP-IDF) */

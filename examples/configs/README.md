@@ -6,13 +6,17 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 
 * `user_settings_template.h`: Template that allows modular algorithm and feature selection using `#if 0` logic.
 * `user_settings_all.h`: This is wolfSSL with all features enabled. Equivalent to `./configure --enable-all`.
-* `user_settings_min_ecc.h`: This is ECC and SHA-256 only. For ECC verify only add `BUILD_VERIFY_ONLY`.
-* `user_settings_wolfboot_keytools.h`: This from wolfBoot tools/keytools and is ECC, RSA, ED25519 and ChaCha20.
+* `user_settings_arduino.h`: An example Arduino file. See also [wolfSSL/Arduino-wolfSSL](https://github.com/wolfSSL/Arduino-wolfSSL).
+*.`user_settings_EBSnet.h`: Example configuration file for use with EBSnet ports.
 * `user_settings_fipsv2.h`: The FIPS v2 (3389) 140-2 certificate build options.
 * `user_settings_fipsv5.h`: The FIPS v5 (ready) 140-3 build options. Equivalent to `./configure --enable-fips=v5-dev`.
+* `user_settings_min_ecc.h`: This is ECC and SHA-256 only. For ECC verify only add `BUILD_VERIFY_ONLY`.
+* `user_settings_platformio.h`: An example for PlatformIO library. See also [platformio/wolfssl](https://registry.platformio.org/libraries/wolfssl/wolfssl)
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
+* `user_settings_tls12`: Example for TLS v1.2 client only, ECC only, AES GCM only, SHA2-256 only.
+* `user_settings_wolfboot_keytools.h`: This from wolfBoot tools/keytools and is ECC, RSA, ED25519 and ChaCha20.
+* `user_settings_wolfssh.h`: Minimum options for building wolfSSH. See comment at top for ./configure used to generate.
 * `user_settings_wolftpm.h`: Minimum options for building wolfTPM. See comment at top for ./configure used to generate.
-*.`user_settings_EBSnet.h`: Example configuration file for use with EBSnet ports.
 
 ## Usage
 

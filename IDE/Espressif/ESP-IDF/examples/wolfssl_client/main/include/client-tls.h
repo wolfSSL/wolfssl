@@ -1,6 +1,6 @@
-/* server-tls.h
+/* client-tls.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,18 +18,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#ifndef _SERVER_TLS_
-#define _SERVER_TLS_
+#ifndef _CLIENT_TLS_H_
+#define _CLIENT_TLS_H_
+
+/* Local project, auto-generated configuration */
+#include "sdkconfig.h"
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#include "sdkconfig.h"
 
 /* See main/Kconfig.projbuild for default configuration settings */
 #ifdef CONFIG_WOLFSSL_TARGET_HOST
     #define TLS_SMP_TARGET_HOST         CONFIG_WOLFSSL_TARGET_HOST
 #else
-    #define TLS_SMP_TARGET_HOST         "192.168.1.38"
+    #define TLS_SMP_TARGET_HOST         "192.168.1.37"
 #endif
 
 #ifdef CONFIG_WOLFSSL_TARGET_PORT
@@ -39,13 +41,34 @@
 #endif
 
 #define TLS_SMP_CLIENT_TASK_NAME        "tls_client_example"
-#define TLS_SMP_CLIENT_TASK_WORDS       22240
+
+/* Reminder: Vanilla FreeRTOS is words, Espressif is bytes. */
+#if defined(WOLFSSL_ESP8266)
+    #if defined(WOLFSSL_HAVE_KYBER)
+        /* Minimum ESP8266 stack size = 10K with Kyber.
+         * Note there's a maximum not far away as Kyber needs heap
+         * and the total DRAM is typically only 80KB total. */
+        #define TLS_SMP_CLIENT_TASK_BYTES (11 * 1024)
+    #else
+        /* Minimum ESP8266 stack size = 6K without Kyber */
+        #define TLS_SMP_CLIENT_TASK_BYTES (6 * 1024)
+    #endif
+#else
+    #if defined(WOLFSSL_HAVE_KYBER)
+        /* Minimum ESP32 stack size = 12K with Kyber enabled. */
+        #define TLS_SMP_CLIENT_TASK_BYTES (12 * 1024)
+    #else
+        /* Minimum ESP32 stack size = 8K without Kyber */
+        #define TLS_SMP_CLIENT_TASK_BYTES (10 * 1024)
+    #endif
+#endif
+
 #define TLS_SMP_CLIENT_TASK_PRIORITY    8
 
 #if defined(SINGLE_THREADED)
     #define WOLFSSL_ESP_TASK int
 #else
-    #include "freertos/FreeRTOS.h"
+    #include <freertos/FreeRTOS.h>
     #define WOLFSSL_ESP_TASK void
 #endif
 
@@ -64,8 +87,9 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args);
 
 /* init will create an RTOS task, otherwise server is simply function call. */
 #if defined(SINGLE_THREADED)
-    /* no init neded */
+    /* no init needed */
 #else
     WOLFSSL_ESP_TASK tls_smp_client_init(void* args);
 #endif
+
 #endif /* _SERVER_TLS_ */

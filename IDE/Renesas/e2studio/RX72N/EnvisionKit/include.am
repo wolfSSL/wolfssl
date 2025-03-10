@@ -16,6 +16,10 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_demo.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/user_settings.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/wolfssl_demo/wolfssl_tsip_unit_test.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/tools/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/tools/example_keys/generate_SignedCA.sh
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/tools/example_keys/rsa_private.pem
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/tools/example_keys/rsa_public.pem
 
 # Simple Example Contents
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72N/EnvisionKit/Simple/common/sectioninfo.esi

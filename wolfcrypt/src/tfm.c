@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -321,7 +321,7 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -989,9 +989,9 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
   fp_digit mask;
   int i;
 
-  mask = 0 - (a->dp[0] & 1);
+  mask = (fp_digit)0 - (a->dp[0] & 1);
   for (i = 0; i < b->used; i++) {
-      fp_digit mask_a = 0 - (i < a->used);
+      fp_digit mask_a = (fp_digit)0 - (i < a->used);
 
       w         += b->dp[i] & mask;
       w         += a->dp[i] & mask_a;
@@ -1104,9 +1104,9 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
 
    bmax = ((unsigned int)b + DIGIT_BIT - 1) / DIGIT_BIT;
 
-   /* If a is negative and bmax is larger than FP_SIZE, then the
+   /* If a is negative and bmax is greater than or equal to FP_SIZE, then the
     * result can't fit within c. Just return. */
-   if (c->sign == FP_NEG && bmax > FP_SIZE) {
+   if (c->sign == FP_NEG && bmax >= FP_SIZE) {
       return;
    }
 
@@ -3125,9 +3125,9 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
             return retHW;
             break;
 
-         case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+         case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
          case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
-         case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
+         case WC_NO_ERR_TRACE(MP_HW_VALIDATION_ACTIVE): /* use SW to compare to HW */
             /* use software calc */
             break;
 
@@ -3227,7 +3227,7 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3328,7 +3328,7 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3440,7 +3440,7 @@ int fp_sqr(fp_int *A, fp_int *B)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -4589,10 +4589,11 @@ void fp_clear(fp_int *a)
 
 void fp_forcezero (mp_int * a)
 {
+    int size;
+
     if (a == NULL)
       return;
 
-    int size;
     a->used = 0;
     a->sign = FP_ZPOS;
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
@@ -4697,7 +4698,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
          /* successfully computed in HW */
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -5684,9 +5685,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 
     err = fp_randprime(a, len, rng, heap);
     switch(err) {
-        case FP_VAL:
+        case WC_NO_ERR_TRACE(MP_VAL):
             return MP_VAL;
-        case FP_MEM:
+        case WC_NO_ERR_TRACE(MP_MEM):
             return MP_MEM;
         default:
             break;
@@ -5945,6 +5946,8 @@ static int fp_read_radix_16(fp_int *a, const char *str)
 {
   int     i, j, k, neg;
   int     ch;
+  /* Skip whitespace at end of line */
+  int     eol_done = 0;
 
   /* if the leading digit is a
    * minus set the sign to negative.
@@ -5961,8 +5964,11 @@ static int fp_read_radix_16(fp_int *a, const char *str)
   for (i = (int)(XSTRLEN(str) - 1); i >= 0; i--) {
       ch = (int)HexCharToByte(str[i]);
       if (ch < 0) {
+        if (!eol_done && CharIsWhiteSpace(str[i]))
+          continue;
         return FP_VAL;
       }
+      eol_done = 1;
 
       k += j == DIGIT_BIT;
       j &= DIGIT_BIT - 1;
@@ -6024,7 +6030,13 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
       }
     }
     if (y >= radix) {
-      return FP_VAL;
+      /* Check if whitespace at end of line */
+      while (CharIsWhiteSpace(*str))
+        ++str;
+      if (*str)
+        return FP_VAL;
+      else
+        break;
     }
 
     /* if the char was found in the map
@@ -6080,13 +6092,13 @@ int mp_montgomery_setup(fp_int *a, fp_digit *rho)
 
 #endif /* HAVE_ECC || (!NO_RSA && WC_RSA_BLINDING) */
 
-#ifdef HAVE_ECC
-
 /* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
     return fp_sqr(A, B);
 }
+
+#ifdef HAVE_ECC
 
 /* fast math conversion */
 int mp_div_2(fp_int * a, fp_int * b)

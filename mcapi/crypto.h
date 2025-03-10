@@ -1,6 +1,6 @@
 /* crypto.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -173,9 +173,9 @@ enum {
 typedef struct CRYPT_AES_CTX {
     /* big enough to hold internal, but check on init */
     #ifdef WOLF_PRIVATE_KEY_ID
-    int holder[110];
+    int holder[114];
     #else
-    int holder[92];
+    int holder[96];
     #endif
 } CRYPT_AES_CTX;
 

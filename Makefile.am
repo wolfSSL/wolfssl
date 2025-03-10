@@ -138,10 +138,10 @@ dist_example_DATA=
 
 ACLOCAL_AMFLAGS= -I m4
 
-EXTRA_DIST+= lib/dummy
-
+EXTRA_DIST+= .cyignore
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
+EXTRA_DIST+= wolfssl-VS2022.vcxproj
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
@@ -152,7 +152,6 @@ EXTRA_DIST+= README
 EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
-EXTRA_DIST+= IPP
 EXTRA_DIST+= LPCExpresso.cproject
 EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
@@ -168,7 +167,6 @@ include Docker/include.am
 
 include src/include.am
 include support/include.am
-include wolfcrypt/user-crypto/include.am
 include wolfcrypt/benchmark/include.am
 include wolfcrypt/src/include.am
 include wolfcrypt/test/include.am
@@ -210,7 +208,8 @@ if BUILD_LINUXKM
     SUBDIRS_OPT += linuxkm
     DIST_SUBDIRS_OPT += linuxkm
 
-    export KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS \
+    export build_triplet host_triplet CC AS LD \
+        KERNEL_ROOT KERNEL_ARCH KERNEL_EXTRA_CFLAGS \
         EXTRA_CFLAGS EXTRA_CPPFLAGS EXTRA_CCASFLAGS EXTRA_LDFLAGS \
 	AM_CPPFLAGS CPPFLAGS AM_CFLAGS CFLAGS \
         AM_CCASFLAGS CCASFLAGS \
@@ -313,3 +312,8 @@ merge-clean:
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
 
+%.o: %.cu
+	$(NVCC) -dc $(CUDAFLAGS) -o $@ $<
+
+.cu.lo:
+	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static

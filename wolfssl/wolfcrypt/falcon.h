@@ -1,6 +1,6 @@
 /* falcon.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,10 +31,15 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #if defined(HAVE_PQC) && defined(HAVE_FALCON)
 
 #ifdef HAVE_LIBOQS
 #include <oqs/oqs.h>
+#include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
 #endif
 
 #ifdef __cplusplus
@@ -55,10 +60,16 @@
 #define FALCON_LEVEL5_PRV_KEY_SIZE (FALCON_LEVEL5_PUB_KEY_SIZE+FALCON_LEVEL5_KEY_SIZE)
 #endif
 
-#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_PRV_KEY_SIZE
+#define FALCON_MAX_KEY_SIZE     FALCON_LEVEL5_KEY_SIZE
 #define FALCON_MAX_SIG_SIZE     FALCON_LEVEL5_SIG_SIZE
 #define FALCON_MAX_PUB_KEY_SIZE FALCON_LEVEL5_PUB_KEY_SIZE
 #define FALCON_MAX_PRV_KEY_SIZE FALCON_LEVEL5_PRV_KEY_SIZE
+
+#ifdef WOLF_PRIVATE_KEY_ID
+#define FALCON_MAX_ID_LEN    32
+#define FALCON_MAX_LABEL_LEN 32
+#endif
+
 
 /* Structs */
 
@@ -66,6 +77,18 @@ struct falcon_key {
     bool pubKeySet;
     bool prvKeySet;
     byte level;
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    byte id[FALCON_MAX_ID_LEN];
+    int  idLen;
+    char label[FALCON_MAX_LABEL_LEN];
+    int  labelLen;
+#endif
+
     byte p[FALCON_MAX_PUB_KEY_SIZE];
     byte k[FALCON_MAX_PRV_KEY_SIZE];
 };
@@ -79,13 +102,26 @@ struct falcon_key {
 
 WOLFSSL_API
 int wc_falcon_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
-                       falcon_key* key);
+                       falcon_key* key, WC_RNG* rng);
 WOLFSSL_API
 int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                          word32 msgLen, int* res, falcon_key* key);
 
 WOLFSSL_API
 int wc_falcon_init(falcon_key* key);
+
+WOLFSSL_API
+int wc_falcon_init_ex(falcon_key* key, void* heap, int devId);
+
+#ifdef WOLF_PRIVATE_KEY_ID
+WOLFSSL_API
+int wc_falcon_init_id(falcon_key* key, const unsigned char* id, int len,
+                      void* heap, int devId);
+WOLFSSL_API
+int wc_falcon_init_label(falcon_key* key, const char* label, void* heap,
+                         int devId);
+#endif
+
 WOLFSSL_API
 int wc_falcon_set_level(falcon_key* key, byte level);
 WOLFSSL_API
@@ -104,7 +140,7 @@ int wc_falcon_import_private_key(const byte* priv, word32 privSz,
                                  falcon_key* key);
 
 WOLFSSL_API
-int wc_falcon_export_public(falcon_key*, byte* out, word32* outLen);
+int wc_falcon_export_public(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_falcon_export_private_only(falcon_key* key, byte* out, word32* outLen);
 WOLFSSL_API

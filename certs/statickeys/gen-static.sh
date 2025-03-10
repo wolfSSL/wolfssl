@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # run from wolfssl root
 

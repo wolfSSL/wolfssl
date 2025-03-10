@@ -11,9 +11,9 @@ Tool for performing cryptographic algorithm benchmarking.
 
 Compile with the following options for fixed units. Otherwise the units will auto-scale. See `-base10` parameter option, below.
 
-`-DWOLFSSL_BENCHMARK_FIXED_UNITS_GB` for GB/GiB  
-`-DWOLFSSL_BENCHMARK_FIXED_UNITS_MB` for MB/MiB  
-`-DWOLFSSL_BENCHMARK_FIXED_UNITS_KB` for KB/KiB  
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_GB` for GB/GiB
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_MB` for MB/MiB
+`-DWOLFSSL_BENCHMARK_FIXED_UNITS_KB` for KB/KiB
 `-DWOLFSSL_BENCHMARK_FIXED_UNITS_B` for Bytes
 
 To set the output to always be CSV:

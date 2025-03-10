@@ -1,6 +1,6 @@
 /* ext_kyber.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,11 +22,15 @@
 #ifndef EXT_KYBER_H
 #define EXT_KYBER_H
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/kyber.h>
 
-#if !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4)
-#error "This code requires liboqs or pqm4"
+#if !defined(HAVE_LIBOQS)
+#error "This code requires liboqs"
 #endif
 
 #if defined(WOLFSSL_WC_KYBER)
@@ -35,17 +39,14 @@
 
 #if defined (HAVE_LIBOQS)
     #include <oqs/kem.h>
-    #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_kyber_1024_length_secret_key
-    #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_kyber_1024_length_public_key
-#elif defined(HAVE_PQM4)
-    #include "api_kyber.h"
-    #define PQM4_PUBLIC_KEY_LENGTH    CRYPTO_PUBLICKEYBYTES
-    #define PQM4_PRIVATE_KEY_LENGTH   CRYPTO_SECRETKEYBYTES
-    #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
-    #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
 
-    #define EXT_KYBER_MAX_PRIV_SZ PQM4_PRIVATE_KEY_LENGTH
-    #define EXT_KYBER_MAX_PUB_SZ  PQM4_PUBLIC_KEY_LENGTH
+    #ifndef WOLFSSL_NO_ML_KEM
+        #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_ml_kem_1024_length_secret_key
+        #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_ml_kem_1024_length_public_key
+    #elif defined(WOLFSSL_KYBER_ORIGINAL)
+        #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_kyber_1024_length_secret_key
+        #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_kyber_1024_length_public_key
+    #endif
 #endif
 
 struct KyberKey {
@@ -56,6 +57,12 @@ struct KyberKey {
      * Note we don't save the variant (SHAKE vs AES) as that is decided at
      * configuration time. */
     int type;
+
+#ifdef WOLF_CRYPTO_CB
+    void* devCtx;
+    int   devId;
+#endif
+
     byte priv[EXT_KYBER_MAX_PRIV_SZ];
     byte pub[EXT_KYBER_MAX_PUB_SZ];
 };

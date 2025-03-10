@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # trusted_peer.test
 # copyright wolfSSL 2016

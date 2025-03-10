@@ -1,6 +1,6 @@
 /* fe448_448.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,7 +29,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE___UINT128_T) && !defined(NO_CURVED448_128BIT)
+#if defined(HAVE___UINT128_T) && !defined(NO_CURVED448_128BIT) && \
+        !defined(NO_INT128)
     #define CURVED448_128BIT
 #endif
 

@@ -1,6 +1,6 @@
 /* hmac.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,8 +30,7 @@
 
 #ifndef NO_HMAC
 
-#if defined(HAVE_FIPS) && \
-        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif
 
@@ -39,9 +38,17 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_hmac_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_HMAC_sanity(void);
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    #define FIPS_ALLOW_SHORT 1
+#endif
+
 /* avoid redefinition of structs */
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(2,0,0)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -112,38 +119,15 @@ enum {
     #error "You have to have some kind of hash if you want to use HMAC."
 #endif
 
-
-/* hmac hash union */
-typedef union {
-#ifndef NO_MD5
-    wc_Md5 md5;
-#endif
-#ifndef NO_SHA
-    wc_Sha sha;
-#endif
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-#endif
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-#endif
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-#endif
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-#endif
-#ifdef WOLFSSL_SHA3
-    wc_Sha3 sha3;
-#endif
-#ifdef WOLFSSL_SM3
-    wc_Sm3 sm3;
-#endif
-} wc_HmacHash;
+typedef wc_Hashes wc_HmacHash;
 
 /* Hmac digest */
 struct Hmac {
     wc_HmacHash hash;
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    wc_HmacHash i_hash;
+    wc_HmacHash o_hash;
+#endif
     word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[WC_MAX_DIGEST_SIZE / sizeof(word32)];
@@ -184,7 +168,10 @@ struct Hmac {
 #endif /* HAVE_FIPS */
 
 /* does init */
-WOLFSSL_API int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz);
+WOLFSSL_API int wc_HmacSetKey(Hmac* hmac, int type, const byte* key,
+                              word32 keySz);
+WOLFSSL_API int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key,
+                                 word32 length, int allowFlag);
 WOLFSSL_API int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
 WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* out);
 #ifdef WOLFSSL_KCAPI_HMAC

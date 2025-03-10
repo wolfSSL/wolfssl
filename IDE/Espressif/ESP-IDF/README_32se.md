@@ -10,7 +10,7 @@ Including the following examples:
  The `user_settings.h` file enables some of the hardened settings.
 
 ## Requirements
-1. ESP-IDF development framework: https://docs.espressif.com/projects/esp-idf/en/latest/get-started/
+1. ESP-IDF development framework: https://github.com/espressif/esp-idf
 
 2. Microchip CryptoAuthentication Library: https://github.com/MicrochipTech/cryptoauthlib
 

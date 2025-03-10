@@ -1,6 +1,6 @@
 /* wolfssl_thread_entry.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -52,7 +52,6 @@ void wolfssl_thread_entry(void *pvParameters) {
 
     /* FreeRTOS+TCP Objects */
     BaseType_t fr_status;
-    socklen_t xSize = sizeof(struct freertos_sockaddr);
     xSocket_t xClientSocket = NULL;
     struct freertos_sockaddr xRemoteAddress;
 
@@ -93,7 +92,7 @@ void wolfssl_thread_entry(void *pvParameters) {
                                     FREERTOS_SOCK_STREAM,
                                     FREERTOS_IPPROTO_TCP);
     configASSERT(xClientSocket != FREERTOS_INVALID_SOCKET);
-    FreeRTOS_bind(xClientSocket, &xRemoteAddress, sizeof(xSize));
+    FreeRTOS_bind(xClientSocket, &xRemoteAddress, sizeof(xRemoteAddress));
 
     /* Client Socket Connect */
     ret = FreeRTOS_connect(xClientSocket,

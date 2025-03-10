@@ -30,10 +30,10 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |:--|:--|
 |評価ボード|GR-ROSE|
 |Device|R5F565NEHxFP|
-|IDE| Renesas e2Studio Version:2022-01 |
+|IDE| Renesas e2Studio Version:2024-04 (24.4.0) |
 |エミュレーター| E1, E2エミュレーターLite |
-|Toolchain|CCRX v3.04.00|
-|TSIP| TSIP v1.17|
+|Toolchain|CCRX v3.06.00|
+|TSIP| TSIP v1.21|
 <br>
 
 本サンプルプログラムのプロジェクトには以下のFITコンポーネントを使用する設定ファイルが用意されています。
@@ -50,10 +50,7 @@ Renesas社製MCU RX65Nを搭載した評価ボードGR-ROSEをターゲットと
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.17.l|r_tsip_rx|
-
-（注意）2022年4月現在、TIPSv1.15はFITコンポーネントとしてスマートコンフィギュレータパースペクティブのコンポーネントの追加操作では追加できないようです。後ほど説明する手動での追加方法を使って追加してください。<br>
-
+|TSIP(Trusted Secure IP) driver|1.21|r_tsip_rx|
 
 <br><br>
 
@@ -186,7 +183,7 @@ testアプリケーションでは、TLSバージョンと証明書のタイプ�
 |:--|:--|:--|
 |TLS1.3|RSA/ECDSA証明書|  |
 |||TLS_AES_128_GCM_SHA256|
-|||TLS_AES_128_CCM_SHA256| 
+|||TLS_AES_128_CCM_SHA256|
 |TLS1.2|RSA証明書|
 |||TLS_RSA_WITH_AES_128_CBC_SHA|
 |||TLS_RSA_WITH_AES_256_CBC_SHA|
@@ -246,7 +243,7 @@ $ make
 <br><br>
 
 ```
-$ examples/server/server -b -v4 -i
+$ examples/server/server -b -v 4 -i
 ```
 <br>
 testアプリケーションには、サーバーアプリケーションに割り当てられたIPアドレスを指定します。
@@ -336,7 +333,7 @@ user_settings.hにWOLF_PRIVATE_KEY_IDの定義を行ってください。
 
 ## 11. 制限事項
 -----
-TSIPv1.17をサポートしたwolfSSLでは以下の機能制限があります。
+TSIPv1.21をサポートしたwolfSSLでは以下の機能制限があります。
 
 1. TLSハンドシェーク中にサーバーと交換したメッセージパケットが平文でメモリ上に蓄積されています。これはハンドシェークメッセージのハッシュ計算に使用されます。内容はセッション終了時に削除されます。
 

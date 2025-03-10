@@ -36,9 +36,7 @@ build_test_cert_conf() {
     echo "prompt = no"                                  >> "$1".conf
     echo "default_bits        = 2048"                   >> "$1".conf
     echo "distinguished_name  = req_distinguished_name" >> "$1".conf
-    if [ -n "$3" ]; then
-        echo "req_extensions      = req_ext"            >> "$1".conf
-    fi
+    echo "req_extensions      = req_ext"                >> "$1".conf
     if [ -n "$4" ]; then
         echo "basicConstraints=CA:true,pathlen:0"       >> "$1".conf
         echo ""                                         >> "$1".conf
@@ -52,8 +50,8 @@ build_test_cert_conf() {
     echo "CN = $2"                                      >> "$1".conf
     echo "emailAddress = info@wolfssl.com"              >> "$1".conf
     echo ""                                             >> "$1".conf
+    echo "[ req_ext ]"                                  >> "$1".conf
     if [ -n "$3" ]; then
-        echo "[ req_ext ]"                              >> "$1".conf
         case "$3" in
             *DER*)
                echo "subjectAltName = $3"               >> "$1".conf
@@ -64,6 +62,8 @@ build_test_cert_conf() {
                echo "DNS.1 = $3"                        >> "$1".conf
                ;;
         esac
+    else
+        echo "subjectKeyIdentifier = hash"              >> "$1".conf
     fi
 }
 
@@ -85,15 +85,9 @@ generate_test_cert() {
     check_result $?
 
     echo "step 4 create cert"
-    if [ "$3" = "" ]; then
-        openssl x509 -req -days 1000 -sha256 \
-                     -in "$1".csr -signkey ../server-key.pem \
-                     -out "$1".pem -extfile "$1".conf
-    else
-        openssl x509 -req -days 1000 -sha256 \
-                     -in "$1".csr -signkey ../server-key.pem \
-                     -out "$1".pem -extensions req_ext -extfile "$1".conf
-    fi
+    openssl x509 -req -days 1000 -sha256 \
+                 -in "$1".csr -signkey ../server-key.pem \
+                 -out "$1".pem -extensions req_ext -extfile "$1".conf
     check_result $?
     rm "$1".conf
     rm "$1".csr
@@ -124,6 +118,31 @@ generate_test_cert() {
     echo "step 7 make binary der version"
     openssl x509 -inform pem -in "$1".pem -outform der -out "$1".der
     check_result $?
+}
+
+generate_test_trusted_cert() {
+    rm "$1".der
+    rm "$1".pem
+
+    echo "step 1 create configuration"
+    build_test_cert_conf "$1" "$2" "$3"
+    check_result $?
+
+    echo "step 2 create csr"
+    openssl req -new -sha256 -out "$1".csr -key ../server-key.pem -config "$1".conf
+    check_result $?
+
+    echo "step 3 check csr"
+    openssl req -text -noout -in "$1".csr -config "$1".conf
+    check_result $?
+
+    echo "step 4 create cert"
+    openssl x509 -req -days 1000 -sha256 \
+                 -in "$1".csr -signkey ../server-key.pem \
+                 -out "$1".pem -extensions req_ext -addtrust serverAuth -trustout -extfile "$1".conf
+    check_result $?
+    rm "$1".conf
+    rm "$1".csr
 }
 
 generate_expired_certs() {
@@ -206,3 +225,6 @@ generate_test_cert server-garbage localhost garbage
 # Generate Expired Certificates
 generate_expired_certs expired/expired-ca ../ca-key.pem 1
 generate_expired_certs expired/expired-cert ../server-key.pem
+
+
+generate_test_trusted_cert ossl-trusted-cert localhost "" 1

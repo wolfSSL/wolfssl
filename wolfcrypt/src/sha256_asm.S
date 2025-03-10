@@ -1,6 +1,6 @@
 /* sha256_asm.S */
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -46,6 +46,439 @@
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_X86_64_BUILD
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_sse2_sha256_sha_k:
+.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+.long	0xe49b69c1,0xefbe4786,0xfc19dc6,0x240ca1cc
+.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+.long	0xc6e00bf3,0xd5a79147,0x6ca6351,0x14292967
+.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_sse2_sha256_shuf_mask:
+.quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_SSE2_Sha
+.type	Transform_Sha256_SSE2_Sha,@function
+.align	16
+Transform_Sha256_SSE2_Sha:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_SSE2_Sha
+.p2align	4
+_Transform_Sha256_SSE2_Sha:
+#endif /* __APPLE__ */
+        leaq	L_sse2_sha256_sha_k(%rip), %rdx
+        movdqa	L_sse2_sha256_shuf_mask(%rip), %xmm10
+        movq	(%rdi), %xmm1
+        movq	8(%rdi), %xmm2
+        movhpd	16(%rdi), %xmm1
+        movhpd	24(%rdi), %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movdqu	(%rsi), %xmm3
+        movdqu	16(%rsi), %xmm4
+        movdqu	32(%rsi), %xmm5
+        movdqu	48(%rsi), %xmm6
+        pshufb	%xmm10, %xmm3
+        movdqa	%xmm1, %xmm8
+        movdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        movdqa	%xmm3, %xmm0
+        paddd	(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        pshufb	%xmm10, %xmm4
+        movdqa	%xmm4, %xmm0
+        paddd	16(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        pshufb	%xmm10, %xmm5
+        movdqa	%xmm5, %xmm0
+        paddd	32(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        pshufb	%xmm10, %xmm6
+        movdqa	%xmm6, %xmm0
+        paddd	48(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        movdqa	%xmm3, %xmm0
+        paddd	64(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        movdqa	%xmm4, %xmm0
+        paddd	80(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        movdqa	%xmm5, %xmm0
+        paddd	96(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        movdqa	%xmm6, %xmm0
+        paddd	112(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        movdqa	%xmm3, %xmm0
+        paddd	128(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        movdqa	%xmm4, %xmm0
+        paddd	144(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        movdqa	%xmm5, %xmm0
+        paddd	160(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        movdqa	%xmm6, %xmm0
+        paddd	176(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        movdqa	%xmm3, %xmm0
+        paddd	192(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        movdqa	%xmm4, %xmm0
+        paddd	208(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm5, %xmm0
+        paddd	224(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm6, %xmm0
+        paddd	240(%rdx), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        paddd	%xmm8, %xmm1
+        paddd	%xmm9, %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movq	%xmm1, (%rdi)
+        movq	%xmm2, 8(%rdi)
+        movhpd	%xmm1, 16(%rdi)
+        movhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_SSE2_Sha,.-Transform_Sha256_SSE2_Sha
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_SSE2_Sha_Len
+.type	Transform_Sha256_SSE2_Sha_Len,@function
+.align	16
+Transform_Sha256_SSE2_Sha_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_SSE2_Sha_Len
+.p2align	4
+_Transform_Sha256_SSE2_Sha_Len:
+#endif /* __APPLE__ */
+        leaq	L_sse2_sha256_sha_k(%rip), %rax
+        movdqa	L_sse2_sha256_shuf_mask(%rip), %xmm10
+        movq	(%rdi), %xmm1
+        movq	8(%rdi), %xmm2
+        movhpd	16(%rdi), %xmm1
+        movhpd	24(%rdi), %xmm2
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        # Start of loop processing a block
+L_sha256_sha_len_sse2_start:
+        movdqu	(%rsi), %xmm3
+        movdqu	16(%rsi), %xmm4
+        movdqu	32(%rsi), %xmm5
+        movdqu	48(%rsi), %xmm6
+        pshufb	%xmm10, %xmm3
+        movdqa	%xmm1, %xmm8
+        movdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        movdqa	%xmm3, %xmm0
+        paddd	(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        pshufb	%xmm10, %xmm4
+        movdqa	%xmm4, %xmm0
+        paddd	16(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        pshufb	%xmm10, %xmm5
+        movdqa	%xmm5, %xmm0
+        paddd	32(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        pshufb	%xmm10, %xmm6
+        movdqa	%xmm6, %xmm0
+        paddd	48(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        movdqa	%xmm3, %xmm0
+        paddd	64(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        movdqa	%xmm4, %xmm0
+        paddd	80(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        movdqa	%xmm5, %xmm0
+        paddd	96(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        movdqa	%xmm6, %xmm0
+        paddd	112(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        movdqa	%xmm3, %xmm0
+        paddd	128(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        movdqa	%xmm4, %xmm0
+        paddd	144(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        movdqa	%xmm5, %xmm0
+        paddd	160(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        movdqa	%xmm6, %xmm0
+        paddd	176(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm6, %xmm7
+        palignr	$4, %xmm5, %xmm7
+        paddd	%xmm7, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        movdqa	%xmm3, %xmm0
+        paddd	192(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm3, %xmm7
+        palignr	$4, %xmm6, %xmm7
+        paddd	%xmm7, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        pshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        movdqa	%xmm4, %xmm0
+        paddd	208(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm4, %xmm7
+        palignr	$4, %xmm3, %xmm7
+        paddd	%xmm7, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm5, %xmm0
+        paddd	224(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        movdqa	%xmm5, %xmm7
+        palignr	$4, %xmm4, %xmm7
+        paddd	%xmm7, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        movdqa	%xmm6, %xmm0
+        paddd	240(%rax), %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        pshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        addq	$0x40, %rsi
+        subl	$0x40, %edx
+        paddd	%xmm8, %xmm1
+        paddd	%xmm9, %xmm2
+        jnz	L_sha256_sha_len_sse2_start
+        pshufd	$27, %xmm1, %xmm1
+        pshufd	$27, %xmm2, %xmm2
+        movq	%xmm1, (%rdi)
+        movq	%xmm2, 8(%rdi)
+        movhpd	%xmm1, 16(%rdi)
+        movhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_SSE2_Sha_Len,.-Transform_Sha256_SSE2_Sha_Len
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
 .data
@@ -122,8 +555,9 @@ _Transform_Sha256_AVX1:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        pushq	%rbp
         subq	$0x40, %rsp
-        leaq	32(%rdi), %rax
+        leaq	L_avx1_sha256_k(%rip), %rbp
         vmovdqa	L_avx1_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx1_sha256_shuf_00BA(%rip), %xmm11
         vmovdqa	L_avx1_sha256_shuf_DC00(%rip), %xmm12
@@ -136,24 +570,24 @@ _Transform_Sha256_AVX1:
         movl	24(%rdi), %r14d
         movl	28(%rdi), %r15d
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rax), %xmm0
-        vmovdqu	16(%rax), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vmovdqu	32(%rax), %xmm2
-        vmovdqu	48(%rax), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
         movl	%r9d, %ebx
         movl	%r12d, %edx
         xorl	%r10d, %ebx
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	16+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	(%rbp), %xmm0, %xmm4
+        vpaddd	16(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	32+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	48+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	32(%rbp), %xmm2, %xmm6
+        vpaddd	48(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -781,12 +1215,12 @@ _Transform_Sha256_AVX1:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 4
-        vpaddd	64+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	80+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	64(%rbp), %xmm0, %xmm4
+        vpaddd	80(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	96+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	112+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	96(%rbp), %xmm2, %xmm6
+        vpaddd	112(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -1414,12 +1848,12 @@ _Transform_Sha256_AVX1:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 8
-        vpaddd	128+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	144+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	128(%rbp), %xmm0, %xmm4
+        vpaddd	144(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	160+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	176+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	160(%rbp), %xmm2, %xmm6
+        vpaddd	176(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -2047,12 +2481,12 @@ _Transform_Sha256_AVX1:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 12
-        vpaddd	192+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	208+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	192(%rbp), %xmm0, %xmm4
+        vpaddd	208(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	224+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	240+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	224(%rbp), %xmm2, %xmm6
+        vpaddd	240(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # rnd_all_4: 0-3
@@ -2484,8 +2918,8 @@ _Transform_Sha256_AVX1:
         addl	%r14d, 24(%rdi)
         addl	%r15d, 28(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x40, %rsp
+        popq	%rbp
         popq	%r15
         popq	%r14
         popq	%r13
@@ -2513,9 +2947,10 @@ _Transform_Sha256_AVX1_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
-        movq	%rdx, %rsi
-        subq	$0x40, %rsp
+        movq	%rdx, %rbp
+        subq	$0x44, %rsp
+        movl	%ebp, 64(%rsp)
+        leaq	L_avx1_sha256_k(%rip), %rbp
         vmovdqa	L_avx1_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx1_sha256_shuf_00BA(%rip), %xmm11
         vmovdqa	L_avx1_sha256_shuf_DC00(%rip), %xmm12
@@ -2530,24 +2965,24 @@ _Transform_Sha256_AVX1_Len:
         # Start of loop processing a block
 L_sha256_len_avx1_start:
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rbp), %xmm0
-        vmovdqu	16(%rbp), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vmovdqu	32(%rbp), %xmm2
-        vmovdqu	48(%rbp), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
         movl	%r9d, %ebx
         movl	%r12d, %edx
         xorl	%r10d, %ebx
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	16+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	(%rbp), %xmm0, %xmm4
+        vpaddd	16(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	32+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	48+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	32(%rbp), %xmm2, %xmm6
+        vpaddd	48(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -3175,12 +3610,12 @@ L_sha256_len_avx1_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 4
-        vpaddd	64+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	80+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	64(%rbp), %xmm0, %xmm4
+        vpaddd	80(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	96+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	112+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	96(%rbp), %xmm2, %xmm6
+        vpaddd	112(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -3808,12 +4243,12 @@ L_sha256_len_avx1_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 8
-        vpaddd	128+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	144+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	128(%rbp), %xmm0, %xmm4
+        vpaddd	144(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	160+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	176+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	160(%rbp), %xmm2, %xmm6
+        vpaddd	176(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -4441,12 +4876,12 @@ L_sha256_len_avx1_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 12
-        vpaddd	192+L_avx1_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	208+L_avx1_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	192(%rbp), %xmm0, %xmm4
+        vpaddd	208(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	224+L_avx1_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	240+L_avx1_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	224(%rbp), %xmm2, %xmm6
+        vpaddd	240(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # rnd_all_4: 0-3
@@ -4877,8 +5312,8 @@ L_sha256_len_avx1_start:
         addl	20(%rdi), %r13d
         addl	24(%rdi), %r14d
         addl	28(%rdi), %r15d
-        addq	$0x40, %rbp
-        subl	$0x40, %esi
+        addq	$0x40, %rsi
+        subl	$0x40, 64(%rsp)
         movl	%r8d, (%rdi)
         movl	%r9d, 4(%rdi)
         movl	%r10d, 8(%rdi)
@@ -4889,8 +5324,7 @@ L_sha256_len_avx1_start:
         movl	%r15d, 28(%rdi)
         jnz	L_sha256_len_avx1_start
         xorq	%rax, %rax
-        vzeroupper
-        addq	$0x40, %rsp
+        addq	$0x44, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -4976,18 +5410,19 @@ _Transform_Sha256_AVX1_RORX:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        pushq	%rbp
         subq	$0x40, %rsp
+        leaq	L_avx1_rorx_sha256_k(%rip), %rbp
         vmovdqa	L_avx1_rorx_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx1_rorx_sha256_shuf_00BA(%rip), %xmm11
         vmovdqa	L_avx1_rorx_sha256_shuf_DC00(%rip), %xmm12
-        leaq	32(%rdi), %rax
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rax), %xmm0
-        vmovdqu	16(%rax), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vmovdqu	32(%rax), %xmm2
-        vmovdqu	48(%rax), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
         movl	(%rdi), %r8d
@@ -4999,12 +5434,12 @@ _Transform_Sha256_AVX1_RORX:
         movl	24(%rdi), %r14d
         movl	28(%rdi), %r15d
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	16+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	(%rbp), %xmm0, %xmm4
+        vpaddd	16(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	32+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	48+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	32(%rbp), %xmm2, %xmm6
+        vpaddd	48(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         movl	%r9d, %ebx
@@ -5631,12 +6066,12 @@ _Transform_Sha256_AVX1_RORX:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 4
-        vpaddd	64+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	80+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	64(%rbp), %xmm0, %xmm4
+        vpaddd	80(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	96+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	112+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	96(%rbp), %xmm2, %xmm6
+        vpaddd	112(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -6260,12 +6695,12 @@ _Transform_Sha256_AVX1_RORX:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 8
-        vpaddd	128+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	144+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	128(%rbp), %xmm0, %xmm4
+        vpaddd	144(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	160+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	176+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	160(%rbp), %xmm2, %xmm6
+        vpaddd	176(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -6889,12 +7324,12 @@ _Transform_Sha256_AVX1_RORX:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 12
-        vpaddd	192+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	208+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	192(%rbp), %xmm0, %xmm4
+        vpaddd	208(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	224+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	240+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	224(%rbp), %xmm2, %xmm6
+        vpaddd	240(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         xorl	%eax, %eax
@@ -7296,8 +7731,8 @@ _Transform_Sha256_AVX1_RORX:
         addl	%r14d, 24(%rdi)
         addl	%r15d, 28(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x40, %rsp
+        popq	%rbp
         popq	%r15
         popq	%r14
         popq	%r13
@@ -7325,9 +7760,10 @@ _Transform_Sha256_AVX1_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
-        movq	%rdx, %rsi
-        subq	$0x40, %rsp
+        movq	%rdx, %rbp
+        subq	$0x44, %rsp
+        movl	%ebp, 64(%rsp)
+        leaq	L_avx1_rorx_sha256_k(%rip), %rbp
         vmovdqa	L_avx1_rorx_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx1_rorx_sha256_shuf_00BA(%rip), %xmm11
         vmovdqa	L_avx1_rorx_sha256_shuf_DC00(%rip), %xmm12
@@ -7342,21 +7778,21 @@ _Transform_Sha256_AVX1_RORX_Len:
         # Start of loop processing a block
 L_sha256_len_avx1_len_rorx_start:
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rbp), %xmm0
-        vmovdqu	16(%rbp), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vmovdqu	32(%rbp), %xmm2
-        vmovdqu	48(%rbp), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	16+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	(%rbp), %xmm0, %xmm4
+        vpaddd	16(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	32+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	48+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	32(%rbp), %xmm2, %xmm6
+        vpaddd	48(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         movl	%r9d, %ebx
@@ -7983,12 +8419,12 @@ L_sha256_len_avx1_len_rorx_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 4
-        vpaddd	64+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	80+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	64(%rbp), %xmm0, %xmm4
+        vpaddd	80(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	96+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	112+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	96(%rbp), %xmm2, %xmm6
+        vpaddd	112(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -8612,12 +9048,12 @@ L_sha256_len_avx1_len_rorx_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 8
-        vpaddd	128+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	144+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	128(%rbp), %xmm0, %xmm4
+        vpaddd	144(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	160+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	176+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	160(%rbp), %xmm2, %xmm6
+        vpaddd	176(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         # msg_sched: 0-3
@@ -9241,12 +9677,12 @@ L_sha256_len_avx1_len_rorx_start:
         vpaddd	%xmm4, %xmm9, %xmm3
         # msg_sched done: 12-15
         # set_w_k_xfer_4: 12
-        vpaddd	192+L_avx1_rorx_sha256_k(%rip), %xmm0, %xmm4
-        vpaddd	208+L_avx1_rorx_sha256_k(%rip), %xmm1, %xmm5
+        vpaddd	192(%rbp), %xmm0, %xmm4
+        vpaddd	208(%rbp), %xmm1, %xmm5
         vmovdqu	%xmm4, (%rsp)
         vmovdqu	%xmm5, 16(%rsp)
-        vpaddd	224+L_avx1_rorx_sha256_k(%rip), %xmm2, %xmm6
-        vpaddd	240+L_avx1_rorx_sha256_k(%rip), %xmm3, %xmm7
+        vpaddd	224(%rbp), %xmm2, %xmm6
+        vpaddd	240(%rbp), %xmm3, %xmm7
         vmovdqu	%xmm6, 32(%rsp)
         vmovdqu	%xmm7, 48(%rsp)
         xorl	%eax, %eax
@@ -9648,8 +10084,8 @@ L_sha256_len_avx1_len_rorx_start:
         addl	20(%rdi), %r13d
         addl	24(%rdi), %r14d
         addl	28(%rdi), %r15d
-        addq	$0x40, %rbp
-        subl	$0x40, %esi
+        addq	$0x40, %rsi
+        subl	$0x40, 64(%rsp)
         movl	%r8d, (%rdi)
         movl	%r9d, 4(%rdi)
         movl	%r10d, 8(%rdi)
@@ -9660,8 +10096,7 @@ L_sha256_len_avx1_len_rorx_start:
         movl	%r15d, 28(%rdi)
         jnz	L_sha256_len_avx1_len_rorx_start
         xorq	%rax, %rax
-        vzeroupper
-        addq	$0x40, %rsp
+        addq	$0x44, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -9671,6 +10106,383 @@ L_sha256_len_avx1_len_rorx_start:
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_AVX1_RORX_Len,.-Transform_Sha256_AVX1_RORX_Len
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+L_avx1_sha256_sha_k:
+.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
+.long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
+.long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
+.long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
+.long	0xe49b69c1,0xefbe4786,0xfc19dc6,0x240ca1cc
+.long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
+.long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
+.long	0xc6e00bf3,0xd5a79147,0x6ca6351,0x14292967
+.long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
+.long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
+.long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
+.long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
+.long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
+.long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
+.long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
+.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_avx1_sha256_shuf_mask:
+.quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_AVX1_Sha
+.type	Transform_Sha256_AVX1_Sha,@function
+.align	16
+Transform_Sha256_AVX1_Sha:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_Sha
+.p2align	4
+_Transform_Sha256_AVX1_Sha:
+#endif /* __APPLE__ */
+        leaq	L_avx1_sha256_sha_k(%rip), %rdx
+        vmovdqa	L_avx1_sha256_shuf_mask(%rip), %xmm10
+        vmovq	(%rdi), %xmm1
+        vmovq	8(%rdi), %xmm2
+        vmovhpd	16(%rdi), %xmm1, %xmm1
+        vmovhpd	24(%rdi), %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovdqu	(%rsi), %xmm3
+        vmovdqu	16(%rsi), %xmm4
+        vmovdqu	32(%rsi), %xmm5
+        vmovdqu	48(%rsi), %xmm6
+        vpshufb	%xmm10, %xmm3, %xmm3
+        vmovdqa	%xmm1, %xmm8
+        vmovdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        vpaddd	(%rdx), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        vpshufb	%xmm10, %xmm4, %xmm4
+        vpaddd	16(%rdx), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        vpshufb	%xmm10, %xmm5, %xmm5
+        vpaddd	32(%rdx), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        vpshufb	%xmm10, %xmm6, %xmm6
+        vpaddd	48(%rdx), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        vpaddd	64(%rdx), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        vpaddd	80(%rdx), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        vpaddd	96(%rdx), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        vpaddd	112(%rdx), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        vpaddd	128(%rdx), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        vpaddd	144(%rdx), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        vpaddd	160(%rdx), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        vpaddd	176(%rdx), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        vpaddd	192(%rdx), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        vpaddd	208(%rdx), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	224(%rdx), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	240(%rdx), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	%xmm8, %xmm1, %xmm1
+        vpaddd	%xmm9, %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovq	%xmm1, (%rdi)
+        vmovq	%xmm2, 8(%rdi)
+        vmovhpd	%xmm1, 16(%rdi)
+        vmovhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_AVX1_Sha,.-Transform_Sha256_AVX1_Sha
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha256_AVX1_Sha_Len
+.type	Transform_Sha256_AVX1_Sha_Len,@function
+.align	16
+Transform_Sha256_AVX1_Sha_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_Sha_Len
+.p2align	4
+_Transform_Sha256_AVX1_Sha_Len:
+#endif /* __APPLE__ */
+        leaq	L_avx1_sha256_sha_k(%rip), %rax
+        vmovdqa	L_avx1_sha256_shuf_mask(%rip), %xmm10
+        vmovq	(%rdi), %xmm1
+        vmovq	8(%rdi), %xmm2
+        vmovhpd	16(%rdi), %xmm1, %xmm1
+        vmovhpd	24(%rdi), %xmm2, %xmm2
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        # Start of loop processing a block
+L_sha256_sha_len_avx1_start:
+        vmovdqu	(%rsi), %xmm3
+        vmovdqu	16(%rsi), %xmm4
+        vmovdqu	32(%rsi), %xmm5
+        vmovdqu	48(%rsi), %xmm6
+        vpshufb	%xmm10, %xmm3, %xmm3
+        vmovdqa	%xmm1, %xmm8
+        vmovdqa	%xmm2, %xmm9
+        # Rounds: 0-3
+        vpaddd	(%rax), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 4-7
+        vpshufb	%xmm10, %xmm4, %xmm4
+        vpaddd	16(%rax), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 8-11
+        vpshufb	%xmm10, %xmm5, %xmm5
+        vpaddd	32(%rax), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 12-15
+        vpshufb	%xmm10, %xmm6, %xmm6
+        vpaddd	48(%rax), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 16-19
+        vpaddd	64(%rax), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 20-23
+        vpaddd	80(%rax), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 24-27
+        vpaddd	96(%rax), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 28-31
+        vpaddd	112(%rax), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 32-35
+        vpaddd	128(%rax), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 36-39
+        vpaddd	144(%rax), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm4, %xmm3
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 40-43
+        vpaddd	160(%rax), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm5, %xmm4
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 44-47
+        vpaddd	176(%rax), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm5, %xmm6, %xmm7
+        vpaddd	%xmm7, %xmm3, %xmm3
+        sha256msg2	%xmm6, %xmm3
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm6, %xmm5
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 48-51
+        vpaddd	192(%rax), %xmm3, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm6, %xmm3, %xmm7
+        vpaddd	%xmm7, %xmm4, %xmm4
+        sha256msg2	%xmm3, %xmm4
+        vpshufd	$14, %xmm0, %xmm0
+        sha256msg1	%xmm3, %xmm6
+        sha256rnds2	%xmm2, %xmm1
+        # Rounds: 52-63
+        vpaddd	208(%rax), %xmm4, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm3, %xmm4, %xmm7
+        vpaddd	%xmm7, %xmm5, %xmm5
+        sha256msg2	%xmm4, %xmm5
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	224(%rax), %xmm5, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpalignr	$4, %xmm4, %xmm5, %xmm7
+        vpaddd	%xmm7, %xmm6, %xmm6
+        sha256msg2	%xmm5, %xmm6
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        vpaddd	240(%rax), %xmm6, %xmm0
+        sha256rnds2	%xmm1, %xmm2
+        vpshufd	$14, %xmm0, %xmm0
+        sha256rnds2	%xmm2, %xmm1
+        addq	$0x40, %rsi
+        subl	$0x40, %edx
+        vpaddd	%xmm8, %xmm1, %xmm1
+        vpaddd	%xmm9, %xmm2, %xmm2
+        jnz	L_sha256_sha_len_avx1_start
+        vpshufd	$27, %xmm1, %xmm1
+        vpshufd	$27, %xmm2, %xmm2
+        vmovq	%xmm1, (%rdi)
+        vmovq	%xmm2, 8(%rdi)
+        vmovhpd	%xmm1, 16(%rdi)
+        vmovhpd	%xmm2, 24(%rdi)
+        xorq	%rax, %rax
+        repz retq
+#ifndef __APPLE__
+.size	Transform_Sha256_AVX1_Sha_Len,.-Transform_Sha256_AVX1_Sha_Len
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
@@ -9768,8 +10580,9 @@ _Transform_Sha256_AVX2:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        pushq	%rbp
         subq	$0x200, %rsp
-        leaq	32(%rdi), %rax
+        leaq	L_avx2_sha256_k(%rip), %rbp
         vmovdqa	L_avx2_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx2_sha256_shuf_00BA(%rip), %ymm11
         vmovdqa	L_avx2_sha256_shuf_DC00(%rip), %ymm12
@@ -9782,24 +10595,24 @@ _Transform_Sha256_AVX2:
         movl	24(%rdi), %r14d
         movl	28(%rdi), %r15d
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rax), %xmm0
-        vmovdqu	16(%rax), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vmovdqu	32(%rax), %xmm2
-        vmovdqu	48(%rax), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
         movl	%r9d, %ebx
         movl	%r12d, %edx
         xorl	%r10d, %ebx
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	32+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	(%rbp), %ymm0, %ymm4
+        vpaddd	32(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, (%rsp)
         vmovdqu	%ymm5, 32(%rsp)
-        vpaddd	64+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	96+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	64(%rbp), %ymm2, %ymm4
+        vpaddd	96(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 64(%rsp)
         vmovdqu	%ymm5, 96(%rsp)
         # msg_sched: 0-3
@@ -10427,12 +11240,12 @@ _Transform_Sha256_AVX2:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 24-27
         # set_w_k_xfer_4: 4
-        vpaddd	128+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	160+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	128(%rbp), %ymm0, %ymm4
+        vpaddd	160(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 128(%rsp)
         vmovdqu	%ymm5, 160(%rsp)
-        vpaddd	192+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	224+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	192(%rbp), %ymm2, %ymm4
+        vpaddd	224(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 192(%rsp)
         vmovdqu	%ymm5, 224(%rsp)
         # msg_sched: 32-35
@@ -11060,12 +11873,12 @@ _Transform_Sha256_AVX2:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 56-59
         # set_w_k_xfer_4: 8
-        vpaddd	256+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	288+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	256(%rbp), %ymm0, %ymm4
+        vpaddd	288(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 256(%rsp)
         vmovdqu	%ymm5, 288(%rsp)
-        vpaddd	320+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	352+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	320(%rbp), %ymm2, %ymm4
+        vpaddd	352(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 320(%rsp)
         vmovdqu	%ymm5, 352(%rsp)
         # msg_sched: 64-67
@@ -11693,12 +12506,12 @@ _Transform_Sha256_AVX2:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 88-91
         # set_w_k_xfer_4: 12
-        vpaddd	384+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	416+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	384(%rbp), %ymm0, %ymm4
+        vpaddd	416(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 384(%rsp)
         vmovdqu	%ymm5, 416(%rsp)
-        vpaddd	448+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	480+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	448(%rbp), %ymm2, %ymm4
+        vpaddd	480(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 448(%rsp)
         vmovdqu	%ymm5, 480(%rsp)
         # rnd_all_4: 24-27
@@ -12132,6 +12945,7 @@ _Transform_Sha256_AVX2:
         xorq	%rax, %rax
         vzeroupper
         addq	$0x200, %rsp
+        popq	%rbp
         popq	%r15
         popq	%r14
         popq	%r13
@@ -12159,13 +12973,13 @@ _Transform_Sha256_AVX2_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
-        movq	%rdx, %rsi
-        subq	$0x200, %rsp
-        testb	$0x40, %sil
+        movq	%rdx, %rbp
+        subq	$0x204, %rsp
+        testb	$0x40, %bpl
+        movl	%ebp, 512(%rsp)
         je	L_sha256_len_avx2_block
-        vmovdqu	(%rbp), %ymm0
-        vmovdqu	32(%rbp), %ymm1
+        vmovdqu	(%rsi), %ymm0
+        vmovdqu	32(%rsi), %ymm1
         vmovups	%ymm0, 32(%rdi)
         vmovups	%ymm1, 64(%rdi)
 #ifndef __APPLE__
@@ -12173,10 +12987,11 @@ _Transform_Sha256_AVX2_Len:
 #else
         call	_Transform_Sha256_AVX2
 #endif /* __APPLE__ */
-        addq	$0x40, %rbp
-        subl	$0x40, %esi
+        addq	$0x40, %rsi
+        subl	$0x40, 512(%rsp)
         jz	L_sha256_len_avx2_done
 L_sha256_len_avx2_block:
+        leaq	L_avx2_sha256_k(%rip), %rbp
         vmovdqa	L_avx2_sha256_flip_mask(%rip), %ymm13
         vmovdqa	L_avx2_sha256_shuf_00BA(%rip), %ymm11
         vmovdqa	L_avx2_sha256_shuf_DC00(%rip), %ymm12
@@ -12191,18 +13006,18 @@ L_sha256_len_avx2_block:
         # Start of loop processing two blocks
 L_sha256_len_avx2_start:
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rbp), %xmm0
-        vmovdqu	16(%rbp), %xmm1
-        vmovdqu	64(%rbp), %xmm4
-        vmovdqu	80(%rbp), %xmm5
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
+        vmovdqu	64(%rsi), %xmm4
+        vmovdqu	80(%rsi), %xmm5
         vinserti128	$0x01, %xmm4, %ymm0, %ymm0
         vinserti128	$0x01, %xmm5, %ymm1, %ymm1
         vpshufb	%ymm13, %ymm0, %ymm0
         vpshufb	%ymm13, %ymm1, %ymm1
-        vmovdqu	32(%rbp), %xmm2
-        vmovdqu	48(%rbp), %xmm3
-        vmovdqu	96(%rbp), %xmm6
-        vmovdqu	112(%rbp), %xmm7
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
+        vmovdqu	96(%rsi), %xmm6
+        vmovdqu	112(%rsi), %xmm7
         vinserti128	$0x01, %xmm6, %ymm2, %ymm2
         vinserti128	$0x01, %xmm7, %ymm3, %ymm3
         vpshufb	%ymm13, %ymm2, %ymm2
@@ -12211,12 +13026,12 @@ L_sha256_len_avx2_start:
         movl	%r12d, %edx
         xorl	%r10d, %ebx
         # set_w_k_xfer_4: 0
-        vpaddd	0+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	32+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	(%rbp), %ymm0, %ymm4
+        vpaddd	32(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, (%rsp)
         vmovdqu	%ymm5, 32(%rsp)
-        vpaddd	64+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	96+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	64(%rbp), %ymm2, %ymm4
+        vpaddd	96(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 64(%rsp)
         vmovdqu	%ymm5, 96(%rsp)
         # msg_sched: 0-3
@@ -12844,12 +13659,12 @@ L_sha256_len_avx2_start:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 24-27
         # set_w_k_xfer_4: 4
-        vpaddd	128+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	160+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	128(%rbp), %ymm0, %ymm4
+        vpaddd	160(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 128(%rsp)
         vmovdqu	%ymm5, 160(%rsp)
-        vpaddd	192+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	224+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	192(%rbp), %ymm2, %ymm4
+        vpaddd	224(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 192(%rsp)
         vmovdqu	%ymm5, 224(%rsp)
         # msg_sched: 32-35
@@ -13477,12 +14292,12 @@ L_sha256_len_avx2_start:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 56-59
         # set_w_k_xfer_4: 8
-        vpaddd	256+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	288+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	256(%rbp), %ymm0, %ymm4
+        vpaddd	288(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 256(%rsp)
         vmovdqu	%ymm5, 288(%rsp)
-        vpaddd	320+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	352+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	320(%rbp), %ymm2, %ymm4
+        vpaddd	352(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 320(%rsp)
         vmovdqu	%ymm5, 352(%rsp)
         # msg_sched: 64-67
@@ -14110,12 +14925,12 @@ L_sha256_len_avx2_start:
         vpaddd	%ymm4, %ymm9, %ymm3
         # msg_sched done: 88-91
         # set_w_k_xfer_4: 12
-        vpaddd	384+L_avx2_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	416+L_avx2_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	384(%rbp), %ymm0, %ymm4
+        vpaddd	416(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, 384(%rsp)
         vmovdqu	%ymm5, 416(%rsp)
-        vpaddd	448+L_avx2_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	480+L_avx2_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	448(%rbp), %ymm2, %ymm4
+        vpaddd	480(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 448(%rsp)
         vmovdqu	%ymm5, 480(%rsp)
         # rnd_all_4: 24-27
@@ -16245,8 +17060,8 @@ L_sha256_len_avx2_start:
         addl	20(%rdi), %r13d
         addl	24(%rdi), %r14d
         addl	28(%rdi), %r15d
-        addq	$0x80, %rbp
-        subl	$0x80, %esi
+        addq	$0x80, %rsi
+        subl	$0x80, 512(%rsp)
         movl	%r8d, (%rdi)
         movl	%r9d, 4(%rdi)
         movl	%r10d, 8(%rdi)
@@ -16259,7 +17074,7 @@ L_sha256_len_avx2_start:
 L_sha256_len_avx2_done:
         xorq	%rax, %rax
         vzeroupper
-        addq	$0x200, %rsp
+        addq	$0x204, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14
@@ -16364,26 +17179,27 @@ _Transform_Sha256_AVX2_RORX:
         pushq	%r13
         pushq	%r14
         pushq	%r15
+        pushq	%rbp
         subq	$0x200, %rsp
-        leaq	32(%rdi), %rax
+        leaq	L_avx2_rorx_sha256_k(%rip), %rbp
         vmovdqa	L_avx2_rorx_sha256_flip_mask(%rip), %xmm13
         vmovdqa	L_avx2_rorx_sha256_shuf_00BA(%rip), %ymm11
         vmovdqa	L_avx2_rorx_sha256_shuf_DC00(%rip), %ymm12
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rax), %xmm0
-        vmovdqu	16(%rax), %xmm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
         vpshufb	%xmm13, %xmm0, %xmm0
         vpshufb	%xmm13, %xmm1, %xmm1
-        vpaddd	0+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	32+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	(%rbp), %ymm0, %ymm4
+        vpaddd	32(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, (%rsp)
         vmovdqu	%ymm5, 32(%rsp)
-        vmovdqu	32(%rax), %xmm2
-        vmovdqu	48(%rax), %xmm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
         vpshufb	%xmm13, %xmm2, %xmm2
         vpshufb	%xmm13, %xmm3, %xmm3
-        vpaddd	64+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	96+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	64(%rbp), %ymm2, %ymm4
+        vpaddd	96(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 64(%rsp)
         vmovdqu	%ymm5, 96(%rsp)
         movl	(%rdi), %r8d
@@ -16546,7 +17362,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	128+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	128(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -16705,7 +17521,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	160+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	160(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -16864,7 +17680,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	192+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	192(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -17023,7 +17839,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	224+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	224(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -17182,7 +17998,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	256+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	256(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -17341,7 +18157,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	288+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	288(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -17500,7 +18316,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	320+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	320(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -17659,7 +18475,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	352+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	352(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -17818,7 +18634,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	384+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	384(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -17977,7 +18793,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	416+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	416(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -18136,7 +18952,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	448+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	448(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -18295,7 +19111,7 @@ _Transform_Sha256_AVX2_RORX:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	480+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	480(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -18703,6 +19519,7 @@ _Transform_Sha256_AVX2_RORX:
         xorq	%rax, %rax
         vzeroupper
         addq	$0x200, %rsp
+        popq	%rbp
         popq	%r15
         popq	%r14
         popq	%r13
@@ -18730,13 +19547,13 @@ _Transform_Sha256_AVX2_RORX_Len:
         pushq	%r14
         pushq	%r15
         pushq	%rbp
-        movq	%rsi, %rbp
-        movq	%rdx, %rsi
-        subq	$0x200, %rsp
-        testb	$0x40, %sil
+        movq	%rdx, %rbp
+        subq	$0x204, %rsp
+        testb	$0x40, %bpl
+        movl	%ebp, 512(%rsp)
         je	L_sha256_len_avx2_rorx_block
-        vmovdqu	(%rbp), %ymm0
-        vmovdqu	32(%rbp), %ymm1
+        vmovdqu	(%rsi), %ymm0
+        vmovdqu	32(%rsi), %ymm1
         vmovups	%ymm0, 32(%rdi)
         vmovups	%ymm1, 64(%rdi)
 #ifndef __APPLE__
@@ -18744,10 +19561,11 @@ _Transform_Sha256_AVX2_RORX_Len:
 #else
         call	_Transform_Sha256_AVX2_RORX
 #endif /* __APPLE__ */
-        addq	$0x40, %rbp
-        subl	$0x40, %esi
+        addq	$0x40, %rsi
+        subl	$0x40, 512(%rsp)
         jz	L_sha256_len_avx2_rorx_done
 L_sha256_len_avx2_rorx_block:
+        leaq	L_avx2_rorx_sha256_k(%rip), %rbp
         vmovdqa	L_avx2_rorx_sha256_flip_mask(%rip), %ymm13
         vmovdqa	L_avx2_rorx_sha256_shuf_00BA(%rip), %ymm11
         vmovdqa	L_avx2_rorx_sha256_shuf_DC00(%rip), %ymm12
@@ -18762,24 +19580,24 @@ L_sha256_len_avx2_rorx_block:
         # Start of loop processing two blocks
 L_sha256_len_avx2_rorx_start:
         # X0, X1, X2, X3 = W[0..15]
-        vmovdqu	(%rbp), %xmm0
-        vmovdqu	16(%rbp), %xmm1
-        vinserti128	$0x01, 64(%rbp), %ymm0, %ymm0
-        vinserti128	$0x01, 80(%rbp), %ymm1, %ymm1
+        vmovdqu	(%rsi), %xmm0
+        vmovdqu	16(%rsi), %xmm1
+        vinserti128	$0x01, 64(%rsi), %ymm0, %ymm0
+        vinserti128	$0x01, 80(%rsi), %ymm1, %ymm1
         vpshufb	%ymm13, %ymm0, %ymm0
         vpshufb	%ymm13, %ymm1, %ymm1
-        vpaddd	0+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
-        vpaddd	32+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm5
+        vpaddd	(%rbp), %ymm0, %ymm4
+        vpaddd	32(%rbp), %ymm1, %ymm5
         vmovdqu	%ymm4, (%rsp)
         vmovdqu	%ymm5, 32(%rsp)
-        vmovdqu	32(%rbp), %xmm2
-        vmovdqu	48(%rbp), %xmm3
-        vinserti128	$0x01, 96(%rbp), %ymm2, %ymm2
-        vinserti128	$0x01, 112(%rbp), %ymm3, %ymm3
+        vmovdqu	32(%rsi), %xmm2
+        vmovdqu	48(%rsi), %xmm3
+        vinserti128	$0x01, 96(%rsi), %ymm2, %ymm2
+        vinserti128	$0x01, 112(%rsi), %ymm3, %ymm3
         vpshufb	%ymm13, %ymm2, %ymm2
         vpshufb	%ymm13, %ymm3, %ymm3
-        vpaddd	64+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
-        vpaddd	96+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm5
+        vpaddd	64(%rbp), %ymm2, %ymm4
+        vpaddd	96(%rbp), %ymm3, %ymm5
         vmovdqu	%ymm4, 64(%rsp)
         vmovdqu	%ymm5, 96(%rsp)
         movl	%r9d, %ebx
@@ -18934,7 +19752,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	128+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	128(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -19093,7 +19911,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	160+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	160(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -19252,7 +20070,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	192+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	192(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -19411,7 +20229,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	224+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	224(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -19570,7 +20388,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	256+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	256(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -19729,7 +20547,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	288+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	288(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -19888,7 +20706,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	320+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	320(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -20047,7 +20865,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	352+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	352(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -20206,7 +21024,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	384+L_avx2_rorx_sha256_k(%rip), %ymm0, %ymm4
+        vpaddd	384(%rbp), %ymm0, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -20365,7 +21183,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	416+L_avx2_rorx_sha256_k(%rip), %ymm1, %ymm4
+        vpaddd	416(%rbp), %ymm1, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -20524,7 +21342,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r12d, %r8d
         movl	%r14d, %ebx
-        vpaddd	448+L_avx2_rorx_sha256_k(%rip), %ymm2, %ymm4
+        vpaddd	448(%rbp), %ymm2, %ymm4
         # rnd_1: 6 - 6
         xorl	%r13d, %ebx
         addl	%edx, %r12d
@@ -20683,7 +21501,7 @@ L_sha256_len_avx2_rorx_start:
         xorl	%ecx, %edx
         addl	%r8d, %r12d
         movl	%r10d, %ebx
-        vpaddd	480+L_avx2_rorx_sha256_k(%rip), %ymm3, %ymm4
+        vpaddd	480(%rbp), %ymm3, %ymm4
         # rnd_1: 6 - 6
         xorl	%r9d, %ebx
         addl	%edx, %r8d
@@ -22637,7 +23455,7 @@ L_sha256_len_avx2_rorx_start:
         addl	%edx, %r8d
         xorl	%r10d, %eax
         addl	%eax, %r8d
-        addq	$0x80, %rbp
+        addq	$0x80, %rsi
         addl	(%rdi), %r8d
         addl	4(%rdi), %r9d
         addl	8(%rdi), %r10d
@@ -22646,7 +23464,7 @@ L_sha256_len_avx2_rorx_start:
         addl	20(%rdi), %r13d
         addl	24(%rdi), %r14d
         addl	28(%rdi), %r15d
-        subl	$0x80, %esi
+        subl	$0x80, 512(%rsp)
         movl	%r8d, (%rdi)
         movl	%r9d, 4(%rdi)
         movl	%r10d, 8(%rdi)
@@ -22659,7 +23477,7 @@ L_sha256_len_avx2_rorx_start:
 L_sha256_len_avx2_rorx_done:
         xorq	%rax, %rax
         vzeroupper
-        addq	$0x200, %rsp
+        addq	$0x204, %rsp
         popq	%rbp
         popq	%r15
         popq	%r14

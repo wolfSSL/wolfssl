@@ -1,6 +1,6 @@
 /* ext_kyber.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#ifdef WOLFSSL_HAVE_KYBER
+#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_WC_KYBER)
 #include <wolfssl/wolfcrypt/ext_kyber.h>
 
 #ifdef NO_INLINE
@@ -39,11 +39,20 @@
 
 #if defined (HAVE_LIBOQS)
 
+#include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
+
 static const char* OQS_ID2name(int id) {
     switch (id) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:  return OQS_KEM_alg_ml_kem_512;
+        case WC_ML_KEM_768:  return OQS_KEM_alg_ml_kem_768;
+        case WC_ML_KEM_1024: return OQS_KEM_alg_ml_kem_1024;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512;
         case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768;
         case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024;
+    #endif
         default:           break;
     }
     return NULL;
@@ -81,11 +90,20 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
     if (ret == 0) {
         /* Validate type. */
         switch (type) {
+#ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+    #ifdef HAVE_LIBOQS
+        case WC_ML_KEM_768:
+        case WC_ML_KEM_1024:
+    #endif /* HAVE_LIBOQS */
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
-#ifdef HAVE_LIBOQS
+    #ifdef HAVE_LIBOQS
         case KYBER_LEVEL3:
         case KYBER_LEVEL5:
-#endif /* HAVE_LIBOQS */
+    #endif /* HAVE_LIBOQS */
+#endif
             break;
         default:
             /* No other values supported. */
@@ -99,10 +117,15 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
 
         /* Keep type for parameters. */
         key->type = type;
+
+#ifdef WOLF_CRYPTO_CB
+        key->devCtx = NULL;
+        key->devId = devId;
+#endif
     }
 
-    (void)devId;
     (void)heap;
+    (void)devId;
 
     return ret;
 }
@@ -145,6 +168,18 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length private key. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_secret_key;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_secret_key;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_secret_key;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_secret_key;
             break;
@@ -154,6 +189,7 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_secret_key;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -161,12 +197,6 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_PRIVATE_KEY_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -193,6 +223,18 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length public key. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_public_key;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_public_key;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_public_key;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_public_key;
             break;
@@ -202,6 +244,7 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_public_key;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -209,12 +252,6 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_PUBLIC_KEY_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -241,6 +278,18 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length ciphertext. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_ciphertext;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_ciphertext;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_ciphertext;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_ciphertext;
             break;
@@ -250,6 +299,7 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_ciphertext;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -257,12 +307,6 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_CIPHERTEXT_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -294,7 +338,7 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
 /**
  * Make a Kyber key object using a random number generator.
  *
- * NOTE: rng is ignored. OQS and PQM4 don't use our RNG.
+ * NOTE: rng is ignored. OQS doesn't use our RNG.
  *
  * @param  [in, out]  key   Kyber key ovject.
  * @param  [in]       rng   Random number generator.
@@ -310,12 +354,24 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     OQS_KEM *kem = NULL;
 #endif
 
-    (void)rng;
-
     /* Validate parameter. */
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (key->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_KYBER,
+                                        key->type, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
 
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
@@ -326,16 +382,13 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     }
 
     if (ret == 0) {
-        algName = OQS_ID2name(key->type);
-        if (algName == NULL) {
-            ret = BAD_FUNC_ARG;
-        }
-    }
-    if (ret == 0) {
         kem = OQS_KEM_new(algName);
         if (kem == NULL) {
             ret = BAD_FUNC_ARG;
         }
+    }
+    if (ret == 0) {
+        ret = wolfSSL_liboqsRngMutexLock(rng);
     }
     if (ret == 0) {
         if (OQS_KEM_keypair(kem, key->pub, key->priv) !=
@@ -343,16 +396,9 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
             ret = BAD_FUNC_ARG;
         }
     }
+    wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_keypair(key->pub, key->priv) != 0) {
-            WOLFSSL_MSG("PQM4 keygen failure");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     if (ret != 0) {
         ForceZero(key, sizeof(*key));
@@ -377,7 +423,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 {
     (void)rand;
     (void)len;
-    /* OQS and PQM4 don't support external randomness. */
+    /* OQS doesn't support external randomness. */
     return wc_KyberKey_MakeKey(key, NULL);
 }
 
@@ -397,6 +443,9 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
+#ifdef WOLF_CRYPTO_CB
+    word32 ctlen = 0;
+#endif
 #ifdef HAVE_LIBOQS
     const char * algName = NULL;
     OQS_KEM *kem = NULL;
@@ -408,6 +457,24 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     if ((key == NULL) || (ct == NULL) || (ss == NULL)) {
         ret = BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+        ret = wc_KyberKey_CipherTextSize(key, &ctlen);
+    }
+    if ((ret == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && (key->devId != INVALID_DEVID)
+    #endif
+    ) {
+        ret = wc_CryptoCb_PqcEncapsulate(ct, ctlen, ss, KYBER_SS_SZ, rng,
+                                         WC_PQC_KEM_TYPE_KYBER, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
 
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
@@ -423,21 +490,16 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
         }
     }
     if (ret == 0) {
+        ret = wolfSSL_liboqsRngMutexLock(rng);
+    }
+    if (ret == 0) {
         if (OQS_KEM_encaps(kem, ct, ss, key->pub) != OQS_SUCCESS) {
             ret = BAD_FUNC_ARG;
         }
     }
-
+    wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_enc(ct, ss, key->pub) != 0) {
-            WOLFSSL_MSG("PQM4 Encapsulation failure.");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -460,7 +522,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 {
     (void)rand;
     (void)len;
-    /* OQS and PQM4 don't support external randomness. */
+    /* OQS doesn't support external randomness. */
     return wc_KyberKey_Encapsulate(key, ct, ss, NULL);
 }
 
@@ -500,6 +562,21 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
         ret = BUFFER_E;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if ((ret == 0)
+    #ifndef WOLF_CRYPTO_CB_FIND
+        && (key->devId != INVALID_DEVID)
+    #endif
+    ) {
+        ret = wc_CryptoCb_PqcDecapsulate(ct, ctlen, ss, KYBER_SS_SZ,
+                                         WC_PQC_KEM_TYPE_KYBER, key);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+        ret = 0;
+    }
+#endif
+
 #ifdef HAVE_LIBOQS
     if (ret == 0) {
         algName = OQS_ID2name(key->type);
@@ -521,14 +598,6 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_dec(ss, ct, key->priv) != 0) {
-            WOLFSSL_MSG("PQM4 Decapsulation failure.");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 
@@ -552,7 +621,8 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 privLen = 0;
@@ -591,7 +661,8 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 pubLen = 0;
@@ -692,4 +763,4 @@ int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER && !WOLFSSL_WC_KYBER */

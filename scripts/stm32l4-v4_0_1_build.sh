@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 WOLF_ROOT=$(eval "pwd")
 echo "WOLF_ROOT set to: \"$WOLF_ROOT\""
 cd ../ || exit 5

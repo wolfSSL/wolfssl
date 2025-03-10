@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -481,7 +481,7 @@ extern "C" {
 
 /* Seed Source */
 /* Size of returned HW RNG value */
-#if 0   
+#if 0
     #define CUSTOM_RAND_TYPE      unsigned int
     extern unsigned int my_rng_seed_gen(void);
     #undef  CUSTOM_RAND_GENERATE
@@ -690,7 +690,7 @@ extern "C" {
         int argc;
         char** argv;
         int return_code;
-        struct fssShellInfo* info;  
+        struct fssShellInfo* info;
     } wolfArgs;
 
     #define printf FCL_PRINTF

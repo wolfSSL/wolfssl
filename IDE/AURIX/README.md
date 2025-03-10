@@ -9,7 +9,7 @@ Tested Platform:
 
 ## Running wolfCrypt on TriCore
 
-1) Add the wolfSSL source and headers to `Libraries/wolfssl`. 
+1) Add the wolfSSL source and headers to `Libraries/wolfssl`.
   - Only the following folders are required: `src`, `wolfcrypt` and `wolfssl`.
   - See script to help with producing bundle here: https://github.com/wolfSSL/wolfssl/blob/master/scripts/makedistsmall.sh
 2) Add `WOLFSSL_USER_SETTINGS` to the Preprocessing symbols list. C/C++ Build -> Settings -> TASKING C/C++ Compiler -> Preprocessing.

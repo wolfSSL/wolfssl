@@ -1,6 +1,6 @@
 /* eccsi.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,6 +41,14 @@
 #include <wolfssl/wolfcrypt/asn_public.h>
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp.h>
+#endif
+
+#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+    /* force off unneeded vector register save/restore. */
+    #undef SAVE_VECTOR_REGISTERS
+    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #undef RESTORE_VECTOR_REGISTERS
+    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
@@ -508,7 +516,7 @@ static int eccsi_encode_point(ecc_point* point, word32 size, byte* data,
 
     if (data == NULL) {
         *sz = size * 2 + !raw;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < size * 2 + !raw)) {
         err = BUFFER_E;
@@ -647,7 +655,7 @@ int wc_ExportEccsiKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)(key->ecc.dp->size * 3);
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size * 3) {
             err = BUFFER_E;
@@ -769,7 +777,7 @@ int wc_ExportEccsiPrivateKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -1008,7 +1016,7 @@ int wc_EncodeEccsiPair(const EccsiKey* key, mp_int* ssk, ecc_point* pvt,
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)(key->ecc.dp->size * 3);
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < (word32)(key->ecc.dp->size * 3))) {
         err = BUFFER_E;
@@ -1069,7 +1077,7 @@ int wc_EncodeEccsiSsk(const EccsiKey* key, mp_int* ssk, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -1439,7 +1447,7 @@ static int eccsi_mulmod_point_add(EccsiKey* key, const mp_int* n,
         ecc_point* point, ecc_point* a, ecc_point* res, mp_digit mp, int map)
 {
 #if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)
-    int err = NOT_COMPILED_IN;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
             (ecc_sets[key->ecc.idx].id == ECC_SECP256R1)) {
@@ -1992,7 +2000,7 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         sz = (word32)key->ecc.dp->size;
         if (sig == NULL) {
             *sigSz = sz * 4 + 1;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
     if ((err == 0) && (*sigSz < sz * 4 + 1)) {

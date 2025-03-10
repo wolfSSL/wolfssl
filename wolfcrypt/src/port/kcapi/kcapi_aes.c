@@ -1,6 +1,6 @@
 /* kcapi_aes.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,8 +39,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$g")
-        #pragma const_seg(".fipsB$g")
+        #pragma code_seg(".fipsA$ba")
+        #pragma const_seg(".fipsB$ba")
     #endif
 #endif
 
@@ -123,7 +123,7 @@
         struct iovec iov;
 
         if (aes == NULL || out == NULL || in == NULL || \
-                                                     sz % AES_BLOCK_SIZE != 0) {
+                                                     sz % WC_AES_BLOCK_SIZE != 0) {
             ret = BAD_FUNC_ARG;
         }
 
@@ -243,7 +243,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -356,7 +356,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 

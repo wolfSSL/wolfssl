@@ -1,6 +1,6 @@
 /* pwdbased.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,6 +28,16 @@
 
 #ifndef NO_PWDBASED
 
+#if FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$h")
+               #pragma const_seg(".fipsB$h")
+       #endif
+#endif
+
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -41,6 +51,17 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    #ifdef DEBUG_WOLFSSL
+        #include <wolfssl/wolfcrypt/logging.h>
+    #endif
+    const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000010 };
+    int wolfCrypt_FIPS_PBKDF_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 #ifdef HAVE_PBKDF1
 
@@ -165,6 +186,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType)
 {
+
     return wc_PBKDF1_ex(output, kLen, NULL, 0,
         passwd, pLen, salt, sLen, iterations, hashType, NULL);
 }
@@ -191,6 +213,24 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
         return BAD_FUNC_ARG;
     }
 
+#if FIPS_VERSION3_GE(6,0,0)
+    /* Per SP800-132 section 5 "The kLen value shall be at least 112 bits in
+     * length", ensure the returned bits for the derived master key are at a
+     * minimum 14-bytes or 112-bits after stretching and strengthening
+     * (iterations) */
+    if (kLen < HMAC_FIPS_MIN_KEY)
+        return BAD_LENGTH_E;
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0) && defined(DEBUG_WOLFSSL)
+    /* SP800-132 section 5.2 recommends an iteration count of 1000 but this is
+     * not strictly enforceable and is listed in Appendix B Table 1 as a
+     * non-testable requirement. wolfCrypt will log it when appropriate but
+     * take no action */
+    if (iterations < 1000) {
+        WOLFSSL_MSG("WARNING: Iteration < 1,000, see SP800-132 section 5.2");
+    }
+#endif
     if (iterations <= 0)
         iterations = 1;
 
@@ -214,7 +254,17 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     if (ret == 0) {
         word32 i = 1;
         /* use int hashType here, since HMAC FIPS uses the old unique value */
+    #if FIPS_VERSION3_GE(6,0,0)
+        {
+            /* Allow passwords that are less than 14-bytes for compatibility
+             * / interoperability, only since module v6.0.0 */
+            int allowShortPasswd = 1;
+            ret = wc_HmacSetKey_ex(hmac, hashType, passwd, (word32)pLen,
+                                   allowShortPasswd);
+        }
+    #else
         ret = wc_HmacSetKey(hmac, hashType, passwd, (word32)pLen);
+    #endif
 
         while (ret == 0 && kLen) {
             int currentLen;
@@ -538,16 +588,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #ifdef WOLFSSL_SMALL_STACK
   out:
 
-    if (Ai != NULL)
-        XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B != NULL)
-        XFREE(B,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B1 != NULL)
-        XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (i1 != NULL)
-        XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (res != NULL)
-        XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     if (dynamic)
@@ -781,7 +826,7 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
         goto end;
     }
     /* Temporary for scryptROMix. */
-    v = (byte*)XMALLOC((size_t)((1 << cost) * bSz), NULL,
+    v = (byte*)XMALLOC((size_t)((1U << cost) * bSz), NULL,
                        DYNAMIC_TYPE_TMP_BUFFER);
     if (v == NULL) {
         ret = MEMORY_E;
@@ -795,6 +840,8 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
         goto end;
     }
 
+    XMEMSET(y, 0, (size_t)(blockSize * 128));
+
     /* Step 1. */
     ret = wc_PBKDF2(blocks, passwd, passLen, salt, saltLen, 1, (int)blocksSz,
                     WC_SHA256);
@@ -803,18 +850,15 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 
     /* Step 2. */
     for (i = 0; i < parallel; i++)
-        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize, 1 << cost);
+        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize, 1U << cost);
 
     /* Step 3. */
     ret = wc_PBKDF2(output, passwd, passLen, blocks, (int)blocksSz, 1, dkLen,
                     WC_SHA256);
 end:
-    if (blocks != NULL)
-        XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (v != NULL)
-        XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (y != NULL)
-        XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

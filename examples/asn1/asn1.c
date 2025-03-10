@@ -1,6 +1,6 @@
 /* asn1.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -66,12 +66,17 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
     word32 len = 0;
     size_t read_len;
     /* Allocate a minimum amount. */
-    unsigned char* data = (unsigned char*)malloc(DATA_INC_LEN);
+    unsigned char* data = (unsigned char*)XMALLOC(DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (data != NULL) {
         /* Read more data. */
         while ((read_len = fread(data + len, 1, DATA_INC_LEN, fp)) != 0) {
             unsigned char* p;
+
+            if (ferror(fp)) {
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return IO_FAILED_E;
+            }
 
             /* Add read data amount to length. */
             len += (word32)read_len;
@@ -82,10 +87,10 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)realloc(data, len + DATA_INC_LEN);
+            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
-                free(data);
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 data = NULL;
                 break;
             }
@@ -127,12 +132,13 @@ static int PrintDer(FILE* fp)
         /* Print DER/BER. */
         ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
 }
 
+#ifndef NO_CODING
 /* Print ASN.1 of a file containing Base64 encoding of BER/DER data.
  *
  * @param [in] fp  File pointer to read from.
@@ -162,7 +168,7 @@ static int PrintBase64(FILE* fp)
             ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         }
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
@@ -180,8 +186,8 @@ static int FindPem(unsigned char* data, word32 offset, word32 len,
     word32* start, word32* end)
 {
     int ret = 0;
-    word32 i;
-    word32 j;
+    word32 i = 0;
+    word32 j = 0;
 
     /* Find header. */
     for (i = offset; i < len; i++) {
@@ -274,11 +280,12 @@ static int PrintPem(FILE* fp, int pem_skip)
             ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         }
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
 }
+#endif
 
 /* Usage lines to show. */
 const char* usage[] = {
@@ -288,7 +295,9 @@ const char* usage[] = {
     "Options:",
     "  -?, --help           display this help and exit",
     "  -b, --branch         draw branches before tag name",
+#ifndef NO_CODING
     "  -B, --base64         file contents are Base64 encoded",
+#endif
     "  -d, --dump           show all ASN.1 item data as a hex dump",
     "  -h, --headers        show all ASN.1 item headers as a hex dump",
     "  -i, --indent         indent tag name with depth",
@@ -297,7 +306,9 @@ const char* usage[] = {
     "  -N, --no-dump-text   do not show data as a hex dump text",
     "  -o, --offset OFFSET  start decoding from offset",
     "  -O, --oid            show wolfSSL OID value in text",
+#ifndef NO_CODING
     "  -p, --pem            file contents are PEM",
+#endif
     "  -s, --skip-pem NUM   number of PEM blocks to skip",
 };
 /* Number of usage lines. */
@@ -342,11 +353,13 @@ int main(int argc, char* argv[])
             (strcmp(argv[0], "--branch") == 0)) {
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_DRAW_BRANCH, 1);
         }
+#ifndef NO_CODING
         /* File is Base64 encoded data. */
         else if ((strcmp(argv[0], "-b64") == 0) ||
                  (strcmp(argv[0], "--base64") == 0)) {
             file_format = FORMAT_BASE64;
         }
+#endif
         /* Dump all ASN.1 item data. */
         else if ((strcmp(argv[0], "-d") == 0) ||
                  (strcmp(argv[0], "--dump") == 0)) {
@@ -403,11 +416,13 @@ int main(int argc, char* argv[])
                  (strcmp(argv[0], "--oid") == 0)) {
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_SHOW_OID, 1);
         }
+#ifndef NO_CODING
         /* File contains PEM blocks. */
         else if ((strcmp(argv[0], "-p") == 0) ||
                  (strcmp(argv[0], "--pem") == 0)) {
             file_format = FORMAT_PEM;
         }
+#endif
         /* Skip a number of PEM blocks. */
         else if ((strcmp(argv[0], "-s") == 0) ||
                  (strcmp(argv[0], "--skip-pem") == 0)) {
@@ -436,6 +451,10 @@ int main(int argc, char* argv[])
             return 1;
         }
         else {
+            if (fp != stdin) {
+                fprintf(stderr, "At most one input file can be supplied.\n");
+                return 1;
+            }
             /* Name of file to read. */
             fp = fopen(argv[0], "r");
             if (fp == NULL) {
@@ -458,12 +477,16 @@ int main(int argc, char* argv[])
     if (file_format == FORMAT_DER) {
         ret = PrintDer(fp);
     }
+#ifndef NO_CODING
     else if (file_format == FORMAT_BASE64) {
         ret = PrintBase64(fp);
     }
+#endif
+#ifndef NO_CODING
     else if (file_format == FORMAT_PEM) {
         ret = PrintPem(fp, pem_skip);
     }
+#endif
 
     if (ret != 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));

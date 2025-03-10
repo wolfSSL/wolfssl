@@ -1,5 +1,5 @@
 /*!
-    \ingroup Logging 
+    \ingroup Logging
     \brief  この関数は、WolfSSLログメッセージを処理するために使用されるロギングコールバックを登録します。デフォルトでは、システムがIT fprintf（）をSTDERRにサポートしている場合は、この関数を使用することによって、ユーザーによって何でも実行できます。
     \return Success  成功した場合、この関数は0を返します。
     \return BAD_FUNC_ARG  関数ポインタが提供されていない場合に返されるエラーです。
@@ -24,7 +24,7 @@
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  ビルド時にロギングが有効になっている場合、この関数は実行時にロギングをオンにします。ビルド時にログ記録を有効にするには--enable-debugまたはdebug_wolfsslを定義します。
     \return 0  成功すると。
     \return NOT_COMPILED_IN  このビルドに対してロギングが有効になっていない場合は返されるエラーです。
@@ -38,7 +38,7 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
 int  wolfSSL_Debugging_ON(void);
 
 /*!
-    \ingroup Debug 
+    \ingroup Debug
     \brief  この関数はランタイムロギングメッセージをオフにします。彼らがすでに消えている場合は、行動はとられません。
     \return none  いいえ返します。
     _Example_

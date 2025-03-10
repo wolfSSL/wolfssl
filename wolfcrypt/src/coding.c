@@ -1,6 +1,6 @@
 /* coding.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -62,16 +62,25 @@ enum {
 #ifdef BASE64_NO_TABLE
 static WC_INLINE byte Base64_Char2Val(byte c)
 {
-    word16 v = 0x0000;
+    word16 v;
+    sword16 smallEnd   = (sword16)c - 0x7b;
+    sword16 smallStart = (sword16)c - 0x61;
+    sword16 bigEnd     = (sword16)c - 0x5b;
+    sword16 bigStart   = (sword16)c - 0x41;
+    sword16 numEnd     = (sword16)c - 0x3a;
+    sword16 numStart   = (sword16)c - 0x30;
+    sword16 slashEnd   = (sword16)c - 0x30;
+    sword16 slashStart = (sword16)c - 0x2f;
+    sword16 plusEnd    = (sword16)c - 0x2c;
+    sword16 plusStart  = (sword16)c - 0x2b;
 
-    v |= 0xff3E & ctMask16Eq(c, 0x2b);
-    v |= 0xff3F & ctMask16Eq(c, 0x2f);
-    v |= (c + 0xff04) & ctMask16GTE(c, 0x30) & ctMask16LTE(c, 0x39);
-    v |= (0xff00 + c - 0x41) & ctMask16GTE(c, 0x41) & ctMask16LTE(c, 0x5a);
-    v |= (0xff00 + c - 0x47) & ctMask16GTE(c, 0x61) & ctMask16LTE(c, 0x7a);
-    v |= ~(v >> 8);
+    v  = ((smallStart >> 8) ^ (smallEnd >> 8)) & (smallStart + 26 + 1);
+    v |= ((bigStart   >> 8) ^ (bigEnd   >> 8)) & (bigStart   +  0 + 1);
+    v |= ((numStart   >> 8) ^ (numEnd   >> 8)) & (numStart   + 52 + 1);
+    v |= ((slashStart >> 8) ^ (slashEnd >> 8)) & (slashStart + 63 + 1);
+    v |= ((plusStart  >> 8) ^ (plusEnd  >> 8)) & (plusStart  + 62 + 1);
 
-    return (byte)v;
+    return (byte)(v - 1);
 }
 #else
 static
@@ -99,7 +108,7 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     byte v;
     byte mask;
 
-    c -= BASE64_MIN;
+    c = (byte)(c - BASE64_MIN);
     mask = (byte)((((byte)(0x3f - c)) >> 7) - 1);
     /* Load a value from the first cache line and use when mask set. */
     v  = (byte)(base64Decode[ c & 0x3f        ] &   mask);
@@ -181,7 +190,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte e1, e2, e3, e4;
 
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (ret == BUFFER_E) {
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
                 /* Running out of buffer here is not an error */
                 break;
             }
@@ -297,8 +306,10 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 maxSz,
 
     if (raw)
         basic = e;
-    else
+    else if (e < sizeof(base64Encode))
         basic = base64Encode[e];
+    else
+        return BAD_FUNC_ARG;
 
     /* check whether to escape. Only escape for EncodeEsc */
     if (escaped == WC_ESC_NL_ENC) {
@@ -458,7 +469,7 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     *outLen = i;
 
     if (ret == 0)
-        return getSzOnly ? LENGTH_ONLY_E : 0;
+        return getSzOnly ? WC_NO_ERR_TRACE(LENGTH_ONLY_E) : 0;
 
     return ret;
 }
@@ -488,7 +499,7 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
 #ifdef WOLFSSL_BASE16
 
 static
-const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+const ALIGN64 byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                            BAD, BAD, BAD, BAD, BAD, BAD, BAD,
                            10, 11, 12, 13, 14, 15,  /* upper case A-F */
                            BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
@@ -507,7 +518,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     if (inLen == 1 && *outLen && in) {
-        byte b = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
+        byte b = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
 
         /* sanity check */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -531,8 +542,8 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     while (inLen) {
-        byte b  = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
-        byte b2 = in[inIdx++] - BASE16_MIN;
+        byte b  = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
+        byte b2 = (byte)(in[inIdx++] - BASE16_MIN);
 
         /* sanity checks */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -554,6 +565,11 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
+static
+const ALIGN64 byte hexEncode[] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                   '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+};
+
 int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 outIdx = 0;
@@ -569,15 +585,8 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte hb = in[i] >> 4;
         byte lb = in[i] & 0x0f;
 
-        /* ASCII value */
-        hb += '0';
-        if (hb > '9')
-            hb += 7;
-
-        /* ASCII value */
-        lb += '0';
-        if (lb>'9')
-            lb += 7;
+        hb = hexEncode[hb];
+        lb = hexEncode[lb];
 
         out[outIdx++] = hb;
         out[outIdx++] = lb;

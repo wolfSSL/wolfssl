@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 keyList=(
             chainA-ICA1-key.pem chainA-entity-key.pem

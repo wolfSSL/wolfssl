@@ -1,6 +1,6 @@
 /* kcapi_hash.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,10 +51,8 @@ void KcapiHashFree(wolfssl_KCAPI_Hash* hash)
         }
 
     #if defined(WOLFSSL_KCAPI_HASH_KEEP)
-        if (hash->msg != NULL) {
-            XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            hash->msg = NULL;
-        }
+        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        hash->msg = NULL;
     #endif
     }
 }

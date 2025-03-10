@@ -1,0 +1,92 @@
+name: pam-ipmi Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          # Don't run tests as this config is tested in many other places
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-pam-ipmi
+          path: build-dir.tgz
+          retention-days: 5
+
+  build_pam-ipmi:
+    strategy:
+      fail-fast: false
+      matrix:
+        git_ref: [ e4b13e6725abb178f62ee897fe1c0e81b06a9431 ]
+    name: ${{ matrix.git_ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install libpam-dev ninja-build meson
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-pam-ipmi
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout pam-ipmi
+        uses: actions/checkout@v4
+        with:
+          repository: openbmc/pam-ipmi
+          path: pam-ipmi
+          ref: ${{ matrix.git_ref }}
+
+      - name: Build pam-ipmi
+        working-directory: pam-ipmi
+        run: |
+          patch -p1 < ../osp/pam-ipmi/*-${{ matrix.git_ref }}.patch
+          PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig meson setup build
+          ninja -C build
+
+      - name: Confirm built with wolfSSL
+        working-directory: pam-ipmi
+        run: |
+          ldd ./build/src/pam_ipmisave/pam_ipmisave.so | grep wolfssl

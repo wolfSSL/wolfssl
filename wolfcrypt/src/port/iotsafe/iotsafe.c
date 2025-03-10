@@ -1,6 +1,6 @@
 /* iotsafe.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -612,7 +612,7 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
 /* Execute GEN_KEYPAIR on the IoT-SAFE applet.
  *
  * Return -1 on error; 0 if the operation is successful, but
- * the generated public key was not yet stored in `key`; 1 if 
+ * the generated public key was not yet stored in `key`; 1 if
  * the operation is successful and the public key was found in the
  * command response and copied to the `key` structure, if not NULL.
  */
@@ -620,7 +620,7 @@ static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
                                ecc_key *key)
 {
     char *resp;
-    int ret = WC_HW_E;
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_GEN_KEYPAIR, 0, 0);
     iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PRIVKEY_ID, id_size, wr_slot);
     iotsafe_cmd_complete(csim_cmd);
@@ -749,43 +749,37 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
     int ret;
     char *resp;
     uint16_t hash_algo = 0;
-    int len;
+    int hash_len;
     uint16_t hash_algo_be = 0;
 
     WOLFSSL_MSG("Enter iotsafe_hkdf_extract");
-     switch (digest) {
-        #ifndef NO_SHA256
+    switch (digest) {
+#ifndef NO_SHA256
         case WC_SHA256:
-        hash_algo = (uint16_t)1;
-        if (ikmLen == 0) {
-            len = WC_SHA256_DIGEST_SIZE;
-        }
+            hash_algo = (uint16_t)1;
+            hash_len = WC_SHA256_DIGEST_SIZE;
             break;
-        #endif
-        #ifdef WOLFSSL_SHA384
+#endif
+#ifdef WOLFSSL_SHA384
         case WC_SHA384:
-        hash_algo = (uint16_t)2;
-        if (ikmLen == 0) {
-            len = WC_SHA384_DIGEST_SIZE;
-        }
+            hash_algo = (uint16_t)2;
+            hash_len = WC_SHA384_DIGEST_SIZE;
             break;
-        #endif
-        #ifdef WOLFSSL_TLS13_SHA512
+#endif
+#ifdef WOLFSSL_SHA512
         case WC_SHA512:
-        hash_algo = (uint16_t)4;
-        if (ikmLen == 0) {
-            len = WC_SHA512_DIGEST_SIZE;
-        }
+            hash_algo = (uint16_t)4;
+            hash_len = WC_SHA512_DIGEST_SIZE;
             break;
-        #endif
+#endif
         default:
             return BAD_FUNC_ARG;
             break;
-     }
+    }
 
     if (ikmLen == 0) {
-        ikmLen = len;
-        XMEMSET(ikm, 0, len);
+        ikmLen = hash_len;
+        XMEMSET(ikm, 0, hash_len);
     }
 
 #ifdef DEBUG_IOTSAFE
@@ -812,14 +806,12 @@ static int iotsafe_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
         WOLFSSL_MSG("Unexpected reply from HKDF extract");
         ret = WC_HW_E;
     } else {
-
-         ret = hexbuffer_conv(resp, prk, 32);
+        ret = hexbuffer_conv(resp, prk, hash_len);
         if (ret < 0)
             ret = WC_HW_E;
         else
             ret = 0;
     }
-
     return ret;
 }
 #endif
@@ -830,7 +822,7 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
 {
     byte mode_of_operation = IOTSAFE_MOO_SIGN_ONLY;
     uint16_t hash_algo_be = XHTONS(hash_algo);
-    int ret = WC_HW_E;
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
     char *resp;
     char R[2 * IOTSAFE_ECC_KSIZE + 1];
     char S[2 * IOTSAFE_ECC_KSIZE + 1];
@@ -1097,11 +1089,11 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
                 localSalt = tmp;
             }
     }
-    
-    ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);    
+
+    ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);
     (void)ctx;
     return ret;
-}       
+}
 #endif
 
 static int wolfIoT_ecc_sign(WOLFSSL* ssl,
@@ -1581,7 +1573,7 @@ int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx)
     WOLFSSL_MSG("ECC callbacks set to IoT_safe interface");
     #endif
     #ifndef NO_RSA
-    /* wolfSSL_CTX_SetRsaSignCb(wolfIoT_rsa_sign);  // TODO: RSA callbacks */
+    /* wolfSSL_CTX_SetRsaSignCb(wolfIoT_rsa_sign); */ /* TODO: RSA callbacks */
     #endif
 #else
     (void)ctx;

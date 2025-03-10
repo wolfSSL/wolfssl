@@ -1,6 +1,6 @@
 /* quickassist_sync.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -144,9 +144,9 @@ typedef void (*IntelQaFreeFunc)(struct IntelQaDev*);
 
 /* QuickAssist device */
 typedef struct IntelQaDev {
-	CpaInstanceHandle handle;
+        CpaInstanceHandle handle;
     int devId;
-	void* heap;
+        void* heap;
 
     /* callback return info */
     int ret;
@@ -220,7 +220,7 @@ static int IntelQaGetCyInstanceCount(void);
 
 #ifdef WOLF_CRYPTO_CB
     static int IntelQaSymSync_CryptoDevCb(int, struct wc_CryptoInfo*,
-			void*);
+                        void*);
 #endif /* WOLF_CRYPTO_CB */
 
 
@@ -359,21 +359,15 @@ void IntelQaHardwareStop(void)
                 status);
     }
 
-    if (g_cyInstMap) {
-        XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstMap = NULL;
-    }
+    XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstMap = NULL;
 
-    if (g_cyInstanceInfo) {
-        XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstanceInfo = NULL;
-    }
+    XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstanceInfo = NULL;
 
 #ifdef QAT_USE_POLLING_CHECK
-    if (g_cyPolling) {
-        XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyPolling = NULL;
-    }
+    XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyPolling = NULL;
     if (g_PollLock) {
         for (i=0; i<g_numInstances; i++) {
             pthread_mutex_destroy(&g_PollLock[i]);
@@ -423,7 +417,7 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
 
 #ifdef QAT_DEBUG
     /* optionally enable debugging */
-    //osalLogLevelSet(8);
+    /* osalLogLevelSet(8); */
 #endif
 
     status = cpaCyGetNumInstances(&g_numInstances);
@@ -674,7 +668,7 @@ int IntelQaPoll(IntelQaDev* dev)
     }
 
     {
-        if (dev->ret != WC_PENDING_E) {
+        if (dev->ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
             /* perform cleanup */
             IntelQaFreeFunc freeFunc = dev->freeFunc;
             QLOG("IntelQaOpFree: Dev %p, FreeFunc %p\n", dev, freeFunc);
@@ -881,31 +875,20 @@ static void IntelQaSymCipherFree(IntelQaDev* dev)
     CpaBufferList* pDstBuffer = &dev->op.cipher.bufferList;
 
     if (opData) {
-        if (opData->pAdditionalAuthData) {
-            XFREE(opData->pAdditionalAuthData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pAdditionalAuthData = NULL;
-        }
-        if (opData->pIv) {
-            XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pIv = NULL;
-        }
+        XFREE(opData->pAdditionalAuthData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pAdditionalAuthData = NULL;
+        XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pIv = NULL;
         XMEMSET(opData, 0, sizeof(CpaCySymOpData));
     }
     if (pDstBuffer) {
         if (pDstBuffer->pBuffers) {
-            if (pDstBuffer->pBuffers->pData) {
-                XFREE(pDstBuffer->pBuffers->pData, dev->heap,
-                        DYNAMIC_TYPE_ASYNC_NUMA);
-                pDstBuffer->pBuffers->pData = NULL;
-            }
+            XFREE(pDstBuffer->pBuffers->pData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+            pDstBuffer->pBuffers->pData = NULL;
             XMEMSET(pDstBuffer->pBuffers, 0, sizeof(CpaFlatBuffer));
         }
-        if (pDstBuffer->pPrivateMetaData) {
-            XFREE(pDstBuffer->pPrivateMetaData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            pDstBuffer->pPrivateMetaData = NULL;
-        }
+        XFREE(pDstBuffer->pPrivateMetaData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        pDstBuffer->pPrivateMetaData = NULL;
         XMEMSET(pDstBuffer, 0, sizeof(CpaBufferList));
     }
 
@@ -987,7 +970,7 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     metaBuf = XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     dataBuf = XMALLOC(dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(dataBuf, in, inOutSz);
-    ivBuf = XMALLOC(AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    ivBuf = XMALLOC(WC_AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(ivBuf, iv, ivSz);
     authTagBuf = XMALLOC(authTagSz, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
@@ -1000,9 +983,9 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     /* AAD */
     if (authIn && authInSz > 0) {
         /* make sure AAD is block aligned */
-        if (authInSzAligned % AES_BLOCK_SIZE) {
-            authInSzAligned += AES_BLOCK_SIZE -
-                (authInSzAligned % AES_BLOCK_SIZE);
+        if (authInSzAligned % WC_AES_BLOCK_SIZE) {
+            authInSzAligned += WC_AES_BLOCK_SIZE -
+                (authInSzAligned % WC_AES_BLOCK_SIZE);
         }
 
         authInBuf = XMALLOC(authInSzAligned, dev->heap,
@@ -1142,7 +1125,7 @@ int IntelQaSymAesCbcEncrypt(IntelQaDev* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY((byte*)iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     return ret;
 }
 
@@ -1152,17 +1135,17 @@ int IntelQaSymAesCbcDecrypt(IntelQaDev* dev,
             const byte* key, word32 keySz,
             const byte* iv, word32 ivSz)
 {
-    byte nextIv[AES_BLOCK_SIZE];
+    byte nextIv[WC_AES_BLOCK_SIZE];
     int ret;
 
-    XMEMCPY(nextIv, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY(nextIv, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, nextIv, AES_BLOCK_SIZE);
+    XMEMCPY((byte*)iv, nextIv, WC_AES_BLOCK_SIZE);
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -1258,7 +1241,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.in,
                         info->cipher.aescbc.sz,
                         (byte*)aes->devKey, aes->keylen,
-                        (byte*)aes->reg, AES_BLOCK_SIZE);
+                        (byte*)aes->reg, WC_AES_BLOCK_SIZE);
             }
             else {
                 rc = IntelQaSymAesCbcDecrypt(dev,
@@ -1266,7 +1249,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.in,
                         info->cipher.aescbc.sz,
                         (byte*)aes->devKey, aes->keylen,
-                        (byte*)aes->reg, AES_BLOCK_SIZE);
+                        (byte*)aes->reg, WC_AES_BLOCK_SIZE);
             }
         }
         #endif /* !NO_AES */

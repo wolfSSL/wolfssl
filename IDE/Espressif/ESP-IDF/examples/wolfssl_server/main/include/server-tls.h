@@ -1,6 +1,6 @@
 /* server-tls.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,7 +53,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args);
 
 /* init will create an RTOS task, otherwise server is simply function call. */
 #if defined(SINGLE_THREADED)
-    /* no init neded */
+    /* no init needed */
 #else
     WOLFSSL_ESP_TASK tls_smp_server_init(void* args);
 #endif

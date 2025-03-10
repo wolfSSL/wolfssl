@@ -1,14 +1,14 @@
 /*!
     \ingroup CryptoCb
 
-    \brief This function registers a unique device identifier (devID) and 
-    callback function for offloading crypto operations to external 
+    \brief This function registers a unique device identifier (devID) and
+    callback function for offloading crypto operations to external
     hardware such as Key Store, Secure Element, HSM, PKCS11 or TPM.
 
     For STSAFE with Crypto Callbacks example see
     wolfcrypt/src/port/st/stsafe.c and the wolfSSL_STSAFE_CryptoDevCb function.
 
-    For TPM based crypto callbacks example see the wolfTPM2_CryptoDevCb 
+    For TPM based crypto callbacks example see the wolfTPM2_CryptoDevCb
     function in wolfTPM src/tpm2_wrap.c
 
     \return CRYPTOCB_UNAVAILABLE to fallback to using software crypto
@@ -90,7 +90,7 @@ int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 /*!
     \ingroup CryptoCb
 
-    \brief This function un-registers a unique device identifier (devID) 
+    \brief This function un-registers a unique device identifier (devID)
     callback function.
 
     \return none No returns.

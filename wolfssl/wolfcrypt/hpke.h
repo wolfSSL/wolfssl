@@ -1,6 +1,6 @@
 /* hpke.h
  *
- * Copyright (C) 2006-2022 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,7 @@ enum {
     DHKEM_P384_HKDF_SHA384 = 0x0011,
     DHKEM_P521_HKDF_SHA512 = 0x0012,
     DHKEM_X25519_HKDF_SHA256 = 0x0020,
-    DHKEM_X448_HKDF_SHA512 = 0x0021,
+    DHKEM_X448_HKDF_SHA512 = 0x0021
 };
 
 #define DHKEM_P256_ENC_LEN 65
@@ -55,13 +55,13 @@ enum {
 enum {
     HKDF_SHA256 = 0x0001,
     HKDF_SHA384 = 0x0002,
-    HKDF_SHA512 = 0x0003,
+    HKDF_SHA512 = 0x0003
 };
 
 /* AEAD enum */
 enum {
     HPKE_AES_128_GCM = 0x0001,
-    HPKE_AES_256_GCM = 0x0002,
+    HPKE_AES_256_GCM = 0x0002
 };
 
 /* TODO better way of doing this */

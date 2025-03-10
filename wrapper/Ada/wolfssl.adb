@@ -19,7 +19,12 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
+pragma Warnings (Off, "* is an internal GNAT unit");
+with GNAT.Sockets.Thin_Common;
+pragma Warnings (On, "* is an internal GNAT unit");
+with Interfaces.C.Extensions;
 with Interfaces.C.Strings;
+with System;
 
 package body WolfSSL is
 
@@ -97,6 +102,46 @@ package body WolfSSL is
       return WolfTLSv1_3_Client_Method;
    end TLSv1_3_Client_Method;
 
+   function WolfDTLSv1_2_Server_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_2_server_method",
+     Import        => True;
+
+   function DTLSv1_2_Server_Method return Method_Type is
+   begin
+      return WolfDTLSv1_2_Server_Method;
+   end DTLSv1_2_Server_Method;
+
+   function WolfDTLSv1_2_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_2_client_method",
+     Import        => True;
+
+   function DTLSv1_2_Client_Method return Method_Type is
+   begin
+      return WolfDTLSv1_2_Client_Method;
+   end DTLSv1_2_Client_Method;
+
+   function WolfDTLSv1_3_Server_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_3_server_method",
+     Import        => True;
+
+   function DTLSv1_3_Server_Method return Method_Type is
+   begin
+      return WolfDTLSv1_3_Server_Method;
+   end DTLSv1_3_Server_Method;
+
+   function WolfDTLSv1_3_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_3_client_method",
+     Import        => True;
+
+   function DTLSv1_3_Client_Method return Method_Type is
+   begin
+      return WolfDTLSv1_3_Client_Method;
+   end DTLSv1_3_Client_Method;
+
    function WolfSSL_CTX_new (Method : Method_Type)
                              return Context_Type with
      Convention => C, External_Name => "wolfSSL_CTX_new", Import => True;
@@ -159,12 +204,12 @@ package body WolfSSL is
    --  PSK connection. If a PSK connection is being made then the
    --  connection will go through without a peer cert.
 
-   function "&" (Left, Right : Mode_Type) return Mode_Type is
+   function "or" (Left, Right : Mode_Type) return Mode_Type is
       L : constant Unsigned_32 := Unsigned_32 (Left);
       R : constant Unsigned_32 := Unsigned_32 (Right);
    begin
-      return Mode_Type (L and R);
-   end "&";
+      return Mode_Type (L or R);
+   end "or";
 
    procedure Set_Verify (Context : Context_Type;
                          Mode    : Mode_Type) is
@@ -173,6 +218,16 @@ package body WolfSSL is
                               Mode     => int (Mode),
                               Callback => null);
    end Set_Verify;
+
+   function WolfSSL_Get_Verify(Context : Context_Type) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_get_verify_mode",
+     Import        => True;
+
+   function Get_Verify (Context : Context_Type) return Mode_Type is
+   begin
+      return Mode_Type (WolfSSL_Get_Verify(Context));
+   end Get_Verify;
 
    function Use_Certificate_File (Context : Context_Type;
                                   File    : char_array;
@@ -486,6 +541,86 @@ package body WolfSSL is
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
    end Use_Private_Key_Buffer;
+
+   function WolfSSL_DTLS_Set_Peer
+     (ssl    : WolfSSL_Type;
+      peer   : GNAT.Sockets.Thin_Common.Sockaddr_Access;
+      peerSz : Interfaces.C.unsigned)
+      return int with
+     Convention    => C,
+     External_Name => "wolfSSL_dtls_set_peer",
+     Import        => True;
+
+   function DTLS_Set_Peer
+     (Ssl     : WolfSSL_Type;
+      Address : GNAT.Sockets.Sock_Addr_Type)
+      return Subprogram_Result is
+
+      Sin    : aliased GNAT.Sockets.Thin_Common.Sockaddr;
+      Length : Interfaces.C.int;
+
+   begin
+
+      GNAT.Sockets.Thin_Common.Set_Address
+        (Sin     => Sin'Unchecked_Access,
+         Address => Address,
+         Length  => Length);
+
+      pragma Assert (Length >= 0);
+
+      return
+        Subprogram_Result
+          (WolfSSL_DTLS_Set_Peer
+             (ssl    => Ssl,
+              peer   => Sin'Unchecked_Access,
+              peerSz => Interfaces.C.unsigned (Length)));
+
+   end DTLS_Set_Peer;
+
+   procedure WolfSSL_Set_Psk_Client_Callback
+     (Ssl : WolfSSL_Type;
+      Cb  : PSK_Client_Callback)
+   with
+     Convention    => C,
+     External_Name => "wolfSSL_set_psk_client_callback",
+     Import        => True;
+
+   procedure Set_PSK_Client_Callback
+     (Ssl      : WolfSSL_Type;
+      Callback : PSK_Client_Callback) is
+   begin
+      WolfSSL_Set_Psk_Client_Callback (Ssl, Callback);
+   end Set_PSK_Client_Callback;
+
+   procedure WolfSSL_Set_Psk_Server_Callback
+     (Ssl : WolfSSL_Type;
+      Cb  : PSK_Server_Callback)
+   with
+     Convention    => C,
+     External_Name => "wolfSSL_set_psk_server_callback",
+     Import        => True;
+
+   procedure Set_PSK_Server_Callback
+       (Ssl      : WolfSSL_Type;
+        Callback : PSK_Server_Callback) is
+   begin
+      WolfSSL_Set_Psk_Server_Callback (Ssl, Callback);
+   end Set_PSK_Server_Callback;
+
+   procedure WolfSSL_CTX_Set_Psk_Server_Callback
+     (Ctx : Context_Type;
+      Cb  : PSK_Server_Callback)
+   with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_set_psk_server_callback",
+     Import        => True;
+
+   procedure Set_Context_PSK_Server_Callback
+       (Context  : Context_Type;
+        Callback : PSK_Server_Callback) is
+   begin
+      WolfSSL_CTX_Set_Psk_Server_Callback (Context, Callback);
+   end Set_Context_PSK_Server_Callback;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
      Convention    => C,

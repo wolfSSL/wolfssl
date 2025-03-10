@@ -1,6 +1,6 @@
 /* armv8-32-aes-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./aes/aes.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
+ *   ruby ./aes/aes.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
  */
 
 #ifdef HAVE_CONFIG_H
@@ -30,7 +31,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
 #ifdef HAVE_AES_DECRYPT
@@ -807,8 +808,7 @@ AES_set_encrypt_key:
 	cmp	r1, #0xc0
 	beq	L_AES_set_encrypt_key_start_192
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1037,8 +1037,7 @@ L_AES_set_encrypt_key_loop_256:
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_192:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1202,8 +1201,7 @@ L_AES_set_encrypt_key_loop_192:
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_128:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -3951,8 +3949,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4140,8 +4137,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4329,8 +4325,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4437,8 +4432,7 @@ L_AES_CBC_decrypt_end_odd:
 	ldrd	r10, r11, [r4, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r8, [r4]
-	str	r9, [r4, #4]
+	stm	r4, {r8, r9}
 #else
 	strd	r8, r9, [r4]
 #endif
@@ -5304,7 +5298,7 @@ L_AES_GCM_encrypt_end:
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

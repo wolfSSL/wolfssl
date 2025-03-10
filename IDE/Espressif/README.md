@@ -28,18 +28,16 @@ resource.
 ## Requirements
 
 The wolfSSL Espressif code requires the ESP-IDF to be installed for
-[Windows](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/windows-setup.html)
-or [Linux / MacOS](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html).
+Windows or Linux / MacOS.
 
-See the [Espressif Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/).
+See the Espressif Getting Started Guide.
 
-Any editor can be used. See also the [Espressif Third-Party Tools](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/resources.html)
-for a list of feature-rich Integrated Development Environments.
+Any editor can be used.
 The [wolfSSL examples](./ESP-IDF/examples/README.md) all include a `./VisualGDB` directory with SoC-specific configurations
 to help get started quickly.
 
-Although not required, a [JTAG Adapter](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/jtag-debugging/index.html)
-can be helpful for development. When not using a built-in JTAG from Espressif, the examples typically
+Although not required, a JTAG Adapter can be helpful for development.
+When not using a built-in JTAG from Espressif, the examples typically
 use the open source [Tigard board](https://github.com/tigard-tools/tigard#readme).
 
 ## Examples:
@@ -52,7 +50,7 @@ There are a variety of examples to help get started:
 
 The wolfSSL library can be installed as a managed component:
 
-* [Espressif Managed Component Registry](https://components.espressif.com/components/wolfssl/wolfssl)
+* [Espressif Managed Component Registry](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/)
 
 ## Notes:
 
@@ -145,7 +143,6 @@ the reset-program hardware properly, causing devices to not be programmed with t
 Connecting......................................
 
 A fatal error occurred: Failed to connect to ESP32: Wrong boot mode detected (0x13)! The chip needs to be in download mode.
-For troubleshooting steps visit: https://docs.espressif.com/projects/esptool/en/latest/troubleshooting.html
 CMake Error at run_serial_tool.cmake:56 (message):
   /home/gojimmypi/.espressif/python_env/idf4.4_py3.8_env/bin/python
   /mnt/c/SysGCC/esp32/esp-idf/v4.4.2/components/esptool_py/esptool/esptool.py
@@ -154,8 +151,49 @@ CMake Error at run_serial_tool.cmake:56 (message):
 
 Solution:
 
-Press and hold`EN` button, press and release `IO0` button, then release `EN` button.
+Press and hold `EN` button, press and release `IO0` button, then release `EN` button.
+
+### Unknown CMake command "esptool_py_flash_project_args".
+
+This unintuitive error was observed when including an unneeded `set(COMPONENTS` in the project-level CMakeLists.txt
+and attempting to build with an older toolchain, such as the RTOS SDK 3.4 for the ESP8266.
+
+### PermissionError: [Errno 13] Permission denied could not open port {}
+
+This error, other than the obvious permissions, also occurs when the port is in use by another application:
+
+```text
+Traceback (most recent call last):
+  File "/home/gojimmypi/.espressif/python_env/rtos3.4_py3.10_env/lib/python3.10/site-packages/serial/serialposix.py", line 322, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+PermissionError: [Errno 13] Permission denied: '/dev/ttyS55'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+    [... snip ...]
+raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 13] could not open port /dev/ttyS55: [Errno 13] Permission denied: '/dev/ttyS55'
+```
+### Panic Task watchdog got triggered.
+
+Long-running code may trip the watchdog timer.
+
+```
+Task watchdog got triggered.
+
+Guru Meditation Error: Core  0 panic'ed (unknown). Exception was unhandled.
+```
+
+The watchdog needs to be fed on a regular basis
+with `void esp_task_wdt_reset(void)` from `esp8266/include/esp_task_wdt.h`.
+
+Try turning off the WDT in menuconfig, or for Makefiles:
+
+```
+EXTRA_CFLAGS += -DNO_WATCHDOG
+```
 
 #### Other Solutions
 
-See also [this ESP-FAQ Handbook](https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf)
+See also Espressif `esp-faq-en-master.pdf`

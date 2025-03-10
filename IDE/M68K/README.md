@@ -34,7 +34,7 @@ BUILD_C
 RSA 2048 public 7.619 ops/sec
 RSA 2048 private 0.276 ops/sec
 
-###Building testwolfcryt/benchmark
+###Building testwolfcrypt/benchmark
 To build either testwolfcrypt or benchmark first build wolfssl.a, place it in
 $(NBROOT)/lib and then cd into the respective directory. Running "make" will
 then create a .s19 application that can be ran on the board.

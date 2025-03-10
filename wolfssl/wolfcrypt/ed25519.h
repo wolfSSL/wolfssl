@@ -1,6 +1,6 @@
 /* ed25519.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,8 +31,6 @@
 
 #ifdef HAVE_ED25519
 
-#include <wolfssl/wolfcrypt/fe_operations.h>
-#include <wolfssl/wolfcrypt/ge_operations.h>
 #include <wolfssl/wolfcrypt/random.h>
 #ifndef WOLFSSL_SHA512
 #error ED25519 requires SHA512
@@ -47,6 +45,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_ed25519_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_ED25519_sanity(void);
+#endif
 
 /* info about EdDSA curve specifically ed25519, defined as an elliptic curve
    over GF(p) */
@@ -72,11 +74,6 @@ enum {
     Ed25519ph  = 1
 };
 
-#ifndef WC_ED25519KEY_TYPE_DEFINED
-    typedef struct ed25519_key ed25519_key;
-    #define WC_ED25519KEY_TYPE_DEFINED
-#endif
-
 /* ED25519 Flags */
 enum {
     WC_ED25519_FLAG_NONE     = 0x00,
@@ -97,8 +94,9 @@ struct ed25519_key {
     word32 flags;
     byte   keyIdSet;
 #endif
-    word16 privKeySet:1;
-    word16 pubKeySet:1;
+    WC_BITFIELD privKeySet:1;
+    WC_BITFIELD pubKeySet:1;
+    WC_BITFIELD sha_clean_flag:1; /* only used if WOLFSSL_ED25519_PERSISTENT_SHA */
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
@@ -109,9 +107,13 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
-    int sha_clean_flag;
 #endif
 };
+
+#ifndef WC_ED25519KEY_TYPE_DEFINED
+    typedef struct ed25519_key ed25519_key;
+    #define WC_ED25519KEY_TYPE_DEFINED
+#endif
 
 
 WOLFSSL_API
@@ -173,13 +175,20 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
 #endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
 
-
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
+WOLFSSL_API
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);
+#endif
+WOLFSSL_API
+
 #ifdef HAVE_ED25519_KEY_IMPORT
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);

@@ -1,6 +1,6 @@
 /* wolfssl_thread_entry.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -151,7 +151,7 @@ void wolfssl_thread_entry(void *pvParameters) {
 
         /* Read the client data into our buff array */
         if (ret != WOLFSSL_SUCCESS) {
-            printf("Error [%d]: wolfSSL_set_fd.\n",ret);
+            printf("Error [%d]: wolfSSL_accept.\n",ret);
             break;
         }
         memset(buff, 0, sizeof(buff));

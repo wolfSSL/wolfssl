@@ -1,6 +1,6 @@
 /* wolfssl_dummy.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,10 +51,10 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
             return 1;
         }
     }
-    return 0;	
+    return 0;
 }
-    
-void abort(void) 
+
+void abort(void)
 {
     while(1);
 }

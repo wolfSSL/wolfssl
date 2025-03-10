@@ -1,6 +1,6 @@
 /* cpuid.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,6 +38,11 @@
     #define HAVE_CPUID
     #define HAVE_CPUID_INTEL
 #endif
+#if (defined(WOLFSSL_AARCH64_BUILD) || (defined(__aarch64__) && \
+     defined(WOLFSSL_ARMASM))) && !defined(WOLFSSL_NO_ASM)
+    #define HAVE_CPUID
+    #define HAVE_CPUID_AARCH64
+#endif
 
 #ifdef HAVE_CPUID_INTEL
 
@@ -50,6 +55,7 @@
     #define CPUID_ADX    0x0040   /* ADCX, ADOX */
     #define CPUID_MOVBE  0x0080   /* Move and byte swap */
     #define CPUID_BMI1   0x0100   /* ANDN */
+    #define CPUID_SHA    0x0200   /* SHA-1 and SHA-256 instructions */
 
     #define IS_INTEL_AVX1(f)    ((f) & CPUID_AVX1)
     #define IS_INTEL_AVX2(f)    ((f) & CPUID_AVX2)
@@ -60,6 +66,27 @@
     #define IS_INTEL_ADX(f)     ((f) & CPUID_ADX)
     #define IS_INTEL_MOVBE(f)   ((f) & CPUID_MOVBE)
     #define IS_INTEL_BMI1(f)    ((f) & CPUID_BMI1)
+    #define IS_INTEL_SHA(f)     ((f) & CPUID_SHA)
+
+#elif defined(HAVE_CPUID_AARCH64)
+
+    #define CPUID_AES         0x0001
+    #define CPUID_PMULL       0x0002
+    #define CPUID_SHA256      0x0004
+    #define CPUID_SHA512      0x0008
+    #define CPUID_RDM         0x0010
+    #define CPUID_SHA3        0x0020
+    #define CPUID_SM3         0x0040
+    #define CPUID_SM4         0x0080
+
+    #define IS_AARCH64_AES(f)       ((f) & CPUID_AES)
+    #define IS_AARCH64_PMULL(f)     ((f) & CPUID_PMULL)
+    #define IS_AARCH64_SHA256(f)    ((f) & CPUID_SHA256)
+    #define IS_AARCH64_SHA512(f)    ((f) & CPUID_SHA512)
+    #define IS_AARCH64_RDM(f)       ((f) & CPUID_RDM)
+    #define IS_AARCH64_SHA3(f)      ((f) & CPUID_SHA3)
+    #define IS_AARCH64_SM3(f)       ((f) & CPUID_SM3)
+    #define IS_AARCH64_SM4(f)       ((f) & CPUID_SM4)
 
 #endif
 

@@ -1,6 +1,6 @@
 /* tls_threaded.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -88,6 +88,20 @@ static const char msgHTTPIndex[] =
     "<p>wolfSSL has successfully performed handshake!</p>\n"
     "</body>\n"
     "</html>\n";
+
+#ifdef HAVE_FIPS
+static void myFipsCb(int ok, int err, const char* hash)
+{
+    printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
+    printf("message = %s\n", wc_GetErrorString(err));
+    printf("hash = %s\n", hash);
+
+    if (err == IN_CORE_FIPS_E) {
+        printf("In core integrity hash check failure, copy above hash\n");
+        printf("into verifyCore[] in fips_test.c and rebuild\n");
+    }
+}
+#endif
 
 /* wolfSSL client wants to read data from the server. */
 static int recv_client(WOLFSSL* ssl, char* buff, int sz, void* ctx)
@@ -575,6 +589,9 @@ int main()
     utctime.tv_nsec = 0;
     clock_settime(CLOCK_REALTIME, &utctime);
 
+#ifdef HAVE_FIPS
+    wolfCrypt_SetCb_fips(myFipsCb);
+#endif
     wolfSSL_Init();
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();

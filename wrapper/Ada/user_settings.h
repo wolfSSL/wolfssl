@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,8 +34,13 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 /* Usually comes from configure -> config.h */
 #define HAVE_SYS_TIME_H
+
+/* Explicitly define NETDB support */
+#define HAVE_NETDB_H
 
 /* Features */
 #define SINGLE_THREADED
@@ -75,13 +80,9 @@ extern "C" {
 #define WOLFSSL_TLS13_NO_PEEK_HANDSHAKE_DONE
 
 /* DTLS */
-#if 0
-    #define WOLFSSL_DTLS
-    #define WOLFSSL_MULTICAST
-
-    /* DTLS v1.3 is not yet included with enable-all */
-    //#define WOLFSSL_DTLS13
-#endif
+#define WOLFSSL_DTLS
+// #define WOLFSSL_MULTICAST
+#define WOLFSSL_DTLS13
 
 /* DG Disabled SSLv3 and TLSv1.0 - should avoid using */
 //#define WOLFSSL_ALLOW_SSLV3
@@ -259,9 +260,9 @@ extern "C" {
 
 
 /* Openssl compatibility */
+#define OPENSSL_EXTRA
 #if 0 /* DG Disabled */
     /* Openssl compatibility API's */
-    #define OPENSSL_EXTRA
     #define OPENSSL_ALL
     #define HAVE_OPENSSL_CMD
     #define SSL_TXT_TLSV1_2

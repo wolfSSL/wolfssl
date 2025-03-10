@@ -1,6 +1,6 @@
 /* sha256.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,8 +32,7 @@
 
 #ifndef NO_SHA256
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -59,6 +58,11 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha256_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA256_sanity(void);
 #endif
 
 /* avoid redefinition of structs */
@@ -142,6 +146,10 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-rx64-hw-crypt.h"
 #else
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
+#endif
+
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
@@ -175,14 +183,24 @@ struct wc_Sha256 {
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     psa_hash_operation_t psa_ctx;
 #else
+#ifdef WC_64BIT_CPU
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
     ALIGN16 word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
+#else
+    word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
+#endif
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    void*   heap;
+
+#ifdef WC_C_DYNAMIC_FALLBACK
+    int sha_method;
 #endif
+
+#endif
+    void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
@@ -194,6 +212,9 @@ struct wc_Sha256 {
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     WC_CRYPTODEV ctx;
+#endif
+#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
+    wc_MXC_Sha mxcCtx;
 #endif
 #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     byte*  msg;
@@ -243,11 +264,19 @@ struct wc_Sha256 {
 WOLFSSL_API int wc_InitSha256(wc_Sha256* sha);
 WOLFSSL_API int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId);
 WOLFSSL_API int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
+
+#if !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH)
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash);
+#endif
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_AFALG_HASH)
 WOLFSSL_API int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data);
+#endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+WOLFSSL_API int wc_Sha256HashBlock(wc_Sha256* sha, const unsigned char* data,
+    unsigned char* hash);
 #endif
 #if defined(WOLFSSL_HASH_KEEP)
 WOLFSSL_API int wc_Sha256_Grow(wc_Sha256* sha256, const byte* in, int inSz);

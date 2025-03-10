@@ -119,6 +119,9 @@
         #define WOLFSSL_AES_OFB
         #define FP_MAX_BITS 16384
     #endif /* FIPS v5 */
+    #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 6)
+        #define WOLFSSL_AES_XTS
+    #endif
 #else
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING
@@ -133,6 +136,7 @@
         #define HAVE_SECURE_RENEGOTIATION
 
         #define HAVE_AESGCM
+        #define WOLFSSL_AES_XTS
         #define WOLFSSL_SHA384
         #define WOLFSSL_SHA512
 

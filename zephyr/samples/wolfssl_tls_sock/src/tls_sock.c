@@ -1,6 +1,6 @@
 /* tls_sock.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,7 +32,7 @@
 #endif
 
 #define BUFFER_SIZE           2048
-#define STATIC_MEM_SIZE       (192*1024)
+#define STATIC_MEM_SIZE       (256*1024)
 #define MAX_SEND_SIZE         256
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -62,6 +62,20 @@ static const char msgHTTPIndex[] =
     "</body>\n"
     "</html>\n";
 
+#ifdef HAVE_FIPS
+static void myFipsCb(int ok, int err, const char* hash)
+{
+    printf("in my Fips callback, ok = %d, err = %d\n", ok, err);
+    printf("message = %s\n", wc_GetErrorString(err));
+    printf("hash = %s\n", hash);
+
+    if (err == IN_CORE_FIPS_E) {
+        printf("In core integrity hash check failure, copy above hash\n");
+        printf("into verifyCore[] in fips_test.c and rebuild\n");
+    }
+}
+#endif
+
 /* DO NOT use this in production. You should implement a way
  * to get the current date. */
 static int verifyIgnoreDateError(int preverify, WOLFSSL_X509_STORE_CTX* store)
@@ -80,7 +94,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL*     client_ssl = NULL;
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_client_method(),
+    if ((client_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_client_method_ex(HEAP_HINT_CLIENT),
                                                    HEAP_HINT_CLIENT)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -151,7 +165,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     WOLFSSL*     server_ssl = NULL;
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_2_server_method(),
+    if ((server_ctx = wolfSSL_CTX_new_ex(wolfTLSv1_3_server_method_ex(HEAP_HINT_SERVER),
                                                    HEAP_HINT_SERVER)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         ret = -1;
@@ -431,20 +445,8 @@ void client_thread()
     WOLFSSL*     client_ssl = NULL;
     SOCKET_T     sockfd = WOLFSSL_SOCKET_INVALID;
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
-                               sizeof(gMemoryClient),
-                               WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
-        printf("unable to load static memory");
-        ret = -1;
-    }
-
-    if (ret == 0)
-#endif
-    {
-        /* Client connection */
-        ret = wolfssl_client_new(&client_ctx, &client_ssl);
-    }
+    /* Client connection */
+    ret = wolfssl_client_new(&client_ctx, &client_ssl);
 
     if (ret == 0)
         ret = wolfssl_client_connect_tcp(client_ssl, &sockfd);
@@ -485,9 +487,23 @@ int main()
 {
     THREAD_TYPE  serverThread;
 
+#ifdef HAVE_FIPS
+    wolfCrypt_SetCb_fips(myFipsCb);
+#endif
     wolfSSL_Init();
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wc_LoadStaticMemory(&HEAP_HINT_CLIENT, gMemoryClient,
+                               sizeof(gMemoryClient),
+                               WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS, 1) != 0) {
+        printf("unable to load static memory");
+        return -1;
+    }
+
+    wolfsslThreadHeapHint = HEAP_HINT_CLIENT;
 #endif
 
     /* Start server */
@@ -498,6 +514,9 @@ int main()
 
     k_sleep(Z_TIMEOUT_TICKS(100));
     client_thread();
+    /* Join is not working in qemu when the thread is still active. Wait for it
+     * to shut down to join it. */
+    k_sleep(Z_TIMEOUT_TICKS(100));
 
     if (wolfSSL_JoinThread(serverThread) != 0) {
         printf("Failed to join server thread\n");

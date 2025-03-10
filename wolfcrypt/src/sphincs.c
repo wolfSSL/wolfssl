@@ -1,6 +1,6 @@
 /* sphincs.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,7 +58,7 @@
  *          0 otherwise.
  */
 int wc_sphincs_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
-                        sphincs_key* key)
+                        sphincs_key* key, WC_RNG* rng)
 {
     int ret = 0;
 #ifdef HAVE_LIBOQS
@@ -135,6 +135,10 @@ int wc_sphincs_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
         localOutLen = *outLen;
     }
 
+    if (ret == 0) {
+        ret = wolfSSL_liboqsRngMutexLock(rng);
+    }
+
     if ((ret == 0) &&
         (OQS_SIG_sign(oqssig, out, &localOutLen, in, inLen, key->k)
          == OQS_ERROR)) {
@@ -144,6 +148,8 @@ int wc_sphincs_sign_msg(const byte* in, word32 inLen, byte* out, word32 *outLen,
     if (ret == 0) {
         *outLen = (word32)localOutLen;
     }
+
+    wolfSSL_liboqsRngMutexUnlock();
 
     if (oqssig != NULL) {
         OQS_SIG_free(oqssig);
@@ -237,7 +243,7 @@ int wc_sphincs_init(sphincs_key* key)
         return BAD_FUNC_ARG;
     }
 
-    ForceZero(key, sizeof(key));
+    ForceZero(key, sizeof(*key));
     return 0;
 }
 
@@ -302,7 +308,7 @@ int wc_sphincs_get_level_and_optim(sphincs_key* key, byte* level, byte* optim)
 void wc_sphincs_free(sphincs_key* key)
 {
     if (key != NULL) {
-        ForceZero(key, sizeof(key));
+        ForceZero(key, sizeof(*key));
     }
 }
 
@@ -425,7 +431,8 @@ static int parse_private_key(const byte* priv, word32 privSz,
 
     /* At this point, it is still a PKCS8 private key. */
     if ((ret = ToTraditionalInline(priv, &idx, privSz)) < 0) {
-        return ret;
+        /* ignore error, did not have PKCS8 header */
+        (void)ret;
     }
 
     /* Now it is a octet_string(concat(priv,pub)) */
@@ -851,7 +858,7 @@ int wc_Sphincs_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {
@@ -890,6 +897,11 @@ int wc_Sphincs_PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    ret = wc_sphincs_import_public(input, inSz, key);
+    if (ret == 0) {
+        return 0;
+    }
+
     if ((key->level == 1) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL1k;
     }
@@ -899,7 +911,7 @@ int wc_Sphincs_PublicKeyDecode(const byte* input, word32* inOutIdx,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {
@@ -941,7 +953,7 @@ int wc_Sphincs_PublicKeyToDer(sphincs_key* key, byte* output, word32 inLen,
     word32 pubKeyLen = (word32)sizeof(pubKey);
     int    keytype = 0;
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -954,7 +966,7 @@ int wc_Sphincs_PublicKeyToDer(sphincs_key* key, byte* output, word32 inLen,
     else if ((key->level == 5) && (key->optim == FAST_VARIANT)) {
         keytype = SPHINCS_FAST_LEVEL5k;
     }
-    if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
+    else if ((key->level == 1) && (key->optim == SMALL_VARIANT)) {
         keytype = SPHINCS_SMALL_LEVEL1k;
     }
     else if ((key->level == 3) && (key->optim == SMALL_VARIANT)) {

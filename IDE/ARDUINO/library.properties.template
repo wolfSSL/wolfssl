@@ -1,0 +1,9 @@
+name=wolfssl
+version=${WOLFSSL_VERSION}${WOLFSSL_VERSION_ARUINO_SUFFIX}
+author=wolfSSL Inc.
+maintainer=wolfSSL inc <support@wolfssl.com>
+sentence=A lightweight SSL/TLS library written in ANSI C and targeted for embedded, RTOS, and resource-constrained environments.
+paragraph=Manual: https://www.wolfssl.com/documentation/manuals/wolfssl/index.html.
+category=Communication
+url=https://www.wolfssl.com/
+architectures=*

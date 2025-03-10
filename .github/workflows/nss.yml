@@ -1,0 +1,89 @@
+name: nss interop Tests
+
+### TODO uncomment stuff
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+env:
+  NSS_REF: NSS_3_107_RTM
+
+jobs:
+  build_nss:
+    name: Build nss
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 30
+    steps:
+      - name: Checking if we have nss in cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: dist
+          key: nss-${{ env.NSS_REF }}
+          lookup-only: true
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          # hostap dependencies
+          sudo apt-get install -y gyp ninja-build
+
+      - name: Checkout nss
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: nss-dev/nss
+          ref: ${{ env.NSS_REF }}
+          path: nss
+
+      - name: Compile nss
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          hg clone https://hg.mozilla.org/projects/nspr
+          cd nss
+          ./build.sh
+
+  nss_test:
+    name: Test interop with nss
+    runs-on: ubuntu-22.04
+    needs: build_nss
+    timeout-minutes: 10
+    if: github.repository_owner == 'wolfssl'
+    steps:
+      - name: Checking if we have nss in cache
+        uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: dist
+          key: nss-${{ env.NSS_REF }}
+          fail-on-cache-miss: true
+
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-dtls --enable-dtls13
+          install: false
+          check: false
+
+      - name: Test interop
+        run: bash wolfssl/.github/workflows/nss.sh
+
+      - name: print server logs
+        if: ${{ failure() }}
+        run: |
+          cat /tmp/server.log

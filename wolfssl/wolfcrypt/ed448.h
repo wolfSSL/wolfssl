@@ -1,6 +1,6 @@
 /* ed448.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -47,6 +47,10 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_ed448_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_ED448_sanity(void);
+#endif
 
 /* info about EdDSA curve specifically ed448, defined as an elliptic curve
  * over GF(p)
@@ -72,22 +76,17 @@ enum {
     Ed448ph  = 1
 };
 
-#ifndef WC_ED448KEY_TYPE_DEFINED
-    typedef struct ed448_key ed448_key;
-    #define WC_ED448KEY_TYPE_DEFINED
-#endif
-
 /* An ED448 Key */
 struct ed448_key {
     byte    p[ED448_PUB_KEY_SIZE]; /* compressed public key */
-    byte    k[ED448_PRV_KEY_SIZE]; /* private key : 56 secret -- 56 public */
+    byte    k[ED448_PRV_KEY_SIZE]; /* private key : 57 secret -- 57 public */
 #ifdef FREESCALE_LTC_ECC
     /* uncompressed point coordinates */
     byte pointX[ED448_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED448_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
 #endif
-    word16 privKeySet:1;
-    word16 pubKeySet:1;
+    WC_BITFIELD privKeySet:1;
+    WC_BITFIELD pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
@@ -98,10 +97,14 @@ struct ed448_key {
     void *heap;
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake sha;
-    int sha_clean_flag;
+    unsigned int sha_clean_flag : 1;
 #endif
 };
 
+#ifndef WC_ED448KEY_TYPE_DEFINED
+    typedef struct ed448_key ed448_key;
+    #define WC_ED448KEY_TYPE_DEFINED
+#endif
 
 WOLFSSL_API
 int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey,

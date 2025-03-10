@@ -1,6 +1,6 @@
 /* afalg_hash.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,10 +53,8 @@ static void AfalgHashFree(wolfssl_AFALG_Hash* hash)
     }
 
     #if defined(WOLFSSL_AFALG_HASH_KEEP)
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
     #endif
 }
 

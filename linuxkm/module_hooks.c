@@ -1,6 +1,6 @@
 /* module_hooks.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,7 +20,11 @@
  */
 
 #ifndef WOLFSSL_LICENSE
+#ifdef WOLFSSL_COMMERCIAL_LICENSE
+#define WOLFSSL_LICENSE "wolfSSL Commercial"
+#else
 #define WOLFSSL_LICENSE "GPL v2"
+#endif
 #endif
 
 #define FIPS_NO_WRAPPERS
@@ -43,7 +47,6 @@
 #endif
 #ifndef NO_CRYPT_TEST
     #include <wolfcrypt/test/test.h>
-    #include <linux/delay.h>
 #endif
 
 static int libwolfssl_cleanup(void) {
@@ -67,6 +70,8 @@ static int libwolfssl_cleanup(void) {
 
 #ifdef HAVE_LINUXKM_PIE_SUPPORT
 
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+
 extern int wolfCrypt_PIE_first_function(void);
 extern int wolfCrypt_PIE_last_function(void);
 extern const unsigned int wolfCrypt_PIE_rodata_start[];
@@ -86,6 +91,8 @@ static unsigned int hash_span(char *start, char *end) {
     return sum;
 }
 
+#endif /* DEBUG_LINUXKM_PIE_SUPPORT */
+
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
@@ -98,7 +105,7 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 {
     if ((! ok) || (err != 0))
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
-    if (err == IN_CORE_FIPS_E) {
+    if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
         pr_err("In-core integrity hash check failure.\n"
                "Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                hash ? hash : "<null>");
@@ -114,13 +121,16 @@ static int updateFipsHash(void);
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
-#undef HAVE_PTHREAD
-#define STRING_USER
-#define NO_MAIN_FUNCTION
-#define current_time benchmark_current_time
-#define WOLFSSL_NO_FLOAT_FMT
-#include "wolfcrypt/benchmark/benchmark.c"
+extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
+
+#ifdef LINUXKM_LKCAPI_REGISTER
+    #include "linuxkm/lkcapi_glue.c"
+#endif
+
+#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #include "linuxkm/x86_vector_register_glue.c"
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
@@ -148,7 +158,7 @@ static int wolfssl_init(void)
         return ret;
 #endif
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
+#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
     /* see linux commit ac3b432839 */
@@ -215,7 +225,7 @@ static int wolfssl_init(void)
                 text_hash, pie_text_end-pie_text_start,
                 rodata_hash, pie_rodata_end-pie_rodata_start);
     }
-#endif /* HAVE_LINUXKM_PIE_SUPPORT */
+#endif /* HAVE_LINUXKM_PIE_SUPPORT && DEBUG_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
@@ -226,28 +236,14 @@ static int wolfssl_init(void)
     fipsEntry();
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
-        pr_err("wolfCrypt_GetStatus_fips() failed: %s\n", wc_GetErrorString(ret));
-        if (ret == IN_CORE_FIPS_E) {
+        pr_err("wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
             pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                    newhash ? newhash : "<null>");
         }
         return -ECANCELED;
     }
-
-    pr_info("wolfCrypt FIPS ["
-
-#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 3)
-            "ready"
-#elif defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2) \
-    && defined(WOLFCRYPT_FIPS_RAND)
-            "140-2 rand"
-#elif defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
-            "140-2"
-#else
-            "140"
-#endif
-            "] POST succeeded.\n");
 #endif /* HAVE_FIPS */
 
 #ifdef WC_RNG_SEED_CB
@@ -274,6 +270,40 @@ static int wolfssl_init(void)
     }
 #endif
 
+#ifdef HAVE_FIPS
+    ret = wc_RunAllCast_fips();
+    if (ret != 0) {
+        pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
+        return -ECANCELED;
+    }
+
+    pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
+            "self-test succeeded.\n",
+#ifdef HAVE_FIPS_VERSION_MAJOR
+            HAVE_FIPS_VERSION_MAJOR,
+#else
+            HAVE_FIPS_VERSION,
+#endif
+#ifdef HAVE_FIPS_VERSION_MINOR
+            HAVE_FIPS_VERSION_MINOR,
+#else
+            0,
+#endif
+#ifdef HAVE_FIPS_VERSION_PATCH
+            HAVE_FIPS_VERSION_PATCH,
+#else
+            0,
+#endif
+#ifdef HAVE_FIPS_VERSION_PORT
+            "-",
+            HAVE_FIPS_VERSION_PORT
+#else
+            "",
+            ""
+#endif
+        );
+#endif /* HAVE_FIPS */
+
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
     if (ret < 0) {
@@ -283,6 +313,21 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
     pr_info("wolfCrypt self-test passed.\n");
+#else
+    pr_info("skipping full wolfcrypt_test() "
+            "(configure with --enable-crypttests to enable).\n");
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER
+    ret = linuxkm_lkcapi_register();
+
+    if (ret) {
+        pr_err("linuxkm_lkcapi_register() failed with return code %d.\n", ret);
+        linuxkm_lkcapi_unregister();
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
@@ -322,6 +367,10 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
+#ifdef LINUXKM_LKCAPI_REGISTER
+    linuxkm_lkcapi_unregister();
+#endif
+
     (void)libwolfssl_cleanup();
 
     return;
@@ -341,10 +390,21 @@ static struct task_struct *my_get_current_thread(void) {
     return get_current();
 }
 
-/* ditto for preempt_count(). */
-static int my_preempt_count(void) {
-    return preempt_count();
+#if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_COMMERCIAL_LICENSE)
+
+/* ditto for fpregs_lock/fpregs_unlock */
+#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+static void my_fpregs_lock(void) {
+    fpregs_lock();
 }
+
+static void my_fpregs_unlock(void) {
+    fpregs_unlock();
+}
+
+#endif /* WOLFSSL_LINUXKM_SIMD_X86 && WOLFSSL_COMMERCIAL_LICENSE */
+
+#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
@@ -355,6 +415,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_MEMCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcmp = memcmp;
 #endif
+#ifndef CONFIG_FORTIFY_SOURCE
 #ifndef __ARCH_MEMCPY_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memcpy = memcpy;
 #endif
@@ -364,6 +425,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef __ARCH_MEMMOVE_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.memmove = memmove;
 #endif
+#endif /* !CONFIG_FORTIFY_SOURCE */
 #ifndef __ARCH_STRCMP_NO_REDIRECT
     wolfssl_linuxkm_pie_redirect_table.strcmp = strcmp;
 #endif
@@ -395,19 +457,33 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     #else
         wolfssl_linuxkm_pie_redirect_table.printk = printk;
     #endif
+
+#ifdef CONFIG_FORTIFY_SOURCE
+    wolfssl_linuxkm_pie_redirect_table.__warn_printk = __warn_printk;
+#endif
+
     wolfssl_linuxkm_pie_redirect_table.snprintf = snprintf;
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kvmalloc_node_noprof = __kvmalloc_node_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kmalloc_cache_noprof = __kmalloc_cache_noprof;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kvmalloc_node_noprof = kvmalloc_node_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_trace_noprof = kmalloc_trace_noprof;
+#else
     wolfssl_linuxkm_pie_redirect_table.kmalloc = kmalloc;
-    wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
-    wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
 #ifdef HAVE_KVMALLOC
     wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
-    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
 #endif
-    wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
         wolfssl_linuxkm_pie_redirect_table.kmalloc_trace =
             kmalloc_trace;
@@ -417,6 +493,14 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
             kmalloc_order_trace;
     #endif
+#endif
+
+    wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
+    wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
+#ifdef HAVE_KVMALLOC
+    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
+#endif
+    wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -431,34 +515,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     #endif
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
-    wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
-    #else
-        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
-    #endif
-    wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
-
-    #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-        wolfssl_linuxkm_pie_redirect_table.migrate_disable = &migrate_disable;
-        wolfssl_linuxkm_pie_redirect_table.migrate_enable = &migrate_enable;
-    #endif
-
-#ifdef WOLFSSL_LINUXKM_SIMD_X86
-    wolfssl_linuxkm_pie_redirect_table.irq_fpu_usable = irq_fpu_usable;
-    #ifdef kernel_fpu_begin
-    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask =
-        kernel_fpu_begin_mask;
-    #else
-    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin =
-        kernel_fpu_begin;
-    #endif
-    wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
-#endif /* WOLFSSL_LINUXKM_SIMD_X86 */
-
+#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.can_save_vector_registers_x86 = can_save_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.restore_vector_registers_x86 = restore_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.save_vector_registers_x86 = save_vector_registers_x86;
+#elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
 #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
@@ -477,23 +542,82 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         wolfCrypt_FIPS_first;
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last =
         wolfCrypt_FIPS_last;
+    #if FIPS_VERSION3_GE(6,0,0)
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_AES_sanity =
+        wolfCrypt_FIPS_AES_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_CMAC_sanity =
+        wolfCrypt_FIPS_CMAC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DH_sanity =
+        wolfCrypt_FIPS_DH_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ECC_sanity =
+        wolfCrypt_FIPS_ECC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED25519_sanity =
+        wolfCrypt_FIPS_ED25519_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED448_sanity =
+        wolfCrypt_FIPS_ED448_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_HMAC_sanity =
+        wolfCrypt_FIPS_HMAC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_KDF_sanity =
+        wolfCrypt_FIPS_KDF_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_PBKDF_sanity =
+        wolfCrypt_FIPS_PBKDF_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DRBG_sanity =
+        wolfCrypt_FIPS_DRBG_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_RSA_sanity =
+        wolfCrypt_FIPS_RSA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA_sanity =
+        wolfCrypt_FIPS_SHA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA256_sanity =
+        wolfCrypt_FIPS_SHA256_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA512_sanity =
+        wolfCrypt_FIPS_SHA512_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA3_sanity =
+        wolfCrypt_FIPS_SHA3_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_FT_sanity =
+        wolfCrypt_FIPS_FT_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wc_RunAllCast_fips =
+        wc_RunAllCast_fips;
+    #endif
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
     wolfssl_linuxkm_pie_redirect_table.GetCA = GetCA;
 #ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
+#ifdef HAVE_OCSP
+    wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
+#endif /* HAVE_OCSP */
+#endif /* NO_SKID */
+#ifdef WOLFSSL_AKID_NAME
+    wolfssl_linuxkm_pie_redirect_table.GetCAByAKID = GetCAByAKID;
+#endif /* WOLFSSL_AKID_NAME */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_add_entry_by_NID = wolfSSL_X509_NAME_add_entry_by_NID;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_free = wolfSSL_X509_NAME_free;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_new_ex = wolfSSL_X509_NAME_new_ex;
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
+
+#ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+    wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
+
+#ifdef CONFIG_ARM64
+    wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */
     {
         unsigned long *i;
+        static_assert(sizeof(unsigned long) == sizeof(void *),
+                      "unexpected pointer size");
         for (i = (unsigned long *)&wolfssl_linuxkm_pie_redirect_table;
              i < (unsigned long *)&wolfssl_linuxkm_pie_redirect_table._last_slot;
              ++i)
             if (*i == 0) {
-                pr_err("wolfCrypt container redirect table initialization was incomplete.\n");
+                pr_err("wolfCrypt container redirect table initialization was "
+                       "incomplete [%lu].\n",
+                       i-(unsigned long *)&wolfssl_linuxkm_pie_redirect_table);
                 return -EFAULT;
             }
     }
@@ -684,11 +808,19 @@ static int updateFipsHash(void)
         }
     }
 
-    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0)
+    if (XMEMCMP(hash, binVerify, WC_SHA256_DIGEST_SIZE) == 0) {
+#if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        pr_info("updateFipsHash: verifyCore already matches [%s]\n", verifyCore);
+#else
         pr_info("updateFipsHash: verifyCore already matches.\n");
-    else {
+#endif
+    } else {
         XMEMCPY(verifyCore, base16_hash, WC_SHA256_DIGEST_SIZE*2 + 1);
+#if defined(DEBUG_LINUXKM_PIE_SUPPORT) || defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG)
+        pr_info("updateFipsHash: verifyCore updated [%s].\n", base16_hash);
+#else
         pr_info("updateFipsHash: verifyCore updated.\n");
+#endif
     }
 
     ret = 0;
@@ -697,16 +829,11 @@ static int updateFipsHash(void)
 
     if (tfm != NULL)
         crypto_free_shash(tfm);
-    if (desc != NULL)
-        XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (hash != NULL)
-        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (base16_hash != NULL)
-        XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binCoreKey != NULL)
-        XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binVerify != NULL)
-        XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

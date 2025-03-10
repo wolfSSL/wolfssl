@@ -1,6 +1,6 @@
 /* esp32_util.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,7 +36,10 @@
 #include <esp_err.h>
 #if ESP_IDF_VERSION_MAJOR > 4
     #include <hal/efuse_hal.h>
+    #include <rtc_wdt.h>
+    #include <esp_task_wdt.h>
 #endif
+
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
 #include <wolfssl/wolfcrypt/types.h>
@@ -76,7 +79,7 @@ static int esp_ShowMacroStatus_need_header = 0;
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-/* big nums can be very long, perhaps unitialized, so limit displayed words */
+/* big nums can be very long, perhaps uninitialized, so limit displayed words */
 #define MAX_WORDS_ESP_SHOW_MP 32
 
 /*
@@ -97,39 +100,81 @@ int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
 }
 
 /*
- * call the ESP-IDF mutex lock; xSemaphoreTake
+ * Call the ESP-IDF mutex lock; xSemaphoreTake
  * this is a general mutex locker, used for different mutex objects for
- * different HW acclerators or other single-use HW features.
+ * different HW accelerators or other single-use HW features.
+ *
+ * We should already have known if the resource is in use or not.
+ *
+ * Return 0 (ESP_OK) on success, otherwise BAD_MUTEX_E
  */
 int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
+    int ret;
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
     }
 
 #ifdef SINGLE_THREADED
-    return wc_LockMutex(mutex); /* xSemaphoreTake take with portMAX_DELAY */
+    /* does nothing in single thread mode, always return 0 */
+    ret = wc_LockMutex(mutex);
 #else
-    return ((xSemaphoreTake(*mutex, block_time) == pdTRUE) ? 0 : BAD_MUTEX_E);
+    ret = xSemaphoreTake(*mutex, block_time);
+    ESP_LOGV(TAG, "xSemaphoreTake 0x%x = %d", (intptr_t)*mutex, ret);
+    if (ret == pdTRUE) {
+        ret = ESP_OK;
+    }
+    else {
+        if (ret == pdFALSE) {
+            ESP_LOGW(TAG, "xSemaphoreTake failed for 0x%x. Still busy?",
+                           (intptr_t)*mutex);
+            ret = ESP_ERR_NOT_FINISHED;
+        }
+        else {
+            ESP_LOGE(TAG, "xSemaphoreTake 0x%x unexpected = %d",
+                           (intptr_t)*mutex, ret);
+            ret = BAD_MUTEX_E;
+        }
+    }
 #endif
+    return ret;
 }
 
 /*
  * call the ESP-IDF mutex UNlock; xSemaphoreGive
  *
  */
-int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+esp_err_t esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+    int ret = pdTRUE;
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
     }
 
 #ifdef SINGLE_THREADED
-    return wc_UnLockMutex(mutex);
+    ret = wc_UnLockMutex(mutex);
 #else
-    xSemaphoreGive(*mutex);
-    return ESP_OK;
+    ESP_LOGV(TAG, ">> xSemaphoreGive 0x%x", (intptr_t)*mutex);
+    TaskHandle_t mutexHolder = xSemaphoreGetMutexHolder(*mutex);
+
+    if (mutexHolder == NULL) {
+        ESP_LOGW(TAG, "esp_CryptHwMutexUnLock with no lock owner 0x%x",
+                        (intptr_t)*mutex);
+        ret = ESP_OK;
+    }
+    else {
+        ret = xSemaphoreGive(*mutex);
+        if (ret == pdTRUE) {
+            ESP_LOGV(TAG, "Success: give mutex 0x%x", (intptr_t)*mutex);
+            ret = ESP_OK;
+        }
+        else {
+            ESP_LOGV(TAG, "Failed: give mutex 0x%x", (intptr_t)*mutex);
+            ret = ESP_FAIL;
+        }
+    }
 #endif
+    return ret;
 }
 #endif /* WOLFSSL_ESP32_CRYPT, etc. */
 
@@ -151,6 +196,13 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
 #if defined(WOLFSSL_ESPIDF)
 static int ShowExtendedSystemInfo_platform_espressif(void)
 {
+#ifdef WOLFSSL_ESP_NO_WATCHDOG
+    ESP_LOGI(TAG, "Found WOLFSSL_ESP_NO_WATCHDOG");
+#else
+    ESP_LOGW(TAG, "Watchdog active; "
+                  "missing WOLFSSL_ESP_NO_WATCHDOG definition.");
+#endif
+
 #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
     WOLFSSL_VERSION_PRINTF("CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: %u MHz",
                            CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ);
@@ -160,6 +212,7 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
 
     WOLFSSL_VERSION_PRINTF("Xthal_have_ccount: %u",
                            Xthal_have_ccount);
+#endif
 
     /* this is the legacy stack size */
 #if defined(CONFIG_MAIN_TASK_STACK_SIZE)
@@ -197,30 +250,43 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
 
 #endif
 
-#elif CONFIG_IDF_TARGET_ESP32S2
-    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount = %u",
+/* Platform-specific attributes of interest*/
+#if CONFIG_IDF_TARGET_ESP32
+    #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
+        WOLFSSL_VERSION_PRINTF("CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: %u MHz",
+                               CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ);
+    #endif
+    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount: %u",
                            Xthal_have_ccount);
-#elif CONFIG_IDF_TARGET_ESP32C6
-  /* TODO find Xthal for C6 */
+
 #elif CONFIG_IDF_TARGET_ESP32C2
-  /* TODO find Xthal for C6 */
-#elif defined(CONFIG_IDF_TARGET_ESP8684)
-  /* TODO find Xthal for C6 */
+    /* TODO find Xthal for C2 */
 #elif CONFIG_IDF_TARGET_ESP32C3
     /* not supported at this time */
-#elif CONFIG_IDF_TARGET_ESP32S3
-    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount = %u",
-                           Xthal_have_ccount);
+#elif CONFIG_IDF_TARGET_ESP32C6
+    /* TODO find Xthal for C6 */
 #elif CONFIG_IDF_TARGET_ESP32H2
-    /* not supported at this time */
-#elif CONFIG_IDF_TARGET_ESP32C2
-    /* not supported at this time */
+    /* TODO find Xthal for H2 */
+#elif CONFIG_IDF_TARGET_ESP32S2
+    ESP_LOGI(TAG, "CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#elif CONFIG_IDF_TARGET_ESP32S3
+    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#elif defined(CONFIG_IDF_TARGET_ESP8684)
+    /* TODO find Xthal for ESP8684 */
 #else
     /* not supported at this time */
 #endif
 
-    /* check to see if we are using hardware encryption */
-#if defined(NO_ESP32_CRYPT)
+/* check to see if we are using hardware encryption */
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    WOLFSSL_VERSION_PRINTF("No HW acceleration on ESP8266.");
+#elif defined(NO_ESP32_CRYPT)
     WOLFSSL_VERSION_PRINTF("NO_ESP32_CRYPT defined! "
                            "HW acceleration DISABLED.");
 #else
@@ -246,7 +312,7 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
         #error "ESP32_CRYPT not yet supported on this IDF TARGET"
     #endif
 
-        /* Even though enabled, some specifics may be disabled */
+    /* Even though enabled, some specifics may be disabled */
     #if defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
         WOLFSSL_VERSION_PRINTF("NO_WOLFSSL_ESP32_CRYPT_HASH is defined!"
                                "(disabled HW SHA).");
@@ -385,11 +451,11 @@ int esp_current_boot_count(void)
 /* See macro helpers above; not_defined is macro name when *not* defined */
 static int show_macro(char* s, char* not_defined)
 {
-    char hd1[] = "Macro Name                 Defined   Not Defined";
-    char hd2[] = "------------------------- --------- -------------";
-    char msg[] = ".........................                        ";
-        /*        012345678901234567890123456789012345678901234567890    */
-        /*                  1         2         3         4         5    */
+    const char hd1[] = "Macro Name                 Defined   Not Defined";
+          char hd2[] = "------------------------- --------- -------------";
+          char msg[] = ".........................                        ";
+             /*        012345678901234567890123456789012345678901234567890 */
+             /*                  1         2         3         4         5 */
     size_t i = 0;
     #define MAX_STATUS_NAME_LENGTH 25
     #define ESP_SMS_ENA_POS 30
@@ -424,10 +490,11 @@ static int show_macro(char* s, char* not_defined)
 }
 
 /* Show some interesting settings */
-int ShowExtendedSystemInfo_config(void)
+esp_err_t ShowExtendedSystemInfo_config(void)
 {
     esp_ShowMacroStatus_need_header = 1;
 
+    show_macro("NO_ESP32_CRYPT",            STR_IFNDEF(NO_ESP32_CRYPT));
     show_macro("NO_ESPIDF_DEFAULT",         STR_IFNDEF(NO_ESPIDF_DEFAULT));
 
     show_macro("HW_MATH_ENABLED",           STR_IFNDEF(HW_MATH_ENABLED));
@@ -454,6 +521,7 @@ int ShowExtendedSystemInfo_config(void)
 
     /* Optimizations */
     show_macro("RSA_LOW_MEM",               STR_IFNDEF(RSA_LOW_MEM));
+    show_macro("SMALL_SESSION_CACHE",       STR_IFNDEF(SMALL_SESSION_CACHE));
 
     /* Security Hardening */
     show_macro("WC_NO_HARDEN",              STR_IFNDEF(WC_NO_HARDEN));
@@ -473,6 +541,8 @@ int ShowExtendedSystemInfo_config(void)
     show_macro("WOLFSSL_AES_NO_UNROLL",     STR_IFNDEF(WOLFSSL_AES_NO_UNROLL));
     show_macro("TFM_TIMING_RESISTANT",      STR_IFNDEF(TFM_TIMING_RESISTANT));
     show_macro("ECC_TIMING_RESISTANT",      STR_IFNDEF(ECC_TIMING_RESISTANT));
+
+    /* WC_RSA_BLINDING takes up additional space: */
     show_macro("WC_RSA_BLINDING",           STR_IFNDEF(WC_RSA_BLINDING));
     show_macro("NO_WRITEV",                 STR_IFNDEF(NO_WRITEV));
 
@@ -482,7 +552,7 @@ int ShowExtendedSystemInfo_config(void)
     show_macro("WOLFSSL_NO_CURRDIR",        STR_IFNDEF(WOLFSSL_NO_CURRDIR));
     show_macro("WOLFSSL_LWIP",              STR_IFNDEF(WOLFSSL_LWIP));
 
-    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 #if defined(CONFIG_COMPILER_OPTIMIZATION_DEFAULT)
     ESP_LOGI(TAG, "Compiler Optimization: Default");
 #elif defined(CONFIG_COMPILER_OPTIMIZATION_SIZE)
@@ -494,7 +564,7 @@ int ShowExtendedSystemInfo_config(void)
 #else
     ESP_LOGI(TAG, "Compiler Optimization: Unknown");
 #endif
-    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 
     return ESP_OK;
 }
@@ -549,11 +619,11 @@ int ShowExtendedSystemInfo(void)
 
 #if defined(WOLFSSL_MULTI_INSTALL_WARNING)
     /* CMake may have detected undesired multiple installs, so give warning. */
-    WOLFSSL_VERSION_PRINTF("");
+    WOLFSSL_VERSION_PRINTF(WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
     WOLFSSL_VERSION_PRINTF("WARNING: Multiple wolfSSL installs found.");
     WOLFSSL_VERSION_PRINTF("Check ESP-IDF components and "
                            "local project [components] directory.");
-    WOLFSSL_VERSION_PRINTF("");
+    WOLFSSL_VERSION_PRINTF(WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 #else
     #ifdef WOLFSSL_USER_SETTINGS_DIR
     {
@@ -629,7 +699,7 @@ int ShowExtendedSystemInfo(void)
 #ifdef INCLUDE_uxTaskGetStackHighWaterMark
     ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
 #endif
-    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 
     ShowExtendedSystemInfo_config();
     ShowExtendedSystemInfo_git();
@@ -643,29 +713,125 @@ int ShowExtendedSystemInfo(void)
     return ESP_OK;
 }
 
-int esp_ShowExtendedSystemInfo(void)
+esp_err_t esp_ShowExtendedSystemInfo(void)
 {
     /* Someday the ShowExtendedSystemInfo may be global.
      * See https://github.com/wolfSSL/wolfssl/pull/6149 */
     return ShowExtendedSystemInfo();
 }
 
+/*
+ *  Disable the watchdog timer (use with caution)
+ */
+
+esp_err_t esp_DisableWatchdog(void)
+{
+    esp_err_t ret = ESP_OK;
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    /* magic bit twiddle to disable WDT on ESP8266 */
+    *((volatile uint32_t*) 0x60000900) &= ~(1);
+#elif CONFIG_IDF_TARGET_ESP32S3
+    ESP_LOGW(TAG, "esp_DisableWatchdog TODO S3");
+#else
+    #if ESP_IDF_VERSION_MAJOR >= 5
+    {
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            rtc_wdt_protect_off();
+            rtc_wdt_disable();
+        #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+              defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C6) || \
+              defined(CONFIG_IDF_TARGET_ESP32H2)
+            #if ESP_IDF_VERSION_MINOR >= 3
+                #if CONFIG_ESP_TASK_WDT
+                    ret = esp_task_wdt_deinit();
+                #else
+                    /* CONFIG_ESP_TASK_WDT=y needed in sdkconfig */
+                    ESP_LOGW(TAG, "esp_task_wdt_deinit not available");
+                #endif
+            #else
+                    ESP_LOGW(TAG, "esp_task_wdt_deinit not implemented");
+            #endif
+        #else
+            rtc_wdt_protect_off();
+            rtc_wdt_disable();
+        #endif
+    }
+    #else
+        ESP_LOGW(TAG, "esp_DisableWatchdog not implemented on ESP_IDF v%d",
+                      ESP_IDF_VERSION_MAJOR);
+    #endif
+#endif
+
+#ifdef DEBUG_WOLFSSL
+    ESP_LOGI(TAG, "Watchdog disabled.");
+#endif
+
+    return ret;
+}
+
+/*
+ *  Enable the watchdog timer.
+ */
+
+esp_err_t esp_EnabledWatchdog(void)
+{
+    esp_err_t ret = ESP_OK;
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+     /* magic bit twiddle to enable WDT on ESP8266 */
+     *((volatile uint32_t*) 0x60000900) |= 1;
+#elif CONFIG_IDF_TARGET_ESP32S3
+    ESP_LOGW(TAG, "esp_EnableWatchdog TODO S3");
+#else
+    #if ESP_IDF_VERSION_MAJOR >= 5
+    {
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            rtc_wdt_protect_on();
+            rtc_wdt_enable();
+        #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+              defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32C6) || \
+              defined(CONFIG_IDF_TARGET_ESP32H2)
+            ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
+            esp_task_wdt_config_t twdt_config = {
+                .timeout_ms = 5000,     /* Timeout in milliseconds  */
+                .trigger_panic = true,  /* trigger panic on timeout */
+                .idle_core_mask = (1 << 0), /*  Enable on Core 0    */
+            };
+            ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
+            esp_task_wdt_init(&twdt_config);
+            esp_task_wdt_add(NULL);
+        #else
+            rtc_wdt_protect_on();
+            rtc_wdt_enable();
+        #endif
+    }
+    #else
+        ESP_LOGW(TAG, "esp_DisableWatchdog not implemented on ESP_OIDF v%d",
+                      ESP_IDF_VERSION_MAJOR);
+    #endif
+#endif
+    return ret;
+}
+
+
+
 /* Print a MATH_INT_T attribute list.
  *
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-int esp_show_mp_attributes(char* c, MATH_INT_T* X)
+esp_err_t esp_show_mp_attributes(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
-    int ret = ESP_OK;
+    esp_err_t ret = ESP_OK;
 
     if (X == NULL) {
         ret = ESP_FAIL;
         ESP_LOGV(MP_TAG, "esp_show_mp_attributes called with X == NULL");
     }
     else {
-        ESP_LOGI(MP_TAG, "");
+        ESP_LOGI(MP_TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
         ESP_LOGI(MP_TAG, "%s.used = %d;", c, X->used);
 #if defined(WOLFSSL_SP_INT_NEGATIVE) || defined(USE_FAST_MATH)
         ESP_LOGI(MP_TAG, "%s.sign = %d;", c, X->sign);
@@ -679,10 +845,10 @@ int esp_show_mp_attributes(char* c, MATH_INT_T* X)
  * Note with the right string parameters, the result can be pasted as
  * initialization code.
  */
-int esp_show_mp(char* c, MATH_INT_T* X)
+esp_err_t esp_show_mp(char* c, MATH_INT_T* X)
 {
     static const char* MP_TAG = "MATH_INT_T";
-    int ret = MP_OKAY;
+    esp_err_t ret = ESP_OK;
     int words_to_show = 0;
 
     if (X == NULL) {
@@ -717,16 +883,16 @@ int esp_show_mp(char* c, MATH_INT_T* X)
                                    i  /* the index, again, for comment   */
                      );
         }
-        ESP_LOGI(MP_TAG, "");
+        ESP_LOGI(MP_TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
     }
     return ret;
 }
 
 /* Perform a full mp_cmp and binary compare.
  * (typically only used during debugging) */
-int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
+esp_err_t esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
 {
-    int ret = MP_OKAY;
+    esp_err_t ret = ESP_OK;
     int e = memcmp(A, B, sizeof(mp_int));
     if (mp_cmp(A, B) == MP_EQ) {
         if (e == 0) {
@@ -769,6 +935,7 @@ int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
     }
 
     if (ret == MP_OKAY) {
+        ret = ESP_OK;
         ESP_LOGV(TAG, "esp_mp_cmp equal for %s and %s!",
                        name_A, name_B);
     }
@@ -779,7 +946,7 @@ int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B)
     return ret;
 }
 
-int esp_hw_show_metrics(void)
+esp_err_t esp_hw_show_metrics(void)
 {
 #if  defined(WOLFSSL_HW_METRICS)
     #if defined(WOLFSSL_ESP32_CRYPT)
@@ -807,5 +974,50 @@ int esp_hw_show_metrics(void)
 #endif
     return ESP_OK;
 }
+
+int show_binary(byte* theVar, size_t dataSz) {
+    printf("*****************************************************\n");
+    word32 i;
+    for (i = 0; i < dataSz; i++)
+        printf("%02X", theVar[i]);
+    printf("\n");
+    printf("******************************************************\n");
+    return 0;
+}
+
+int hexToBinary(byte* toVar, const char* fromHexString, size_t szHexString ) {
+    int ret = 0;
+    /* Calculate the actual binary length of the hex string */
+    size_t byteLen = szHexString / 2;
+
+    if (toVar == NULL || fromHexString == NULL) {
+        ESP_LOGE("ssh", " error");
+        return -1;
+    }
+    if ((szHexString % 2 != 0)) {
+        ESP_LOGE("ssh", "fromHexString length not even!");
+    }
+
+    ESP_LOGW(TAG, "Replacing %d bytes at %x", byteLen, (word32)toVar);
+    memset(toVar, 0, byteLen);
+    /* Iterate through the hex string and convert to binary */
+    for (size_t i = 0; i < szHexString; i += 2) {
+        /* Convert hex character to decimal */
+        int decimalValue;
+        sscanf(&fromHexString[i], "%2x", &decimalValue);
+        size_t index = i / 2;
+#if (0)
+        /* Optionally peek at new values */
+        byte new_val =  (decimalValue & 0x0F) << ((i % 2) * 4);
+        ESP_LOGI("hex", "Current char = %d", toVar[index]);
+        ESP_LOGI("hex", "New val = %d", decimalValue);
+#endif
+        toVar[index]  = decimalValue;
+    }
+
+    return ret;
+}
+
+
 
 #endif /* WOLFSSL_ESPIDF */

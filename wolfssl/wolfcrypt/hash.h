@@ -1,6 +1,6 @@
 /* hash.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -80,45 +80,45 @@ enum wc_MACAlgorithm {
     sha512_mac,
     rmd_mac,
     blake2b_mac,
-    sm3_mac,
+    sm3_mac
 };
 
-enum wc_HashFlags {
-    WC_HASH_FLAG_NONE =     0x00000000,
-    WC_HASH_FLAG_WILLCOPY = 0x00000001, /* flag to indicate hash will be copied */
-    WC_HASH_FLAG_ISCOPY =   0x00000002, /* hash is copy */
-#ifdef WOLFSSL_SHA3
-    WC_HASH_SHA3_KECCAK256 =0x00010000, /* Older KECCAK256 */
+/* hash union */
+typedef union {
+#ifndef NO_MD5
+    wc_Md5 md5;
 #endif
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HASH)
-};
+#ifndef NO_SHA
+    wc_Sha sha;
+#endif
+#ifdef WOLFSSL_SHA224
+    wc_Sha224 sha224;
+#endif
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+#endif
+#ifdef WOLFSSL_SHA384
+    wc_Sha384 sha384;
+#endif
+#ifdef WOLFSSL_SHA512
+    wc_Sha512 sha512;
+#endif
+#ifdef WOLFSSL_SHA3
+    wc_Sha3 sha3;
+#endif
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+#endif
+    WOLF_AGG_DUMMY_MEMBER;
+} wc_Hashes;
 
 #ifndef NO_HASH_WRAPPER
-typedef union {
-    #ifndef NO_MD5
-        wc_Md5 md5;
-    #endif
-    #ifndef NO_SHA
-        wc_Sha sha;
-    #endif
-    #ifdef WOLFSSL_SHA224
-        wc_Sha224 sha224;
-    #endif
-    #ifndef NO_SHA256
-        wc_Sha256 sha256;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        wc_Sha384 sha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        wc_Sha512 sha512;
-    #endif
-    #ifdef WOLFSSL_SHA3
-        wc_Sha3 sha3;
-    #endif
-    #ifdef WOLFSSL_SM3
-        wc_Sm3 sm3;
-    #endif
+typedef struct {
+    wc_Hashes alg;
+    enum wc_HashType type; /* sanity check */
+#ifndef WC_NO_CONSTRUCTORS
+    void *heap;
+#endif
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
@@ -183,6 +183,11 @@ WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
 WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
+                                   int devId, int *result_code);
+WOLFSSL_API int wc_HashDelete(wc_HashAlg *hash, wc_HashAlg **hash_p);
+#endif
 
 #ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,

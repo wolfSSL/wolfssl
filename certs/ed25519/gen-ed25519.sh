@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 EXAMPLE=$1
 echo "This uses ed25519 certificate generator from wolfssl-examples github"

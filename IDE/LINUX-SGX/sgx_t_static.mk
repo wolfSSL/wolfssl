@@ -88,6 +88,7 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/signature.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c32.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c64.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_int.c\
 					$(WOLFSSL_ROOT)/src/ssl.c\
 					$(WOLFSSL_ROOT)/src/tls.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_encrypt.c\
@@ -114,7 +115,7 @@ ifeq ($(HAVE_WOLFSSL_SP), 1)
 endif
 
 
-Flags_Just_For_C := -Wno-implicit-function-declaration -std=c11
+Flags_Just_For_C := -Wno-implicit-function-declaration -std=c99
 Common_C_Cpp_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpie -fstack-protector $(Wolfssl_Include_Paths) -fno-builtin-printf -I.
 Wolfssl_C_Flags := $(Flags_Just_For_C) $(Common_C_Cpp_Flags) $(Wolfssl_C_Extra_Flags)
 

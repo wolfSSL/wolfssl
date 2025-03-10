@@ -1,6 +1,6 @@
-/* benchmark main.h
+/* wolfssl_benchmark main.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef _MAIN_
-#define _MAIN_
+#ifndef _MAIN_H_
+#define _MAIN_H_
 
 void app_main(void);
-
-/* see wolfssl/wolfcrypt/benchmark/benchmark.h */
-extern void wolf_benchmark_task();
 
 #endif

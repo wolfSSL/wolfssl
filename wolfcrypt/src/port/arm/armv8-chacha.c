@@ -1,6 +1,6 @@
 /* armv8-chacha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
+#if defined(WOLFSSL_ARMASM)
 #ifdef HAVE_CHACHA
 
 #include <wolfssl/wolfcrypt/chacha.h>
@@ -73,15 +73,43 @@
   * Set up iv(nonce). Earlier versions used 64 bits instead of 96, this version
   * uses the typical AEAD 96 bit nonce and can do record sizes of 256 GB.
   */
-int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
+int wc_Chacha_SetIV(ChaCha* ctx, const byte* iv, word32 counter)
 {
+#ifndef __aarch64__
+    int ret = 0;
+#ifdef CHACHA_AEAD_TEST
+    word32 i;
+
+    printf("NONCE : ");
+    if (iv != NULL) {
+        for (i = 0; i < CHACHA_IV_BYTES; i++) {
+            printf("%02x", iv[i]);
+        }
+    }
+    printf("\n\n");
+#endif
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (iv == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        /* No unused bytes to XOR into input. */
+        ctx->left = 0;
+
+        /* Set counter and IV into state. */
+        wc_chacha_setiv(ctx->X, iv, counter);
+    }
+
+    return ret;
+#else
     word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
 
 #ifdef CHACHA_AEAD_TEST
     word32 i;
     printf("NONCE : ");
     for (i = 0; i < CHACHA_IV_BYTES; i++) {
-        printf("%02x", inIv[i]);
+        printf("%02x", iv[i]);
     }
     printf("\n\n");
 #endif
@@ -89,7 +117,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
+    XMEMCPY(temp, iv, CHACHA_IV_BYTES);
 
     ctx->left = 0;
     ctx->X[CHACHA_IV_BYTES+0] = counter;           /* block counter */
@@ -98,18 +126,54 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     ctx->X[CHACHA_IV_BYTES+3] = LITTLE32(temp[2]); /* counter from nonce */
 
     return 0;
+#endif
 }
 
+#ifdef __aarch64__
 /* "expand 32-byte k" as unsigned 32 byte */
 static const word32 sigma[4] = {0x61707865, 0x3320646e, 0x79622d32, 0x6b206574};
 /* "expand 16-byte k" as unsigned 16 byte */
 static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
+#endif
 
 /**
   * Key setup. 8 word iv (nonce)
   */
 int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
+#ifndef __aarch64__
+    int ret = 0;
+
+#ifdef CHACHA_AEAD_TEST
+    printf("ChaCha key used :\n");
+    if (key != NULL) {
+        word32 i;
+        for (i = 0; i < keySz; i++) {
+            printf("%02x", key[i]);
+            if ((i % 8) == 7)
+               printf("\n");
+        }
+    }
+    printf("\n\n");
+#endif
+
+    /* Validate parameters. */
+    if ((ctx == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if ((keySz != (CHACHA_MAX_KEY_SZ / 2)) &&
+             (keySz !=  CHACHA_MAX_KEY_SZ     )) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        ctx->left = 0;
+
+        wc_chacha_setkey(ctx->X, key, keySz);
+    }
+
+    return ret;
+#else
     const word32* constants;
     const byte*   k;
 
@@ -169,8 +233,10 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->left = 0;
 
     return 0;
+#endif
 }
 
+#ifndef WOLFSSL_ARMASM_NO_NEON
 static const word32 L_chacha20_neon_inc_first_word[] = {
     0x1,
     0x0,
@@ -1666,7 +1732,10 @@ static WC_INLINE int wc_Chacha_encrypt_128(const word32 input[CHACHA_CHUNK_WORDS
         "VADD.I32 q6, q6, q12 \n\t"
         "VADD.I32 q7, q7, q13 \n\t"
 
-        "VLDM %[m], { q8-q15 } \n\t"
+        "VLD1.8 { q8, q9 }, [%[m]]! \n\t"
+        "VLD1.8 { q10, q11 }, [%[m]]! \n\t"
+        "VLD1.8 { q12, q13 }, [%[m]]! \n\t"
+        "VLD1.8 { q14, q15 }, [%[m]]! \n\t"
         "VEOR q0, q0, q8 \n\t"
         "VEOR q1, q1, q9 \n\t"
         "VEOR q2, q2, q10 \n\t"
@@ -1675,7 +1744,10 @@ static WC_INLINE int wc_Chacha_encrypt_128(const word32 input[CHACHA_CHUNK_WORDS
         "VEOR q5, q5, q13 \n\t"
         "VEOR q6, q6, q14 \n\t"
         "VEOR q7, q7, q15 \n\t"
-        "VSTM %[c], { q0-q7 } \n\t"
+        "VST1.8 { q0, q1 }, [%[c]]! \n\t"
+        "VST1.8 { q2, q3 }, [%[c]]! \n\t"
+        "VST1.8 { q4, q5 }, [%[c]]! \n\t"
+        "VST1.8 { q6, q7 }, [%[c]]! \n\t"
 
         : [c] "+r" (c), [m] "+r" (m)
         : [rounds] "I" (ROUNDS/2), [input] "r" (input),
@@ -2725,14 +2797,14 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "CMP        %[bytes], #64        \n\t"
         "BLT        L_chacha20_arm32_64_lt_64_%= \n\t"
         /* XOR full 64 byte block */
-        "VLDM       %[m], { q4-q7 }      \n\t"
-        "ADD        %[m], %[m], #64      \n\t"
+        "VLD1.8     { q4, q5 }, [%[m]]!  \n\t"
+        "VLD1.8     { q6, q7 }, [%[m]]!  \n\t"
         "VEOR       q0, q0, q4           \n\t"
         "VEOR       q1, q1, q5           \n\t"
         "VEOR       q2, q2, q6           \n\t"
         "VEOR       q3, q3, q7           \n\t"
-        "VSTM       %[c], { q0-q3 }      \n\t"
-        "ADD        %[c], %[c], #64      \n\t"
+        "VST1.8     { q0, q1 }, [%[c]]!  \n\t"
+        "VST1.8     { q2, q3 }, [%[c]]!  \n\t"
         "SUBS       %[bytes], %[bytes], #64 \n\t"
         "VADD.I32   q11, q11, q14        \n\t"
         "BNE        L_chacha20_arm32_64_outer_loop_%= \n\t"
@@ -2743,12 +2815,10 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         /* XOR 32 bytes */
         "CMP        %[bytes], #32        \n\t"
         "BLT        L_chacha20_arm32_64_lt_32_%= \n\t"
-        "VLDM       %[m], { q4-q5 }      \n\t"
-        "ADD        %[m], %[m], #32      \n\t"
+        "VLD1.8     { q4, q5 }, [%[m]]!  \n\t"
         "VEOR       q4, q4, q0           \n\t"
         "VEOR       q5, q5, q1           \n\t"
-        "VSTM       %[c], { q4-q5 }      \n\t"
-        "ADD        %[c], %[c], #32      \n\t"
+        "VST1.8     { q4, q5 }, [%[c]]!  \n\t"
         "SUBS       %[bytes], %[bytes], #32 \n\t"
         "VMOV       q0, q2               \n\t"
         "VMOV       q1, q3               \n\t"
@@ -2758,11 +2828,9 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         /* XOR 16 bytes */
         "CMP        %[bytes], #16        \n\t"
         "BLT        L_chacha20_arm32_64_lt_16_%= \n\t"
-        "VLDM       %[m], { q4 }         \n\t"
-        "ADD        %[m], %[m], #16      \n\t"
+        "VLD1.8     { q4 }, [%[m]]!      \n\t"
         "VEOR       q4, q4, q0           \n\t"
-        "VSTM       %[c], { q4 }         \n\t"
-        "ADD        %[c], %[c], #16      \n\t"
+        "VST1.8     { q4 }, [%[c]]!      \n\t"
         "SUBS       %[bytes], %[bytes], #16 \n\t"
         "VMOV       q0, q1               \n\t"
         "BEQ        L_chacha20_arm32_64_done_%= \n\t"
@@ -2771,9 +2839,9 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         /* XOR 8 bytes */
         "CMP        %[bytes], #8         \n\t"
         "BLT        L_chacha20_arm32_64_lt_8_%= \n\t"
-        "VLD1.64    { d8 }, [%[m]]!      \n\t"
+        "VLD1.8     { d8 }, [%[m]]!      \n\t"
         "VEOR       d8, d8, d0           \n\t"
-        "VST1.64    { d8 }, [%[c]]!      \n\t"
+        "VST1.8     { d8 }, [%[c]]!      \n\t"
         "SUBS       %[bytes], %[bytes], #8 \n\t"
         "VMOV       d0, d1               \n\t"
         "BEQ        L_chacha20_arm32_64_done_%= \n\t"
@@ -2811,7 +2879,6 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
     );
 #endif /* __aarch64__ */
 }
-
 
 
 /**
@@ -2860,40 +2927,68 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
     }
 }
+#endif
 
 /**
   * API to encrypt/decrypt a message of any size.
   */
 int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
-                      word32 msglen)
+    word32 len)
 {
+#ifdef WOLFSSL_ARMASM_NO_NEON
+    int ret = 0;
+
+    if ((ctx == NULL) || (output == NULL) || (input == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Handle left over bytes from last block. */
+    if ((ret == 0) && (len > 0) && (ctx->left > 0)) {
+        byte* over = ((byte*)ctx->over) + CHACHA_CHUNK_BYTES - ctx->left;
+        word32 l = min(len, ctx->left);
+
+        wc_chacha_use_over(over, output, input, l);
+
+        ctx->left -= l;
+        input += l;
+        output += l;
+        len -= l;
+    }
+
+    if ((ret == 0) && (len != 0)) {
+        wc_chacha_crypt_bytes(ctx, output, input, len);
+    }
+
+    return ret;
+#else
     if (ctx == NULL || output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
     /* handle left overs */
-    if (msglen > 0 && ctx->left > 0) {
+    if (len > 0 && ctx->left > 0) {
         byte*  out;
         word32 i;
 
         out = (byte*)ctx->over + CHACHA_CHUNK_BYTES - ctx->left;
-        for (i = 0; i < msglen && i < ctx->left; i++) {
+        for (i = 0; i < len && i < ctx->left; i++) {
             output[i] = (byte)(input[i] ^ out[i]);
         }
         ctx->left -= i;
 
-        msglen -= i;
+        len -= i;
         output += i;
         input += i;
     }
 
-    if (msglen == 0) {
+    if (len == 0) {
         return 0;
     }
 
-    wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
+    wc_Chacha_encrypt_bytes(ctx, input, output, len);
 
     return 0;
+#endif
 }
 
 #endif /* HAVE_CHACHA */
-#endif /* WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_ARMASM */

@@ -1,6 +1,6 @@
 /* error-ssl.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,24 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+    #include <wolfssl/debug-untrace-error-codes.h>
+#endif
+
 enum wolfSSL_ErrorCodes {
+    WOLFSSL_FATAL_ERROR          =   -1,   /* must be -1 for backward compat. */
+
+    /* negative counterparts to namesake positive constants in ssl.h */
+    WOLFSSL_ERROR_WANT_READ_E    =   -2,
+    WOLFSSL_ERROR_WANT_WRITE_E   =   -3,
+    WOLFSSL_ERROR_WANT_X509_LOOKUP_E = -4,
+    WOLFSSL_ERROR_SYSCALL_E      =   -5,
+    WOLFSSL_ERROR_ZERO_RETURN_E  =   -6,
+    WOLFSSL_ERROR_WANT_CONNECT_E =   -7,
+    WOLFSSL_ERROR_WANT_ACCEPT_E  =   -8,
+
+    WOLFSSL_FIRST_E              = -301,   /* start of native TLS codes */
+
     INPUT_CASE_ERROR             = -301,   /* process input state error */
     PREFIX_ERROR                 = -302,   /* bad index to key rounds  */
     MEMORY_ERROR                 = -303,   /* out of memory            */
@@ -75,12 +92,14 @@ enum wolfSSL_ErrorCodes {
     ZERO_RETURN                  = -343,   /* peer sent close notify */
     SIDE_ERROR                   = -344,   /* wrong client/server type */
     NO_PEER_CERT                 = -345,   /* peer didn't send key */
+
     ECC_CURVETYPE_ERROR          = -350,   /* Bad ECC Curve Type */
     ECC_CURVE_ERROR              = -351,   /* Bad ECC Curve */
     ECC_PEERKEY_ERROR            = -352,   /* Bad Peer ECC Key */
     ECC_MAKEKEY_ERROR            = -353,   /* Bad Make ECC Key */
     ECC_EXPORT_ERROR             = -354,   /* Bad ECC Export Key */
     ECC_SHARED_ERROR             = -355,   /* Bad ECC Shared Secret */
+
     NOT_CA_ERROR                 = -357,   /* Not a CA cert error */
 
     BAD_CERT_MANAGER_ERROR       = -359,   /* Bad Cert Manager */
@@ -96,7 +115,7 @@ enum wolfSSL_ErrorCodes {
     COOKIE_ERROR                 = -369,   /* dtls cookie error */
     SEQUENCE_ERROR               = -370,   /* dtls sequence error */
     SUITES_ERROR                 = -371,   /* suites pointer error */
-
+    MAX_CERT_EXTENSIONS_ERR      = -372,   /* max cert extension exceeded */
     OUT_OF_ORDER_E               = -373,   /* out of order message */
     BAD_KEA_TYPE_E               = -374,   /* bad KEA type found */
     SANITY_CIPHER_E              = -375,   /* sanity check on cipher error */
@@ -181,24 +200,59 @@ enum wolfSSL_ErrorCodes {
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
     QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
-
     DUPLICATE_TLS_EXT_E          = -457,   /* Duplicate TLS extension in msg. */
-    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
-    /* begin negotiation parameter errors */
+    /* legacy CyaSSL compat layer error codes */
+    WOLFSSL_ALPN_NOT_FOUND       = -458,   /* TLS extension not found */
+    WOLFSSL_BAD_CERTTYPE         = -459,   /* Certificate type not supported */
+    WOLFSSL_BAD_STAT             = -460,   /* not used */
+    WOLFSSL_BAD_PATH             = -461,   /* No certificates found at designated path */
+    WOLFSSL_BAD_FILETYPE         = -462,   /* Data format not supported */
+    WOLFSSL_BAD_FILE             = -463,   /* Input/output error on file */
+    WOLFSSL_NOT_IMPLEMENTED      = -464,   /* Function not implemented */
+    WOLFSSL_UNKNOWN              = -465,   /* Unknown algorithm (EVP) */
+
+    /* negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,   /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501,   /* can't match cipher suite */
     COMPRESSION_ERROR            = -502,   /* compression mismatch */
     KEY_SHARE_ERROR              = -503,   /* key share mismatch */
     POST_HAND_AUTH_ERROR         = -504,   /* client won't do post-hand auth */
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
-    UNSUPPORTED_CERTIFICATE      = -506    /* unsupported certificate type */
-    /* end negotiation parameter errors only 10 for now */
-    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
+    UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
 
-    /* no error strings go down here, add above negotiation errors !!!! */
+    /* PEM and EVP errors */
+    WOLFSSL_PEM_R_NO_START_LINE_E = -507,
+    WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E = -508,
+    WOLFSSL_PEM_R_BAD_PASSWORD_READ_E = -509,
+    WOLFSSL_PEM_R_BAD_DECRYPT_E  = -510,
+    WOLFSSL_ASN1_R_HEADER_TOO_LONG_E = -511,
+
+    WOLFSSL_EVP_R_BAD_DECRYPT_E  = -512,
+    WOLFSSL_EVP_R_BN_DECODE_ERROR = -513,
+    WOLFSSL_EVP_R_DECODE_ERROR   = -514,
+    WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR = -515,
+
+    CRYPTO_POLICY_FORBIDDEN      = -516,   /* operation forbidden by system
+                                            * crypto-policy */
+
+    WOLFSSL_LAST_E               = -516
+
+    /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
 
+wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+
+/* I/O Callback default errors */
+enum IOerrors {
+    WOLFSSL_CBIO_ERR_GENERAL    = -1,     /* general unexpected err */
+    WOLFSSL_CBIO_ERR_WANT_READ  = -2,     /* need to call read  again */
+    WOLFSSL_CBIO_ERR_WANT_WRITE = -2,     /* need to call write again */
+    WOLFSSL_CBIO_ERR_CONN_RST   = -3,     /* connection reset */
+    WOLFSSL_CBIO_ERR_ISR        = -4,     /* interrupt */
+    WOLFSSL_CBIO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
+    WOLFSSL_CBIO_ERR_TIMEOUT    = -6      /* socket timeout */
+};
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     enum {
@@ -211,6 +265,11 @@ enum wolfSSL_ErrorCodes {
 WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
+        (defined(BUILDING_WOLFSSL) || \
+         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+    #include <wolfssl/debug-trace-error-codes.h>
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

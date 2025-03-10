@@ -1,6 +1,6 @@
 /* pem.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -100,7 +100,7 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
     word32 len = 0;
     size_t read_len;
     /* Allocate a minimum amount. */
-    unsigned char* data = (unsigned char*)malloc(DATA_INC_LEN + BLOCK_SIZE_MAX);
+    unsigned char* data = (unsigned char*)XMALLOC(DATA_INC_LEN + BLOCK_SIZE_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (data != NULL) {
         /* Read more data. */
@@ -116,19 +116,17 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)realloc(data, len + DATA_INC_LEN +
-                BLOCK_SIZE_MAX);
+            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN +
+                BLOCK_SIZE_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
-                free(data);
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 data = NULL;
                 break;
             }
             /* Set data to new pointer. */
             data = p;
         }
-        /* Done with file. */
-        fclose(fp);
     }
 
     if (data != NULL) {
@@ -161,8 +159,6 @@ static int WriteFile(FILE* fp, const char* data, word32 len)
        fprintf(stderr, "Failed to write\n");
        ret = 1;
     }
-    /* Close file. */
-    fclose(fp);
 
     return ret;
 }
@@ -294,8 +290,8 @@ static int FindPem(char* data, word32 offset, word32 len, word32* start,
     word32* end, int* type)
 {
     int ret = 0;
-    word32 i;
-    word32 type_off;
+    word32 i = 0;
+    word32 type_off = 0;
     char str[PEM_TYPE_MAX_LEN];
 
     /* Find header. */
@@ -555,7 +551,7 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
         ret = wc_CreateEncryptedPKCS8Key(in, in_len, NULL, enc_len, password,
             (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, salt_sz,
             (int)iterations, &rng, NULL);
-        if (ret == LENGTH_ONLY_E) {
+        if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             ret = 0;
         }
         else if (ret == 0) {
@@ -564,7 +560,7 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
     }
     if (ret == 0) {
         /* Allocate memory for encrypted DER data. */
-        *enc = (unsigned char*)malloc(*enc_len);
+        *enc = (unsigned char*)XMALLOC(*enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*enc == NULL) {
             ret = 1;
         }
@@ -617,7 +613,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
     }
     if ((ret == 0) && (pem_len > 0)) {
         /* Allocate memory to hold PEM encoding. */
-        pem = (unsigned char*)malloc(pem_len);
+        pem = (unsigned char*)XMALLOC(pem_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             ret = 1;
         }
@@ -628,7 +624,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
             type);
         if (ret <= 0) {
             fprintf(stderr, "Could not convert DER to PEM\n");
-            free(pem);
+            XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (ret > 0) {
             *out = pem;
@@ -766,7 +762,8 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No type string provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             type_str = argv[0];
         }
@@ -776,12 +773,19 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No filename provided\n");
-                return 1;
+                ret = 1;
+                goto out;
+            }
+            if (in_file != stdin) {
+                fprintf(stderr, "At most one input file can be supplied.\n");
+                ret = 1;
+                goto out;
             }
             in_file = fopen(argv[0], "r");
             if (in_file == NULL) {
                 fprintf(stderr, "File not able to be read: %s\n", argv[0]);
-                return 1;
+                ret = 1;
+                goto out;
             }
         }
         /* Name of output file. */
@@ -790,7 +794,8 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No filename provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             out_name = argv[0];
         }
@@ -801,7 +806,8 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No filename provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             offset = (word32)strtoul(argv[0], NULL, 10);
         }
@@ -813,7 +819,8 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No password provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             info.passwd_cb = password_from_userdata;
             info.passwd_userdata = argv[0];
@@ -842,10 +849,12 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No PBE version provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             if (StringToPbeVer(argv[0], &pbe_ver) != 0) {
-                return 1;
+                ret = 1;
+                goto out;
             }
         }
         /* PBE algorithm. */
@@ -855,10 +864,12 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No PBE provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             if (StringToPbe(argv[0], &pbe) != 0) {
-                return 1;
+                ret = 1;
+                goto out;
             }
         }
         /* PBES2 algorithm. */
@@ -868,10 +879,12 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No PBE algorithm provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             if (StringToPbeAlg(argv[0], &pbe_alg) != 0) {
-                return 1;
+                ret = 1;
+                goto out;
             }
         }
         /* Number of PBE iterations. */
@@ -881,7 +894,8 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No filename provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             iterations = (unsigned int)strtoul(argv[0], NULL, 10);
         }
@@ -892,13 +906,15 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No salt size provided\n");
-                return 1;
+                ret = 1;
+                goto out;
             }
             salt_sz = (unsigned int)strtoul(argv[0], NULL, 10);
             if (salt_sz > SALT_MAX_LEN) {
                 fprintf(stderr, "Salt size must be no bigger than %d: %d\n",
                     SALT_MAX_LEN, salt_sz);
-                return 1;
+                ret = 1;
+                goto out;
             }
         }
 #endif /* WOLFSSL_ENCRYPTED_KEYS !NO_PWDBASED */
@@ -914,12 +930,14 @@ int main(int argc, char* argv[])
         else if ((strcmp(argv[0], "-?") == 0) ||
                  (strcmp(argv[0], "--help") == 0)) {
             Usage();
-            return 0;
+            ret = 0;
+            goto out;
         }
         else {
             fprintf(stderr, "Bad option: %s\n", argv[0]);
             Usage();
-            return 1;
+            ret = 1;
+            goto out;
         }
 
         /* Move on to next command line argument. */
@@ -1001,25 +1019,33 @@ int main(int argc, char* argv[])
         }
     }
 
+out:
     /* Dispose of allocated data. */
     if (der != NULL) {
         wc_FreeDer(&der);
     }
     else if (out != NULL) {
-        free(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #if defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
     !defined(NO_PWDBASED)
     if (enc != NULL) {
-        free(enc);
+        XFREE(enc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
     if (in != NULL) {
-        free(in);
+        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (ret < 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));
     }
+
+    if ((in_file != stdin) && (in_file != NULL))
+        (void)fclose(in_file);
+
+    if ((out_file != stdout) && (out_file != NULL))
+        (void)fclose(out_file);
+
     return (ret == 0) ? 0 : 1;
 }
 

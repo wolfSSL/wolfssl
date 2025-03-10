@@ -1,6 +1,6 @@
 /* sha.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,8 +31,7 @@
 
 #ifndef NO_SHA
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -53,6 +52,11 @@
     extern "C" {
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA_sanity(void);
+#endif
+
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
@@ -71,6 +75,9 @@
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
+#endif
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
 #endif
 
 #if !defined(NO_OLD_SHA_NAMES)
@@ -144,8 +151,8 @@ struct wc_Sha {
     #else
     word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
-    void*   heap;
 #endif
+    void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
@@ -155,6 +162,9 @@ struct wc_Sha {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx; /* generic crypto callback context */
+#endif
+#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
+    wc_MXC_Sha mxcCtx;
 #endif
 #ifdef WOLFSSL_IMXRT1170_CAAM
     caam_hash_ctx_t ctx;

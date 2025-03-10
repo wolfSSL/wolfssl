@@ -1,6 +1,6 @@
 /* simple_client_example.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,9 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef simple_client_example_h
-#define simple_client_example_h
+#ifndef SIMPLE_CLIENT_EXAMPLE_H
+#define SIMPLE_CLIENT_EXAMPLE_H
 
 int simple_client_example(void);
 
-#endif /* simple_client_example_h */
+#endif /* SIMPLE_CLIENT_EXAMPLE_H */

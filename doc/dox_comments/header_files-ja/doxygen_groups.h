@@ -6,6 +6,7 @@
     \defgroup Camellia Algorithms - Camellia
     \defgroup ChaCha Algorithms - ChaCha
     \defgroup ChaCha20Poly1305 Algorithms - ChaCha20_Poly1305
+  　\defgroup CMAC Algorithm - CMAC
     \defgroup Crypto Callbacks - CryptoCb
     \defgroup Curve25519 Algorithms - Curve25519
     \defgroup Curve448 Algorithms - Curve448
@@ -153,7 +154,7 @@
       -# Set the RSK and, optionally precomputation table: wc_SetSakkeRsk()
       -# Derive SSV and auth data: wc_DeriveSakkeSSV()
       -# Free SAKKE Key: wc_FreeSakkeKey()
-    
+
     \defgroup SAKKE_Setup Setup SAKKE Key
     Operations for establishing a SAKKE key.
 

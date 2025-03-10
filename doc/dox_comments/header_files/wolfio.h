@@ -422,9 +422,9 @@ void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     flags parameter may include one or more of the following:
     #define MSG_OOB 0x1  // process out-of-band data,
     #define MSG_DONTROUTE  0x4  // bypass routing, use direct interface.
-    The flag MSG_OOB is used to send ``out-of-band'' data on sockets that
+    The flag MSG_OOB is used to send 'out-of-band' data on sockets that
     support this notion (e.g.  SOCK_STREAM); the underlying protocol must also
-    support ``out-of-band'' data.  MSG_DONTROUTE is usually used only by
+    support 'out-of-band' data.  MSG_DONTROUTE is usually used only by
     diagnostic or routing programs.”
 
     \return none No returns.
@@ -575,3 +575,46 @@ int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
         can_recv_fn recv_fn, can_send_fn send_fn, can_delay_fn delay_fn,
         word32 receive_delay, char *receive_buffer, int receive_buffer_size,
         void *arg);
+
+/*!
+    \ingroup Setup
+
+    \brief This function disables reading from the IO layer.
+
+    \param ssl the wolfSSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_SSLDisableRead(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SSLSetIORecv
+    \sa wolfSSL_SSLEnableRead
+ */
+void wolfSSL_SSLDisableRead(WOLFSSL *ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief This function enables reading from the IO layer. Reading is enabled
+           by default and should be used to undo wolfSSL_SSLDisableRead();
+
+    \param ssl the wolfSSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_SSLDisableRead(ssl);
+    ...
+    wolfSSL_SSLEnableRead(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_SSLSetIORecv
+    \sa wolfSSL_SSLEnableRead
+ */
+void wolfSSL_SSLEnableRead(WOLFSSL *ssl);

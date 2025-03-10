@@ -126,7 +126,8 @@ int wc_CmacFinalNoFree(Cmac* cmac,
     \sa wc_CmacFinalNoFree
     \sa wc_CmacFree
 */
-int wc_CmacFinalNoFree(Cmac* cmac);
+int wc_CmacFinal(Cmac* cmac,
+                 byte* out, word32* outSz);
 
 /*!
     \ingroup CMAC

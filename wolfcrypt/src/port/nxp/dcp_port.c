@@ -1,6 +1,6 @@
 /* dcp_port.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -255,7 +255,7 @@ int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (ret)
         ret = WC_HW_E;
     else
-        XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, out, WC_AES_BLOCK_SIZE);
     dcp_unlock();
     return ret;
 }
@@ -270,7 +270,7 @@ int  DCPAesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (ret)
         ret = WC_HW_E;
     else
-        XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, in, WC_AES_BLOCK_SIZE);
     dcp_unlock();
     return ret;
 }

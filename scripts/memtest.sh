@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Run this script from the wolfSSL root as `./scripts/memtest.sh`.
 
@@ -14,7 +14,7 @@ make
 
 for i in {1..1000}
 do
-    echo "Trying $i...\n"
+    echo -e "Trying ${i}...\n"
 
         ./tests/unit.test > ./scripts/memtest.txt 2>&1
 

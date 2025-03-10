@@ -1,6 +1,6 @@
 /* stm32.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,12 +35,19 @@
 #ifdef HASH_DIGEST
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
-    #if defined(WOLFSSL_STM32H5)
+    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13)
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
     #else
         #define HASH_CR_SIZE    54
         #define HASH_MAX_DIGEST 32
+    #endif
+    #if defined(WOLFSSL_STM32MP13)
+        #define STM32_HASH_SHA512
+        #define STM32_HASH_SHA512_224
+        #define STM32_HASH_SHA512_256
+        #define STM32_HASH_SHA384
+        #define STM32_HASH_SHA3
     #endif
 #else
     #define HASH_CR_SIZE    50
@@ -69,27 +76,15 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
-#define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
-
-#if (defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
-    defined(WOLFSSL_STM32H7)) && !defined(NO_STM32_HASH_FIFO_WORKAROUND)
-    /* workaround for hash FIFO to write one extra to finalize */
-    /* RM: Message Data Feeding: Data are entered into the HASH
-     * one 32-bit word at a time, by writing them into the HASH_DIN register.
-     * The current contents of the HASH_DIN register are transferred to the
-     * 16 words input FIFO each time the register is written with new data.
-     * Hence HASH_DIN and the FIFO form a seventeen 32-bit words length FIFO. */
-    #undef  STM32_HASH_BUFFER_SIZE
-    #define STM32_HASH_BUFFER_SIZE 17
-
-    #undef  STM32_HASH_FIFO_WORKAROUND
-    #define STM32_HASH_FIFO_WORKAROUND
+/* Maximum FIFO buffer is 64 bits for SHA256, 128 bits for SHA512 and 144 bits
+ * for SHA3 */
+#if defined(STM32_HASH_SHA3)
+    #define STM32_HASH_FIFO_SIZE 36
+#elif defined(STM32_HASH_SHA512) || defined(STM32_HASH_SHA384)
+    #define STM32_HASH_FIFO_SIZE 32
+#else
+    #define STM32_HASH_FIFO_SIZE 16
 #endif
-
-#ifndef STM32_HASH_BUFFER_SIZE
-#define STM32_HASH_BUFFER_SIZE STM32_HASH_FIFO_SIZE
-#endif
-
 
 /* STM32 Hash Context */
 typedef struct {
@@ -98,15 +93,16 @@ typedef struct {
     uint32_t HASH_STR;
     uint32_t HASH_CR;
     uint32_t HASH_CSR[HASH_CR_SIZE];
+#ifdef STM32_HASH_SHA3
+    uint32_t SHA3CFGR;
+#endif
 
     /* Hash state / buffers */
-    word32 buffer[STM32_HASH_BUFFER_SIZE]; /* partial word buffer */
+    word32 buffer[STM32_HASH_FIFO_SIZE+1]; /* partial word buffer */
     word32 buffLen; /* partial word remain */
     word32 loLen;   /* total update bytes
                  (only lsb 6-bits is used for nbr valid bytes in last word) */
-#ifdef STM32_HASH_FIFO_WORKAROUND
-    int    fifoBytes; /* number of currently filled FIFO bytes */
-#endif
+    word32 fifoBytes; /* number of currently filled FIFO bytes */
 } STM32_HASH_Context;
 
 
@@ -122,11 +118,29 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #ifdef STM32_CRYPTO
 
+#if defined(WOLFSSL_STM32MP13)
+    #define RNG RNG1
+    #define CRYP CRYP1
+    #define hcryp hcryp1
+    #define FORMAT_BIN RTC_FORMAT_BIN
+    #define __HAL_RCC_RNG_CLK_ENABLE __HAL_RCC_RNG1_CLK_ENABLE
+    #define __HAL_RCC_HASH_CLK_ENABLE __HAL_RCC_HASH1_CLK_ENABLE
+    #define __HAL_RCC_HASH_CLK_DISABLE __HAL_RCC_HASH1_CLK_DISABLE
+    /* From stm32_hal_legacy.h, but that header has a bug in it */
+    #define HASH_AlgoSelection_MD5       HASH_ALGOSELECTION_MD5
+    #define HASH_AlgoSelection_SHA1      HASH_ALGOSELECTION_SHA1
+    #define HASH_AlgoSelection_SHA224    HASH_ALGOSELECTION_SHA224
+    #define HASH_AlgoSelection_SHA256    HASH_ALGOSELECTION_SHA256
+
+    #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
+#endif
+
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
             defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
-            defined(WOLFSSL_STM32U5))
+            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
+            defined(WOLFSSL_STM32MP13))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -141,9 +155,13 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM32_HAL_V2
     #endif
     #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-        defined(WOLFSSL_STM32U5)
+        defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5)
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32U5)
             #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
+        #endif
+        #if defined(WOLFSSL_STM32H5)
+            #define __HAL_RCC_CRYP_CLK_DISABLE  __HAL_RCC_AES_CLK_DISABLE
+            #define __HAL_RCC_CRYP_CLK_ENABLE   __HAL_RCC_AES_CLK_ENABLE
         #endif
         #define CRYP AES
         #ifndef CRYP_AES_GCM
@@ -155,7 +173,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
         (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
          defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5)) || \
-         defined(WOLFSSL_STM32H5)
+         defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
+         defined(WOLFSSL_STM32H7S)
         #define STM32_HAL_V2
     #endif
 

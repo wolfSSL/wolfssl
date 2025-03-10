@@ -1,6 +1,6 @@
 /* renesas_tsip_sha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,23 +18,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#include <string.h>
-#include <stdio.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if !defined(NO_SHA) || !defined(NO_SHA256)
+#include <string.h>
+#include <stdio.h>
+
 #include <wolfssl/internal.h>
+#include <wolfssl/wolfcrypt/logging.h>
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-#if !defined(NO_SHA) || !defined(NO_SHA256)
-
-#include <wolfssl/wolfcrypt/logging.h>
 
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) || \
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
@@ -64,7 +66,7 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        if (ssl->version.major == SSLv3_MAJOR && 
+        if (ssl->version.major == SSLv3_MAJOR &&
             ssl->version.minor == TLSv1_3_MINOR)
             isTLS13 = 1;
 
@@ -136,8 +138,8 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
 
 
 
-/* store handshake message for later hash or hmac operation. 
- * 
+/* store handshake message for later hash or hmac operation.
+ *
  */
 WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
                                                                 int sz)
@@ -154,7 +156,7 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        if (ssl->version.major == SSLv3_MAJOR && 
+        if (ssl->version.major == SSLv3_MAJOR &&
             ssl->version.minor == TLSv1_3_MINOR)
             isTLS13 = 1;
 
@@ -164,7 +166,7 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
             ret = CRYPTOCB_UNAVAILABLE;
         }
     }
-    /* should work until handshake is done */ 
+    /* should work until handshake is done */
     if (ret == 0) {
         if (ssl->options.handShakeDone) {
             WOLFSSL_MSG("handshake is done.");
@@ -195,12 +197,12 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
 
         bag = &(tuc->messageBag);
 
-        if (bag->msgIdx +1 > MAX_MSGBAG_MESSAGES || 
+        if (bag->msgIdx +1 > MAX_MSGBAG_MESSAGES ||
             bag->buffIdx + sz > MSGBAG_SIZE) {
             WOLFSSL_MSG("Capacity over error in tsip_StoreMessage");
             ret = MEMORY_E;
         }
-    
+
         XMEMCPY(bag->buff + bag->buffIdx, data, sz);
         bag->msgTypes[bag->msgIdx++] = *data;   /* store message type */
         bag->buffIdx += sz;
@@ -229,7 +231,7 @@ WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        if (ssl->version.major == SSLv3_MAJOR && 
+        if (ssl->version.major == SSLv3_MAJOR &&
             ssl->version.minor == TLSv1_3_MINOR)
             isTLS13 = 1;
 
@@ -246,14 +248,14 @@ WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
         }
         bag = &(tuc->messageBag);
     }
-    
+
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
             err = R_TSIP_Sha256Init(&handle);
 
             if (err == TSIP_SUCCESS) {
-                err = R_TSIP_Sha256Update(&handle, (uint8_t*)bag->buff, 
+                err = R_TSIP_Sha256Update(&handle, (uint8_t*)bag->buff,
                                                                 bag->buffIdx);
             }
             if (err == TSIP_SUCCESS) {
@@ -287,10 +289,8 @@ static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
     if (hash == NULL)
         return;
 
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 }
 
 static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
@@ -309,7 +309,7 @@ static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,
     else {
         hash->heap = heap;
     }
-    
+
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;

@@ -1,6 +1,6 @@
 /* sha512_asm.S */
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -159,7 +159,7 @@ _Transform_Sha512_AVX1:
         movq	%r12, %rax
         xorq	%r10, %rbx
         # Start of 16 rounds
-L_sha256_len_avx1_start:
+L_transform_sha512_avx1_start:
         vpaddq	(%rsi), %xmm0, %xmm8
         vpaddq	16(%rsi), %xmm1, %xmm9
         vmovdqu	%xmm8, (%rsp)
@@ -906,7 +906,7 @@ L_sha256_len_avx1_start:
         vpaddq	%xmm7, %xmm8, %xmm7
         # msg_sched done: 14-17
         subl	$0x01, 128(%rsp)
-        jne	L_sha256_len_avx1_start
+        jne	L_transform_sha512_avx1_start
         vpaddq	(%rsi), %xmm0, %xmm8
         vpaddq	16(%rsi), %xmm1, %xmm9
         vmovdqu	%xmm8, (%rsp)
@@ -1372,7 +1372,6 @@ L_sha256_len_avx1_start:
         addq	%r14, 48(%rdi)
         addq	%r15, 56(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x88, %rsp
         popq	%r15
         popq	%r14
@@ -2664,7 +2663,6 @@ L_sha512_len_avx1_start:
         movq	%r15, 56(%rdi)
         jnz	L_sha512_len_avx1_begin
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x90, %rsp
         popq	%rbp
         popq	%r15
@@ -2805,7 +2803,7 @@ _Transform_Sha512_AVX1_RORX:
         vmovdqu	%xmm8, 96(%rsp)
         vmovdqu	%xmm9, 112(%rsp)
         # Start of 16 rounds
-L_sha256_len_avx1_rorx_start:
+L_transform_sha512_avx1_rorx_start:
         addq	$0x80, %rsi
         # msg_sched: 0-1
         # rnd_0: 0 - 0
@@ -3512,7 +3510,7 @@ L_sha256_len_avx1_rorx_start:
         vmovdqu	%xmm8, 96(%rsp)
         vmovdqu	%xmm9, 112(%rsp)
         subl	$0x01, 128(%rsp)
-        jne	L_sha256_len_avx1_rorx_start
+        jne	L_transform_sha512_avx1_rorx_start
         # rnd_all_2: 0-1
         # rnd_0: 0 - 7
         rorxq	$14, %r12, %rax
@@ -3931,7 +3929,6 @@ L_sha256_len_avx1_rorx_start:
         addq	%r14, 48(%rdi)
         addq	%r15, 56(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x88, %rsp
         popq	%r15
         popq	%r14
@@ -5168,7 +5165,6 @@ L_sha512_len_avx1_rorx_start:
         movq	%r15, 56(%rdi)
         jnz	L_sha512_len_avx1_rorx_begin
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x90, %rsp
         popq	%rbp
         popq	%r15

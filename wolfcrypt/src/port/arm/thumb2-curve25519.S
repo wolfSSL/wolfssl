@@ -1,6 +1,6 @@
 /* thumb2-curve25519
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -1511,7 +1511,7 @@ fe_cmov_table:
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	fe_mul_op
@@ -2023,7 +2023,7 @@ fe_mul_op:
 	POP	{pc}
 	/* Cycle Count = 239 */
 	.size	fe_mul_op,.-fe_mul_op
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 	.text
 	.align	4
 	.globl	fe_mul
@@ -2034,7 +2034,7 @@ fe_mul:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 24 */
 	.size	fe_mul,.-fe_mul
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	fe_sq_op
@@ -2425,7 +2425,7 @@ fe_sq_op:
 	POP	{pc}
 	/* Cycle Count = 179 */
 	.size	fe_sq_op,.-fe_sq_op
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 	.text
 	.align	4
 	.globl	fe_sq
@@ -2437,7 +2437,7 @@ fe_sq:
 	/* Cycle Count = 24 */
 	.size	fe_sq,.-fe_sq
 #ifdef HAVE_CURVE25519
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	fe_mul121666
@@ -2524,7 +2524,7 @@ fe_mul121666:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 69 */
 	.size	fe_mul121666,.-fe_mul121666
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifndef WC_NO_CACHE_RESISTANT
 	.text
 	.align	4
@@ -2741,7 +2741,7 @@ L_curve25519_bits:
 	LDR	r1, [sp, #180]
 	SUBS	r1, r1, #0x1
 	STR	r1, [sp, #180]
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_bits
 #else
 	BGE.W	L_curve25519_bits
@@ -2750,7 +2750,7 @@ L_curve25519_bits:
 	STR	r1, [sp, #180]
 	SUBS	r2, r2, #0x4
 	STR	r2, [sp, #176]
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_words
 #else
 	BGE.W	L_curve25519_words
@@ -3466,7 +3466,7 @@ L_fe_invert8:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 292 */
 	.size	fe_invert,.-fe_invert
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	fe_sq2
@@ -3925,7 +3925,7 @@ fe_sq2:
 	POP	{pc}
 	/* Cycle Count = 213 */
 	.size	fe_sq2,.-fe_sq2
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 	.text
 	.align	4
 	.globl	fe_pow22523
@@ -4535,7 +4535,7 @@ ge_sub:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 138 */
 	.size	ge_sub,.-ge_sub
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	sc_reduce
@@ -5258,9 +5258,9 @@ sc_reduce:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 502 */
 	.size	sc_reduce,.-sc_reduce
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifdef HAVE_ED25519_SIGN
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	.text
 	.align	4
 	.globl	sc_muladd
@@ -6470,13 +6470,13 @@ sc_muladd:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 752 */
 	.size	sc_muladd,.-sc_muladd
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

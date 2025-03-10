@@ -12,4 +12,6 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/pie_redirect_table.c \
 	      linuxkm/pie_last.c \
 	      linuxkm/linuxkm_memory.c \
-	      linuxkm/linuxkm_wc_port.h
+	      linuxkm/linuxkm_wc_port.h \
+	      linuxkm/lkcapi_glue.c \
+	      linuxkm/x86_vector_register_glue.c

@@ -205,8 +205,8 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
 
     \brief This function builds the PKCS7 signed data content type, encoding
     the PKCS7 structure into a header and footer buffer containing a parsable PKCS7
-    signed data packet. This does not include the content. 
-    A hash must be computed and provided for the data 
+    signed data packet. This does not include the content.
+    A hash must be computed and provided for the data
 
     \return 0=Success
     \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
@@ -244,11 +244,11 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \param hashSz size of the digest
     \param outputHead pointer to the buffer in which to store the
     encoded certificate header
-    \param outputHeadSz pointer populated with size of output header buffer 
+    \param outputHeadSz pointer populated with size of output header buffer
     and returns actual size
     \param outputFoot pointer to the buffer in which to store the
     encoded certificate footer
-    \param outputFootSz pointer populated with size of output footer buffer 
+    \param outputFootSz pointer populated with size of output footer buffer
     and returns actual size
 
     _Example_
@@ -285,7 +285,7 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
         wc_HashFree(&hash, hashType);
     }
 
-    ret = wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+    ret = wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff,
         &pkcs7HeadSz, pkcs7FootBuff, &pkcs7FootSz);
     if ( ret != 0 ) {
         // error encoding into output buffer
@@ -297,8 +297,8 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData_ex
 */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
+int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
     word32* outputFootSz);
 
 /*!
@@ -382,9 +382,9 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
 /*!
     \ingroup PKCS7
 
-    \brief This function takes in a transmitted PKCS7 signed data message as 
-    hash/header/footer, then extracts the certificate list and certificate 
-    revocation list, and then verifies the signature. It stores the extracted 
+    \brief This function takes in a transmitted PKCS7 signed data message as
+    hash/header/footer, then extracts the certificate list and certificate
+    revocation list, and then verifies the signature. It stores the extracted
     content in the given PKCS7 structure.
 
     \return 0 Returned on successfully extracting the information
@@ -426,10 +426,10 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     certificates
     \param hashBuf pointer to computed hash for the content data
     \param hashSz size of the digest
-    \param pkiMsgHead pointer to the buffer containing the signed message header 
+    \param pkiMsgHead pointer to the buffer containing the signed message header
     to verify and decode
     \param pkiMsgHeadSz size of the signed message header
-    \param pkiMsgFoot pointer to the buffer containing the signed message footer 
+    \param pkiMsgFoot pointer to the buffer containing the signed message footer
     to verify and decode
     \param pkiMsgFootSz size of the signed message footer
 
@@ -463,7 +463,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
         wc_HashFree(&hash, hashType);
     }
 
-    ret = wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+    ret = wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff,
         sizeof(pkcs7HeadBuff), pkcs7FootBuff, sizeof(pkcs7FootBuff));
     if ( ret != 0 ) {
         // error encoding into output buffer
@@ -475,8 +475,8 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData_ex
 */
-int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
+int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz);
 
 /*!

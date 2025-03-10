@@ -1,0 +1,44 @@
+name: No Malloc Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make
+          ./wolfcrypt/test/testwolfcrypt
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          if [ -f test-suite.log ] ; then
+            cat test-suite.log
+          fi

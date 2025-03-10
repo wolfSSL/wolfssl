@@ -1,7 +1,7 @@
 function(override_cache VAR VAL)
     get_property(VAR_STRINGS CACHE ${VAR} PROPERTY STRINGS)
     LIST(FIND VAR_STRINGS ${VAL} CK)
-    if(-1 EQUAL ${CK})
+    if(-1 EQUAL ${CK} AND DEFINED VAR_STRINGS)
         message(SEND_ERROR
             "\"${VAL}\" is not valid override value for \"${VAR}\"."
             " Please select value from \"${VAR_STRINGS}\"\n")
@@ -10,10 +10,15 @@ function(override_cache VAR VAL)
 endfunction()
 
 function(add_option NAME HELP_STRING DEFAULT VALUES)
-    # Set the default value for the option.
-    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
-    # Set the list of allowed values for the option.
-    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+    if(VALUES STREQUAL "yes;no")
+        # Set the default value for the option.
+        set(${NAME} ${DEFAULT} CACHE BOOL ${HELP_STRING})
+    else()
+        # Set the default value for the option.
+        set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
+        # Set the list of allowed values for the option.
+        set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+    endif()
 
     if(DEFINED ${NAME})
         list(FIND VALUES ${${NAME}} IDX)
@@ -73,10 +78,10 @@ function(generate_build_flags)
     if(WOLFSSL_AESCCM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_AESCCM "yes" PARENT_SCOPE)
     endif()
-    set(BUILD_ARM_ASM ${WOLFSSL_ARM_ASM} PARENT_SCOPE)
+    set(BUILD_ARMASM ${WOLFSSL_ARM_ASM} PARENT_SCOPE)
     set(BUILD_XILINX ${WOLFSSL_XILINX} PARENT_SCOPE)
     set(BUILD_AESNI ${WOLFSSL_AESNI} PARENT_SCOPE)
-    set(BUILD_INTEL_ASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
+    set(BUILD_INTELASM ${WOLFSSL_INTEL_ASM} PARENT_SCOPE)
     set(BUILD_AFALG ${WOLFSSL_AFALG} PARENT_SCOPE)
     set(BUILD_DEVCRYPTO ${WOLFSSL_DEVCRYPTO} PARENT_SCOPE)
     if(WOLFSSL_CAMELLIA OR WOLFSSL_USER_SETTINGS)
@@ -193,11 +198,21 @@ function(generate_build_flags)
     if(WOLFSSL_XCHACHA OR WOLFSSL_USER_SETTINGS)
         set(BUILD_XCHACHA "yes" PARENT_SCOPE)
     endif()
+    if(WOLFSSL_KYBER OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_WC_KYBER "yes" PARENT_SCOPE)
+    endif()
     if(WOLFSSL_OQS OR WOLFSSL_USER_SETTINGS)
         set(BUILD_FALCON "yes" PARENT_SCOPE)
         set(BUILD_SPHINCS "yes" PARENT_SCOPE)
         set(BUILD_DILITHIUM "yes" PARENT_SCOPE)
         set(BUILD_EXT_KYBER "yes" PARENT_SCOPE)
+        set(BUILD_OQS_HELPER "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_LMS OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_WC_LMS "yes" PARENT_SCOPE)
+    endif()
+    if(WOLFSSL_XMSS OR WOLFSSL_USER_SETTINGS)
+        set(BUILD_WC_XMSS "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_ARIA OR WOLFSSL_USER_SETTINGS)
         message(STATUS "ARIA functions.cmake found WOLFSSL_ARIA")
@@ -217,8 +232,6 @@ function(generate_build_flags)
         set(BUILD_CRL_MONITOR "yes" PARENT_SCOPE)
     endif()
     set(BUILD_QUIC ${WOLFSSL_QUIC} PARENT_SCOPE)
-    set(BUILD_USER_RSA ${WOLFSSL_USER_RSA} PARENT_SCOPE)
-    set(BUILD_USER_CRYPTO ${WOLFSSL_USER_CRYPTO} PARENT_SCOPE)
     set(BUILD_WNR ${WOLFSSL_WNR} PARENT_SCOPE)
     if(WOLFSSL_SRP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SRP "yes" PARENT_SCOPE)
@@ -247,7 +260,7 @@ function(generate_build_flags)
     endif()
     set(BUILD_EXAMPLE_CLIENTS ${WOLFSSL_EXAMPLES} PARENT_SCOPE)
     set(BUILD_TESTS ${WOLFSSL_EXAMPLES} PARENT_SCOPE)
-    if(NOT WOLFSSL_SINGLETHREADED AND WOLFSSL_EXAMPLES AND NOT WOLFSSL_LEAN_TLS)
+    if(NOT WOLFSSL_SINGLE_THREADED AND WOLFSSL_EXAMPLES AND NOT WOLFSSL_LEAN_TLS)
         set(BUILD_THREADED_EXAMPLES "yes" PARENT_SCOPE)
     endif()
     set(BUILD_WOLFCRYPT_TESTS ${WOLFSSL_CRYPT_TESTS} PARENT_SCOPE)
@@ -281,13 +294,12 @@ function(generate_build_flags)
     if(WOLFSSL_SP_ARM_CORTEX_ASM OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SP_ARM_CORTEX "yes" PARENT_SCOPE)
     endif()
-    if(WOLFSSL_SP_X86_64_ASM OR WOLFSSL_USER_SETTINGS)
+    if(WOLFSSL_X86_64_BUILD AND (WOLFSSL_SP_X86_64_ASM OR WOLFSSL_USER_SETTINGS))
         set(BUILD_SP_X86_64 "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_SP_MATH OR WOLFSSL_SP_MATH_ALL OR WOLFSSL_USER_SETTINGS)
         set(BUILD_SP_INT "yes" PARENT_SCOPE)
     endif()
-    set(BUILD_FAST_RSA ${WOLFSSL_FAST_RSA} PARENT_SCOPE)
     set(BUILD_MCAPI ${WOLFSSL_MCAPI} PARENT_SCOPE)
     set(BUILD_ASYNCCRYPT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
     set(BUILD_WOLFEVENT ${WOLFSSL_ASYNCCRYPT} PARENT_SCOPE)
@@ -393,6 +405,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
               if(BUILD_SHA3)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3.c)
+
+                   if(BUILD_INTELASM)
+                        list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+                   endif()
               endif()
 
               if(BUILD_DH)
@@ -493,14 +509,10 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/async.c)
          endif()
 
-         if(NOT BUILD_USER_RSA AND BUILD_RSA)
-              if(BUILD_FAST_RSA)
-                   list(APPEND LIB_SOURCES wolfcrypt/user-crypto/src/rsa.c)
-              else()
-                   if(NOT BUILD_FIPS_V2)
-                        list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
-                   endif()
-              endif()
+         if(BUILD_RSA)
+               if(NOT BUILD_FIPS_V2)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/rsa.c)
+               endif()
          endif()
 
          if(BUILD_SP)
@@ -511,9 +523,10 @@ function(generate_lib_src_list LIB_SOURCES)
               endif()
 
               if(BUILD_SP_X86_64)
-                   list(APPEND LIB_SOURCES
-                        wolfcrypt/src/sp_x86_64.c
-                        wolfcrypt/src/sp_x86_64_asm.S)
+                    list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64.c)
+                    if(WOLFSSL_X86_64_BUILD_ASM)
+                         list(APPEND LIB_SOURCES wolfcrypt/src/sp_x86_64_asm.S)
+                    endif()
               endif()
 
               if(NOT BUILD_FIPS_V2 AND BUILD_SP_ARM32)
@@ -579,6 +592,10 @@ function(generate_lib_src_list LIB_SOURCES)
 
          if(NOT BUILD_FIPS_V2 AND BUILD_SHA3)
               list(APPEND LIB_SOURCES wolfcrypt/src/sha3.c)
+
+              if(BUILD_INTELASM)
+                   list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
+              endif()
          endif()
     endif()
 
@@ -586,6 +603,11 @@ function(generate_lib_src_list LIB_SOURCES)
          wolfcrypt/src/logging.c
          wolfcrypt/src/wc_port.c
          wolfcrypt/src/error.c)
+
+    if(BUILD_OQS_HELPER)
+        list(APPEND LIB_SOURCES
+            wolfcrypt/src/port/liboqs/liboqs.c)
+    endif()
 
     if(BUILD_ARIA)
         list(APPEND LIB_SOURCES
@@ -789,8 +811,27 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/dilithium.c)
          endif()
 
+         if(BUILD_WC_KYBER)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber_poly.c)
+
+              if(BUILD_INTELASM)
+                   list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber_asm.S)
+              endif()
+         endif()
+
          if(BUILD_EXT_KYBER)
               list(APPEND LIB_SOURCES wolfcrypt/src/ext_kyber.c)
+         endif()
+
+         if(BUILD_WC_LMS)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_lms.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_lms_impl.c)
+         endif()
+
+         if(BUILD_WC_XMSS)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_xmss.c)
+              list(APPEND LIB_SOURCES wolfcrypt/src/wc_xmss_impl.c)
          endif()
 
          if(BUILD_LIBZ)
@@ -913,31 +954,72 @@ function(generate_lib_src_list LIB_SOURCES)
     set(LIB_SOURCES ${LIB_SOURCES} PARENT_SCOPE)
 endfunction()
 
-function(add_to_options_file DEFINITIONS OPTION_FILE)
-    list(REMOVE_DUPLICATES DEFINITIONS)
-    foreach(DEF IN LISTS DEFINITIONS)
-        if(DEF MATCHES "^-D")
-            if(DEF MATCHES "^-D(N)?DEBUG(=.+)?")
-                message("not outputting (N)DEBUG to ${OPTION_FILE}")
-            endif()
+# Function: set_wolfssl_definitions
+#   Parameter: SEARCH_VALUE  The string to search for. (e.g. "WOLFSSL_SHA3")
+#   Returns:   RESULT
+#
+# Searches WOLFSSL_DEFINITIONS for SEARCH_VALUE
+#   Returns RESULT = 1 (true) if the search value is found
+#
+# Ensures setting is only added once and prints status messages.
+#
+# Also sets a parent (global in cmake file) variable by the same name to 1.
+#
+# See also get_wolfssl_definitions() for query-only.
+#
+function(set_wolfssl_definitions SEARCH_VALUE RESULT)
+    if (${SEARCH_VALUE} STREQUAL "")
+        message(FATAL_ERROR "Function set_wolfssl_definitions cannot have blank SEARCH_VALUE")
+    endif()
 
-            # allow user to ignore system options
-            if(DEF MATCHES "^-D_.*")
-                file(APPEND ${OPTION_FILE} "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS\n")
-            endif()
+    list(FIND WOLFSSL_DEFINITIONS "${SEARCH_VALUE}" pos)
+    string(SUBSTRING "${SEARCH_VALUE}" 0 2 PREFIX_VALUE)
 
-            string(REGEX REPLACE "^-D" "" DEF_NO_PREFIX ${DEF})
-            string(REGEX REPLACE "=.*$" "" DEF_NO_EQUAL_NO_VAL ${DEF_NO_PREFIX})
-            string(REPLACE "=" " " DEF_NO_EQUAL ${DEF_NO_PREFIX})
+    if ("${PREFIX_VALUE}" STREQUAL "-D")
+        message(FATAL_ERROR "Do not specify the -D prefix in set_wolfssl_definitions")
+    endif()
 
-            file(APPEND ${OPTION_FILE} "#undef  ${DEF_NO_EQUAL_NO_VAL}\n")
-            file(APPEND ${OPTION_FILE} "#define ${DEF_NO_EQUAL}\n")
+    if(${pos} EQUAL -1)
+        message(STATUS "${SEARCH_VALUE} not found in WOLFSSL_DEFINITIONS.")
 
-            if(DEF MATCHES "^-D_.*")
-                file(APPEND ${OPTION_FILE} "#endif\n")
-            endif()
+        message(STATUS "Enabling ${SEARCH_VALUE}")
+        list(APPEND WOLFSSL_DEFINITIONS "-D${SEARCH_VALUE}")
+        set(${SEARCH_VALUE} 1 PARENT_SCOPE)
+        # override_cache("${SEARCH_VALUE}" "yes") # Need to check that value is settable
+        set(${RESULT} 1 PARENT_SCOPE)
+        message(STATUS "Enabling ${SEARCH_VALUE} - success")
 
-            file(APPEND ${OPTION_FILE} "\n")
-        endif()
-    endforeach()
+    else()
+        message(STATUS "${SEARCH_VALUE} found in WOLFSSL_DEFINITIONS.")
+        set(${RESULT} 0 PARENT_SCOPE)
+    endif()
+endfunction()
+
+# Function: get_wolfssl_definitions
+#   Parameter: SEARCH_VALUE  The string to search for. (e.g. "WOLFSSL_SHA3")
+#   Returns:   RESULT
+#
+# Searches WOLFSSL_DEFINITIONS for SEARCH_VALUE
+#   Returns RESULT = 1 (true) if the search value is found
+#
+# Unlike set_wolfssl_definitions(), this function only queries the WOLFSSL_DEFINITIONS.
+#
+function(get_wolfssl_definitions SEARCH_VALUE RESULT)
+    if (${SEARCH_VALUE} STREQUAL "")
+        message(FATAL_ERROR "Function get_wolfssl_definitions cannot have blank SEARCH_VALUE")
+    endif()
+
+    list(FIND WOLFSSL_DEFINITIONS "${SEARCH_VALUE}" pos)
+    string(SUBSTRING "${SEARCH_VALUE}" 0 2 PREFIX_VALUE)
+
+    if ("${PREFIX_VALUE}" STREQUAL "-D")
+        message(FATAL_ERROR "Do not specify the -D prefix in get_wolfssl_definitions")
+    endif()
+
+
+    if(${pos} EQUAL -1)
+        message(STATUS "${SEARCH_VALUE} not found in WOLFSSL_DEFINITIONS.")
+    else()
+        message(STATUS "${SEARCH_VALUE} found in WOLFSSL_DEFINITIONS.")
+    endif()
 endfunction()

@@ -2,19 +2,24 @@
 # All paths should be given relative to the root
 
 if BUILD_ASYNCCRYPT
+
 noinst_HEADERS += examples/async/async_tls.h
 
+if BUILD_EXAMPLE_CLIENTS
 noinst_PROGRAMS += examples/async/async_client
 examples_async_async_client_SOURCES      = examples/async/async_client.c examples/async/async_tls.c
 examples_async_async_client_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
 examples_async_async_client_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 examples_async_async_client_CFLAGS       = $(AM_CFLAGS)
+endif
 
+if BUILD_EXAMPLE_SERVERS
 noinst_PROGRAMS += examples/async/async_server
 examples_async_async_server_SOURCES      = examples/async/async_server.c examples/async/async_tls.c
 examples_async_async_server_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
 examples_async_async_server_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 examples_async_async_server_CFLAGS       = $(AM_CFLAGS)
+endif
 endif
 
 dist_example_DATA+= examples/async/async_server.c

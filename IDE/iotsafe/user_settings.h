@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,7 +34,21 @@
  *   - Default: one-byte ID sim, with hardcoded server certificate
  */
 
-#ifdef TWO_BYTES_ID_DEMO
+#if defined(FOUR_BYTES_ID_DEMO)
+    #define IOTSAFE_ID_SIZE 2
+    #define CRT_CLIENT_FILE_ID  0xABCD3430     /* pre-provisioned */
+    #define CRT_SERVER_FILE_ID  0xABCD3330
+    #define PRIVKEY_ID          0xABCD3230     /* pre-provisioned */
+    #define ECDH_KEYPAIR_ID     0xABCD3330
+    #define PEER_PUBKEY_ID      0xABCD3730
+    #define PEER_CERT_ID        0xABCD3430
+
+    /* In this version of the demo, the server certificate is
+     * stored in a buffer, while the CA is read from a file slot in IoT-SAFE
+     */
+    #define SOFT_SERVER_CERT
+
+#elif defined(TWO_BYTES_ID_DEMO)
     #define IOTSAFE_ID_SIZE 2
     #define CRT_CLIENT_FILE_ID  0x3430     /* pre-provisioned */
     #define CRT_SERVER_FILE_ID  0x3330
@@ -136,8 +150,10 @@ static inline long XTIME(long *x) { return jiffies;}
 #define WOLFSSL_AES_DIRECT
 
 /* Hashing */
-#define HAVE_SHA384
-#define HAVE_SHA512
+#define WOLFSSL_SHA384
+#define HAVE_SHA384 /* old freeRTOS settings.h requires this */
+#define WOLFSSL_SHA512
+#define HAVE_SHA512 /* old freeRTOS settings.h requires this */
 #define HAVE_HKDF
 
 /* TLS */
