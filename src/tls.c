@@ -15255,7 +15255,9 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     }
 
     /* only write if have a shot at acceptance */
-    if (ssl->options.echAccepted || ((WOLFSSL_ECH*)echX->data)->innerCount == 0) {
+    if (echX != NULL &&
+        (ssl->options.echAccepted ||
+        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
         if (echX != NULL) {
             /* turn off and write it last */
             TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
