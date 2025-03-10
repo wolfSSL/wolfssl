@@ -11832,7 +11832,13 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
-        AES_encrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
+       word32 i;
+
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            AES_encrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
+            in += WC_AES_BLOCK_SIZE;
+            out += WC_AES_BLOCK_SIZE;
+        }
     }
     else
 #endif
@@ -11890,7 +11896,13 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
       !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
     if (aes->use_aes_hw_crypto) {
-        AES_decrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
+        word32 i;
+
+        for (i = 0; i < sz; i += WC_AES_BLOCK_SIZE) {
+            AES_decrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
+            in += WC_AES_BLOCK_SIZE;
+            out += WC_AES_BLOCK_SIZE;
+        }
     }
     else
 #endif
