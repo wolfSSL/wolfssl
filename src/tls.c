@@ -13432,7 +13432,7 @@ int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
     int ret = 0;
     void* receiverPubkey = NULL;
     byte* info = NULL;
-    int infoLen;
+    int infoLen = 0;
     byte* aadCopy = NULL;
     /* setup hpke context to seal, should be done at most once per connection */
     if (ech->hpkeContext == NULL) {
