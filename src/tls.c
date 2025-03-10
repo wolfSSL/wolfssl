@@ -14983,7 +14983,9 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
         echX = TLSX_Find(ssl->ctx->extensions, TLSX_ECH);
 
     /* if type is outer change sni to public name */
-    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
+    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER &&
+        (ssl->options.echAccepted ||
+        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
         if (ssl->extensions) {
             serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
 
@@ -15190,7 +15192,9 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     }
 
     /* if type is outer change sni to public name */
-    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER) {
+    if (echX != NULL && ((WOLFSSL_ECH*)echX->data)->type == ECH_TYPE_OUTER &&
+        (ssl->options.echAccepted ||
+        ((WOLFSSL_ECH*)echX->data)->innerCount == 0)) {
         if (ssl->extensions) {
             serverNameX = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
 
@@ -15250,31 +15254,34 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
             msgType, pOffset);
     }
 
-    if (echX != NULL) {
-        /* turn off and write it last */
-        TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
-    }
+    /* only write if have a shot at acceptance */
+    if (ssl->options.echAccepted || ((WOLFSSL_ECH*)echX->data)->innerCount == 0) {
+        if (echX != NULL) {
+            /* turn off and write it last */
+            TURN_OFF(semaphore, TLSX_ToSemaphore(echX->type));
+        }
 
-    if (ret == 0 && ssl->extensions) {
-        ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
-            msgType, pOffset);
-    }
+        if (ret == 0 && ssl->extensions) {
+            ret = TLSX_Write(ssl->extensions, output + *pOffset, semaphore,
+                msgType, pOffset);
+        }
 
-    if (ret == 0 && ssl->ctx && ssl->ctx->extensions) {
-        ret = TLSX_Write(ssl->ctx->extensions, output + *pOffset, semaphore,
-            msgType, pOffset);
-    }
+        if (ret == 0 && ssl->ctx && ssl->ctx->extensions) {
+            ret = TLSX_Write(ssl->ctx->extensions, output + *pOffset, semaphore,
+                msgType, pOffset);
+        }
 
-    if (serverNameX != NULL) {
-        /* remove the public name SNI */
-        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+        if (serverNameX != NULL) {
+            /* remove the public name SNI */
+            TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
 
-        ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME, tmpServerName,
-            XSTRLEN(tmpServerName), ssl->heap);
+            ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME, tmpServerName,
+                XSTRLEN(tmpServerName), ssl->heap);
 
-        /* restore the inner server name */
-        if (ret == WOLFSSL_SUCCESS)
-            ret = 0;
+            /* restore the inner server name */
+            if (ret == WOLFSSL_SUCCESS)
+                ret = 0;
+        }
     }
 
 #ifdef WOLFSSL_SMALL_STACK
