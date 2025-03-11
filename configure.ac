@@ -1312,7 +1312,7 @@ then
     then
         test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
         test "$enable_aesxts" = "" && enable_aesxts=yes
-        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
+        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
@@ -3221,7 +3221,6 @@ then
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-            ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
@@ -3241,7 +3240,6 @@ then
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-            ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
             ENABLED_ARM_THUMB=yes
             ENABLED_ARM_32=yes
@@ -3259,7 +3257,6 @@ then
             AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-            ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
             ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv6 found])
@@ -3268,7 +3265,6 @@ then
             AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=4"
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
-            ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
             ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv4 found])
@@ -3323,7 +3319,6 @@ AC_ARG_ENABLE([riscv-asm],
 if test "$ENABLED_RISCV_ASM" != "no" && test "$ENABLED_ASM" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_ASM"
-    ENABLED_AESGCM_STREAM=no # not yet implemented
     AC_MSG_NOTICE([64bit RISC-V assembly for AES])
 fi
 
@@ -5584,11 +5579,8 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm" != "no")],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"; AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
 
-        # AES-GCM streaming is part of the v6 FIPS suite, but isn't implemented
-        # for armasm on arm-v7 or earlier (see armasm setup above).
         AS_IF([test "$ENABLED_AESGCM_STREAM" != "yes" &&
-               (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no")],
             [ENABLED_AESGCM_STREAM="yes"])
 
         AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
@@ -5606,8 +5598,7 @@ AS_CASE([$FIPS_VERSION],
             [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
 
         AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" &&
-               (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no")],
             [ENABLED_AESXTS_STREAM="yes"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
@@ -7961,6 +7952,11 @@ AC_ARG_ENABLE([crypttests],
     )
 AC_SUBST([ENABLED_CRYPT_TESTS])
 
+if test "$ENABLED_CRYPT_TESTS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CRYPT_TEST"
+fi
+
 # Build wolfCrypt test and benchmark as libraries. This will compile test.c and
 # benchmark.c and make their functions available via libraries, libwolfcrypttest
 # and libwolfcryptbench, respectively. Note that this feature is not enabled by
@@ -9050,7 +9046,7 @@ if test "$ENABLED_LINUXKM_LKCAPI_REGISTER" != "none"
 then
     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER"
 
-    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$ENABLED_ARMASM" = "no" && test "$ENABLED_RISCV_ASM" = "no" && test "$ENABLED_FIPS" = "no"; then
+    if test "$ENABLED_AESGCM" != "no" && test "$ENABLED_AESGCM_STREAM" = "no" && test "$ENABLED_FIPS" = "no"; then
         ENABLED_AESGCM_STREAM=yes
     fi
 
