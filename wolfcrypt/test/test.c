@@ -60077,6 +60077,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
     ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLF_CRYPTO_CB_FIND
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);
 #endif /* WOLF_CRYPTO_CB_FIND */
@@ -60186,6 +60188,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = cmac_test();
 #endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
 
     /* restore devId */
     devId = origDevId;
