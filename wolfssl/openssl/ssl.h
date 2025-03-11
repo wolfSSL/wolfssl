@@ -438,7 +438,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_get_client_ciphers          wolfSSL_get_client_ciphers
 
 /* use wolfSSL_get_cipher_name for its return format */
-#define SSL_get_cipher                  wolfSSL_get_cipher_name
+#define SSL_get_cipher                  wolfSSL_get_cipher_name_iana
 #define SSL_CIPHER_description          wolfSSL_CIPHER_description
 #define SSL_CIPHER_get_name             wolfSSL_CIPHER_get_name
 #define SSL_CIPHER_get_version          wolfSSL_CIPHER_get_version
