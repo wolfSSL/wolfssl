@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 
+#ifndef NO_CRYPT_TEST
+#include <wolfssl/test.h>
+#include "wolfcrypt/test/test.h"
+#endif
 
 int allTesting = 1;
 int apiTesting = 1;
@@ -218,6 +222,34 @@ int unit_test(int argc, char** argv)
         argv++;
     }
 
+#ifndef NO_CRYPT_TEST
+    /* wc_ test */
+    if (allTesting) {
+        func_args wc_args;
+
+        printf("\nwolfCrypt unit test:\n");
+
+        if ((ret = wolfCrypt_Init()) != 0) {
+            fprintf(stderr, "wolfCrypt_Init failed: %d\n", (int)ret);
+            goto exit;
+        }
+
+        XMEMSET(&wc_args, 0, sizeof(wc_args));
+        wolfcrypt_test(&wc_args);
+        if (wc_args.return_code != 0) {
+            ret = 1;
+            goto exit;
+        }
+
+        if ((ret = wolfCrypt_Cleanup()) != 0) {
+            fprintf(stderr, "wolfCrypt_Cleanup failed: %d\n", (int)ret);
+            goto exit;
+        }
+
+        printf("wolfCrypt unit test completed successfully.\n\n");
+    }
+#endif
+
 #ifdef WOLFSSL_ALLOW_SKIP_UNIT_TESTS
     if (argc == 1)
 #endif
@@ -232,11 +264,6 @@ int unit_test(int argc, char** argv)
             goto exit;
         }
 
-        if ((ret = HashTest()) != 0) {
-            fprintf(stderr, "hash test failed with %d\n", ret);
-            goto exit;
-        }
-
     #ifdef WOLFSSL_W64_WRAPPER
         if ((ret = w64wrapper_test()) != 0) {
             fprintf(stderr, "w64wrapper test failed with %d\n", ret);
@@ -246,7 +273,7 @@ int unit_test(int argc, char** argv)
 
     #ifdef WOLFSSL_QUIC
         if ((ret = QuicTest()) != 0) {
-            printf("quic test failed with %d\n", ret);
+            fprintf(stderr, "quic test failed with %d\n", ret);
             goto exit;
         }
     #endif

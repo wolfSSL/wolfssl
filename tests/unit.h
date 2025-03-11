@@ -419,7 +419,6 @@ int ApiTest_RunName(char* name);
 int ApiTest(void);
 
 int  SuiteTest(int argc, char** argv);
-int  HashTest(void);
 void SrpTest(void);
 int w64wrapper_test(void);
 int QuicTest(void);

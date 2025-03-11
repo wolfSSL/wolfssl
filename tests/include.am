@@ -11,12 +11,16 @@ tests_unit_test_SOURCES = \
                   tests/utils.c \
                   testsuite/utils.c \
                   tests/suites.c \
-                  tests/hash.c \
                   tests/w64wrapper.c \
                   tests/srp.c \
                   tests/quic.c \
                   examples/client/client.c \
                   examples/server/server.c
+
+if BUILD_WOLFCRYPT_TESTS
+tests_unit_test_SOURCES += wolfcrypt/test/test.c
+endif
+
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 tests_unit_test_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 tests_unit_test_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
