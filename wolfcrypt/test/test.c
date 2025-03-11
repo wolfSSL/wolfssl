@@ -2396,16 +2396,20 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("PKCS7signed     test passed!\n");
 
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = pkcs7enveloped_test()) != 0)
         TEST_FAIL("PKCS7enveloped  test failed!\n", ret);
     else
         TEST_PASS("PKCS7enveloped  test passed!\n");
+    PRIVATE_KEY_LOCK();
 
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        PRIVATE_KEY_UNLOCK();
         if ( (ret = pkcs7authenveloped_test()) != 0)
             TEST_FAIL("PKCS7authenveloped  test failed!\n", ret);
         else
             TEST_PASS("PKCS7authenveloped  test passed!\n");
+        PRIVATE_KEY_LOCK();
     #endif
 #endif
 
