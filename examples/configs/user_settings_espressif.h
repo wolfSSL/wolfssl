@@ -213,8 +213,8 @@
 #ifdef CONFIG_WOLFSSL_ENABLE_KYBER
     /* Kyber typically needs a minimum 10K stack */
     #define WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_WC_KYBER
+    #define WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_SHA3
     #if defined(CONFIG_IDF_TARGET_ESP8266)
         /* With limited RAM, we'll disable some of the Kyber sizes: */

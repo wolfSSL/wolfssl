@@ -4572,7 +4572,7 @@ enum {
 
 #ifdef HAVE_PQC
 
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     /* Old code points to keep compatibility with Kyber Round 3.
      * Taken from OQS's openssl provider, see:
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
@@ -4589,7 +4589,7 @@ enum {
     WOLFSSL_X448_KYBER_LEVEL3     = 12176,
     WOLFSSL_X25519_KYBER_LEVEL3   = 25497,
     WOLFSSL_P256_KYBER_LEVEL3     = 25498,
-#endif /* WOLFSSL_KYBER_ORIGINAL */
+#endif /* WOLFSSL_MLKEM_KYBER */
 #ifndef WOLFSSL_NO_ML_KEM
     /* Taken from draft-connolly-tls-mlkem-key-agreement, see:
      * https://github.com/dconnolly/draft-connolly-tls-mlkem-key-agreement/

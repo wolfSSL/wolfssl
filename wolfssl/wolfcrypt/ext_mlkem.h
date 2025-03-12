@@ -1,4 +1,4 @@
-/* ext_kyber.h
+/* ext_mlkem.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -26,14 +26,14 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
-#include <wolfssl/wolfcrypt/kyber.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+#include <wolfssl/wolfcrypt/mlkem.h>
 
 #if !defined(HAVE_LIBOQS)
 #error "This code requires liboqs"
 #endif
 
-#if defined(WOLFSSL_WC_KYBER)
+#if defined(WOLFSSL_WC_MLKEM)
 #error "This code is incompatible with wolfCrypt's implementation of Kyber."
 #endif
 
@@ -43,7 +43,7 @@
     #ifndef WOLFSSL_NO_ML_KEM
         #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_ml_kem_1024_length_secret_key
         #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_ml_kem_1024_length_public_key
-    #elif defined(WOLFSSL_KYBER_ORIGINAL)
+    #elif defined(WOLFSSL_MLKEM_KYBER)
         #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_kyber_1024_length_secret_key
         #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_kyber_1024_length_public_key
     #endif
@@ -68,7 +68,7 @@ struct KyberKey {
 };
 
 #if defined (HAVE_LIBOQS)
-WOLFSSL_LOCAL int ext_kyber_enabled(int id);
+WOLFSSL_LOCAL int ext_mlkem_enabled(int id);
 #endif
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 #endif /* EXT_KYBER_H */

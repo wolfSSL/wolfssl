@@ -26,7 +26,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
+ *   ruby ./sha2/sha512.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
@@ -128,9 +129,9 @@ L_SHA512_transform_neon_len_k:
 	.xword	0x6c44198c4a475817
 #ifndef __APPLE__
 	.text
-	.type	L_SHA512_transform_neon_len_ror8, %object
+	.type	L_SHA512_transform_neon_len_r8, %object
 	.section	.rodata
-	.size	L_SHA512_transform_neon_len_ror8, 16
+	.size	L_SHA512_transform_neon_len_r8, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -139,7 +140,7 @@ L_SHA512_transform_neon_len_k:
 #else
 	.p2align	4
 #endif /* __APPLE__ */
-L_SHA512_transform_neon_len_ror8:
+L_SHA512_transform_neon_len_r8:
 	.xword	0x7060504030201, 0x80f0e0d0c0b0a09
 #ifndef __APPLE__
 .text
@@ -170,11 +171,11 @@ _Transform_Sha512_Len_neon:
 	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x27, L_SHA512_transform_neon_len_ror8
-	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8
+	adrp x27, L_SHA512_transform_neon_len_r8
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8
 #else
-	adrp x27, L_SHA512_transform_neon_len_ror8@PAGE
-	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8@PAGEOFF
+	adrp x27, L_SHA512_transform_neon_len_r8@PAGE
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
@@ -1095,9 +1096,9 @@ L_sha512_len_neon_start:
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
 	.text
-	.type	L_SHA512_transform_crypto_len_k, %object
+	.type	L_SHA512_trans_crypto_len_k, %object
 	.section	.rodata
-	.size	L_SHA512_transform_crypto_len_k, 640
+	.size	L_SHA512_trans_crypto_len_k, 640
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -1106,7 +1107,7 @@ L_sha512_len_neon_start:
 #else
 	.p2align	3
 #endif /* __APPLE__ */
-L_SHA512_transform_crypto_len_k:
+L_SHA512_trans_crypto_len_k:
 	.xword	0x428a2f98d728ae22
 	.xword	0x7137449123ef65cd
 	.xword	0xb5c0fbcfec4d3b2f
@@ -1209,11 +1210,11 @@ _Transform_Sha512_Len_crypto:
 .arch_extension sha3
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_SHA512_transform_crypto_len_k
-	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k
+	adrp x4, L_SHA512_trans_crypto_len_k
+	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k
 #else
-	adrp x4, L_SHA512_transform_crypto_len_k@PAGE
-	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k@PAGEOFF
+	adrp x4, L_SHA512_trans_crypto_len_k@PAGE
+	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
 	# Load first 16 64-bit words of K permanently
 	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40

@@ -1,4 +1,4 @@
-/* armv8-32-kyber-asm
+/* armv8-32-mlkem-asm
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -22,7 +22,7 @@
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./kyber/kyber.rb arm32 \
- *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-kyber-asm.S
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-mlkem-asm.S
  */
 
 #ifdef HAVE_CONFIG_H
@@ -33,12 +33,12 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_MLKEM
 	.text
-	.type	L_kyber_arm32_ntt_zetas, %object
-	.size	L_kyber_arm32_ntt_zetas, 256
+	.type	L_mlkem_arm32_ntt_zetas, %object
+	.size	L_mlkem_arm32_ntt_zetas, 256
 	.align	4
-L_kyber_arm32_ntt_zetas:
+L_mlkem_arm32_ntt_zetas:
 	.short	0x8ed
 	.short	0xa0b
 	.short	0xb9a
@@ -169,12 +169,12 @@ L_kyber_arm32_ntt_zetas:
 	.short	0x65c
 	.text
 	.align	4
-	.globl	kyber_arm32_ntt
-	.type	kyber_arm32_ntt, %function
-kyber_arm32_ntt:
+	.globl	mlkem_arm32_ntt
+	.type	mlkem_arm32_ntt, %function
+mlkem_arm32_ntt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #8
-	adr	r1, L_kyber_arm32_ntt_zetas
+	adr	r1, L_mlkem_arm32_ntt_zetas
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r10, #0x1
@@ -190,7 +190,7 @@ kyber_arm32_ntt:
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r2, #16
-L_kyber_arm32_ntt_loop_123:
+L_mlkem_arm32_ntt_loop_123:
 	str	r2, [sp]
 	ldrh	r11, [r1, #2]
 	ldr	r2, [r0]
@@ -1303,15 +1303,15 @@ L_kyber_arm32_ntt_loop_123:
 	ldr	r2, [sp]
 	subs	r2, r2, #1
 	add	r0, r0, #4
-	bne	L_kyber_arm32_ntt_loop_123
+	bne	L_mlkem_arm32_ntt_loop_123
 	sub	r0, r0, #0x40
 	mov	r3, #0
-L_kyber_arm32_ntt_loop_4_j:
+L_mlkem_arm32_ntt_loop_4_j:
 	str	r3, [sp, #4]
 	add	r11, r1, r3, lsr #4
 	mov	r2, #4
 	ldr	r11, [r11, #16]
-L_kyber_arm32_ntt_loop_4_i:
+L_mlkem_arm32_ntt_loop_4_i:
 	str	r2, [sp]
 	ldr	r2, [r0]
 	ldr	r3, [r0, #16]
@@ -1698,14 +1698,14 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	subs	r2, r2, #1
 	add	r0, r0, #4
-	bne	L_kyber_arm32_ntt_loop_4_i
+	bne	L_mlkem_arm32_ntt_loop_4_i
 	add	r3, r3, #0x40
 	rsbs	r12, r3, #0x100
 	add	r0, r0, #0x70
-	bne	L_kyber_arm32_ntt_loop_4_j
+	bne	L_mlkem_arm32_ntt_loop_4_j
 	sub	r0, r0, #0x200
 	mov	r3, #0
-L_kyber_arm32_ntt_loop_567:
+L_mlkem_arm32_ntt_loop_567:
 	add	r11, r1, r3, lsr #3
 	str	r3, [sp, #4]
 	ldrh	r11, [r11, #32]
@@ -3154,15 +3154,15 @@ L_kyber_arm32_ntt_loop_567:
 	add	r3, r3, #16
 	rsbs	r12, r3, #0x100
 	add	r0, r0, #32
-	bne	L_kyber_arm32_ntt_loop_567
+	bne	L_mlkem_arm32_ntt_loop_567
 	add	sp, sp, #8
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	kyber_arm32_ntt,.-kyber_arm32_ntt
+	.size	mlkem_arm32_ntt,.-mlkem_arm32_ntt
 	.text
-	.type	L_kyber_arm32_invntt_zetas_inv, %object
-	.size	L_kyber_arm32_invntt_zetas_inv, 256
+	.type	L_mlkem_invntt_zetas_inv, %object
+	.size	L_mlkem_invntt_zetas_inv, 256
 	.align	4
-L_kyber_arm32_invntt_zetas_inv:
+L_mlkem_invntt_zetas_inv:
 	.short	0x6a5
 	.short	0x70f
 	.short	0x5b4
@@ -3293,12 +3293,12 @@ L_kyber_arm32_invntt_zetas_inv:
 	.short	0x5a1
 	.text
 	.align	4
-	.globl	kyber_arm32_invntt
-	.type	kyber_arm32_invntt, %function
-kyber_arm32_invntt:
+	.globl	mlkem_arm32_invntt
+	.type	mlkem_arm32_invntt, %function
+mlkem_arm32_invntt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #8
-	adr	r1, L_kyber_arm32_invntt_zetas_inv
+	adr	r1, L_mlkem_invntt_zetas_inv
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r10, #0x1
@@ -3314,7 +3314,7 @@ kyber_arm32_invntt:
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r3, #0
-L_kyber_arm32_invntt_loop_765:
+L_mlkem_invntt_loop_765:
 	add	r11, r1, r3, lsr #1
 	str	r3, [sp, #4]
 	ldr	r2, [r0]
@@ -4911,15 +4911,15 @@ L_kyber_arm32_invntt_loop_765:
 	add	r3, r3, #16
 	rsbs	r12, r3, #0x100
 	add	r0, r0, #32
-	bne	L_kyber_arm32_invntt_loop_765
+	bne	L_mlkem_invntt_loop_765
 	sub	r0, r0, #0x200
 	mov	r3, #0
-L_kyber_arm32_invntt_loop_4_j:
+L_mlkem_invntt_loop_4_j:
 	str	r3, [sp, #4]
 	add	r11, r1, r3, lsr #4
 	mov	r2, #4
 	ldr	r11, [r11, #224]
-L_kyber_arm32_invntt_loop_4_i:
+L_mlkem_invntt_loop_4_i:
 	str	r2, [sp]
 	ldr	r2, [r0]
 	ldr	r3, [r0, #16]
@@ -5410,14 +5410,14 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	subs	r2, r2, #1
 	add	r0, r0, #4
-	bne	L_kyber_arm32_invntt_loop_4_i
+	bne	L_mlkem_invntt_loop_4_i
 	add	r3, r3, #0x40
 	rsbs	r12, r3, #0x100
 	add	r0, r0, #0x70
-	bne	L_kyber_arm32_invntt_loop_4_j
+	bne	L_mlkem_invntt_loop_4_j
 	sub	r0, r0, #0x200
 	mov	r2, #16
-L_kyber_arm32_invntt_loop_321:
+L_mlkem_invntt_loop_321:
 	str	r2, [sp]
 	ldrh	r11, [r1, #2]
 	ldr	r2, [r0]
@@ -7672,15 +7672,15 @@ L_kyber_arm32_invntt_loop_321:
 	ldr	r2, [sp]
 	subs	r2, r2, #1
 	add	r0, r0, #4
-	bne	L_kyber_arm32_invntt_loop_321
+	bne	L_mlkem_invntt_loop_321
 	add	sp, sp, #8
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	kyber_arm32_invntt,.-kyber_arm32_invntt
+	.size	mlkem_arm32_invntt,.-mlkem_arm32_invntt
 	.text
-	.type	L_kyber_arm32_basemul_mont_zetas, %object
-	.size	L_kyber_arm32_basemul_mont_zetas, 256
+	.type	L_mlkem_basemul_mont_zetas, %object
+	.size	L_mlkem_basemul_mont_zetas, 256
 	.align	4
-L_kyber_arm32_basemul_mont_zetas:
+L_mlkem_basemul_mont_zetas:
 	.short	0x8ed
 	.short	0xa0b
 	.short	0xb9a
@@ -7811,11 +7811,11 @@ L_kyber_arm32_basemul_mont_zetas:
 	.short	0x65c
 	.text
 	.align	4
-	.globl	kyber_arm32_basemul_mont
-	.type	kyber_arm32_basemul_mont, %function
-kyber_arm32_basemul_mont:
+	.globl	mlkem_arm32_basemul_mont
+	.type	mlkem_arm32_basemul_mont, %function
+mlkem_arm32_basemul_mont:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	adr	r3, L_kyber_arm32_basemul_mont_zetas
+	adr	r3, L_mlkem_basemul_mont_zetas
 	add	r3, r3, #0x80
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -7832,7 +7832,7 @@ kyber_arm32_basemul_mont:
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r8, #0
-L_kyber_arm32_basemul_mont_loop:
+L_mlkem_basemul_mont_loop:
 	ldm	r1!, {r4, r5}
 	ldm	r2!, {r6, r7}
 	ldr	lr, [r3, r8]
@@ -8084,16 +8084,16 @@ L_kyber_arm32_basemul_mont_loop:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r4, r5}
 	pop	{r8}
-	bne	L_kyber_arm32_basemul_mont_loop
+	bne	L_mlkem_basemul_mont_loop
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	kyber_arm32_basemul_mont,.-kyber_arm32_basemul_mont
+	.size	mlkem_arm32_basemul_mont,.-mlkem_arm32_basemul_mont
 	.text
 	.align	4
-	.globl	kyber_arm32_basemul_mont_add
-	.type	kyber_arm32_basemul_mont_add, %function
-kyber_arm32_basemul_mont_add:
+	.globl	mlkem_arm32_basemul_mont_add
+	.type	mlkem_arm32_basemul_mont_add, %function
+mlkem_arm32_basemul_mont_add:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	adr	r3, L_kyber_arm32_basemul_mont_zetas
+	adr	r3, L_mlkem_basemul_mont_zetas
 	add	r3, r3, #0x80
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8110,7 +8110,7 @@ kyber_arm32_basemul_mont_add:
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	mov	r8, #0
-L_kyber_arm32_basemul_mont_add_loop:
+L_mlkem_arm32_basemul_mont_add_loop:
 	ldm	r1!, {r4, r5}
 	ldm	r2!, {r6, r7}
 	ldr	lr, [r3, r8]
@@ -8396,14 +8396,14 @@ L_kyber_arm32_basemul_mont_add_loop:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r4, r5}
 	pop	{r8}
-	bne	L_kyber_arm32_basemul_mont_add_loop
+	bne	L_mlkem_arm32_basemul_mont_add_loop
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	kyber_arm32_basemul_mont_add,.-kyber_arm32_basemul_mont_add
+	.size	mlkem_arm32_basemul_mont_add,.-mlkem_arm32_basemul_mont_add
 	.text
 	.align	4
-	.globl	kyber_arm32_csubq
-	.type	kyber_arm32_csubq, %function
-kyber_arm32_csubq:
+	.globl	mlkem_arm32_csubq
+	.type	mlkem_arm32_csubq, %function
+mlkem_arm32_csubq:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r12, #0x1
@@ -8432,7 +8432,7 @@ kyber_arm32_csubq:
 	movt	r11, #0x8000
 #endif
 	mov	r1, #0x100
-L_kyber_arm32_csubq_loop:
+L_mlkem_arm32_csubq_loop:
 	ldm	r0, {r2, r3, r4, r5}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 	ssub16	r2, r2, lr
@@ -8567,14 +8567,14 @@ L_kyber_arm32_csubq_loop:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 	stm	r0!, {r2, r3, r4, r5}
 	subs	r1, r1, #8
-	bne	L_kyber_arm32_csubq_loop
+	bne	L_mlkem_arm32_csubq_loop
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	kyber_arm32_csubq,.-kyber_arm32_csubq
+	.size	mlkem_arm32_csubq,.-mlkem_arm32_csubq
 	.text
 	.align	4
-	.globl	kyber_arm32_rej_uniform
-	.type	kyber_arm32_rej_uniform, %function
-kyber_arm32_rej_uniform:
+	.globl	mlkem_arm32_rej_uniform
+	.type	mlkem_arm32_rej_uniform, %function
+mlkem_arm32_rej_uniform:
 	push	{r4, r5, r6, r7, r8, lr}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r8, #0x1
@@ -8583,9 +8583,9 @@ kyber_arm32_rej_uniform:
 	mov	r8, #0xd01
 #endif
 	mov	r12, #0
-L_kyber_arm32_rej_uniform_loop_no_fail:
+L_mlkem_arm32_rej_uniform_loop_no_fail:
 	cmp	r1, #8
-	blt	L_kyber_arm32_rej_uniform_done_no_fail
+	blt	L_mlkem_arm32_rej_uniform_done_no_fail
 	ldm	r2!, {r4, r5, r6}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r4, #20
@@ -8689,12 +8689,12 @@ L_kyber_arm32_rej_uniform_loop_no_fail:
 	sub	r1, r1, lr
 	add	r12, r12, lr, lsl #1
 	subs	r3, r3, #12
-	bne	L_kyber_arm32_rej_uniform_loop_no_fail
-	b	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_done_no_fail:
+	bne	L_mlkem_arm32_rej_uniform_loop_no_fail
+	b	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_done_no_fail:
 	cmp	r1, #0
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_loop:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_loop:
 	ldm	r2!, {r4, r5, r6}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r4, #20
@@ -8703,12 +8703,12 @@ L_kyber_arm32_rej_uniform_loop:
 	ubfx	r7, r4, #0, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_0
+	bge	L_mlkem_arm32_rej_uniform_fail_0
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_0:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_0:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r4, #8
 	lsr	r7, r7, #20
@@ -8716,12 +8716,12 @@ L_kyber_arm32_rej_uniform_fail_0:
 	ubfx	r7, r4, #12, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_1
+	bge	L_mlkem_arm32_rej_uniform_fail_1
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_1:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_1:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r7, r4, #24
 #else
@@ -8736,12 +8736,12 @@ L_kyber_arm32_rej_uniform_fail_1:
 	bfi	r7, r5, #8, #4
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_2
+	bge	L_mlkem_arm32_rej_uniform_fail_2
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_2:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_2:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r5, #16
 	lsr	r7, r7, #20
@@ -8749,12 +8749,12 @@ L_kyber_arm32_rej_uniform_fail_2:
 	ubfx	r7, r5, #4, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_3
+	bge	L_mlkem_arm32_rej_uniform_fail_3
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_3:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_3:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r5, #4
 	lsr	r7, r7, #20
@@ -8762,12 +8762,12 @@ L_kyber_arm32_rej_uniform_fail_3:
 	ubfx	r7, r5, #16, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_4
+	bge	L_mlkem_arm32_rej_uniform_fail_4
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_4:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_4:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r7, r5, #28
 #else
@@ -8782,12 +8782,12 @@ L_kyber_arm32_rej_uniform_fail_4:
 	bfi	r7, r6, #4, #8
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_5
+	bge	L_mlkem_arm32_rej_uniform_fail_5
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_5:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_5:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r7, r6, #12
 	lsr	r7, r7, #20
@@ -8795,31 +8795,31 @@ L_kyber_arm32_rej_uniform_fail_5:
 	ubfx	r7, r6, #8, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_6
+	bge	L_mlkem_arm32_rej_uniform_fail_6
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_6:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_6:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsr	r7, r6, #20
 #else
 	ubfx	r7, r6, #20, #12
 #endif
 	cmp	r7, r8
-	bge	L_kyber_arm32_rej_uniform_fail_7
+	bge	L_mlkem_arm32_rej_uniform_fail_7
 	strh	r7, [r0, r12]
 	subs	r1, r1, #1
 	add	r12, r12, #2
-	beq	L_kyber_arm32_rej_uniform_done
-L_kyber_arm32_rej_uniform_fail_7:
+	beq	L_mlkem_arm32_rej_uniform_done
+L_mlkem_arm32_rej_uniform_fail_7:
 	subs	r3, r3, #12
-	bgt	L_kyber_arm32_rej_uniform_loop
-L_kyber_arm32_rej_uniform_done:
+	bgt	L_mlkem_arm32_rej_uniform_loop
+L_mlkem_arm32_rej_uniform_done:
 	lsr	r0, r12, #1
 	pop	{r4, r5, r6, r7, r8, pc}
-	.size	kyber_arm32_rej_uniform,.-kyber_arm32_rej_uniform
-#endif /* WOLFSSL_WC_KYBER */
+	.size	mlkem_arm32_rej_uniform,.-mlkem_arm32_rej_uniform
+#endif /* WOLFSSL_WC_MLKEM */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 

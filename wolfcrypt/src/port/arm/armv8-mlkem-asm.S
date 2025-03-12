@@ -1,4 +1,4 @@
-/* armv8-kyber-asm
+/* armv8-mlkem-asm
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -26,16 +26,17 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./kyber/kyber.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-kyber-asm.S
+ *   ruby ./kyber/kyber.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-mlkem-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_q, %object
+	.type	L_mlkem_aarch64_q, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_q, 16
+	.size	L_mlkem_aarch64_q, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -44,13 +45,13 @@
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_q:
+L_mlkem_aarch64_q:
 	.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_consts, %object
+	.type	L_mlkem_aarch64_consts, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_consts, 16
+	.size	L_mlkem_aarch64_consts, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -59,7 +60,7 @@ L_kyber_aarch64_q:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_consts:
+L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
 #ifndef __APPLE__
 	.text
@@ -99,12 +100,12 @@ L_sha3_aarch64_r:
 	.xword	0x8000000000008080
 	.xword	0x0000000080000001
 	.xword	0x8000000080008008
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_MLKEM
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_zetas, %object
+	.type	L_mlkem_aarch64_zetas, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_zetas, 576
+	.size	L_mlkem_aarch64_zetas, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -113,7 +114,7 @@ L_sha3_aarch64_r:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_zetas:
+L_mlkem_aarch64_zetas:
 	.short	0x08ed,0x0a0b,0x0b9a,0x0714,0x05d5,0x058e,0x011f,0x00ca
 	.short	0x0c56,0x026e,0x0629,0x00b6,0x03c2,0x084f,0x073f,0x05bc
 	.short	0x023d,0x07d4,0x0108,0x017f,0x09c4,0x05b2,0x06bf,0x0c7f
@@ -152,9 +153,9 @@ L_kyber_aarch64_zetas:
 	.short	0x03be,0x03be,0x074d,0x074d,0x05f2,0x05f2,0x065c,0x065c
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_zetas_qinv, %object
+	.type	L_mlkem_aarch64_zetas_qinv, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_zetas_qinv, 576
+	.size	L_mlkem_aarch64_zetas_qinv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -163,7 +164,7 @@ L_kyber_aarch64_zetas:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_zetas_qinv:
+L_mlkem_aarch64_zetas_qinv:
 	.short	0xffed,0x7b0b,0x399a,0x0314,0x34d5,0xcf8e,0x6e1f,0xbeca
 	.short	0xae56,0x6c6e,0xf129,0xc2b6,0x29c2,0x054f,0xd43f,0x79bc
 	.short	0xe93d,0x43d4,0x9908,0x8e7f,0x15c4,0xfbb2,0x53bf,0x997f
@@ -202,15 +203,15 @@ L_kyber_aarch64_zetas_qinv:
 	.short	0x5dbe,0x5dbe,0x1e4d,0x1e4d,0xbbf2,0xbbf2,0x5a5c,0x5a5c
 #ifndef __APPLE__
 .text
-.globl	kyber_ntt
-.type	kyber_ntt,@function
+.globl	mlkem_ntt
+.type	mlkem_ntt,@function
 .align	2
-kyber_ntt:
+mlkem_ntt:
 #else
 .section	__TEXT,__text
-.globl	_kyber_ntt
+.globl	_mlkem_ntt
 .p2align	2
-_kyber_ntt:
+_mlkem_ntt:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -219,25 +220,25 @@ _kyber_ntt:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_zetas
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas
+	adrp x2, L_mlkem_aarch64_zetas
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas
 #else
-	adrp x2, L_kyber_aarch64_zetas@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas@PAGEOFF
+	adrp x2, L_mlkem_aarch64_zetas@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_qinv
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv
+	adrp x3, L_mlkem_aarch64_zetas_qinv
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv
 #else
-	adrp x3, L_kyber_aarch64_zetas_qinv@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_qinv@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q4, [x4]
@@ -1492,13 +1493,13 @@ _kyber_ntt:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_ntt,.-kyber_ntt
+	.size	mlkem_ntt,.-mlkem_ntt
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_zetas_inv, %object
+	.type	L_mlkem_aarch64_zetas_inv, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_zetas_inv, 576
+	.size	L_mlkem_aarch64_zetas_inv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -1507,7 +1508,7 @@ _kyber_ntt:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_zetas_inv:
+L_mlkem_aarch64_zetas_inv:
 	.short	0x06a5,0x06a5,0x070f,0x070f,0x05b4,0x05b4,0x0943,0x0943
 	.short	0x0922,0x0922,0x091d,0x091d,0x0134,0x0134,0x006c,0x006c
 	.short	0x0b23,0x0b23,0x0366,0x0366,0x0356,0x0356,0x05e6,0x05e6
@@ -1546,9 +1547,9 @@ L_kyber_aarch64_zetas_inv:
 	.short	0x0c37,0x0be2,0x0773,0x072c,0x05ed,0x0167,0x02f6,0x05a1
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_zetas_inv_qinv, %object
+	.type	L_mlkem_aarch64_zetas_inv_qinv, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_zetas_inv_qinv, 576
+	.size	L_mlkem_aarch64_zetas_inv_qinv, 576
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -1557,7 +1558,7 @@ L_kyber_aarch64_zetas_inv:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_zetas_inv_qinv:
+L_mlkem_aarch64_zetas_inv_qinv:
 	.short	0xa5a5,0xa5a5,0x440f,0x440f,0xe1b4,0xe1b4,0xa243,0xa243
 	.short	0x4f22,0x4f22,0x901d,0x901d,0x5d34,0x5d34,0x846c,0x846c
 	.short	0x4423,0x4423,0xd566,0xd566,0xa556,0xa556,0x57e6,0x57e6
@@ -1596,15 +1597,15 @@ L_kyber_aarch64_zetas_inv_qinv:
 	.short	0x4137,0x91e2,0x3073,0xcb2c,0xfced,0xc667,0x84f6,0xd8a1
 #ifndef __APPLE__
 .text
-.globl	kyber_invntt
-.type	kyber_invntt,@function
+.globl	mlkem_invntt
+.type	mlkem_invntt,@function
 .align	2
-kyber_invntt:
+mlkem_invntt:
 #else
 .section	__TEXT,__text
-.globl	_kyber_invntt
+.globl	_mlkem_invntt
 .p2align	2
-_kyber_invntt:
+_mlkem_invntt:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -1613,25 +1614,25 @@ _kyber_invntt:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_zetas_inv
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv
+	adrp x2, L_mlkem_aarch64_zetas_inv
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv
 #else
-	adrp x2, L_kyber_aarch64_zetas_inv@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv@PAGEOFF
+	adrp x2, L_mlkem_aarch64_zetas_inv@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_inv_qinv
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv
+	adrp x3, L_mlkem_aarch64_zetas_inv_qinv
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv
 #else
-	adrp x3, L_kyber_aarch64_zetas_inv_qinv@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_inv_qinv@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q8, [x4]
@@ -3042,20 +3043,20 @@ _kyber_invntt:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_invntt,.-kyber_invntt
+	.size	mlkem_invntt,.-mlkem_invntt
 #endif /* __APPLE__ */
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
 #ifndef __APPLE__
 .text
-.globl	kyber_ntt_sqrdmlsh
-.type	kyber_ntt_sqrdmlsh,@function
+.globl	mlkem_ntt_sqrdmlsh
+.type	mlkem_ntt_sqrdmlsh,@function
 .align	2
-kyber_ntt_sqrdmlsh:
+mlkem_ntt_sqrdmlsh:
 #else
 .section	__TEXT,__text
-.globl	_kyber_ntt_sqrdmlsh
+.globl	_mlkem_ntt_sqrdmlsh
 .p2align	2
-_kyber_ntt_sqrdmlsh:
+_mlkem_ntt_sqrdmlsh:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -3064,25 +3065,25 @@ _kyber_ntt_sqrdmlsh:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_zetas
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas
+	adrp x2, L_mlkem_aarch64_zetas
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas
 #else
-	adrp x2, L_kyber_aarch64_zetas@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas@PAGEOFF
+	adrp x2, L_mlkem_aarch64_zetas@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_qinv
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv
+	adrp x3, L_mlkem_aarch64_zetas_qinv
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv
 #else
-	adrp x3, L_kyber_aarch64_zetas_qinv@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_qinv@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q4, [x4]
@@ -4225,19 +4226,19 @@ _kyber_ntt_sqrdmlsh:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_ntt_sqrdmlsh,.-kyber_ntt_sqrdmlsh
+	.size	mlkem_ntt_sqrdmlsh,.-mlkem_ntt_sqrdmlsh
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_invntt_sqrdmlsh
-.type	kyber_invntt_sqrdmlsh,@function
+.globl	mlkem_invntt_sqrdmlsh
+.type	mlkem_invntt_sqrdmlsh,@function
 .align	2
-kyber_invntt_sqrdmlsh:
+mlkem_invntt_sqrdmlsh:
 #else
 .section	__TEXT,__text
-.globl	_kyber_invntt_sqrdmlsh
+.globl	_mlkem_invntt_sqrdmlsh
 .p2align	2
-_kyber_invntt_sqrdmlsh:
+_mlkem_invntt_sqrdmlsh:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -4246,25 +4247,25 @@ _kyber_invntt_sqrdmlsh:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_zetas_inv
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv
+	adrp x2, L_mlkem_aarch64_zetas_inv
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv
 #else
-	adrp x2, L_kyber_aarch64_zetas_inv@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv@PAGEOFF
+	adrp x2, L_mlkem_aarch64_zetas_inv@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_zetas_inv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_inv_qinv
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv
+	adrp x3, L_mlkem_aarch64_zetas_inv_qinv
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv
 #else
-	adrp x3, L_kyber_aarch64_zetas_inv_qinv@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_inv_qinv@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_inv_qinv@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	add	x1, x0, #0x100
 	ldr	q8, [x4]
@@ -5531,14 +5532,14 @@ _kyber_invntt_sqrdmlsh:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_invntt_sqrdmlsh,.-kyber_invntt_sqrdmlsh
+	.size	mlkem_invntt_sqrdmlsh,.-mlkem_invntt_sqrdmlsh
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_zetas_mul, %object
+	.type	L_mlkem_aarch64_zetas_mul, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_zetas_mul, 256
+	.size	L_mlkem_aarch64_zetas_mul, 256
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -5547,7 +5548,7 @@ _kyber_invntt_sqrdmlsh:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_zetas_mul:
+L_mlkem_aarch64_zetas_mul:
 	.short	0x08b2,0xf74e,0x01ae,0xfe52,0x022b,0xfdd5,0x034b,0xfcb5
 	.short	0x081e,0xf7e2,0x0367,0xfc99,0x060e,0xf9f2,0x0069,0xff97
 	.short	0x01a6,0xfe5a,0x024b,0xfdb5,0x00b1,0xff4f,0x0c16,0xf3ea
@@ -5566,15 +5567,15 @@ L_kyber_aarch64_zetas_mul:
 	.short	0x03be,0xfc42,0x074d,0xf8b3,0x05f2,0xfa0e,0x065c,0xf9a4
 #ifndef __APPLE__
 .text
-.globl	kyber_basemul_mont
-.type	kyber_basemul_mont,@function
+.globl	mlkem_basemul_mont
+.type	mlkem_basemul_mont,@function
 .align	2
-kyber_basemul_mont:
+mlkem_basemul_mont:
 #else
 .section	__TEXT,__text
-.globl	_kyber_basemul_mont
+.globl	_mlkem_basemul_mont
 .p2align	2
-_kyber_basemul_mont:
+_mlkem_basemul_mont:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -5583,18 +5584,18 @@ _kyber_basemul_mont:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_mul
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_mul
+	adrp x3, L_mlkem_aarch64_zetas_mul
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul
 #else
-	adrp x3, L_kyber_aarch64_zetas_mul@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_mul@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_mul@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q1, [x4]
 	ldp	q2, q3, [x1]
@@ -6260,19 +6261,19 @@ _kyber_basemul_mont:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_basemul_mont,.-kyber_basemul_mont
+	.size	mlkem_basemul_mont,.-mlkem_basemul_mont
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_basemul_mont_add
-.type	kyber_basemul_mont_add,@function
+.globl	mlkem_basemul_mont_add
+.type	mlkem_basemul_mont_add,@function
 .align	2
-kyber_basemul_mont_add:
+mlkem_basemul_mont_add:
 #else
 .section	__TEXT,__text
-.globl	_kyber_basemul_mont_add
+.globl	_mlkem_basemul_mont_add
 .p2align	2
-_kyber_basemul_mont_add:
+_mlkem_basemul_mont_add:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -6281,18 +6282,18 @@ _kyber_basemul_mont_add:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_zetas_mul
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_mul
+	adrp x3, L_mlkem_aarch64_zetas_mul
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul
 #else
-	adrp x3, L_kyber_aarch64_zetas_mul@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_zetas_mul@PAGEOFF
+	adrp x3, L_mlkem_aarch64_zetas_mul@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_zetas_mul@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_consts
-	add  x4, x4, :lo12:L_kyber_aarch64_consts
+	adrp x4, L_mlkem_aarch64_consts
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x4, L_kyber_aarch64_consts@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x4, L_mlkem_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q1, [x4]
 	ldp	q2, q3, [x1]
@@ -7006,19 +7007,19 @@ _kyber_basemul_mont_add:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_basemul_mont_add,.-kyber_basemul_mont_add
+	.size	mlkem_basemul_mont_add,.-mlkem_basemul_mont_add
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_csubq_neon
-.type	kyber_csubq_neon,@function
+.globl	mlkem_csubq_neon
+.type	mlkem_csubq_neon,@function
 .align	2
-kyber_csubq_neon:
+mlkem_csubq_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_csubq_neon
+.globl	_mlkem_csubq_neon
 .p2align	2
-_kyber_csubq_neon:
+_mlkem_csubq_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -7027,11 +7028,11 @@ _kyber_csubq_neon:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x1, L_kyber_aarch64_q
-	add  x1, x1, :lo12:L_kyber_aarch64_q
+	adrp x1, L_mlkem_aarch64_q
+	add  x1, x1, :lo12:L_mlkem_aarch64_q
 #else
-	adrp x1, L_kyber_aarch64_q@PAGE
-	add  x1, x1, :lo12:L_kyber_aarch64_q@PAGEOFF
+	adrp x1, L_mlkem_aarch64_q@PAGE
+	add  x1, x1, :lo12:L_mlkem_aarch64_q@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q20, [x1]
 	ld4	{v0.8h, v1.8h, v2.8h, v3.8h}, [x0], #0x40
@@ -7187,19 +7188,19 @@ _kyber_csubq_neon:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_csubq_neon,.-kyber_csubq_neon
+	.size	mlkem_csubq_neon,.-mlkem_csubq_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_add_reduce
-.type	kyber_add_reduce,@function
+.globl	mlkem_add_reduce
+.type	mlkem_add_reduce,@function
 .align	2
-kyber_add_reduce:
+mlkem_add_reduce:
 #else
 .section	__TEXT,__text
-.globl	_kyber_add_reduce
+.globl	_mlkem_add_reduce
 .p2align	2
-_kyber_add_reduce:
+_mlkem_add_reduce:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -7208,11 +7209,11 @@ _kyber_add_reduce:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_consts
-	add  x2, x2, :lo12:L_kyber_aarch64_consts
+	adrp x2, L_mlkem_aarch64_consts
+	add  x2, x2, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x2, L_kyber_aarch64_consts@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x2, L_mlkem_aarch64_consts@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7378,19 +7379,19 @@ _kyber_add_reduce:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_add_reduce,.-kyber_add_reduce
+	.size	mlkem_add_reduce,.-mlkem_add_reduce
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_add3_reduce
-.type	kyber_add3_reduce,@function
+.globl	mlkem_add3_reduce
+.type	mlkem_add3_reduce,@function
 .align	2
-kyber_add3_reduce:
+mlkem_add3_reduce:
 #else
 .section	__TEXT,__text
-.globl	_kyber_add3_reduce
+.globl	_mlkem_add3_reduce
 .p2align	2
-_kyber_add3_reduce:
+_mlkem_add3_reduce:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -7399,11 +7400,11 @@ _kyber_add3_reduce:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_consts
-	add  x3, x3, :lo12:L_kyber_aarch64_consts
+	adrp x3, L_mlkem_aarch64_consts
+	add  x3, x3, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x3, L_kyber_aarch64_consts@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x3, L_mlkem_aarch64_consts@PAGE
+	add  x3, x3, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x3]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7609,19 +7610,19 @@ _kyber_add3_reduce:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_add3_reduce,.-kyber_add3_reduce
+	.size	mlkem_add3_reduce,.-mlkem_add3_reduce
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_rsub_reduce
-.type	kyber_rsub_reduce,@function
+.globl	mlkem_rsub_reduce
+.type	mlkem_rsub_reduce,@function
 .align	2
-kyber_rsub_reduce:
+mlkem_rsub_reduce:
 #else
 .section	__TEXT,__text
-.globl	_kyber_rsub_reduce
+.globl	_mlkem_rsub_reduce
 .p2align	2
-_kyber_rsub_reduce:
+_mlkem_rsub_reduce:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -7630,11 +7631,11 @@ _kyber_rsub_reduce:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_consts
-	add  x2, x2, :lo12:L_kyber_aarch64_consts
+	adrp x2, L_mlkem_aarch64_consts
+	add  x2, x2, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x2, L_kyber_aarch64_consts@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x2, L_mlkem_aarch64_consts@PAGE
+	add  x2, x2, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -7800,19 +7801,19 @@ _kyber_rsub_reduce:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_rsub_reduce,.-kyber_rsub_reduce
+	.size	mlkem_rsub_reduce,.-mlkem_rsub_reduce
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_to_mont
-.type	kyber_to_mont,@function
+.globl	mlkem_to_mont
+.type	mlkem_to_mont,@function
 .align	2
-kyber_to_mont:
+mlkem_to_mont:
 #else
 .section	__TEXT,__text
-.globl	_kyber_to_mont
+.globl	_mlkem_to_mont
 .p2align	2
-_kyber_to_mont:
+_mlkem_to_mont:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -7821,11 +7822,11 @@ _kyber_to_mont:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x1, L_kyber_aarch64_consts
-	add  x1, x1, :lo12:L_kyber_aarch64_consts
+	adrp x1, L_mlkem_aarch64_consts
+	add  x1, x1, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x1, L_kyber_aarch64_consts@PAGE
-	add  x1, x1, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x1, L_mlkem_aarch64_consts@PAGE
+	add  x1, x1, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x1]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -8013,20 +8014,20 @@ _kyber_to_mont:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_to_mont,.-kyber_to_mont
+	.size	mlkem_to_mont,.-mlkem_to_mont
 #endif /* __APPLE__ */
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
 #ifndef __APPLE__
 .text
-.globl	kyber_to_mont_sqrdmlsh
-.type	kyber_to_mont_sqrdmlsh,@function
+.globl	mlkem_to_mont_sqrdmlsh
+.type	mlkem_to_mont_sqrdmlsh,@function
 .align	2
-kyber_to_mont_sqrdmlsh:
+mlkem_to_mont_sqrdmlsh:
 #else
 .section	__TEXT,__text
-.globl	_kyber_to_mont_sqrdmlsh
+.globl	_mlkem_to_mont_sqrdmlsh
 .p2align	2
-_kyber_to_mont_sqrdmlsh:
+_mlkem_to_mont_sqrdmlsh:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -8035,11 +8036,11 @@ _kyber_to_mont_sqrdmlsh:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x1, L_kyber_aarch64_consts
-	add  x1, x1, :lo12:L_kyber_aarch64_consts
+	adrp x1, L_mlkem_aarch64_consts
+	add  x1, x1, :lo12:L_mlkem_aarch64_consts
 #else
-	adrp x1, L_kyber_aarch64_consts@PAGE
-	add  x1, x1, :lo12:L_kyber_aarch64_consts@PAGEOFF
+	adrp x1, L_mlkem_aarch64_consts@PAGE
+	add  x1, x1, :lo12:L_mlkem_aarch64_consts@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x1]
 	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -8195,14 +8196,14 @@ _kyber_to_mont_sqrdmlsh:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_to_mont_sqrdmlsh,.-kyber_to_mont_sqrdmlsh
+	.size	mlkem_to_mont_sqrdmlsh,.-mlkem_to_mont_sqrdmlsh
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_to_msg_neon_low, %object
+	.type	L_mlkem_to_msg_low, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_to_msg_neon_low, 16
+	.size	L_mlkem_to_msg_low, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8211,13 +8212,13 @@ _kyber_to_mont_sqrdmlsh:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_to_msg_neon_low:
+L_mlkem_to_msg_low:
 	.short	0x0373,0x0373,0x0373,0x0373,0x0373,0x0373,0x0373,0x0373
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_to_msg_neon_high, %object
+	.type	L_mlkem_to_msg_high, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_to_msg_neon_high, 16
+	.size	L_mlkem_to_msg_high, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8226,13 +8227,13 @@ L_kyber_aarch64_to_msg_neon_low:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_to_msg_neon_high:
+L_mlkem_to_msg_high:
 	.short	0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0,0x09c0
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_to_msg_neon_bits, %object
+	.type	L_mlkem_to_msg_bits, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_to_msg_neon_bits, 16
+	.size	L_mlkem_to_msg_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8241,19 +8242,19 @@ L_kyber_aarch64_to_msg_neon_high:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_to_msg_neon_bits:
+L_mlkem_to_msg_bits:
 	.short	0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080
 #ifndef __APPLE__
 .text
-.globl	kyber_to_msg_neon
-.type	kyber_to_msg_neon,@function
+.globl	mlkem_to_msg_neon
+.type	mlkem_to_msg_neon,@function
 .align	2
-kyber_to_msg_neon:
+mlkem_to_msg_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_to_msg_neon
+.globl	_mlkem_to_msg_neon
 .p2align	2
-_kyber_to_msg_neon:
+_mlkem_to_msg_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -8262,25 +8263,25 @@ _kyber_to_msg_neon:
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_to_msg_neon_low
-	add  x2, x2, :lo12:L_kyber_aarch64_to_msg_neon_low
+	adrp x2, L_mlkem_to_msg_low
+	add  x2, x2, :lo12:L_mlkem_to_msg_low
 #else
-	adrp x2, L_kyber_aarch64_to_msg_neon_low@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_to_msg_neon_low@PAGEOFF
+	adrp x2, L_mlkem_to_msg_low@PAGE
+	add  x2, x2, :lo12:L_mlkem_to_msg_low@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_to_msg_neon_high
-	add  x3, x3, :lo12:L_kyber_aarch64_to_msg_neon_high
+	adrp x3, L_mlkem_to_msg_high
+	add  x3, x3, :lo12:L_mlkem_to_msg_high
 #else
-	adrp x3, L_kyber_aarch64_to_msg_neon_high@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_to_msg_neon_high@PAGEOFF
+	adrp x3, L_mlkem_to_msg_high@PAGE
+	add  x3, x3, :lo12:L_mlkem_to_msg_high@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_to_msg_neon_bits
-	add  x4, x4, :lo12:L_kyber_aarch64_to_msg_neon_bits
+	adrp x4, L_mlkem_to_msg_bits
+	add  x4, x4, :lo12:L_mlkem_to_msg_bits
 #else
-	adrp x4, L_kyber_aarch64_to_msg_neon_bits@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_to_msg_neon_bits@PAGEOFF
+	adrp x4, L_mlkem_to_msg_bits@PAGE
+	add  x4, x4, :lo12:L_mlkem_to_msg_bits@PAGEOFF
 #endif /* __APPLE__ */
 	ldr	q0, [x2]
 	ldr	q1, [x3]
@@ -8492,13 +8493,13 @@ _kyber_to_msg_neon:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	kyber_to_msg_neon,.-kyber_to_msg_neon
+	.size	mlkem_to_msg_neon,.-mlkem_to_msg_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_from_msg_neon_q1half, %object
+	.type	L_mlkem_from_msg_q1half, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_from_msg_neon_q1half, 16
+	.size	L_mlkem_from_msg_q1half, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8507,13 +8508,13 @@ _kyber_to_msg_neon:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_from_msg_neon_q1half:
+L_mlkem_from_msg_q1half:
 	.short	0x0681,0x0681,0x0681,0x0681,0x0681,0x0681,0x0681,0x0681
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_from_msg_neon_bits, %object
+	.type	L_mlkem_from_msg_bits, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_from_msg_neon_bits, 16
+	.size	L_mlkem_from_msg_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8522,38 +8523,38 @@ L_kyber_aarch64_from_msg_neon_q1half:
 #else
 	.p2align	1
 #endif /* __APPLE__ */
-L_kyber_aarch64_from_msg_neon_bits:
+L_mlkem_from_msg_bits:
 	.byte	0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 	.byte	0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
 #ifndef __APPLE__
 .text
-.globl	kyber_from_msg_neon
-.type	kyber_from_msg_neon,@function
+.globl	mlkem_from_msg_neon
+.type	mlkem_from_msg_neon,@function
 .align	2
-kyber_from_msg_neon:
+mlkem_from_msg_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_from_msg_neon
+.globl	_mlkem_from_msg_neon
 .p2align	2
-_kyber_from_msg_neon:
+_mlkem_from_msg_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-48]!
 	add	x29, sp, #0
 	stp	d8, d9, [x29, #16]
 	stp	d10, d11, [x29, #32]
 #ifndef __APPLE__
-	adrp x2, L_kyber_aarch64_from_msg_neon_q1half
-	add  x2, x2, :lo12:L_kyber_aarch64_from_msg_neon_q1half
+	adrp x2, L_mlkem_from_msg_q1half
+	add  x2, x2, :lo12:L_mlkem_from_msg_q1half
 #else
-	adrp x2, L_kyber_aarch64_from_msg_neon_q1half@PAGE
-	add  x2, x2, :lo12:L_kyber_aarch64_from_msg_neon_q1half@PAGEOFF
+	adrp x2, L_mlkem_from_msg_q1half@PAGE
+	add  x2, x2, :lo12:L_mlkem_from_msg_q1half@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x3, L_kyber_aarch64_from_msg_neon_bits
-	add  x3, x3, :lo12:L_kyber_aarch64_from_msg_neon_bits
+	adrp x3, L_mlkem_from_msg_bits
+	add  x3, x3, :lo12:L_mlkem_from_msg_bits
 #else
-	adrp x3, L_kyber_aarch64_from_msg_neon_bits@PAGE
-	add  x3, x3, :lo12:L_kyber_aarch64_from_msg_neon_bits@PAGEOFF
+	adrp x3, L_mlkem_from_msg_bits@PAGE
+	add  x3, x3, :lo12:L_mlkem_from_msg_bits@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v2.16b, v3.16b}, [x1]
 	ldr	q1, [x2]
@@ -8699,19 +8700,19 @@ _kyber_from_msg_neon:
 	ldp	x29, x30, [sp], #48
 	ret
 #ifndef __APPLE__
-	.size	kyber_from_msg_neon,.-kyber_from_msg_neon
+	.size	mlkem_from_msg_neon,.-mlkem_from_msg_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_cmp_neon
-.type	kyber_cmp_neon,@function
+.globl	mlkem_cmp_neon
+.type	mlkem_cmp_neon,@function
 .align	2
-kyber_cmp_neon:
+mlkem_cmp_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_cmp_neon
+.globl	_mlkem_cmp_neon
 .p2align	2
-_kyber_cmp_neon:
+_mlkem_cmp_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-48]!
 	add	x29, sp, #0
@@ -8834,7 +8835,7 @@ _kyber_cmp_neon:
 	orr	v10.16b, v10.16b, v2.16b
 	orr	v11.16b, v11.16b, v3.16b
 	subs	w2, w2, #0x300
-	beq	L_kyber_aarch64_cmp_neon_done
+	beq	L_mlkem_aarch64_cmp_neon_done
 	ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
 	ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	eor	v0.16b, v0.16b, v4.16b
@@ -8886,7 +8887,7 @@ _kyber_cmp_neon:
 	orr	v10.16b, v10.16b, v2.16b
 	orr	v11.16b, v11.16b, v3.16b
 	subs	w2, w2, #0x140
-	beq	L_kyber_aarch64_cmp_neon_done
+	beq	L_mlkem_aarch64_cmp_neon_done
 	ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [x0], #0x40
 	ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [x1], #0x40
 	eor	v0.16b, v0.16b, v4.16b
@@ -8963,7 +8964,7 @@ _kyber_cmp_neon:
 	eor	v1.16b, v1.16b, v5.16b
 	orr	v8.16b, v8.16b, v0.16b
 	orr	v9.16b, v9.16b, v1.16b
-L_kyber_aarch64_cmp_neon_done:
+L_mlkem_aarch64_cmp_neon_done:
 	orr	v8.16b, v8.16b, v9.16b
 	orr	v10.16b, v10.16b, v11.16b
 	orr	v8.16b, v8.16b, v10.16b
@@ -8977,13 +8978,13 @@ L_kyber_aarch64_cmp_neon_done:
 	ldp	x29, x30, [sp], #48
 	ret
 #ifndef __APPLE__
-	.size	kyber_cmp_neon,.-kyber_cmp_neon
+	.size	mlkem_cmp_neon,.-mlkem_cmp_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_rej_uniform_neon_mask, %object
+	.type	L_mlkem_rej_uniform_mask, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_rej_uniform_neon_mask, 16
+	.size	L_mlkem_rej_uniform_mask, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -8992,13 +8993,13 @@ L_kyber_aarch64_cmp_neon_done:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_rej_uniform_neon_mask:
+L_mlkem_rej_uniform_mask:
 	.short	0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_rej_uniform_neon_bits, %object
+	.type	L_mlkem_rej_uniform_bits, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_rej_uniform_neon_bits, 16
+	.size	L_mlkem_rej_uniform_bits, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -9007,13 +9008,13 @@ L_kyber_aarch64_rej_uniform_neon_mask:
 #else
 	.p2align	2
 #endif /* __APPLE__ */
-L_kyber_aarch64_rej_uniform_neon_bits:
+L_mlkem_rej_uniform_bits:
 	.short	0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080
 #ifndef __APPLE__
 	.text
-	.type	L_kyber_aarch64_rej_uniform_neon_indices, %object
+	.type	L_mlkem_rej_uniform_indices, %object
 	.section	.rodata
-	.size	L_kyber_aarch64_rej_uniform_neon_indices, 4096
+	.size	L_mlkem_rej_uniform_indices, 4096
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -9022,7 +9023,7 @@ L_kyber_aarch64_rej_uniform_neon_bits:
 #else
 	.p2align	1
 #endif /* __APPLE__ */
-L_kyber_aarch64_rej_uniform_neon_indices:
+L_mlkem_rej_uniform_indices:
 	.byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
 	.byte	0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
 	.byte	0x00,0x01,0xff,0xff,0xff,0xff,0xff,0xff
@@ -9537,15 +9538,15 @@ L_kyber_aarch64_rej_uniform_neon_indices:
 	.byte	0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
 #ifndef __APPLE__
 .text
-.globl	kyber_rej_uniform_neon
-.type	kyber_rej_uniform_neon,@function
+.globl	mlkem_rej_uniform_neon
+.type	mlkem_rej_uniform_neon,@function
 .align	2
-kyber_rej_uniform_neon:
+mlkem_rej_uniform_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_rej_uniform_neon
+.globl	_mlkem_rej_uniform_neon
 .p2align	2
-_kyber_rej_uniform_neon:
+_mlkem_rej_uniform_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
@@ -9553,32 +9554,32 @@ _kyber_rej_uniform_neon:
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 #ifndef __APPLE__
-	adrp x4, L_kyber_aarch64_rej_uniform_neon_mask
-	add  x4, x4, :lo12:L_kyber_aarch64_rej_uniform_neon_mask
+	adrp x4, L_mlkem_rej_uniform_mask
+	add  x4, x4, :lo12:L_mlkem_rej_uniform_mask
 #else
-	adrp x4, L_kyber_aarch64_rej_uniform_neon_mask@PAGE
-	add  x4, x4, :lo12:L_kyber_aarch64_rej_uniform_neon_mask@PAGEOFF
+	adrp x4, L_mlkem_rej_uniform_mask@PAGE
+	add  x4, x4, :lo12:L_mlkem_rej_uniform_mask@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x5, L_kyber_aarch64_q
-	add  x5, x5, :lo12:L_kyber_aarch64_q
+	adrp x5, L_mlkem_aarch64_q
+	add  x5, x5, :lo12:L_mlkem_aarch64_q
 #else
-	adrp x5, L_kyber_aarch64_q@PAGE
-	add  x5, x5, :lo12:L_kyber_aarch64_q@PAGEOFF
+	adrp x5, L_mlkem_aarch64_q@PAGE
+	add  x5, x5, :lo12:L_mlkem_aarch64_q@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x6, L_kyber_aarch64_rej_uniform_neon_bits
-	add  x6, x6, :lo12:L_kyber_aarch64_rej_uniform_neon_bits
+	adrp x6, L_mlkem_rej_uniform_bits
+	add  x6, x6, :lo12:L_mlkem_rej_uniform_bits
 #else
-	adrp x6, L_kyber_aarch64_rej_uniform_neon_bits@PAGE
-	add  x6, x6, :lo12:L_kyber_aarch64_rej_uniform_neon_bits@PAGEOFF
+	adrp x6, L_mlkem_rej_uniform_bits@PAGE
+	add  x6, x6, :lo12:L_mlkem_rej_uniform_bits@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x7, L_kyber_aarch64_rej_uniform_neon_indices
-	add  x7, x7, :lo12:L_kyber_aarch64_rej_uniform_neon_indices
+	adrp x7, L_mlkem_rej_uniform_indices
+	add  x7, x7, :lo12:L_mlkem_rej_uniform_indices
 #else
-	adrp x7, L_kyber_aarch64_rej_uniform_neon_indices@PAGE
-	add  x7, x7, :lo12:L_kyber_aarch64_rej_uniform_neon_indices@PAGEOFF
+	adrp x7, L_mlkem_rej_uniform_indices@PAGE
+	add  x7, x7, :lo12:L_mlkem_rej_uniform_indices@PAGEOFF
 #endif /* __APPLE__ */
 	eor	v1.16b, v1.16b, v1.16b
 	eor	v12.16b, v12.16b, v12.16b
@@ -9591,10 +9592,10 @@ _kyber_rej_uniform_neon:
 	ldr	q3, [x5]
 	ldr	q2, [x6]
 	subs	wzr, w1, #0
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	subs	wzr, w1, #16
-	blt	L_kyber_aarch64_rej_uniform_neon_loop_4
-L_kyber_aarch64_rej_uniform_neon_loop_16:
+	blt	L_mlkem_rej_uniform_loop_4
+L_mlkem_rej_uniform_loop_16:
 	ld3	{v4.8b, v5.8b, v6.8b}, [x2], #24
 	zip1	v4.16b, v4.16b, v1.16b
 	zip1	v5.16b, v5.16b, v1.16b
@@ -9635,16 +9636,16 @@ L_kyber_aarch64_rej_uniform_neon_loop_16:
 	add	x0, x0, x11, lsl 1
 	add	x12, x12, x11
 	subs	w3, w3, #24
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	sub	w10, w1, w12
 	subs	x10, x10, #16
-	blt	L_kyber_aarch64_rej_uniform_neon_loop_4
-	b	L_kyber_aarch64_rej_uniform_neon_loop_16
-L_kyber_aarch64_rej_uniform_neon_loop_4:
+	blt	L_mlkem_rej_uniform_loop_4
+	b	L_mlkem_rej_uniform_loop_16
+L_mlkem_rej_uniform_loop_4:
 	subs	w10, w1, w12
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	subs	x10, x10, #4
-	blt	L_kyber_aarch64_rej_uniform_neon_loop_lt_4
+	blt	L_mlkem_rej_uniform_loop_lt_4
 	ldr	x4, [x2], #6
 	lsr	x5, x4, #12
 	lsr	x6, x4, #24
@@ -9674,9 +9675,9 @@ L_kyber_aarch64_rej_uniform_neon_loop_4:
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	w3, w3, #6
-	beq	L_kyber_aarch64_rej_uniform_neon_done
-	b	L_kyber_aarch64_rej_uniform_neon_loop_4
-L_kyber_aarch64_rej_uniform_neon_loop_lt_4:
+	beq	L_mlkem_rej_uniform_done
+	b	L_mlkem_rej_uniform_loop_4
+L_mlkem_rej_uniform_loop_lt_4:
 	ldr	x4, [x2], #6
 	lsr	x5, x4, #12
 	lsr	x6, x4, #24
@@ -9691,32 +9692,32 @@ L_kyber_aarch64_rej_uniform_neon_loop_lt_4:
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	strh	w5, [x0]
 	subs	xzr, x5, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	strh	w6, [x0]
 	subs	xzr, x6, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	strh	w7, [x0]
 	subs	xzr, x7, x13
 	cinc	x0, x0, lt
 	cinc	x0, x0, lt
 	cinc	x12, x12, lt
 	subs	wzr, w1, w12
-	beq	L_kyber_aarch64_rej_uniform_neon_done
+	beq	L_mlkem_rej_uniform_done
 	subs	w3, w3, #6
-	beq	L_kyber_aarch64_rej_uniform_neon_done
-	b	L_kyber_aarch64_rej_uniform_neon_loop_lt_4
-L_kyber_aarch64_rej_uniform_neon_done:
+	beq	L_mlkem_rej_uniform_done
+	b	L_mlkem_rej_uniform_loop_lt_4
+L_mlkem_rej_uniform_done:
 	mov	x0, x12
 	ldp	d8, d9, [x29, #16]
 	ldp	d10, d11, [x29, #32]
@@ -9724,20 +9725,20 @@ L_kyber_aarch64_rej_uniform_neon_done:
 	ldp	x29, x30, [sp], #0x40
 	ret
 #ifndef __APPLE__
-	.size	kyber_rej_uniform_neon,.-kyber_rej_uniform_neon
+	.size	mlkem_rej_uniform_neon,.-mlkem_rej_uniform_neon
 #endif /* __APPLE__ */
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_blocksx3_neon
-.type	kyber_sha3_blocksx3_neon,@function
+.globl	mlkem_sha3_blocksx3_neon
+.type	mlkem_sha3_blocksx3_neon,@function
 .align	2
-kyber_sha3_blocksx3_neon:
+mlkem_sha3_blocksx3_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_blocksx3_neon
+.globl	_mlkem_sha3_blocksx3_neon
 .p2align	2
-_kyber_sha3_blocksx3_neon:
+_mlkem_sha3_blocksx3_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -10050,19 +10051,19 @@ L_SHA3_transform_blocksx3_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_sha3_blocksx3_neon,.-kyber_sha3_blocksx3_neon
+	.size	mlkem_sha3_blocksx3_neon,.-mlkem_sha3_blocksx3_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_shake128_blocksx3_seed_neon
-.type	kyber_shake128_blocksx3_seed_neon,@function
+.globl	mlkem_shake128_blocksx3_seed_neon
+.type	mlkem_shake128_blocksx3_seed_neon,@function
 .align	2
-kyber_shake128_blocksx3_seed_neon:
+mlkem_shake128_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_shake128_blocksx3_seed_neon
+.globl	_mlkem_shake128_blocksx3_seed_neon
 .p2align	2
-_kyber_shake128_blocksx3_seed_neon:
+_mlkem_shake128_blocksx3_seed_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -10397,19 +10398,19 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_shake128_blocksx3_seed_neon,.-kyber_shake128_blocksx3_seed_neon
+	.size	mlkem_shake128_blocksx3_seed_neon,.-mlkem_shake128_blocksx3_seed_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_shake256_blocksx3_seed_neon
-.type	kyber_shake256_blocksx3_seed_neon,@function
+.globl	mlkem_shake256_blocksx3_seed_neon
+.type	mlkem_shake256_blocksx3_seed_neon,@function
 .align	2
-kyber_shake256_blocksx3_seed_neon:
+mlkem_shake256_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_shake256_blocksx3_seed_neon
+.globl	_mlkem_shake256_blocksx3_seed_neon
 .p2align	2
-_kyber_shake256_blocksx3_seed_neon:
+_mlkem_shake256_blocksx3_seed_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -10744,20 +10745,20 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_shake256_blocksx3_seed_neon,.-kyber_shake256_blocksx3_seed_neon
+	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
 #endif /* __APPLE__ */
 #else
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_blocksx3_neon
-.type	kyber_sha3_blocksx3_neon,@function
+.globl	mlkem_sha3_blocksx3_neon
+.type	mlkem_sha3_blocksx3_neon,@function
 .align	2
-kyber_sha3_blocksx3_neon:
+mlkem_sha3_blocksx3_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_blocksx3_neon
+.globl	_mlkem_sha3_blocksx3_neon
 .p2align	2
-_kyber_sha3_blocksx3_neon:
+_mlkem_sha3_blocksx3_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -11155,19 +11156,19 @@ L_SHA3_transform_blocksx3_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_sha3_blocksx3_neon,.-kyber_sha3_blocksx3_neon
+	.size	mlkem_sha3_blocksx3_neon,.-mlkem_sha3_blocksx3_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_shake128_blocksx3_seed_neon
-.type	kyber_shake128_blocksx3_seed_neon,@function
+.globl	mlkem_shake128_blocksx3_seed_neon
+.type	mlkem_shake128_blocksx3_seed_neon,@function
 .align	2
-kyber_shake128_blocksx3_seed_neon:
+mlkem_shake128_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_shake128_blocksx3_seed_neon
+.globl	_mlkem_shake128_blocksx3_seed_neon
 .p2align	2
-_kyber_shake128_blocksx3_seed_neon:
+_mlkem_shake128_blocksx3_seed_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -11587,19 +11588,19 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_shake128_blocksx3_seed_neon,.-kyber_shake128_blocksx3_seed_neon
+	.size	mlkem_shake128_blocksx3_seed_neon,.-mlkem_shake128_blocksx3_seed_neon
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_shake256_blocksx3_seed_neon
-.type	kyber_shake256_blocksx3_seed_neon,@function
+.globl	mlkem_shake256_blocksx3_seed_neon
+.type	mlkem_shake256_blocksx3_seed_neon,@function
 .align	2
-kyber_shake256_blocksx3_seed_neon:
+mlkem_shake256_blocksx3_seed_neon:
 #else
 .section	__TEXT,__text
-.globl	_kyber_shake256_blocksx3_seed_neon
+.globl	_mlkem_shake256_blocksx3_seed_neon
 .p2align	2
-_kyber_shake256_blocksx3_seed_neon:
+_mlkem_shake256_blocksx3_seed_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-224]!
 	add	x29, sp, #0
@@ -12019,10 +12020,10 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	ldp	x29, x30, [sp], #0xe0
 	ret
 #ifndef __APPLE__
-	.size	kyber_shake256_blocksx3_seed_neon,.-kyber_shake256_blocksx3_seed_neon
+	.size	mlkem_shake256_blocksx3_seed_neon,.-mlkem_shake256_blocksx3_seed_neon
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_WC_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 

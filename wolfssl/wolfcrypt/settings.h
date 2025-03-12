@@ -841,17 +841,19 @@
 
     #endif /* ESP_ENABLE_WOLFSSH */
 
-    /* Experimental Kyber.  */
+    /* ML-KEM.  */
     #ifdef CONFIG_ESP_WOLFSSL_ENABLE_KYBER
+        #define CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
+    #endif
+    #ifdef CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
         /* Kyber typically needs a minimum 10K stack */
-        #define WOLFSSL_EXPERIMENTAL_SETTINGS
-        #define WOLFSSL_HAVE_KYBER
-        #define WOLFSSL_WC_KYBER
+        #define WOLFSSL_HAVE_MLKEM
+        #define WOLFSSL_WC_MLKEM
         #define WOLFSSL_SHA3
         #if defined(CONFIG_IDF_TARGET_ESP8266)
             /* With limited RAM, we'll disable some of the Kyber sizes: */
-            #define WOLFSSL_NO_KYBER1024
-            #define WOLFSSL_NO_KYBER768
+            #define WOLFSSL_NO_ML_KEM_1024
+            #define WOLFSSL_NO_ML_KEM_768
             #define NO_SESSION_CACHE
         #endif
     #endif
@@ -4096,7 +4098,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
 #define HAVE_PQC
 #endif
 
@@ -4111,11 +4113,14 @@ extern void uITRON4_free(void *p) ;
 #ifndef WOLFSSL_NO_SPHINCS
     #define HAVE_SPHINCS
 #endif
-#ifndef WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_KYBER512
     #define WOLFSSL_KYBER768
     #define WOLFSSL_KYBER1024
+    #define WOLFSSL_WC_ML_KEM_512
+    #define WOLFSSL_WC_ML_KEM_768
+    #define WOLFSSL_WC_ML_KEM_1024
 #endif
 #endif
 
@@ -4128,7 +4133,7 @@ extern void uITRON4_free(void *p) ;
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_KYBER)
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_MLKEM)
 #error Please do not define HAVE_PQC yourself.
 #endif
 

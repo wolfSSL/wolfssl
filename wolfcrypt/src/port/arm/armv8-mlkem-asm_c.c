@@ -1,4 +1,4 @@
-/* armv8-kyber-asm
+/* armv8-mlkem-asm
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -27,16 +27,17 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./kyber/kyber.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-kyber-asm.c
+ *   ruby ./kyber/kyber.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-mlkem-asm.c
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
-static const word16 L_kyber_aarch64_q[] = {
+static const word16 L_mlkem_aarch64_q[] = {
     0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01,
 };
 
-static const word16 L_kyber_aarch64_consts[] = {
+static const word16 L_mlkem_aarch64_consts[] = {
     0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
 };
 
@@ -55,10 +56,10 @@ static const word64 L_sha3_aarch64_r[] = {
     0x0000000080000001, 0x8000000080008008,
 };
 
-#include <wolfssl/wolfcrypt/wc_kyber.h>
+#include <wolfssl/wolfcrypt/wc_mlkem.h>
 
-#ifdef WOLFSSL_WC_KYBER
-static const word16 L_kyber_aarch64_zetas[] = {
+#ifdef WOLFSSL_WC_MLKEM
+static const word16 L_mlkem_aarch64_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
     0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
@@ -97,7 +98,7 @@ static const word16 L_kyber_aarch64_zetas[] = {
     0x03be, 0x03be, 0x074d, 0x074d, 0x05f2, 0x05f2, 0x065c, 0x065c,
 };
 
-static const word16 L_kyber_aarch64_zetas_qinv[] = {
+static const word16 L_mlkem_aarch64_zetas_qinv[] = {
     0xffed, 0x7b0b, 0x399a, 0x0314, 0x34d5, 0xcf8e, 0x6e1f, 0xbeca,
     0xae56, 0x6c6e, 0xf129, 0xc2b6, 0x29c2, 0x054f, 0xd43f, 0x79bc,
     0xe93d, 0x43d4, 0x9908, 0x8e7f, 0x15c4, 0xfbb2, 0x53bf, 0x997f,
@@ -136,29 +137,29 @@ static const word16 L_kyber_aarch64_zetas_qinv[] = {
     0x5dbe, 0x5dbe, 0x1e4d, 0x1e4d, 0xbbf2, 0xbbf2, 0x5a5c, 0x5a5c,
 };
 
-void kyber_ntt(sword16* r)
+void mlkem_ntt(sword16* r)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_zetas]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_zetas]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_zetas]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_zetas]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_qinv]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_qinv]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_qinv]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_qinv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
         "ldr	q4, [x4]\n\t"
@@ -1407,12 +1408,19 @@ void kyber_ntt(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv)
-        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
+            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
+            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+            "v24", "v25", "v26", "v27", "v28", "v29", "v30"
     );
 }
 
-static const word16 L_kyber_aarch64_zetas_inv[] = {
+static const word16 L_mlkem_aarch64_zetas_inv[] = {
     0x06a5, 0x06a5, 0x070f, 0x070f, 0x05b4, 0x05b4, 0x0943, 0x0943,
     0x0922, 0x0922, 0x091d, 0x091d, 0x0134, 0x0134, 0x006c, 0x006c,
     0x0b23, 0x0b23, 0x0366, 0x0366, 0x0356, 0x0356, 0x05e6, 0x05e6,
@@ -1451,7 +1459,7 @@ static const word16 L_kyber_aarch64_zetas_inv[] = {
     0x0c37, 0x0be2, 0x0773, 0x072c, 0x05ed, 0x0167, 0x02f6, 0x05a1,
 };
 
-static const word16 L_kyber_aarch64_zetas_inv_qinv[] = {
+static const word16 L_mlkem_aarch64_zetas_inv_qinv[] = {
     0xa5a5, 0xa5a5, 0x440f, 0x440f, 0xe1b4, 0xe1b4, 0xa243, 0xa243,
     0x4f22, 0x4f22, 0x901d, 0x901d, 0x5d34, 0x5d34, 0x846c, 0x846c,
     0x4423, 0x4423, 0xd566, 0xd566, 0xa556, 0xa556, 0x57e6, 0x57e6,
@@ -1490,29 +1498,29 @@ static const word16 L_kyber_aarch64_zetas_inv_qinv[] = {
     0x4137, 0x91e2, 0x3073, 0xcb2c, 0xfced, 0xc667, 0x84f6, 0xd8a1,
 };
 
-void kyber_invntt(sword16* r)
+void mlkem_invntt(sword16* r)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_zetas_inv]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas_inv]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas_inv]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas_inv]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_zetas_inv]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_zetas_inv]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas_inv]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_zetas_inv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_inv_qinv]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
         "ldr	q8, [x4]\n\t"
@@ -2917,35 +2925,44 @@ void kyber_invntt(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv)
-        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
+            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
+            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+            "v24", "v25", "v26", "v27", "v28"
     );
 }
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
-void kyber_ntt_sqrdmlsh(sword16* r)
+void mlkem_ntt_sqrdmlsh(sword16* r)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_zetas]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_zetas]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_zetas]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_zetas]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_qinv]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_qinv]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_qinv]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_qinv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
         "ldr	q4, [x4]\n\t"
@@ -4082,34 +4099,43 @@ void kyber_ntt_sqrdmlsh(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv)
-        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
+            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
+            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+            "v24", "v25", "v26", "v27", "v28", "v29", "v30"
     );
 }
 
-void kyber_invntt_sqrdmlsh(sword16* r)
+void mlkem_invntt_sqrdmlsh(sword16* r)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_zetas_inv]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas_inv]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas_inv]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_zetas_inv]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_zetas_inv]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_zetas_inv]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_zetas_inv]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_zetas_inv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_inv_qinv]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_inv_qinv]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "add	x1, %x[r], #0x100\n\t"
         "ldr	q8, [x4]\n\t"
@@ -5370,13 +5396,22 @@ void kyber_invntt_sqrdmlsh(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv)
-        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
+            "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
+            "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+            "v24", "v25", "v26", "v27", "v28"
     );
 }
 
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
-static const word16 L_kyber_aarch64_zetas_mul[] = {
+static const word16 L_mlkem_aarch64_zetas_mul[] = {
     0x08b2, 0xf74e, 0x01ae, 0xfe52, 0x022b, 0xfdd5, 0x034b, 0xfcb5,
     0x081e, 0xf7e2, 0x0367, 0xfc99, 0x060e, 0xf9f2, 0x0069, 0xff97,
     0x01a6, 0xfe5a, 0x024b, 0xfdb5, 0x00b1, 0xff4f, 0x0c16, 0xf3ea,
@@ -5395,22 +5430,22 @@ static const word16 L_kyber_aarch64_zetas_mul[] = {
     0x03be, 0xfc42, 0x074d, 0xf8b3, 0x05f2, 0xfa0e, 0x065c, 0xf9a4,
 };
 
-void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
+void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_mul]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_mul]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_mul]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_mul]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_mul]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_mul]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_mul]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_mul]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q1, [x4]\n\t"
         "ldp	q2, q3, [%x[a]]\n\t"
@@ -6070,27 +6105,37 @@ void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #480]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
+            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
+            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
+            "v26", "v27"
     );
 }
 
-void kyber_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
+void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_zetas_mul]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_mul]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_mul]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_zetas_mul]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_zetas_mul]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_zetas_mul]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_zetas_mul]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_zetas_mul]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q1, [x4]\n\t"
         "ldp	q2, q3, [%x[a]]\n\t"
@@ -6798,20 +6843,30 @@ void kyber_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #480]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
+            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
+            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
+            "v26", "v27", "v28", "v29"
     );
 }
 
-void kyber_csubq_neon(sword16* p)
+void mlkem_csubq_neon(sword16* p)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x1, %[L_kyber_aarch64_q]\n\t"
-        "add  x1, x1, :lo12:%[L_kyber_aarch64_q]\n\t"
+        "adrp x1, %[L_mlkem_aarch64_q]\n\t"
+        "add  x1, x1, :lo12:%[L_mlkem_aarch64_q]\n\t"
 #else
-        "adrp x1, %[L_kyber_aarch64_q]@PAGE\n\t"
-        "add  x1, x1, %[L_kyber_aarch64_q]@PAGEOFF\n\t"
+        "adrp x1, %[L_mlkem_aarch64_q]@PAGE\n\t"
+        "add  x1, x1, %[L_mlkem_aarch64_q]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q20, [x1]\n\t"
         "ld4	{v0.8h, v1.8h, v2.8h, v3.8h}, [%x[p]], #0x40\n\t"
@@ -6961,20 +7016,29 @@ void kyber_csubq_neon(sword16* p)
         "st4	{v8.8h, v9.8h, v10.8h, v11.8h}, [%x[p]], #0x40\n\t"
         "st4	{v12.8h, v13.8h, v14.8h, v15.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20"
     );
 }
 
-void kyber_add_reduce(sword16* r, const sword16* a)
+void mlkem_add_reduce(sword16* r, const sword16* a)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_consts]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x2]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
@@ -7134,20 +7198,29 @@ void kyber_add_reduce(sword16* r, const sword16* a)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18"
     );
 }
 
-void kyber_add3_reduce(sword16* r, const sword16* a, const sword16* b)
+void mlkem_add3_reduce(sword16* r, const sword16* a, const sword16* b)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_consts]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x3, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x3]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
@@ -7347,20 +7420,29 @@ void kyber_add3_reduce(sword16* r, const sword16* a, const sword16* b)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26"
     );
 }
 
-void kyber_rsub_reduce(sword16* r, const sword16* a)
+void mlkem_rsub_reduce(sword16* r, const sword16* a)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_consts]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x2, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x2]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
@@ -7520,20 +7602,29 @@ void kyber_rsub_reduce(sword16* r, const sword16* a)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18"
     );
 }
 
-void kyber_to_mont(sword16* p)
+void mlkem_to_mont(sword16* p)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x1, %[L_kyber_aarch64_consts]\n\t"
-        "add  x1, x1, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x1, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x1, x1, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x1, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x1, x1, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x1, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x1, x1, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x1]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
@@ -7715,21 +7806,30 @@ void kyber_to_mont(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18"
     );
 }
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
-void kyber_to_mont_sqrdmlsh(sword16* p)
+void mlkem_to_mont_sqrdmlsh(sword16* p)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x1, %[L_kyber_aarch64_consts]\n\t"
-        "add  x1, x1, :lo12:%[L_kyber_aarch64_consts]\n\t"
+        "adrp x1, %[L_mlkem_aarch64_consts]\n\t"
+        "add  x1, x1, :lo12:%[L_mlkem_aarch64_consts]\n\t"
 #else
-        "adrp x1, %[L_kyber_aarch64_consts]@PAGE\n\t"
-        "add  x1, x1, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+        "adrp x1, %[L_mlkem_aarch64_consts]@PAGE\n\t"
+        "add  x1, x1, %[L_mlkem_aarch64_consts]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x1]\n\t"
         "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
@@ -7879,47 +7979,56 @@ void kyber_to_mont_sqrdmlsh(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
-        : "memory", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18"
     );
 }
 
 #endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
-static const word16 L_kyber_aarch64_to_msg_neon_low[] = {
+static const word16 L_mlkem_to_msg_low[] = {
     0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373,
 };
 
-static const word16 L_kyber_aarch64_to_msg_neon_high[] = {
+static const word16 L_mlkem_to_msg_high[] = {
     0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0,
 };
 
-static const word16 L_kyber_aarch64_to_msg_neon_bits[] = {
+static const word16 L_mlkem_to_msg_bits[] = {
     0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
-void kyber_to_msg_neon(byte* msg, sword16* p)
+void mlkem_to_msg_neon(byte* msg, sword16* p)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_to_msg_neon_low]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_to_msg_neon_low]\n\t"
+        "adrp x2, %[L_mlkem_to_msg_low]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_to_msg_low]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_to_msg_neon_low]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_to_msg_neon_low]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_to_msg_low]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_to_msg_low]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_to_msg_neon_high]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_to_msg_neon_high]\n\t"
+        "adrp x3, %[L_mlkem_to_msg_high]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_to_msg_high]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_to_msg_neon_high]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_to_msg_neon_high]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_to_msg_high]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_to_msg_high]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_to_msg_neon_bits]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_to_msg_neon_bits]\n\t"
+        "adrp x4, %[L_mlkem_to_msg_bits]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_to_msg_bits]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_to_msg_neon_bits]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_to_msg_neon_bits]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_to_msg_bits]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_to_msg_bits]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ldr	q0, [x2]\n\t"
         "ldr	q1, [x3]\n\t"
@@ -8125,36 +8234,49 @@ void kyber_to_msg_neon(byte* msg, sword16* p)
         "ins	v18.b[7], v25.b[0]\n\t"
         "st1	{v18.8b}, [%x[msg]], #8\n\t"
         : [msg] "+r" (msg), [p] "+r" (p)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits)
-        : "memory", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits)
+        : "memory", "cc", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5",
+            "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+            "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+            "v25", "v26"
     );
 }
 
-static const word16 L_kyber_aarch64_from_msg_neon_q1half[] = {
+static const word16 L_mlkem_from_msg_q1half[] = {
     0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681,
 };
 
-static const word8 L_kyber_aarch64_from_msg_neon_bits[] = {
+static const word8 L_mlkem_from_msg_bits[] = {
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 };
 
-void kyber_from_msg_neon(sword16* p, const byte* msg)
+void mlkem_from_msg_neon(sword16* p, const byte* msg)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x2, %[L_kyber_aarch64_from_msg_neon_q1half]\n\t"
-        "add  x2, x2, :lo12:%[L_kyber_aarch64_from_msg_neon_q1half]\n\t"
+        "adrp x2, %[L_mlkem_from_msg_q1half]\n\t"
+        "add  x2, x2, :lo12:%[L_mlkem_from_msg_q1half]\n\t"
 #else
-        "adrp x2, %[L_kyber_aarch64_from_msg_neon_q1half]@PAGE\n\t"
-        "add  x2, x2, %[L_kyber_aarch64_from_msg_neon_q1half]@PAGEOFF\n\t"
+        "adrp x2, %[L_mlkem_from_msg_q1half]@PAGE\n\t"
+        "add  x2, x2, %[L_mlkem_from_msg_q1half]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x3, %[L_kyber_aarch64_from_msg_neon_bits]\n\t"
-        "add  x3, x3, :lo12:%[L_kyber_aarch64_from_msg_neon_bits]\n\t"
+        "adrp x3, %[L_mlkem_from_msg_bits]\n\t"
+        "add  x3, x3, :lo12:%[L_mlkem_from_msg_bits]\n\t"
 #else
-        "adrp x3, %[L_kyber_aarch64_from_msg_neon_bits]@PAGE\n\t"
-        "add  x3, x3, %[L_kyber_aarch64_from_msg_neon_bits]@PAGEOFF\n\t"
+        "adrp x3, %[L_mlkem_from_msg_bits]@PAGE\n\t"
+        "add  x3, x3, %[L_mlkem_from_msg_bits]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "ld1	{v2.16b, v3.16b}, [%x[msg]]\n\t"
         "ldr	q1, [x2]\n\t"
@@ -8296,12 +8418,25 @@ void kyber_from_msg_neon(sword16* p, const byte* msg)
         "and	v7.16b, v7.16b, v1.16b\n\t"
         "st1	{v4.8h, v5.8h, v6.8h, v7.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p), [msg] "+r" (msg)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits)
-        : "memory", "x2", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits)
+        : "memory", "cc", "x2", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
+            "v7", "v8", "v9", "v10", "v11"
     );
 }
 
-int kyber_cmp_neon(const byte* a, const byte* b, int sz)
+int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
 {
     __asm__ __volatile__ (
         "ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[a]], #0x40\n\t"
@@ -8421,7 +8556,7 @@ int kyber_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v10.16b, v10.16b, v2.16b\n\t"
         "orr	v11.16b, v11.16b, v3.16b\n\t"
         "subs	%w[sz], %w[sz], #0x300\n\t"
-        "beq	L_kyber_aarch64_cmp_neon_done_%=\n\t"
+        "beq	L_mlkem_aarch64_cmp_neon_done_%=\n\t"
         "ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[a]], #0x40\n\t"
         "ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [%x[b]], #0x40\n\t"
         "eor	v0.16b, v0.16b, v4.16b\n\t"
@@ -8473,7 +8608,7 @@ int kyber_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v10.16b, v10.16b, v2.16b\n\t"
         "orr	v11.16b, v11.16b, v3.16b\n\t"
         "subs	%w[sz], %w[sz], #0x140\n\t"
-        "beq	L_kyber_aarch64_cmp_neon_done_%=\n\t"
+        "beq	L_mlkem_aarch64_cmp_neon_done_%=\n\t"
         "ld4	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[a]], #0x40\n\t"
         "ld4	{v4.16b, v5.16b, v6.16b, v7.16b}, [%x[b]], #0x40\n\t"
         "eor	v0.16b, v0.16b, v4.16b\n\t"
@@ -8551,7 +8686,7 @@ int kyber_cmp_neon(const byte* a, const byte* b, int sz)
         "orr	v8.16b, v8.16b, v0.16b\n\t"
         "orr	v9.16b, v9.16b, v1.16b\n\t"
         "\n"
-    "L_kyber_aarch64_cmp_neon_done_%=: \n\t"
+    "L_mlkem_aarch64_cmp_neon_done_%=: \n\t"
         "orr	v8.16b, v8.16b, v9.16b\n\t"
         "orr	v10.16b, v10.16b, v11.16b\n\t"
         "orr	v8.16b, v8.16b, v10.16b\n\t"
@@ -8561,21 +8696,34 @@ int kyber_cmp_neon(const byte* a, const byte* b, int sz)
         "subs	x0, x0, xzr\n\t"
         "csetm	w0, ne\n\t"
         : [a] "+r" (a), [b] "+r" (b), [sz] "+r" (sz)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits)
-        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits)
+        : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11"
     );
     return (word32)(size_t)a;
 }
 
-static const word16 L_kyber_aarch64_rej_uniform_neon_mask[] = {
+static const word16 L_mlkem_rej_uniform_mask[] = {
     0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 };
 
-static const word16 L_kyber_aarch64_rej_uniform_neon_bits[] = {
+static const word16 L_mlkem_rej_uniform_bits[] = {
     0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
-static const word8 L_kyber_aarch64_rej_uniform_neon_indices[] = {
+static const word8 L_mlkem_rej_uniform_indices[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0x00, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -9090,36 +9238,37 @@ static const word8 L_kyber_aarch64_rej_uniform_neon_indices[] = {
     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 };
 
-unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r, unsigned int rLen)
+unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
+    unsigned int rLen)
 {
     __asm__ __volatile__ (
 #ifndef __APPLE__
-        "adrp x4, %[L_kyber_aarch64_rej_uniform_neon_mask]\n\t"
-        "add  x4, x4, :lo12:%[L_kyber_aarch64_rej_uniform_neon_mask]\n\t"
+        "adrp x4, %[L_mlkem_rej_uniform_mask]\n\t"
+        "add  x4, x4, :lo12:%[L_mlkem_rej_uniform_mask]\n\t"
 #else
-        "adrp x4, %[L_kyber_aarch64_rej_uniform_neon_mask]@PAGE\n\t"
-        "add  x4, x4, %[L_kyber_aarch64_rej_uniform_neon_mask]@PAGEOFF\n\t"
+        "adrp x4, %[L_mlkem_rej_uniform_mask]@PAGE\n\t"
+        "add  x4, x4, %[L_mlkem_rej_uniform_mask]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x5, %[L_kyber_aarch64_q]\n\t"
-        "add  x5, x5, :lo12:%[L_kyber_aarch64_q]\n\t"
+        "adrp x5, %[L_mlkem_aarch64_q]\n\t"
+        "add  x5, x5, :lo12:%[L_mlkem_aarch64_q]\n\t"
 #else
-        "adrp x5, %[L_kyber_aarch64_q]@PAGE\n\t"
-        "add  x5, x5, %[L_kyber_aarch64_q]@PAGEOFF\n\t"
+        "adrp x5, %[L_mlkem_aarch64_q]@PAGE\n\t"
+        "add  x5, x5, %[L_mlkem_aarch64_q]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x6, %[L_kyber_aarch64_rej_uniform_neon_bits]\n\t"
-        "add  x6, x6, :lo12:%[L_kyber_aarch64_rej_uniform_neon_bits]\n\t"
+        "adrp x6, %[L_mlkem_rej_uniform_bits]\n\t"
+        "add  x6, x6, :lo12:%[L_mlkem_rej_uniform_bits]\n\t"
 #else
-        "adrp x6, %[L_kyber_aarch64_rej_uniform_neon_bits]@PAGE\n\t"
-        "add  x6, x6, %[L_kyber_aarch64_rej_uniform_neon_bits]@PAGEOFF\n\t"
+        "adrp x6, %[L_mlkem_rej_uniform_bits]@PAGE\n\t"
+        "add  x6, x6, %[L_mlkem_rej_uniform_bits]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adrp x7, %[L_kyber_aarch64_rej_uniform_neon_indices]\n\t"
-        "add  x7, x7, :lo12:%[L_kyber_aarch64_rej_uniform_neon_indices]\n\t"
+        "adrp x7, %[L_mlkem_rej_uniform_indices]\n\t"
+        "add  x7, x7, :lo12:%[L_mlkem_rej_uniform_indices]\n\t"
 #else
-        "adrp x7, %[L_kyber_aarch64_rej_uniform_neon_indices]@PAGE\n\t"
-        "add  x7, x7, %[L_kyber_aarch64_rej_uniform_neon_indices]@PAGEOFF\n\t"
+        "adrp x7, %[L_mlkem_rej_uniform_indices]@PAGE\n\t"
+        "add  x7, x7, %[L_mlkem_rej_uniform_indices]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "eor	v1.16b, v1.16b, v1.16b\n\t"
         "eor	v12.16b, v12.16b, v12.16b\n\t"
@@ -9132,11 +9281,11 @@ unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "ldr	q3, [x5]\n\t"
         "ldr	q2, [x6]\n\t"
         "subs	wzr, %w[len], #0\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	wzr, %w[len], #16\n\t"
-        "blt	L_kyber_aarch64_rej_uniform_neon_loop_4_%=\n\t"
+        "blt	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "\n"
-    "L_kyber_aarch64_rej_uniform_neon_loop_16_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_16_%=: \n\t"
         "ld3	{v4.8b, v5.8b, v6.8b}, [%x[r]], #24\n\t"
         "zip1	v4.16b, v4.16b, v1.16b\n\t"
         "zip1	v5.16b, v5.16b, v1.16b\n\t"
@@ -9177,17 +9326,17 @@ unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "add	%x[p], %x[p], x11, lsl 1\n\t"
         "add	x12, x12, x11\n\t"
         "subs	%w[rLen], %w[rLen], #24\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "sub	w10, %w[len], w12\n\t"
         "subs	x10, x10, #16\n\t"
-        "blt	L_kyber_aarch64_rej_uniform_neon_loop_4_%=\n\t"
-        "b	L_kyber_aarch64_rej_uniform_neon_loop_16_%=\n\t"
+        "blt	L_mlkem_rej_uniform_loop_4_%=\n\t"
+        "b	L_mlkem_rej_uniform_loop_16_%=\n\t"
         "\n"
-    "L_kyber_aarch64_rej_uniform_neon_loop_4_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_4_%=: \n\t"
         "subs	w10, %w[len], w12\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	x10, x10, #4\n\t"
-        "blt	L_kyber_aarch64_rej_uniform_neon_loop_lt_4_%=\n\t"
+        "blt	L_mlkem_rej_uniform_loop_lt_4_%=\n\t"
         "ldr	x4, [%x[r]], #6\n\t"
         "lsr	x5, x4, #12\n\t"
         "lsr	x6, x4, #24\n\t"
@@ -9217,10 +9366,10 @@ unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	%w[rLen], %w[rLen], #6\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
-        "b	L_kyber_aarch64_rej_uniform_neon_loop_4_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
+        "b	L_mlkem_rej_uniform_loop_4_%=\n\t"
         "\n"
-    "L_kyber_aarch64_rej_uniform_neon_loop_lt_4_%=: \n\t"
+    "L_mlkem_rej_uniform_loop_lt_4_%=: \n\t"
         "ldr	x4, [%x[r]], #6\n\t"
         "lsr	x5, x4, #12\n\t"
         "lsr	x6, x4, #24\n\t"
@@ -9235,43 +9384,60 @@ unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "strh	w5, [%x[p]]\n\t"
         "subs	xzr, x5, x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "strh	w6, [%x[p]]\n\t"
         "subs	xzr, x6, x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "strh	w7, [%x[p]]\n\t"
         "subs	xzr, x7, x13\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	%x[p], %x[p], lt\n\t"
         "cinc	x12, x12, lt\n\t"
         "subs	wzr, %w[len], w12\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
         "subs	%w[rLen], %w[rLen], #6\n\t"
-        "beq	L_kyber_aarch64_rej_uniform_neon_done_%=\n\t"
-        "b	L_kyber_aarch64_rej_uniform_neon_loop_lt_4_%=\n\t"
+        "beq	L_mlkem_rej_uniform_done_%=\n\t"
+        "b	L_mlkem_rej_uniform_loop_lt_4_%=\n\t"
         "\n"
-    "L_kyber_aarch64_rej_uniform_neon_done_%=: \n\t"
+    "L_mlkem_rej_uniform_done_%=: \n\t"
         "mov	x0, x12\n\t"
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+            "x12", "x13", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
+            "v9", "v10", "v11", "v12", "v13"
     );
     return (word32)(size_t)p;
 }
 
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-void kyber_sha3_blocksx3_neon(word64* state)
+void mlkem_sha3_blocksx3_neon(word64* state)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -9565,12 +9731,33 @@ void kyber_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
+            "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+            "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+            "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29",
+            "v30", "v31"
     );
 }
 
-void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
+void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -9886,12 +10073,33 @@ void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
-void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
+void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -10207,13 +10415,34 @@ void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
 #else
-void kyber_sha3_blocksx3_neon(word64* state)
+void mlkem_sha3_blocksx3_neon(word64* state)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -10592,12 +10821,33 @@ void kyber_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
+            "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+            "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+            "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29",
+            "v30", "v31"
     );
 }
 
-void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
+void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -10998,12 +11248,33 @@ void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
-void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
+void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -11404,13 +11675,34 @@ void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul), [L_kyber_aarch64_to_msg_neon_low] "S" (L_kyber_aarch64_to_msg_neon_low), [L_kyber_aarch64_to_msg_neon_high] "S" (L_kyber_aarch64_to_msg_neon_high), [L_kyber_aarch64_to_msg_neon_bits] "S" (L_kyber_aarch64_to_msg_neon_bits), [L_kyber_aarch64_from_msg_neon_q1half] "S" (L_kyber_aarch64_from_msg_neon_q1half), [L_kyber_aarch64_from_msg_neon_bits] "S" (L_kyber_aarch64_from_msg_neon_bits), [L_kyber_aarch64_rej_uniform_neon_mask] "S" (L_kyber_aarch64_rej_uniform_neon_mask), [L_kyber_aarch64_rej_uniform_neon_bits] "S" (L_kyber_aarch64_rej_uniform_neon_bits), [L_kyber_aarch64_rej_uniform_neon_indices] "S" (L_kyber_aarch64_rej_uniform_neon_indices)
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "cc"
+        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
+          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
+          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
+          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
+          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
+          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
+          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
+          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
+          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
+            "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12",
+            "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+            "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+            "v31"
     );
 }
 
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
-#endif /* WOLFSSL_WC_KYBER */
+#endif /* WOLFSSL_WC_MLKEM */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */
