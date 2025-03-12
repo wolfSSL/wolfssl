@@ -39,12 +39,12 @@ This library provides single precision (SP) integer math functions.
     defined(WOLFSSL_SP_NO_MALLOC)
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
     !defined(WOLFSSL_SP_NO_DYN_STACK)
-#pragma GCC diagnostic push
+PRAGMA_GCC_DIAG_PUSH
 /* We are statically declaring a variable smaller than sp_int.
  * We track available memory in the 'size' field.
  * Disable warnings of sp_int being partly outside array bounds of variable.
  */
-#pragma GCC diagnostic ignored "-Warray-bounds"
+PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
 #endif
 #endif
 
@@ -19877,7 +19877,7 @@ void sp_memzero_check(sp_int* sp)
     defined(WOLFSSL_SP_NO_MALLOC)
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
     !defined(WOLFSSL_SP_NO_DYN_STACK)
-#pragma GCC diagnostic pop
+PRAGMA_GCC_DIAG_POP
 #endif
 #endif
 
