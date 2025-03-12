@@ -180,11 +180,14 @@ static const byte dtls13ProtocolLabel[DTLS13_PROTOCOL_LABEL_SZ + 1] = "dtls13";
 #endif /* WOLFSSL_DTLS13 */
 
 #if defined(HAVE_ECH)
-#define ECH_ACCEPT_CONFIRMATION_SZ 8
 #define ECH_ACCEPT_CONFIRMATION_LABEL_SZ 23
+#define ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ 27
 static const byte
     echAcceptConfirmationLabel[ECH_ACCEPT_CONFIRMATION_LABEL_SZ + 1] =
     "ech accept confirmation";
+static const byte
+    echHrrAcceptConfirmationLabel[ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ + 1] =
+    "hrr ech accept confirmation";
 #endif
 
 #ifndef NO_CERTS
@@ -4166,7 +4169,8 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
 /* returns status after we hash the ech inner */
 static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 {
-    int ret;
+    int ret = 0;
+    word32 realSz;
     HS_Hashes* tmpHashes;
 #ifdef WOLFSSL_DTLS13
     byte falseHeader[DTLS13_HANDSHAKE_HEADER_SZ];
@@ -4176,29 +4180,46 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 
     if (ssl == NULL || ech == NULL)
         return BAD_FUNC_ARG;
-
-    /* switch hsHashes to the ech version */
-    InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &ssl->hsHashesEch);
-
-    /* swap hsHashes so the regular hash functions work */
+    realSz = ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt;
     tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = ssl->hsHashesEch;
-
-    /* do the handshake header then the body */
-    AddTls13HandShakeHeader(falseHeader,
-        ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt, 0, 0,
-        client_hello, ssl);
-    ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
-
-    /* hash the body */
+    ssl->hsHashes = NULL;
+    /* init the ech hashes */
+    InitHandshakeHashes(ssl);
+    ssl->hsHashesEch = ssl->hsHashes;
     if (ret == 0) {
-        ret = HashRaw(ssl, ech->innerClientHello,
-              (int)(ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt));
+        /* do the handshake header then the body */
+        AddTls13HandShakeHeader(falseHeader, realSz, 0, 0, client_hello, ssl);
+        ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
+        /* hash with inner */
+        if (ret == 0) {
+            /* init hsHashesEchInner */
+            if (ech->innerCount == 0) {
+                ssl->hsHashes = ssl->hsHashesEchInner;
+                InitHandshakeHashes(ssl);
+                ssl->hsHashesEchInner = ssl->hsHashes;
+                ech->innerCount = 1;
+            }
+            else {
+                /* switch back to hsHashes so we have hrr -> echInner2 */
+                ssl->hsHashes = tmpHashes;
+                InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                    &ssl->hsHashesEchInner);
+            }
+            ssl->hsHashes = ssl->hsHashesEchInner;
+            ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
+            ssl->hsHashes = ssl->hsHashesEch;
+        }
     }
-
+    /* hash the body */
+    if (ret == 0)
+        ret = HashRaw(ssl, ech->innerClientHello, realSz);
+    /* hash with inner */
+    if (ret == 0) {
+        ssl->hsHashes = ssl->hsHashesEchInner;
+        ret = HashRaw(ssl, ech->innerClientHello, realSz);
+    }
     /* swap hsHashes back */
     ssl->hsHashes = tmpHashes;
-
     return ret;
 }
 #endif
@@ -4443,23 +4464,26 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         if (args->ech == NULL)
             return WOLFSSL_FATAL_ERROR;
 
-        /* set the type to inner */
-        args->ech->type = ECH_TYPE_INNER;
-        args->preXLength = (int)args->length;
+        /* only prepare if we have a chance at acceptance */
+        if (ssl->options.echAccepted || args->ech->innerCount == 0) {
+            /* set the type to inner */
+            args->ech->type = ECH_TYPE_INNER;
+            args->preXLength = (int)args->length;
 
-        /* get size for inner */
-        ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
-        if (ret != 0)
-            return ret;
+            /* get size for inner */
+            ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
+            if (ret != 0)
+                return ret;
 
-        /* set the type to outer */
-        args->ech->type = 0;
-        /* set innerClientHelloLen to ClientHelloInner + padding + tag */
-        args->ech->paddingLen = 31 - ((args->length - 1) % 32);
-        args->ech->innerClientHelloLen = (word16)(args->length +
-            args->ech->paddingLen + args->ech->hpke->Nt);
-        /* set the length back to before we computed ClientHelloInner size */
-        args->length = (word32)args->preXLength;
+            /* set the type to outer */
+            args->ech->type = 0;
+            /* set innerClientHelloLen to ClientHelloInner + padding + tag */
+            args->ech->paddingLen = 31 - ((args->length - 1) % 32);
+            args->ech->innerClientHelloLen = (word16)(args->length +
+                args->ech->paddingLen + args->ech->hpke->Nt);
+            /* set the length back to before we computed ClientHelloInner size */
+            args->length = (word32)args->preXLength;
+        }
     }
 #endif
 
@@ -4585,42 +4609,41 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
     /* write inner then outer */
-    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH &&
+        (ssl->options.echAccepted || args->ech->innerCount == 0)) {
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
-
+        /* innerClientHello may already exist from hrr, free if it does */
+        if (args->ech->innerClientHello != NULL) {
+            XFREE(args->ech->innerClientHello, ssl->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        }
         /* allocate the inner */
         args->ech->innerClientHello =
             (byte*)XMALLOC(args->ech->innerClientHelloLen - args->ech->hpke->Nt,
             ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (args->ech->innerClientHello == NULL)
             return MEMORY_E;
-
         /* set the padding bytes to 0 */
         XMEMSET(args->ech->innerClientHello + args->ech->innerClientHelloLen -
             args->ech->hpke->Nt - args->ech->paddingLen, 0,
             args->ech->paddingLen);
-
         /* copy the client hello to the ech innerClientHello, exclude record */
         /* and handshake headers */
         XMEMCPY(args->ech->innerClientHello,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             args->idx - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ));
-
         /* copy the client random to inner */
         XMEMCPY(ssl->arrays->clientRandomInner, ssl->arrays->clientRandom,
             RAN_LEN);
-
         /* change the outer client random */
         ret = wc_RNG_GenerateBlock(ssl->rng, args->output +
             args->clientRandomOffset, RAN_LEN);
         if (ret != 0)
             return ret;
-
         /* copy the new client random */
         XMEMCPY(ssl->arrays->clientRandom, args->output +
             args->clientRandomOffset, RAN_LEN);
-
         /* write the extensions for inner */
         args->length = 0;
         ret = TLSX_WriteRequest(ssl, args->ech->innerClientHello + args->idx -
@@ -4628,7 +4651,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
             &args->length);
         if (ret != 0)
             return ret;
-
         /* set the type to outer */
         args->ech->type = 0;
     }
@@ -4645,7 +4667,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
     /* encrypt and pack the ech innerClientHello */
-    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH &&
+        (ssl->options.echAccepted || args->ech->innerCount == 0)) {
         ret = TLSX_FinalizeEch(args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
@@ -4675,7 +4698,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         {
 #if defined(HAVE_ECH)
             /* compute the inner hash */
-            if (ssl->options.useEch == 1 && !ssl->options.disableECH)
+            if (ssl->options.useEch == 1 && !ssl->options.disableECH &&
+                (ssl->options.echAccepted || args->ech->innerCount == 0))
                 ret = EchHashHelloInner(ssl, args->ech);
 #endif
             /* compute the outer hash */
@@ -4768,15 +4792,15 @@ static int Dtls13ClientDoDowngrade(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT*/
 
 #if defined(HAVE_ECH)
-/* check if the server accepted ech or not */
-static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
-    int serverRandomOffset, int helloSz)
+/* check if the server accepted ech or not, must be run after an hsHashes
+ * restart */
+static int EchCheckAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
+    const byte* input, int acceptOffset, int helloSz)
 {
     int ret = 0;
     int digestType = 0;
     int digestSize = 0;
     HS_Hashes* tmpHashes;
-    HS_Hashes* acceptHashes;
     byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
@@ -4785,22 +4809,20 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
     XMEMSET(acceptConfirmation, 0, sizeof(acceptConfirmation));
-    /* copy ech hashes to accept */
-    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashesEch, &acceptHashes);
-    /* swap hsHashes to acceptHashes */
+    /* store so we can restore regardless of the outcome */
     tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = acceptHashes;
+    /* swap hsHashes to hsHashesEch */
+    ssl->hsHashes = ssl->hsHashesEch;
     /* hash up to the last 8 bytes */
-    if (ret == 0)
-        ret = HashRaw(ssl, input, serverRandomOffset + RAN_LEN -
-            ECH_ACCEPT_CONFIRMATION_SZ);
+    ret = HashRaw(ssl, input, acceptOffset);
     /* hash 8 zeros */
     if (ret == 0)
         ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
     /* hash the rest of the hello */
     if (ret == 0) {
-        ret = HashRaw(ssl, input + serverRandomOffset + RAN_LEN,
-            helloSz + HANDSHAKE_HEADER_SZ - (serverRandomOffset + RAN_LEN));
+        ret = HashRaw(ssl, input + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
+            helloSz + HANDSHAKE_HEADER_SZ -
+            (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
     }
     /* get the modified transcript hash */
     if (ret == 0)
@@ -4856,97 +4878,83 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = Tls13HKDFExpandKeyLabel(ssl,
-            acceptConfirmation, ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, (word32)digestSize,
-            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
-            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
-            transcriptEchConf, (word32)digestSize, digestType, WOLFSSL_SERVER_END);
+        ret = Tls13HKDFExpandKeyLabel(ssl, acceptConfirmation,
+            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, (word32)digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
+            transcriptEchConf, (word32)digestSize, digestType,
+            WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
     if (ret == 0) {
         /* last 8 bytes should match our expand output */
-        ret = XMEMCMP(acceptConfirmation,
-            ssl->arrays->serverRandom + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
+        ret = XMEMCMP(acceptConfirmation, input + acceptOffset,
             ECH_ACCEPT_CONFIRMATION_SZ);
         /* ech accepted */
         if (ret == 0) {
-            /* use the inner random for client random */
-            XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
-              RAN_LEN);
-            /* switch back to original hsHashes to free */
+            /* set echAccepted to 1 */
+            ssl->options.echAccepted = 1;
+            /* free hsHashes and go with inner */
             ssl->hsHashes = tmpHashes;
-            /* set the final hsHashes to the ech hashes */
-            tmpHashes = ssl->hsHashesEch;
+            FreeHandshakeHashes(ssl);
+            ssl->hsHashes = ssl->hsHashesEch;
+            tmpHashes = ssl->hsHashesEchInner;
+            ssl->hsHashesEchInner = NULL;
         }
         /* ech rejected */
         else {
-            /* switch to hsHashesEch to free */
-            ssl->hsHashes = ssl->hsHashesEch;
+            /* set echAccepted to 0, needed in case HRR */
+            ssl->options.echAccepted = 0;
+            /* free inner since we're continuing with outer */
+            ssl->hsHashes = ssl->hsHashesEchInner;
+            FreeHandshakeHashes(ssl);
+            ssl->hsHashesEchInner = NULL;
         }
-        /* free hsHashes */
-        FreeHandshakeHashes(ssl);
-        /* set hsHashesEch to NULL to avoid double free */
-        ssl->hsHashesEch = NULL;
         /* continue with outer if we failed to verify ech was accepted */
         ret = 0;
     }
-    /* switch to acceptHashes */
-    ssl->hsHashes = acceptHashes;
-    /* free acceptHashes */
     FreeHandshakeHashes(ssl);
-    /* swap to tmp, will ech if accepted, hsHashes if rejected */
+    /* set hsHashesEch to NULL to avoid double free */
+    ssl->hsHashesEch = NULL;
+    /* swap to tmp, will be inner if accepted, hsHashes if rejected */
     ssl->hsHashes = tmpHashes;
     return ret;
 }
 
-/* replace the last 8 bytes of the server random with the ech acceptance
- * parameter, return status */
-static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
-  int serverRandomOffset, int helloSz)
+/* replace the last acceptance field for either sever hello or hrr with the ech
+ * acceptance parameter, return status */
+static int EchWriteAcceptance(WOLFSSL* ssl, byte* label, word16 labelSz,
+    byte* output, int acceptOffset, int helloSz, byte msgType)
 {
     int ret = 0;
     int digestType = 0;
     int digestSize = 0;
     HS_Hashes* tmpHashes = NULL;
-    HS_Hashes* acceptHashes = NULL;
     byte zeros[WC_MAX_DIGEST_SIZE];
     byte transcriptEchConf[WC_MAX_DIGEST_SIZE];
     byte expandLabelPrk[WC_MAX_DIGEST_SIZE];
     XMEMSET(zeros, 0, sizeof(zeros));
     XMEMSET(transcriptEchConf, 0, sizeof(transcriptEchConf));
     XMEMSET(expandLabelPrk, 0, sizeof(expandLabelPrk));
-
-    /* copy ech hashes to accept */
-    ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes, &acceptHashes);
-
-    /* swap hsHashes to acceptHashes */
+    /* store so we can restore regardless of the outcome */
     tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = acceptHashes;
-
-    /* hash up to the last 8 bytes */
-    if (ret == 0)
-        ret = HashRaw(ssl, output, serverRandomOffset + RAN_LEN -
-            ECH_ACCEPT_CONFIRMATION_SZ);
-
+    ssl->hsHashes = ssl->hsHashesEch;
+    /* hash up to the acceptOffset */
+    ret = HashRaw(ssl, output, acceptOffset);
     /* hash 8 zeros */
     if (ret == 0)
-        ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
-
+       ret = HashRaw(ssl, zeros, ECH_ACCEPT_CONFIRMATION_SZ);
     /* hash the rest of the hello */
-    if (ret == 0)
-        ret = HashRaw(ssl, output + serverRandomOffset + RAN_LEN,
-            helloSz - (serverRandomOffset + RAN_LEN));
-
+    if (ret == 0) {
+        ret = HashRaw(ssl, output + acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ,
+            helloSz - (acceptOffset + ECH_ACCEPT_CONFIRMATION_SZ));
+    }
     /* get the modified transcript hash */
     if (ret == 0)
         ret = GetMsgHash(ssl, transcriptEchConf);
-
     if (ret > 0)
         ret = 0;
-
     /* pick the right type and size based on mac_algorithm */
-    if (ret == 0)
+    if (ret == 0) {
         switch (ssl->specs.mac_algorithm) {
 #ifndef NO_SHA256
             case sha256_mac:
@@ -4976,7 +4984,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
                 ret = WOLFSSL_FATAL_ERROR;
                 break;
         }
-
+    }
     /* extract clientRandom with a key of all zeros */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
@@ -4991,29 +4999,23 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     #endif
         PRIVATE_KEY_LOCK();
     }
-
     /* tls expand with the confirmation label */
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
-        ret = Tls13HKDFExpandKeyLabel(ssl,
-            output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
-                ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, (word32)digestSize,
-            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
-            echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
-            transcriptEchConf, (word32)digestSize, digestType, WOLFSSL_SERVER_END);
+        ret = Tls13HKDFExpandKeyLabel(ssl, output + acceptOffset,
+            ECH_ACCEPT_CONFIRMATION_SZ, expandLabelPrk, (word32)digestSize,
+            tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ, label, labelSz,
+            transcriptEchConf, (word32)digestSize, digestType,
+            WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
-
-    if (ret == 0)
-        XMEMCPY(ssl->arrays->serverRandom, output + serverRandomOffset,
-            RAN_LEN);
-
-    /* free acceptHashes */
+    /* mark that ech was accepted */
+    if (ret == 0 && msgType != hello_retry_request)
+        ssl->options.echAccepted = 1;
+    /* free hsHashesEch, if this is an HRR we will start at client hello 2*/
     FreeHandshakeHashes(ssl);
-
+    ssl->hsHashesEch = NULL;
     ssl->hsHashes = tmpHashes;
-
     return ret;
 }
 #endif
@@ -5039,7 +5041,10 @@ typedef struct Dsh13Args {
     byte            sessIdSz;
     byte            extMsgType;
 #if defined(HAVE_ECH)
-    int             serverRandomOffset;
+    TLSX* echX;
+    byte* acceptLabel;
+    word32 acceptOffset;
+    word16 acceptLabelSz;
 #endif
 } Dsh13Args;
 
@@ -5196,7 +5201,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Server random - keep for debugging. */
     XMEMCPY(ssl->arrays->serverRandom, input + args->idx, RAN_LEN);
 #if defined(HAVE_ECH)
-    args->serverRandomOffset = (int)args->idx;
+    /* last 8 bytes of server random */
+    args->acceptOffset = args->idx + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ;
 #endif
     args->idx += RAN_LEN;
 
@@ -5492,15 +5498,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
-#if defined(HAVE_ECH)
-    /* check for acceptConfirmation and HashInput with 8 0 bytes */
-    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
-        ret = EchCheckAcceptance(ssl, input, args->serverRandomOffset, (int)helloSz);
-        if (ret != 0)
-            return ret;
-    }
-#endif
-
 #ifdef HAVE_NULL_CIPHER
     if (ssl->options.cipherSuite0 == ECC_BYTE &&
                               (ssl->options.cipherSuite == TLS_SHA256_SHA256 ||
@@ -5537,6 +5534,36 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ERROR_VERBOSE(MATCH_SUITE_ERROR);
         return MATCH_SUITE_ERROR;
     }
+
+#if defined(HAVE_ECH)
+    /* check for acceptConfirmation, must be done after hashes restart */
+    if (ssl->options.useEch == 1) {
+        args->echX = TLSX_Find(ssl->extensions, TLSX_ECH);
+        /* account for hrr extension instead of server random */
+        if (args->extMsgType == hello_retry_request) {
+            args->acceptOffset =
+                (word32)(((WOLFSSL_ECH*)args->echX->data)->confBuf - input);
+            args->acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
+            args->acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+        }
+        else {
+            args->acceptLabel = (byte*)echAcceptConfirmationLabel;
+            args->acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
+        }
+        /* check acceptance */
+        if (ret == 0) {
+            ret = EchCheckAcceptance(ssl, args->acceptLabel,
+                args->acceptLabelSz, input, args->acceptOffset, helloSz);
+        }
+        if (ret != 0)
+            return ret;
+        /* use the inner random for client random */
+        if (args->extMsgType != hello_retry_request) {
+            XMEMCPY(ssl->arrays->clientRandom, ssl->arrays->clientRandomInner,
+                RAN_LEN);
+        }
+    }
+#endif /* HAVE_ECH */
 
     if (*extMsgType == server_hello) {
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -6706,6 +6733,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #if defined(HAVE_ECH)
     TLSX* echX = NULL;
+    HS_Hashes* tmpHashes;
 #endif
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
@@ -7029,6 +7057,22 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
+#if defined(HAVE_ECH)
+    /* hash clientHelloInner to hsHashesEch independently since it can't include
+     * the HRR */
+    if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
+        tmpHashes = ssl->hsHashes;
+        ssl->hsHashes = NULL;
+        ret = InitHandshakeHashes(ssl);
+        if (ret != 0)
+            goto exit_dch;
+        if ((ret = HashInput(ssl, input + args->begin, (int)helloSz)) != 0)
+            goto exit_dch;
+        ssl->hsHashesEch = ssl->hsHashes;
+        ssl->hsHashes = tmpHashes;
+    }
+#endif
+
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
                                                     defined(HAVE_TLS_EXTENSIONS)
     ret = CheckPreSharedKeys(ssl, input + args->begin, helloSz, ssl->clSuites,
@@ -7309,7 +7353,9 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     int    sendSz;
 #if defined(HAVE_ECH)
     TLSX* echX = NULL;
-    word32 serverRandomOffset;
+    byte* acceptLabel = (byte*)echAcceptConfirmationLabel;
+    word32 acceptOffset;
+    word16 acceptLabelSz = ECH_ACCEPT_CONFIRMATION_LABEL_SZ;
 #endif
 
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
@@ -7368,7 +7414,8 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     }
 
 #if defined(HAVE_ECH)
-    serverRandomOffset = idx;
+    /* last 8 bytes of server random */
+    acceptOffset = idx + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ;
 #endif
 
     /* Store in SSL for debugging. */
@@ -7432,18 +7479,37 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 #if defined(HAVE_ECH)
             if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
                 echX = TLSX_Find(ssl->extensions, TLSX_ECH);
-
                 if (echX == NULL)
                     return WOLFSSL_FATAL_ERROR;
-
+                /* use hrr offset */
+                if (extMsgType == hello_retry_request) {
+                    acceptOffset =
+                        (word32)(((WOLFSSL_ECH*)echX->data)->confBuf - output);
+                    acceptLabel = (byte*)echHrrAcceptConfirmationLabel;
+                    acceptLabelSz = ECH_HRR_ACCEPT_CONFIRMATION_LABEL_SZ;
+                }
                 /* replace the last 8 bytes of server random with the accept */
                 if (((WOLFSSL_ECH*)echX->data)->state == ECH_PARSED_INTERNAL) {
-                    ret = EchWriteAcceptance(ssl, output + RECORD_HEADER_SZ,
-                        (int)serverRandomOffset - RECORD_HEADER_SZ,
-                        sendSz - RECORD_HEADER_SZ);
-
-                    /* remove ech so we don't keep sending it in write */
-                    TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
+                    if (ret == 0) {
+                        ret = EchWriteAcceptance(ssl, acceptLabel,
+                            acceptLabelSz, output + RECORD_HEADER_SZ,
+                            acceptOffset - RECORD_HEADER_SZ,
+                            sendSz - RECORD_HEADER_SZ, extMsgType);
+                    }
+                    if (extMsgType == hello_retry_request) {
+                        /* reset the ech state for round 2 */
+                        ((WOLFSSL_ECH*)echX->data)->state = ECH_WRITE_NONE;
+                    }
+                    else {
+                        if (ret == 0) {
+                            /* update serverRandom on success */
+                            XMEMCPY(ssl->arrays->serverRandom,
+                                output + acceptOffset -
+                                (RAN_LEN -ECH_ACCEPT_CONFIRMATION_SZ), RAN_LEN);
+                        }
+                        /* remove ech so we don't keep sending it in write */
+                        TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
+                    }
                 }
             }
 #endif
@@ -12684,16 +12750,15 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             if (echX != NULL &&
                 ((WOLFSSL_ECH*)echX->data)->state == ECH_WRITE_NONE) {
-
                 /* reset the inOutIdx to the outer start */
                 *inOutIdx = echInOutIdx;
-
                 /* call again with the inner hello */
-                ret = DoTls13ClientHello(ssl,
-                    ((WOLFSSL_ECH*)echX->data)->innerClientHello,
-                    &echInOutIdx,
-                    ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
-
+                if (ret == 0) {
+                    ret = DoTls13ClientHello(ssl,
+                        ((WOLFSSL_ECH*)echX->data)->innerClientHello,
+                        &echInOutIdx,
+                        ((WOLFSSL_ECH*)echX->data)->innerClientHelloLen);
+                }
                 /* if the inner ech parsed successfully we have successfully
                  * handled the hello and can skip the whole message */
                 if (ret == 0)

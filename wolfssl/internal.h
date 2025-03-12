@@ -3117,6 +3117,7 @@ typedef struct RpkState {
 #endif /* HAVE_RPK */
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+#define ECH_ACCEPT_CONFIRMATION_SZ 8
 
 typedef enum {
     ECH_TYPE_OUTER = 0,
@@ -3151,11 +3152,13 @@ typedef struct WOLFSSL_EchConfig {
 
 typedef struct WOLFSSL_ECH {
     Hpke* hpke;
+    HpkeBaseContext* hpkeContext;
     const byte* aad;
     void* ephemeralKey;
     WOLFSSL_EchConfig* echConfig;
     byte* innerClientHello;
     byte* outerClientPayload;
+    byte* confBuf;
     EchCipherSuite cipherSuite;
     word16 aadLen;
     word16 paddingLen;
@@ -3166,6 +3169,7 @@ typedef struct WOLFSSL_ECH {
     byte type;
     byte configId;
     byte enc[HPKE_Npk_MAX];
+    byte innerCount;
 } WOLFSSL_ECH;
 
 WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
@@ -5092,7 +5096,8 @@ struct Options {
     word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    word16            useEch:1;               /* Do we have a valid config */
+    word16            useEch:1;
+    word16            echAccepted:1;
     byte              disableECH:1;           /* Did the user disable ech */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -5819,6 +5824,7 @@ struct WOLFSSL {
     HS_Hashes*      hsHashes;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     HS_Hashes*      hsHashesEch;
+    HS_Hashes*      hsHashesEchInner;
 #endif
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;
