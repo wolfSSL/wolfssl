@@ -2396,16 +2396,20 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("PKCS7signed     test passed!\n");
 
+    PRIVATE_KEY_UNLOCK();
     if ( (ret = pkcs7enveloped_test()) != 0)
         TEST_FAIL("PKCS7enveloped  test failed!\n", ret);
     else
         TEST_PASS("PKCS7enveloped  test passed!\n");
+    PRIVATE_KEY_LOCK();
 
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        PRIVATE_KEY_UNLOCK();
         if ( (ret = pkcs7authenveloped_test()) != 0)
             TEST_FAIL("PKCS7authenveloped  test failed!\n", ret);
         else
             TEST_PASS("PKCS7authenveloped  test passed!\n");
+        PRIVATE_KEY_LOCK();
     #endif
 #endif
 
@@ -60077,6 +60081,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
     ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
+    if (ret != 0)
+        ret = WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLF_CRYPTO_CB_FIND
     wc_CryptoCb_SetDeviceFindCb(myCryptoCbFind);
 #endif /* WOLF_CRYPTO_CB_FIND */
@@ -60186,6 +60192,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = cmac_test();
 #endif
+
+    wc_CryptoCb_UnRegisterDevice(devId);
 
     /* restore devId */
     devId = origDevId;
