@@ -2,8 +2,17 @@
 
 See the [example sketches](./sketches/README.md):
 
-- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md)
-- [sketches/wolfssl_client](./sketches/wolfssl_client/README.md)
+Bare-bones templates:
+
+- [sketches/wolfssl_version](./sketches/wolfssl_version/README.md) single file.
+- [sketches/template](./sketches/template/README.md) multiple file example.
+
+Functional examples:
+- [sketches/wolfssl_AES_CTR](./sketches/wolfssl_AES_CTR/README.md) AEC CTR Encrypt / decrypt.
+- [sketches/wolfssl_client](./sketches/wolfssl_client/README.md) TLS Client.
+- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md) TLS Server.
+
+Both the `template` ad `wolfssl_AES_CTR` examples include VisualGDB project files.
 
 When publishing a new version to the Arduino Registry, be sure to edit `WOLFSSL_VERSION_ARUINO_SUFFIX` in the `wolfssl-arduino.sh` script.
 

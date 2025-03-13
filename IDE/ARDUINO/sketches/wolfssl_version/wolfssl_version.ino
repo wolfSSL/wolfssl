@@ -30,13 +30,21 @@
   * The wolfSSL "settings.h" must be included in each source file using wolfSSL.
   * The wolfSSL "settings.h" must appear before any other wolfSSL include.
   */
+
+/* This is Arduino sketch example 1 of 2: single file .ino compile. */
+/* See also template.ino project example using multiple files. */
+
 #include <wolfssl.h>
 #include <wolfssl/version.h>
 
 /* Choose a monitor serial baud rate: 9600, 14400, 19200, 57600, 74880, etc. */
 #define SERIAL_BAUD 115200
 
-/* Arduino setup */
+/*****************************************************************************/
+/*****************************************************************************/
+/* Arduino setup()                                                           */
+/*****************************************************************************/
+/*****************************************************************************/
 void setup() {
     Serial.begin(SERIAL_BAUD);
     while (!Serial) {
@@ -45,9 +53,20 @@ void setup() {
     Serial.println(F(""));
     Serial.println(F(""));
     Serial.println(F("wolfSSL setup complete!"));
+
+    /* See https://github.com/wolfSSL/wolfssl/blob/master/examples/configs/user_settings_arduino.h  */
+    /* Various historical versions have differing features enabled. */
+#ifdef WOLFSSL_USER_SETTINGS_ID
+    /* Print the release version at runtime for reference. */
+    Serial.println(WOLFSSL_USER_SETTINGS_ID);
+#endif
 }
 
-/* Arduino main application loop. */
+/*****************************************************************************/
+/*****************************************************************************/
+/* Arduino loop()                                                            */
+/*****************************************************************************/
+/*****************************************************************************/
 void loop() {
     Serial.print("wolfSSL Version: ");
     Serial.println(LIBWOLFSSL_VERSION_STRING);
