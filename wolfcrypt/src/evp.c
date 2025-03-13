@@ -3740,7 +3740,6 @@ int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 {
     int ret = -1; /* failure */
-    int a_sz = 0, b_sz = 0;
 
     if (a == NULL || b == NULL)
         return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
@@ -3753,40 +3752,47 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
     switch (a->type) {
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-        a_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(a->rsa));
-        b_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(b->rsa));
+        if (wolfSSL_RSA_size((const WOLFSSL_RSA*)(a->rsa)) <= 0 ||
+                wolfSSL_RSA_size((const WOLFSSL_RSA*)(b->rsa)) <= 0) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (mp_cmp(&((RsaKey*)a->rsa->internal)->n,
+                   &((RsaKey*)b->rsa->internal)->n) != MP_EQ) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (mp_cmp(&((RsaKey*)a->rsa->internal)->e,
+                   &((RsaKey*)b->rsa->internal)->e) != MP_EQ) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
         break;
 #endif /* !NO_RSA */
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC:
         if (a->ecc == NULL || a->ecc->internal == NULL ||
-            b->ecc == NULL || b->ecc->internal == NULL) {
+            b->ecc == NULL || b->ecc->internal == NULL ||
+            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
+            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0 ||
+            a->ecc->group == NULL || b->ecc->group == NULL) {
             return ret;
         }
-        a_sz = wc_ecc_size((ecc_key*)(a->ecc->internal));
-        b_sz = wc_ecc_size((ecc_key*)(b->ecc->internal));
+
+        /* check curve */
+        if (a->ecc->group->curve_idx != b->ecc->group->curve_idx) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (wc_ecc_cmp_point(&((ecc_key*)a->ecc->internal)->pubkey,
+                             &((ecc_key*)b->ecc->internal)->pubkey) != 0) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
         break;
 #endif /* HAVE_ECC */
     default:
         return WS_RETURN_CODE(ret, -2);
     } /* switch (a->type) */
 
-    /* check size */
-    if (a_sz <= 0 || b_sz <= 0 || a_sz != b_sz) {
-        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-    }
-
-    /* check public key size */
-    if (a->pkey_sz > 0 && b->pkey_sz > 0 && a->pkey_sz != b->pkey_sz) {
-        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-    }
-
-    /* check public key */
-    if (a->pkey.ptr && b->pkey.ptr) {
-        if (XMEMCMP(a->pkey.ptr, b->pkey.ptr, (size_t)a->pkey_sz) != 0) {
-            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-        }
-    }
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     ret = 1; /* the keys match */
 #else
