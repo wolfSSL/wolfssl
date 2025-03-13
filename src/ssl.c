@@ -14514,7 +14514,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if (sk != NULL) {
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             if (ssl->session->peer)
-                X509_free(ssl->session->peer);
+                wolfSSL_X509_free(ssl->session->peer);
 
             ssl->session->peer = wolfSSL_sk_X509_pop(sk);
             ssl->session->peerVerifyRet = ssl->peerVerifyRet;
