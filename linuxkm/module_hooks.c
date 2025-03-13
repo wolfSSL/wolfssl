@@ -270,7 +270,7 @@ static int wolfssl_init(void)
     }
 #endif
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0)
     ret = wc_RunAllCast_fips();
     if (ret != 0) {
         pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
@@ -302,7 +302,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -314,8 +314,10 @@ static int wolfssl_init(void)
     }
     pr_info("wolfCrypt self-test passed.\n");
 #else
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LE(5,2,0)
     pr_info("skipping full wolfcrypt_test() "
             "(configure with --enable-crypttests to enable).\n");
+#endif
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
