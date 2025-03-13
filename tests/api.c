@@ -7574,8 +7574,9 @@ void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx)
     }
 }
 
-int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
-    test_ssl_cbf* server_cb, cbType client_on_handshake)
+static int test_wolfSSL_client_server_nofail_memio_ex(test_ssl_cbf* client_cb,
+    test_ssl_cbf* server_cb, cbType client_on_handshake,
+    cbType server_on_handshake)
 {
     /* We use EXPECT_DECLS_NO_MSGS() here because this helper routine is used
      * for numerous but varied expected-to-fail scenarios that should not emit
@@ -7604,6 +7605,10 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
 
     if (client_on_handshake != NULL) {
         ExpectIntEQ(client_on_handshake(test_ctx.c_ctx, test_ctx.c_ssl),
+            TEST_SUCCESS);
+    }
+    if (server_on_handshake != NULL) {
+        ExpectIntEQ(server_on_handshake(test_ctx.s_ctx, test_ctx.s_ssl),
             TEST_SUCCESS);
     }
     if (client_cb->on_handshake != NULL) {
@@ -7635,6 +7640,13 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     server_cb->last_err = test_ctx.s_cb.last_err;
 
     return EXPECT_RESULT();
+}
+
+int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
+    test_ssl_cbf* server_cb, cbType client_on_handshake)
+{
+    return (test_wolfSSL_client_server_nofail_memio_ex(client_cb, server_cb,
+        client_on_handshake, NULL));
 }
 #endif
 
@@ -51870,6 +51882,57 @@ static void msg_cb(int write_p, int version, int content_type,
 #if defined(SESSION_CERTS)
 #include "wolfssl/internal.h"
 #endif
+static int msgSrvCb(SSL_CTX *ctx, SSL *ssl)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
+    STACK_OF(X509)* sk = NULL;
+    X509* x509 = NULL;
+    int i, num;
+    BIO* bio = NULL;
+#endif
+
+    ExpectNotNull(ctx);
+    ExpectNotNull(ssl);
+
+    fprintf(stderr, "\n===== msgSrvCb called ====\n");
+#if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
+    ExpectTrue(SSL_get_peer_cert_chain(ssl) != NULL);
+    chain = (WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl);
+    ExpectIntEQ(chain->count, 2);
+    ExpectNotNull(SSL_get0_verified_chain(ssl));
+#endif
+
+#if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
+    WOLFSSL_X509* peer = NULL;
+
+    ExpectNotNull(peer= wolfSSL_get_peer_certificate(ssl));
+    ExpectNotNull(bio = BIO_new_fp(stderr, BIO_NOCLOSE));
+
+    fprintf(stderr, "Peer Certificate = :\n");
+    X509_print(bio,peer);
+    X509_free(peer);
+
+    ExpectNotNull(sk = SSL_get_peer_cert_chain(ssl));
+    if (sk == NULL) {
+        BIO_free(bio);
+        return TEST_FAIL;
+    }
+    num = sk_X509_num(sk);
+    ExpectTrue(num > 0);
+    for (i = 0; i < num; i++) {
+        ExpectNotNull(x509 = sk_X509_value(sk,i));
+        if (x509 == NULL)
+            break;
+        fprintf(stderr, "Certificate at index [%d] = :\n",i);
+        X509_print(bio,x509);
+        fprintf(stderr, "\n\n");
+    }
+    BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     EXPECT_DECLS;
@@ -51930,9 +51993,11 @@ static int test_wolfSSL_msgCb(void)
     client_cb.method  = wolfTLSv1_3_client_method;
     server_cb.method  = wolfTLSv1_3_server_method;
 #endif
+    server_cb.caPemFile = caCertFile;
+    client_cb.certPemFile = "./certs/intermediate/client-chain.pem";
 
-    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
-        &server_cb, msgCb), TEST_SUCCESS);
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio_ex(&client_cb,
+        &server_cb, msgCb, msgSrvCb), TEST_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
