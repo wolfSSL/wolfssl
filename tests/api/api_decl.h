@@ -1,4 +1,4 @@
-/* test_mlkem.h
+/* api_decl.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,18 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_MLKEM_H
-#define WOLFCRYPT_TEST_MLKEM_H
+#ifndef WOLFCRYPT_TEST_API_DECL_H
+#define WOLFCRYPT_TEST_API_DECL_H
 
-#include <tests/api/api_decl.h>
+typedef int (*TEST_FUNC)(void);
+typedef struct {
+    const char *group;
+    const char *name;
+    TEST_FUNC func;
+    byte run:1;
+    byte fail:1;
+} TEST_CASE;
 
-int test_wc_mlkem_make_key_kats(void);
-int test_wc_mlkem_encapsulate_kats(void);
-int test_wc_mlkem_decapsulate_kats(void);
+#define TEST_DECL(func) { NULL, #func, func, 0, 0 }
+#define TEST_DECL_GROUP(group, func) { group, #func, func, 0, 0 }
 
-#define TEST_MLKEM_DECLS                                      \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),    \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_kats), \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_kats)
+#endif /* WOLFCRYPT_TEST_API_DECL_H */
 
-#endif /* WOLFCRYPT_TEST_MLKEM_H */

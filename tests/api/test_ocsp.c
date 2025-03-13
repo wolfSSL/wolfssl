@@ -34,7 +34,7 @@
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
 
-#if defined(HAVE_OCSP) && !defined(NO_SHA)
+#if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
 struct ocsp_cb_ctx {
     byte* response;
     int responseSz;
@@ -155,7 +155,6 @@ int test_ocsp_response_parsing(void)
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
     ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
         TEST_SUCCESS);
-
     return EXPECT_SUCCESS();
 }
 #else  /* HAVE_OCSP && !NO_SHA */
@@ -165,7 +164,8 @@ int test_ocsp_response_parsing(void)
 }
 #endif /* HAVE_OCSP && !NO_SHA */
 
-#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA)
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
     unsigned char* ca, int caSz)
 {
@@ -349,7 +349,6 @@ int test_ocsp_basic_verify(void)
     wc_FreeDecodedCert(&cert);
     wolfSSL_sk_X509_pop_free(certs, wolfSSL_X509_free);
     wolfSSL_X509_STORE_free(store);
-
     return EXPECT_RESULT();
 }
 #else
@@ -594,7 +593,7 @@ int test_ocsp_status_callback(void)
         && defined(OPENSSL_ALL) */
 
 #if !defined(NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP) &&          \
-    !defined(WOLFSSL_SM3) && !defined(WOLFSSL_SM2)
+    !defined(WOLFSSL_SM3) && !defined(WOLFSSL_SM2) && !defined(NO_RSA)
 int test_ocsp_certid_enc_dec(void)
 {
     EXPECT_DECLS;
@@ -651,7 +650,6 @@ int test_ocsp_certid_enc_dec(void)
     wolfSSL_OCSP_CERTID_free(certIdDec);
     wolfSSL_X509_free(subject);
     wolfSSL_X509_free(issuer);
-
     return EXPECT_SUCCESS();
 }
 #else /* !NO_SHA && OPENSSL_ALL && HAVE_OCSP && !WOLFSSL_SM3 && !WOLFSSL_SM2 */
