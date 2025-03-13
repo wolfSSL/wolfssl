@@ -51898,8 +51898,7 @@ static int msgSrvCb(SSL_CTX *ctx, SSL *ssl)
     fprintf(stderr, "\n===== msgSrvCb called ====\n");
 #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     ExpectTrue(SSL_get_peer_cert_chain(ssl) != NULL);
-    chain = (WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl);
-    ExpectIntEQ(chain->count, 2);
+    ExpectIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 2);
     ExpectNotNull(SSL_get0_verified_chain(ssl));
 #endif
 
