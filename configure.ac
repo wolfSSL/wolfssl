@@ -9265,6 +9265,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DALT_ECC_SIZE"
 fi
 
+AC_ARG_ENABLE([default-devid],
+    [AS_HELP_STRING([--disable-default-devid],[Disable default device ID (default: disabled)])],
+    [ if test "x$enableval" = "xno" ; then
+        AM_CFLAGS="$AM_CFLAGS -DWC_NO_DEFAULT_DEVID"
+      fi
+    ],
+    [ENABLED_DEFAULT_DEVID=yes])
+
 ################################################################################
 # Update ENABLE_* variables                                                    #
 ################################################################################
