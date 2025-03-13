@@ -50104,6 +50104,26 @@ static int test_wolfSSL_Tls13_ECH_params(void)
         "ech-public-name.com", 1000, 1000, 1000));
 
     /* invalid ctx */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(NULL,
+        (char*)testBuf, sizeof(testBuf)));
+    /* invalid base64 configs */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        NULL, sizeof(testBuf)));
+    /* invalid length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigsBase64(ctx,
+        (char*)testBuf, 0));
+
+    /* invalid ctx */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(NULL,
+        testBuf, sizeof(testBuf)));
+    /* invalid configs */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx,
+        NULL, sizeof(testBuf)));
+    /* invalid length */
+    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_SetEchConfigs(ctx,
+        testBuf, 0));
+
+    /* invalid ctx */
     ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_GetEchConfigs(NULL, NULL,
         &outputLen));
     /* invalid output len */

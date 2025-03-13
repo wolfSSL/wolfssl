@@ -3176,6 +3176,10 @@ WOLFSSL_LOCAL int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config);
 
 WOLFSSL_LOCAL int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen);
 
+
+WOLFSSL_LOCAL int SetEchConfigsEx(WOLFSSL_EchConfig** outputConfigs, void* heap,
+    const byte* echConfigs, word32 echConfigsLen);
+
 WOLFSSL_LOCAL int GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
     word32* outputLen);
 
