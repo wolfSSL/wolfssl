@@ -366,6 +366,12 @@ extern "C" {
     #undef WOLFSSL_AESXTS_STREAM
     #define WOLFSSL_AESXTS_STREAM
 
+    #undef WOLFSSL_AES_128
+    #define WOLFSSL_AES_128
+
+    #undef WOLFSSL_AES_256
+    #define WOLFSSL_AES_256
+
     #undef WOLFSSL_AESGCM_STREAM
     #define WOLFSSL_AESGCM_STREAM
 
@@ -886,6 +892,11 @@ extern "C" {
     #define NO_MAIN_OPTEST_DRIVER
     #define NO_MAIN_DRIVER
     #define NO_MAIN_HARNESS_DRIVER
+
+    #ifdef BENCH_EMBEDDED
+    /* NOTE: Can not be on for operational testing */
+        #undef BENCH_EMBEDDED
+    #endif
 
     #define NO_WRITE_TEMP_FILES
 #endif
