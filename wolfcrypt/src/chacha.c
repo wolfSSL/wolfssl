@@ -72,10 +72,10 @@ Public domain.
 #endif /* HAVE_CHACHA */
 
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) && !defined(NO_CHACHA_ASM)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
-#elif defined(WOLFSSL_RISCV_ASM)
+#elif defined(WOLFSSL_RISCV_ASM) && !defined(NO_CHACHA_ASM)
     /* implementation located in wolfcrypt/src/port/riscv/riscv-64-chacha.c */
 
 #else
