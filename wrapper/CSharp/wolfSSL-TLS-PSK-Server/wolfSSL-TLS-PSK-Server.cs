@@ -86,20 +86,29 @@ public class wolfSSL_TLS_PSK_Server
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
 
-        wolfssl.Init();
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.useTLSv1_2_server());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error creating ctx structure");
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
@@ -107,27 +116,27 @@ public class wolfSSL_TLS_PSK_Server
         {
             Console.WriteLine("Could not find cert or key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
 
@@ -145,7 +154,7 @@ public class wolfSSL_TLS_PSK_Server
         if (wolfssl.CTX_set_cipher_list(ctx, set_cipher) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Failed to set cipher suite");
-            return;
+            Environment.Exit(1);
         }
 
         /* Test psk use with DHE */
@@ -154,7 +163,7 @@ public class wolfSSL_TLS_PSK_Server
         {
             Console.WriteLine("Error setting hint");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
         wolfssl.CTX_set_psk_server_callback(ctx, psk_cb);
 
@@ -171,7 +180,7 @@ public class wolfSSL_TLS_PSK_Server
             Console.WriteLine("Error creating ssl object");
             tcp.Stop();
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         Console.WriteLine("Connection made wolfSSL_accept ");
@@ -181,7 +190,7 @@ public class wolfSSL_TLS_PSK_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
@@ -192,7 +201,7 @@ public class wolfSSL_TLS_PSK_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* print out results of TLS/SSL accept */
@@ -205,7 +214,7 @@ public class wolfSSL_TLS_PSK_Server
             Console.WriteLine("Error in read");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine(buff);
 
@@ -214,12 +223,14 @@ public class wolfSSL_TLS_PSK_Server
             Console.WriteLine("Error in write");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.shutdown(ssl);
         fd.Close();
         tcp.Stop();
         clean(ssl, ctx);
+
+        Environment.Exit(0);
     }
 }

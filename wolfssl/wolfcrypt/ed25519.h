@@ -187,7 +187,6 @@ ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
 WOLFSSL_API
 int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);
 #endif
-WOLFSSL_API
 
 #ifdef HAVE_ED25519_KEY_IMPORT
 WOLFSSL_API

@@ -85,20 +85,29 @@ public class wolfSSL_TLS_PSK_Client
         StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
         if (dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# client psk wrapper");
 
-        wolfssl.Init();
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_client());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error creating ctx structure");
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
@@ -116,7 +125,7 @@ public class wolfSSL_TLS_PSK_Client
         if (wolfssl.CTX_set_cipher_list(ctx, set_cipher) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Failed to set cipher suite");
-            return;
+            Environment.Exit(1);
         }
 
         /* Test psk use with DHE */
@@ -133,14 +142,14 @@ public class wolfSSL_TLS_PSK_Client
         {
             Console.WriteLine("tcp.Connect() error " + e.ToString());
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
         if (!tcp.Connected)
         {
             Console.WriteLine("tcp.Connect() failed!");
             tcp.Close();
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         Console.WriteLine("Connected TCP");
@@ -149,7 +158,7 @@ public class wolfSSL_TLS_PSK_Client
         {
             Console.WriteLine("Error in creating ssl object");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.set_fd(ssl, tcp) != wolfssl.SUCCESS)
@@ -158,13 +167,13 @@ public class wolfSSL_TLS_PSK_Client
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
@@ -175,7 +184,7 @@ public class wolfSSL_TLS_PSK_Client
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* print out results of TLS/SSL accept */
@@ -188,7 +197,7 @@ public class wolfSSL_TLS_PSK_Client
             Console.WriteLine("Error in write");
             tcp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* read and print out the message then reply */
@@ -197,12 +206,14 @@ public class wolfSSL_TLS_PSK_Client
             Console.WriteLine("Error in read");
             tcp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine(buff);
 
         wolfssl.shutdown(ssl);
         tcp.Close();
         clean(ssl, ctx);
+
+        Environment.Exit(0);
     }
 }
