@@ -23,7 +23,16 @@
 #define WOLFCRYPT_TEST_HASH_H
 
 int test_wc_HashInit(void);
+int test_wc_HashUpdate(void);
+int test_wc_HashFinal(void);
+int test_wc_HashNewDelete(void);
+int test_wc_HashGetDigestSize(void);
+int test_wc_HashGetBlockSize(void);
+int test_wc_Hash(void);
 int test_wc_HashSetFlags(void);
 int test_wc_HashGetFlags(void);
+int test_wc_Hash_Algs(void);
+int test_wc_HashGetOID(void);
+int test_wc_OidGetHash(void);
 
 #endif /* WOLFCRYPT_TEST_HASH_H */

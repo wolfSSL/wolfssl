@@ -290,6 +290,8 @@
 #include <tests/api/api.h>
 
 /* Gather test declarations to include them in the testCases array */
+#include <tests/api/test_md2.h>
+#include <tests/api/test_md4.h>
 #include <tests/api/test_md5.h>
 #include <tests/api/test_sha.h>
 #include <tests/api/test_sha256.h>
@@ -89118,6 +89120,21 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LockMutex_ex),
 
     /* Digests */
+    /* test_md2.c */
+    TEST_DECL(test_wc_InitMd2),
+    TEST_DECL(test_wc_Md2Update),
+    TEST_DECL(test_wc_Md2Final),
+    TEST_DECL(test_wc_Md2_KATs),
+    TEST_DECL(test_wc_Md2_other),
+    TEST_DECL(test_wc_Md2Hash),
+
+    /* test_md4.c */
+    TEST_DECL(test_wc_InitMd4),
+    TEST_DECL(test_wc_Md4Update),
+    TEST_DECL(test_wc_Md4Final),
+    TEST_DECL(test_wc_Md4_KATs),
+    TEST_DECL(test_wc_Md4_other),
+
     /* test_md5.c */
     TEST_DECL(test_wc_InitMd5),
     TEST_DECL(test_wc_Md5Update),
@@ -89266,7 +89283,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Sm3Copy),
     TEST_DECL(test_wc_Sm3GetHash),
     TEST_DECL(test_wc_Sm3_Flags),
-    TEST_DECL(test_wc_Sm3Hash),
 
     /* test_ripemd.c */
     TEST_DECL(test_wc_InitRipeMd),
@@ -89277,8 +89293,17 @@ TEST_CASE testCases[] = {
 
     /* test_hash.c */
     TEST_DECL(test_wc_HashInit),
+    TEST_DECL(test_wc_HashUpdate),
+    TEST_DECL(test_wc_HashFinal),
+    TEST_DECL(test_wc_HashNewDelete),
+    TEST_DECL(test_wc_HashGetDigestSize),
+    TEST_DECL(test_wc_HashGetBlockSize),
+    TEST_DECL(test_wc_Hash),
     TEST_DECL(test_wc_HashSetFlags),
     TEST_DECL(test_wc_HashGetFlags),
+    TEST_DECL(test_wc_Hash_Algs),
+    TEST_DECL(test_wc_HashGetOID),
+    TEST_DECL(test_wc_OidGetHash),
 
     /* HMAC */
     TEST_DECL(test_wc_Md5HmacSetKey),
