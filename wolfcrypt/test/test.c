@@ -38764,9 +38764,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
     (void)keySz;
     (void)sigSz;
 
+#if defined(HAVE_ED448_KEY_IMPORT)
     ret = ed448_test_check_key();
     if (ret < 0)
         return ret;
+#endif
 #ifdef WOLFSSL_TEST_CERT
     ret = ed448_test_cert();
     if (ret < 0)

@@ -19,22 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#define PRINT_DATA(name, data, len)             \
-do {                                            \
-    int ii;                                     \
-    fprintf(stderr, "%s\n", name);              \
-    for (ii = 0; ii < (int)(len); ii++) {       \
-        if ((ii % 8) == 0)                      \
-            fprintf(stderr, "        \"");      \
-        fprintf(stderr, "\\x%02x", (data)[ii]); \
-        if ((ii % 8) == 7)                      \
-            fprintf(stderr, "\"\n");            \
-    }                                           \
-    if ((ii % 8) != 0)                          \
-        fprintf(stderr, "\"");                  \
-    fprintf(stderr, "\n");                      \
-} while (0)
-
 
 #define DIGEST_INIT_TEST(type, name)                                           \
 do {                                                                           \

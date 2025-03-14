@@ -1,4 +1,4 @@
-/* test_mlkem.h
+/* test_signature.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,18 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_MLKEM_H
-#define WOLFCRYPT_TEST_MLKEM_H
+#ifndef WOLFCRYPT_TEST_SIGNATURE_H
+#define WOLFCRYPT_TEST_SIGNATURE_H
 
 #include <tests/api/api_decl.h>
 
-int test_wc_mlkem_make_key_kats(void);
-int test_wc_mlkem_encapsulate_kats(void);
-int test_wc_mlkem_decapsulate_kats(void);
+int test_wc_SignatureGetSize_ecc(void);
+int test_wc_SignatureGetSize_rsa(void);
 
-#define TEST_MLKEM_DECLS                                      \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_make_key_kats),    \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_encapsulate_kats), \
-    TEST_DECL_GROUP("mlkem", test_wc_mlkem_decapsulate_kats)
+#define TEST_SIGNATURE_DECLS                                    \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc), \
+    TEST_DECL_GROUP("signature", test_wc_SignatureGetSize_ecc)
 
-#endif /* WOLFCRYPT_TEST_MLKEM_H */
+#endif /* WOLFCRYPT_TEST_SIGNATURE_H */
