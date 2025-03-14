@@ -15,51 +15,52 @@ jobs:
     runs-on: windows-2019  # .NET 3.5 is available here
 
     steps:
-      - name: Checkout Repository (master branch)
+      # Checkout PR branch instead of master
+      - name: Checkout Repository (PR branch)
         uses: actions/checkout@v3
         with:
-          ref: master  # Ensures correct branch is checked out
+          ref: ${{ github.event.pull_request.head.ref }}  # Checkout the PR branch
 
-      - name: Checkout wolfSSL (master branch)
+      - name: Checkout wolfSSL (PR branch)
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.repository }}  # Uses the repository where the PR was made
+          repository: ${{ github.event.pull_request.head.repo.full_name }}  # Uses the repository where the PR was made
           ref: ${{ github.event.pull_request.head.ref }}  # Checkout the branch from the PR
           path: wolfssl  # Clone wolfSSL into the "wolfssl" subdirectory
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-        # wolfssl core
+      # wolfssl core
       - name: Build wolfSSL (DLL Debug, x64)
         working-directory: wolfssl
         run: |
           msbuild wolfssl.vcxproj /p:Configuration="DLL Debug" /p:Platform=x64 /p:PlatformToolset=v142 /m /verbosity:normal
         shell: cmd
 
-        # C# Wrapper
+      # C# Wrapper
       - name: Build wolfSSL_CSharp
         working-directory: wrapper/CSharp/wolfSSL_CSharp
         run: msbuild wolfSSL_CSharp.csproj /p:TargetFrameworkVersion=v3.5
 
-        # wolfCrypt-Test
+      # wolfCrypt-Test
       - name: Build wolfCrypt-Test
         working-directory: wrapper/CSharp/wolfCrypt-Test
         run: msbuild wolfCrypt-Test.csproj /p:TargetFrameworkVersion=v3.5
 
-        # DTLS
-        # TODO wolfSSL-DTLS-Client
+      # DTLS
+      # TODO add new wolfSSL-DTLS-Client
       - name: Build wolfSSL-DTLS-Server
         working-directory: wrapper/CSharp/wolfSSL-DTLS-Server
         run: msbuild wolfSSL-DTLS-Server.csproj /p:TargetFrameworkVersion=v3.5
 
-        # DTLS-PSK
-        # TODO wolfSSL-DTLS-PSK-Client
+      # DTLS-PSK
+      # TODO add new wolfSSL-DTLS-PSK-Server
       - name: Build wolfSSL-DTLS-PSK-Server
         working-directory: wrapper/CSharp/wolfSSL-DTLS-PSK-Server
         run: msbuild wolfSSL-DTLS-PSK-Server.csproj /p:TargetFrameworkVersion=v3.5
 
-        # TLS
+      # TLS
       - name: Build wolfSSL-TLS-Client
         working-directory: wrapper/CSharp/wolfSSL-TLS-Client
         run: msbuild wolfSSL-TLS-Client.csproj /p:TargetFrameworkVersion=v3.5
@@ -72,7 +73,7 @@ jobs:
         working-directory: wrapper/CSharp/wolfSSL-TLS-ServerThreaded
         run: msbuild wolfSSL-TLS-ServerThreaded.csproj /p:TargetFrameworkVersion=v3.5
 
-        # TLS PSK
+      # TLS PSK
       - name: Build wolfSSL-TLS-PSK-Client
         working-directory: wrapper/CSharp/wolfSSL-TLS-PSK-Client
         run: msbuild wolfSSL-TLS-PSK-Client.csproj /p:TargetFrameworkVersion=v3.5
@@ -81,7 +82,7 @@ jobs:
         working-directory: wrapper/CSharp/wolfSSL-TLS-PSK-Server
         run: msbuild wolfSSL-TLS-PSK-Server.csproj /p:TargetFrameworkVersion=v3.5
 
-        # Example-IOCallbacks
+      # Example-IOCallbacks
       - name: Build wolfSSL-Example-IOCallbacks
         working-directory: wrapper/CSharp/wolfSSL-Example-IOCallbacks
         run: msbuild wolfSSL-Example-IOCallbacks.csproj /p:TargetFrameworkVersion=v3.5
