@@ -1019,7 +1019,7 @@ add_option("WOLFSSL_ED25519"
     "Enable ED25519 (default: disabled)"
     "no" "yes;no")
 
-if(WOLFSSL_OPENSSH)
+if(WOLFSSL_OPENSSH OR WOLFSSL_CLU)
     override_cache(WOLFSSL_ED25519 "yes")
 endif()
 
