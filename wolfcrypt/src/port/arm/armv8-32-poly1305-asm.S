@@ -815,7 +815,10 @@ L_poly1305_arm32_blocks_start_1:
 	mov	r12, #1
 	push	{r2}
 	# Load message
-	ldm	r1, {r2, r3, r4, r5}
+	ldr	r2, [r1]
+	ldr	r3, [r1, #4]
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
 	# Add message
 	adds	r7, r7, r2
 	adcs	r8, r8, r3
