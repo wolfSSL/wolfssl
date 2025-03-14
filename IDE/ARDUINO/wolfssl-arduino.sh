@@ -116,6 +116,8 @@ if [ $# -gt 0 ]; then
         echo "Error: not a valid operation: $THIS_OPERATION"
         exit 1
     fi
+else
+    echo "INSTALL parameter not specified. Installing to ROOT_DIR=$ROOT_DIR"
 fi
 
 
@@ -235,7 +237,8 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     $CP_CMD "${OPENSSL_DIR_TOP}"/* ."${OPENSSL_DIR}"                                          || exit 1
 
     # Finally, copy the Arduino-specific wolfssl library files into place: [lib]/src
-    $CP_CMD ./wolfssl.h ".${ROOT_SRC_DIR}"/wolfssl.h
+    $CP_CMD ./wolfssl.h           ".${ROOT_SRC_DIR}"/wolfssl.h           || exit 1
+    $CP_CMD ./wolfssl-arduino.cpp ".${ROOT_SRC_DIR}"/wolfssl-arduino.cpp || exit 1
 
     echo "Copy examples...."
     # Copy examples
@@ -273,6 +276,8 @@ fi
 # as an Arduino-specific README.md file.
 VERSION_PLACEHOLDER="\${WOLFSSL_VERSION}"
 ARDUINO_VERSION_SUFFIX_PLACEHOLDER="\${WOLFSSL_VERSION_ARUINO_SUFFIX}"
+
+# This is the SOURCE to prepend. Note the OUTPUT is PREPENDED_README.md later copied to README.md
 PREPEND_FILE="Arduino_README_prepend.md"
 PROPERTIES_FILE_TEMPLATE="library.properties.template"
 sed s/"$VERSION_PLACEHOLDER"/"$WOLFSSL_VERSION"/ "$PREPEND_FILE" > "$PREPEND_FILE.tmp"
