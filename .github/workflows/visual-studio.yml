@@ -15,23 +15,25 @@ jobs:
     runs-on: windows-2019  # .NET 3.5 is available here
 
     steps:
-      # Checkout PR branch instead of master
-      - name: Checkout Repository (PR branch)
+      # Checkout PR branch (supports both forks and local PRs)
+      - name: Checkout Repository (PR branch or push branch)
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.head.ref }}  # Checkout the PR branch
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
-      - name: Checkout wolfSSL (PR branch)
+      # Checkout wolfSSL (PR branch if from fork, master if push)
+      - name: Checkout wolfSSL (PR branch or master)
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}  # Uses the repository where the PR was made
-          ref: ${{ github.event.pull_request.head.ref }}  # Checkout the branch from the PR
-          path: wolfssl  # Clone wolfSSL into the "wolfssl" subdirectory
+          repository: ${{ github.event.pull_request.head.repo.full_name || 'wolfssl/wolfssl' }}  # Pull from fork if PR exists
+          ref: ${{ github.event.pull_request.head.ref || 'master' }}  # Use PR branch if available, otherwise master
+          path: wolfssl  # Clone wolfSSL into "wolfssl" subdirectory
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      # wolfssl core
+      # wolfSSL core
       - name: Build wolfSSL (DLL Debug, x64)
         working-directory: wolfssl
         run: |
@@ -49,13 +51,11 @@ jobs:
         run: msbuild wolfCrypt-Test.csproj /p:TargetFrameworkVersion=v3.5
 
       # DTLS
-      # TODO add new wolfSSL-DTLS-Client
       - name: Build wolfSSL-DTLS-Server
         working-directory: wrapper/CSharp/wolfSSL-DTLS-Server
         run: msbuild wolfSSL-DTLS-Server.csproj /p:TargetFrameworkVersion=v3.5
 
       # DTLS-PSK
-      # TODO add new wolfSSL-DTLS-PSK-Server
       - name: Build wolfSSL-DTLS-PSK-Server
         working-directory: wrapper/CSharp/wolfSSL-DTLS-PSK-Server
         run: msbuild wolfSSL-DTLS-PSK-Server.csproj /p:TargetFrameworkVersion=v3.5
