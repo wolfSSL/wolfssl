@@ -23,8 +23,8 @@ jobs:
       - name: Checkout wolfSSL (master branch)
         uses: actions/checkout@v3
         with:
-          repository: wolfssl/wolfssl
-          ref: master
+          repository: ${{ github.repository }}  # Uses the repository where the PR was made
+          ref: ${{ github.event.pull_request.head.ref }}  # Checkout the branch from the PR
           path: wolfssl  # Clone wolfSSL into the "wolfssl" subdirectory
 
       - name: Setup MSBuild
