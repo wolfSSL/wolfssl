@@ -2054,6 +2054,8 @@ if(WOLFSSL_CLU)
     override_cache(WOLFSSL_DES3     "yes")
     override_cache(WOLFSSL_PKCS7    "yes")
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_OID_ENCODING" "-DWOLFSSL_NO_ASN_STRICT" "-DWOLFSSL_ALT_NAMES")
+    # Add OPENSSL_ALL definition to ensure OpenSSL compatibility functions are available
+    list(APPEND WOLFSSL_DEFINITIONS "-DOPENSSL_ALL")
 endif()
 
 if(WOLFSSL_AESCFB)
