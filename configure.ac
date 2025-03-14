@@ -124,6 +124,7 @@ AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC
 AC_CHECK_HEADER(stdatomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
+AC_CHECK_HEADER(assert.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ASSERT_H"],[])
 
 # check if functions of interest are linkable, but also check if
 # they're declared by the expected headers, and if not, supersede the
@@ -1212,6 +1213,16 @@ then
     esac
 fi
 
+# 32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.  Disable
+# implicit activation, and error on explicit activation.
+if test "$enable_riscv_asm" = "yes" || (test "$enable_armasm" = "yes" && test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+then
+    if test "$enable_aesgcm_stream" = "yes"
+    then
+        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
+    fi
+    enable_aesgcm_stream=no
+fi
 
 # All wolfCrypt features:
 AC_ARG_ENABLE([all-crypto],
@@ -6058,7 +6069,7 @@ fi
 
 # CHACHA
 AC_ARG_ENABLE([chacha],
-    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled). Use `=noasm` to disable ASM AVX/AVX2 speedups])],
+    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled). Use `=noasm` to disable asm speedups])],
     [ ENABLED_CHACHA=$enableval ],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
@@ -9744,7 +9755,12 @@ if test "$ENABLED_AESGCM_STREAM" != "no"
 then
     if test "$ENABLED_AESGCM" = "no"
     then
-        AC_MSG_ERROR([AES-GCM streaming enabled but AES-GCM is disabled])
+        AC_MSG_ERROR([AES-GCM streaming is enabled but AES-GCM is disabled.])
+    elif test "$ENABLED_RISCV_ASM" = "yes" || \
+         (test "$ENABLED_ARMASM" = "yes" && \
+          test "$host_cpu" != "aarch64" && test "$host_cpu" != "aarch64_be")
+    then
+        AC_MSG_ERROR([32 bit armasm and RISC-V asm don't yet support WOLFSSL_AESGCM_STREAM.])
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
@@ -10156,6 +10172,7 @@ AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_CHACHA" = "xnoasm" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CHACHA_NOASM],[test "$ENABLED_CHACHA" = "noasm"])
 AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ASCON],[test "x$ENABLED_ASCON" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SM2],[test "x$ENABLED_SM2" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])

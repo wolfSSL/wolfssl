@@ -6473,7 +6473,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 #endif
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
-    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
+    /* implemented in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
@@ -10874,7 +10874,7 @@ int wc_AesCcmCheckTagSize(int sz)
 }
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
-    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
+    /* implemented in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implementation located in wolfcrypt/src/port/risc-v/riscv-64-aes.c */

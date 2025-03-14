@@ -1808,6 +1808,9 @@ typedef struct w64wrapper {
         #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
     #elif !defined(wc_static_assert)
+        #if defined(WOLFSSL_HAVE_ASSERT_H) && !defined(WOLFSSL_NO_ASSERT_H)
+            #include <assert.h>
+        #endif
         #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
                (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
                (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))

@@ -86346,7 +86346,8 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
     defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA384) && \
-    defined(HAVE_NULL_CIPHER)
+    defined(HAVE_NULL_CIPHER) && defined(HAVE_CHACHA) && \
+    defined(HAVE_POLY1305)
     /* This test should only fail (with BUFFER_ERROR) when we actually try to
      * parse the CA Names extension. Otherwise it will return other non-related
      * errors. If CA Names will be parsed in more configurations, that should

@@ -3611,6 +3611,8 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
+    #undef WOLFSSL_HAVE_ASSERT_H
+    #define WOLFSSL_NO_ASSERT_H
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
