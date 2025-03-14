@@ -870,7 +870,10 @@ void poly1305_arm32_blocks(Poly1305* ctx_p, const unsigned char* m_p,
         "mov	r12, #1\n\t"
         "push	{r2}\n\t"
         /* Load message */
-        "ldm	%[m], {r2, r3, r4, r5}\n\t"
+        "ldr	%[bytes], [%[m]]\n\t"
+        "ldr	r3, [%[m], #4]\n\t"
+        "ldr	r4, [%[m], #8]\n\t"
+        "ldr	r5, [%[m], #12]\n\t"
         /* Add message */
         "adds	r7, r7, %[bytes]\n\t"
         "adcs	r8, r8, r3\n\t"
