@@ -2425,15 +2425,19 @@ namespace wolfSSL.CSharp
             return publicKey;
         }
 
+        /* Tuples not supported in older frameworks such as 3.5 */
+        /* public static (byte[] privateKey, byte[] publicKey) Curve25519ExportKeyRaw(IntPtr key) */
+
         /// <summary>
         /// Export both private and public keys from a Curve25519 key structure
         /// </summary>
         /// <param name="key">Curve25519 key structure</param>
         /// <returns>A tuple containing the private key and public key as byte arrays</returns>
-        public static (byte[] privateKey, byte[] publicKey) Curve25519ExportKeyRaw(IntPtr key)
+        public static void Curve25519ExportKeyRaw(IntPtr key, out byte[] privateKey, out byte[] publicKey)
+
         {
-            byte[] privateKey = new byte[ED25519_KEY_SIZE];
-            byte[] publicKey = new byte[ED25519_PUB_KEY_SIZE];
+            privateKey = new byte[ED25519_KEY_SIZE];
+            publicKey = new byte[ED25519_PUB_KEY_SIZE];
             uint privSize = (uint)privateKey.Length;
             uint pubSize = (uint)publicKey.Length;
             int ret = wc_curve25519_export_key_raw(key, privateKey, ref privSize, publicKey, ref pubSize);
@@ -2441,7 +2445,7 @@ namespace wolfSSL.CSharp
             {
                 throw new Exception("Failed to export Curve25519 keys. Error code: " + ret);
             }
-            return (privateKey, publicKey);
+            return;
         }
         /* END RAW Curve25519 */
 

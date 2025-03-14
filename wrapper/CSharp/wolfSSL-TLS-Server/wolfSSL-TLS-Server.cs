@@ -94,7 +94,7 @@ public class wolfSSL_TLS_CSHarp
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported.");
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder buff = new StringBuilder(1024);
@@ -103,14 +103,23 @@ public class wolfSSL_TLS_CSHarp
         //example of function used for setting logging
         wolfssl.SetLogging(standard_log);
 
-        wolfssl.Init();
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_server());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error in creating ctx structure");
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
@@ -118,27 +127,27 @@ public class wolfSSL_TLS_CSHarp
         {
             Console.WriteLine("Could not find cert or key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
@@ -161,10 +170,10 @@ public class wolfSSL_TLS_CSHarp
         {
             Console.WriteLine("Error in creating ssl object");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
-        if (haveSNI(args)) 
+        if (haveSNI(args))
         {
            // Allocating memory and setting SNI arg
            int test_value = 32;
@@ -173,7 +182,7 @@ public class wolfSSL_TLS_CSHarp
            if (wolfssl.CTX_set_servername_arg(ctx, arg_sni) == wolfssl.FAILURE) {
                Console.WriteLine("wolfssl.CTX_set_servername_arg failed");
                wolfssl.CTX_free(ctx);
-               return;
+               Environment.Exit(1);
            }
 
            // Setting SNI delegate
@@ -188,7 +197,7 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
@@ -197,7 +206,7 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
@@ -206,7 +215,7 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* get and print sni used by the client */
@@ -229,7 +238,7 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine("Error in read");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine(buff);
 
@@ -258,13 +267,13 @@ public class wolfSSL_TLS_CSHarp
                 0x0a, 0x05, 0x01, 0x04, 0x01, 0x02, 0x01, 0x04, 0x03, 0x02, 0x03
             };
 
-            int ret = wolfssl.SNI_GetFromBuffer(buffer, 1024, 0, result, inOutSz); 
-            
+            int ret = wolfssl.SNI_GetFromBuffer(buffer, 1024, 0, result, inOutSz);
+
             if (ret != wolfssl.SUCCESS) {
                 Console.WriteLine("Error on reading SNI from buffer, ret value = " + ret);
                 tcp.Stop();
                 clean(ssl, ctx);
-                return;
+                Environment.Exit(1);
             }
 
             string resultStr = Marshal.PtrToStringAnsi(result);
@@ -277,7 +286,7 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine("Error in write");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.shutdown(ssl);
@@ -285,5 +294,7 @@ public class wolfSSL_TLS_CSHarp
         tcp.Stop();
 
         clean(ssl, ctx);
+
+        Environment.Exit(0);
     }
 }
