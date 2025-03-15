@@ -705,8 +705,14 @@ extern ${variable.value} ${variable.name};
 #define NO_RC4
 #define NO_MD4
 #define NO_DES3
+
+#ifndef WOLFSSL_SHAKE128
 #define WOLFSSL_NO_SHAKE128
+#endif
+
+#ifndef WOLFSSL_SHAKE256
 #define WOLFSSL_NO_SHAKE256
+#endif
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */
