@@ -1,4 +1,4 @@
-﻿/* wolfSSL-Example-IOCallbacks.cs
+/* wolfSSL-Example-IOCallbacks.cs
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -23,10 +23,7 @@
 
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -223,20 +220,29 @@ class wolfSSL_Example_IOCallbacks
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
 
-        wolfssl.Init();
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.useTLSv1_2_server());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error creating ctx structure");
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
@@ -244,27 +250,27 @@ class wolfSSL_Example_IOCallbacks
         {
             Console.WriteLine("Could not find cert or key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.CTX_set_verify(ctx, wolfssl.SSL_VERIFY_PEER, verify_cb);
@@ -291,7 +297,7 @@ class wolfSSL_Example_IOCallbacks
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
@@ -300,7 +306,7 @@ class wolfSSL_Example_IOCallbacks
             Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* print out results of TLS/SSL accept */
@@ -313,7 +319,7 @@ class wolfSSL_Example_IOCallbacks
             Console.WriteLine("Error in read");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine(buff);
 
@@ -322,12 +328,14 @@ class wolfSSL_Example_IOCallbacks
             Console.WriteLine("Error in write");
             tcp.Stop();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         wolfssl.shutdown(ssl);
         fd.Close();
         tcp.Stop();
         clean(ssl, ctx);
+
+        Environment.Exit(0);
     }
 }
