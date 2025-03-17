@@ -3641,6 +3641,8 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_SSL_NAMES
         #define NO_OLD_SSL_NAMES
     #endif
+    #undef WOLFSSL_MIN_AUTH_TAG_SZ
+    #define WOLFSSL_MIN_AUTH_TAG_SZ 4
 #endif
 
 

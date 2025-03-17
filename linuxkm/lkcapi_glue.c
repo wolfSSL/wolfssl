@@ -115,9 +115,6 @@ static int  linuxkm_test_aescfb(void);
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
-#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
-    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
-#endif
 static int  linuxkm_test_aesgcm(void);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
@@ -570,13 +567,23 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
 static int km_AesGcmSetAuthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
     (void)tfm;
-    if (authsize > WC_AES_BLOCK_SIZE ||
-        authsize < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        pr_err("%s: invalid authsize: %d\n",
-               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), authsize);
-        return -EINVAL;
+
+    switch (authsize) {
+    case 4:
+    case 8:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+        return 0;
     }
-    return 0;
+
+#ifdef WOLFSSL_LINUXKM_VERBOSE_LKCAPI_DEBUG
+    pr_err("%s: invalid authsize: %d\n",
+           crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), authsize);
+#endif
+    return -EINVAL;
 }
 
 /*
@@ -595,19 +602,13 @@ static int km_AesGcmEncrypt(struct aead_request *req)
     struct km_AesCtx *   ctx = NULL;
     struct skcipher_walk walk;
     struct scatter_walk  assocSgWalk;
-    unsigned int         nbytes = 0;
     u8                   authTag[WC_AES_BLOCK_SIZE];
-    int                  err = 0;
-    unsigned int         assocLeft = 0;
-    unsigned int         cryptLeft = 0;
+    int                  err;
     u8 *                 assoc = NULL;
+    u8 *                 assocmem = NULL;
 
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
-    assocLeft = req->assoclen;
-    cryptLeft = req->cryptlen;
-
-    scatterwalk_start(&assocSgWalk, req->src);
 
     err = skcipher_walk_aead_encrypt(&walk, req, false);
     if (unlikely(err)) {
@@ -617,26 +618,41 @@ static int km_AesGcmEncrypt(struct aead_request *req)
     }
 
     err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
-                        WC_AES_BLOCK_SIZE);
+                        GCM_NONCE_MID_SZ);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return -EINVAL;
     }
 
-    assoc = scatterwalk_map(&assocSgWalk);
-    if (unlikely(IS_ERR(assoc))) {
-        pr_err("%s: scatterwalk_map failed: %ld\n",
-               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-               PTR_ERR(assoc));
-        return err;
+    if (req->src->length >= req->assoclen && req->src->length) {
+        scatterwalk_start(&assocSgWalk, req->src);
+        assoc = scatterwalk_map(&assocSgWalk);
+        if (unlikely(IS_ERR(assoc))) {
+            pr_err("%s: scatterwalk_map failed: %ld\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
+                   PTR_ERR(assoc));
+            return err;
+        }
+    }
+    else {
+        /* assoc can be any length, so if it's noncontiguous, we have to copy it
+         * to a contiguous heap allocation.
+         */
+        assocmem = malloc(req->assoclen);
+        if (unlikely(assocmem == NULL))
+            return -ENOMEM;
+        assoc = assocmem;
+        scatterwalk_map_and_copy(assoc, req->src, 0, req->assoclen, 0);
     }
 
     err = wc_AesGcmEncryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
-                                 assoc, assocLeft);
-    assocLeft -= assocLeft;
-    scatterwalk_unmap(assoc);
-    assoc = NULL;
+                                 assoc, req->assoclen);
+
+    if (assocmem == NULL)
+        scatterwalk_unmap(assoc);
+    else
+        free(assocmem);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
@@ -644,21 +660,13 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         return -EINVAL;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
-        int n = nbytes;
-
-        if (likely(cryptLeft && nbytes)) {
-            n = cryptLeft < nbytes ? cryptLeft : nbytes;
-
-            err = wc_AesGcmEncryptUpdate(
-                ctx->aes_encrypt,
-                walk.dst.virt.addr,
-                walk.src.virt.addr,
-                cryptLeft,
-                NULL, 0);
-            nbytes -= n;
-            cryptLeft -= n;
-        }
+    while (walk.nbytes) {
+        err = wc_AesGcmEncryptUpdate(
+            ctx->aes_encrypt,
+            walk.dst.virt.addr,
+            walk.src.virt.addr,
+            walk.nbytes,
+            NULL, 0);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
@@ -666,7 +674,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
             return -EINVAL;
         }
 
-        err = skcipher_walk_done(&walk, nbytes);
+        err = skcipher_walk_done(&walk, 0);
 
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
@@ -696,24 +704,18 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     struct km_AesCtx *   ctx = NULL;
     struct skcipher_walk walk;
     struct scatter_walk  assocSgWalk;
-    unsigned int         nbytes = 0;
     u8                   origAuthTag[WC_AES_BLOCK_SIZE];
-    int                  err = 0;
-    unsigned int         assocLeft = 0;
-    unsigned int         cryptLeft = 0;
+    int                  err;
     u8 *                 assoc = NULL;
+    u8 *                 assocmem = NULL;
 
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
-    assocLeft = req->assoclen;
-    cryptLeft = req->cryptlen - tfm->authsize;
 
     /* Copy out original auth tag from req->src. */
     scatterwalk_map_and_copy(origAuthTag, req->src,
                              req->assoclen + req->cryptlen - tfm->authsize,
                              tfm->authsize, 0);
-
-    scatterwalk_start(&assocSgWalk, req->src);
 
     err = skcipher_walk_aead_decrypt(&walk, req, false);
     if (unlikely(err)) {
@@ -723,14 +725,34 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     }
 
     err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
-                        WC_AES_BLOCK_SIZE);
+                        GCM_NONCE_MID_SZ);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return -EINVAL;
     }
 
-    assoc = scatterwalk_map(&assocSgWalk);
+    if (req->src->length >= req->assoclen && req->src->length) {
+        scatterwalk_start(&assocSgWalk, req->src);
+        assoc = scatterwalk_map(&assocSgWalk);
+        if (unlikely(IS_ERR(assoc))) {
+            pr_err("%s: scatterwalk_map failed: %ld\n",
+                   crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
+                   PTR_ERR(assoc));
+            return err;
+        }
+    }
+    else {
+        /* assoc can be any length, so if it's noncontiguous, we have to copy it
+         * to a contiguous heap allocation.
+         */
+        assocmem = malloc(req->assoclen);
+        if (unlikely(assocmem == NULL))
+            return -ENOMEM;
+        assoc = assocmem;
+        scatterwalk_map_and_copy(assoc, req->src, 0, req->assoclen, 0);
+    }
+
     if (unlikely(IS_ERR(assoc))) {
         pr_err("%s: scatterwalk_map failed: %ld\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
@@ -739,10 +761,12 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     }
 
     err = wc_AesGcmDecryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
-                                 assoc, assocLeft);
-    assocLeft -= assocLeft;
-    scatterwalk_unmap(assoc);
-    assoc = NULL;
+                                 assoc, req->assoclen);
+
+    if (!assocmem)
+        scatterwalk_unmap(assoc);
+    else
+        free(assocmem);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
@@ -750,21 +774,13 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         return -EINVAL;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
-        int n = nbytes;
-
-        if (likely(cryptLeft && nbytes)) {
-            n = cryptLeft < nbytes ? cryptLeft : nbytes;
-
-            err = wc_AesGcmDecryptUpdate(
-                ctx->aes_encrypt,
-                walk.dst.virt.addr,
-                walk.src.virt.addr,
-                cryptLeft,
-                NULL, 0);
-            nbytes -= n;
-            cryptLeft -= n;
-        }
+    while (walk.nbytes) {
+        err = wc_AesGcmDecryptUpdate(
+            ctx->aes_encrypt,
+            walk.dst.virt.addr,
+            walk.src.virt.addr,
+            walk.nbytes,
+            NULL, 0);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
@@ -772,7 +788,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
             return -EINVAL;
         }
 
-        err = skcipher_walk_done(&walk, nbytes);
+        err = skcipher_walk_done(&walk, 0);
 
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
@@ -783,9 +799,10 @@ static int km_AesGcmDecrypt(struct aead_request *req)
 
     err = wc_AesGcmDecryptFinal(ctx->aes_encrypt, origAuthTag, tfm->authsize);
     if (unlikely(err)) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_LKCAPI_DEBUG
         pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-
+#endif
         if (err == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
             return -EBADMSG;
         }
@@ -810,7 +827,7 @@ static struct aead_alg gcmAesAead = {
     .setauthsize          = km_AesGcmSetAuthsize,
     .encrypt              = km_AesGcmEncrypt,
     .decrypt              = km_AesGcmDecrypt,
-    .ivsize               = WC_AES_BLOCK_SIZE,
+    .ivsize               = GCM_NONCE_MID_SZ,
     .maxauthsize          = WC_AES_BLOCK_SIZE,
     .chunksize            = WC_AES_BLOCK_SIZE,
 };
@@ -1626,17 +1643,17 @@ static int linuxkm_test_aesgcm(void)
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
     };
-    static const byte ivstr[] = "1234567890abcdef";
+    static const byte ivstr[] = "1234567890ab";
     static const byte c_vector[] =
     {
-        0x0c,0x97,0x05,0x3c,0xef,0x5c,0x63,0x6b,
-        0x15,0xe4,0x00,0x63,0xf8,0x8c,0xd0,0x95,
-        0x27,0x81,0x90,0x9c,0x9f,0xe6,0x98,0xe9
+        0x80,0xb9,0x00,0xdc,0x03,0xb8,0x0e,0xaa,
+        0x98,0x09,0x75,0x01,0x40,0x09,0xb0,0xc3,
+        0x7a,0xed,0x2c,0x2e,0x4d,0xe5,0xca,0x80
     };
     static const byte KAT_authTag[] =
     {
-        0xc9,0xd5,0x7a,0x77,0xac,0x28,0xc2,0xe7,
-        0xe4,0x28,0x90,0xaa,0x09,0xab,0xf9,0x7c
+        0x8d,0xf5,0x76,0xae,0x53,0x20,0x5d,0x9c,
+        0x01,0x64,0xcd,0xf2,0xec,0x7a,0x13,0x03
     };
     byte    enc[sizeof(p_vector)];
     byte    authTag[WC_AES_BLOCK_SIZE];
@@ -1665,7 +1682,7 @@ static int linuxkm_test_aesgcm(void)
     aes_inited = 1;
 
     ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
-                        WC_AES_BLOCK_SIZE);
+                        GCM_NONCE_MID_SZ);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
@@ -1705,7 +1722,7 @@ static int linuxkm_test_aesgcm(void)
     }
 
     ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
-                        WC_AES_BLOCK_SIZE);
+                        GCM_NONCE_MID_SZ);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
@@ -1747,7 +1764,7 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
     memset(iv, 0, WC_AES_BLOCK_SIZE);
-    memcpy(iv, ivstr, WC_AES_BLOCK_SIZE);
+    memcpy(iv, ivstr, GCM_NONCE_MID_SZ);
 
     enc2 = malloc(decryptLen);
     if (IS_ERR(enc2)) {
