@@ -1725,16 +1725,21 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif /* WC_RNG_SEED_CB */
-            if (ret == 0)
-                ret = wc_RNG_TestSeed(seed, seedSz);
-            else {
+            if (ret != 0) {
     #if defined(DEBUG_WOLFSSL)
-                WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
+                WOLFSSL_MSG_EX("Seed generation failed... %d", ret);
     #endif
                 ret = DRBG_FAILURE;
                 rng->status = DRBG_FAILED;
             }
 
+            if (ret == 0)
+                ret = wc_RNG_TestSeed(seed, seedSz);
+    #if defined(DEBUG_WOLFSSL)
+            if (ret != 0) {
+                WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
+            }
+    #endif
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
