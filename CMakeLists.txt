@@ -752,7 +752,8 @@ add_option("WOLFSSL_AESCTR"
 
 if(WOLFSSL_OPENVPN OR
    WOLFSSL_LIBSSH2 OR
-   WOLFSSL_AESSIV)
+   WOLFSSL_AESSIV OR
+   WOLFSSL_CLU)
     override_cache(WOLFSSL_AESCTR "yes")
 endif()
 
