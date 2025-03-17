@@ -2050,7 +2050,6 @@ if(WOLFSSL_CLU)
     override_cache(WOLFSSL_AESCTR   "yes")
     override_cache(WOLFSSL_KEYGEN   "yes")
     override_cache(WOLFSSL_OPENSSLALL "yes")
-    override_cache(WOLFSSL_OPENSSLEXTRA "yes")
     override_cache(WOLFSSL_ED25519  "yes")
     override_cache(WOLFSSL_SHA512   "yes")
     override_cache(WOLFSSL_DES3     "yes")
@@ -2058,8 +2057,6 @@ if(WOLFSSL_CLU)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_OID_ENCODING" "-DWOLFSSL_NO_ASN_STRICT" "-DWOLFSSL_ALT_NAMES")
     # Add OPENSSL_ALL definition to ensure OpenSSL compatibility functions are available
     list(APPEND WOLFSSL_DEFINITIONS "-DOPENSSL_ALL")
-    # Add OPENSSL_EXTRA definition to enable OpenSSL compatibility layer
-    list(APPEND WOLFSSL_DEFINITIONS "-DOPENSSL_EXTRA")
     # Remove NO_DES3 from WOLFSSL_DEFINITIONS to ensure DES3 is enabled
     list(REMOVE_ITEM WOLFSSL_DEFINITIONS "-DNO_DES3")
 endif()
