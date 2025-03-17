@@ -163,22 +163,34 @@
         if (!cpuid_check) {
             word64 hwcaps = getauxval(AT_HWCAP);
 
+        #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (hwcaps & HWCAP_AES)
                 cpuid_flags |= CPUID_AES;
             if (hwcaps & HWCAP_PMULL)
                 cpuid_flags |= CPUID_PMULL;
             if (hwcaps & HWCAP_SHA2)
                 cpuid_flags |= CPUID_SHA256;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
             if (hwcaps & HWCAP_SHA512)
                 cpuid_flags |= CPUID_SHA512;
+        #endif
+        #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
             if (hwcaps & HWCAP_ASIMDRDM)
                 cpuid_flags |= CPUID_RDM;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (hwcaps & HWCAP_SHA3)
                 cpuid_flags |= CPUID_SHA3;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
             if (hwcaps & HWCAP_SM3)
                 cpuid_flags |= CPUID_SM3;
+        #endif
+        #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
             if (hwcaps & HWCAP_SM4)
                 cpuid_flags |= CPUID_SM4;
+        #endif
 
             cpuid_check = 1;
         }
