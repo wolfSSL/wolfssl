@@ -821,36 +821,39 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     }
     if (ret == 0) {
 #endif
-        byte* c1 = c;
-        byte* c2 = c + compVecSz;
+        {
+            byte* c1 = c;
+            byte* c2 = c + compVecSz;
 
-    #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-        if (k == WC_ML_KEM_512_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_10(c1, u, k);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_4(c2, v);
-            /* Step 24: return c <- (c_1||c_2) */
+        #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+            if (k == WC_ML_KEM_512_K) {
+                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+                mlkem_vec_compress_10(c1, u, k);
+                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+                mlkem_compress_4(c2, v);
+                /* Step 24: return c <- (c_1||c_2) */
+            }
+        #endif
+        #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+            if (k == WC_ML_KEM_768_K) {
+                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+                mlkem_vec_compress_10(c1, u, k);
+                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+                mlkem_compress_4(c2, v);
+                /* Step 24: return c <- (c_1||c_2) */
+            }
+        #endif
+        #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+            if (k == WC_ML_KEM_1024_K) {
+                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+                mlkem_vec_compress_11(c1, u);
+                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+                mlkem_compress_5(c2, v);
+                /* Step 24: return c <- (c_1||c_2) */
+            }
+        #endif
+
         }
-    #endif
-    #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-        if (k == WC_ML_KEM_768_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_10(c1, u, k);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_4(c2, v);
-            /* Step 24: return c <- (c_1||c_2) */
-        }
-    #endif
-    #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-        if (k == WC_ML_KEM_1024_K) {
-            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-            mlkem_vec_compress_11(c1, u);
-            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-            mlkem_compress_5(c2, v);
-            /* Step 24: return c <- (c_1||c_2) */
-        }
-    #endif
     }
 
 #ifndef WOLFSSL_NO_MALLOC

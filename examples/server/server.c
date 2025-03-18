@@ -2382,10 +2382,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_PQC
             case 259:
+            {
                 usePqc = 1;
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
                 onlyKeyShare = 2;
+    #endif
                 pqcAlg = myoptarg;
-                break;
+            } break;
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
