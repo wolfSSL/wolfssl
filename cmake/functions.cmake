@@ -156,7 +156,8 @@ function(generate_build_flags)
     if(WOLFSSL_CODING OR WOLFSSL_USER_SETTINGS)
         set(BUILD_CODING "yes" PARENT_SCOPE)
     endif()
-    if(WOLFSSL_ARC4 OR WOLFSSL_USER_SETTINGS)
+    # ARC4 implementation has been removed
+    if(WOLFSSL_USER_SETTINGS)
         set(BUILD_RC4 "yes" PARENT_SCOPE)
     endif()
     if(WOLFSSL_MD5 OR WOLFSSL_USER_SETTINGS)
@@ -654,7 +655,7 @@ function(generate_lib_src_list LIB_SOURCES)
          endif()
 
          if(BUILD_RC4)
-              list(APPEND LIB_SOURCES wolfcrypt/src/arc4.c)
+              # ARC4 implementation has been removed
          endif()
 
          if(BUILD_MD4)

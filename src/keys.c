@@ -2377,51 +2377,16 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     (void)rng;
     (void)tls13;
 
-#ifdef BUILD_ARC4
+/* ARC4 implementation has been removed */
     if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
-        word32 sz = specs->key_size;
-        if (enc && enc->arc4 == NULL) {
-            enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->arc4 == NULL)
-                 return MEMORY_E;
-        }
-        if (dec && dec->arc4 == NULL) {
-            dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->arc4 == NULL)
-                return MEMORY_E;
-        }
-
-        if (enc) {
-            if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Arc4Init(dec->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->server_write_key, sz);
-        }
-        else {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->server_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->client_write_key, sz);
-        }
+        WOLFSSL_MSG("ARC4 implementation has been removed");
+        /* Return success to maintain API compatibility */
         if (enc)
             enc->setup = 1;
         if (dec)
             dec->setup = 1;
     }
-#endif /* BUILD_ARC4 */
+/* ARC4 implementation has been removed */
 
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD)

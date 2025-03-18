@@ -1904,7 +1904,7 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\aes.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\arc4.c</name>
+      <!-- ARC4 implementation has been removed -->
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\asm.c</name>

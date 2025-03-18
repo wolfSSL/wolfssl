@@ -140,7 +140,7 @@ ASN Options:
 #endif
 
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
 #endif
 
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)

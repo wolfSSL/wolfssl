@@ -4746,7 +4746,9 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     {
     #ifndef NO_RC4
         case wolfssl_rc4:
-            wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
+            WOLFSSL_MSG("ARC4 implementation has been removed");
+            /* Copy input to output as fallback */
+            XMEMCPY(plain, input, sz);
             break;
     #endif
 

@@ -3378,7 +3378,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #ifdef INTIMEVER
         /* If INTIMEVER exists then it is INTIME RTOS v6 or later */
-        #define INTIME_RAND_FUNC arc4random
+        #define INTIME_RAND_FUNC random
         len = 4;
     #else
         /* v5 and older */

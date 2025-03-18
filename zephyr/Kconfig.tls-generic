@@ -160,7 +160,7 @@ config WOLFSSL_CIPHER_ALL_ENABLED
 	select WOLFSSL_CIPHER_AES_ENABLED
 	select WOLFSSL_CIPHER_CAMELLIA_ENABLED
 	select WOLFSSL_CIPHER_DES_ENABLED
-	select WOLFSSL_CIPHER_ARC4_ENABLED
+	# ARC4 implementation has been removed
 	select WOLFSSL_CIPHER_CHACHA20_ENABLED
 	select WOLFSSL_CIPHER_BLOWFISH_ENABLED
 	select WOLFSSL_CIPHER_CCM_ENABLED
@@ -186,7 +186,8 @@ config WOLFSSL_CIPHER_DES_ENABLED
 	default y
 
 config WOLFSSL_CIPHER_ARC4_ENABLED
-	bool "Enable the ARC4 stream cipher"
+	bool "Enable the ARC4 stream cipher (implementation removed - RC4 API maintained)"
+	depends on n
 
 config WOLFSSL_CIPHER_CHACHA20_ENABLED
 	bool "Enable the ChaCha20 stream cipher"

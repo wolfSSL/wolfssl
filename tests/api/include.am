@@ -24,7 +24,7 @@ tests_unit_test_SOURCES += tests/api/test_chacha.c
 tests_unit_test_SOURCES += tests/api/test_poly1305.c
 tests_unit_test_SOURCES += tests/api/test_chacha20_poly1305.c
 tests_unit_test_SOURCES += tests/api/test_camellia.c
-tests_unit_test_SOURCES += tests/api/test_arc4.c
+# ARC4 implementation has been removed
 tests_unit_test_SOURCES += tests/api/test_rc2.c
 tests_unit_test_SOURCES += tests/api/test_aes.c
 tests_unit_test_SOURCES += tests/api/test_ascon.c
@@ -59,7 +59,7 @@ EXTRA_DIST += tests/api/test_chacha.h
 EXTRA_DIST += tests/api/test_poly1305.h
 EXTRA_DIST += tests/api/test_chacha20_poly1305.h
 EXTRA_DIST += tests/api/test_camellia.h
-EXTRA_DIST += tests/api/test_arc4.h
+# ARC4 implementation has been removed
 EXTRA_DIST += tests/api/test_rc2.h
 EXTRA_DIST += tests/api/test_aes.h
 EXTRA_DIST += tests/api/test_ascon.h

@@ -108,7 +108,7 @@
     <Instance Guid="5e231ff0-c118-4dc7-a48b-4a49019341fd">
       <Name>arc4.c</Name>
       <Type>File</Type>
-      <RelativePath>..\..\..\..\..\wolfcrypt\src\arc4.c</RelativePath>
+      <!-- ARC4 implementation has been removed -->
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
     </Instance>

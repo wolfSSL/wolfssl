@@ -111,7 +111,7 @@
     #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
@@ -2601,7 +2601,7 @@ int wolfSSL_GetObjectSize(void)
     printf("sizeof suites           = %lu\n", (unsigned long)sizeof(Suites));
     printf("sizeof ciphers(2)       = %lu\n", (unsigned long)sizeof(Ciphers));
 #ifndef NO_RC4
-    printf("\tsizeof arc4         = %lu\n", (unsigned long)sizeof(Arc4));
+    printf("\tsizeof arc4         = %lu\n", (unsigned long)0); /* ARC4 implementation has been removed */
 #endif
     printf("\tsizeof aes          = %lu\n", (unsigned long)sizeof(Aes));
 #ifndef NO_DES3
@@ -26072,8 +26072,8 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
                 WOLFSSL_MSG("DES3 ECB");
                 break;
 #endif
-            case WC_ARC4_TYPE :
-                WOLFSSL_MSG("ARC4");
+            case WC_ARC4_TYPE : /* ARC4 implementation has been removed */
+                WOLFSSL_MSG("ARC4 implementation has been removed");
                 break;
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -26204,8 +26204,8 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
                 break;
 #endif
 
-            case WC_ARC4_TYPE :
-                WOLFSSL_MSG("ARC4");
+            case WC_ARC4_TYPE : /* ARC4 implementation has been removed */
+                WOLFSSL_MSG("ARC4 implementation has been removed");
                 break;
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)

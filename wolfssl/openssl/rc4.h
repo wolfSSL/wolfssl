@@ -38,8 +38,8 @@
 /* applications including wolfssl/openssl/rc4.h are expecting to have access to
  * the size of RC4_KEY structures. */
 typedef struct WOLFSSL_RC4_KEY {
-    /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
-    void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    /* Placeholder for RC4 key - arc4 implementation removed */
+    byte placeholder[32];
 } WOLFSSL_RC4_KEY;
 
 WOLFSSL_API void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,

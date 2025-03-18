@@ -255,7 +255,7 @@ static const struct s_ent {
 #endif
 
 #ifndef NO_RC4
-    static const char EVP_ARC4[] = "ARC4";
+    static const char EVP_ARC4[] = "ARC4"; /* ARC4 implementation has been removed */ /* ARC4 implementation has been removed */
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -400,7 +400,7 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case WC_DES_EDE3_ECB_TYPE: return 24;
   #endif
   #ifndef NO_RC4
-      case WC_ARC4_TYPE:         return 16;
+      case WC_ARC4_TYPE: /* ARC4 implementation has been removed */         return 16;
   #endif
   #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
       case WC_CHACHA20_POLY1305_TYPE: return 32;
@@ -707,8 +707,9 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         #endif
     #endif
     #ifndef NO_RC4
-        case WC_ARC4_TYPE:
-            wc_Arc4Process(&ctx->cipher.arc4, out, in, inl);
+        case WC_ARC4_TYPE: /* ARC4 implementation has been removed */
+            WOLFSSL_MSG("ARC4 implementation has been removed");
+XMEMCPY(out, in, inl);
             break;
     #endif
 #if defined(WOLFSSL_SM4_ECB)
@@ -2016,8 +2017,8 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
 #endif /* HAVE_ARIA */
 
 #ifndef NO_RC4
-    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARC4))
-      return WC_ARC4_TYPE;
+    else if (EVP_CIPHER_TYPE_MATCHES(cipher, EVP_ARC4)) /* ARC4 implementation has been removed */
+      return WC_ARC4_TYPE; /* ARC4 implementation has been removed */
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -2118,7 +2119,7 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
   #endif /* NO_AES */
 
   #ifndef NO_RC4
-        case WC_ARC4_TYPE:
+        case WC_ARC4_TYPE: /* ARC4 implementation has been removed */
             return 1;
   #endif
 #if defined(HAVE_ARIA)
@@ -2246,7 +2247,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
             return WOLFSSL_EVP_CIPH_ECB_MODE;
     #endif
     #ifndef NO_RC4
-        case WC_ARC4_TYPE:
+        case WC_ARC4_TYPE: /* ARC4 implementation has been removed */
             return WOLFSSL_EVP_CIPH_STREAM_CIPHER;
     #endif
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -5096,7 +5097,7 @@ static const struct cipher{
 #endif
 
 #ifndef NO_RC4
-    {WC_ARC4_TYPE, EVP_ARC4, WC_NID_undef},
+    {WC_ARC4_TYPE, EVP_ARC4, WC_NID_undef}, /* ARC4 implementation has been removed */
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -5256,7 +5257,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {EVP_SM4_CCM, "sm4-ccm"},
 #endif
 #ifndef NO_RC4
-        {EVP_ARC4, "RC4"},
+        {EVP_ARC4, "RC4"}, /* ARC4 implementation has been removed */
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         {EVP_CHACHA20_POLY1305, "chacha20-poly1305"},
@@ -5913,7 +5914,7 @@ void wolfSSL_EVP_init(void)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_rc4");
-        return EVP_ARC4;
+        return EVP_ARC4; /* ARC4 implementation has been removed */
     }
 #endif
 
@@ -8025,17 +8026,17 @@ void wolfSSL_EVP_init(void)
         }
 #endif /* NO_DES3 */
 #ifndef NO_RC4
-        if (ctx->cipherType == WC_ARC4_TYPE ||
-                (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARC4))) {
-            WOLFSSL_MSG("ARC4");
-            ctx->cipherType = WC_ARC4_TYPE;
+        if (ctx->cipherType == WC_ARC4_TYPE || /* ARC4 implementation has been removed */
+                (type (type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARC4))) {(type && EVP_CIPHER_TYPE_MATCHES(type, EVP_ARC4))) { EVP_CIPHER_TYPE_MATCHES(type, EVP_ARC4))) { /* ARC4 implementation has been removed */
+            WOLFSSL_MSG("ARC4 implementation has been removed");
+            ctx->cipherType = WC_ARC4_TYPE; /* ARC4 implementation has been removed */
             ctx->flags     &= (unsigned long)~WOLFSSL_EVP_CIPH_MODE;
             ctx->flags     |= WOLFSSL_EVP_CIPH_STREAM_CIPHER;
             ctx->block_size = 1;
             if (ctx->keyLen == 0)  /* user may have already set */
                 ctx->keyLen = 16;  /* default to 128 */
             if (key)
-                wc_Arc4SetKey(&ctx->cipher.arc4, key, (word32)ctx->keyLen);
+                WOLFSSL_MSG("ARC4 implementation has been removed");
         }
 #endif /* NO_RC4 */
         if (ctx->cipherType == WC_NULL_CIPHER_TYPE ||
@@ -8133,7 +8134,7 @@ void wolfSSL_EVP_init(void)
                 return WC_NID_des_ede3_ecb;
 #endif
 
-            case WC_ARC4_TYPE :
+            case WC_ARC4_TYPE : /* ARC4 implementation has been removed */
                 return WC_NID_rc4;
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -8499,9 +8500,10 @@ void wolfSSL_EVP_init(void)
 #endif /* !NO_DES3 */
 
 #ifndef NO_RC4
-            case WC_ARC4_TYPE :
-                WOLFSSL_MSG("ARC4");
-                wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
+            case WC_ARC4_TYPE : /* ARC4 implementation has been removed */
+                WOLFSSL_MSG("ARC4 implementation has been removed");
+                WOLFSSL_MSG("ARC4 implementation has been removed");
+XMEMCPY(dst, src, len);
                 if (ret == 0)
                     ret = (int)len;
                 break;
@@ -9327,9 +9329,9 @@ void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 
     if (ctx) {
         switch (ctx->cipherType) {
-            case WC_ARC4_TYPE:
-                WOLFSSL_MSG("returning arc4 state");
-                return (void*)&ctx->cipher.arc4.x;
+            case WC_ARC4_TYPE: /* ARC4 implementation has been removed */
+                WOLFSSL_MSG("returning arc4 state (ARC4 implementation has been removed)");
+                WOLFSSL_MSG("ARC4 implementation has been removed"); return NULL;
 
             default:
                 WOLFSSL_MSG("bad x state type");
@@ -9464,8 +9466,8 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             return DES_BLOCK_SIZE;
 #endif
 #ifndef NO_RC4
-        case WC_ARC4_TYPE :
-            WOLFSSL_MSG("ARC4");
+        case WC_ARC4_TYPE : /* ARC4 implementation has been removed */
+            WOLFSSL_MSG("ARC4 implementation has been removed");
             return 0;
 #endif
 #ifdef WOLFSSL_AES_CFB
@@ -9691,9 +9693,9 @@ int wolfSSL_EVP_X_STATE_LEN(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 
     if (ctx) {
         switch (ctx->cipherType) {
-            case WC_ARC4_TYPE:
-                WOLFSSL_MSG("returning arc4 state size");
-                return sizeof(Arc4);
+            case WC_ARC4_TYPE: /* ARC4 implementation has been removed */
+                WOLFSSL_MSG("returning arc4 state size (ARC4 implementation has been removed)");
+                return 128; /* Placeholder size for RC4 key - arc4 implementation removed */
 
             default:
                 WOLFSSL_MSG("bad x state type");

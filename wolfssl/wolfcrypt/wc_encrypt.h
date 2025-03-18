@@ -38,7 +38,7 @@
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
 #endif
 
 #ifdef __cplusplus

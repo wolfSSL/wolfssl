@@ -51,7 +51,7 @@ int caamParseCCBError(unsigned int error)
             break;
 
         case 3:
-            WOLFSSL_MSG("\tCHAID: AFHA (ARC4)");
+            WOLFSSL_MSG("\tCHAID: AFHA (ARC4 implementation has been removed)");
             break;
 
         case 4:

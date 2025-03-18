@@ -1353,8 +1353,8 @@ if(NOT WOLFSSL_DES3_TLS_SUITES)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DES3_TLS_SUITES")
 endif()
 
-# ARC4
-set(WOLFSSL_ARC4_HELP_STRING "Enable ARC4 (default: disabled)")
+# RC4 API (ARC4 implementation removed)
+set(WOLFSSL_ARC4_HELP_STRING "Enable RC4 API (default: disabled, ARC4 implementation removed)")
 add_option("WOLFSSL_ARC4" ${WOLFSSL_ARC4_HELP_STRING} "no" "yes;no")
 
 if(WOLFSSL_OPENSSH OR WOLFSSL_WPAS)
@@ -2530,7 +2530,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_poly1305.c
         tests/api/test_chacha20_poly1305.c
         tests/api/test_camellia.c
-        tests/api/test_arc4.c
+        # ARC4 implementation has been removed
         tests/api/test_rc2.c
         tests/api/test_aes.c
         tests/api/test_ascon.c

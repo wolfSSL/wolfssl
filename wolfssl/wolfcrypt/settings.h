@@ -2693,7 +2693,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
-/* stream ciphers except arc4 need 32bit alignment, intel ok without */
+/* stream ciphers need 32bit alignment, intel ok without (ARC4 implementation has been removed) */
 #ifndef XSTREAM_ALIGN
     #if defined(__x86_64__) || defined(__ia64__) || defined(__i386__)
         #define NO_XSTREAM_ALIGN

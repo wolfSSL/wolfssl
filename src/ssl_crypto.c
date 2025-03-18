@@ -3433,17 +3433,15 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
 #ifdef OPENSSL_EXTRA
 
 #ifndef NO_RC4
-/* Set the key state for Arc4 key.
+/* Set the key state for RC4 key (ARC4 implementation has been removed).
  *
- * @param [out] key   Arc4 key.
+ * @param [out] key   RC4 key (ARC4 implementation has been removed).
  * @param [in]  len   Length of key in buffer.
  * @param [in]  data  Key data buffer.
  */
 void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
     const unsigned char* data)
 {
-    wc_static_assert(sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4));
-
     WOLFSSL_ENTER("wolfSSL_RC4_set_key");
 
     /* Validate parameters. */
@@ -3451,15 +3449,15 @@ void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
         WOLFSSL_MSG("bad argument passed in");
     }
     else {
-        /* Reset wolfCrypt Arc4 object. */
+        /* Reset wolfCrypt RC4 object. */
         XMEMSET(key, 0, sizeof(WOLFSSL_RC4_KEY));
-        /* Set key into wolfCrypt Arc4 object. */
-        wc_Arc4SetKey((Arc4*)key, data, (word32)len);
+        /* ARC4 implementation has been removed */
+        WOLFSSL_MSG("ARC4 implementation has been removed");
     }
 }
 
 
-/* Encrypt/decrypt with Arc4 key.
+/* Encrypt/decrypt with RC4 key (ARC4 implementation has been removed).
  *
  * @param [in]  len  Length of data to encrypt/decrypt.
  * @param [in]  in   Data to encrypt/decrypt.
@@ -3475,8 +3473,10 @@ void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len, const unsigned char* in,
         WOLFSSL_MSG("Bad argument passed in");
     }
     else {
-        /* Encrypt/decrypt data. */
-        wc_Arc4Process((Arc4*)key, out, in, (word32)len);
+        /* ARC4 implementation has been removed */
+        WOLFSSL_MSG("ARC4 implementation has been removed");
+        /* Copy input to output as a fallback */
+        XMEMCPY(out, in, len);
     }
 }
 #endif /* NO_RC4 */

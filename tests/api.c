@@ -123,7 +123,7 @@
 #endif
 
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
 #endif
 
 #ifdef HAVE_BLAKE2
@@ -308,7 +308,7 @@
 #include <tests/api/test_poly1305.h>
 #include <tests/api/test_chacha20_poly1305.h>
 #include <tests/api/test_camellia.h>
-#include <tests/api/test_arc4.h>
+/* ARC4 implementation has been removed */
 #include <tests/api/test_rc2.h>
 #include <tests/api/test_aes.h>
 #include <tests/api/test_ascon.h>
@@ -63782,7 +63782,7 @@ static int test_wolfSSL_EVP_X_STATE_LEN(void)
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     ExpectIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
-    ExpectIntEQ(wolfSSL_EVP_X_STATE_LEN(ctx), sizeof(Arc4));
+    ExpectIntEQ(wolfSSL_EVP_X_STATE_LEN(ctx), 0) /* ARC4 implementation has been removed */;
     EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
@@ -89346,8 +89346,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_CamelliaEncryptDecryptDirect),
     TEST_DECL(test_wc_CamelliaCbcEncryptDecrypt),
 
-    TEST_DECL(test_wc_Arc4SetKey),
-    TEST_DECL(test_wc_Arc4Process),
+    /* ARC4 implementation has been removed */
+    /* ARC4 implementation has been removed */
 
     TEST_DECL(test_wc_Rc2SetKey),
     TEST_DECL(test_wc_Rc2SetIV),

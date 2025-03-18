@@ -18,7 +18,7 @@
         </folder>
         <folder Name="src">
           <file file_name="../../wolfcrypt/src/aes.c" />
-          <file file_name="../../wolfcrypt/src/arc4.c" />
+          <!-- ARC4 implementation has been removed -->
           <file file_name="../../wolfcrypt/src/asm.c">
             <configuration Name="ARM_Debug" build_exclude_from_build="Yes" />
           </file>

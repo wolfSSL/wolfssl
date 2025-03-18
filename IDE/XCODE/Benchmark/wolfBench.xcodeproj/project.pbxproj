@@ -63,7 +63,7 @@
 		A4ADF8E51FCE0C5600A06E90 /* sha.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8891FCE0C4D00A06E90 /* sha.c */; };
 		A4ADF8EA1FCE0C5600A06E90 /* ge_operations.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF88E1FCE0C4E00A06E90 /* ge_operations.c */; };
 		A4ADF8EB1FCE0C5600A06E90 /* chacha20_poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF88F1FCE0C4E00A06E90 /* chacha20_poly1305.c */; };
-		A4ADF8EE1FCE0C5600A06E90 /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8921FCE0C4E00A06E90 /* arc4.c */; };
+		/* ARC4 implementation has been removed */
 		A4ADF8F01FCE0C5600A06E90 /* memory.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8941FCE0C4E00A06E90 /* memory.c */; };
 		A4ADF8F31FCE0C5600A06E90 /* rsa.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8971FCE0C4F00A06E90 /* rsa.c */; };
 		A4ADF8F41FCE0C5600A06E90 /* pkcs7.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8981FCE0C4F00A06E90 /* pkcs7.c */; };
@@ -168,7 +168,7 @@
 		A4ADF8891FCE0C4D00A06E90 /* sha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sha.c; path = ../../../wolfcrypt/src/sha.c; sourceTree = "<group>"; };
 		A4ADF88E1FCE0C4E00A06E90 /* ge_operations.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ge_operations.c; path = ../../../wolfcrypt/src/ge_operations.c; sourceTree = "<group>"; };
 		A4ADF88F1FCE0C4E00A06E90 /* chacha20_poly1305.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = chacha20_poly1305.c; path = ../../../wolfcrypt/src/chacha20_poly1305.c; sourceTree = "<group>"; };
-		A4ADF8921FCE0C4E00A06E90 /* arc4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = arc4.c; path = ../../../wolfcrypt/src/arc4.c; sourceTree = "<group>"; };
+		/* ARC4 implementation has been removed */
 		A4ADF8941FCE0C4E00A06E90 /* memory.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = memory.c; path = ../../../wolfcrypt/src/memory.c; sourceTree = "<group>"; };
 		A4ADF8971FCE0C4F00A06E90 /* rsa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = rsa.c; path = ../../../wolfcrypt/src/rsa.c; sourceTree = "<group>"; };
 		A4ADF8981FCE0C4F00A06E90 /* pkcs7.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pkcs7.c; path = ../../../wolfcrypt/src/pkcs7.c; sourceTree = "<group>"; };
@@ -283,7 +283,7 @@
 			isa = PBXGroup;
 			children = (
 				A4ADF8821FCE0C4D00A06E90 /* aes.c */,
-				A4ADF8921FCE0C4E00A06E90 /* arc4.c */,
+				/* ARC4 implementation has been removed */,
 				A4DFEC0F1FD4CB8500A7BB33 /* armv8-aes.c */,
 				A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */,
 				CB81DE1E24C93EC000B98DA6 /* armv8-curve25519.S */,
@@ -522,7 +522,7 @@
 				A4ADF8E01FCE0C5600A06E90 /* ecc_fp.c in Sources */,
 				A4ADF8EB1FCE0C5600A06E90 /* chacha20_poly1305.c in Sources */,
 				A4ADF86B1FCE0C1C00A06E90 /* keys.c in Sources */,
-				A4ADF8EE1FCE0C5600A06E90 /* arc4.c in Sources */,
+				/* ARC4 implementation has been removed */,
 				A4DFEC111FD4CB8500A7BB33 /* armv8-aes.c in Sources */,
 				A46FE1812493E8F800A25BE7 /* wc_dsp.c in Sources */,
 				A4ADF9061FCE0C5600A06E90 /* wc_encrypt.c in Sources */,

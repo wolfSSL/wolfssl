@@ -72,7 +72,7 @@ $(WOLF_ROOT)/src/tls13.o\
 $(WOLF_ROOT)/src/tls.o\
 $(WOLF_ROOT)/src/wolfio.o\
 $(WOLF_ROOT)/wolfcrypt/src/aes.o\
-$(WOLF_ROOT)/wolfcrypt/src/arc4.o\
+# ARC4 implementation has been removed\
 $(WOLF_ROOT)/wolfcrypt/src/asm.o\
 $(WOLF_ROOT)/wolfcrypt/src/asn.o\
 $(WOLF_ROOT)/wolfcrypt/src/blake2b.o\

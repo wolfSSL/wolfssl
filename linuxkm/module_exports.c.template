@@ -62,7 +62,7 @@
 #ifdef WOLFSSL_SIPHASH
 #include <wolfssl/wolfcrypt/siphash.h>
 #endif
-#include <wolfssl/wolfcrypt/arc4.h>
+/* ARC4 implementation has been removed */
 #if defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/integer.h>
 #else

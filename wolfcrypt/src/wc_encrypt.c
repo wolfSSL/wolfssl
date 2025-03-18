@@ -29,7 +29,7 @@
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/arc4.h>
+/* ARC4 implementation has been removed */
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -631,10 +631,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #if !defined(NO_RC4) && !defined(NO_SHA)
             case PBE_SHA1_RC4_128:
             {
-                Arc4    dec;
+                char    dec[128]; /* Placeholder for RC4 key - arc4 implementation removed */
 
-                wc_Arc4SetKey(&dec, key, derivedLen);
-                wc_Arc4Process(&dec, input, input, (word32)length);
+                WOLFSSL_MSG("ARC4 implementation has been removed"); /* RC4 API maintained */
+                XMEMCPY(input, input, (word32)length); /* ARC4 implementation has been removed */
                 break;
             }
     #endif

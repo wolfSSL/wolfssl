@@ -204,7 +204,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\arc4.c"
+				<!-- ARC4 implementation has been removed -->
 				>
 			</File>
 			<File

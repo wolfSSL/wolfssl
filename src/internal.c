@@ -3051,9 +3051,9 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 /* Set cipher pointers to null */
 void InitCiphers(WOLFSSL* ssl)
 {
-#ifdef BUILD_ARC4
-    ssl->encrypt.arc4 = NULL;
-    ssl->decrypt.arc4 = NULL;
+/* ARC4 implementation has been removed */
+    /* ARC4 implementation has been removed */
+    /* ARC4 implementation has been removed */
 #endif
 #ifdef BUILD_DES3
     ssl->encrypt.des3 = NULL;
@@ -3095,10 +3095,9 @@ void InitCiphers(WOLFSSL* ssl)
 
 static void FreeCiphersSide(Ciphers *cipher, void* heap)
 {
-#ifdef BUILD_ARC4
-    wc_Arc4Free(cipher->arc4);
-    XFREE(cipher->arc4, heap, DYNAMIC_TYPE_CIPHER);
-    cipher->arc4 = NULL;
+/* ARC4 implementation has been removed */
+    /* ARC4 implementation has been removed */
+    /* ARC4 implementation has been removed */
 #endif
 #ifdef BUILD_DES3
     wc_Des3Free(cipher->des3);
@@ -19581,9 +19580,9 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     }
 
     switch (ssl->specs.bulk_cipher_algorithm) {
-    #ifdef BUILD_ARC4
+    /* ARC4 implementation has been removed */
         case wolfssl_rc4:
-            wc_Arc4Process(ssl->encrypt.arc4, out, input, sz);
+            WOLFSSL_MSG("ARC4 implementation has been removed");
             break;
     #endif
 
@@ -20051,9 +20050,9 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     switch (ssl->specs.bulk_cipher_algorithm)
     {
-    #ifdef BUILD_ARC4
+    /* ARC4 implementation has been removed */
         case wolfssl_rc4:
-            wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
+            WOLFSSL_MSG("ARC4 implementation has been removed");
             break;
     #endif
 

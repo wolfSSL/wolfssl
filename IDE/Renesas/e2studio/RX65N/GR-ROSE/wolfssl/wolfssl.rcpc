@@ -28,7 +28,7 @@
         </Category>
         <Category Name="src">
           <Path>..\..\..\..\..\..\wolfcrypt\src\aes.c</Path>
-          <Path>..\..\..\..\..\..\wolfcrypt\src\arc4.c</Path>
+          <!-- ARC4 implementation has been removed -->
           <Path>..\..\..\..\..\..\wolfcrypt\src\asm.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\asn.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\blake2b.c</Path>

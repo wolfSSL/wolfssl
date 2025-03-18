@@ -47,7 +47,7 @@ Crypto_Library_Name := sgx_tcrypto
 Wolfssl_C_Extra_Flags := -DWOLFSSL_SGX
 
 Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/src/arc4.c\
+					# ARC4 implementation has been removed\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/asn.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/blake2b.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/camellia.c\

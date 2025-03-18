@@ -58,7 +58,7 @@
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 #ifdef HAVE_PK_CALLBACKS

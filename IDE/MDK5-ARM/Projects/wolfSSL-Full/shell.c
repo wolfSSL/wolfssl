@@ -149,7 +149,7 @@ extern void hmac_sha384_test(void *arg) ;
     #endif
 #endif
 #ifndef NO_RC4
-extern void arc4_test(void *arg) ;
+extern void arc4_test(void *arg) ; /* ARC4 implementation has been removed */
 #endif
 
 #ifndef NO_DES3
@@ -264,7 +264,7 @@ static struct {
   #endif
 #endif
 #ifndef NO_RC4
-    "arc4",  arc4_test,
+    "arc4",  arc4_test, /* ARC4 implementation has been removed */
 #endif
 #ifndef NO_DES3
   "des",  des_test,

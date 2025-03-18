@@ -15,7 +15,7 @@
                    projectFiles="true">
       <logicalFolder name="f2" displayName="wolfcrypt" projectFiles="true">
         <itemPath>../../wolfcrypt/src/aes.c</itemPath>
-        <itemPath>../../wolfcrypt/src/arc4.c</itemPath>
+        <!-- ARC4 implementation has been removed -->
         <itemPath>../../wolfcrypt/src/asm.c</itemPath>
         <itemPath>../../wolfcrypt/src/asn.c</itemPath>
         <itemPath>../../wolfcrypt/src/blake2b.c</itemPath>

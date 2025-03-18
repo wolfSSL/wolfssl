@@ -54,7 +54,7 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/arc4.h>
+/* ARC4 implementation has been removed */
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
@@ -256,7 +256,7 @@ typedef union {
     Des  des;
     Des3 des3;
 #endif
-    Arc4 arc4;
+    char arc4[128]; /* Placeholder for RC4 key - arc4 implementation removed */
 #ifdef WOLFSSL_QT
     int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
 #endif
@@ -427,7 +427,7 @@ enum {
     WC_DES_ECB_TYPE           = 11,
     WC_DES_EDE3_CBC_TYPE      = 12,
     WC_DES_EDE3_ECB_TYPE      = 13,
-    WC_ARC4_TYPE              = 14,
+    WC_ARC4_TYPE              = 14, /* ARC4 implementation has been removed */
     WC_NULL_CIPHER_TYPE       = 15,
     WC_EVP_PKEY_RSA           = 16,
     WC_EVP_PKEY_DSA           = 17,
@@ -494,7 +494,7 @@ enum {
 #define DES_ECB_TYPE WC_DES_ECB_TYPE
 #define DES_EDE3_CBC_TYPE WC_DES_EDE3_CBC_TYPE
 #define DES_EDE3_ECB_TYPE WC_DES_EDE3_ECB_TYPE
-#define ARC4_TYPE WC_ARC4_TYPE
+#define ARC4_TYPE WC_ARC4_TYPE /* ARC4 implementation has been removed */
 #define NULL_CIPHER_TYPE WC_NULL_CIPHER_TYPE
 #define EVP_PKEY_RSA WC_EVP_PKEY_RSA
 #define EVP_PKEY_DSA WC_EVP_PKEY_DSA

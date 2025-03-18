@@ -137,7 +137,7 @@
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
+    /* ARC4 implementation has been removed */
 #endif
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -639,7 +639,7 @@
 #define BENCH_AES_CTR            0x00000010
 #define BENCH_AES_CCM            0x00000020
 #define BENCH_CAMELLIA           0x00000100
-#define BENCH_ARC4               0x00000200
+#define BENCH_ARC4_REMOVED               0x00000200 /* ARC4 implementation has been removed */
 #define BENCH_CHACHA20           0x00001000
 #define BENCH_CHACHA20_POLY1305  0x00002000
 #define BENCH_DES                0x00004000
@@ -866,7 +866,7 @@ static const bench_alg bench_cipher_opt[] = {
     { "-camellia",           BENCH_CAMELLIA          },
 #endif
 #ifndef NO_RC4
-    { "-arc4",               BENCH_ARC4              },
+    { "-arc4",               BENCH_ARC4_REMOVED              }, /* ARC4 implementation has been removed */
 #endif
 #ifdef HAVE_CHACHA
     { "-chacha20",           BENCH_CHACHA20          },
@@ -3333,12 +3333,12 @@ static void* benchmarks_do(void* args)
         bench_sm4_ccm();
 #endif
 #ifndef NO_RC4
-    if (bench_all || (bench_cipher_algs & BENCH_ARC4)) {
+    if (bench_all || (bench_cipher_algs if (bench_all || (bench_cipher_algs & BENCH_ARC4_REMOVED)) { BENCH_ARC4_REMOVED)) { /* ARC4 implementation has been removed */
     #ifndef NO_SW_BENCH
-        bench_arc4(0);
+        /* ARC4 implementation has been removed */;
     #endif
     #ifdef BENCH_DEVID
-        bench_arc4(1);
+        /* ARC4 implementation has been removed */;
     #endif
     }
 #endif
@@ -5962,28 +5962,34 @@ exit:
 
 
 #ifndef NO_RC4
-void bench_arc4(int useDeviceID)
+void bench_arc4(int useDeviceID) /* ARC4 implementation has been removed */
+{
+    WOLFSSL_MSG("ARC4 implementation has been removed");
+    return;
+}
 {
     int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Arc4, BENCH_MAX_PENDING,
-                     sizeof(Arc4), HEAP_HINT);
+    /* ARC4 implementation has been removed */
+    WC_DECLARE_ARRAY(enc, char, BENCH_MAX_PENDING,
+                     128, HEAP_HINT); /* Placeholder for RC4 key */
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_CALLOC_ARRAY(enc, Arc4, BENCH_MAX_PENDING,
-                     sizeof(Arc4), HEAP_HINT);
+    /* ARC4 implementation has been removed */
+    WC_CALLOC_ARRAY(enc, char, BENCH_MAX_PENDING,
+                     128, HEAP_HINT); /* Placeholder for RC4 key */
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_Arc4Init(enc[i], HEAP_HINT,
+        if ((ret = /* ARC4 implementation has been removed */
                             useDeviceID ? devId : INVALID_DEVID)) != 0) {
-            printf("Arc4Init failed, ret = %d\n", ret);
+            WOLFSSL_MSG("ARC4 implementation has been removed");
             goto exit;
         }
 
-        ret = wc_Arc4SetKey(enc[i], bench_key, 16);
+        /* ARC4 implementation has been removed */
         if (ret != 0) {
-            printf("Arc4SetKey failed, ret = %d\n", ret);
+            WOLFSSL_MSG("ARC4 implementation has been removed");
             goto exit;
         }
     }
@@ -5997,11 +6003,11 @@ void bench_arc4(int useDeviceID)
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-                    ret = wc_Arc4Process(enc[i], bench_cipher, bench_plain,
+                    /* ARC4 implementation has been removed */
                                          bench_size);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
                                             0, &times, &pending)) {
-                        goto exit_arc4;
+                        goto exit_arc4; /* ARC4 implementation has been removed */
                     }
                 }
             } /* for i */
@@ -6014,8 +6020,8 @@ void bench_arc4(int useDeviceID)
 #endif
        );
 
-exit_arc4:
-    bench_stats_sym_finish("ARC4", useDeviceID, count, bench_size, start, ret);
+exit_arc4: /* ARC4 implementation has been removed */
+    bench_stats_sym_finish("ARC4", useDeviceID, count, bench_size, start, ret); /* ARC4 implementation has been removed */
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
@@ -6024,7 +6030,7 @@ exit:
 
     if (WC_ARRAY_OK(enc)) {
         for (i = 0; i < BENCH_MAX_PENDING; i++) {
-            wc_Arc4Free(enc[i]);
+            /* ARC4 implementation has been removed */
         }
         WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
     }
