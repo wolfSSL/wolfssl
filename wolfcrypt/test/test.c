@@ -270,7 +270,6 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif

@@ -122,7 +122,6 @@
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
 
-    #include <wolfssl/wolfcrypt/arc4.h>
 
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
@@ -1485,7 +1484,7 @@ static int test_for_double_Free(void)
     int skipTest = 0;
     const char* testCertFile;
     const char* testKeyFile;
-    char optionsCiphers[] = "RC4-SHA:RC4-MD5:DES-CBC3-SHA:AES128-SHA:AES256-SHA"
+    char optionsCiphers[] = "DES-CBC3-SHA:AES128-SHA:AES256-SHA"
 ":NULL-SHA:NULL-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-PSK-AES256-GCM"
 "-SHA384:DHE-PSK-AES128-GCM-SHA256:PSK-AES256-GCM-SHA384:PSK-AES128-GCM-SHA256:"
 "DHE-PSK-AES256-CBC-SHA384:DHE-PSK-AES128-CBC-SHA256:PSK-AES256-CBC-SHA384:PSK-"
@@ -1495,10 +1494,10 @@ static int test_for_double_Free(void)
 "NULL-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
 "AES128-CCM:ECDHE-ECDSA-AES128-CCM-8:ECDHE-ECDSA-AES256-CCM-8:ECDHE-RSA-AES128-"
 "SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:ECDHE-R"
-"SA-RC4-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-RC4-SHA:ECDHE-ECDSA-DES-CBC3-SHA"
+"SA-ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-ECDHE-ECDSA-DES-CBC3-SHA"
 ":AES128-SHA256:AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:ECDH-"
 "RSA-AES128-SHA:ECDH-RSA-AES256-SHA:ECDH-ECDSA-AES128-SHA:ECDH-ECDSA-AES256-SHA"
-":ECDH-RSA-RC4-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-RC4-SHA:ECDH-ECDSA-DES-CBC3"
+":ECDH-RSA-ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-ECDH-ECDSA-DES-CBC3"
 "-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES"
 "256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-E"
 "CDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDH-RSA-AES128-GCM-SHA25"
@@ -1661,8 +1660,6 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
         /* TLS_PSK_WITH_NULL_SHA256          */ 0x00, 0xb0,
         /* TLS_PSK_WITH_NULL_SHA384          */ 0x00, 0xb1,
         /* TLS_PSK_WITH_NULL_SHA             */ 0x00, 0x2c,
-        /* SSL_RSA_WITH_RC4_128_SHA          */ 0x00, 0x05,
-        /* SSL_RSA_WITH_RC4_128_MD5          */ 0x00, 0x04,
         /* SSL_RSA_WITH_3DES_EDE_CBC_SHA     */ 0x00, 0x0A,
 
         /* ECC suites, first byte is 0xC0 (ECC_BYTE) */
@@ -1670,8 +1667,6 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
         /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA     */ 0xC0, 0x13,
         /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA   */ 0xC0, 0x0A,
         /* TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA   */ 0xC0, 0x09,
-        /* TLS_ECDHE_RSA_WITH_RC4_128_SHA         */ 0xC0, 0x11,
-        /* TLS_ECDHE_ECDSA_WITH_RC4_128_SHA       */ 0xC0, 0x07,
         /* TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA    */ 0xC0, 0x12,
         /* TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA  */ 0xC0, 0x08,
         /* TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256  */ 0xC0, 0x27,
@@ -1687,8 +1682,6 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
         /* TLS_ECDH_RSA_WITH_AES_128_CBC_SHA      */ 0xC0, 0x0E,
         /* TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA    */ 0xC0, 0x05,
         /* TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA    */ 0xC0, 0x04,
-        /* TLS_ECDH_RSA_WITH_RC4_128_SHA          */ 0xC0, 0x0C,
-        /* TLS_ECDH_ECDSA_WITH_RC4_128_SHA        */ 0xC0, 0x02,
         /* TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA     */ 0xC0, 0x0D,
         /* TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA   */ 0xC0, 0x03,
         /* TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256   */ 0xC0, 0x29,
@@ -12979,8 +12972,6 @@ static int test_wolfSSL_PKCS12(void)
     PKCS12_free(pkcs12_2);
     pkcs12_2 = NULL;
     ExpectNotNull((pkcs12_2 = PKCS12_create(pass, NULL, pkey, cert, NULL,
-             NID_pbe_WithSHA1And128BitRC4,
-             NID_pbe_WithSHA1And128BitRC4,
              2000, 1, 0)));
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -57473,63 +57464,6 @@ static int test_wolfSSL_CRYPTO_cts128(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_RC4(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_RC4) && defined(OPENSSL_EXTRA)
-    WOLFSSL_RC4_KEY rc4Key;
-    unsigned char key[] =  {
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-    };
-    unsigned char data[] = {
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-    };
-    unsigned char enc[sizeof(data)];
-    unsigned char dec[sizeof(data)];
-    word32 i;
-    word32 j;
-
-    wolfSSL_RC4_set_key(NULL, -1, NULL);
-    wolfSSL_RC4_set_key(&rc4Key, -1, NULL);
-    wolfSSL_RC4_set_key(NULL, 0, NULL);
-    wolfSSL_RC4_set_key(NULL, -1, key);
-    wolfSSL_RC4_set_key(&rc4Key, 0, NULL);
-    wolfSSL_RC4_set_key(&rc4Key, -1, key);
-    wolfSSL_RC4_set_key(NULL, 0, key);
-
-    wolfSSL_RC4(NULL, 0, NULL, NULL);
-    wolfSSL_RC4(&rc4Key, 0, NULL, NULL);
-    wolfSSL_RC4(NULL, 0, data, NULL);
-    wolfSSL_RC4(NULL, 0, NULL, enc);
-    wolfSSL_RC4(&rc4Key, 0, data, NULL);
-    wolfSSL_RC4(&rc4Key, 0, NULL, enc);
-    wolfSSL_RC4(NULL, 0, data, enc);
-
-    ExpectIntEQ(1, 1);
-    for (i = 0; EXPECT_SUCCESS() && (i <= sizeof(key)); i++) {
-        for (j = 0; EXPECT_SUCCESS() && (j <= sizeof(data)); j++) {
-            XMEMSET(enc, 0, sizeof(enc));
-            XMEMSET(dec, 0, sizeof(dec));
-
-            /* Encrypt */
-            wolfSSL_RC4_set_key(&rc4Key, (int)i, key);
-            wolfSSL_RC4(&rc4Key, j, data, enc);
-            /* Decrypt */
-            wolfSSL_RC4_set_key(&rc4Key, (int)i, key);
-            wolfSSL_RC4(&rc4Key, j, enc, dec);
-
-            ExpectIntEQ(XMEMCMP(dec, data, j), 0);
-        }
-    }
-#endif
-    return EXPECT_RESULT();
-}
 
 static int test_wolfSSL_OBJ(void)
 {
@@ -63565,12 +63499,8 @@ static int test_wolfSSL_EVP_PKEY_CTX_new_id(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_EVP_rc4(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RC4)
-    ExpectNotNull(wolfSSL_EVP_rc4());
-#endif
     return EXPECT_RESULT();
 }
 
@@ -63774,7 +63704,6 @@ static int test_wolfSSL_EVP_X_STATE_LEN(void)
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     ExpectIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
-    ExpectIntEQ(wolfSSL_EVP_X_STATE_LEN(ctx), sizeof(Arc4));
     EVP_CIPHER_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
@@ -63785,7 +63714,7 @@ static int test_wolfSSL_EVP_CIPHER_block_size(void)
     EXPECT_DECLS;
 #if defined(HAVE_AES_CBC) || defined(HAVE_AESGCM) || \
     defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB) || \
-    defined(WOLFSSL_AES_OFB) || !defined(NO_RC4) || \
+    defined(WOLFSSL_AES_OFB) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 
 #ifdef HAVE_AES_CBC
@@ -89336,10 +89265,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_CamelliaEncryptDecryptDirect),
     TEST_DECL(test_wc_CamelliaCbcEncryptDecrypt),
 
-    TEST_DECL(test_wc_Arc4SetKey),
-    TEST_DECL(test_wc_Arc4Process),
-
-    TEST_DECL(test_wc_Rc2SetKey),
     TEST_DECL(test_wc_Rc2SetIV),
     TEST_DECL(test_wc_Rc2EcbEncryptDecrypt),
     TEST_DECL(test_wc_Rc2CbcEncryptDecrypt),
@@ -89748,7 +89673,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_aes_256_ccm),
     TEST_DECL(test_wolfSSL_EVP_aes_192_ccm),
     TEST_DECL(test_wolfSSL_EVP_aes_128_ccm),
-    TEST_DECL(test_wolfSSL_EVP_rc4),
     TEST_DECL(test_wolfSSL_EVP_enc_null),
     TEST_DECL(test_wolfSSL_EVP_rc2_cbc),
     TEST_DECL(test_wolfSSL_EVP_mdc2),
@@ -90153,7 +90077,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_AES_cbc_encrypt),
     TEST_DECL(test_wolfSSL_AES_cfb128_encrypt),
     TEST_DECL(test_wolfSSL_CRYPTO_cts128),
-    TEST_DECL(test_wolfSSL_RC4),
 
     TEST_DECL(test_wolfSSL_RSA),
     TEST_DECL(test_wolfSSL_RSA_DER),

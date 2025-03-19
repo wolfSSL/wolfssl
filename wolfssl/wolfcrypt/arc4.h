@@ -1,4 +1,4 @@
-/* test_arc4.h
+/* arc4.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,13 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* This file is kept as a placeholder after removing ARC4 */
+/* This is a placeholder file to satisfy build dependencies after removing ARC4 */
 
-#ifndef WOLFCRYPT_TEST_ARC4_H
-#define WOLFCRYPT_TEST_ARC4_H
+#ifndef WOLFSSL_ARC4_H_
+#define WOLFSSL_ARC4_H_
 
-/* Function declarations for placeholder implementations */
-int test_wc_Arc4SetKey(void);
-int test_wc_Arc4Process(void);
-
-#endif /* WOLFCRYPT_TEST_ARC4_H */
+#endif /* WOLFSSL_ARC4_H_ */

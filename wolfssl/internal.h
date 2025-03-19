@@ -69,7 +69,6 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>

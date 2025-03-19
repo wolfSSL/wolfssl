@@ -110,7 +110,6 @@
     #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
-    #include <wolfssl/wolfcrypt/arc4.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
