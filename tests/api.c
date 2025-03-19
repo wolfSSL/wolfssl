@@ -303,7 +303,6 @@
 #include <tests/api/test_poly1305.h>
 #include <tests/api/test_chacha20_poly1305.h>
 #include <tests/api/test_camellia.h>
-#include <tests/api/test_arc4.h>
 #include <tests/api/test_rc2.h>
 #include <tests/api/test_aes.h>
 #include <tests/api/test_ascon.h>
