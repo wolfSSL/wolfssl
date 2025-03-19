@@ -1039,12 +1039,7 @@
     #define BUILD_AES
 #endif
 
-#if !defined(NO_RC4) && !defined(WSSL_HARDEN_TLS)
-    /* MUST NOT negotiate RC4 cipher suites
-     * https://www.rfc-editor.org/rfc/rfc9325#section-4.1 */
-    #undef  BUILD_ARC4
-    #define BUILD_ARC4
-#endif
+
 
 #ifdef HAVE_CHACHA
     #define CHACHA20_BLOCK_SIZE 16
@@ -1109,8 +1104,7 @@ enum {
     TLS_PSK_WITH_NULL_SHA256          = 0xb0,
     TLS_PSK_WITH_NULL_SHA384          = 0xb1,
     TLS_PSK_WITH_NULL_SHA             = 0x2c,
-    SSL_RSA_WITH_RC4_128_SHA          = 0x05,
-    SSL_RSA_WITH_RC4_128_MD5          = 0x04,
+
     SSL_RSA_WITH_3DES_EDE_CBC_SHA     = 0x0A,
 
     /* ECC suites, first byte is 0xC0 (ECC_BYTE) */
@@ -1118,8 +1112,7 @@ enum {
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA    = 0x13,
     TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA  = 0x0A,
     TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA  = 0x09,
-    TLS_ECDHE_RSA_WITH_RC4_128_SHA        = 0x11,
-    TLS_ECDHE_ECDSA_WITH_RC4_128_SHA      = 0x07,
+
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA   = 0x12,
     TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x08,
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   = 0x27,
@@ -1135,8 +1128,7 @@ enum {
     TLS_ECDH_RSA_WITH_AES_128_CBC_SHA    = 0x0E,
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA  = 0x05,
     TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA  = 0x04,
-    TLS_ECDH_RSA_WITH_RC4_128_SHA        = 0x0C,
-    TLS_ECDH_ECDSA_WITH_RC4_128_SHA      = 0x02,
+
     TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA   = 0x0D,
     TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA = 0x03,
     TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256   = 0x29,

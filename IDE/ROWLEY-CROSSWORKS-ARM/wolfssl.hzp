@@ -18,7 +18,7 @@
         </folder>
         <folder Name="src">
           <file file_name="../../wolfcrypt/src/aes.c" />
-          <file file_name="../../wolfcrypt/src/arc4.c" />
+
           <file file_name="../../wolfcrypt/src/asm.c" />
           <file file_name="../../wolfcrypt/src/asn.c" />
           <file file_name="../../wolfcrypt/src/blake2b.c" />

@@ -101,7 +101,6 @@
     #include <wolfssl/openssl/err.h>
     #include <wolfssl/openssl/modes.h>
     #include <wolfssl/openssl/opensslv.h>
-    #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
     #include <wolfssl/openssl/x509_vfy.h>
     /* openssl headers end, wolfssl internal headers next */

@@ -122,9 +122,7 @@
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
 
-#ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
-#endif
 
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
@@ -230,9 +228,6 @@
 #endif
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
-#endif
-#ifndef NO_RC4
-    #include <wolfssl/openssl/rc4.h>
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/openssl/ecdsa.h>
@@ -12982,7 +12977,6 @@ static int test_wolfSSL_PKCS12(void)
     ExpectNull(sk_X509_pop(ca));
 
 
-#ifndef NO_RC4
     PKCS12_free(pkcs12_2);
     pkcs12_2 = NULL;
     ExpectNotNull((pkcs12_2 = PKCS12_create(pass, NULL, pkey, cert, NULL,
@@ -12999,7 +12993,6 @@ static int test_wolfSSL_PKCS12(void)
     ExpectIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
             SSL_SUCCESS);
 
-#endif /* NO_RC4 */
 
     EVP_PKEY_free(pkey);
     pkey = NULL;
@@ -63868,9 +63861,7 @@ static int test_wolfSSL_EVP_CIPHER_block_size(void)
     #endif
 #endif
 
-#ifndef NO_RC4
     ExpectIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
-#endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ExpectIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_chacha20_poly1305()), 1);

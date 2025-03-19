@@ -37,9 +37,7 @@
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
-#ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
-#endif
+
 
 #ifdef __cplusplus
     extern "C" {
