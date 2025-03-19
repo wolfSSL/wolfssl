@@ -68,3 +68,38 @@ int test_wolfSSL_EVP_CipherUpdate_Null(void)
     return EXPECT_RESULT();
 }
 
+/* Test for wolfSSL_EVP_CIPHER_type_string() */
+int test_wolfSSL_EVP_CIPHER_type_string(void)
+{
+    EXPECT_DECLS;
+#ifdef OPENSSL_EXTRA
+    const char* cipherStr;
+    
+    /* Test with valid cipher types */
+#ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
+    cipherStr = wolfSSL_EVP_CIPHER_type_string(WC_AES_128_CBC_TYPE);
+    ExpectNotNull(cipherStr);
+    ExpectStrEQ(cipherStr, "AES-128-CBC");
+    #endif
+#endif
+
+#ifndef NO_DES3
+    cipherStr = wolfSSL_EVP_CIPHER_type_string(WC_DES_CBC_TYPE);
+    ExpectNotNull(cipherStr);
+    ExpectStrEQ(cipherStr, "DES-CBC");
+#endif
+
+    /* Test with NULL cipher type */
+    cipherStr = wolfSSL_EVP_CIPHER_type_string(WC_NULL_CIPHER_TYPE);
+    ExpectNotNull(cipherStr);
+    ExpectStrEQ(cipherStr, "NULL");
+    
+    /* Test with invalid cipher type */
+    cipherStr = wolfSSL_EVP_CIPHER_type_string(0xFFFF);
+    ExpectNull(cipherStr);
+#endif /* OPENSSL_EXTRA */
+
+    return EXPECT_RESULT();
+}
+

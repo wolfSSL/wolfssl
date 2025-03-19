@@ -2056,15 +2056,15 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
 
 /* Getter function for cipher type string
  *
- * type  cipherType enum value to get string for
+ * cipherType  cipherType enum value to get string for
  *
  * Returns string representation of the cipher type or NULL if not found
  */
-const char* wolfSSL_EVP_CIPHER_type_string(unsigned int type)
+const char* wolfSSL_EVP_CIPHER_type_string(unsigned int cipherType)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_type_string");
 
-    switch (type) {
+    switch (cipherType) {
 #ifndef NO_DES3
         case WC_DES_CBC_TYPE:           return EVP_DES_CBC;
         case WC_DES_EDE3_CBC_TYPE:      return EVP_DES_EDE3_CBC;
