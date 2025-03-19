@@ -1967,8 +1967,8 @@ static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
 static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
         word32 r)
 {
-    word32 s0, s1, s2, s3;
-    word32 t0, t1, t2, t3;
+    word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -3016,8 +3016,8 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 r)
 {
-    word32 s0, s1, s2, s3;
-    word32 t0, t1, t2, t3;
+    word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
