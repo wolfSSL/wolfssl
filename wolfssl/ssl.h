@@ -910,7 +910,7 @@ typedef struct WOLFSSL_ALERT_HISTORY {
 
 
 /* Valid Alert types from page 16/17
- * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
+ * Add alert string to the function AlertTypeToString in src/ssl.c
  */
 enum AlertDescription {
     invalid_alert                   =  -1,

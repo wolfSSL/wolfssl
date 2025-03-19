@@ -21277,6 +21277,13 @@ const char* AlertTypeToString(int type)
                 return internal_error_str;
             }
 
+        case inappropriate_fallback:
+            {
+                static const char inappropriate_fallback_str[] =
+                    "inappropriate_fallback";
+                return inappropriate_fallback_str;
+            }
+
         case user_canceled:
             {
                 static const char user_canceled_str[] =
@@ -21291,6 +21298,20 @@ const char* AlertTypeToString(int type)
                 return no_renegotiation_str;
             }
 
+        case missing_extension:
+            {
+                static const char missing_extension_str[] =
+                    "missing_extension";
+                return missing_extension_str;
+            }
+
+        case unsupported_extension:
+            {
+                static const char unsupported_extension_str[] =
+                    "unsupported_extension";
+                return unsupported_extension_str;
+            }
+
         case unrecognized_name:
             {
                 static const char unrecognized_name_str[] =
@@ -21303,6 +21324,20 @@ const char* AlertTypeToString(int type)
                 static const char bad_certificate_status_response_str[] =
                     "bad_certificate_status_response";
                 return bad_certificate_status_response_str;
+            }
+
+        case unknown_psk_identity:
+            {
+                static const char unknown_psk_identity_str[] =
+                    "unknown_psk_identity";
+                return unknown_psk_identity_str;
+            }
+
+        case certificate_required:
+            {
+                static const char certificate_required_str[] =
+                    "certificate_required";
+                return certificate_required_str;
             }
 
         case no_application_protocol:
@@ -25968,10 +26003,19 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     int  ret;
     int  outputSz;
     int  dtlsExtra = 0;
+    const char* alert_str = NULL;
 
     WOLFSSL_ENTER("SendAlert");
 
-    WOLFSSL_MSG_EX("SendAlert: %d %s", type, AlertTypeToString(type));
+    alert_str = AlertTypeToString(type);
+    if (alert_str != NULL)
+    {
+        WOLFSSL_MSG_EX("SendAlert: %d %s", type, alert_str);
+    }
+    else
+    {
+        WOLFSSL_MSG_EX("SendAlert: %d", type);
+    }
 
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
