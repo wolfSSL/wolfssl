@@ -277,7 +277,8 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
-    int                      err = 0;
+    int                      err;
+    Aes                      *aes_copy;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -288,22 +289,30 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
+    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+
+    err = wc_AesSetIV(aes_copy, walk.iv);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesCbcEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
+        err = wc_AesCbcEncrypt(aes_copy, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcEncrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         nbytes &= WC_AES_BLOCK_SIZE - 1;
@@ -311,7 +320,11 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     }
 
     /* copy iv from wolfCrypt back to walk.iv */
-    XMEMCPY(walk.iv, ctx->aes_encrypt->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
+
+out:
+
+    free(aes_copy);
 
     return err;
 }
@@ -322,7 +335,8 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
-    int                      err = 0;
+    int                      err;
+    Aes                      *aes_copy;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -333,23 +347,31 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    err = wc_AesSetIV(ctx->aes_decrypt, walk.iv);
+    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_decrypt, sizeof(Aes));
+
+    err = wc_AesSetIV(aes_copy, walk.iv);
 
     if (unlikely(err)) {
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetKey failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesCbcDecrypt(ctx->aes_decrypt, walk.dst.virt.addr,
+        err = wc_AesCbcDecrypt(aes_copy, walk.dst.virt.addr,
                                walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesCbcDecrypt failed for %u bytes: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), nbytes, err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         nbytes &= WC_AES_BLOCK_SIZE - 1;
@@ -357,7 +379,11 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
     }
 
     /* copy iv from wolfCrypt back to walk.iv */
-    XMEMCPY(walk.iv, ctx->aes_decrypt->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
+
+out:
+
+    free(aes_copy);
 
     return err;
 }
@@ -406,7 +432,8 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     struct crypto_skcipher * tfm = NULL;
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
-    int                      err = 0;
+    int                      err;
+    Aes                      *aes_copy;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -419,22 +446,30 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
+    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+
+    err = wc_AesSetIV(aes_copy, walk.iv);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesSetIV failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while (walk.nbytes != 0) {
-        err = wc_AesCfbEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
+        err = wc_AesCfbEncrypt(aes_copy, walk.dst.virt.addr,
                                walk.src.virt.addr, walk.nbytes);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbEncrypt failed %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -447,7 +482,11 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     }
 
     /* copy iv from wolfCrypt back to walk.iv */
-    XMEMCPY(walk.iv, ctx->aes_encrypt->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
+
+out:
+
+    free(aes_copy);
 
     return err;
 }
@@ -457,7 +496,8 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
     struct crypto_skcipher * tfm = NULL;
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
-    int                      err = 0;
+    int                      err;
+    Aes                      *aes_copy;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -470,23 +510,34 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    err = wc_AesSetIV(ctx->aes_encrypt, walk.iv);
+    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* CFB uses the same
+                                                       * schedule for encrypt
+                                                       * and decrypt.
+                                                       */
+
+    err = wc_AesSetIV(aes_copy, walk.iv);
 
     if (unlikely(err)) {
         if (! disable_setkey_warnings)
             pr_err("%s: wc_AesSetIV failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while (walk.nbytes != 0) {
-        err = wc_AesCfbDecrypt(ctx->aes_encrypt, walk.dst.virt.addr,
+        err = wc_AesCfbDecrypt(aes_copy, walk.dst.virt.addr,
                                walk.src.virt.addr, walk.nbytes);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesCfbDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -494,12 +545,16 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
     /* copy iv from wolfCrypt back to walk.iv */
-    XMEMCPY(walk.iv, ctx->aes_encrypt->reg, WC_AES_BLOCK_SIZE);
+    XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
+
+out:
+
+    free(aes_copy);
 
     return err;
 }
@@ -606,6 +661,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
     int                  err;
     u8 *                 assoc = NULL;
     u8 *                 assocmem = NULL;
+    Aes                  *aes_copy;
 
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
@@ -617,12 +673,24 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         return -EINVAL;
     }
 
-    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
+    /* Copy the cipher state to mitigate races on Aes.reg, Aes.tmp, and
+     * aes->streamData.
+     */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    aes_copy->streamData = NULL;
+#endif
+
+    err = wc_AesGcmInit(aes_copy, NULL /*key*/, 0 /*keylen*/, walk.iv,
                         GCM_NONCE_MID_SZ);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     if (req->src->length >= req->assoclen && req->src->length) {
@@ -632,7 +700,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
-            return err;
+            goto out;
         }
     }
     else {
@@ -640,29 +708,32 @@ static int km_AesGcmEncrypt(struct aead_request *req)
          * to a contiguous heap allocation.
          */
         assocmem = malloc(req->assoclen);
-        if (unlikely(assocmem == NULL))
-            return -ENOMEM;
+        if (unlikely(assocmem == NULL)) {
+            err = -ENOMEM;
+            goto out;
+        }
         assoc = assocmem;
         scatterwalk_map_and_copy(assoc, req->src, 0, req->assoclen, 0);
     }
 
-    err = wc_AesGcmEncryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
+    err = wc_AesGcmEncryptUpdate(aes_copy, NULL, NULL, 0,
                                  assoc, req->assoclen);
 
-    if (assocmem == NULL)
-        scatterwalk_unmap(assoc);
-    else
+    if (assocmem)
         free(assocmem);
+    else
+        scatterwalk_unmap(assoc);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while (walk.nbytes) {
         err = wc_AesGcmEncryptUpdate(
-            ctx->aes_encrypt,
+            aes_copy,
             walk.dst.virt.addr,
             walk.src.virt.addr,
             walk.nbytes,
@@ -671,7 +742,8 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmEncryptUpdate failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -679,21 +751,29 @@ static int km_AesGcmEncrypt(struct aead_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
-    err = wc_AesGcmEncryptFinal(ctx->aes_encrypt, authTag, tfm->authsize);
+    err = wc_AesGcmEncryptFinal(aes_copy, authTag, tfm->authsize);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmEncryptFinal failed with return code %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     /* Now copy the auth tag into request scatterlist. */
     scatterwalk_map_and_copy(authTag, req->dst,
                              req->assoclen + req->cryptlen,
                              tfm->authsize, 1);
+
+out:
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    free(aes_copy->streamData);
+#endif
+    free(aes_copy);
 
     return err;
 }
@@ -708,6 +788,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     int                  err;
     u8 *                 assoc = NULL;
     u8 *                 assocmem = NULL;
+    Aes                  *aes_copy;
 
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
@@ -724,12 +805,27 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         return err;
     }
 
-    err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
+    /* Copy the cipher state to mitigate races on Aes.reg, Aes.tmp, and
+     * aes->streamData.
+     */
+    aes_copy = (struct Aes *)malloc(sizeof(Aes));
+    if (aes_copy == NULL)
+        return -ENOMEM;
+    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* GCM uses the same
+                                                       * schedule for encrypt
+                                                       * and decrypt.
+                                                       */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    aes_copy->streamData = NULL;
+#endif
+
+    err = wc_AesGcmInit(aes_copy, NULL /*key*/, 0 /*keylen*/, walk.iv,
                         GCM_NONCE_MID_SZ);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     if (req->src->length >= req->assoclen && req->src->length) {
@@ -739,7 +835,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
-            return err;
+            goto out;
         }
     }
     else {
@@ -747,36 +843,32 @@ static int km_AesGcmDecrypt(struct aead_request *req)
          * to a contiguous heap allocation.
          */
         assocmem = malloc(req->assoclen);
-        if (unlikely(assocmem == NULL))
-            return -ENOMEM;
+        if (unlikely(assocmem == NULL)) {
+            err = -ENOMEM;
+            goto out;
+        }
         assoc = assocmem;
         scatterwalk_map_and_copy(assoc, req->src, 0, req->assoclen, 0);
     }
 
-    if (unlikely(IS_ERR(assoc))) {
-        pr_err("%s: scatterwalk_map failed: %ld\n",
-               crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
-               PTR_ERR(assoc));
-        return err;
-    }
-
-    err = wc_AesGcmDecryptUpdate(ctx->aes_encrypt, NULL, NULL, 0,
+    err = wc_AesGcmDecryptUpdate(aes_copy, NULL, NULL, 0,
                                  assoc, req->assoclen);
 
-    if (!assocmem)
-        scatterwalk_unmap(assoc);
-    else
+    if (assocmem)
         free(assocmem);
+    else
+        scatterwalk_unmap(assoc);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     while (walk.nbytes) {
         err = wc_AesGcmDecryptUpdate(
-            ctx->aes_encrypt,
+            aes_copy,
             walk.dst.virt.addr,
             walk.src.virt.addr,
             walk.nbytes,
@@ -785,7 +877,8 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         if (unlikely(err)) {
             pr_err("%s: wc_AesGcmDecryptUpdate failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
 
         err = skcipher_walk_done(&walk, 0);
@@ -793,23 +886,32 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
-    err = wc_AesGcmDecryptFinal(ctx->aes_encrypt, origAuthTag, tfm->authsize);
+    err = wc_AesGcmDecryptFinal(aes_copy, origAuthTag, tfm->authsize);
     if (unlikely(err)) {
 #ifdef WOLFSSL_LINUXKM_VERBOSE_LKCAPI_DEBUG
         pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
 #endif
         if (err == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
-            return -EBADMSG;
+            err = -EBADMSG;
+            goto out;
         }
         else {
-            return -EINVAL;
+            err = -EINVAL;
+            goto out;
         }
     }
+
+out:
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    free(aes_copy->streamData);
+#endif
+    free(aes_copy);
 
     return err;
 }
@@ -909,7 +1011,7 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 
 static int km_AesXtsEncrypt(struct skcipher_request *req)
 {
-    int                      err = 0;
+    int                      err;
     struct crypto_skcipher * tfm = NULL;
     struct km_AesXtsCtx *    ctx = NULL;
     struct skcipher_walk     walk;
@@ -1041,7 +1143,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
 
 static int km_AesXtsDecrypt(struct skcipher_request *req)
 {
-    int                      err = 0;
+    int                      err;
     struct crypto_skcipher * tfm = NULL;
     struct km_AesXtsCtx *    ctx = NULL;
     struct skcipher_walk     walk;
