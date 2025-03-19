@@ -61,7 +61,7 @@
 /*#define WOLFSSL_CMSIS_RTOS */
 
 /* #define NO_DH */
-#define NO_RC4
+
 #define HAVE_AESGCM
 #define WOLFSSL_SHA512
 #define WOLFSSL_SHA384

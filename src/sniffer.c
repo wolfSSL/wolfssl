@@ -4744,12 +4744,6 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     switch (ssl->specs.bulk_cipher_algorithm)
     {
-    #ifndef NO_RC4
-        case wolfssl_rc4:
-            wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
-            break;
-    #endif
-
     #ifndef NO_DES3
         case wolfssl_triple_des:
         #ifdef WOLFSSL_ASYNC_CRYPT

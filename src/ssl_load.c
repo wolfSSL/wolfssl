@@ -2318,7 +2318,7 @@ static int ProcessBufferResetSuites(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int type)
                     ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
                     ssl->options.haveStaticECC,
                     ssl->options.useAnon, TRUE,
-                    TRUE, TRUE, TRUE, ssl->options.side);
+                    TRUE, TRUE, ssl->options.side);
             }
         }
     }
@@ -2334,7 +2334,7 @@ static int ProcessBufferResetSuites(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int type)
                 WOLFSSL_HAVE_RSA, CTX_HAVE_PSK(ctx), ctx->haveDH,
                 ctx->haveECDSAsig, ctx->haveECC, TRUE, ctx->haveStaticECC,
                 CTX_USE_ANON(ctx),
-                TRUE, TRUE, TRUE, TRUE, ctx->method->side);
+                TRUE, TRUE, TRUE, ctx->method->side);
         }
     }
 
@@ -5427,7 +5427,7 @@ static int wolfssl_set_tmp_dh(WOLFSSL* ssl, unsigned char* p, int pSz,
             ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
             ssl->options.haveStaticECC,
             ssl->options.useAnon, TRUE,
-            TRUE, TRUE, TRUE, ssl->options.side);
+            TRUE, TRUE, ssl->options.side);
     }
 
     return ret;

@@ -204,10 +204,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\arc4.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\asn.c"
 				>
 			</File>

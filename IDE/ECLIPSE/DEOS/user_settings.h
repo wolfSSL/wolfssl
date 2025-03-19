@@ -191,7 +191,7 @@ You can get the current time from https://www.unixtimestamp.com/ */
 #define NO_OLD_TLS
 #define NO_PSK
 #define NO_DSA
-#define NO_RC4
+
 #define NO_MD4
 
 #define NO_PWDBASED

@@ -89,7 +89,7 @@ extern "C" {
 #define NO_DSA
 #define NO_RSA
 #define NO_DH
-#define NO_RC4
+
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA

@@ -1,7 +1,6 @@
 /*!
     \defgroup 3DES Algorithms - 3DES
     \defgroup AES Algorithms - AES
-    \defgroup ARC4 Algorithms - ARC4
     \defgroup BLAKE2 Algorithms - BLAKE2
     \defgroup Camellia Algorithms - Camellia
     \defgroup ChaCha Algorithms - ChaCha

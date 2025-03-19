@@ -1354,14 +1354,6 @@ if(NOT WOLFSSL_DES3_TLS_SUITES)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_DES3_TLS_SUITES")
 endif()
 
-# ARC4
-set(WOLFSSL_ARC4_HELP_STRING "Enable ARC4 (default: disabled)")
-add_option("WOLFSSL_ARC4" ${WOLFSSL_ARC4_HELP_STRING} "no" "yes;no")
-
-if(WOLFSSL_OPENSSH OR WOLFSSL_WPAS)
-    override_cache(WOLFSSL_ARC4 "yes")
-endif()
-
 # MD5
 set(WOLFSSL_MD5_HELP_STRING "Enable MD5 (default: enabled)")
 add_option("WOLFSSL_MD5" ${WOLFSSL_MD5_HELP_STRING} "yes" "yes;no")
@@ -1662,16 +1654,6 @@ if(WOLFSSL_EXTENDED_MASTER)
     list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_EXTENDED_MASTER")
 endif()
 
-
-if(NOT WOLFSSL_ARC4)
-    list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
-else()
-    # turn off ARC4 if leanpsk or leantls on
-    if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
-        list(APPEND WOLFSSL_DEFINITIONS "-DNO_RC4")
-        override_cache(WOLFSSL_ARC4 "no")
-    endif()
-endif()
 
 # TODO: - TLS extensions
 #       - Early data handshake
@@ -2553,7 +2535,6 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_poly1305.c
         tests/api/test_chacha20_poly1305.c
         tests/api/test_camellia.c
-        tests/api/test_arc4.c
         tests/api/test_rc2.c
         tests/api/test_aes.c
         tests/api/test_ascon.c

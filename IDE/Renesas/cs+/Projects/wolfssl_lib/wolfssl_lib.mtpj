@@ -105,13 +105,6 @@
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
     </Instance>
-    <Instance Guid="5e231ff0-c118-4dc7-a48b-4a49019341fd">
-      <Name>arc4.c</Name>
-      <Type>File</Type>
-      <RelativePath>..\..\..\..\..\wolfcrypt\src\arc4.c</RelativePath>
-      <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
-      <ParentItem>2170607d-803e-45b0-80af-6507d495a8de</ParentItem>
-    </Instance>
     <Instance Guid="833048b3-3a29-4897-9e42-6442e3651b16">
       <Name>asm.c</Name>
       <Type>File</Type>

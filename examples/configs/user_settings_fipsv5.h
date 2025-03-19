@@ -158,7 +158,6 @@ extern "C" {
 #define NO_PSK
 
 /* Disabled Algorithms */
-#define NO_RC4
 #define NO_MD4
 #define NO_MD5
 #define NO_DES3

@@ -206,8 +206,6 @@ extern "C" {
 #cmakedefine NO_PSK
 #undef NO_PWDBASED
 #cmakedefine NO_PWDBASED
-#undef NO_RC4
-#cmakedefine NO_RC4
 #undef NO_RSA
 #cmakedefine NO_RSA
 #undef NO_SESSION_CACHE_REF

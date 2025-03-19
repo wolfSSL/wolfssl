@@ -2241,10 +2241,6 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     heap = wc_PKCS12_GetHeap(pkcs12);
     *keyCiSz = 0;
     switch (nidKey) {
-        case PBE_SHA1_RC4_128:
-            algo = 1;
-            break;
-
         case PBE_SHA1_DES:
             algo = 2;
             break;
@@ -2361,11 +2357,6 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
 
     heap = wc_PKCS12_GetHeap(pkcs12);
     switch (nidCert) {
-        case PBE_SHA1_RC4_128:
-            type = WC_PKCS12_ENCRYPTED_DATA;
-            algo = 1;
-            break;
-
         case PBE_SHA1_DES:
             type = WC_PKCS12_ENCRYPTED_DATA;
             algo = 2;

@@ -85,7 +85,6 @@
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/port\renesas_tsip_sha.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/port\renesas_tsip_util.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\aes.obj&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\arc4.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\asm.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\asn.obj&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;.\wolfcrypt/src\blake2b.obj&quot;"/>

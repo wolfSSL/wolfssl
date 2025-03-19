@@ -77,7 +77,6 @@
 /* Disables */
 #define NO_CMAC
 #define NO_HMAC
-#define NO_RC4
 #define NO_SHA
 #define NO_DH
 #define NO_DSA

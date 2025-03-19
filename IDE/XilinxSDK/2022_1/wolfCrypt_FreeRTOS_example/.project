@@ -381,11 +381,6 @@
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/openssl/rand.h</locationURI>
 		</link>
 		<link>
-			<name>inc/wolfssl/openssl/rc4.h</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/openssl/rc4.h</locationURI>
-		</link>
-		<link>
 			<name>inc/wolfssl/openssl/ripemd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/openssl/ripemd.h</locationURI>
@@ -459,11 +454,6 @@
 			<name>inc/wolfssl/wolfcrypt/aes.h</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/aes.h</locationURI>
-		</link>
-		<link>
-			<name>inc/wolfssl/wolfcrypt/arc4.h</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/arc4.h</locationURI>
 		</link>
 		<link>
 			<name>inc/wolfssl/wolfcrypt/asn.h</name>
@@ -869,11 +859,6 @@
 			<name>src/wolfcrypt/src/aes.c</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/aes.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/arc4.c</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/arc4.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/asm.c</name>

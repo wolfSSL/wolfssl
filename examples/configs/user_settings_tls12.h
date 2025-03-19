@@ -129,7 +129,6 @@ extern "C" {
 #define NO_DH
 #define NO_SHA
 #define NO_DSA
-#define NO_RC4
 #define NO_MD4
 #define NO_MD5
 #define NO_DES3

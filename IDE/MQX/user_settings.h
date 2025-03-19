@@ -33,7 +33,7 @@
 #define ECC_SHAMIR
 #define WC_RSA_PSS
 #define WOLFSSL_BASE64_ENCODE
-#define NO_RC4
+
 #define WOLFSSL_SHA224
 #define WOLFSSL_SHA3
 #define WOLFSSL_SHAKE256
@@ -44,7 +44,7 @@
 #define HAVE_TLS_EXTENSIONS
 #define HAVE_SUPPORTED_CURVES
 #define HAVE_EXTENDED_MASTER
-#define NO_RC4
+
 #define HAVE_ENCRYPT_THEN_MAC
 #define NO_PSK
 #define NO_MD4

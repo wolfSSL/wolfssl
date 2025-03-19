@@ -403,23 +403,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-    case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = rsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
-
-        break;
-#endif
-
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
         specs->bulk_cipher_algorithm = wolfssl_aes;
@@ -569,23 +552,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 #else
         specs->iv_size               = DES_IV_SIZE;
 #endif
-
-        break;
-#endif
-
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = ecc_dsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
 
         break;
 #endif
@@ -841,23 +807,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
-#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-    case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = rsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 1;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
-
-        break;
-#endif
-
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
     case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
         specs->bulk_cipher_algorithm = wolfssl_triple_des;
@@ -875,23 +824,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 #else
         specs->iv_size               = DES_IV_SIZE;
 #endif
-
-        break;
-#endif
-
-#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
-    case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = ecc_dsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 1;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
 
         break;
 #endif
@@ -1494,40 +1426,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         specs->block_size            = SM4_BLOCK_SIZE;
         specs->iv_size               = SM4_CCM_NONCE_SZ;
         specs->aead_mac_size         = SM4_CCM_AUTH_SZ;
-
-        break;
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
-    case SSL_RSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = rsa_kea;
-        specs->sig_algo              = rsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
-
-        break;
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
-    case SSL_RSA_WITH_RC4_128_MD5 :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = md5_mac;
-        specs->kea                   = rsa_kea;
-        specs->sig_algo              = rsa_sa_algo;
-        specs->hash_size             = WC_MD5_DIGEST_SIZE;
-        specs->pad_size              = PAD_MD5;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
 
         break;
 #endif
@@ -2376,53 +2274,6 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 {
     (void)rng;
     (void)tls13;
-
-#ifdef BUILD_ARC4
-    if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
-        word32 sz = specs->key_size;
-        if (enc && enc->arc4 == NULL) {
-            enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->arc4 == NULL)
-                 return MEMORY_E;
-        }
-        if (dec && dec->arc4 == NULL) {
-            dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->arc4 == NULL)
-                return MEMORY_E;
-        }
-
-        if (enc) {
-            if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Arc4Init(dec->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->server_write_key, sz);
-        }
-        else {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->server_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->client_write_key, sz);
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
-#endif /* BUILD_ARC4 */
-
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD)
     /* Check that the max implicit iv size is sufficient */

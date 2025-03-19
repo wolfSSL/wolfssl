@@ -3051,10 +3051,6 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 /* Set cipher pointers to null */
 void InitCiphers(WOLFSSL* ssl)
 {
-#ifdef BUILD_ARC4
-    ssl->encrypt.arc4 = NULL;
-    ssl->decrypt.arc4 = NULL;
-#endif
 #ifdef BUILD_DES3
     ssl->encrypt.des3 = NULL;
     ssl->decrypt.des3 = NULL;
@@ -3095,11 +3091,6 @@ void InitCiphers(WOLFSSL* ssl)
 
 static void FreeCiphersSide(Ciphers *cipher, void* heap)
 {
-#ifdef BUILD_ARC4
-    wc_Arc4Free(cipher->arc4);
-    XFREE(cipher->arc4, heap, DYNAMIC_TYPE_CIPHER);
-    cipher->arc4 = NULL;
-#endif
 #ifdef BUILD_DES3
     wc_Des3Free(cipher->des3);
     XFREE(cipher->des3, heap, DYNAMIC_TYPE_CIPHER);
@@ -3458,7 +3449,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
                 word16 havePSK, word16 haveDH, word16 haveECDSAsig,
                 word16 haveECC, word16 haveStaticRSA, word16 haveStaticECC,
                 word16 haveAnon, word16 haveNull, word16 haveAES128,
-                word16 haveSHA1, word16 haveRC4, int side)
+                word16 haveSHA1, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
@@ -3496,7 +3487,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)haveNull;
     (void)haveAES128;
     (void)haveSHA1;
-    (void)haveRC4;
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -3873,20 +3863,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    if (!dtls && tls && haveECC && haveSHA1 && haveRC4) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_ECDSA_WITH_RC4_128_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
-    if (!dtls && tls && haveECC && haveStaticECC && haveSHA1 && haveRC4) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_ECDSA_WITH_RC4_128_SHA;
-    }
-#endif
-
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
     if (tls && haveECC && haveSHA1) {
         suites->suites[idx++] = ECC_BYTE;
@@ -3935,20 +3911,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (tls && haveRSAsig && haveStaticECC && haveAES128 && haveSHA1) {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDH_RSA_WITH_AES_128_CBC_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-    if (!dtls && tls && haveRSA && haveSHA1 && haveRC4) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDHE_RSA_WITH_RC4_128_SHA;
-    }
-#endif
-
-#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-    if (!dtls && tls && haveRSAsig && haveStaticECC && haveSHA1 && haveRC4) {
-        suites->suites[idx++] = ECC_BYTE;
-        suites->suites[idx++] = TLS_ECDH_RSA_WITH_RC4_128_SHA;
     }
 #endif
 
@@ -4382,20 +4344,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (tls && havePSK && haveNull) {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA;
-    }
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
-    if (!dtls && haveRSA && haveStaticRSA && haveSHA1 && haveRC4) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = SSL_RSA_WITH_RC4_128_SHA;
-    }
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
-    if (!dtls && haveRSA && haveStaticRSA && haveRC4) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = SSL_RSA_WITH_RC4_128_MD5;
     }
 #endif
 
@@ -6643,12 +6591,12 @@ static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
     if (side == WOLFSSL_SERVER_END) {
         InitSuites(suites, pv, keySz, haveRSA, havePSK, haveDH, haveECDSAsig,
                    haveECC, TRUE, haveStaticECC,
-                   haveAnon, TRUE, TRUE, TRUE, TRUE, side);
+                   haveAnon, TRUE, TRUE, TRUE, side);
     }
     else {
         InitSuites(suites, pv, keySz, haveRSA, havePSK, TRUE, haveECDSAsig,
                    haveECC, TRUE, haveStaticECC,
-                   haveAnon, TRUE, TRUE, TRUE, TRUE, side);
+                   haveAnon, TRUE, TRUE, TRUE, side);
     }
 }
 
@@ -12331,19 +12279,6 @@ int CipherRequires(byte first, byte second, int requirement)
                 break;
         #endif /* !NO_DES3 */
 
-        #ifndef NO_RC4
-            case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-                if (requirement == REQUIRES_RSA)
-                    return 1;
-                break;
-
-            case TLS_ECDH_RSA_WITH_RC4_128_SHA :
-                if (requirement == REQUIRES_ECC_STATIC)
-                    return 1;
-                if (requirement == REQUIRES_RSA_SIG)
-                    return 1;
-                break;
-        #endif /* !NO_RC4 */
     #endif /* NO_RSA */
 
         #ifndef NO_DES3
@@ -12357,17 +12292,6 @@ int CipherRequires(byte first, byte second, int requirement)
                     return 1;
                 break;
         #endif /* !NO_DES3  */
-        #ifndef NO_RC4
-            case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-                if (requirement == REQUIRES_ECC)
-                    return 1;
-                break;
-
-            case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
-                if (requirement == REQUIRES_ECC_STATIC)
-                    return 1;
-                break;
-        #endif /* !NO_RC4 */
         #ifndef NO_RSA
             case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
                 if (requirement == REQUIRES_RSA)
@@ -12671,18 +12595,6 @@ int CipherRequires(byte first, byte second, int requirement)
         switch (second) {
 
     #ifndef NO_RSA
-        #ifndef NO_RC4
-            case SSL_RSA_WITH_RC4_128_SHA :
-                if (requirement == REQUIRES_RSA)
-                    return 1;
-                break;
-
-            case SSL_RSA_WITH_RC4_128_MD5 :
-                if (requirement == REQUIRES_RSA)
-                    return 1;
-                break;
-        #endif /* NO_RC4 */
-
             case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
                 if (requirement == REQUIRES_RSA)
                     return 1;
@@ -19585,12 +19497,6 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     }
 
     switch (ssl->specs.bulk_cipher_algorithm) {
-    #ifdef BUILD_ARC4
-        case wolfssl_rc4:
-            wc_Arc4Process(ssl->encrypt.arc4, out, input, sz);
-            break;
-    #endif
-
     #ifdef BUILD_DES3
         case wolfssl_triple_des:
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -20055,12 +19961,6 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     switch (ssl->specs.bulk_cipher_algorithm)
     {
-    #ifdef BUILD_ARC4
-        case wolfssl_rc4:
-            wc_Arc4Process(ssl->decrypt.arc4, plain, input, sz);
-            break;
-    #endif
-
     #ifdef BUILD_DES3
         case wolfssl_triple_des:
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -27021,14 +26921,6 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifndef WOLFSSL_NO_TLS12
 
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
-    SUITE_INFO("RC4-SHA","SSL_RSA_WITH_RC4_128_SHA",CIPHER_BYTE,SSL_RSA_WITH_RC4_128_SHA,SSLv3_MINOR,SSLv3_MAJOR),
-#endif
-
-#ifdef BUILD_SSL_RSA_WITH_RC4_128_MD5
-    SUITE_INFO("RC4-MD5","SSL_RSA_WITH_RC4_128_MD5",CIPHER_BYTE,SSL_RSA_WITH_RC4_128_MD5,SSLv3_MINOR,SSLv3_MAJOR),
-#endif
-
 #ifdef BUILD_SSL_RSA_WITH_3DES_EDE_CBC_SHA
     SUITE_INFO("DES-CBC3-SHA","SSL_RSA_WITH_3DES_EDE_CBC_SHA",CIPHER_BYTE,SSL_RSA_WITH_3DES_EDE_CBC_SHA,SSLv3_MINOR,SSLv3_MAJOR),
 #endif
@@ -27187,16 +27079,8 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("ECDHE-ECDSA-AES256-SHA","TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-    SUITE_INFO("ECDHE-RSA-RC4-SHA","TLS_ECDHE_RSA_WITH_RC4_128_SHA",ECC_BYTE,TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLSv1_MINOR, SSLv3_MAJOR),
-#endif
-
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
     SUITE_INFO("ECDHE-RSA-DES-CBC3-SHA","TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",ECC_BYTE,TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, TLSv1_MINOR, SSLv3_MAJOR),
-#endif
-
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    SUITE_INFO("ECDHE-ECDSA-RC4-SHA","TLS_ECDHE_ECDSA_WITH_RC4_128_SHA",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
@@ -27235,16 +27119,8 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("ECDH-ECDSA-AES256-SHA","TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA",ECC_BYTE,TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
 
-#ifdef BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
-    SUITE_INFO("ECDH-RSA-RC4-SHA","TLS_ECDH_RSA_WITH_RC4_128_SHA",ECC_BYTE,TLS_ECDH_RSA_WITH_RC4_128_SHA, TLSv1_MINOR, SSLv3_MAJOR),
-#endif
-
 #ifdef BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
     SUITE_INFO("ECDH-RSA-DES-CBC3-SHA","TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA",ECC_BYTE,TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA, TLSv1_MINOR, SSLv3_MAJOR),
-#endif
-
-#ifdef BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
-    SUITE_INFO("ECDH-ECDSA-RC4-SHA","TLS_ECDH_ECDSA_WITH_RC4_128_SHA",ECC_BYTE,TLS_ECDH_ECDSA_WITH_RC4_128_SHA, TLSv1_MINOR, SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
@@ -27681,9 +27557,6 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRCMP(n[2],"SM4") == 0))
         encStr = "SM4";
 #endif
-    else if ((XSTRCMP(n[0],"RC4") == 0) || (XSTRCMP(n[1],"RC4") == 0) ||
-            (XSTRCMP(n[2],"RC4") == 0))
-        encStr = "RC4";
     else if (((XSTRCMP(n[0],"DES") == 0)  || (XSTRCMP(n[1],"DES") == 0) ||
               (XSTRCMP(n[2],"DES") == 0)) &&
              ((XSTRCMP(n[1],"CBC3") == 0) || (XSTRCMP(n[2],"CBC3") == 0) ||
@@ -27775,8 +27648,7 @@ int SetCipherBits(const char* enc) {
     else if
         ((XSTRCMP(enc,"AESGCM(128)") == 0) ||
          (XSTRCMP(enc,"AES(128)") == 0) ||
-         (XSTRCMP(enc,"CAMELLIA(128)") == 0) ||
-         (XSTRCMP(enc,"RC4") == 0))
+         (XSTRCMP(enc,"CAMELLIA(128)") == 0))
             ret = 128;
    else if
         ((XSTRCMP(enc,"DES") == 0))
@@ -27909,7 +27781,6 @@ static int ParseCipherList(Suites* suites,
     word16    havePSK          = 0;
     word16    haveAES128       = 1; /* allowed by default if compiled in */
     word16    haveSHA1         = 1; /* allowed by default if compiled in */
-    word16    haveRC4          = 1; /* allowed by default if compiled in */
 #endif
     const int suiteSz       = GetCipherNamesSize();
     const char* next        = list;
@@ -27935,7 +27806,7 @@ static int ParseCipherList(Suites* suites,
                 0,
 #endif
                 haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 0, 0, 1,
-                1, 1, side
+                1, side
         );
         return 1; /* wolfSSL default */
     }
@@ -28152,12 +28023,6 @@ static int ParseCipherList(Suites* suites,
             continue;
         }
 
-        if (XSTRCMP(name, "RC4") == 0) {
-            haveRC4 = allowing;
-            callInitSuites = 1;
-            ret = 1;
-            continue;
-        }
         #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
         if (XSTRCMP(name, "LOW") == 0 || XSTRCMP(name, "MEDIUM") == 0) {
@@ -28198,18 +28063,6 @@ static int ParseCipherList(Suites* suites,
             #endif
              ) {
                 int j;
-
-            #ifdef WOLFSSL_DTLS
-                /* don't allow stream ciphers with DTLS */
-                if (version.major == DTLS_MAJOR) {
-                    if (XSTRSTR(name, "RC4"))
-                    {
-                        WOLFSSL_MSG("Stream ciphers not supported with DTLS");
-                        continue;
-                    }
-
-                }
-            #endif /* WOLFSSL_DTLS */
 
                 for (j = 0; j < idx; j += 2) {
                     if ((suites->suites[j+0] == cipher_names[i].cipherSuite0) &&
@@ -28329,7 +28182,7 @@ static int ParseCipherList(Suites* suites,
                        (word16)haveStaticECC,
                        (word16)((haveSig & SIG_ANON) != 0),
                        (word16)haveNull, (word16)haveAES128,
-                       (word16)haveSHA1, (word16)haveRC4, side);
+                       (word16)haveSHA1, side);
             /* Restore user ciphers ahead of defaults */
             XMEMMOVE(suites->suites + idx, suites->suites,
                     min(suites->suiteSz, WOLFSSL_MAX_SUITE_SZ-idx));
@@ -28434,16 +28287,6 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
             /* bytes don't match any known cipher */
             continue;
         }
-
-    #ifdef WOLFSSL_DTLS
-        /* don't allow stream ciphers with DTLS */
-        if (ctx->method->version.major == DTLS_MAJOR) {
-            if (XSTRSTR(name, "RC4")) {
-                WOLFSSL_MSG("Stream ciphers not supported with DTLS");
-                continue;
-            }
-        }
-    #endif /* WOLFSSL_DTLS */
 
         for (j = 0; j < idx; j += 2) {
             if ((suites->suites[j+0] == firstByte) &&
@@ -38024,7 +37867,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveDH, ssl->options.haveECDSAsig,
                        ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                        ssl->options.useAnon,
-                       TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+                       TRUE, TRUE, TRUE, ssl->options.side);
         }
 
         /* check if option is set to not allow the current version
@@ -38101,7 +37944,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            ssl->options.haveDH, ssl->options.haveECDSAsig,
                            ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
                            ssl->options.useAnon,
-                           TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+                           TRUE, TRUE, TRUE, ssl->options.side);
             }
         }
 

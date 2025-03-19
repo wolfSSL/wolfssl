@@ -7050,9 +7050,9 @@ WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
     \ingroup openSSL
 
     \brief PKCS12 can be enabled with adding –enable-opensslextra to the
-    configure command. It can use triple DES and RC4 for decryption so would
-    recommend also enabling these features when enabling opensslextra
-    (--enable-des3 –enable-arc4). wolfSSL does not currently support RC2 so
+    configure command. It can use triple DES for decryption so would
+    recommend also enabling this features when enabling opensslextra
+    (--enable-des3). wolfSSL does not currently support RC2 so
     decryption with RC2 is currently not available. This may be noticeable
     with default encryption schemes used by OpenSSL command line to create
     .p12 files. wolfSSL_PKCS12_parse (PKCS12_parse). The first thing this

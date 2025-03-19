@@ -29,7 +29,6 @@
     <ul>
         <li>\ref DES</li>
         <li>\ref AES</li>
-        <li>\ref ARC4</li>
         <li>\ref BLAKE2</li>
         <li>\ref Camellia</li>
         <li>\ref ChaCha</li>

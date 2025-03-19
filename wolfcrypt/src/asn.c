@@ -139,10 +139,6 @@ ASN Options:
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
-#endif
-
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
@@ -4575,9 +4571,6 @@ static const byte pbeSha1Des[] = {42, 134, 72, 134, 247, 13, 1, 5, 10};
 static const byte pbes2[] = {42, 134, 72, 134, 247, 13, 1, 5, 13};
 
 /* PKCS12 */
-#if !defined(NO_RC4) && !defined(NO_SHA)
-static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
-#endif
 #if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
 #endif
@@ -5392,13 +5385,6 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidPBEType:
             switch (id) {
-        #if !defined(NO_SHA) && !defined(NO_RC4)
-                case PBE_SHA1_RC4_128_SUM:
-                case PBE_SHA1_RC4_128:
-                    oid = pbeSha1RC4128;
-                    *oidSz = sizeof(pbeSha1RC4128);
-                    break;
-        #endif
         #if !defined(NO_MD5) && !defined(NO_DES3)
                 case PBE_MD5_DES_SUM:
                 case PBE_MD5_DES:
@@ -8035,15 +8021,6 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
         /* PKCS #12: Appendix C */
         switch (second) {
 #if !defined(NO_SHA)
-    #ifndef NO_RC4
-        case PBE_SHA1_RC4_128:
-            *id = PBE_SHA1_RC4_128;
-            *version = PKCS12v1;
-            if (blockSz != NULL) {
-                *blockSz = 1;
-            }
-            break;
-    #endif
     #ifndef NO_DES3
         case PBE_SHA1_DES3:
             *id = PBE_SHA1_DES3;

@@ -136,9 +136,6 @@
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
-#ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
-#endif
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
@@ -639,7 +636,6 @@
 #define BENCH_AES_CTR            0x00000010
 #define BENCH_AES_CCM            0x00000020
 #define BENCH_CAMELLIA           0x00000100
-#define BENCH_ARC4               0x00000200
 #define BENCH_CHACHA20           0x00001000
 #define BENCH_CHACHA20_POLY1305  0x00002000
 #define BENCH_DES                0x00004000
@@ -864,9 +860,6 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifdef HAVE_CAMELLIA
     { "-camellia",           BENCH_CAMELLIA          },
-#endif
-#ifndef NO_RC4
-    { "-arc4",               BENCH_ARC4              },
 #endif
 #ifdef HAVE_CHACHA
     { "-chacha20",           BENCH_CHACHA20          },
@@ -3331,16 +3324,6 @@ static void* benchmarks_do(void* args)
 #ifdef WOLFSSL_SM4_CCM
     if (bench_all || (bench_cipher_algs & BENCH_SM4_CCM))
         bench_sm4_ccm();
-#endif
-#ifndef NO_RC4
-    if (bench_all || (bench_cipher_algs & BENCH_ARC4)) {
-    #ifndef NO_SW_BENCH
-        bench_arc4(0);
-    #endif
-    #ifdef BENCH_DEVID
-        bench_arc4(1);
-    #endif
-    }
 #endif
 #ifdef HAVE_CHACHA
     if (bench_all || (bench_cipher_algs & BENCH_CHACHA20))
@@ -5959,78 +5942,6 @@ exit:
     }
 }
 #endif /* !NO_DES3 */
-
-
-#ifndef NO_RC4
-void bench_arc4(int useDeviceID)
-{
-    int    ret = 0, i, count = 0, times, pending = 0;
-    WC_DECLARE_ARRAY(enc, Arc4, BENCH_MAX_PENDING,
-                     sizeof(Arc4), HEAP_HINT);
-    double start;
-    DECLARE_MULTI_VALUE_STATS_VARS()
-
-    WC_CALLOC_ARRAY(enc, Arc4, BENCH_MAX_PENDING,
-                     sizeof(Arc4), HEAP_HINT);
-
-    /* init keys */
-    for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        if ((ret = wc_Arc4Init(enc[i], HEAP_HINT,
-                            useDeviceID ? devId : INVALID_DEVID)) != 0) {
-            printf("Arc4Init failed, ret = %d\n", ret);
-            goto exit;
-        }
-
-        ret = wc_Arc4SetKey(enc[i], bench_key, 16);
-        if (ret != 0) {
-            printf("Arc4SetKey failed, ret = %d\n", ret);
-            goto exit;
-        }
-    }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (times = 0; times < numBlocks || pending > 0; ) {
-            bench_async_poll(&pending);
-
-            /* while free pending slots in queue, submit ops */
-            for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
-                                      &times, numBlocks, &pending)) {
-                    ret = wc_Arc4Process(enc[i], bench_cipher, bench_plain,
-                                         bench_size);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
-                                            0, &times, &pending)) {
-                        goto exit_arc4;
-                    }
-                }
-            } /* for i */
-            RECORD_MULTI_VALUE_STATS();
-        } /* for times */
-        count += times;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
-
-exit_arc4:
-    bench_stats_sym_finish("ARC4", useDeviceID, count, bench_size, start, ret);
-#ifdef MULTI_VALUE_STATISTICS
-    bench_multi_value_stats(max, min, sum, squareSum, runs);
-#endif
-
-exit:
-
-    if (WC_ARRAY_OK(enc)) {
-        for (i = 0; i < BENCH_MAX_PENDING; i++) {
-            wc_Arc4Free(enc[i]);
-        }
-        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
-    }
-}
-#endif /* !NO_RC4 */
-
 
 #ifdef HAVE_CHACHA
 void bench_chacha(void)

@@ -55,7 +55,6 @@ All options may be enabled with the following configure command line:
 To add some other cipher support to the sniffer, you can add options like:
 
 ```sh
---enable-arc4
 --enable-nullcipher
 --enable-des3
 ```

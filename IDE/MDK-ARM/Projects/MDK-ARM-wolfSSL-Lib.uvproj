@@ -417,11 +417,6 @@
               <FilePath>..\..\..\wolfcrypt\src\aes.c</FilePath>
             </File>
             <File>
-              <FileName>arc4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\arc4.c</FilePath>
-            </File>
-            <File>
               <FileName>asm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\asm.c</FilePath>
@@ -1121,11 +1116,6 @@
               <FilePath>..\..\..\wolfcrypt\src\aes.c</FilePath>
             </File>
             <File>
-              <FileName>arc4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\arc4.c</FilePath>
-            </File>
-            <File>
               <FileName>asm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\asm.c</FilePath>
@@ -1823,11 +1813,6 @@
               <FileName>aes.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\wolfcrypt\src\aes.c</FilePath>
-            </File>
-            <File>
-              <FileName>arc4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\wolfcrypt\src\arc4.c</FilePath>
             </File>
             <File>
               <FileName>asm.c</FileName>

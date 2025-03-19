@@ -65,7 +65,6 @@ libwolfssl_LD_FLAGS += -ldl
 libwolfssl_C_SRCS += \
 	../../wolfcrypt/src/aes \
 	../../wolfcrypt/src/md2 \
-	../../wolfcrypt/src/arc4 \
 	../../wolfcrypt/src/md4 \
 	../../wolfcrypt/src/asm \
 	../../wolfcrypt/src/md5 \

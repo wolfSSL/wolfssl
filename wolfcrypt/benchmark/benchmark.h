@@ -46,7 +46,6 @@ int  benchmark_free(void);
 void benchmark_configure(word32 block_size);
 
 void bench_des(int useDeviceID);
-void bench_arc4(int useDeviceID);
 void bench_chacha(void);
 void bench_chacha20_poly1305_aead(void);
 void bench_aescbc(int useDeviceID);

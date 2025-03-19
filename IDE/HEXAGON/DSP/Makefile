@@ -80,7 +80,6 @@ libwolfssl_dsp_skel.C_SRCS += ../../../wolfcrypt/src/wolfmath.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/wc_encrypt.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/pwdbased.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/hash.c
-#eccverify_q.C_SRCS += ../../../wolfcrypt/src/arc4.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/hmac.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/md5.c
 #eccverify_q.C_SRCS += ../../../wolfcrypt/src/coding.c

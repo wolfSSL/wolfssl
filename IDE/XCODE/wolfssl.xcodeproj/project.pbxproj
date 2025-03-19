@@ -31,7 +31,6 @@
 		30B0605A1C6DDB2B00D46008 /* ssl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646071A89928E0062516A /* ssl.c */; };
 		30B0605B1C6DDB2B00D46008 /* tls.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646081A89928E0062516A /* tls.c */; };
 		30B0605C1C6DDB2B00D46008 /* aes.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646111A8992CC0062516A /* aes.c */; };
-		30B0605D1C6DDB2B00D46008 /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646121A8992CC0062516A /* arc4.c */; };
 		30B0605E1C6DDB2B00D46008 /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646131A8992CC0062516A /* asn.c */; };
 		30B0605F1C6DDB2B00D46008 /* blake2b.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646141A8992CC0062516A /* blake2b.c */; };
 		30B060601C6DDB2B00D46008 /* camellia.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646151A8992CC0062516A /* camellia.c */; };
@@ -72,7 +71,6 @@
 		30B060861C6DDB4600D46008 /* test.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465C1A8993290062516A /* test.h */; };
 		30B060871C6DDB4600D46008 /* version.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465D1A8993290062516A /* version.h */; };
 		30B0608B1C6DDB6200D46008 /* aes.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465E1A8993770062516A /* aes.h */; };
-		30B0608C1C6DDB6200D46008 /* arc4.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465F1A8993770062516A /* arc4.h */; };
 		30B0608D1C6DDB6200D46008 /* asn_public.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646601A8993770062516A /* asn_public.h */; };
 		30B0608E1C6DDB6200D46008 /* asn.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646611A8993770062516A /* asn.h */; };
 		30B0608F1C6DDB6200D46008 /* blake2-impl.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646621A8993770062516A /* blake2-impl.h */; };
@@ -159,7 +157,6 @@
 		5216460F1A89928E0062516A /* ssl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646071A89928E0062516A /* ssl.c */; };
 		521646101A89928E0062516A /* tls.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646081A89928E0062516A /* tls.c */; };
 		521646321A8992CC0062516A /* aes.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646111A8992CC0062516A /* aes.c */; };
-		521646331A8992CC0062516A /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646121A8992CC0062516A /* arc4.c */; };
 		521646341A8992CC0062516A /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646131A8992CC0062516A /* asn.c */; };
 		521646351A8992CC0062516A /* blake2b.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646141A8992CC0062516A /* blake2b.c */; };
 		521646361A8992CC0062516A /* camellia.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646151A8992CC0062516A /* camellia.c */; };
@@ -198,7 +195,6 @@
 		521646CB1A8A7FE10062516A /* test.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465C1A8993290062516A /* test.h */; };
 		521646CC1A8A7FE10062516A /* version.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465D1A8993290062516A /* version.h */; };
 		521646CD1A8A7FF30062516A /* aes.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465E1A8993770062516A /* aes.h */; };
-		521646CE1A8A7FF30062516A /* arc4.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465F1A8993770062516A /* arc4.h */; };
 		521646CF1A8A7FF30062516A /* asn_public.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646601A8993770062516A /* asn_public.h */; };
 		521646D01A8A7FF30062516A /* asn.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646611A8993770062516A /* asn.h */; };
 		521646D11A8A7FF30062516A /* blake2-impl.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646621A8993770062516A /* blake2-impl.h */; };
@@ -326,7 +322,6 @@
 		700F0CB42A2FBEF100755BA7 /* pkcs7.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C742A2FBE8100755BA7 /* pkcs7.h */; };
 		700F0CB52A2FBEF100755BA7 /* pkcs12.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C782A2FBE8200755BA7 /* pkcs12.h */; };
 		700F0CB62A2FBEF100755BA7 /* rand.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C7B2A2FBE8200755BA7 /* rand.h */; };
-		700F0CB72A2FBEF100755BA7 /* rc4.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C562A2FBE8100755BA7 /* rc4.h */; };
 		700F0CB82A2FBEF100755BA7 /* ripemd.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C6B2A2FBE8100755BA7 /* ripemd.h */; };
 		700F0CB92A2FBEF100755BA7 /* rsa.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C8A2A2FBE8200755BA7 /* rsa.h */; };
 		700F0CBA2A2FBEF100755BA7 /* sha.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 700F0C5C2A2FBE8100755BA7 /* sha.h */; };
@@ -473,7 +468,6 @@
 		A4F318711BC58B1700FDF2BB /* coding.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646171A8992CC0062516A /* coding.c */; };
 		A4F318721BC58B1700FDF2BB /* error.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216461C1A8992CC0062516A /* error.c */; };
 		A4F318731BC58B1700FDF2BB /* hmac.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216461E1A8992CC0062516A /* hmac.c */; };
-		A4F318741BC58B1700FDF2BB /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646121A8992CC0062516A /* arc4.c */; };
 		A4F318751BC58B1700FDF2BB /* integer.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216461F1A8992CC0062516A /* integer.c */; };
 		A4F318761BC58B1700FDF2BB /* internal.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646021A89928E0062516A /* internal.c */; };
 		A4F318771BC58B1700FDF2BB /* wolfio.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* wolfio.c */; };
@@ -492,7 +486,6 @@
 		A4F318871BC58B1700FDF2BB /* wc_encrypt.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 522DBE0E1B7927290031F454 /* wc_encrypt.h */; };
 		A4F318881BC58B1700FDF2BB /* hash.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 525BE5351B3869430054BBCD /* hash.h */; };
 		A4F318891BC58B1700FDF2BB /* aes.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465E1A8993770062516A /* aes.h */; };
-		A4F3188A1BC58B1700FDF2BB /* arc4.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5216465F1A8993770062516A /* arc4.h */; };
 		A4F3188B1BC58B1700FDF2BB /* asn_public.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646601A8993770062516A /* asn_public.h */; };
 		A4F3188C1BC58B1700FDF2BB /* asn.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646611A8993770062516A /* asn.h */; };
 		A4F3188D1BC58B1700FDF2BB /* blake2-impl.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 521646621A8993770062516A /* blake2-impl.h */; };
@@ -563,7 +556,6 @@
 				1EBED2A0223816B3003E4A01 /* mem_track.h in CopyFiles */,
 				1EBED29E223816A2003E4A01 /* wolfmath.h in CopyFiles */,
 				30B0608B1C6DDB6200D46008 /* aes.h in CopyFiles */,
-				30B0608C1C6DDB6200D46008 /* arc4.h in CopyFiles */,
 				30B0608D1C6DDB6200D46008 /* asn_public.h in CopyFiles */,
 				30B0608E1C6DDB6200D46008 /* asn.h in CopyFiles */,
 				30B0608F1C6DDB6200D46008 /* blake2-impl.h in CopyFiles */,
@@ -655,7 +647,6 @@
 				522DBE0F1B7927A50031F454 /* wc_encrypt.h in CopyFiles */,
 				525BE5361B3869780054BBCD /* hash.h in CopyFiles */,
 				521646CD1A8A7FF30062516A /* aes.h in CopyFiles */,
-				521646CE1A8A7FF30062516A /* arc4.h in CopyFiles */,
 				521646CF1A8A7FF30062516A /* asn_public.h in CopyFiles */,
 				521646D01A8A7FF30062516A /* asn.h in CopyFiles */,
 				521646D11A8A7FF30062516A /* blake2-impl.h in CopyFiles */,
@@ -768,7 +759,6 @@
 				700F0CB42A2FBEF100755BA7 /* pkcs7.h in CopyFiles */,
 				700F0CB52A2FBEF100755BA7 /* pkcs12.h in CopyFiles */,
 				700F0CB62A2FBEF100755BA7 /* rand.h in CopyFiles */,
-				700F0CB72A2FBEF100755BA7 /* rc4.h in CopyFiles */,
 				700F0CB82A2FBEF100755BA7 /* ripemd.h in CopyFiles */,
 				700F0CB92A2FBEF100755BA7 /* rsa.h in CopyFiles */,
 				700F0CBA2A2FBEF100755BA7 /* sha.h in CopyFiles */,
@@ -816,7 +806,6 @@
 				A4F318871BC58B1700FDF2BB /* wc_encrypt.h in CopyFiles */,
 				A4F318881BC58B1700FDF2BB /* hash.h in CopyFiles */,
 				A4F318891BC58B1700FDF2BB /* aes.h in CopyFiles */,
-				A4F3188A1BC58B1700FDF2BB /* arc4.h in CopyFiles */,
 				A4F3188B1BC58B1700FDF2BB /* asn_public.h in CopyFiles */,
 				A4F3188C1BC58B1700FDF2BB /* asn.h in CopyFiles */,
 				A4F3188D1BC58B1700FDF2BB /* blake2-impl.h in CopyFiles */,
@@ -889,7 +878,6 @@
 		521646071A89928E0062516A /* ssl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ssl.c; path = ../../src/ssl.c; sourceTree = "<group>"; };
 		521646081A89928E0062516A /* tls.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls.c; path = ../../src/tls.c; sourceTree = "<group>"; };
 		521646111A8992CC0062516A /* aes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = aes.c; path = ../../wolfcrypt/src/aes.c; sourceTree = SOURCE_ROOT; };
-		521646121A8992CC0062516A /* arc4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = arc4.c; path = ../../wolfcrypt/src/arc4.c; sourceTree = SOURCE_ROOT; };
 		521646131A8992CC0062516A /* asn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = asn.c; path = ../../wolfcrypt/src/asn.c; sourceTree = SOURCE_ROOT; };
 		521646141A8992CC0062516A /* blake2b.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = blake2b.c; path = ../../wolfcrypt/src/blake2b.c; sourceTree = SOURCE_ROOT; };
 		521646151A8992CC0062516A /* camellia.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = camellia.c; path = ../../wolfcrypt/src/camellia.c; sourceTree = SOURCE_ROOT; };
@@ -929,7 +917,6 @@
 		5216465C1A8993290062516A /* test.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = test.h; path = ../../wolfssl/test.h; sourceTree = "<group>"; };
 		5216465D1A8993290062516A /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = ../../wolfssl/version.h; sourceTree = "<group>"; };
 		5216465E1A8993770062516A /* aes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = aes.h; path = ../../wolfssl/wolfcrypt/aes.h; sourceTree = "<group>"; };
-		5216465F1A8993770062516A /* arc4.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = arc4.h; path = ../../wolfssl/wolfcrypt/arc4.h; sourceTree = "<group>"; };
 		521646601A8993770062516A /* asn_public.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asn_public.h; path = ../../wolfssl/wolfcrypt/asn_public.h; sourceTree = "<group>"; };
 		521646611A8993770062516A /* asn.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = asn.h; path = ../../wolfssl/wolfcrypt/asn.h; sourceTree = "<group>"; };
 		521646621A8993770062516A /* blake2-impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "blake2-impl.h"; path = "../../wolfssl/wolfcrypt/blake2-impl.h"; sourceTree = "<group>"; };
@@ -1019,7 +1006,6 @@
 		700F0C532A2FBE8100755BA7 /* compat_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = compat_types.h; path = ../../wolfssl/openssl/compat_types.h; sourceTree = "<group>"; };
 		700F0C542A2FBE8100755BA7 /* ecdh.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ecdh.h; path = ../../wolfssl/openssl/ecdh.h; sourceTree = "<group>"; };
 		700F0C552A2FBE8100755BA7 /* ui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ui.h; path = ../../wolfssl/openssl/ui.h; sourceTree = "<group>"; };
-		700F0C562A2FBE8100755BA7 /* rc4.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rc4.h; path = ../../wolfssl/openssl/rc4.h; sourceTree = "<group>"; };
 		700F0C572A2FBE8100755BA7 /* objects.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = objects.h; path = ../../wolfssl/openssl/objects.h; sourceTree = "<group>"; };
 		700F0C582A2FBE8100755BA7 /* bio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = bio.h; path = ../../wolfssl/openssl/bio.h; sourceTree = "<group>"; };
 		700F0C5A2A2FBE8100755BA7 /* stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stack.h; path = ../../wolfssl/openssl/stack.h; sourceTree = "<group>"; };
@@ -1182,7 +1168,6 @@
 				700F0BF52A2FBC1600755BA7 /* wc_pkcs11.h */,
 				700F0BE62A2FBC1500755BA7 /* wolfevent.h */,
 				5216465E1A8993770062516A /* aes.h */,
-				5216465F1A8993770062516A /* arc4.h */,
 				521646601A8993770062516A /* asn_public.h */,
 				521646611A8993770062516A /* asn.h */,
 				521646621A8993770062516A /* blake2-impl.h */,
@@ -1265,7 +1250,6 @@
 			isa = PBXGroup;
 			children = (
 				521646111A8992CC0062516A /* aes.c */,
-				521646121A8992CC0062516A /* arc4.c */,
 				9D010598291CEA4F00A854D3 /* armv8-aes.c */,
 				9D010596291CEA4F00A854D3 /* armv8-chacha.c */,
 				9D010599291CEA4F00A854D3 /* armv8-curve25519.S */,
@@ -1428,7 +1412,6 @@
 				700F0C742A2FBE8100755BA7 /* pkcs7.h */,
 				700F0C782A2FBE8200755BA7 /* pkcs12.h */,
 				700F0C7B2A2FBE8200755BA7 /* rand.h */,
-				700F0C562A2FBE8100755BA7 /* rc4.h */,
 				700F0C6B2A2FBE8100755BA7 /* ripemd.h */,
 				700F0C8A2A2FBE8200755BA7 /* rsa.h */,
 				700F0C5C2A2FBE8100755BA7 /* sha.h */,
@@ -1563,7 +1546,6 @@
 				520775A82239ABBE00087711 /* sp_x86_64.c in Sources */,
 				30B0605B1C6DDB2B00D46008 /* tls.c in Sources */,
 				30B0605C1C6DDB2B00D46008 /* aes.c in Sources */,
-				30B0605D1C6DDB2B00D46008 /* arc4.c in Sources */,
 				30B0605E1C6DDB2B00D46008 /* asn.c in Sources */,
 				A4DAE3512493F29100CEF51F /* sp_arm64.c in Sources */,
 				30B0605F1C6DDB2B00D46008 /* blake2b.c in Sources */,
@@ -1716,7 +1698,6 @@
 				5216463D1A8992CC0062516A /* error.c in Sources */,
 				5216463F1A8992CC0062516A /* hmac.c in Sources */,
 				A4DAE3352493F21900CEF51F /* wolfevent.c in Sources */,
-				521646331A8992CC0062516A /* arc4.c in Sources */,
 				521646401A8992CC0062516A /* integer.c in Sources */,
 				A4DAE33B2493F21900CEF51F /* curve448.c in Sources */,
 				5216460A1A89928E0062516A /* internal.c in Sources */,
@@ -1736,7 +1717,6 @@
 			files = (
 				A4DAE34D2493F28B00CEF51F /* sp_arm32.c in Sources */,
 				A4F318661BC58B1700FDF2BB /* aes.c in Sources */,
-				A4F318741BC58B1700FDF2BB /* arc4.c in Sources */,
 				A4F3185A1BC58B1700FDF2BB /* asn.c in Sources */,
 				9D0105C3291CEA5000A854D3 /* armv8-aes.c in Sources */,
 				A4F318681BC58B1700FDF2BB /* blake2b.c in Sources */,

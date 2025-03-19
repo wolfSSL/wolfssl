@@ -853,7 +853,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
     enable_lowresource=yes
@@ -1282,7 +1282,6 @@ then
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
     test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_blake2" = "" && enable_blake2=yes
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
@@ -2584,7 +2583,7 @@ AC_ARG_ENABLE([leantls],
 
 if test "$ENABLED_LEANTLS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY -DNO_WOLFSSL_CM_VERIFY"
     enable_lowresource=yes
 fi
 
@@ -4893,9 +4892,6 @@ then
         ENABLED_PSK="yes"
     fi
 
-    # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
-    test "$enable_arc4" = "" && enable_arc4=yes
-
     if test "x$ENABLED_CERTEXT" = "xno"
     then
         ENABLED_CERTEXT="yes"
@@ -5290,20 +5286,6 @@ AC_ARG_ENABLE([des3-tls-suites],
     [AS_HELP_STRING([--enable-des3-tls-suites],[Enable DES3 TLS cipher suites (default: disabled)])],
     [ ENABLED_DES3_TLS_SUITES=$enableval ],
     [ ENABLED_DES3_TLS_SUITES=no ]
-    )
-
-# ARC4
-if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
-   test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
-then
-    # Requires RC4 make sure on (if not forcefully disabled with --disable-arc4)
-    test "$enable_arc4" = "" && enable_arc4=yes
-fi
-
-AC_ARG_ENABLE([arc4],
-    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
-    [ ENABLED_ARC4=$enableval ],
-    [ ENABLED_ARC4=no ]
     )
 
 # MD5
@@ -7589,24 +7571,6 @@ then
 
     ENABLED_CERTGEN="yes"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
-fi
-
-if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
-   test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
-then
-    test "$enable_arc4" = "" && enable_arc4=yes
-fi
-
-if test "$ENABLED_ARC4" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-else
-    # turn off ARC4 if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-        ENABLED_ARC4=no
-    fi
 fi
 
 # Asio Support
@@ -10148,14 +10112,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_COMP_KEY"
 fi
 
-
-# Deprecated Algorithm Handling
-if test "$ENABLED_ARC4" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_RC4"
-fi
-
-
 # Link with the math library iff needed.
 if test "$ENABLED_DH" != "no" && test "$ENABLED_DH" != "const"; then
    LT_LIB_M
@@ -10408,7 +10364,6 @@ AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" != "xno" || test "x$ENABLED_USERS
 AM_CONDITIONAL([BUILD_ASN],[test "x$ENABLED_ASN" != "xno" || test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AES],[test "x$ENABLED_AES" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CODING],[test "x$ENABLED_CODING" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_RC4],[test "x$ENABLED_ARC4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MD5],[test "x$ENABLED_MD5" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA],[test "x$ENABLED_SHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS],[test "x$ENABLED_FIPS" = "xyes"])
@@ -10812,7 +10767,6 @@ echo "   * Heap Math:                  $ENABLED_HEAPMATH"
 echo "   * Assembly Allowed:           $ENABLED_ASM"
 echo "   * sniffer:                    $ENABLED_SNIFFER"
 echo "   * snifftest:                  $ENABLED_SNIFFTEST"
-echo "   * ARC4:                       $ENABLED_ARC4"
 echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-CBC:                    $ENABLED_AESCBC"

@@ -79,7 +79,7 @@ void main(void)
 SAMPLE OUTPUT: Freescale K64 running at 96MHz with no MMCAU:
 Benchmark Test 0:
 AES      25 kB took 0.073 seconds,    0.334 MB/s
-ARC4     25 kB took 0.033 seconds,    0.740 MB/s
+
 RABBIT   25 kB took 0.027 seconds,    0.904 MB/s
 3DES     25 kB took 0.375 seconds,    0.065 MB/s
 MD5      25 kB took 0.016 seconds,    1.526 MB/s
@@ -94,7 +94,7 @@ Benchmark Test 0: Return code 0
 SAMPLE OUTPUT: Freescale K64 running at 96MHz with MMCAU enabled:
 Benchmark Test 0:
 AES      25 kB took 0.019 seconds,    1.285 MB/s
-ARC4     25 kB took 0.033 seconds,    0.740 MB/s
+
 RABBIT   25 kB took 0.028 seconds,    0.872 MB/s
 3DES     25 kB took 0.026 seconds,    0.939 MB/s
 MD5      25 kB took 0.005 seconds,    4.883 MB/s

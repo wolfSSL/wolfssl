@@ -24,7 +24,6 @@
     <ClCompile Include="..\..\src\ssl.c" />
     <ClCompile Include="..\..\src\tls.c" />
     <ClCompile Include="..\..\wolfcrypt\src\aes.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\arc4.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asm.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
     <ClCompile Include="..\..\wolfcrypt\src\blake2b.c" />
@@ -87,7 +86,6 @@
     <ClInclude Include="..\..\wolfssl\test.h" />
     <ClInclude Include="..\..\wolfssl\version.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\aes.h" />
-    <ClInclude Include="..\..\wolfssl\wolfcrypt\arc4.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\asn.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\asn_public.h" />
     <ClInclude Include="..\..\wolfssl\wolfcrypt\async.h" />

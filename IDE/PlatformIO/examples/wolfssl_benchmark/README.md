@@ -162,7 +162,6 @@ AES-384-SIV-enc            875 KiB took 1.015 seconds,  862.069 KiB/s Cycles per
 AES-384-SIV-dec            875 KiB took 1.016 seconds,  861.220 KiB/s Cycles per byte = 272.09
 AES-512-SIV-enc            850 KiB took 1.012 seconds,  839.921 KiB/s Cycles per byte = 279.14
 AES-512-SIV-dec            850 KiB took 1.014 seconds,  838.264 KiB/s Cycles per byte = 279.36
-ARC4                      4100 KiB took 1.003 seconds, 4087.737 KiB/s Cycles per byte =  57.30
 3DES                       450 KiB took 1.001 seconds,  449.550 KiB/s Cycles per byte = 521.21
 MD5                      13775 KiB took 1.000 seconds, 13775.000 KiB/s Cycles per byte =  17.01
 POLY1305                  7350 KiB took 1.000 seconds, 7350.000 KiB/s Cycles per byte =  31.89

@@ -44,7 +44,6 @@
     #define TFM_ECC256 
     #define ECC_SHAMIR 
     #define WOLFSSL_BASE64_ENCODE 
-    #define NO_RC4 
     #define HAVE_HASHDRBG 
     #define HAVE_TLS_EXTENSIONS 
     #define HAVE_SUPPORTED_CURVES 
@@ -104,7 +103,6 @@
     #define TFM_ECC256 
     #define ECC_SHAMIR 
     #define WOLFSSL_BASE64_ENCODE 
-    #define NO_RC4 
     #define HAVE_HASHDRBG 
     #define HAVE_TLS_EXTENSIONS 
     #define HAVE_SUPPORTED_CURVES 

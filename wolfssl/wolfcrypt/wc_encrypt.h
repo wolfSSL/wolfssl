@@ -37,9 +37,6 @@
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
-#ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -53,8 +50,6 @@
     #define WC_MAX_SYM_KEY_SIZE     32 /* CHACHA_MAX_KEY_SZ */
 #elif !defined(NO_DES3)
     #define WC_MAX_SYM_KEY_SIZE     24 /* DES3_KEY_SIZE */
-#elif !defined(NO_RC4)
-    #define WC_MAX_SYM_KEY_SIZE     16 /* RC4_KEY_SIZE */
 #else
     #define WC_MAX_SYM_KEY_SIZE     32
 #endif

@@ -1068,10 +1068,6 @@ endif
 endif
 endif
 
-if BUILD_RC4
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/arc4.c
-endif
-
 if BUILD_MD4
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/md4.c
 endif
