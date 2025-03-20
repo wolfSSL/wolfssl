@@ -527,12 +527,15 @@ typedef struct Cert {
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
     int sapkiLen;
+    byte sapkiCrit;
     /* Alternative Signature Algorithm */
     byte *altSigAlgDer;
     int altSigAlgLen;
+    byte altSigAlgCrit;
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
+    byte altSigValCrit;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
@@ -551,6 +554,7 @@ typedef struct Cert {
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
     WC_BITFIELD basicConstSet:1;  /* Indicator for when Basic Constraint is set */
+    byte             basicConstCrit;  /* Indicator of criticality of Basic Constraints extension */
 #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     WC_BITFIELD isCaSet:1;        /* Indicator for when isCA is set */
 #endif

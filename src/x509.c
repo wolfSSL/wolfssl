@@ -10674,7 +10674,10 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     cert->sigType = wolfSSL_X509_get_signature_type(x509);
     cert->keyType = x509->pubKeyOID;
     cert->isCA    = wolfSSL_X509_get_isCA(x509);
+    cert->basicConstCrit = x509->basicConstCrit;
     cert->basicConstSet = x509->basicConstSet;
+    cert->pathLen = x509->pathLength;
+    cert->pathLenSet = x509->pathLengthSet;
 
 #ifdef WOLFSSL_CERT_EXT
     if (x509->subjKeyIdSz <= CTC_MAX_SKID_SIZE) {
@@ -10741,10 +10744,13 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     /* We point to instance in x509 so DON'T need to be free'd. */
     cert->sapkiDer = x509->sapkiDer;
     cert->sapkiLen = x509->sapkiLen;
+    cert->sapkiCrit = x509->sapkiCrit;
     cert->altSigAlgDer = x509->altSigAlgDer;
-    cert->altSigAlgLen = x509->altSigAlgLen;
+    cert->altSigAlgLen  = x509->altSigAlgLen;
+    cert->altSigAlgCrit = x509->altSigAlgCrit;
     cert->altSigValDer = x509->altSigValDer;
     cert->altSigValLen = x509->altSigValLen;
+    cert->altSigValCrit = x509->altSigValCrit;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif /* WOLFSSL_CERT_EXT */
 
