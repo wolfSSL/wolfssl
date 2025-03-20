@@ -62,7 +62,7 @@
 #ifdef WOLFSSL_SIPHASH
 #include <wolfssl/wolfcrypt/siphash.h>
 #endif
-#include <wolfssl/wolfcrypt/arc4.h>
+
 #if defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/integer.h>
 #else
@@ -184,7 +184,7 @@
     #include <wolfssl/openssl/aes.h>
     #include <wolfssl/openssl/des.h>
     #include <wolfssl/openssl/modes.h>
-    #include <wolfssl/openssl/rc4.h>
+
 #endif
 
 #if defined(NO_FILESYSTEM)

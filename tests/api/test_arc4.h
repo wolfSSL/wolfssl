@@ -19,9 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* This file is kept as a placeholder after removing ARC4 */
+
 #ifndef WOLFCRYPT_TEST_ARC4_H
 #define WOLFCRYPT_TEST_ARC4_H
 
+/* Function declarations for placeholder implementations */
 int test_wc_Arc4SetKey(void);
 int test_wc_Arc4Process(void);
 

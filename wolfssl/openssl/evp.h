@@ -54,7 +54,6 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
@@ -256,10 +255,7 @@ typedef union {
     Des  des;
     Des3 des3;
 #endif
-    Arc4 arc4;
-#ifdef WOLFSSL_QT
     int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
-#endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     ChaChaPoly_Aead chachaPoly;
 #endif
@@ -373,7 +369,7 @@ typedef union {
 #define WC_NID_ffdhe2048                   1126
 #define WC_NID_ffdhe3072                   1127
 #define WC_NID_ffdhe4096                   1128
-#define WC_NID_rc4                         5
+
 #define WC_NID_bf_cbc                      91
 #define WC_NID_bf_ecb                      92
 #define WC_NID_bf_cfb64                    93
@@ -427,7 +423,7 @@ enum {
     WC_DES_ECB_TYPE           = 11,
     WC_DES_EDE3_CBC_TYPE      = 12,
     WC_DES_EDE3_ECB_TYPE      = 13,
-    WC_ARC4_TYPE              = 14,
+
     WC_NULL_CIPHER_TYPE       = 15,
     WC_EVP_PKEY_RSA           = 16,
     WC_EVP_PKEY_DSA           = 17,
@@ -494,7 +490,7 @@ enum {
 #define DES_ECB_TYPE WC_DES_ECB_TYPE
 #define DES_EDE3_CBC_TYPE WC_DES_EDE3_CBC_TYPE
 #define DES_EDE3_ECB_TYPE WC_DES_EDE3_ECB_TYPE
-#define ARC4_TYPE WC_ARC4_TYPE
+
 #define NULL_CIPHER_TYPE WC_NULL_CIPHER_TYPE
 #define EVP_PKEY_RSA WC_EVP_PKEY_RSA
 #define EVP_PKEY_DSA WC_EVP_PKEY_DSA
@@ -631,7 +627,7 @@ enum {
 #define NID_ffdhe2048 WC_NID_ffdhe2048
 #define NID_ffdhe3072 WC_NID_ffdhe3072
 #define NID_ffdhe4096 WC_NID_ffdhe4096
-#define NID_rc4 WC_NID_rc4
+
 #define NID_bf_cbc WC_NID_bf_cbc
 #define NID_bf_ecb WC_NID_bf_ecb
 #define NID_bf_cfb64 WC_NID_bf_cfb64

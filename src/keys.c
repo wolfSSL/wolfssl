@@ -403,22 +403,7 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
-#ifdef BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-    case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = rsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
 
-        break;
-#endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
@@ -573,22 +558,7 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         break;
 #endif
 
-#ifdef BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-    case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
-        specs->bulk_cipher_algorithm = wolfssl_rc4;
-        specs->cipher_type           = stream;
-        specs->mac_algorithm         = sha_mac;
-        specs->kea                   = ecc_diffie_hellman_kea;
-        specs->sig_algo              = ecc_dsa_sa_algo;
-        specs->hash_size             = WC_SHA_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        specs->static_ecdh           = 0;
-        specs->key_size              = RC4_KEY_SIZE;
-        specs->iv_size               = 0;
-        specs->block_size            = 0;
 
-        break;
-#endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
     case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :

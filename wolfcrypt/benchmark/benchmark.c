@@ -137,7 +137,6 @@
     #include <wolfssl/wolfcrypt/des3.h>
 #endif
 #ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>

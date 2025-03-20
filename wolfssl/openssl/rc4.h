@@ -19,46 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* This is a placeholder file to satisfy build dependencies after removing RC4 */
 
+#ifndef WOLFSSL_RC4_H_
+#define WOLFSSL_RC4_H_
 
-/*  rc4.h defines mini des openssl compatibility layer
- *
- */
-
-#ifndef WOLFSSL_RC4_COMPAT_H_
-#define WOLFSSL_RC4_COMPAT_H_
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/ssl.h> /* included for size_t */
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-/* applications including wolfssl/openssl/rc4.h are expecting to have access to
- * the size of RC4_KEY structures. */
-typedef struct WOLFSSL_RC4_KEY {
-    /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
-    void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
-} WOLFSSL_RC4_KEY;
-
-WOLFSSL_API void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
-        const unsigned char* data);
-WOLFSSL_API void wolfSSL_RC4(WOLFSSL_RC4_KEY* key, size_t len,
-        const unsigned char* in, unsigned char* out);
-
-#ifndef OPENSSL_COEXIST
-
-typedef WOLFSSL_RC4_KEY RC4_KEY;
-
-#define RC4         wolfSSL_RC4
-#define RC4_set_key wolfSSL_RC4_set_key
-
-#endif /* !OPENSSL_COEXIST */
-
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-
-#endif /* WOLFSSL_RC4_COMPAT_H_ */
-
+#endif /* WOLFSSL_RC4_H_ */

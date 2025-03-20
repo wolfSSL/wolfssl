@@ -22,7 +22,7 @@
     <ClCompile Include="..\..\src\tls13.c" />
     <ClCompile Include="..\..\src\wolfio.c" />
     <ClCompile Include="..\..\wolfcrypt\src\aes.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\arc4.c" />
+
     <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
     <ClCompile Include="..\..\wolfcrypt\src\blake2b.c" />
     <ClCompile Include="..\..\wolfcrypt\src\camellia.c" />

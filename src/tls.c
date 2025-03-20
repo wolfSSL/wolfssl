@@ -5406,7 +5406,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                 /* ECDHE_ECDSA */
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-                case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+
                 case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
@@ -5422,7 +5422,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                 /* ECDH_ECDSA */
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
-                case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
+
                 case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256:
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384:
@@ -5444,7 +5444,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                 /* ECDHE_RSA */
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-                case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+
                 case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
                 case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:
@@ -5458,7 +5458,7 @@ int TLSX_ValidateSupportedCurves(const WOLFSSL* ssl, byte first, byte second,
                 /* ECDH_RSA */
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
-                case TLS_ECDH_RSA_WITH_RC4_128_SHA:
+
                 case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA:
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256:
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384:

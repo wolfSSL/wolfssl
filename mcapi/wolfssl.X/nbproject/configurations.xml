@@ -15,7 +15,7 @@
                    projectFiles="true">
       <logicalFolder name="wolfcrypt" displayName="wolfcrypt" projectFiles="true">
         <itemPath>../../wolfcrypt/src/aes.c</itemPath>
-        <itemPath>../../wolfcrypt/src/arc4.c</itemPath>
+
         <itemPath>../../wolfcrypt/src/asm.c</itemPath>
         <itemPath>../../wolfcrypt/src/asn.c</itemPath>
         <itemPath>../../wolfcrypt/src/blake2b.c</itemPath>

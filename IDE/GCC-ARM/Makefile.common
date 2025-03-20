@@ -178,7 +178,7 @@ SRC_C += ../../wolfcrypt/src/selftest.c
 endif
 
 # wolfCrypt non-standard algorithms (disabled by default)
-SRC_C += ../../wolfcrypt/src/arc4.c
+
 SRC_C += ../../wolfcrypt/src/blake2b.c
 SRC_C += ../../wolfcrypt/src/camellia.c
 SRC_C += ../../wolfcrypt/src/dsa.c
