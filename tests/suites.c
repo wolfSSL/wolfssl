@@ -168,7 +168,7 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
     return valid;
 }
 
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
 static int IsKyberLevelAvailable(const char* line)
 {
     int available = 0;
@@ -201,7 +201,7 @@ static int IsKyberLevelAvailable(const char* line)
         }
         #endif
     #endif
-    #ifdef WOLFSSL_KYBER_ORIGINAL
+    #ifdef WOLFSSL_MLKEM_KYBER
         if ((size_t)end - (size_t)begin == 12) {
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRNCMP(begin, "KYBER_LEVEL1", 12) == 0) {
@@ -222,9 +222,9 @@ static int IsKyberLevelAvailable(const char* line)
     #endif
     }
 
-#if defined(WOLFSSL_KYBER_NO_MAKE_KEY) || \
-    defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
-    defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+#if defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     (void)available;
     return begin == NULL;
 #else
@@ -414,7 +414,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #endif
         return NOT_BUILT_IN;
     }
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     if (!IsKyberLevelAvailable(commandLine)) {
         #ifdef DEBUG_SUITE_TESTS
             printf("Kyber level not supported in build: %s\n", commandLine);

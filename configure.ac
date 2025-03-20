@@ -1405,93 +1405,98 @@ AC_ARG_WITH([liboqs],
 )
 
 
-# KYBER
+# MLKEM
 # Used:
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (default: disabled)])],
-    [ ENABLED_KYBER=$enableval ],
-    [ ENABLED_KYBER=no ]
+    [AS_HELP_STRING([--enable-kyber],[Enable MLKEM (default: disabled)])],
+    [ ENABLED_MLKEM=$enableval ],
+    [ ENABLED_MLKEM=no ]
+    )
+AC_ARG_ENABLE([mlkem],
+    [AS_HELP_STRING([--enable-kyber],[Enable MLKEM (default: disabled)])],
+    [ ENABLED_MLKEM=$enableval ],
+    [ ENABLED_MLKEM=no ]
     )
 
-ENABLED_WC_KYBER=no
+ENABLED_WC_MLKEM=no
 ENABLED_ML_KEM=unset
-ENABLED_KYBER_MAKE_KEY=no
-ENABLED_KYBER_ENCAPSULATE=no
-ENABLED_KYBER_DECAPSULATE=no
-for v in `echo $ENABLED_KYBER | tr "," " "`
+ENABLED_MLKEM_MAKE_KEY=no
+ENABLED_MLKEM_ENCAPSULATE=no
+ENABLED_MLKEM_DECAPSULATE=no
+for v in `echo $ENABLED_MLKEM | tr "," " "`
 do
   case $v in
   yes)
-    ENABLED_KYBER512=yes
-    ENABLED_KYBER768=yes
-    ENABLED_KYBER1024=yes
-    ENABLED_KYBER_MAKE_KEY=yes
-    ENABLED_KYBER_ENCAPSULATE=yes
-    ENABLED_KYBER_DECAPSULATE=yes
+    ENABLED_MLKEM512=yes
+    ENABLED_MLKEM768=yes
+    ENABLED_MLKEM1024=yes
+    ENABLED_MLKEM_MAKE_KEY=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
     ;;
   no)
     ;;
   small)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_SMALL"
     ;;
   cache-a)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_CACHE_A"
     ;;
   512)
-    ENABLED_KYBER512=yes
+    ENABLED_MLKEM512=yes
     ;;
   768)
-    ENABLED_KYBER768=yes
+    ENABLED_MLKEM768=yes
     ;;
   1024)
-    ENABLED_KYBER1024=yes
+    ENABLED_MLKEM1024=yes
     ;;
   make)
-    ENABLED_KYBER_MAKE_KEY=yes
+    ENABLED_MLKEM_MAKE_KEY=yes
     ;;
   encapsulate|enc)
-    ENABLED_KYBER_ENCAPSULATE=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
     ;;
   decapsulate|dec)
-    ENABLED_KYBER_DECAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
     ;;
   all)
-    ENABLED_KYBER_MAKE_KEY=yes
-    ENABLED_KYBER_ENCAPSULATE=yes
-    ENABLED_KYBER_DECAPSULATE=yes
+    ENABLED_MLKEM_MAKE_KEY=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
     ;;
-  original)
+  original|kyber)
     ENABLED_ORIGINAL=yes
     ;;
   ml-kem)
     ENABLED_ML_KEM=yes
     ;;
   *)
-    AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
+    AC_MSG_ERROR([Invalid choice for MLKEM []: $ENABLED_MLKEM.])
     break;;
   esac
 done
 
-if test "$ENABLED_KYBER" != "no"
+if test "$ENABLED_MLKEM" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_MLKEM"
     # Use liboqs if specified.
     if test "$ENABLED_LIBOQS" = "no"; then
-        ENABLED_WC_KYBER=yes
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_KYBER"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
+        ENABLED_WC_MLKEM=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_MLKEM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_MLKEM"
     fi
 
     if test "$ENABLED_ORIGINAL" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_ORIGINAL"
-        if test "$ENABLED_KYBER512" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_KYBER"
+        if test "$ENABLED_MLKEM512" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
         fi
-        if test "$ENABLED_KYBER768" = ""; then
+        if test "$ENABLED_MLKEM768" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
         fi
-        if test "$ENABLED_KYBER1024" = ""; then
+        if test "$ENABLED_MLKEM1024" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
         fi
         if test "$ENABLED_ML_KEM" = "unset"; then
@@ -1502,29 +1507,29 @@ then
         ENABLED_ML_KEM=yes
     fi
     if test "$ENABLED_ML_KEM" = "yes"; then
-        if test "$ENABLED_KYBER512" = ""; then
+        if test "$ENABLED_MLKEM512" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
         fi
-        if test "$ENABLED_KYBER768" = ""; then
+        if test "$ENABLED_MLKEM768" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
         fi
-        if test "$ENABLED_KYBER1024" = ""; then
+        if test "$ENABLED_MLKEM1024" = ""; then
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
         fi
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
     fi
-    if test "$ENABLED_KYBER_MAKE_KEY" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_MAKE_KEY"
+    if test "$ENABLED_MLKEM_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_MAKE_KEY"
     fi
-    if test "$ENABLED_KYBER_ENCAPSULATE" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_ENCAPSULATE"
+    if test "$ENABLED_MLKEM_ENCAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_ENCAPSULATE"
     fi
-    if test "$ENABLED_KYBER_DECAPSULATE" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_DECAPSULATE"
+    if test "$ENABLED_MLKEM_DECAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLKEM_NO_DECAPSULATE"
     fi
 
-    if test "$ENABLED_WC_KYBER" = "yes"
+    if test "$ENABLED_WC_MLKEM" = "yes"
     then
         test "$enable_sha3" = "" && enable_sha3=yes
         test "$enable_shake128" = "" && enable_shake128=yes
@@ -10151,7 +10156,7 @@ AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_WC_MLKEM],[test "x$ENABLED_WC_MLKEM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -10658,8 +10663,8 @@ echo "   * XMSS wolfSSL impl:          $ENABLED_WC_XMSS"
 if test "$ENABLED_LIBXMSS" = "yes"; then
 echo "   * XMSS_ROOT:                  $XMSS_ROOT"
 fi
-echo "   * KYBER:                      $ENABLED_KYBER"
-echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
+echo "   * MLKEM:                      $ENABLED_MLKEM"
+echo "   * MLKEM wolfSSL impl:         $ENABLED_WC_MLKEM"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"

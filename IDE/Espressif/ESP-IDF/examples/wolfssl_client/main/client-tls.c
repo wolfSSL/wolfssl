@@ -41,9 +41,9 @@
 #undef USE_WOLFSSL_ESP_SDK_WIFI
 #include <wolfssl/ssl.h>
 
-#if defined(WOLFSSL_WC_KYBER)
-    #include <wolfssl/wolfcrypt/kyber.h>
-    #include <wolfssl/wolfcrypt/wc_kyber.h>
+#if defined(WOLFSSL_WC_MLKEM)
+    #include <wolfssl/wolfcrypt/mlkem.h>
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #endif
 #if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)
     #include <wolfssl/certs_test.h>
@@ -397,22 +397,22 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
         ESP_LOGI(TAG, "tls_smp_client_task heap @ %p = %d",
                       &this_heap, this_heap);
 #endif
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
     #if defined(WOLFSSL_KYBER1024)
-        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is enabled, setting key share: "
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is enabled, setting key share: "
                                         "WOLFSSL_P256_KYBER_LEVEL5");
         ret_i = wolfSSL_UseKeyShare(ssl, WOLFSSL_P521_KYBER_LEVEL5);
     #elif defined(WOLFSSL_KYBER768)
-        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is enabled, setting key share: "
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is enabled, setting key share: "
                                         "WOLFSSL_P256_KYBER_LEVEL3");
         ret_i = wolfSSL_UseKeyShare(ssl, WOLFSSL_P256_KYBER_LEVEL3);
     #elif defined(WOLFSSL_KYBER512)
         /* This will typically be a low memory situation, such as ESP8266 */
-        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is enabled, setting key share: "
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is enabled, setting key share: "
                                         "WOLFSSL_P256_KYBER_LEVEL1");
         ret_i = wolfSSL_UseKeyShare(ssl, WOLFSSL_P256_KYBER_LEVEL1);
     #else
-        ESP_LOGW(TAG, "WOLFSSL_HAVE_KYBER enabled but no key size available.");
+        ESP_LOGW(TAG, "WOLFSSL_HAVE_MLKEM enabled but no key size available.");
         ret_i = ESP_FAIL;
     #endif
         if (ret_i == WOLFSSL_SUCCESS) {
@@ -422,7 +422,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
             ESP_LOGE(TAG, "UseKeyShare Kyber failed");
         }
 #else
-    ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is not enabled");
+    ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is not enabled");
 #endif
     }
 

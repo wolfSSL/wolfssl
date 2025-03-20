@@ -35193,7 +35193,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* HAVE_ECC */
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     /* Returns 1 when the given group is a PQC group, 0 otherwise. */
     int NamedGroupIsPqc(int group)
     {
@@ -35203,7 +35203,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_ML_KEM_768:
             case WOLFSSL_ML_KEM_1024:
         #endif
-        #ifdef WOLFSSL_KYBER_ORIGINAL
+        #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_KYBER_LEVEL1:
             case WOLFSSL_KYBER_LEVEL3:
             case WOLFSSL_KYBER_LEVEL5:
@@ -35228,7 +35228,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_X25519_ML_KEM_512:
             case WOLFSSL_X448_ML_KEM_768:
         #endif
-        #ifdef WOLFSSL_KYBER_ORIGINAL
+        #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_P256_KYBER_LEVEL3:
             case WOLFSSL_X25519_KYBER_LEVEL3:
             case WOLFSSL_P256_KYBER_LEVEL1:
@@ -35242,7 +35242,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return 0;
         }
     }
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
     int TranslateErrorToAlert(int err)
     {

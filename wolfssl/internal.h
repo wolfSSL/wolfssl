@@ -1908,7 +1908,7 @@ enum Misc {
 
 #define WOLFSSL_NAMED_GROUP_IS_FFDHE(group) \
     (WOLFSSL_FFDHE_START <= (group) && (group) <= WOLFSSL_FFDHE_END)
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
 WOLFSSL_LOCAL int NamedGroupIsPqc(int group);
 WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group) NamedGroupIsPqc(group)
@@ -1916,7 +1916,7 @@ WOLFSSL_LOCAL int NamedGroupIsPqcHybrid(int group);
 #else
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group)        ((void)(group), 0)
 #define WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group) ((void)(group), 0)
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
@@ -3611,7 +3611,7 @@ typedef struct KeyShareEntry {
     word32                keyLen;    /* Key size (bytes)                  */
     byte*                 pubKey;    /* Public key                        */
     word32                pubKeyLen; /* Public key length                 */
-#if !defined(NO_DH) || defined(WOLFSSL_HAVE_KYBER)
+#if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
     byte*                 privKey;   /* Private key                       */
     word32                privKeyLen;/* Private key length - PQC only     */
 #endif

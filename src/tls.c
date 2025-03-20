@@ -48,12 +48,12 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
-#ifdef WOLFSSL_HAVE_KYBER
-    #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
-    #include <wolfssl/wolfcrypt/wc_kyber.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+#ifdef WOLFSSL_WC_MLKEM
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #elif defined(HAVE_LIBOQS)
-    #include <wolfssl/wolfcrypt/ext_kyber.h>
+    #include <wolfssl/wolfcrypt/ext_mlkem.h>
 #endif
 #endif
 
@@ -4462,7 +4462,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 #ifdef HAVE_SUPPORTED_CURVES
 
 #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) \
-                       && !defined(HAVE_FFDHE) && !defined(WOLFSSL_HAVE_KYBER)
+                       && !defined(HAVE_FFDHE) && !defined(WOLFSSL_HAVE_MLKEM)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography or liboqs groups. \
        Use --enable-ecc and/or --enable-liboqs in the configure script or \
        define HAVE_ECC. Alternatively use FFDHE for DH cipher suites.
@@ -8092,8 +8092,24 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     return ret;
 }
 
-#ifdef WOLFSSL_HAVE_KYBER
-static int kyber_id2type(int id, int *type)
+#ifdef WOLFSSL_HAVE_MLKEM
+#if defined(WOLFSSL_MLKEM_CACHE_A) && \
+    !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY)
+    /* Store KyberKey object rather than private key bytes in key share entry.
+     * Improves performance at cost of more dynamic memory being used. */
+    #define WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
+#endif
+#if defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY) && \
+    defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ)
+    #error "Choose WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY or "
+           "WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"
+#endif
+
+#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    (!defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+     !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ))
+static int mlkem_id2type(int id, int *type)
 {
     int ret = 0;
 
@@ -8115,7 +8131,7 @@ static int kyber_id2type(int id, int *type)
             break;
     #endif
 #endif
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             *type = KYBER512;
@@ -8139,20 +8155,89 @@ static int kyber_id2type(int id, int *type)
 
     return ret;
 }
-
-#if defined(WOLFSSL_MLKEM_CACHE_A) && \
-    !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY)
-    /* Store KyberKey object rather than private key bytes in key share entry.
-     * Improves performance at cost of more dynamic memory being used. */
-    #define WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
-#endif
-#if defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY) && \
-    defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ)
-    #error "Choose WOLFSSL_TLSX_PQC_MLKEM_STORE_PRIV_KEY or "
-           "WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ"
 #endif
 
-#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
+/* Structures and objects needed for hybrid key exchanges using both classic
+ * ECDHE and PQC KEM key material. */
+typedef struct PqcHybridMapping {
+    int hybrid;
+    int ecc;
+    int pqc;
+    int pqc_first;
+} PqcHybridMapping;
+
+static const PqcHybridMapping pqc_hybrid_mapping[] = {
+#ifndef WOLFSSL_NO_ML_KEM
+    {.hybrid = WOLFSSL_P256_ML_KEM_512,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 0},
+    {.hybrid = WOLFSSL_P384_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
+    {.hybrid = WOLFSSL_P256_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
+    {.hybrid = WOLFSSL_P521_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
+    {.hybrid = WOLFSSL_P384_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
+#ifdef HAVE_CURVE25519
+    {.hybrid = WOLFSSL_X25519_ML_KEM_512,   .ecc = WOLFSSL_ECC_X25519,
+     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 1},
+    {.hybrid = WOLFSSL_X25519_ML_KEM_768,   .ecc = WOLFSSL_ECC_X25519,
+     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
+#endif
+#ifdef HAVE_CURVE448
+    {.hybrid = WOLFSSL_X448_ML_KEM_768,     .ecc = WOLFSSL_ECC_X448,
+     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
+#endif
+#endif /* WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_MLKEM_KYBER
+    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,   .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
+    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+    {.hybrid = WOLFSSL_P256_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,   .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_KYBER_LEVEL5,           .pqc_first = 0},
+#ifdef HAVE_CURVE25519
+    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL1, .ecc = WOLFSSL_ECC_X25519,
+     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
+    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL3, .ecc = WOLFSSL_ECC_X25519,
+     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+#endif
+#ifdef HAVE_CURVE448
+    {.hybrid = WOLFSSL_X448_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_X448,
+     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+#endif
+#endif /* WOLFSSL_MLKEM_KYBER */
+    {.hybrid = 0, .ecc = 0, .pqc = 0, .pqc_first = 0}
+};
+
+/* Map an ecc-pqc hybrid group into its ecc group and pqc kem group. */
+static void findEccPqc(int *ecc, int *pqc, int *pqc_first, int group)
+{
+    int i;
+
+    if (pqc != NULL)
+        *pqc = 0;
+    if (ecc != NULL)
+        *ecc = 0;
+    if (pqc_first != NULL)
+        *pqc_first = 0;
+
+    for (i = 0; pqc_hybrid_mapping[i].hybrid != 0; i++) {
+        if (pqc_hybrid_mapping[i].hybrid == group) {
+            if (pqc != NULL)
+                *pqc = pqc_hybrid_mapping[i].pqc;
+            if (ecc != NULL)
+                *ecc = pqc_hybrid_mapping[i].ecc;
+            if (pqc_first != NULL)
+                *pqc_first = pqc_hybrid_mapping[i].pqc_first;
+            break;
+        }
+    }
+}
+
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
 /* Create a key share entry using pqc parameters group on the client side.
  * Generates a key pair.
  *
@@ -8180,7 +8265,7 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     /* Get the type of key we need from the key share group. */
-    ret = kyber_id2type(kse->group, &type);
+    ret = mlkem_id2type(kse->group, &type);
     if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         WOLFSSL_MSG("Invalid Kyber algorithm specified.");
         ret = BAD_FUNC_ARG;
@@ -8283,86 +8368,6 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     return ret;
-}
-
-/* Structures and objects needed for hybrid key exchanges using both classic
- * ECDHE and PQC KEM key material. */
-typedef struct PqcHybridMapping {
-    int hybrid;
-    int ecc;
-    int pqc;
-    int pqc_first;
-} PqcHybridMapping;
-
-static const PqcHybridMapping pqc_hybrid_mapping[] = {
-#ifndef WOLFSSL_NO_ML_KEM
-    {.hybrid = WOLFSSL_P256_ML_KEM_512,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P256_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P521_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP521R1,
-     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
-#ifdef HAVE_CURVE25519
-    {.hybrid = WOLFSSL_X25519_ML_KEM_512,   .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 1},
-    {.hybrid = WOLFSSL_X25519_ML_KEM_768,   .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
-#endif
-#ifdef HAVE_CURVE448
-    {.hybrid = WOLFSSL_X448_ML_KEM_768,     .ecc = WOLFSSL_ECC_X448,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
-#endif
-#endif /* WOLFSSL_NO_ML_KEM */
-#ifdef WOLFSSL_KYBER_ORIGINAL
-    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,   .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P256_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,   .ecc = WOLFSSL_ECC_SECP521R1,
-     .pqc = WOLFSSL_KYBER_LEVEL5,           .pqc_first = 0},
-#ifdef HAVE_CURVE25519
-    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL1, .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL3, .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-#endif
-#ifdef HAVE_CURVE448
-    {.hybrid = WOLFSSL_X448_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_X448,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-#endif
-#endif /* WOLFSSL_KYBER_ORIGINAL */
-    {.hybrid = 0, .ecc = 0, .pqc = 0, .pqc_first = 0}
-};
-
-/* Map an ecc-pqc hybrid group into its ecc group and pqc kem group. */
-static void findEccPqc(int *ecc, int *pqc, int *pqc_first, int group)
-{
-    int i;
-
-    if (pqc != NULL)
-        *pqc = 0;
-    if (ecc != NULL)
-        *ecc = 0;
-    if (pqc_first != NULL)
-        *pqc_first = 0;
-
-    for (i = 0; pqc_hybrid_mapping[i].hybrid != 0; i++) {
-        if (pqc_hybrid_mapping[i].hybrid == group) {
-            if (pqc != NULL)
-                *pqc = pqc_hybrid_mapping[i].pqc;
-            if (ecc != NULL)
-                *ecc = pqc_hybrid_mapping[i].ecc;
-            if (pqc_first != NULL)
-                *pqc_first = pqc_hybrid_mapping[i].pqc_first;
-            break;
-        }
-    }
 }
 
 /* Create a key share entry using both ecdhe and pqc parameters groups.
@@ -8504,8 +8509,8 @@ static int TLSX_KeyShare_GenPqcHybridKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
 
     return ret;
 }
-#endif /* !WOLFSSL_KYBER_NO_MAKE_KEY */
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 /* Generate a secret/key using the key share entry.
  *
@@ -8522,7 +8527,7 @@ int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_GenX448Key(ssl, kse);
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_MAKE_KEY)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group))
         ret = TLSX_KeyShare_GenPqcKeyClient(ssl, kse);
     else if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(kse->group))
@@ -8562,7 +8567,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             wc_curve448_free((curve448_key*)current->key);
 #endif
         }
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
         else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group)) {
             wc_KyberKey_Free((KyberKey*)current->key);
         #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
@@ -8608,7 +8613,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
         }
         XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    #if !defined(NO_DH) || defined(WOLFSSL_HAVE_KYBER)
+    #if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
         XFREE(current->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
     #endif
         XFREE(current->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -9194,7 +9199,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                 ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz);
 }
 
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Process the Kyber key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
@@ -9242,7 +9247,7 @@ static int TLSX_KeyShare_ProcessPqcClient_ex(WOLFSSL* ssl,
             ret = MEMORY_E;
         }
         if (ret == 0) {
-            ret = kyber_id2type(keyShareEntry->group, &type);
+            ret = mlkem_id2type(keyShareEntry->group, &type);
         }
         if (ret != 0) {
             WOLFSSL_MSG("Invalid PQC algorithm specified.");
@@ -9392,7 +9397,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
         pqc_kse->privKey = keyShareEntry->privKey;
 
-        ret = kyber_id2type(pqc_group, &type);
+        ret = mlkem_id2type(pqc_group, &type);
         if (ret != 0) {
             WOLFSSL_MSG("Invalid Kyber algorithm specified.");
             ret = BAD_FUNC_ARG;
@@ -9539,7 +9544,7 @@ static int TLSX_KeyShare_ProcessPqcHybridClient(WOLFSSL* ssl,
 
     return ret;
 }
-#endif /* WOLFSSL_HAVE_KYBER && !WOLFSSL_KYBER_NO_DECAPSULATE */
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
 /* Process the key share extension on the client side.
  *
@@ -9565,7 +9570,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessPqcClient(ssl, keyShareEntry);
     else if (WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(keyShareEntry->group))
@@ -9618,7 +9623,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     if ((WOLFSSL_NAMED_GROUP_IS_PQC(group) ||
          WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
@@ -9804,7 +9809,7 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         /* Not in list sent if there isn't a private key. */
         if (keyShareEntry == NULL || (keyShareEntry->key == NULL
-        #if !defined(NO_DH) || defined(WOLFSSL_HAVE_KYBER)
+        #if !defined(NO_DH) || defined(WOLFSSL_HAVE_MLKEM)
             && keyShareEntry->privKey == NULL
         #endif
         )) {
@@ -9898,7 +9903,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     return 0;
 }
 
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_ENCAPSULATE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
 /* Process the Kyber key share extension on the server side.
  *
  * ssl            The SSL/TLS object.
@@ -9940,7 +9945,7 @@ static int TLSX_KeyShare_HandlePqcKeyServer(WOLFSSL* ssl,
             ret = MEMORY_E;
         }
         if (ret == 0) {
-            ret = kyber_id2type(keyShareEntry->group, &type);
+            ret = mlkem_id2type(keyShareEntry->group, &type);
         }
         if (ret != 0) {
             WOLFSSL_MSG("Invalid PQC algorithm specified.");
@@ -10073,7 +10078,7 @@ static int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
             ret = MEMORY_E;
         }
         if (ret == 0) {
-            ret = kyber_id2type(pqc_kse->group, &type);
+            ret = mlkem_id2type(pqc_kse->group, &type);
         }
         if (ret != 0) {
             WOLFSSL_MSG("Invalid PQC algorithm specified.");
@@ -10246,7 +10251,7 @@ static int TLSX_KeyShare_HandlePqcHybridKeyServer(WOLFSSL* ssl,
     XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     return ret;
 }
-#endif /* WOLFSSL_HAVE_KYBER && !WOLFSSL_KYBER_NO_ENCAPSULATE */
+#endif /* WOLFSSL_HAVE_MLKEM && !WOLFSSL_MLKEM_NO_ENCAPSULATE */
 
 /* Use the data to create a new key share object in the extensions.
  *
@@ -10295,7 +10300,7 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
 
-#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_KYBER_NO_ENCAPSULATE)
+#if defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE)
     if (ssl->options.side == WOLFSSL_SERVER_END &&
             WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
         ret = TLSX_KeyShare_HandlePqcKeyServer((WOLFSSL*)ssl,
@@ -10471,9 +10476,9 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
         #endif
     #endif
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_WC_KYBER
+    #ifdef WOLFSSL_WC_MLKEM
         #ifndef WOLFSSL_NO_ML_KEM_512
             case WOLFSSL_ML_KEM_512:
             case WOLFSSL_P256_ML_KEM_512:
@@ -10505,12 +10510,12 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         {
             int ret;
             int id;
-            ret = kyber_id2type(namedGroup, &id);
+            ret = mlkem_id2type(namedGroup, &id);
             if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                 return 0;
             }
 
-            if (! ext_kyber_enabled(id)) {
+            if (! ext_mlkem_enabled(id)) {
                 return 0;
             }
             break;
@@ -10527,20 +10532,20 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             int ret;
             int id;
             findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = kyber_id2type(namedGroup, &id);
+            ret = mlkem_id2type(namedGroup, &id);
             if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                 return 0;
             }
 
-            if (! ext_kyber_enabled(id)) {
+            if (! ext_mlkem_enabled(id)) {
                 return 0;
             }
             break;
         }
     #endif
 #endif /* WOLFSSL_NO_ML_KEM */
-#ifdef WOLFSSL_KYBER_ORIGINAL
-    #ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_MLKEM_KYBER
+    #ifdef WOLFSSL_WC_MLKEM
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
             case WOLFSSL_P256_KYBER_LEVEL1:
@@ -10571,12 +10576,12 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         {
             int ret;
             int id;
-            ret = kyber_id2type(namedGroup, &id);
+            ret = mlkem_id2type(namedGroup, &id);
             if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                 return 0;
             }
 
-            if (! ext_kyber_enabled(id)) {
+            if (! ext_mlkem_enabled(id)) {
                 return 0;
             }
             break;
@@ -10592,19 +10597,19 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             int ret;
             int id;
             findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = kyber_id2type(namedGroup, &id);
+            ret = mlkem_id2type(namedGroup, &id);
             if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                 return 0;
             }
 
-            if (! ext_kyber_enabled(id)) {
+            if (! ext_mlkem_enabled(id)) {
                 return 0;
             }
             break;
         }
     #endif
 #endif
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
         default:
             return 0;
     }
@@ -10651,7 +10656,7 @@ static const word16 preferredGroup[] = {
     WOLFSSL_FFDHE_8192,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_MLKEM
     #ifndef WOLFSSL_NO_ML_KEM_512
     WOLFSSL_ML_KEM_512,
     WOLFSSL_P256_ML_KEM_512,
@@ -10694,8 +10699,8 @@ static const word16 preferredGroup[] = {
     #endif
 #endif
 #endif /* !WOLFSSL_NO_ML_KEM */
-#ifdef WOLFSSL_KYBER_ORIGINAL
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_MLKEM_KYBER
+#ifdef WOLFSSL_WC_MLKEM
     #ifdef WOLFSSL_KYBER512
     WOLFSSL_KYBER_LEVEL1,
     WOLFSSL_P256_KYBER_LEVEL1,
@@ -10735,7 +10740,7 @@ static const word16 preferredGroup[] = {
     WOLFSSL_X448_KYBER_LEVEL3,
     #endif
 #endif
-#endif /* WOLFSSL_KYBER_ORIGINAL */
+#endif /* WOLFSSL_MLKEM_KYBER */
     WOLFSSL_NAMED_GROUP_INVALID
 };
 
@@ -11052,7 +11057,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         if (!WOLFSSL_NAMED_GROUP_IS_FFDHE(clientKSE->group)) {
             /* Check max value supported. */
             if (clientKSE->group > WOLFSSL_ECC_MAX) {
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
                 if (!WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group) &&
                     !WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group))
 #endif
@@ -11118,7 +11123,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         return ret;
 
     if (clientKSE->key == NULL) {
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
         if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group) ||
             WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(clientKSE->group)) {
             /* Going to need the public key (AKA ciphertext). */
@@ -14342,9 +14347,9 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_MLKEM
 #ifndef WOLFSSL_NO_ML_KEM_512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_512,
@@ -14428,8 +14433,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     #endif
 #endif /* HAVE_LIBOQS */
 #endif /* !WOLFSSL_NO_ML_KEM */
-#ifdef WOLFSSL_KYBER_ORIGINAL
-#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_MLKEM_KYBER
+#ifdef WOLFSSL_WC_MLKEM
 #ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1,
@@ -14506,8 +14511,8 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                                      ssl->heap);
     #endif
 #endif /* HAVE_LIBOQS */
-#endif /* WOLFSSL_KYBER_ORIGINAL */
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_MLKEM_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
     (void)ssl;
     (void)extensions;

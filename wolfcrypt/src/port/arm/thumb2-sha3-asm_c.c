@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha3-asm.c
+ *   ruby ./sha3/sha3.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha3-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -69,7 +70,9 @@ void BlockSha3(word64* state)
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register word64* state __asm__ ("r0") = (word64*)state_p;
-    register word64* L_sha3_thumb2_rt_c __asm__ ("r1") = (word64*)&L_sha3_thumb2_rt;
+    register word64* L_sha3_thumb2_rt_c __asm__ ("r1") =
+        (word64*)&L_sha3_thumb2_rt;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1149,16 +1152,10 @@ void BlockSha3(word64* state)
         "BNE.W	L_sha3_thumb2_begin_%=\n\t"
 #endif
         "ADD	sp, sp, #0xcc\n\t"
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        : [state] "+r" (state),
-          [L_sha3_thumb2_rt] "+r" (L_sha3_thumb2_rt_c)
+        : [state] "+r" (state), [L_sha3_thumb2_rt] "+r" (L_sha3_thumb2_rt_c)
         :
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#else
-        : [state] "+r" (state)
-        : [L_sha3_thumb2_rt] "r" (L_sha3_thumb2_rt)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "cc"
-#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11", "r12", "lr"
     );
 }
 
