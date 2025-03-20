@@ -1882,6 +1882,12 @@ int wc_CryptoCb_DefaultDevID(void)
 {
     int ret;
 
+/* Explicitly disable the "default devId" behavior. Ensures that any devId
+ * will only be used if explicitly passed as an argument to crypto functions,
+ * and never automatically selected. */
+#ifdef WC_NO_DEFAULT_DEVID
+    ret = INVALID_DEVID;
+#else
     /* conditional macro selection based on build */
 #ifdef WOLFSSL_CAAM_DEVID
     ret = WOLFSSL_CAAM_DEVID;
@@ -1893,6 +1899,7 @@ int wc_CryptoCb_DefaultDevID(void)
     /* try first available */
     ret = wc_CryptoCb_GetDevIdAtIndex(0);
 #endif
+#endif /* WC_NO_DEFAULT_DEVID */
 
     return ret;
 }

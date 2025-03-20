@@ -8802,10 +8802,20 @@ AC_ARG_ENABLE([cryptodev],
 
 # Support for crypto callbacks
 AC_ARG_ENABLE([cryptocb],
-    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
-    [ ENABLED_CRYPTOCB=$enableval ],
-    [ ENABLED_CRYPTOCB=no ]
-    )
+    [AS_HELP_STRING([--enable-cryptocb],
+        [Enable crypto callbacks (default: disabled). Use 'no-default-devid' to enable without a platform-specific default device ID])],
+[
+    case "$enableval" in
+        no-default-devid)
+            ENABLED_CRYPTOCB=yes
+            AM_CPPFLAGS="$AM_CPPFLAGS -DWC_NO_DEFAULT_DEVID"
+            ;;
+        *)
+            ENABLED_CRYPTOCB="$enableval"
+            ;;
+    esac
+],
+[ ENABLED_CRYPTOCB=no ])
 
 # Enable testing of cryptoCb using software crypto. On platforms where wolfCrypt tests
 # are used to test a custom cryptoCb, it may be desired to disable this so wolfCrypt tests
