@@ -21320,7 +21320,6 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case BASIC_CA_OID:
             VERIFY_AND_SET_OID(cert->extBasicConstSet);
             cert->extBasicConstCrit = critical ? 1 : 0;
-            cert->extBasicConstCrit = critical ? 1 : 0;
             if (DecodeBasicCaConstraint(input, (int)length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
