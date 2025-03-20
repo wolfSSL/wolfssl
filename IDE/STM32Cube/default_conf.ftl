@@ -76,6 +76,13 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_CRYPTO
     #define HAL_CONSOLE_UART huart1
+#elif defined(STM32WBA52xx)
+    #define WOLFSSL_STM32WBA
+    #define WOLFSSL_STM32_PKA
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    /* NUCLEO-WBA52CG USART1 (TX=PB12 / RX=PA8) */
+    #define HAL_CONSOLE_UART huart1
 #elif defined(STM32WL55xx)
     #define WOLFSSL_STM32WL
     #define WOLFSSL_STM32_PKA
@@ -179,12 +186,6 @@ extern ${variable.value} ${variable.name};
     #undef NO_STM32_CRYPTO
     #define WOLFSSL_STM32_PKA
     #define WOLFSSL_STM32_PKA_V2
-#elif defined(STM32WBA52xx)
-    #define WOLFSSL_STM32WBA
-    #define WOLFSSL_STM32_PKA
-    #undef  NO_STM32_HASH
-    #undef  NO_STM32_CRYPTO
-    #define HAL_CONSOLE_UART huart4
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */

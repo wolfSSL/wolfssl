@@ -2118,7 +2118,7 @@ extern void uITRON4_free(void *p) ;
 
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
             defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
-            defined(WOLFSSL_STM32WL)
+            defined(WOLFSSL_STM32WL) || defined(WOLFSSL_STM32WBA)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
