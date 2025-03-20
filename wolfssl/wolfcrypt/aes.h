@@ -334,7 +334,8 @@ struct Aes {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_AES_CTS)
     word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_XILINX_CRYPT
@@ -424,6 +425,9 @@ struct Aes {
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,
                                * trackable by sanitizers.
                                */
+#endif
+#ifdef WOLFSSL_AES_CTS
+    byte ctsBlock[WC_AES_BLOCK_SIZE * 2];
 #endif
 };
 
@@ -848,6 +852,28 @@ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEaxDecryptFinal(AesEax* eax,
 WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 
 #endif /* WOLFSSL_AES_EAX */
+
+#ifdef WOLFSSL_AES_CTS
+/* Ciphertext stealing encryption compatible with RFC2040 and RFC3962. */
+
+/* One-shot API */
+WOLFSSL_API int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
+                                 const byte* in, word32 inSz,
+                                 const byte* iv);
+WOLFSSL_API int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
+                                 const byte* in, word32 inSz,
+                                 const byte* iv);
+
+/* Incremental API */
+WOLFSSL_API int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
+                                       const byte* in, word32 inSz);
+WOLFSSL_API int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
+                                       const byte* in, word32 inSz);
+WOLFSSL_API int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz);
+WOLFSSL_API int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz);
+
+
+#endif
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)

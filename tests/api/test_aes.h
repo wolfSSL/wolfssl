@@ -27,6 +27,7 @@
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
 int test_wc_AesCbcEncryptDecrypt(void);
+int test_wc_AesCtsEncryptDecrypt(void);
 int test_wc_AesCtrEncryptDecrypt(void);
 int test_wc_AesGcmSetKey(void);
 int test_wc_AesGcmEncryptDecrypt(void);
@@ -48,6 +49,7 @@ int test_wc_GmacUpdate(void);
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
     TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesCtrEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesGcmSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),       \

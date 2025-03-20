@@ -5438,6 +5438,22 @@ AC_ARG_ENABLE([xts],
     [ ENABLED_AESXTS=$enableval ]
     )
 
+# AES-CTS
+AC_ARG_ENABLE([aescts],
+    [AS_HELP_STRING([--enable-aescts],[Enable AES CTS (default: disabled)])],
+    [ ENABLED_AESCTS=$enableval ],
+    [ ENABLED_AESCTS=no ]
+    )
+
+if test "$ENABLED_AESCTS" = "yes"
+then
+    if test "$ENABLED_AESCBC" = "no"
+    then
+        AC_MSG_ERROR([AES CTS requires AES CBC.])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CTS"
+fi
+
 # Web Server Build
 AC_ARG_ENABLE([webserver],
     [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],

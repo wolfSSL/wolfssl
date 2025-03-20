@@ -3759,7 +3759,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         ByteReverseWords(rk, rk, keylen);
     #endif
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
         return wc_AesSetIV(aes, iv);
@@ -3840,7 +3841,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
@@ -3871,7 +3873,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         XMEMCPY(aes->key, userKey, keylen);
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
@@ -3923,7 +3926,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
             return BAD_FUNC_ARG;
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
@@ -4004,7 +4008,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         ret = nrf51_aes_set_key(userKey);
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
@@ -4061,7 +4066,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
         XMEMCPY(aes->key, userKey, keylen);
         #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-            defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+            defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+            defined(WOLFSSL_AES_CTS)
             aes->left = 0;
         #endif
         return wc_AesSetIV(aes, iv);
@@ -4554,7 +4560,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+        defined(WOLFSSL_AES_CTS)
         aes->left = 0;
     #endif
 
@@ -4836,7 +4843,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         XMEMSET(aes->reg,  0, WC_AES_BLOCK_SIZE);
 
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
+    defined(WOLFSSL_AES_CTS)
     /* Clear any unused bytes from last cipher op. */
     aes->left = 0;
 #endif
@@ -10857,7 +10865,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 #endif /* WC_NO_RNG */
 
 
-WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
+int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
     if (gmac == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -10866,7 +10874,7 @@ WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 }
 
 
-WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                               const byte* authIn, word32 authInSz,
                               byte* authTag, word32 authTagSz)
 {
@@ -14905,5 +14913,279 @@ int wc_AesEaxFree(AesEax* eax)
 }
 
 #endif /* WOLFSSL_AES_EAX */
+
+#ifdef WOLFSSL_AES_CTS
+
+
+/* One-shot API */
+int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
+                     const byte* in, word32 inSz,
+                     const byte* iv)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes _aes;
+    Aes *aes = &_aes;
+#endif
+    int ret = 0;
+    word32 outSz = inSz;
+
+    if (key == NULL || out == NULL || in == NULL || iv == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    aes = wc_AesNew(NULL, INVALID_DEVID, &ret);
+#else
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+#endif
+    if (ret == 0)
+        ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
+    if (ret == 0)
+        ret = wc_AesCtsEncryptUpdate(aes, out, &outSz, in, inSz);
+    if (ret == 0) {
+        out += outSz;
+        outSz = inSz - outSz;
+        ret = wc_AesCtsEncryptFinal(aes, out, &outSz);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    wc_AesDelete(aes, NULL);
+#else
+    wc_AesFree(aes);
+#endif
+    return ret;
+}
+
+int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
+                     const byte* in, word32 inSz,
+                     const byte* iv)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes _aes;
+    Aes *aes = &_aes;
+#endif
+    int ret = 0;
+    word32 outSz = inSz;
+
+    if (key == NULL || out == NULL || in == NULL || iv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    aes = wc_AesNew(NULL, INVALID_DEVID, &ret);
+#else
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+#endif
+    if (ret == 0)
+        ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
+    if (ret == 0)
+        ret = wc_AesCtsDecryptUpdate(aes, out, &outSz, in, inSz);
+    if (ret == 0) {
+        out += outSz;
+        outSz = inSz - outSz;
+        ret = wc_AesCtsDecryptFinal(aes, out, &outSz);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    wc_AesDelete(aes, NULL);
+#else
+    wc_AesFree(aes);
+#endif
+    return ret;
+}
+
+static int AesCtsUpdate(Aes* aes, byte* out, word32* outSz,
+                        const byte* in, word32 inSz, int enc)
+{
+    word32 blocks = 0;
+    int ret = 0;
+    word32 writtenSz = 0;
+    word32 tmpOutSz;
+
+    if (aes == NULL || out == NULL || in == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Error out early for easy sanity check */
+    if (*outSz < inSz)
+        return BUFFER_E;
+    tmpOutSz = *outSz;
+
+    /* We need to store last two blocks of plaintext */
+    if (aes->left > 0) {
+        word32 copySz = min(inSz, (WC_AES_BLOCK_SIZE * 2) - aes->left);
+        XMEMCPY(aes->ctsBlock + aes->left, in, copySz);
+        aes->left += copySz;
+        in += copySz;
+        inSz -= copySz;
+
+        if (aes->left == WC_AES_BLOCK_SIZE * 2) {
+            if (inSz > WC_AES_BLOCK_SIZE) {
+                if (tmpOutSz < WC_AES_BLOCK_SIZE * 2)
+                    return BUFFER_E;
+                if (enc) {
+                    ret = wc_AesCbcEncrypt(aes, out, aes->ctsBlock,
+                                           WC_AES_BLOCK_SIZE * 2);
+                }
+                else {
+                    ret = wc_AesCbcDecrypt(aes, out, aes->ctsBlock,
+                                           WC_AES_BLOCK_SIZE * 2);
+                }
+                if (ret != 0)
+                    return ret;
+                out += WC_AES_BLOCK_SIZE * 2;
+                writtenSz += WC_AES_BLOCK_SIZE * 2;
+                tmpOutSz -= WC_AES_BLOCK_SIZE * 2;
+                aes->left = 0;
+            }
+            else if (inSz > 0) {
+                if (tmpOutSz < WC_AES_BLOCK_SIZE)
+                    return BUFFER_E;
+                if (enc) {
+                    ret = wc_AesCbcEncrypt(aes, out, aes->ctsBlock,
+                                           WC_AES_BLOCK_SIZE);
+                }
+                else {
+                    ret = wc_AesCbcDecrypt(aes, out, aes->ctsBlock,
+                                           WC_AES_BLOCK_SIZE);
+                }
+                if (ret != 0)
+                    return ret;
+                out += WC_AES_BLOCK_SIZE;
+                writtenSz += WC_AES_BLOCK_SIZE;
+                tmpOutSz -= WC_AES_BLOCK_SIZE;
+                /* Move the last block in ctsBlock to the beginning for
+                 * next operation */
+                XMEMCPY(aes->ctsBlock, aes->ctsBlock + WC_AES_BLOCK_SIZE,
+                        WC_AES_BLOCK_SIZE);
+                XMEMCPY(aes->ctsBlock + WC_AES_BLOCK_SIZE, in, inSz);
+                aes->left = WC_AES_BLOCK_SIZE + inSz;
+                *outSz = writtenSz;
+                return ret; /* Return the result of encryption */
+            }
+            else {
+                /* Can't output data as we need > 1 block for Final call */
+                *outSz = writtenSz;
+                return 0;
+            }
+        }
+        else {
+            /* All input has been absorbed into aes->ctsBlock */
+            *outSz = 0;
+            return 0;
+        }
+    }
+    if (inSz > WC_AES_BLOCK_SIZE) {
+        /* We need to store the last two full or partial blocks */
+        blocks = (inSz + (WC_AES_BLOCK_SIZE - 1)) / WC_AES_BLOCK_SIZE;
+        blocks -= 2;
+    }
+    if (tmpOutSz < blocks * WC_AES_BLOCK_SIZE)
+        return BUFFER_E;
+    if (enc)
+        ret = wc_AesCbcEncrypt(aes, out, in, blocks * WC_AES_BLOCK_SIZE);
+    else
+        ret = wc_AesCbcDecrypt(aes, out, in, blocks * WC_AES_BLOCK_SIZE);
+    in += blocks * WC_AES_BLOCK_SIZE;
+    inSz -= blocks * WC_AES_BLOCK_SIZE;
+    XMEMCPY(aes->ctsBlock, in, inSz);
+    aes->left = inSz;
+    writtenSz += blocks * WC_AES_BLOCK_SIZE;
+    *outSz = writtenSz;
+    return ret;
+}
+
+/* Incremental API */
+int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
+                           const byte* in, word32 inSz)
+{
+    return AesCtsUpdate(aes, out, outSz, in, inSz, 1);
+}
+
+int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz)
+{
+    int ret = 0;
+
+    if (aes == NULL || out == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+    if (*outSz < aes->left)
+        return BUFFER_E;
+
+    /* Input must be at least two complete or partial blocks */
+    if (aes->left <= WC_AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+    /* Zero padding */
+    XMEMSET(aes->ctsBlock + aes->left, 0, (WC_AES_BLOCK_SIZE * 2) - aes->left);
+
+    ret = wc_AesCbcEncrypt(aes, aes->ctsBlock, aes->ctsBlock,
+                           WC_AES_BLOCK_SIZE * 2);
+    if (ret != 0)
+        return ret;
+
+    XMEMCPY(out, aes->ctsBlock + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+    XMEMCPY(out + WC_AES_BLOCK_SIZE, aes->ctsBlock,
+            aes->left - WC_AES_BLOCK_SIZE);
+    *outSz = aes->left;
+    return ret;
+}
+
+int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
+                           const byte* in, word32 inSz)
+{
+    return AesCtsUpdate(aes, out, outSz, in, inSz, 0);
+}
+
+int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz)
+{
+    int ret = 0;
+    byte iv[WC_AES_BLOCK_SIZE];
+    byte tmp[WC_AES_BLOCK_SIZE];
+    word32 partialSz;
+    word32 padSz;
+
+    if (aes == NULL || out == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+    if (*outSz < aes->left)
+        return BUFFER_E;
+
+    /* Input must be at least two complete or partial blocks */
+    if (aes->left <= WC_AES_BLOCK_SIZE)
+        return BAD_FUNC_ARG;
+
+    partialSz = aes->left - WC_AES_BLOCK_SIZE;
+    padSz = 2 * WC_AES_BLOCK_SIZE - aes->left;
+    /* Zero pad */
+    XMEMSET(aes->ctsBlock + aes->left, 0, padSz);
+
+    /* Store IV */
+    XMEMCPY(iv, aes->reg, WC_AES_BLOCK_SIZE);
+    /* Load IV */
+    XMEMCPY(aes->reg, aes->ctsBlock + WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+
+    ret = wc_AesCbcDecrypt(aes, tmp, aes->ctsBlock, WC_AES_BLOCK_SIZE);
+    if (ret != 0)
+        return ret;
+
+    /* Write out partial block */
+    XMEMCPY(out + WC_AES_BLOCK_SIZE, tmp, partialSz);
+    /* Retrieve the padding */
+    XMEMCPY(aes->ctsBlock + aes->left, tmp + partialSz, padSz);
+    /* Restore IV */
+    XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
+
+    ret = wc_AesCbcDecrypt(aes, out, aes->ctsBlock + WC_AES_BLOCK_SIZE,
+                           WC_AES_BLOCK_SIZE);
+    if (ret != 0)
+        return ret;
+
+    *outSz = aes->left;
+    return ret;
+}
+
+#endif /* WOLFSSL_AES_CTS */
+
 
 #endif /* !NO_AES */
