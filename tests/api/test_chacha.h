@@ -22,7 +22,13 @@
 #ifndef WOLFCRYPT_TEST_CHACHA_H
 #define WOLFCRYPT_TEST_CHACHA_H
 
+#include <tests/api/api_decl.h>
+
 int test_wc_Chacha_SetKey(void);
 int test_wc_Chacha_Process(void);
+
+#define TEST_CHACHA_DECLS                               \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_SetKey),   \
+    TEST_DECL_GROUP("chacha", test_wc_Chacha_Process)
 
 #endif /* WOLFCRYPT_TEST_CHACHA_H */

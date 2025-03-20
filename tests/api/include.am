@@ -30,8 +30,23 @@ tests_unit_test_SOURCES += tests/api/test_aes.c
 tests_unit_test_SOURCES += tests/api/test_ascon.c
 tests_unit_test_SOURCES += tests/api/test_sm4.c
 tests_unit_test_SOURCES += tests/api/test_wc_encrypt.c
-# Signature Algorithm
+# Random
+tests_unit_test_SOURCES += tests/api/test_random.c
+# MP
+tests_unit_test_SOURCES += tests/api/test_wolfmath.c
+# Public Key Algorithm
+tests_unit_test_SOURCES += tests/api/test_rsa.c
+tests_unit_test_SOURCES += tests/api/test_dsa.c
+tests_unit_test_SOURCES += tests/api/test_dh.c
+tests_unit_test_SOURCES += tests/api/test_ecc.c
+tests_unit_test_SOURCES += tests/api/test_sm2.c
+tests_unit_test_SOURCES += tests/api/test_curve25519.c
+tests_unit_test_SOURCES += tests/api/test_ed25519.c
+tests_unit_test_SOURCES += tests/api/test_curve448.c
+tests_unit_test_SOURCES += tests/api/test_ed448.c
 tests_unit_test_SOURCES += tests/api/test_mlkem.c
+tests_unit_test_SOURCES += tests/api/test_mldsa.c
+tests_unit_test_SOURCES += tests/api/test_signature.c
 # TLS Protocol
 tests_unit_test_SOURCES += tests/api/test_dtls.c
 # TLS Feature
@@ -40,6 +55,7 @@ tests_unit_test_SOURCES += tests/api/test_evp.c
 endif
 
 EXTRA_DIST += tests/api/api.h
+EXTRA_DIST += tests/api/api_decl.h
 EXTRA_DIST += tests/api/test_md2.h
 EXTRA_DIST += tests/api/test_md4.h
 EXTRA_DIST += tests/api/test_md5.h
@@ -66,7 +82,20 @@ EXTRA_DIST += tests/api/test_ascon.h
 EXTRA_DIST += tests/api/test_sm4.h
 EXTRA_DIST += tests/api/test_ascon_kats.h
 EXTRA_DIST += tests/api/test_wc_encrypt.h
+EXTRA_DIST += tests/api/test_random.h
+EXTRA_DIST += tests/api/test_wolfmath.h
+EXTRA_DIST += tests/api/test_rsa.h
+EXTRA_DIST += tests/api/test_dsa.h
+EXTRA_DIST += tests/api/test_dh.h
+EXTRA_DIST += tests/api/test_ecc.h
+EXTRA_DIST += tests/api/test_sm2.h
+EXTRA_DIST += tests/api/test_curve25519.h
+EXTRA_DIST += tests/api/test_ed25519.h
+EXTRA_DIST += tests/api/test_curve448.h
+EXTRA_DIST += tests/api/test_ed448.h
 EXTRA_DIST += tests/api/test_mlkem.h
+EXTRA_DIST += tests/api/test_mldsa.h
+EXTRA_DIST += tests/api/test_signature.h
 EXTRA_DIST += tests/api/test_dtls.h
 EXTRA_DIST += tests/api/test_ocsp.h
 EXTRA_DIST += tests/api/test_ocsp_test_blobs.h

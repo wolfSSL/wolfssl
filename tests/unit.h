@@ -414,7 +414,10 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, test_cbType client_on_handshake);
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
+void ApiTest_StopOnFail(void);
 void ApiTest_PrintTestCases(void);
+void ApiTest_PrintGroups(void);
+int ApiTest_RunGroup(char* name);
 int ApiTest_RunIdx(int idx);
 int ApiTest_RunPartName(char* name);
 int ApiTest_RunName(char* name);

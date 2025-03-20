@@ -2536,7 +2536,20 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ascon.c
         tests/api/test_sm4.c
         tests/api/test_wc_encrypt.c
+        tests/api/test_random.c
+        tests/api/test_wolfmath.c
+        tests/api/test_rsa.c
+        tests/api/test_dsa.c
+        tests/api/test_dh.c
+        tests/api/test_ecc.c
+        tests/api/test_sm2.c
+        tests/api/test_curve25519.c
+        tests/api/test_ed25519.c
+        tests/api/test_curve448.c
+        tests/api/test_ed448.c
         tests/api/test_mlkem.c
+        tests/api/test_mldsa.c
+        tests/api/test_signature.c
         tests/api/test_dtls.c
         tests/api/test_ocsp.c
         tests/api/test_evp.c
