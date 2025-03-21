@@ -55282,8 +55282,12 @@ static wc_test_ret_t mp_test_radix_16(mp_int* a, mp_int* r, WC_RNG* rng)
             ret = randNum(a, j, rng, NULL);
             if (ret != 0)
                     return WC_TEST_RET_ENC_EC(ret);
-            mp_radix_size(a, MP_RADIX_HEX, &size);
-            mp_toradix(a, str, MP_RADIX_HEX);
+            ret = mp_radix_size(a, MP_RADIX_HEX, &size);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
+            ret = mp_toradix(a, str, MP_RADIX_HEX);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_EC(ret);
             if ((int)XSTRLEN(str) != size - 1)
                 return WC_TEST_RET_ENC_NC;
             mp_read_radix(r, str, MP_RADIX_HEX);
