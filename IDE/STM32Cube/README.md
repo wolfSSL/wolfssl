@@ -95,6 +95,7 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32H7 support define `WOLFSSL_STM32H7`.
 * To enable STM32H7S support define `WOLFSSL_STM32H7S`.
 * To enable STM32WB support define `WOLFSSL_STM32WB`.
+* To enable STM32WBA support define `WOLFSSL_STM32WBA`.
 * To enable STM32WL support define `WOLFSSL_STM32WL`.
 * To enable STM32U5 support define `WOLFSSL_STM32U5`.
 * To enable STM32H5 support define `WOLFSSL_STM32H5`.

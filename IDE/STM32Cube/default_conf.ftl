@@ -76,6 +76,13 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_CRYPTO
     #define HAL_CONSOLE_UART huart1
+#elif defined(STM32WBA52xx)
+    #define WOLFSSL_STM32WBA
+    #define WOLFSSL_STM32_PKA
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    /* NUCLEO-WBA52CG USART1 (TX=PB12 / RX=PA8) */
+    #define HAL_CONSOLE_UART huart1
 #elif defined(STM32WL55xx)
     #define WOLFSSL_STM32WL
     #define WOLFSSL_STM32_PKA
