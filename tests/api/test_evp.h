@@ -23,5 +23,6 @@
 #define WOLFSSL_TEST_EVP_H
 
 int test_wolfSSL_EVP_CipherUpdate_Null(void);
+int test_wolfSSL_EVP_CIPHER_type_string(void);
 
 #endif /* WOLFSSL_TEST_EVP_H */

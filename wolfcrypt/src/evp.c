@@ -2054,6 +2054,165 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
       else return 0;
 }
 
+/* Getter function for cipher type string
+ *
+ * cipherType  cipherType enum value to get string for
+ *
+ * Returns string representation of the cipher type or NULL if not found
+ */
+const char* wolfSSL_EVP_CIPHER_type_string(unsigned int cipherType)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_type_string");
+
+    switch (cipherType) {
+#ifndef NO_DES3
+        case WC_DES_CBC_TYPE:           return EVP_DES_CBC;
+        case WC_DES_EDE3_CBC_TYPE:      return EVP_DES_EDE3_CBC;
+        case WC_DES_ECB_TYPE:           return EVP_DES_ECB;
+        case WC_DES_EDE3_ECB_TYPE:      return EVP_DES_EDE3_ECB;
+#endif
+#if !defined(NO_AES)
+    #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_CBC_TYPE:       return EVP_AES_128_CBC;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_CBC_TYPE:       return EVP_AES_192_CBC;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_CBC_TYPE:       return EVP_AES_256_CBC;
+        #endif
+    #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT */
+    #if defined(WOLFSSL_AES_CFB)
+        #ifndef WOLFSSL_NO_AES_CFB_1_8
+            #ifdef WOLFSSL_AES_128
+            case WC_AES_128_CFB1_TYPE:      return EVP_AES_128_CFB1;
+            #endif
+            #ifdef WOLFSSL_AES_192
+            case WC_AES_192_CFB1_TYPE:      return EVP_AES_192_CFB1;
+            #endif
+            #ifdef WOLFSSL_AES_256
+            case WC_AES_256_CFB1_TYPE:      return EVP_AES_256_CFB1;
+            #endif
+            #ifdef WOLFSSL_AES_128
+            case WC_AES_128_CFB8_TYPE:      return EVP_AES_128_CFB8;
+            #endif
+            #ifdef WOLFSSL_AES_192
+            case WC_AES_192_CFB8_TYPE:      return EVP_AES_192_CFB8;
+            #endif
+            #ifdef WOLFSSL_AES_256
+            case WC_AES_256_CFB8_TYPE:      return EVP_AES_256_CFB8;
+            #endif
+        #endif /* !WOLFSSL_NO_AES_CFB_1_8 */
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_CFB128_TYPE:    return EVP_AES_128_CFB128;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_CFB128_TYPE:    return EVP_AES_192_CFB128;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_CFB128_TYPE:    return EVP_AES_256_CFB128;
+        #endif
+    #endif /* WOLFSSL_AES_CFB */
+    #if defined(WOLFSSL_AES_OFB)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_OFB_TYPE:       return EVP_AES_128_OFB;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_OFB_TYPE:       return EVP_AES_192_OFB;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_OFB_TYPE:       return EVP_AES_256_OFB;
+        #endif
+    #endif /* WOLFSSL_AES_OFB */
+    #if defined(WOLFSSL_AES_XTS) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_XTS_TYPE:       return EVP_AES_128_XTS;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_XTS_TYPE:       return EVP_AES_256_XTS;
+        #endif
+    #endif /* WOLFSSL_AES_XTS && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3)) */
+    #if defined(HAVE_AESGCM)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_GCM_TYPE:       return EVP_AES_128_GCM;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_GCM_TYPE:       return EVP_AES_192_GCM;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_GCM_TYPE:       return EVP_AES_256_GCM;
+        #endif
+    #endif /* HAVE_AESGCM */
+    #if defined(HAVE_AESCCM)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_CCM_TYPE:       return EVP_AES_128_CCM;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_CCM_TYPE:       return EVP_AES_192_CCM;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_CCM_TYPE:       return EVP_AES_256_CCM;
+        #endif
+    #endif /* HAVE_AESCCM */
+    #if defined(WOLFSSL_AES_COUNTER)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_CTR_TYPE:       return EVP_AES_128_CTR;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_CTR_TYPE:       return EVP_AES_192_CTR;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_CTR_TYPE:       return EVP_AES_256_CTR;
+        #endif
+    #endif /* WOLFSSL_AES_COUNTER */
+    #if defined(HAVE_AES_ECB)
+        #ifdef WOLFSSL_AES_128
+        case WC_AES_128_ECB_TYPE:       return EVP_AES_128_ECB;
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case WC_AES_192_ECB_TYPE:       return EVP_AES_192_ECB;
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case WC_AES_256_ECB_TYPE:       return EVP_AES_256_ECB;
+        #endif
+    #endif /* HAVE_AES_ECB */
+#endif /* !NO_AES */
+#if defined(HAVE_ARIA)
+        case WC_ARIA_128_GCM_TYPE:      return EVP_ARIA_128_GCM;
+        case WC_ARIA_192_GCM_TYPE:      return EVP_ARIA_192_GCM;
+        case WC_ARIA_256_GCM_TYPE:      return EVP_ARIA_256_GCM;
+#endif /* HAVE_ARIA */
+#ifndef NO_RC4
+        case WC_ARC4_TYPE:              return EVP_ARC4;
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        case WC_CHACHA20_POLY1305_TYPE: return EVP_CHACHA20_POLY1305;
+#endif
+#ifdef HAVE_CHACHA
+        case WC_CHACHA20_TYPE:          return EVP_CHACHA20;
+#endif
+#ifdef WOLFSSL_SM4_ECB
+        case WC_SM4_ECB_TYPE:           return EVP_SM4_ECB;
+#endif
+#ifdef WOLFSSL_SM4_CBC
+        case WC_SM4_CBC_TYPE:           return EVP_SM4_CBC;
+#endif
+#ifdef WOLFSSL_SM4_CTR
+        case WC_SM4_CTR_TYPE:           return EVP_SM4_CTR;
+#endif
+#ifdef WOLFSSL_SM4_GCM
+        case WC_SM4_GCM_TYPE:           return EVP_SM4_GCM;
+#endif
+#ifdef WOLFSSL_SM4_CCM
+        case WC_SM4_CCM_TYPE:           return EVP_SM4_CCM;
+#endif
+        case WC_NULL_CIPHER_TYPE:       return EVP_NULL;
+        default:
+            return NULL;
+    }
+}
+
 int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
 {
     if (cipher == NULL)

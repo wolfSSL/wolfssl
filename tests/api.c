@@ -66877,6 +66877,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_EncodeInit),
     TEST_DECL(test_wolfSSL_EVP_EncodeUpdate),
     TEST_DECL(test_wolfSSL_EVP_CipherUpdate_Null),
+    TEST_DECL(test_wolfSSL_EVP_CIPHER_type_string),
     TEST_DECL(test_wolfSSL_EVP_EncodeFinal),
     TEST_DECL(test_wolfSSL_EVP_DecodeInit),
     TEST_DECL(test_wolfSSL_EVP_DecodeUpdate),
