@@ -9809,8 +9809,8 @@ AS_IF([test "x$ENABLED_16BIT" = "xyes" && \
 ################################################################################
 # Update CFLAGS based on options                                               #
 ################################################################################
-AS_IF([test "x$ENABLED_SP_MATH_ALL" = "xno" && test "x$ENABLED_FASTMATH" = "xno" &&
-    test "x$ENABLED_HEAPMATH" = "xno"],
+AS_IF([test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no" &&
+       test "$ENABLED_FASTMATH" = "no" && test "$ENABLED_HEAPMATH" = "no"],
       [AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"])
 
 AS_IF([test "x$ENABLED_CERTS" = "xno"],

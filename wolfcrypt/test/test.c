@@ -22109,13 +22109,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
 
-#if !defined(NO_SIG_WRAPPER) && !defined(NO_SHA256)
+#ifndef NO_SIG_WRAPPER
+#ifndef NO_SHA256
     ret = rsa_sig_test(key, sizeof *key, modLen, &rng);
     if (ret != 0)
         goto exit_rsa;
-#else
+#else /* NO_SHA256 */
     (void)modLen;
-#endif
+#endif /* NO_SHA256 */
+#endif /* !NO_SIG_WRAPPER */
 
 #ifdef WC_RSA_NONBLOCK
     ret = rsa_nb_test(key, in, inLen, out, outSz, plain, plainSz, &rng);
