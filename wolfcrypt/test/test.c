@@ -19565,7 +19565,7 @@ static wc_test_ret_t rsa_export_key_test(RsaKey* key)
 }
 #endif /* !HAVE_FIPS && !NO_ASN && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#ifndef NO_SIG_WRAPPER
+#if !defined(NO_SIG_WRAPPER) && !defined(NO_SHA256)
 static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -19753,7 +19753,7 @@ static wc_test_ret_t rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG
 
     return 0;
 }
-#endif /* !NO_SIG_WRAPPER */
+#endif /* !NO_SIG_WRAPPER && !NO_SHA256 */
 
 #ifdef WC_RSA_NONBLOCK
 static wc_test_ret_t rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
@@ -22109,10 +22109,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa);
 #endif
 
-#ifndef NO_SIG_WRAPPER
+#if !defined(NO_SIG_WRAPPER) && !defined(NO_SHA256)
     ret = rsa_sig_test(key, sizeof *key, modLen, &rng);
     if (ret != 0)
         goto exit_rsa;
+#else
+    (void)modLen;
 #endif
 
 #ifdef WC_RSA_NONBLOCK
@@ -27063,7 +27065,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void)
 }
 #endif
 
-#ifdef HAVE_PKCS12
+#if defined(HAVE_PKCS12) && !defined(NO_SHA256)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
@@ -27117,7 +27119,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
 
     return 0;
 }
-#endif /* HAVE_PKCS12 */
+#endif /* HAVE_PKCS12 && !NO_SHA256 */
 
 #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
@@ -27196,7 +27198,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
     if (ret != 0)
         return ret;
 #endif
-#ifdef HAVE_PKCS12
+#if defined(HAVE_PKCS12) && !defined(NO_SHA256)
     ret = pkcs12_pbkdf_test();
     if (ret != 0)
         return ret;

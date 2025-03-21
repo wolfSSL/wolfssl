@@ -40,15 +40,19 @@ This library provides big integer math functions.
 #endif
 
 
-#if defined(USE_FAST_MATH)
+#if defined(NO_BIG_INT)
+    /* MPI globally disabled -- no PK algorithms supported. */
+#elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
     #include <wolfssl/wolfcrypt/tfm.h>
 #elif defined(USE_INTEGER_HEAP_MATH)
     #include <wolfssl/wolfcrypt/integer.h>
 #else
-    #include <wolfssl/wolfcrypt/sp_int.h>
+    #error No MPI back end active, and NO_BIG_INT is not defined.
 #endif
 
-#if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
+#if !defined(NO_BIG_INT)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
