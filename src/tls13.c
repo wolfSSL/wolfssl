@@ -4184,9 +4184,9 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     tmpHashes = ssl->hsHashes;
     ssl->hsHashes = NULL;
     /* init the ech hashes */
-    InitHandshakeHashes(ssl);
-    ssl->hsHashesEch = ssl->hsHashes;
+    ret = InitHandshakeHashes(ssl);
     if (ret == 0) {
+        ssl->hsHashesEch = ssl->hsHashes;
         /* do the handshake header then the body */
         AddTls13HandShakeHeader(falseHeader, realSz, 0, 0, client_hello, ssl);
         ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
@@ -4195,19 +4195,24 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
             /* init hsHashesEchInner */
             if (ech->innerCount == 0) {
                 ssl->hsHashes = ssl->hsHashesEchInner;
-                InitHandshakeHashes(ssl);
-                ssl->hsHashesEchInner = ssl->hsHashes;
-                ech->innerCount = 1;
+                ret = InitHandshakeHashes(ssl);
+                if (ret == 0) {
+                    ssl->hsHashesEchInner = ssl->hsHashes;
+                    ech->innerCount = 1;
+                }
             }
             else {
                 /* switch back to hsHashes so we have hrr -> echInner2 */
                 ssl->hsHashes = tmpHashes;
-                InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
-                    &ssl->hsHashesEchInner);
+                ret = InitHandshakeHashesAndCopy(ssl, ssl->hsHashes,
+                                                 &ssl->hsHashesEchInner);
             }
-            ssl->hsHashes = ssl->hsHashesEchInner;
-            ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
-            ssl->hsHashes = ssl->hsHashesEch;
+
+            if (ret == 0) {
+                ssl->hsHashes = ssl->hsHashesEchInner;
+                ret = HashRaw(ssl, falseHeader, HANDSHAKE_HEADER_SZ);
+                ssl->hsHashes = ssl->hsHashesEch;
+            }
         }
     }
     /* hash the body */

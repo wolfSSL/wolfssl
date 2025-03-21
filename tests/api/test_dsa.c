@@ -128,7 +128,7 @@ int test_wc_DsaSignVerify(void)
 #if !defined(HAVE_FIPS) && defined(WOLFSSL_PUBLIC_MP)
     /* hard set q to 0 and test fail case */
     mp_free(&key.q);
-    mp_init(&key.q);
+    ExpectIntEQ(mp_init(&key.q), 0);
     ExpectIntEQ(wc_DsaSign(hash, signature, &key, &rng), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     mp_set(&key.q, 1);
