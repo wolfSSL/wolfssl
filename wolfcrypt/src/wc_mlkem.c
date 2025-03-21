@@ -672,10 +672,8 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     sword16 y[3 * MLKEM_MAX_K * MLKEM_N];
 #endif
 #endif
-#ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16* u;
     sword16* v;
-#endif
 
     /* Establish parameters based on key type. */
     switch (key->type) {
@@ -741,21 +739,15 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     }
 #endif
 
-    if (ret == 0) {
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    if (ret == 0) {
         /* Assign allocated dynamic memory to pointers.
          * y (b) | a (m) | mu (p) | e1 (p) | e2 (v) | u (v) | v (p) */
         a  = y  + MLKEM_N * k;
         mu = a  + MLKEM_N * k * k;
         e1 = mu + MLKEM_N;
         e2 = e1 + MLKEM_N * k;
-#else
-        /* Assign allocated dynamic memory to pointers.
-         * y (v) | a (v) | u (v) */
-        a = y + MLKEM_N * k;
-#endif
 
-#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         /* Convert msg to a polynomial.
          * Step 20: mu <- Decompress_1(ByteDecode_1(m)) */
         mlkem_from_msg(mu, m);
@@ -767,7 +759,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
          */
         ret = mlkem_get_noise(&key->prf, k, y, e1, e2, r);
     }
-#ifdef WOLFSSL_MLKEM_CACHE_A
+    #ifdef WOLFSSL_MLKEM_CACHE_A
     if ((ret == 0) && ((key->flags & MLKEM_FLAG_A_SET) != 0)) {
         unsigned int i;
         /* Transpose matrix.
@@ -782,16 +774,13 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         }
     }
     else
-#endif
+    #endif /* WOLFSSL_MLKEM_CACHE_A */
     if (ret == 0) {
         /* Generate the transposed matrix.
          *   Step 4-8: generate matrix A_hat */
         ret = mlkem_gen_matrix(&key->prf, a, k, key->pubSeed, 1);
     }
     if (ret == 0) {
-        sword16* u;
-        sword16* v;
-
         /* Assign remaining allocated dynamic memory to pointers.
          * y (v) | a (m) | mu (p) | e1 (p) | r2 (v) | u (v) | v (p)*/
         u  = e2 + MLKEM_N;
@@ -799,8 +788,14 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Perform encapsulation maths.
          *   Steps 18-19, 21: calculate u and v */
-        mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
-#else
+        ret = mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
+    }
+#else /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
+    if (ret == 0) {
+        /* Assign allocated dynamic memory to pointers.
+         * y (v) | a (v) | u (v) */
+        a = y + MLKEM_N * k;
+
         /* Initialize the PRF for use in the noise generation. */
         mlkem_prf_init(&key->prf);
         /* Generate noise using PRF.
@@ -819,41 +814,39 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
         ret = mlkem_encapsulate_seeds(key->pub, &key->prf, u, a, y, k, m,
             key->pubSeed, r);
     }
+#endif /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
+
     if (ret == 0) {
-#endif
-        {
-            byte* c1 = c;
-            byte* c2 = c + compVecSz;
+        byte* c1 = c;
+        byte* c2 = c + compVecSz;
 
-        #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-            if (k == WC_ML_KEM_512_K) {
-                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-                mlkem_vec_compress_10(c1, u, k);
-                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-                mlkem_compress_4(c2, v);
-                /* Step 24: return c <- (c_1||c_2) */
-            }
-        #endif
-        #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-            if (k == WC_ML_KEM_768_K) {
-                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-                mlkem_vec_compress_10(c1, u, k);
-                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-                mlkem_compress_4(c2, v);
-                /* Step 24: return c <- (c_1||c_2) */
-            }
-        #endif
-        #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-            if (k == WC_ML_KEM_1024_K) {
-                /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
-                mlkem_vec_compress_11(c1, u);
-                /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
-                mlkem_compress_5(c2, v);
-                /* Step 24: return c <- (c_1||c_2) */
-            }
-        #endif
-
+    #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+        if (k == WC_ML_KEM_512_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            mlkem_vec_compress_10(c1, u, k);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            mlkem_compress_4(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
         }
+    #endif
+    #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
+        if (k == WC_ML_KEM_768_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            mlkem_vec_compress_10(c1, u, k);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            mlkem_compress_4(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
+        }
+    #endif
+    #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
+        if (k == WC_ML_KEM_1024_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            mlkem_vec_compress_11(c1, u);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            mlkem_compress_5(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
+        }
+    #endif
     }
 
 #ifndef WOLFSSL_NO_MALLOC

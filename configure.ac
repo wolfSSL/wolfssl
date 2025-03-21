@@ -1416,14 +1416,14 @@ AC_ARG_WITH([liboqs],
 # Used:
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable MLKEM (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: disabled)])],
     [ ENABLED_MLKEM=$enableval ],
     [ ENABLED_MLKEM=no ]
     )
+# note, inherits default from "kyber" clause above.
 AC_ARG_ENABLE([mlkem],
-    [AS_HELP_STRING([--enable-kyber],[Enable MLKEM (default: disabled)])],
-    [ ENABLED_MLKEM=$enableval ],
-    [ ENABLED_MLKEM=no ]
+    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: disabled)])],
+    [ ENABLED_MLKEM=$enableval ]
     )
 
 ENABLED_WC_MLKEM=no
@@ -1434,13 +1434,18 @@ ENABLED_MLKEM_DECAPSULATE=no
 for v in `echo $ENABLED_MLKEM | tr "," " "`
 do
   case $v in
-  yes)
+  yes|all)
     ENABLED_MLKEM512=yes
     ENABLED_MLKEM768=yes
     ENABLED_MLKEM1024=yes
     ENABLED_MLKEM_MAKE_KEY=yes
     ENABLED_MLKEM_ENCAPSULATE=yes
     ENABLED_MLKEM_DECAPSULATE=yes
+    if test "$v" = "all"
+    then
+        ENABLED_ML_KEM=yes
+        ENABLED_ORIGINAL=yes
+    fi
     ;;
   no)
     ;;
@@ -1466,11 +1471,6 @@ do
     ENABLED_MLKEM_ENCAPSULATE=yes
     ;;
   decapsulate|dec)
-    ENABLED_MLKEM_DECAPSULATE=yes
-    ;;
-  all)
-    ENABLED_MLKEM_MAKE_KEY=yes
-    ENABLED_MLKEM_ENCAPSULATE=yes
     ENABLED_MLKEM_DECAPSULATE=yes
     ;;
   original|kyber)
@@ -5673,7 +5673,8 @@ AS_CASE([$FIPS_VERSION],
             -DHAVE_FIPS_VERSION_MINOR=$HAVE_FIPS_VERSION_MINOR \
             -DHAVE_FIPS_VERSION_PATCH=$HAVE_FIPS_VERSION_PATCH \
             -DNO_BIG_INT \
-            -DWC_RNG_SEED_CB"
+            -DWC_RNG_SEED_CB \
+            -DNO_PBKDF2"
 
 # optimizations section
 
@@ -5700,9 +5701,9 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_hkdf" != "yes")],
             [enable_hkdf="no"; ENABLED_HKDF="no"; AM_CFLAGS="$AM_CFLAGS -UHAVE_HKDF"])
 
-        AS_IF([test "$ENABLED_PWDBASED" != "yes" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_pwdbased" != "no")],
-            [enable_pwdbased="yes"; ENABLED_PWDBASED="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_PBKDF2"])
+        AS_IF([test "$ENABLED_PWDBASED" != "no" &&
+               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_pwdbased" != "yes")],
+            [enable_pwdbased="no"; ENABLED_PWDBASED="no"])
 
         AS_IF([test "$ENABLED_SRTP" != "no" &&
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_srtp" != "yes")],

@@ -10894,9 +10894,10 @@ int TLSX_CKS_Set(WOLFSSL* ssl, TLSX** extensions)
 int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
                    TLSX** extensions)
 {
-    (void) extensions;
     int ret;
     int i, j;
+
+    (void) extensions;
 
     /* Validating the input. */
     if (length == 0)

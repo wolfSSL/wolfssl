@@ -9675,8 +9675,10 @@ static void bench_mlkem_keygen(int type, const char* name, int keySize,
 #ifdef MLKEM_NONDETERMINISTIC
             ret = wc_KyberKey_MakeKey(key, &gRng);
 #else
-            unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0,};
-            ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+            {
+                unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0,};
+                ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+            }
 #endif
             if (ret != 0)
                 goto exit;
