@@ -216,7 +216,6 @@ extern "C" {
     #define NO_SIG_WRAPPER
     #define NO_ASN_TIME
     #define NO_CODING
-    #define NO_BIG_INT
 #endif
 
 #ifdef __cplusplus
