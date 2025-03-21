@@ -8950,8 +8950,9 @@ int wc_dilithium_check_key(dilithium_key* key)
      */
 
     if (ret == 0) {
-        params = key->params;
         unsigned int allocSz;
+
+        params = key->params;
 
         /* s1-L, s2-K, t0-K, t-K, t1-K */
         allocSz = params->s1Sz + 4 * params->s2Sz;

@@ -8168,48 +8168,33 @@ typedef struct PqcHybridMapping {
 
 static const PqcHybridMapping pqc_hybrid_mapping[] = {
 #ifndef WOLFSSL_NO_ML_KEM
-    {.hybrid = WOLFSSL_P256_ML_KEM_512,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P256_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 0},
-    {.hybrid = WOLFSSL_P521_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP521R1,
-     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_ML_KEM_1024,            .pqc_first = 0},
+    {WOLFSSL_P256_ML_KEM_512, WOLFSSL_ECC_SECP256R1, WOLFSSL_ML_KEM_512, 0},
+    {WOLFSSL_P384_ML_KEM_768, WOLFSSL_ECC_SECP384R1, WOLFSSL_ML_KEM_768, 0},
+    {WOLFSSL_P256_ML_KEM_768, WOLFSSL_ECC_SECP256R1, WOLFSSL_ML_KEM_768, 0},
+    {WOLFSSL_P521_ML_KEM_1024, WOLFSSL_ECC_SECP521R1, WOLFSSL_ML_KEM_1024, 0},
+    {WOLFSSL_P384_ML_KEM_1024, WOLFSSL_ECC_SECP384R1, WOLFSSL_ML_KEM_1024, 0},
 #ifdef HAVE_CURVE25519
-    {.hybrid = WOLFSSL_X25519_ML_KEM_512,   .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_ML_KEM_512,             .pqc_first = 1},
-    {.hybrid = WOLFSSL_X25519_ML_KEM_768,   .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
+    {WOLFSSL_X25519_ML_KEM_512, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_512, 1},
+    {WOLFSSL_X25519_ML_KEM_768, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_768, 1},
 #endif
 #ifdef HAVE_CURVE448
-    {.hybrid = WOLFSSL_X448_ML_KEM_768,     .ecc = WOLFSSL_ECC_X448,
-     .pqc = WOLFSSL_ML_KEM_768,             .pqc_first = 1},
+    {WOLFSSL_X448_ML_KEM_768, WOLFSSL_ECC_X448, WOLFSSL_ML_KEM_768, 1},
 #endif
 #endif /* WOLFSSL_NO_ML_KEM */
 #ifdef WOLFSSL_MLKEM_KYBER
-    {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,   .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP384R1,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P256_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_SECP256R1,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,   .ecc = WOLFSSL_ECC_SECP521R1,
-     .pqc = WOLFSSL_KYBER_LEVEL5,           .pqc_first = 0},
+    {WOLFSSL_P256_KYBER_LEVEL1, WOLFSSL_ECC_SECP256R1, WOLFSSL_KYBER_LEVEL1, 0},
+    {WOLFSSL_P384_KYBER_LEVEL3, WOLFSSL_ECC_SECP384R1, WOLFSSL_KYBER_LEVEL3, 0},
+    {WOLFSSL_P256_KYBER_LEVEL3, WOLFSSL_ECC_SECP256R1, WOLFSSL_KYBER_LEVEL3, 0},
+    {WOLFSSL_P521_KYBER_LEVEL5, WOLFSSL_ECC_SECP521R1, WOLFSSL_KYBER_LEVEL5, 0},
 #ifdef HAVE_CURVE25519
-    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL1, .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_KYBER_LEVEL1,           .pqc_first = 0},
-    {.hybrid = WOLFSSL_X25519_KYBER_LEVEL3, .ecc = WOLFSSL_ECC_X25519,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+    {WOLFSSL_X25519_KYBER_LEVEL1, WOLFSSL_ECC_X25519, WOLFSSL_KYBER_LEVEL1, 0},
+    {WOLFSSL_X25519_KYBER_LEVEL3, WOLFSSL_ECC_X25519, WOLFSSL_KYBER_LEVEL3, 0},
 #endif
 #ifdef HAVE_CURVE448
-    {.hybrid = WOLFSSL_X448_KYBER_LEVEL3,   .ecc = WOLFSSL_ECC_X448,
-     .pqc = WOLFSSL_KYBER_LEVEL3,           .pqc_first = 0},
+    {WOLFSSL_X448_KYBER_LEVEL3, WOLFSSL_ECC_X448, WOLFSSL_KYBER_LEVEL3, 0},
 #endif
 #endif /* WOLFSSL_MLKEM_KYBER */
-    {.hybrid = 0, .ecc = 0, .pqc = 0, .pqc_first = 0}
+    {0, 0, 0, 0}
 };
 
 /* Map an ecc-pqc hybrid group into its ecc group and pqc kem group. */
