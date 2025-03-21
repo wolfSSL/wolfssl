@@ -728,11 +728,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
 fi
 
-if test "$ENABLED_RNG" = "yes" || test "$ENABLED_BENCHMARK" = "yes"
-then
-    AC_SEARCH_LIBS([clock_gettime],[rt])
-fi
-
 
 # MATH LIBRARY SELECTION
 
@@ -6409,6 +6404,11 @@ then
         break;;
       esac
     done
+fi
+
+if (test "$ENABLED_RNG" = "yes" && test "$ENABLED_ENTROPY_MEMUSE" != "no") || test "$ENABLED_BENCHMARK" = "yes"
+then
+    AC_SEARCH_LIBS([clock_gettime],[rt])
 fi
 
 
