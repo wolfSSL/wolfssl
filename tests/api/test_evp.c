@@ -74,7 +74,7 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
     EXPECT_DECLS;
 #ifdef OPENSSL_EXTRA
     const char* cipherStr;
-    
+
     /* Test with valid cipher types */
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
@@ -94,7 +94,7 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
     cipherStr = wolfSSL_EVP_CIPHER_type_string(WC_NULL_CIPHER_TYPE);
     ExpectNotNull(cipherStr);
     ExpectStrEQ(cipherStr, "NULL");
-    
+
     /* Test with invalid cipher type */
     cipherStr = wolfSSL_EVP_CIPHER_type_string(0xFFFF);
     ExpectNull(cipherStr);
