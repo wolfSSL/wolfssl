@@ -175,6 +175,19 @@ DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
 
+EXTRA_OPTS_CFLAGS=
+if test "$host_cpu" = "x86_64"
+then
+    if test "$CC" = "gcc" || test "$CC" = "icc"
+    then
+        EXTRA_OPTS_CFLAGS="$EXTRA_OPTS_CFLAGS -Wa,-mbranches-within-32B-boundaries"
+    fi
+fi
+OPTIMIZE_CFLAGS="$OPTIMIZE_CFLAGS $EXTRA_OPTS_CFLAGS"
+OPTIMIZE_FAST_CFLAGS="$OPTIMIZE_FAST_CFLAGS $EXTRA_OPTS_CFLAGS"
+OPTIMIZE_HUGE_CFLAGS="$OPTIMIZE_HUGE_CFLAGS $EXTRA_OPTS_CFLAGS"
+DEBUG_VFLAGS="$DEBUG_VFLAGS $EXTRA_OPTS_CFLAGS"
+
 if test "$output_objdir" = ""
 then
     output_objdir=.
