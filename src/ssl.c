@@ -14512,9 +14512,15 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     sk = CreatePeerCertChain(ssl, 0);
 
     if (sk != NULL) {
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            if (ssl->session->peer)
+                wolfSSL_X509_free(ssl->session->peer);
+
+            ssl->session->peer = wolfSSL_sk_X509_pop(sk);
+            ssl->session->peerVerifyRet = ssl->peerVerifyRet;
+        }
         if (ssl->peerCertChain != NULL)
             wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
-
         /* This is Free'd when ssl is Free'd */
         ssl->peerCertChain = sk;
     }
