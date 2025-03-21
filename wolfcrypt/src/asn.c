@@ -21236,10 +21236,11 @@ static int DecodeAltSigAlg(const byte* input, int sz, DecodedCert* cert)
  * like a traditional signature in the certificate. */
 static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
 {
-    (void)cert;
     int ret = 0;
     word32 idx = 0;
     int len = 0;
+
+    (void)cert;
 
     WOLFSSL_ENTER("DecodeAltSigVal");
 
@@ -32238,14 +32239,13 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     falcon_key*        falconKey = NULL;
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
-
-    WOLFSSL_ENTER("wc_MakeSigWithBitStr");
-
     int ret = 0;
     int headerSz;
     void* heap = NULL;
     CertSignCtx  certSignCtx_lcl;
     CertSignCtx* certSignCtx = &certSignCtx_lcl;
+
+    WOLFSSL_ENTER("wc_MakeSigWithBitStr");
 
     if ((sig == NULL) || (sigSz <= 0)) {
         return BAD_FUNC_ARG;

@@ -1345,8 +1345,10 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
  * @param  [in]   e2  Error polynomial.
  * @param  [in]   m   Message polynomial.
  * @param  [in]   k   Number of polynomials in vector.
+ * @return  0 on success.
+ *
  */
-void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
+int mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
     const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
     const sword16* m, int k)
 {
@@ -1416,6 +1418,8 @@ void mlkem_encapsulate(const sword16* t, sword16* u , sword16* v,
     /* Add errors and message to v and reduce.
      * Step 21: v <- InvNTT(t_hat_trans o y_hat) + e_2 + mu) */
     mlkem_add3_reduce(v, e2, m);
+
+    return 0;
 }
 #endif /* !WOLFSSL_MLKEM_NO_ENCAPSULATE || !WOLFSSL_MLKEM_NO_DECAPSULATE */
 
@@ -1660,8 +1664,9 @@ int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
  * @param  [in]   e2   Error polynomial.
  * @param  [in]   m    Message polynomial.
  * @param  [in]   k    Number of polynomials in vector.
+ * @return  0 on success.
  */
-static void mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
+static int mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
     const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
     const sword16* m, int k)
 {
@@ -1696,6 +1701,8 @@ static void mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
         sword16 t = v[i] + e2[i] + m[i];
         v[i] = MLKEM_BARRETT_RED(t);
     }
+
+    return 0;
 }
 
 /* Encapsulate message.
@@ -1709,8 +1716,9 @@ static void mlkem_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
  * @param  [in]   e2   Error polynomial.
  * @param  [in]   m    Message polynomial.
  * @param  [in]   k    Number of polynomials in vector.
+ * @return  0 on success.
  */
-void mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
+int mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
     const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
     const sword16* m, int k)
 {
@@ -1718,11 +1726,12 @@ void mlkem_encapsulate(const sword16* pub, sword16* u, sword16* v,
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         mlkem_encapsulate_avx2(pub, u, v, a, y, e1, e2, m, k);
         RESTORE_VECTOR_REGISTERS();
+        return 0;
     }
     else
 #endif
     {
-        mlkem_encapsulate_c(pub, u, v, a, y, e1, e2, m, k);
+        return mlkem_encapsulate_c(pub, u, v, a, y, e1, e2, m, k);
     }
 }
 
