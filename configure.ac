@@ -5678,28 +5678,22 @@ AS_CASE([$FIPS_VERSION],
 # optimizations section
 
 # protocol section
-        AS_IF([test "$ENABLED_CRYPTONLY" != "yes" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_cryptonly" != "no")],
+        AS_IF([test "$ENABLED_CRYPTONLY" != "yes" && test "$enable_cryptonly" != "no"],
             [ENABLED_CRYPTONLY="yes"; enable_cryptonly="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_ONLY"])
 
-        AS_IF([test "$ENABLED_TLS" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_tls" != "yes")],
+        AS_IF([test "$ENABLED_TLS" != "no" && test "$enable_tls" != "yes"],
             [ENABLED_TLS="no"; enable_tls="no"; AM_CFLAGS="$AM_CFLAGS -DNO_TLS"])
 
-        AS_IF([test "$ENABLED_TLSV12" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_tlsv12" != "yes")],
+        AS_IF([test "$ENABLED_TLSV12" != "no" && test "$enable_tlsv12" != "yes"],
             [ENABLED_TLSV12="no"; enable_tlsv12="no"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12"])
 
-        AS_IF([test "$ENABLED_ASN" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_asn" != "yes")],
+        AS_IF([test "$ENABLED_ASN" != "no" && test "$enable_asn" != "yes"],
             [ENABLED_ASN="no"; enable_asn="no"; AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"])
 
-        AS_IF([test "$ENABLED_SEND_HRR_COOKIE" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_hrrcookie" != "yes")],
+        AS_IF([test "$ENABLED_SEND_HRR_COOKIE" != "no" && test "$enable_hrrcookie" != "yes"],
             [ENABLED_SEND_HRR_COOKIE="no"; enable_hrrcookie="no"; AM_CFLAGS="$AM_CFLAGS -UWOLFSSL_SEND_HRR_COOKIE"])
 
-        AS_IF([test "$ENABLED_WOLFSSH" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_ssh" != "yes")],
+        AS_IF([test "$ENABLED_WOLFSSH" != "no" && test "$enable_ssh" != "yes"],
             [ENABLED_WOLFSSH="no"; enable_ssh="no"])
 
         AS_IF([test "$ENABLED_HKDF" != "no" &&
@@ -5718,8 +5712,7 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_srtp_kdf" != "yes")],
             [enable_srtp_kdf="no"; ENABLED_SRTP_KDF="no"])
 
-        AS_IF([test "$ENABLED_PKCS8" != "no" &&
-               (test "$FIPS_VERSION" != "lean-aesgcm-dev" || test "$enable_pkcs8" != "yes")],
+        AS_IF([test "$ENABLED_PKCS8" != "no" && test "$enable_pkcs8" != "yes"],
             [enable_pkcs8="no"; ENABLED_PKCS8="no"; AM_CFLAGS="$AM_CFLAGS -DNO_PKCS8"])
 
 # public key section
