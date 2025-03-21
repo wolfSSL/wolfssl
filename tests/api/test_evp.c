@@ -76,7 +76,7 @@ int test_wolfSSL_EVP_CIPHER_type_string(void)
     const char* cipherStr;
 
     /* Test with valid cipher types */
-#ifndef NO_AES
+#ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
     cipherStr = wolfSSL_EVP_CIPHER_type_string(WC_AES_128_CBC_TYPE);
     ExpectNotNull(cipherStr);
