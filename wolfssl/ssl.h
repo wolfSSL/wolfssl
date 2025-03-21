@@ -1181,6 +1181,12 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 WOLFSSL_API int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx,
     const char* publicName, word16 kemId, word16 kdfId, word16 aeadId);
 
+WOLFSSL_API int wolfSSL_CTX_SetEchConfigsBase64(WOLFSSL_CTX* ctx,
+    const char* echConfigs64, word32 echConfigs64Len);
+
+WOLFSSL_API int wolfSSL_CTX_SetEchConfigs(WOLFSSL_CTX* ctx,
+    const byte* echConfigs, word32 echConfigsLen);
+
 WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
     word32* outputLen);
 
