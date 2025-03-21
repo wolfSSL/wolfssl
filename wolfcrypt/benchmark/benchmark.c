@@ -3634,9 +3634,9 @@ static void* benchmarks_do(void* args)
         bench_scrypt();
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WC_NO_RNG)
 #ifndef HAVE_RENESAS_SYNC
-    #ifdef WOLFSSL_KEY_GEN
+    #if defined(WOLFSSL_KEY_GEN)
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
@@ -3656,7 +3656,7 @@ static void* benchmarks_do(void* args)
             }
         #endif
         }
-    #endif
+    #endif /* WOLFSSL_KEY_GEN */
     if (bench_all || (bench_asym_algs & BENCH_RSA)) {
     #ifndef NO_SW_BENCH
         bench_rsa(0);
@@ -3677,9 +3677,9 @@ static void* benchmarks_do(void* args)
     }
     #endif
 #endif
-#endif
+#endif /* !NO_RSA && !WC_NO_RNG */
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_DH)) {
     #ifndef NO_SW_BENCH
         bench_dh(0);
@@ -3761,7 +3761,7 @@ static void* benchmarks_do(void* args)
 #endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
             (bench_asym_algs & BENCH_ECC) ||
             (bench_asym_algs & BENCH_ECC_ALL) ||
@@ -9370,7 +9370,7 @@ exit:
 #endif /* !NO_RSA */
 
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(WC_NO_RNG)
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -9650,7 +9650,7 @@ exit:
     WC_FREE_VAR(priv2, HEAP_HINT);
     WC_FREE_ARRAY(agree, BENCH_MAX_PENDING, HEAP_HINT);
 }
-#endif /* !NO_DH */
+#endif /* !NO_DH && !WC_NO_RNG */
 
 #ifdef WOLFSSL_HAVE_MLKEM
 static void bench_mlkem_keygen(int type, const char* name, int keySize,
@@ -11047,7 +11047,7 @@ void bench_xmss(int hash)
 }
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 
 /* Maximum ECC name plus null terminator:
  * "ECC   [%15s]" and "ECDHE [%15s]" and "ECDSA [%15s]" */
@@ -11940,7 +11940,7 @@ exit:
     (void)name;
 }
 #endif /* WOLFSSL_SM2 */
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && && !defined(WC_NO_RNG) */
 
 #ifdef HAVE_CURVE25519
 void bench_curve25519KeyGen(int useDeviceID)

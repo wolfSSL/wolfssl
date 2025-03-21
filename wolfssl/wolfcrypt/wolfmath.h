@@ -40,7 +40,16 @@ This library provides big integer math functions.
 #endif
 
 
-#if defined(USE_FAST_MATH)
+#if defined(NO_BIG_INT)
+    /* MPI globally disabled -- no PK algorithms supported. */
+    #if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH) || \
+        defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH) || \
+        defined(HAVE_WOLF_BIGINT) || defined(WOLFSSL_EXPORT_INT)
+        #error Conflicting MPI settings.
+    #endif
+#elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
     #include <wolfssl/wolfcrypt/tfm.h>
 #elif defined(USE_INTEGER_HEAP_MATH)
     #include <wolfssl/wolfcrypt/integer.h>
@@ -48,7 +57,7 @@ This library provides big integer math functions.
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
 
-#if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
+#if !defined(NO_BIG_INT)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
@@ -72,7 +81,7 @@ This library provides big integer math functions.
     extern const wc_ptr_t wc_off_on_addr[2];
 #endif
 
-#if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
+#if !defined(NO_BIG_INT)
 /* common math functions */
 MP_API int get_digit_count(const mp_int* a);
 MP_API mp_digit get_digit(const mp_int* a, int n);

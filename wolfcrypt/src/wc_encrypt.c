@@ -455,10 +455,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #if defined(WOLFSSL_AES_256)
         case PBE_AES256_CBC:
             switch(shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 32;
                     break;
+            #endif
             #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;
@@ -471,10 +473,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #if defined(WOLFSSL_AES_128)
         case PBE_AES128_CBC:
             switch(shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 16;
                     break;
+            #endif
             #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;
