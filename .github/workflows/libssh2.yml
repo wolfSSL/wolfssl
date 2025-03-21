@@ -66,7 +66,7 @@ jobs:
           repository: libssh2/libssh2
           ref: libssh2-${{ matrix.ref }}
           path: libssh2
-          configure: --with-crypto=wolfssl --with-libwolfssl-prefix=$GITHUB_WORKSPACE/build-dir
+          configure: --with-crypto=wolfssl --with-libwolfssl-prefix=$GITHUB_WORKSPACE/build-dir CFLAGS="-DLIBSSH2_NO_RC4"
           check: true
 
       - name: Confirm libssh2 built with wolfSSL
