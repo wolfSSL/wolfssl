@@ -497,10 +497,6 @@
         #error "compiling -fPIE requires PIE redirect table."
     #endif
 
-    #if defined(HAVE_FIPS) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
-        #error "FIPS build requires PIE support."
-    #endif
-
     #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 
 #ifdef CONFIG_MIPS

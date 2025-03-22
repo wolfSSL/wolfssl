@@ -48,6 +48,8 @@
 #ifndef NO_CRYPT_TEST
     #include <wolfcrypt/test/test.h>
 #endif
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/sha256.h>
 
 static int libwolfssl_cleanup(void) {
     int ret;
