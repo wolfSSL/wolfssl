@@ -6379,42 +6379,44 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     ret = wc_GetCTC_HashOID(WC_HASH_TYPE_MD2);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifndef NO_MD5
     ret = wc_GetCTC_HashOID(WC_MD5);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifndef NO_SHA
     ret = wc_GetCTC_HashOID(WC_SHA);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifdef WOLFSSL_SHA224
     ret = wc_GetCTC_HashOID(WC_SHA224);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifndef NO_SHA256
     ret = wc_GetCTC_HashOID(WC_SHA256);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifdef WOLFSSL_SHA384
     ret = wc_GetCTC_HashOID(WC_SHA384);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 #ifdef WOLFSSL_SHA512
     ret = wc_GetCTC_HashOID(WC_SHA512);
     if (ret == 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
     ret = wc_GetCTC_HashOID(-1);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+
+    ret = 0;
 
 out:
 
@@ -50504,14 +50506,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
         }
 #endif
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
         (void)wc_CmacFree(cmac);
+#endif
     }
 
     ret = 0;
 
   out:
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     (void)wc_CmacFree(cmac);
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cmac, HEAP_HINT, DYNAMIC_TYPE_CMAC);
