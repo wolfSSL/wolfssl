@@ -62,6 +62,10 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
                               falcon_key* key, WC_RNG* rng)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
+    OQS_SIG *oqssig = NULL;
+    size_t localOutLen = 0;
+#endif
 
     /* sanity check on arguments */
     if ((in == NULL) || (out == NULL) || (outLen == NULL) || (key == NULL)) {
@@ -83,9 +87,6 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
 #endif
 
 #ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-    size_t localOutLen = 0;
-
     if ((ret == 0) && (!key->prvKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -161,6 +162,9 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                         word32 msgLen, int* res, falcon_key* key)
 {
     int ret = 0;
+#ifdef HAVE_LIBOQS
+    OQS_SIG *oqssig = NULL;
+#endif
 
     if (key == NULL || sig == NULL || msg == NULL || res == NULL) {
         return BAD_FUNC_ARG;
@@ -181,8 +185,6 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 #endif
 
 #ifdef HAVE_LIBOQS
-    OQS_SIG *oqssig = NULL;
-
     if ((ret == 0) && (!key->pubKeySet)) {
         ret = BAD_FUNC_ARG;
     }
@@ -708,11 +710,11 @@ int wc_falcon_export_key(falcon_key* key, byte* priv, word32 *privSz,
  */
 int wc_falcon_check_key(falcon_key* key)
 {
+    int ret = 0;
+
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-
-    int ret = 0;
 
     /* The public key is also decoded and stored within the private key buffer
      * behind the private key. Hence, we can compare both stored public keys. */
