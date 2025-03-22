@@ -15,13 +15,16 @@ $ ./configure \
     AR=$DEVKITARM/bin/arm-none-eabi-ar \
     STRIP=$DEVKITARM/bin/arm-none-eabi-strip \
     RANLIB=$DEVKITARM/bin/arm-none-eabi-ranlib \
-    LIBS="-lfat -lnds9" \
-    LDFLAGS="-L/opt/devkitpro/libnds/lib" \
+    LIBS="-lfat -lnds9 -lcalico_ds9" \
+    LDFLAGS="-L$DEVKITPRO/libnds/lib \
+        -L$DEVKITPRO/calico/lib" \
     --prefix=$DEVKITPRO/portlibs/nds \
     CFLAGS="-march=armv5te -mtune=arm946e-s \
-        --specs=ds_arm9.specs -DARM9 -DWOLFSSL_NDS \
+        -specs=$DEVKITPRO/calico/share/ds9.specs \
+        -D__NDS__ -DARM9 -D__thumb__=0 \
         -DWOLFSSL_MELONDS \
-        -DWOLFSSL_USER_IO \
+        -DWOLFSSL_NDS -DWOLFSSL_USER_IO \
+        -I$DEVKITPRO/calico/include \
         -I$DEVKITPRO/libnds/include" \
     --enable-fastmath --disable-benchmark \
     --disable-shared --disable-examples --disable-ecc
@@ -37,12 +40,15 @@ $ ./configure \
     AR=$DEVKITARM/bin/arm-none-eabi-ar \
     STRIP=$DEVKITARM/bin/arm-none-eabi-strip \
     RANLIB=$DEVKITARM/bin/arm-none-eabi-ranlib \
-    LIBS="-lfat -lnds9" \
-    LDFLAGS="-L/opt/devkitpro/libnds/lib" \
+    LIBS="-lfat -lnds9 -lcalico_ds9" \
+    LDFLAGS="-L$DEVKITPRO/libnds/lib \
+        -L$DEVKITPRO/calico/lib" \
     --prefix=$DEVKITPRO/portlibs/nds \
     CFLAGS="-march=armv5te -mtune=arm946e-s \
-        --specs=ds_arm9.specs -DARM9 -DWOLFSSL_NDS \
-        -DWOLFSSL_USER_IO \
+        -specs=$DEVKITPRO/calico/share/ds9.specs \
+        -D__NDS__ -DARM9 -D__thumb__=0 \
+        -DWOLFSSL_NDS -DWOLFSSL_USER_IO \
+        -I$DEVKITPRO/calico/include \
         -I$DEVKITPRO/libnds/include" \
     --enable-fastmath --disable-benchmark \
     --disable-shared --disable-examples --disable-ecc
