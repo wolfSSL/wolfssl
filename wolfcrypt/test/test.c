@@ -6547,6 +6547,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
 
     wc_test_ret_t ret;
     int times = sizeof(test_hmac) / sizeof(testVector), i;
+
+#if FIPS_VERSION3_GE(6,0,0)
+    int allowShortKeyWithFips = 1;
+#endif
+
     WOLFSSL_ENTER("hmac_sha_test");
 
     /* Following test vectors are from RFC 2202 section 3 */
@@ -6581,9 +6586,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
     test_hmac[1] = b;
     test_hmac[2] = c;
     test_hmac[3] = d;
-#if FIPS_VERSION3_GE(6,0,0)
-    int allowShortKeyWithFips = 1;
-#endif
 
     for (i = 0; i < times; ++i) {
 #if defined(HAVE_CAVIUM) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))
