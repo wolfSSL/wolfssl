@@ -5911,11 +5911,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sm3_test(void)
     byte   hashGet[WC_SM3_DIGEST_SIZE];
     byte   hashCopy[WC_SM3_DIGEST_SIZE];
     wc_test_ret_t ret = 0;
-    WOLFSSL_ENTER("sm3_test");
 
     testVector a, b, c;
     testVector test_sm3[3];
     int times = sizeof(test_sm3) / sizeof(struct testVector), i;
+
+    WOLFSSL_ENTER("sm3_test");
 
     a.input  = "";
     a.output = "\x1a\xb2\x1d\x83\x55\xcf\xa1\x7f\x8e\x61\x19\x48\x31\xe8\x1a"
