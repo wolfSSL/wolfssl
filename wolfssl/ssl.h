@@ -4435,7 +4435,7 @@ typedef int (*CallbackALPNSelect)(WOLFSSL* ssl, const unsigned char** out,
 #endif
 
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_UseALPN(WOLFSSL* ssl,
-                                char *protocol_name_list,
+                                const char *protocol_name_list,
                                 unsigned int protocol_name_listSz,
                                 unsigned char options);
 
