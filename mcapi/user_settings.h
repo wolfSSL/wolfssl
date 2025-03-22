@@ -350,9 +350,6 @@ extern "C" {
 #undef  NO_DH
 #define NO_DH
 
-#undef  NO_RC4
-#define NO_RC4
-
 #undef  NO_OLD_TLS
 #define NO_OLD_TLS
 

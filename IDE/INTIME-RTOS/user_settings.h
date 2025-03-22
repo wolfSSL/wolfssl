@@ -415,8 +415,7 @@ extern "C" {
 #undef  NO_FILESYSTEM
 //#define NO_FILESYSTEM
 
-#undef  NO_RC4
-#define NO_RC4
+
 
 #undef  NO_MD4
 #define NO_MD4

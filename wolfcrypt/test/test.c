@@ -270,7 +270,6 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/arc4.h>
 #if !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -577,7 +576,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 #ifdef WC_SRTP_KDF
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
 #endif
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rc2_test(void);
 #endif
@@ -1924,13 +1922,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("RC2      test failed!\n", ret);
     else
         TEST_PASS("RC2      test passed!\n");
-#endif
-
-#ifndef NO_RC4
-    if ( (ret = arc4_test()) != 0)
-        TEST_FAIL("ARC4     test failed!\n", ret);
-    else
-        TEST_PASS("ARC4     test passed!\n");
 #endif
 
 #ifdef HAVE_CHACHA
@@ -7595,95 +7586,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rc2_test(void)
 }
 #endif
 
-
-#ifndef NO_RC4
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t arc4_test(void)
-{
-    byte cipher[16];
-    byte plain[16];
-    wc_test_ret_t ret;
-
-    const char* keys[] =
-    {
-        "\x01\x23\x45\x67\x89\xab\xcd\xef",
-        "\x01\x23\x45\x67\x89\xab\xcd\xef",
-        "\x00\x00\x00\x00\x00\x00\x00\x00",
-        "\xef\x01\x23\x45"
-    };
-
-    testVector a, b, c, d;
-    testVector test_arc4[4];
-
-    int times = sizeof(test_arc4) / sizeof(testVector), i;
-    WOLFSSL_ENTER("arc4_test");
-
-    a.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef";
-    a.output = "\x75\xb7\x87\x80\x99\xe0\xc5\x96";
-    a.inLen  = 8;
-    a.outLen = 8;
-
-    b.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    b.output = "\x74\x94\xc2\xe7\x10\x4b\x08\x79";
-    b.inLen  = 8;
-    b.outLen = 8;
-
-    c.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
-    c.output = "\xde\x18\x89\x41\xa3\x37\x5d\x3a";
-    c.inLen  = 8;
-    c.outLen = 8;
-
-    d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    d.output = "\xd6\xa1\x41\xa7\xec\x3c\x38\xdf\xbd\x61";
-    d.inLen  = 10;
-    d.outLen = 10;
-
-    test_arc4[0] = a;
-    test_arc4[1] = b;
-    test_arc4[2] = c;
-    test_arc4[3] = d;
-
-    for (i = 0; i < times; ++i) {
-        Arc4 enc;
-        Arc4 dec;
-        int  keylen = 8;  /* XSTRLEN with key 0x00 not good */
-        if (i == 3)
-            keylen = 4;
-
-        ret = wc_Arc4Init(&enc, HEAP_HINT, devId);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        ret = wc_Arc4Init(&dec, HEAP_HINT, devId);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-
-        ret = wc_Arc4SetKey(&enc, (byte*)keys[i], (word32)keylen);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        ret = wc_Arc4SetKey(&dec, (byte*)keys[i], (word32)keylen);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-
-        ret = wc_Arc4Process(&enc, cipher, (byte*)test_arc4[i].input,
-                    (word32)test_arc4[i].outLen);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-        ret = wc_Arc4Process(&dec, plain,  cipher, (word32)test_arc4[i].outLen);
-        if (ret != 0)
-            return WC_TEST_RET_ENC_EC(ret);
-
-        if (XMEMCMP(plain, test_arc4[i].input, test_arc4[i].outLen))
-            return WC_TEST_RET_ENC_I(i);
-
-        if (XMEMCMP(cipher, test_arc4[i].output, test_arc4[i].outLen))
-            return WC_TEST_RET_ENC_I(i);
-
-        wc_Arc4Free(&enc);
-        wc_Arc4Free(&dec);
-    }
-
-    return 0;
-}
-#endif
 
 #ifdef HAVE_CHACHA
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
@@ -37142,7 +37044,7 @@ cleanup:
 #endif
 #endif
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+#if defined(HAVE_HASHDRBG)
     wc_FreeRng(&rng);
 #endif
 
@@ -38757,7 +38659,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 #endif
 #endif
 
-#if defined(HAVE_HASHDRBG) || defined(NO_RC4)
+#if defined(HAVE_HASHDRBG)
     wc_FreeRng(&rng);
 #endif
 

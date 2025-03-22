@@ -53,7 +53,7 @@
 #define NO_OLD_TLS
 #define NO_DES3
 #define NO_MD5
-#define NO_RC4
+
 #define NO_DH
 #define NO_SHA
 

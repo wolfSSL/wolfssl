@@ -252,7 +252,6 @@ extern "C" {
 //#define WOLFSSL_RIPEMD
 //#define HAVE_SCRYPT
 //#define WOLFSSL_MD2
-//#define WOLFSSL_ALLOW_RC4
 
 /* Encoding */
 #define WOLFSSL_BASE16
@@ -346,7 +345,6 @@ extern "C" {
     //#define NO_KDF
     //#define NO_HMAC
 
-    #define NO_RC4
     #define NO_DES3
     //#define NO_AES
     #define NO_AES_CBC

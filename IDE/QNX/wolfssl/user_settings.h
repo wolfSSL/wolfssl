@@ -97,8 +97,7 @@
 #undef  NO_DSA
 #define NO_DSA
 
-#undef  NO_RC4
-#define NO_RC4
+
 
 #undef  NO_PSK
 #define NO_PSK
