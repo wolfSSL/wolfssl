@@ -4730,8 +4730,6 @@ static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
     return length;
 }
 
-#endif
-
 static word16 TLSX_PointFormat_GetSize(PointFormat* list)
 {
     PointFormat* point;
@@ -4744,8 +4742,6 @@ static word16 TLSX_PointFormat_GetSize(PointFormat* list)
 
     return length;
 }
-
-#if !defined(NO_WOLFSSL_CLIENT) || defined(WOLFSSL_TLS13)
 
 static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
 {
@@ -4762,8 +4758,6 @@ static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
     return offset;
 }
 
-#endif
-
 static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 {
     word16 offset = ENUM_LEN;
@@ -4777,6 +4771,7 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 
     return offset;
 }
+#endif /* NO_WOLFSSL_CLIENT*/
 
 #if !defined(NO_WOLFSSL_SERVER) || (defined(WOLFSSL_TLS13) && \
                                          !defined(WOLFSSL_NO_SERVER_GROUPS_EXT))
@@ -7295,6 +7290,8 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 #endif
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
+
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 /******************************************************************************/
 /* Signature Algorithms                                                       */
 /******************************************************************************/
@@ -7304,7 +7301,6 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
  * data  Unused
  * returns the length of data that will be in the extension.
  */
-
 static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 {
     SignatureAlgorithms* sa = (SignatureAlgorithms*)data;
@@ -7314,6 +7310,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
     else
         return OPAQUE16_LEN + sa->hashSigAlgoSz;
 }
+#endif /* WOLFSSL_TLS13 && !NO_WOLFSSL_CLIENT */
 
 /* Creates a bit string of supported hash algorithms with RSA PSS.
  * The bit string is used when determining which signature algorithm to use
@@ -7348,6 +7345,7 @@ static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, const byte* input,
     return 0;
 }
 
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 /* Writes the SignatureAlgorithms extension into the buffer.
  *
  * data    Unused
@@ -7380,6 +7378,7 @@ static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
 
     return OPAQUE16_LEN + hashSigAlgoSz;
 }
+#endif /* WOLFSSL_TLS13 && !NO_WOLFSSL_CLIENT */
 
 /* Parse the SignatureAlgorithms extension.
  *
@@ -13683,6 +13682,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
     (void)heap;
 }
 
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 /** Checks if the tls extensions are supported based on the protocol version. */
 int TLSX_SupportExtensions(WOLFSSL* ssl) {
     return ssl && (IsTLS(ssl) || ssl->version.major == DTLS_MAJOR);
@@ -14140,6 +14140,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
     return ret;
 }
+#endif /* WOLFSSL_TLS13 && !NO_WOLFSSL_CLIENT */
 
 #ifdef HAVE_SUPPORTED_CURVES
 
