@@ -2847,6 +2847,10 @@ extern void uITRON4_free(void *p) ;
         /* default is SP Math. */
         #define WOLFSSL_SP_MATH_ALL
     #endif
+#elif defined(WOLFCRYPT_FIPS_RAND)
+    #ifndef NO_BIG_INT
+        #define NO_BIG_INT
+    #endif
 #else
     /* FIPS 140-2 or older */
     /* Default to fast math (tfm.c), but allow heap math (integer.c) */

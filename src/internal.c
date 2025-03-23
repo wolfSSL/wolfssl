@@ -13814,8 +13814,6 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr;
-#else
-    (void)idx;
 #endif
     #ifdef WOLFSSL_SMALL_STACK
         CertStatus* status;
@@ -13844,6 +13842,8 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->status_request = 0;
                 break;
             }
+        #else
+            (void)idx;
         #endif
 
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
