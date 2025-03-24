@@ -788,7 +788,7 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
 
         /* Perform encapsulation maths.
          *   Steps 18-19, 21: calculate u and v */
-        ret = mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
+        mlkem_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
     }
 #else /* WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM */
     if (ret == 0) {
