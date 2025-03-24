@@ -40116,6 +40116,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, buf, &idx,
                 maxIdx);
         if (ret == 0) {
+            word32 localIdx = idx;
             /* OID in extension. */
             word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
             /* Length of extension data. */
@@ -40125,7 +40126,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             #ifndef NO_SKID
                 /* Parse Authority Key Id extension.
                  * idx is at start of OCTET_STRING data. */
-                ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
+                ret = ParseCRL_AuthKeyIdExt(buf + localIdx, length, dcrl);
                 if (ret != 0) {
                     WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
                 }
@@ -40148,7 +40149,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     }
                 }
                 if (ret == 0) {
-                    ret = GetInt(m, buf, &idx, maxIdx);
+                    ret = GetInt(m, buf, &localIdx, maxIdx);
                 }
                 if (ret == 0) {
                     dcrl->crlNumber = (int)m->dp[0];
