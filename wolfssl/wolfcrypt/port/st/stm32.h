@@ -42,11 +42,13 @@
         #define HASH_CR_SIZE    54
         #define HASH_MAX_DIGEST 32
     #endif
-    #if defined(WOLFSSL_STM32MP13)
+    #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S)
         #define STM32_HASH_SHA512
         #define STM32_HASH_SHA512_224
         #define STM32_HASH_SHA512_256
         #define STM32_HASH_SHA384
+    #endif
+    #if defined(WOLFSSL_STM32MP13)
         #define STM32_HASH_SHA3
     #endif
 #else

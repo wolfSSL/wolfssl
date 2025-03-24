@@ -8296,7 +8296,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
-#if STM_CRYPT_HEADER_TYPE
+#ifdef WOLFSSL_STM32MP13
     /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
      * minimum of 16 bytes for the auth
      */
@@ -8842,7 +8842,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         authPadSz = authInSz;
     }
 
-#if defined(WOLFSSL_STM32MP13)
+#ifdef WOLFSSL_STM32MP13
     /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
      * minimum of 16 bytes for the auth
      */

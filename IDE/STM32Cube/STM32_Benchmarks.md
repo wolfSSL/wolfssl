@@ -216,14 +216,14 @@ GMAC Table 4-bit            46 MiB took 1.000 seconds,   45.835 MiB/s
 CHACHA                      32 MiB took 1.000 seconds,   31.519 MiB/s
 CHA-POLY                    15 MiB took 1.000 seconds,   15.259 MiB/s
 POLY1305                    57 MiB took 1.000 seconds,   56.934 MiB/s
-SHA-256                     88 MiB took 1.000 seconds,   88.184 MiB/s
-SHA-384                      6 MiB took 1.000 seconds,    5.835 MiB/s
-SHA-512                      6 MiB took 1.000 seconds,    5.591 MiB/s
-SHA-512/224                  6 MiB took 1.000 seconds,    5.615 MiB/s
-SHA-512/256                  6 MiB took 1.000 seconds,    5.591 MiB/s
-HMAC-SHA256                 83 MiB took 1.000 seconds,   83.154 MiB/s
-HMAC-SHA384                  6 MiB took 1.000 seconds,    5.518 MiB/s
-HMAC-SHA512                  6 MiB took 1.000 seconds,    5.542 MiB/s
+SHA-256                     90 MiB took 1.000 seconds,   90.381 MiB/s
+SHA-384                     98 MiB took 1.000 seconds,   97.925 MiB/s
+SHA-512                     98 MiB took 1.000 seconds,   97.925 MiB/s
+SHA-512/224                 98 MiB took 1.000 seconds,   98.120 MiB/s
+SHA-512/256                 98 MiB took 1.000 seconds,   98.096 MiB/s
+HMAC-SHA256                 71 MiB took 1.000 seconds,   71.265 MiB/s
+HMAC-SHA384                 89 MiB took 1.000 seconds,   88.599 MiB/s
+HMAC-SHA512                 89 MiB took 1.000 seconds,   88.843 MiB/s
 RSA     2048   public       352 ops took 1.000 sec, avg 2.841 ms, 352.000 ops/sec
 RSA     2048  private         6 ops took 1.008 sec, avg 168.000 ms, 5.952 ops/sec
 DH      2048  key gen        15 ops took 1.027 sec, avg 68.467 ms, 14.606 ops/sec
