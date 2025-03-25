@@ -4498,8 +4498,20 @@ static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
 static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
 #ifdef WOLFSSL_FPKI
 #define CERT_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 3, num}
+    static const byte extCertPolicyFpkiHighAssuranceOid[] =
+            CERT_POLICY_TYPE_OID_BASE(4);
+    static const byte extCertPolicyFpkiCommonHardwareOid[] =
+            CERT_POLICY_TYPE_OID_BASE(7);
+    static const byte extCertPolicyFpkiMediumHardwareOid[] =
+            CERT_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyFpkiCommonAuthOid[] =
             CERT_POLICY_TYPE_OID_BASE(13);
+    static const byte extCertPolicyFpkiCommonHighOid[] =
+            CERT_POLICY_TYPE_OID_BASE(16);
+    static const byte extCertPolicyFpkiCommonDevicesHardwareOid[] =
+            CERT_POLICY_TYPE_OID_BASE(36);
+    static const byte extCertPolicyFpkiCommonPivContentSigningOid[] =
+            CERT_POLICY_TYPE_OID_BASE(39);
     static const byte extCertPolicyFpkiPivAuthOid[] =
             CERT_POLICY_TYPE_OID_BASE(40);
     static const byte extCertPolicyFpkiPivAuthHwOid[] =
@@ -5439,6 +5451,30 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(extCertPolicyAnyOid);
                     break;
                 #if defined(WOLFSSL_FPKI)
+                case CP_FPKI_HIGH_ASSURANCE_OID:
+                    oid = extCertPolicyFpkiHighAssuranceOid;
+                    *oidSz = sizeof(extCertPolicyFpkiHighAssuranceOid);
+                    break;
+                case CP_FPKI_COMMON_HARDWARE_OID:
+                    oid = extCertPolicyFpkiCommonHardwareOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCommonHardwareOid);
+                    break;
+                case CP_FPKI_MEDIUM_HARDWARE_OID:
+                    oid = extCertPolicyFpkiMediumHardwareOid;
+                    *oidSz = sizeof(extCertPolicyFpkiMediumHardwareOid);
+                    break;
+                case CP_FPKI_COMMON_HIGH_OID:
+                    oid = extCertPolicyFpkiCommonHighOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCommonHighOid);
+                    break;
+                case CP_FPKI_COMMON_DEVICES_HARDWARE_OID:
+                    oid = extCertPolicyFpkiCommonDevicesHardwareOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCommonDevicesHardwareOid);
+                    break;
+                case CP_FPKI_COMMON_PIV_CONTENT_SIGNING_OID:
+                    oid = extCertPolicyFpkiCommonPivContentSigningOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCommonPivContentSigningOid);
+                    break;
                 case CP_FPKI_COMMON_AUTH_OID:
                     oid = extCertPolicyFpkiCommonAuthOid;
                     *oidSz = sizeof(extCertPolicyFpkiCommonAuthOid);
