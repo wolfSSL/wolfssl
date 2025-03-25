@@ -139,7 +139,8 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 #endif
     dcrl->certs = NULL;
     crle->totalCerts = dcrl->totalCerts;
-    crle->crlNumber = dcrl->crlNumber;
+    XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
+    crle->crlNumberSet = dcrl->crlNumberSet;
     crle->verified = verified;
     if (!verified) {
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
@@ -590,7 +591,8 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
     info->nextDate = (byte *)entry->nextDate;
     info->nextDateMaxLen = MAX_DATE_SIZE;
     info->nextDateFormat = entry->nextDateFormat;
-    info->crlNumber = (sword32)entry->crlNumber;
+    XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+    info->crlNumberSet = entry->crlNumberSet;
 }
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
@@ -603,9 +605,29 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
     info->nextDate = (byte *)entry->nextDate;
     info->nextDateMaxLen = MAX_DATE_SIZE;
     info->nextDateFormat = entry->nextDateFormat;
-    info->crlNumber = (sword32)entry->crlNumber;
+    XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
+    info->crlNumberSet = entry->crlNumberSet;
 }
 #endif
+
+/* Returns 1 if prev crlNumber is smaller, 0 otherwise */
+static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr) {
+    word32 i;
+    word32 prevCrlNumLen = (word32)XSTRLEN((char*)prev->crlNumber);
+    word32 currCrlNumLen = (word32)XSTRLEN((char*)curr->crlNumber);
+
+    if (prevCrlNumLen != currCrlNumLen) {
+        return (prevCrlNumLen < currCrlNumLen);
+    }
+
+    for (i = 0; i < currCrlNumLen; i++) {
+        if (prev->crlNumber[i] != curr->crlNumber[i]) {
+            return prev->crlNumber[i] < curr->crlNumber[i];
+        }
+    }
+
+    return 1;
+}
 
 /* Add Decoded CRL, 0 on success */
 static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
@@ -648,7 +670,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
 
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
         if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
-            if (crle->crlNumber <= curr->crlNumber) {
+            if (CompareCRLnumber(crle, curr)) {
                 WOLFSSL_MSG("Same or newer CRL entry already exists");
                 CRL_Entry_free(crle, crl->heap);
                 wc_UnLockRwLock(&crl->crlLock);
