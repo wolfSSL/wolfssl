@@ -8880,7 +8880,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
     }
 
-    if (crl->crlList->crlNumber) {
+    if (crl->crlList->crlNumberSet) {
         if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 4, "",
                     "X509v3 CRL Number:") >= MAX_WIDTH) {
             return WOLFSSL_FAILURE;
@@ -8890,11 +8890,11 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
         }
 
-        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%d\n", indent + 8, "",
-            crl->crlList->crlNumber) >= MAX_WIDTH)
-        {
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 8, "",
+            crl->crlList->crlNumber) >= MAX_WIDTH) {
             return WOLFSSL_FAILURE;
         }
+
         if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
             return WOLFSSL_FAILURE;
         }
