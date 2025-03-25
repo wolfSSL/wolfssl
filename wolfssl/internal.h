@@ -2548,6 +2548,8 @@ typedef struct CRL_Entry CRL_Entry;
         #error CRL_MAX_REVOKED_CERTS too big, max is 22000
     #endif
 #endif
+
+#ifdef HAVE_CRL
 /* Complete CRL */
 struct CRL_Entry {
     byte*   toBeSigned;
@@ -2644,6 +2646,7 @@ struct WOLFSSL_CRL {
 #endif
     void*                 heap;          /* heap hint for dynamic memory */
 };
+#endif
 
 
 #ifdef NO_ASN
