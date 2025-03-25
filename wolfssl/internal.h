@@ -2560,6 +2560,8 @@ struct CRL_Entry {
     /* DupCRL_Entry copies data after the `verifyMutex` member. Using the mutex
      * as the marker because clang-tidy doesn't like taking the sizeof a
      * pointer. */
+    byte    crlNumber[CRL_MAX_NUM_SZ];    /* CRL number extension */
+    byte    crlNumberSet;                 /* CRL number set indicator */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
@@ -2590,7 +2592,6 @@ struct CRL_Entry {
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
 #endif
-    int                   crlNumber;  /* CRL number extension */
 };
 
 
