@@ -4613,7 +4613,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             BOEING_POLICY_TYPE_OID_BASE(17);
 
     /* Carillon Federal Services OIDs - 1.3.6.1.4.1.45606.3.1.X */
-    #define CARILLON_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 178, 38, 3, 1, num}
+    #define CARILLON_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 130, 228, 38, 3, 1, num}
     static const byte extCertPolicyCarillonMediumhw256Oid[] =
             CARILLON_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyCarillonAivhwOid[] =
@@ -4622,7 +4622,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             CARILLON_POLICY_TYPE_OID_BASE(22);
 
     /* Carillon Information Security OIDs - 1.3.6.1.4.1.25054.3.1.X */
-    #define CIS_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 97, 230, 3, 1, num}
+    #define CIS_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 129, 195, 94, 3, 1, num}
     static const byte extCertPolicyCisMediumhw256Oid[] =
             CIS_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyCisMeddevhw256Oid[] =
@@ -4633,7 +4633,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             CIS_POLICY_TYPE_OID_BASE(22);
 
     /* CertiPath Bridge OIDs - 1.3.6.1.4.1.24019.1.1.1.X */
-    #define CERTIPATH_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 93, 227, 1, 1, 1, num}
+    #define CERTIPATH_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 129, 187, 83, 1, 1, 1, num}
     static const byte extCertPolicyCertipathMediumhwOid[] =
             CERTIPATH_POLICY_TYPE_OID_BASE(2);
     static const byte extCertPolicyCertipathHighhwOid[] =
@@ -4648,7 +4648,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             CERTIPATH_POLICY_TYPE_OID_BASE(19);
 
     /* TSCP Bridge OIDs - 1.3.6.1.4.1.38099.1.1.1.X */
-    #define TSCP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 35, 1, 1, 1, num}
+    #define TSCP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 130, 169, 83, 1, 1, 1, num}
     static const byte extCertPolicyTscpMediumhwOid[] =
             TSCP_POLICY_TYPE_OID_BASE(2);
     static const byte extCertPolicyTscpPiviOid[] =
@@ -4657,7 +4657,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             TSCP_POLICY_TYPE_OID_BASE(7);
 
     /* DigiCert NFI PKI OIDs - 2.16.840.1.113733.1.7.23.3.1.X */
-    #define DIGICERT_NFI_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 113733, 1, 7, 23, 3, 1, num}
+    #define DIGICERT_NFI_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 134, 248, 69, 1, 7, 23, 3, 1, num}
     static const byte extCertPolicyDigicertNfiMediumHardwareOid[] =
             DIGICERT_NFI_POLICY_TYPE_OID_BASE(7);
     static const byte extCertPolicyDigicertNfiAuthOid[] =
@@ -4670,7 +4670,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             DIGICERT_NFI_POLICY_TYPE_OID_BASE(36);
 
     /* Entrust Managed Services NFI PKI OIDs - 2.16.840.1.114027.200.3.10.7.X */
-    #define ENTRUST_NFI_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 114027, 200, 3, 10, 7, num}
+    #define ENTRUST_NFI_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 134, 250, 107, 129, 72, 3, 10, 7, num}
     static const byte extCertPolicyEntrustNfiMediumHardwareOid[] =
             ENTRUST_NFI_POLICY_TYPE_OID_BASE(2);
     static const byte extCertPolicyEntrustNfiMediumAuthenticationOid[] =
@@ -4683,12 +4683,12 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             ENTRUST_NFI_POLICY_TYPE_OID_BASE(16);
 
     /* Exostar LLC PKI OIDs - 1.3.6.1.4.1.13948.1.1.1.X */
-    #define EXOSTAR_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 13948, 1, 1, 1, num}
+    #define EXOSTAR_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 236, 124, 1, 1, 1, num}
     static const byte extCertPolicyExostarMediumHardwareSha2Oid[] =
             EXOSTAR_POLICY_TYPE_OID_BASE(6);
 
     /* IdenTrust NFI OIDs - 2.16.840.1.113839.0.100.X.Y */
-    #define IDENTRUST_POLICY_TYPE_OID_BASE(num1, num2) {96, 134, 72, 1, 129, 113, 67, 0, 100, num1, num2}
+    #define IDENTRUST_POLICY_TYPE_OID_BASE(num1, num2) {96, 134, 72, 1, 134, 249, 47, 0, 100, num1, num2}
     static const byte extCertPolicyIdentrustMediumhwSignOid[] =
             IDENTRUST_POLICY_TYPE_OID_BASE(12, 1);
     static const byte extCertPolicyIdentrustMediumhwEncOid[] =
@@ -4708,7 +4708,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             LOCKHEED_POLICY_TYPE_OID_BASE(3);
 
     /* Northrop Grumman PKI OIDs - 1.3.6.1.4.1.16334.509.2.X */
-    #define NORTHROP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 16334, 509, 2, num}
+    #define NORTHROP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 255, 78, 131, 125, 2, num}
     static const byte extCertPolicyNorthropMediumAssurance256HardwareTokenOid[] =
             NORTHROP_POLICY_TYPE_OID_BASE(8);
     static const byte extCertPolicyNorthropPiviAssurance256HardwareTokenOid[] =
@@ -4719,20 +4719,20 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             NORTHROP_POLICY_TYPE_OID_BASE(14);
 
     /* Raytheon PKI OIDs - 1.3.6.1.4.1.1569.10.1.X and 1.3.6.1.4.1.26769.10.1.X */
-    #define RAYTHEON_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 1569, 10, 1, num}
+    #define RAYTHEON_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 140, 33, 10, 1, num}
     static const byte extCertPolicyRaytheonMediumHardwareOid[] =
             RAYTHEON_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyRaytheonMediumDeviceHardwareOid[] =
             RAYTHEON_POLICY_TYPE_OID_BASE(18);
 
-    #define RAYTHEON_SHA2_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 26769, 10, 1, num}
+    #define RAYTHEON_SHA2_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 129, 209, 17, 10, 1, num}
     static const byte extCertPolicyRaytheonSha2MediumHardwareOid[] =
             RAYTHEON_SHA2_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyRaytheonSha2MediumDeviceHardwareOid[] =
             RAYTHEON_SHA2_POLICY_TYPE_OID_BASE(18);
 
     /* WidePoint NFI PKI OIDs - 1.3.6.1.4.1.3922.1.1.1.X */
-    #define WIDEPOINT_NFI_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 3922, 1, 1, 1, num}
+    #define WIDEPOINT_NFI_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 158, 82, 1, 1, 1, num}
     static const byte extCertPolicyWidepointNfiMediumHardwareOid[] =
             WIDEPOINT_NFI_POLICY_TYPE_OID_BASE(12);
     static const byte extCertPolicyWidepointNfiPiviHardwareOid[] =
@@ -4743,7 +4743,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             WIDEPOINT_NFI_POLICY_TYPE_OID_BASE(38);
 
     /* Australian Defence Organisation PKI OIDs - 1.2.36.1.334.1.2.X.X */
-    #define ADO_POLICY_TYPE_OID_BASE(type, num) {42, 36, 1, 334, 1, 2, type, num}
+    #define ADO_POLICY_TYPE_OID_BASE(type, num) {42, 36, 1, 130, 78, 1, 2, type, num}
     static const byte extCertPolicyAdoIndividualMediumAssuranceOid[] =
             ADO_POLICY_TYPE_OID_BASE(1, 2);
     static const byte extCertPolicyAdoIndividualHighAssuranceOid[] =
@@ -4752,7 +4752,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             ADO_POLICY_TYPE_OID_BASE(2, 2);
 
     /* Netherlands Ministry of Defence PKI OIDs - 2.16.528.1.1003.1.2.5.X */
-    #define NL_MOD_POLICY_TYPE_OID_BASE(num) {96, 134, 528, 1, 1003, 1, 2, 5, num}
+    #define NL_MOD_POLICY_TYPE_OID_BASE(num) {96, 132, 16, 1, 135, 107, 1, 2, 5, num}
     static const byte extCertPolicyNlModAuthenticityOid[] =
             NL_MOD_POLICY_TYPE_OID_BASE(1);
     static const byte extCertPolicyNlModIrrefutabilityOid[] =
