@@ -4518,6 +4518,7 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             CERT_POLICY_TYPE_OID_BASE(41);
     static const byte extCertPolicyFpkiPiviAuthOid[] =
             CERT_POLICY_TYPE_OID_BASE(45);
+
     /* DoD PKI OIDs - 2.16.840.1.101.2.1.11.X */
     #define DOD_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 2, 1, 11, num}
     static const byte extCertPolicyDodMediumOid[] =
@@ -4561,6 +4562,8 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
     static const byte extCertPolicyDodInternalNpe128Oid[] =
             DOD_POLICY_TYPE_OID_BASE(61);
     static const byte extCertPolicyDodInternalNpe192Oid[] =
+            DOD_POLICY_TYPE_OID_BASE(62);
+
     /* ECA PKI OIDs - 2.16.840.1.101.3.2.1.12.X */
     #define ECA_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 12, num}
     static const byte extCertPolicyEcaMediumOid[] =
@@ -4581,50 +4584,6 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             ECA_POLICY_TYPE_OID_BASE(9);
     static const byte extCertPolicyEcaMediumHardwareSha256Oid[] =
             ECA_POLICY_TYPE_OID_BASE(10);
-            DOD_POLICY_TYPE_OID_BASE(62);
-    /* Verizon/Cybertrust Federal SSP PKI OIDs - 2.16.840.1.101.3.2.1.3.X */
-    #define VERIZON_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 3, num}
-    static const byte extCertPolicyVerizonCommonHwOid[] =
-            VERIZON_POLICY_TYPE_OID_BASE(7);
-    static const byte extCertPolicyVerizonCommonAuthOid[] =
-            VERIZON_POLICY_TYPE_OID_BASE(13);
-    static const byte extCertPolicyVerizonCommonPivCsOid[] =
-            VERIZON_POLICY_TYPE_OID_BASE(39);
-
-    /* WidePoint Federal SSP PKI OIDs - 2.16.840.1.101.3.2.1.3.X */
-    #define WIDEPOINT_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 3, num}
-    static const byte extCertPolicyWidepointCommonHwOid[] =
-            WIDEPOINT_POLICY_TYPE_OID_BASE(7);
-    static const byte extCertPolicyWidepointCommonAuthOid[] =
-            WIDEPOINT_POLICY_TYPE_OID_BASE(13);
-    static const byte extCertPolicyWidepointCommonDevHwOid[] =
-            WIDEPOINT_POLICY_TYPE_OID_BASE(36);
-    static const byte extCertPolicyWidepointCommonPivCsOid[] =
-            WIDEPOINT_POLICY_TYPE_OID_BASE(39);
-
-    /* IdenTrust NFI OIDs - 2.16.840.1.113839.0.100.X.Y */
-    #define IDENTRUST_POLICY_TYPE_OID_BASE(num1, num2) {96, 134, 72, 1, 129, 113, 67, 0, 100, num1, num2}
-    static const byte extCertPolicyIdentrustMediumhwSignOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(12, 1);
-    static const byte extCertPolicyIdentrustMediumhwEncOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(12, 2);
-    static const byte extCertPolicyIdentrustPiviHwIdOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(18, 0);
-    static const byte extCertPolicyIdentrustPiviHwSignOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(18, 1);
-    static const byte extCertPolicyIdentrustPiviHwEncOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(18, 2);
-    static const byte extCertPolicyIdentrustPiviContentOid[] =
-            IDENTRUST_POLICY_TYPE_OID_BASE(20, 1);
-
-    /* TSCP Bridge OIDs - 1.3.6.1.4.1.38099.1.1.1.X */
-    #define TSCP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 35, 1, 1, 1, num}
-    static const byte extCertPolicyTscpMediumhwOid[] =
-            TSCP_POLICY_TYPE_OID_BASE(2);
-    static const byte extCertPolicyTscpPiviOid[] =
-            TSCP_POLICY_TYPE_OID_BASE(5);
-    static const byte extCertPolicyTscpPiviContentOid[] =
-            TSCP_POLICY_TYPE_OID_BASE(7);
 
     /* Carillon Federal Services OIDs - 1.3.6.1.4.1.45606.3.1.X */
     #define CARILLON_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 178, 38, 3, 1, num}
@@ -4660,6 +4619,30 @@ static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
             CERTIPATH_POLICY_TYPE_OID_BASE(18);
     static const byte extCertPolicyCertipathVarHighhwOid[] =
             CERTIPATH_POLICY_TYPE_OID_BASE(19);
+
+    /* TSCP Bridge OIDs - 1.3.6.1.4.1.38099.1.1.1.X */
+    #define TSCP_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 131, 59, 35, 1, 1, 1, num}
+    static const byte extCertPolicyTscpMediumhwOid[] =
+            TSCP_POLICY_TYPE_OID_BASE(2);
+    static const byte extCertPolicyTscpPiviOid[] =
+            TSCP_POLICY_TYPE_OID_BASE(5);
+    static const byte extCertPolicyTscpPiviContentOid[] =
+            TSCP_POLICY_TYPE_OID_BASE(7);
+
+    /* IdenTrust NFI OIDs - 2.16.840.1.113839.0.100.X.Y */
+    #define IDENTRUST_POLICY_TYPE_OID_BASE(num1, num2) {96, 134, 72, 1, 129, 113, 67, 0, 100, num1, num2}
+    static const byte extCertPolicyIdentrustMediumhwSignOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(12, 1);
+    static const byte extCertPolicyIdentrustMediumhwEncOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(12, 2);
+    static const byte extCertPolicyIdentrustPiviHwIdOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(18, 0);
+    static const byte extCertPolicyIdentrustPiviHwSignOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(18, 1);
+    static const byte extCertPolicyIdentrustPiviHwEncOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(18, 2);
+    static const byte extCertPolicyIdentrustPiviContentOid[] =
+            IDENTRUST_POLICY_TYPE_OID_BASE(20, 1);
 #endif /* WOLFSSL_FPKI */
 
 /* certAltNameType */
@@ -5610,39 +5593,6 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CP_ECA_MEDIUM_HARDWARE_SHA256_OID:
                     oid = extCertPolicyEcaMediumHardwareSha256Oid;
                     *oidSz = sizeof(extCertPolicyEcaMediumHardwareSha256Oid);
-                    break;
-
-                /* New PKI OIDs added below */
-                /* Verizon/Cybertrust Federal SSP PKI OIDs */
-                case CP_VERIZON_COMMON_HW_OID:
-                    oid = extCertPolicyVerizonCommonHwOid;
-                    *oidSz = sizeof(extCertPolicyVerizonCommonHwOid);
-                    break;
-                case CP_VERIZON_COMMON_AUTH_OID:
-                    oid = extCertPolicyVerizonCommonAuthOid;
-                    *oidSz = sizeof(extCertPolicyVerizonCommonAuthOid);
-                    break;
-                case CP_VERIZON_COMMON_PIV_CS_OID:
-                    oid = extCertPolicyVerizonCommonPivCsOid;
-                    *oidSz = sizeof(extCertPolicyVerizonCommonPivCsOid);
-                    break;
-
-                /* WidePoint Federal SSP PKI OIDs */
-                case CP_WIDEPOINT_COMMON_HW_OID:
-                    oid = extCertPolicyWidepointCommonHwOid;
-                    *oidSz = sizeof(extCertPolicyWidepointCommonHwOid);
-                    break;
-                case CP_WIDEPOINT_COMMON_AUTH_OID:
-                    oid = extCertPolicyWidepointCommonAuthOid;
-                    *oidSz = sizeof(extCertPolicyWidepointCommonAuthOid);
-                    break;
-                case CP_WIDEPOINT_COMMON_DEV_HW_OID:
-                    oid = extCertPolicyWidepointCommonDevHwOid;
-                    *oidSz = sizeof(extCertPolicyWidepointCommonDevHwOid);
-                    break;
-                case CP_WIDEPOINT_COMMON_PIV_CS_OID:
-                    oid = extCertPolicyWidepointCommonPivCsOid;
-                    *oidSz = sizeof(extCertPolicyWidepointCommonPivCsOid);
                     break;
 
                 /* IdenTrust NFI OIDs */

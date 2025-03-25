@@ -1475,7 +1475,6 @@ enum CertificatePolicy_Sum {
     CP_FPKI_COMMON_DEVICES_HARDWARE_OID = 449, /* 2.16.840.1.101.3.2.1.3.36 */
     CP_FPKI_MEDIUM_DEVICE_HARDWARE_OID = 451, /* 2.16.840.1.101.3.2.1.3.38 */
     CP_FPKI_COMMON_PIV_CONTENT_SIGNING_OID = 452, /* 2.16.840.1.101.3.2.1.3.39 */
-    CP_FPKI_COMMON_PIV_AUTH_DERIVED_HARDWARE_OID = 454, /* 2.16.840.1.101.3.2.1.3.41 */
     CP_FPKI_COMMON_PIVI_CONTENT_SIGNING_OID = 460, /* 2.16.840.1.101.3.2.1.3.47 */
 
     /* Entrust Federal SSP PKI OIDs - shares OIDs with Federal PKI */
@@ -1504,18 +1503,18 @@ enum CertificatePolicy_Sum {
     CP_CARILLON_AIVCONTENT_OID      = 477, /* 1.3.6.1.4.1.45606.3.1.22 */
 
     /* Carillon Information Security OIDs */
-    CP_CIS_MEDIUMHW_256_OID         = 489, /* 1.3.6.1.4.1.25054.3.1.12 */
-    CP_CIS_MEDDEVHW_256_OID         = 491, /* 1.3.6.1.4.1.25054.3.1.14 */
-    CP_CIS_ICECAP_HW_OID            = 497, /* 1.3.6.1.4.1.25054.3.1.20 */
-    CP_CIS_ICECAP_CONTENT_OID       = 499, /* 1.3.6.1.4.1.25054.3.1.22 */
+    CP_CIS_MEDIUMHW_256_OID         = 358, /* 1.3.6.1.4.1.25054.3.1.12 */
+    CP_CIS_MEDDEVHW_256_OID         = 360, /* 1.3.6.1.4.1.25054.3.1.14 */
+    CP_CIS_ICECAP_HW_OID            = 366, /* 1.3.6.1.4.1.25054.3.1.20 */
+    CP_CIS_ICECAP_CONTENT_OID       = 368, /* 1.3.6.1.4.1.25054.3.1.22 */
 
     /* CertiPath Bridge OIDs */
-    CP_CERTIPATH_MEDIUMHW_OID       = 459, /* 1.3.6.1.4.1.24019.1.1.1.2 */
-    CP_CERTIPATH_HIGHHW_OID         = 460, /* 1.3.6.1.4.1.24019.1.1.1.3 */
-    CP_CERTIPATH_ICECAP_HW_OID      = 464, /* 1.3.6.1.4.1.24019.1.1.1.7 */
-    CP_CERTIPATH_ICECAP_CONTENT_OID = 466, /* 1.3.6.1.4.1.24019.1.1.1.9 */
-    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 475, /* 1.3.6.1.4.1.24019.1.1.1.18 */
-    CP_CERTIPATH_VAR_HIGHHW_OID     = 476, /* 1.3.6.1.4.1.24019.1.1.1.19 */
+    CP_CERTIPATH_MEDIUMHW_OID       = 348, /* 1.3.6.1.4.1.24019.1.1.1.2 */
+    CP_CERTIPATH_HIGHHW_OID         = 349, /* 1.3.6.1.4.1.24019.1.1.1.3 */
+    CP_CERTIPATH_ICECAP_HW_OID      = 353, /* 1.3.6.1.4.1.24019.1.1.1.7 */
+    CP_CERTIPATH_ICECAP_CONTENT_OID = 355, /* 1.3.6.1.4.1.24019.1.1.1.9 */
+    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 364, /* 1.3.6.1.4.1.24019.1.1.1.18 */
+    CP_CERTIPATH_VAR_HIGHHW_OID     = 365, /* 1.3.6.1.4.1.24019.1.1.1.19 */
 
     /* TSCP Bridge OIDs */
     CP_TSCP_MEDIUMHW_OID            = 442, /* 1.3.6.1.4.1.38099.1.1.1.2 */
@@ -1577,49 +1576,6 @@ enum CertificatePolicy_Sum {
     CP_NL_MOD_AUTH_OID              = 1001, /* 2.16.528.1.1003.1.2.5.1 */
     CP_NL_MOD_IRREFUT_OID           = 1002, /* 2.16.528.1.1003.1.2.5.2 */
     CP_NL_MOD_CONFID_OID            = 1003, /* 2.16.528.1.1003.1.2.5.3 */
-
-    /* Verizon/Cybertrust Federal SSP PKI OIDs */
-    CP_VERIZON_COMMON_HW_OID        = 420, /* 2.16.840.1.101.3.2.1.3.7 */
-    CP_VERIZON_COMMON_AUTH_OID      = 426, /* 2.16.840.1.101.3.2.1.3.13 */
-    CP_VERIZON_COMMON_PIV_CS_OID    = 452, /* 2.16.840.1.101.3.2.1.3.39 */
-
-    /* WidePoint Federal SSP PKI OIDs */
-    CP_WIDEPOINT_COMMON_HW_OID      = 420, /* 2.16.840.1.101.3.2.1.3.7 */
-    CP_WIDEPOINT_COMMON_AUTH_OID    = 426, /* 2.16.840.1.101.3.2.1.3.13 */
-    CP_WIDEPOINT_COMMON_DEV_HW_OID  = 449, /* 2.16.840.1.101.3.2.1.3.36 */
-    CP_WIDEPOINT_COMMON_PIV_CS_OID  = 452, /* 2.16.840.1.101.3.2.1.3.39 */
-
-    /* IdenTrust NFI OIDs */
-    CP_IDENTRUST_MEDIUMHW_SIGN_OID  = 846, /* 2.16.840.1.113839.0.100.12.1 */
-    CP_IDENTRUST_MEDIUMHW_ENC_OID   = 847, /* 2.16.840.1.113839.0.100.12.2 */
-    CP_IDENTRUST_PIVI_HW_ID_OID     = 851, /* 2.16.840.1.113839.0.100.18.0 */
-    CP_IDENTRUST_PIVI_HW_SIGN_OID   = 852, /* 2.16.840.1.113839.0.100.18.1 */
-    CP_IDENTRUST_PIVI_HW_ENC_OID    = 853, /* 2.16.840.1.113839.0.100.18.2 */
-    CP_IDENTRUST_PIVI_CONTENT_OID   = 854, /* 2.16.840.1.113839.0.100.20.1 */
-
-    /* TSCP Bridge OIDs */
-    CP_TSCP_MEDIUMHW_OID            = 348, /* 1.3.6.1.4.1.38099.1.1.1.2 */
-    CP_TSCP_PIVI_OID                = 351, /* 1.3.6.1.4.1.38099.1.1.1.5 */
-    CP_TSCP_PIVI_CONTENT_OID        = 353, /* 1.3.6.1.4.1.38099.1.1.1.7 */
-
-    /* Carillon Federal Services OIDs */
-    CP_CARILLON_MEDIUMHW_256_OID    = 358, /* 1.3.6.1.4.1.45606.3.1.12 */
-    CP_CARILLON_AIVHW_OID           = 366, /* 1.3.6.1.4.1.45606.3.1.20 */
-    CP_CARILLON_AIVCONTENT_OID      = 368, /* 1.3.6.1.4.1.45606.3.1.22 */
-
-    /* Carillon Information Security OIDs */
-    CP_CIS_MEDIUMHW_256_OID         = 358, /* 1.3.6.1.4.1.25054.3.1.12 */
-    CP_CIS_MEDDEVHW_256_OID         = 360, /* 1.3.6.1.4.1.25054.3.1.14 */
-    CP_CIS_ICECAP_HW_OID            = 366, /* 1.3.6.1.4.1.25054.3.1.20 */
-    CP_CIS_ICECAP_CONTENT_OID       = 368, /* 1.3.6.1.4.1.25054.3.1.22 */
-
-    /* CertiPath Bridge OIDs */
-    CP_CERTIPATH_MEDIUMHW_OID       = 348, /* 1.3.6.1.4.1.24019.1.1.1.2 */
-    CP_CERTIPATH_HIGHHW_OID         = 349, /* 1.3.6.1.4.1.24019.1.1.1.3 */
-    CP_CERTIPATH_ICECAP_HW_OID      = 353, /* 1.3.6.1.4.1.24019.1.1.1.7 */
-    CP_CERTIPATH_ICECAP_CONTENT_OID = 355, /* 1.3.6.1.4.1.24019.1.1.1.9 */
-    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 364, /* 1.3.6.1.4.1.24019.1.1.1.18 */
-    CP_CERTIPATH_VAR_HIGHHW_OID     = 365, /* 1.3.6.1.4.1.24019.1.1.1.19 */
 #endif /* WOLFSSL_FPKI */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(CertificatePolicy_Sum)
 };
