@@ -607,7 +607,8 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 #endif
 
 /* Returns 1 if prev crlNumber is smaller, 0 otherwise */
-static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr) {
+static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
+{
     word32 i;
     word32 prevCrlNumLen = (word32)XSTRLEN((char*)prev->crlNumber);
     word32 currCrlNumLen = (word32)XSTRLEN((char*)curr->crlNumber);
