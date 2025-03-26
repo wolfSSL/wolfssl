@@ -8245,8 +8245,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef STM32_CRYPTO_AES_GCM
 
 /* this function supports inline encrypt */
-/* define STM32_AESGCM_PARTIAL for STM HW that does not support authentication
- * on byte multiples (see CRYP_HEADERWIDTHUNIT_BYTE) */
 static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -8332,12 +8330,11 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
-        && !defined(STM32_AESGCM_PARTIAL)
+    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8359,12 +8356,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
-    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
-    hcryp.Init.HeaderSize = authInSz;
-    #else
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    #endif
+    hcryp.Init.HeaderSize = authPadSz / STM_CRYPT_HEADER_WIDTH;
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Encrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
@@ -8862,12 +8854,11 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
-        && !defined(STM32_AESGCM_PARTIAL)
+    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8913,12 +8904,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
-    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
-    hcryp.Init.HeaderSize = authInSz;
-    #else
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    #endif
+    hcryp.Init.HeaderSize = authPadSz / STM_CRYPT_HEADER_WIDTH;
+
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Decrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;

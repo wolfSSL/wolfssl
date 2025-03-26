@@ -781,8 +781,8 @@
 /* Define AES_AUTH_ADD_SZ already here, since it's used in the
  * static declaration of `bench_Usage_msg1`. */
 #if !defined(AES_AUTH_ADD_SZ) && \
-        defined(STM32_CRYPTO) && !defined(STM32_AESGCM_PARTIAL) || \
-        defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+        (defined(STM32_CRYPTO) || \
+         defined(WOLFSSL_XILINX_CRYPT_VERSAL))
     /* For STM32 use multiple of 4 to leverage crypto hardware
      * Xilinx Versal requires to use multiples of 16 bytes */
     #define AES_AUTH_ADD_SZ 16

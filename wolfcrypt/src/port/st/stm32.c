@@ -457,10 +457,11 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    #ifdef WOLFSSL_STM32MP13
-        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
-    #elif defined(CRYP_HEADERWIDTHUNIT_BYTE)
-        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #ifdef STM_CRYPT_HEADER_WIDTH
+    hcryp->Init.HeaderWidthUnit =
+            (STM_CRYPT_HEADER_WIDTH == 4) ?
+                CRYP_HEADERWIDTHUNIT_WORD :
+                CRYP_HEADERWIDTHUNIT_BYTE;
     #endif
 #endif
 
