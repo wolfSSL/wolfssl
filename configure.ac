@@ -6404,6 +6404,11 @@ then
     done
 fi
 
+if (test "$ENABLED_RNG" = "yes" && test "$ENABLED_ENTROPY_MEMUSE" != "no") || test "$ENABLED_BENCHMARK" = "yes"
+then
+    AC_SEARCH_LIBS([clock_gettime],[rt])
+fi
+
 
 # Filesystem Build
 if test "$ENABLED_LINUXKM" = "yes"
