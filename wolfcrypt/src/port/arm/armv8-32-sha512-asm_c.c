@@ -44,11 +44,15 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #include <wolfssl/wolfcrypt/sha512.h>
 
@@ -98,16 +102,27 @@ static const word64 L_SHA512_transform_len_k[] = {
 
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
     word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
     register word64* L_SHA512_transform_len_k_c asm ("r3") =
         (word64*)&L_SHA512_transform_len_k;
+#else
+    register word64* L_SHA512_transform_len_k_c =
+        (word64*)&L_SHA512_transform_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
+        "mov	r3, %[L_SHA512_transform_len_k]\n\t"
         /* Copy digest to add in at end */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldm	r0, {r4, r5}\n\t"
@@ -7576,15 +7591,26 @@ static const word64 L_SHA512_transform_neon_len_k[] = {
 
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
     word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
     register word64* L_SHA512_transform_neon_len_k_c asm ("r3") =
         (word64*)&L_SHA512_transform_neon_len_k;
+#else
+    register word64* L_SHA512_transform_neon_len_k_c =
+        (word64*)&L_SHA512_transform_neon_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "mov	r3, %[L_SHA512_transform_neon_len_k]\n\t"
         /* Load digest into working vars */
         "vldm.64	%[sha512], {d0-d7}\n\t"
         /* Start of loop processing a block */

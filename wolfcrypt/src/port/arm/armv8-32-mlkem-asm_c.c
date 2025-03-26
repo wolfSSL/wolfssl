@@ -44,11 +44,15 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
 #ifdef WOLFSSL_WC_MLKEM
@@ -87,14 +91,25 @@ static const word16 L_mlkem_arm32_ntt_zetas[] = {
     0x03be, 0x074d, 0x05f2, 0x065c,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void mlkem_arm32_ntt(sword16* r_p)
+#else
+void mlkem_arm32_ntt(sword16* r)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r asm ("r0") = (sword16*)r_p;
     register word16* L_mlkem_arm32_ntt_zetas_c asm ("r1") =
         (word16*)&L_mlkem_arm32_ntt_zetas;
+#else
+    register word16* L_mlkem_arm32_ntt_zetas_c =
+        (word16*)&L_mlkem_arm32_ntt_zetas;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
+        "mov	r1, %[L_mlkem_arm32_ntt_zetas]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r10, #0x1\n\t"
@@ -3123,14 +3138,25 @@ static const word16 L_mlkem_invntt_zetas_inv[] = {
     0x05ed, 0x0167, 0x02f6, 0x05a1,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void mlkem_arm32_invntt(sword16* r_p)
+#else
+void mlkem_arm32_invntt(sword16* r)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r asm ("r0") = (sword16*)r_p;
     register word16* L_mlkem_invntt_zetas_inv_c asm ("r1") =
         (word16*)&L_mlkem_invntt_zetas_inv;
+#else
+    register word16* L_mlkem_invntt_zetas_inv_c =
+        (word16*)&L_mlkem_invntt_zetas_inv;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
+        "mov	r1, %[L_mlkem_invntt_zetas_inv]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r10, #0x1\n\t"
@@ -7553,16 +7579,27 @@ static const word16 L_mlkem_basemul_mont_zetas[] = {
     0x03be, 0x074d, 0x05f2, 0x065c,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void mlkem_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
     const sword16* b_p)
+#else
+void mlkem_arm32_basemul_mont(sword16* r, const sword16* a, const sword16* b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r asm ("r0") = (sword16*)r_p;
     register const sword16* a asm ("r1") = (const sword16*)a_p;
     register const sword16* b asm ("r2") = (const sword16*)b_p;
     register word16* L_mlkem_basemul_mont_zetas_c asm ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "mov	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
         "add	r3, r3, #0x80\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -7841,16 +7878,28 @@ void mlkem_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void mlkem_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
     const sword16* b_p)
+#else
+void mlkem_arm32_basemul_mont_add(sword16* r, const sword16* a,
+    const sword16* b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r asm ("r0") = (sword16*)r_p;
     register const sword16* a asm ("r1") = (const sword16*)a_p;
     register const sword16* b asm ("r2") = (const sword16*)b_p;
     register word16* L_mlkem_basemul_mont_zetas_c asm ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "mov	r3, %[L_mlkem_basemul_mont_zetas]\n\t"
         "add	r3, r3, #0x80\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8163,11 +8212,21 @@ void mlkem_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void mlkem_arm32_csubq(sword16* p_p)
+#else
+void mlkem_arm32_csubq(sword16* p)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* p asm ("r0") = (sword16*)p_p;
     register word16* L_mlkem_basemul_mont_zetas_c asm ("r1") =
         (word16*)&L_mlkem_basemul_mont_zetas;
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8342,15 +8401,26 @@ void mlkem_arm32_csubq(sword16* p_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 unsigned int mlkem_arm32_rej_uniform(sword16* p_p, unsigned int len_p,
     const byte* r_p, unsigned int rLen_p)
+#else
+unsigned int mlkem_arm32_rej_uniform(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* p asm ("r0") = (sword16*)p_p;
     register unsigned int len asm ("r1") = (unsigned int)len_p;
     register const byte* r asm ("r2") = (const byte*)r_p;
     register unsigned int rLen asm ("r3") = (unsigned int)rLen_p;
     register word16* L_mlkem_basemul_mont_zetas_c asm ("r4") =
         (word16*)&L_mlkem_basemul_mont_zetas;
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)

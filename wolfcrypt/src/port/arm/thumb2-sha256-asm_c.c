@@ -81,6 +81,10 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
     register word32* L_SHA256_transform_len_k_c __asm__ ("r3") =
         (word32*)&L_SHA256_transform_len_k;
 
+#else
+    register word32* L_SHA256_transform_len_k_c =
+        (word32*)&L_SHA256_transform_len_k;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

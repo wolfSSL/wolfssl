@@ -44,11 +44,15 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static const word64 L_sha3_arm2_neon_rt[] = {
@@ -68,14 +72,24 @@ static const word64 L_sha3_arm2_neon_rt[] = {
 
 #include <wolfssl/wolfcrypt/sha3.h>
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void BlockSha3(word64* state_p)
+#else
+void BlockSha3(word64* state)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register word64* state asm ("r0") = (word64*)state_p;
     register word64* L_sha3_arm2_neon_rt_c asm ("r1") =
         (word64*)&L_sha3_arm2_neon_rt;
+#else
+    register word64* L_sha3_arm2_neon_rt_c = (word64*)&L_sha3_arm2_neon_rt;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
+        "mov	r1, %[L_sha3_arm2_neon_rt]\n\t"
         "mov	r2, #24\n\t"
         "mov	r3, sp\n\t"
         "vld1.8	{d0-d3}, [%[state]]!\n\t"
@@ -361,13 +375,23 @@ static const word64 L_sha3_arm2_rt[] = {
 
 #include <wolfssl/wolfcrypt/sha3.h>
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void BlockSha3(word64* state_p)
+#else
+void BlockSha3(word64* state)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register word64* state asm ("r0") = (word64*)state_p;
     register word64* L_sha3_arm2_rt_c asm ("r1") = (word64*)&L_sha3_arm2_rt;
+#else
+    register word64* L_sha3_arm2_rt_c = (word64*)&L_sha3_arm2_rt;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xcc\n\t"
+        "mov	r1, %[L_sha3_arm2_rt]\n\t"
         "mov	r2, #12\n\t"
         "\n"
     "L_sha3_arm32_begin_%=: \n\t"

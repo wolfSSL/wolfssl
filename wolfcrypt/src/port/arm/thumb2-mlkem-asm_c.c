@@ -77,6 +77,10 @@ void mlkem_thumb2_ntt(sword16* r)
     register word16* L_mlkem_thumb2_ntt_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_thumb2_ntt_zetas;
 
+#else
+    register word16* L_mlkem_thumb2_ntt_zetas_c =
+        (word16*)&L_mlkem_thumb2_ntt_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1394,6 +1398,10 @@ void mlkem_thumb2_invntt(sword16* r)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword16* r __asm__ ("r0") = (sword16*)r_p;
     register word16* L_mlkem_invntt_zetas_inv_c __asm__ ("r1") =
+        (word16*)&L_mlkem_invntt_zetas_inv;
+
+#else
+    register word16* L_mlkem_invntt_zetas_inv_c =
         (word16*)&L_mlkem_invntt_zetas_inv;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
@@ -3085,6 +3093,10 @@ void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3230,6 +3242,10 @@ void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
     register const sword16* a __asm__ ("r1") = (const sword16*)a_p;
     register const sword16* b __asm__ ("r2") = (const sword16*)b_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r3") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
@@ -3387,6 +3403,10 @@ void mlkem_thumb2_csubq(sword16* p)
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r1") =
         (word16*)&L_mlkem_basemul_mont_zetas;
 
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3499,6 +3519,10 @@ unsigned int mlkem_thumb2_rej_uniform(sword16* p, unsigned int len,
     register const byte* r __asm__ ("r2") = (const byte*)r_p;
     register unsigned int rLen __asm__ ("r3") = (unsigned int)rLen_p;
     register word16* L_mlkem_basemul_mont_zetas_c __asm__ ("r4") =
+        (word16*)&L_mlkem_basemul_mont_zetas;
+
+#else
+    register word16* L_mlkem_basemul_mont_zetas_c =
         (word16*)&L_mlkem_basemul_mont_zetas;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */

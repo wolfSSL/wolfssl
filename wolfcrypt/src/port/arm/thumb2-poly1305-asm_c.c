@@ -315,6 +315,10 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
     register word32* L_poly1305_thumb2_clamp_c __asm__ ("r2") =
         (word32*)&L_poly1305_thumb2_clamp;
 
+#else
+    register word32* L_poly1305_thumb2_clamp_c =
+        (word32*)&L_poly1305_thumb2_clamp;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

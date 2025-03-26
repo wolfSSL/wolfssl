@@ -44,11 +44,15 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 /* Based on work by: Emil Lenngren
  * https://github.com/pornin/X25519-Cortex-M4
  */
@@ -60,8 +64,14 @@
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_init()
+#else
+void fe_init()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "\n\t"
         :
@@ -71,8 +81,14 @@ void fe_init()
 }
 
 void fe_add_sub_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_add_sub_op()
+#else
+void fe_add_sub_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         /* Add-Sub */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -279,8 +295,14 @@ void fe_add_sub_op()
 }
 
 void fe_sub_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sub_op()
+#else
+void fe_sub_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         /* Sub */
         "ldm	r2!, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
@@ -320,11 +342,17 @@ void fe_sub_op()
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sub(fe r_p, const fe a_p, const fe b_p)
+#else
+void fe_sub(fe r, const fe a, const fe b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
     register const sword32* b asm ("r2") = (const sword32*)b_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "bl	fe_sub_op\n\t"
@@ -336,8 +364,14 @@ void fe_sub(fe r_p, const fe a_p, const fe b_p)
 }
 
 void fe_add_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_add_op()
+#else
+void fe_add_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         /* Add */
         "ldm	r2!, {r6, r7, r8, r9, r10, r11, r12, lr}\n\t"
@@ -378,11 +412,17 @@ void fe_add_op()
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_add(fe r_p, const fe a_p, const fe b_p)
+#else
+void fe_add(fe r, const fe a, const fe b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
     register const sword32* b asm ("r2") = (const sword32*)b_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "bl	fe_add_op\n\t"
@@ -394,10 +434,16 @@ void fe_add(fe r_p, const fe a_p, const fe b_p)
 }
 
 #ifdef HAVE_ED25519
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_frombytes(fe out_p, const unsigned char* in_p)
+#else
+void fe_frombytes(fe out, const unsigned char* in)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* out asm ("r0") = (sword32*)out_p;
     register const unsigned char* in asm ("r1") = (const unsigned char*)in_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "ldr	r2, [%[in]]\n\t"
@@ -427,10 +473,16 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_tobytes(unsigned char* out_p, const fe n_p)
+#else
+void fe_tobytes(unsigned char* out, const fe n)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register unsigned char* out asm ("r0") = (unsigned char*)out_p;
     register const sword32* n asm ("r1") = (const sword32*)n_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "ldm	%[n], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -471,9 +523,15 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_1(fe n_p)
+#else
+void fe_1(fe n)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* n asm ("r0") = (sword32*)n_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Set one */
@@ -492,9 +550,15 @@ void fe_1(fe n_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_0(fe n_p)
+#else
+void fe_0(fe n)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* n asm ("r0") = (sword32*)n_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Set zero */
@@ -513,10 +577,16 @@ void fe_0(fe n_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_copy(fe r_p, const fe a_p)
+#else
+void fe_copy(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Copy */
@@ -572,10 +642,16 @@ void fe_copy(fe r_p, const fe a_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_neg(fe r_p, const fe a_p)
+#else
+void fe_neg(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "mvn	lr, #0\n\t"
@@ -599,9 +675,15 @@ void fe_neg(fe r_p, const fe a_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 int fe_isnonzero(const fe a_p)
+#else
+int fe_isnonzero(const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const sword32* a asm ("r0") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "ldm	%[a], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
@@ -643,9 +725,15 @@ int fe_isnonzero(const fe a_p)
     return (word32)(size_t)a;
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 int fe_isnegative(const fe a_p)
+#else
+int fe_isnegative(const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const sword32* a asm ("r0") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "ldm	%[a]!, {r2, r3, r4, r5}\n\t"
@@ -671,11 +759,17 @@ int fe_isnegative(const fe a_p)
 
 #if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
 #ifndef WC_NO_CACHE_RESISTANT
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
+#else
+void fe_cmov_table(fe* r, fe* base, signed char b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register fe* r asm ("r0") = (fe*)r_p;
     register fe* base asm ("r1") = (fe*)base_p;
     register signed char b asm ("r2") = (signed char)b_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -2205,11 +2299,17 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
+#else
+void fe_cmov_table(fe* r, fe* base, signed char b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register fe* r asm ("r0") = (fe*)r_p;
     register fe* base asm ("r1") = (fe*)base_p;
     register signed char b asm ("r2") = (signed char)b_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
@@ -2330,8 +2430,14 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif /* HAVE_ED25519 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 void fe_mul_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul_op()
+#else
+void fe_mul_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "sub	sp, sp, #40\n\t"
         "str	r0, [sp, #36]\n\t"
@@ -2714,8 +2820,14 @@ void fe_mul_op()
 
 #else
 void fe_mul_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul_op()
+#else
+void fe_mul_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -2856,11 +2968,17 @@ void fe_mul_op()
 }
 
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul(fe r_p, const fe a_p, const fe b_p)
+#else
+void fe_mul(fe r, const fe a, const fe b)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
     register const sword32* b asm ("r2") = (const sword32*)b_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "bl	fe_mul_op\n\t"
@@ -2873,8 +2991,14 @@ void fe_mul(fe r_p, const fe a_p, const fe b_p)
 
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 void fe_sq_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq_op()
+#else
+void fe_sq_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "sub	sp, sp, #0x44\n\t"
         "str	r0, [sp, #64]\n\t"
@@ -3150,8 +3274,14 @@ void fe_sq_op()
 
 #else
 void fe_sq_op(void);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq_op()
+#else
+void fe_sq_op()
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
     __asm__ __volatile__ (
         "sub	sp, sp, #32\n\t"
         "str	r0, [sp, #28]\n\t"
@@ -3278,10 +3408,16 @@ void fe_sq_op()
 }
 
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq(fe r_p, const fe a_p)
+#else
+void fe_sq(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "bl	fe_sq_op\n\t"
@@ -3294,10 +3430,16 @@ void fe_sq(fe r_p, const fe a_p)
 
 #ifdef HAVE_CURVE25519
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul121666(fe r_p, fe a_p)
+#else
+void fe_mul121666(fe r, fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register sword32* a asm ("r1") = (sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Multiply by 121666 */
@@ -3367,10 +3509,16 @@ void fe_mul121666(fe r_p, fe a_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul121666(fe r_p, fe a_p)
+#else
+void fe_mul121666(fe r, fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register sword32* a asm ("r1") = (sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Multiply by 121666 */
@@ -3428,11 +3576,17 @@ void fe_mul121666(fe r_p, fe a_p)
 
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
 #ifndef WC_NO_CACHE_RESISTANT
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
+#else
+int curve25519(byte* r, const byte* n, const byte* a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* r asm ("r0") = (byte*)r_p;
     register const byte* n asm ("r1") = (const byte*)n_p;
     register const byte* a asm ("r2") = (const byte*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xbc\n\t"
@@ -3819,11 +3973,17 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
+#else
+int curve25519(byte* r, const byte* n, const byte* a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* r asm ("r0") = (byte*)r_p;
     register const byte* n asm ("r1") = (const byte*)n_p;
     register const byte* a asm ("r2") = (const byte*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
@@ -4135,10 +4295,16 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ED25519
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_invert(fe r_p, const fe a_p)
+#else
+void fe_invert(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x88\n\t"
@@ -4307,10 +4473,16 @@ void fe_invert(fe r_p, const fe a_p)
 }
 
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq2(fe r_p, const fe a_p)
+#else
+void fe_sq2(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x44\n\t"
@@ -4627,10 +4799,16 @@ void fe_sq2(fe r_p, const fe a_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq2(fe r_p, const fe a_p)
+#else
+void fe_sq2(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #36\n\t"
@@ -4806,10 +4984,16 @@ void fe_sq2(fe r_p, const fe a_p)
 }
 
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_pow22523(fe r_p, const fe a_p)
+#else
+void fe_pow22523(fe r, const fe a)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register sword32* r asm ("r0") = (sword32*)r_p;
     register const sword32* a asm ("r1") = (const sword32*)a_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x68\n\t"
@@ -4977,10 +5161,16 @@ void fe_pow22523(fe r_p, const fe a_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
+#else
+void ge_p1p1_to_p2(ge_p2 * r, const ge_p1p1 * p)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p2 * r asm ("r0") = (ge_p2 *)r_p;
     register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -5008,10 +5198,16 @@ void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
+#else
+void ge_p1p1_to_p3(ge_p3 * r, const ge_p1p1 * p)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p3 * r asm ("r0") = (ge_p3 *)r_p;
     register const ge_p1p1 * p asm ("r1") = (const ge_p1p1 *)p_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -5044,10 +5240,16 @@ void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
+#else
+void ge_p2_dbl(ge_p1p1 * r, const ge_p2 * p)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
     register const ge_p2 * p asm ("r1") = (const ge_p2 *)p_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -5092,11 +5294,17 @@ void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
+#else
+void ge_madd(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
     register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #12\n\t"
@@ -5179,11 +5387,17 @@ void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
+#else
+void ge_msub(ge_p1p1 * r, const ge_p3 * p, const ge_precomp * q)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
     register const ge_precomp * q asm ("r2") = (const ge_precomp *)q_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #12\n\t"
@@ -5267,11 +5481,17 @@ void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
+#else
+void ge_add(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
     register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
@@ -5355,11 +5575,17 @@ void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
+#else
+void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ge_p1p1 * r asm ("r0") = (ge_p1p1 *)r_p;
     register const ge_p3 * p asm ("r1") = (const ge_p3 *)p_p;
     register const ge_cached* q asm ("r2") = (const ge_cached*)q_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #44\n\t"
@@ -5444,9 +5670,15 @@ void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
 }
 
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_reduce(byte* s_p)
+#else
+void sc_reduce(byte* s)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s asm ("r0") = (byte*)s_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #56\n\t"
@@ -6233,9 +6465,15 @@ void sc_reduce(byte* s_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_reduce(byte* s_p)
+#else
+void sc_reduce(byte* s)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s asm ("r0") = (byte*)s_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #56\n\t"
@@ -6895,12 +7133,18 @@ void sc_reduce(byte* s_p)
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
 #ifdef HAVE_ED25519_SIGN
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
+#else
+void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s asm ("r0") = (byte*)s_p;
     register const byte* a asm ("r1") = (const byte*)a_p;
     register const byte* b asm ("r2") = (const byte*)b_p;
     register const byte* c asm ("r3") = (const byte*)c_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x50\n\t"
@@ -8044,12 +8288,18 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
+#else
+void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* s asm ("r0") = (byte*)s_p;
     register const byte* a asm ("r1") = (const byte*)a_p;
     register const byte* b asm ("r2") = (const byte*)b_p;
     register const byte* c asm ("r3") = (const byte*)c_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0x50\n\t"

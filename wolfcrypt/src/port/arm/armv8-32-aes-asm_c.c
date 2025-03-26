@@ -44,11 +44,15 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
@@ -204,12 +208,23 @@ static const word32* L_AES_ARM32_te = L_AES_ARM32_te_data;
         * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 void AES_invert_key(unsigned char* ks_p, word32 rounds_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
+#else
+void AES_invert_key(unsigned char* ks, word32 rounds)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register unsigned char* ks asm ("r0") = (unsigned char*)ks_p;
     register word32 rounds asm ("r1") = (word32)rounds_p;
     register word32* L_AES_ARM32_te_c asm ("r2") = (word32*)L_AES_ARM32_te;
     register word32* L_AES_ARM32_td_c asm ("r3") = (word32*)L_AES_ARM32_td;
+#else
+    register word32* L_AES_ARM32_te_c = (word32*)L_AES_ARM32_te;
+
+    register word32* L_AES_ARM32_td_c = (word32*)L_AES_ARM32_td;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "mov	r12, %[L_AES_ARM32_te]\n\t"
@@ -423,15 +438,27 @@ static const word32 L_AES_ARM32_rcon[] = {
 
 void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
     unsigned char* ks_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
     unsigned char* ks_p)
+#else
+void AES_set_encrypt_key(const unsigned char* key, word32 len,
+    unsigned char* ks)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* key asm ("r0") = (const unsigned char*)key_p;
     register word32 len asm ("r1") = (word32)len_p;
     register unsigned char* ks asm ("r2") = (unsigned char*)ks_p;
     register word32* L_AES_ARM32_te_c asm ("r3") = (word32*)L_AES_ARM32_te;
     register word32* L_AES_ARM32_rcon_c asm ("r4") =
         (word32*)&L_AES_ARM32_rcon;
+#else
+    register word32* L_AES_ARM32_te_c = (word32*)L_AES_ARM32_te;
+
+    register word32* L_AES_ARM32_rcon_c = (word32*)&L_AES_ARM32_rcon;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "mov	r8, %[L_AES_ARM32_te]\n\t"
@@ -939,13 +966,19 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
 
 void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
     const word32* ks_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
     const word32* ks_p)
+#else
+void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const word32* te asm ("r0") = (const word32*)te_p;
     register int nr asm ("r1") = (int)nr_p;
     register int len asm ("r2") = (int)len_p;
     register const word32* ks asm ("r3") = (const word32*)ks_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
@@ -1595,9 +1628,15 @@ void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
 static const word32* L_AES_ARM32_te_ecb = L_AES_ARM32_te_data;
 void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p)
+#else
+void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -1605,11 +1644,19 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
     register int nr asm ("r4") = (int)nr_p;
     register word32* L_AES_ARM32_te_ecb_c asm ("r5") =
         (word32*)L_AES_ARM32_te_ecb;
+#else
+    register word32* L_AES_ARM32_te_ecb_c = (word32*)L_AES_ARM32_te_ecb;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_te_ecb]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r12, r4\n\t"
+#else
+        "mov	r12, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "push	{%[ks]}\n\t"
         "cmp	r12, #10\n\t"
         "beq	L_AES_ECB_encrypt_start_block_128_%=\n\t"
@@ -1851,10 +1898,16 @@ static const word32* L_AES_ARM32_te_cbc = L_AES_ARM32_te_data;
 void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* iv_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* iv_p)
+#else
+void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -1863,10 +1916,22 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
     register unsigned char* iv asm ("r5") = (unsigned char*)iv_p;
     register word32* L_AES_ARM32_te_cbc_c asm ("r6") =
         (word32*)L_AES_ARM32_te_cbc;
+#else
+    register word32* L_AES_ARM32_te_cbc_c = (word32*)L_AES_ARM32_te_cbc;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r8, r4\n\t"
+#else
+        "mov	r8, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r9, r5\n\t"
+#else
+        "mov	r9, %[iv]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_te_cbc]\n\t"
         "ldm	r9, {r4, r5, r6, r7}\n\t"
@@ -2124,10 +2189,16 @@ static const word32* L_AES_ARM32_te_ctr = L_AES_ARM32_te_data;
 void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* ctr_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* ctr_p)
+#else
+void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -2136,10 +2207,22 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
     register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
     register word32* L_AES_ARM32_te_ctr_c asm ("r6") =
         (word32*)L_AES_ARM32_te_ctr;
+#else
+    register word32* L_AES_ARM32_te_ctr_c = (word32*)L_AES_ARM32_te_ctr;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r12, r4\n\t"
+#else
+        "mov	r12, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r8, r5\n\t"
+#else
+        "mov	r8, %[ctr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_te_ctr]\n\t"
         "ldm	r8, {r4, r5, r6, r7}\n\t"
@@ -2398,11 +2481,17 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
         defined(HAVE_AES_CBC)
 void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p)
+#else
+void AES_decrypt_block(const word32* td, int nr, const byte* td4)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const word32* td asm ("r0") = (const word32*)td_p;
     register int nr asm ("r1") = (int)nr_p;
     register const byte* td4 asm ("r2") = (const byte*)td4_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
@@ -3086,9 +3175,15 @@ static const byte L_AES_ARM32_td4[] = {
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p)
+#else
+void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -3097,9 +3192,19 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
     register word32* L_AES_ARM32_td_ecb_c asm ("r5") =
         (word32*)L_AES_ARM32_td_ecb;
     register byte* L_AES_ARM32_td4_c asm ("r6") = (byte*)&L_AES_ARM32_td4;
+#else
+    register word32* L_AES_ARM32_td_ecb_c = (word32*)L_AES_ARM32_td_ecb;
+
+    register byte* L_AES_ARM32_td4_c = (byte*)&L_AES_ARM32_td4;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r8, r4\n\t"
+#else
+        "mov	r8, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_td_ecb]\n\t"
         "mov	r12, %[len]\n\t"
@@ -3339,10 +3444,16 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
 void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* iv_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* iv_p)
+#else
+void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -3352,14 +3463,28 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
     register word32* L_AES_ARM32_td_ecb_c asm ("r6") =
         (word32*)L_AES_ARM32_td_ecb;
     register byte* L_AES_ARM32_td4_c asm ("r7") = (byte*)&L_AES_ARM32_td4;
+#else
+    register word32* L_AES_ARM32_td_ecb_c = (word32*)L_AES_ARM32_td_ecb;
+
+    register byte* L_AES_ARM32_td4_c = (byte*)&L_AES_ARM32_td4;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-        "mov	r8, r4\n\t"
-        "mov	r4, r5\n\t"
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_td_ecb]\n\t"
         "mov	r12, %[len]\n\t"
         "mov	r2, %[L_AES_ARM32_td4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        "mov	r8, r4\n\t"
+#else
+        "mov	r8, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        "mov	r4, r5\n\t"
+#else
+        "mov	r4, %[iv]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "push	{%[ks]-r4}\n\t"
         "cmp	r8, #10\n\t"
         "beq	L_AES_CBC_decrypt_loop_block_128_%=\n\t"
@@ -3983,9 +4108,15 @@ static const word32 L_GCM_gmult_len_r[] = {
 
 void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
     const unsigned char* data_p, unsigned long len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
     const unsigned char* data_p, unsigned long len_p)
+#else
+void GCM_gmult_len(unsigned char* x, const unsigned char** m,
+    const unsigned char* data, unsigned long len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register unsigned char* x asm ("r0") = (unsigned char*)x_p;
     register const unsigned char** m asm ("r1") = (const unsigned char**)m_p;
     register const unsigned char* data asm ("r2") =
@@ -3993,6 +4124,10 @@ void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
     register unsigned long len asm ("r3") = (unsigned long)len_p;
     register word32* L_GCM_gmult_len_r_c asm ("r4") =
         (word32*)&L_GCM_gmult_len_r;
+#else
+    register word32* L_GCM_gmult_len_r_c = (word32*)&L_GCM_gmult_len_r;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "mov	lr, %[L_GCM_gmult_len_r]\n\t"
@@ -4578,10 +4713,16 @@ static const word32* L_AES_ARM32_te_gcm = L_AES_ARM32_te_data;
 void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* ctr_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
     unsigned long len_p, const unsigned char* ks_p, int nr_p,
     unsigned char* ctr_p)
+#else
+void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
+    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
@@ -4590,10 +4731,22 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
     register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
     register word32* L_AES_ARM32_te_gcm_c asm ("r6") =
         (word32*)L_AES_ARM32_te_gcm;
+#else
+    register word32* L_AES_ARM32_te_gcm_c = (word32*)L_AES_ARM32_te_gcm;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r12, r4\n\t"
+#else
+        "mov	r12, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "mov	r8, r5\n\t"
+#else
+        "mov	r8, %[ctr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "mov	lr, %[in]\n\t"
         "mov	r0, %[L_AES_ARM32_te_gcm]\n\t"
         "ldm	r8, {r4, r5, r6, r7}\n\t"

@@ -95,6 +95,10 @@ void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
     register word32* L_chacha_thumb2_constants_c __asm__ ("r3") =
         (word32*)&L_chacha_thumb2_constants;
 
+#else
+    register word32* L_chacha_thumb2_constants_c =
+        (word32*)&L_chacha_thumb2_constants;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
