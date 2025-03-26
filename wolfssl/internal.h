@@ -2563,7 +2563,6 @@ struct CRL_Entry {
      * as the marker because clang-tidy doesn't like taking the sizeof a
      * pointer. */
     byte    crlNumber[CRL_MAX_NUM_SZ];    /* CRL number extension */
-    byte    crlNumberSet;                 /* CRL number set indicator */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
@@ -2591,9 +2590,10 @@ struct CRL_Entry {
     byte*   sigParams;   /* buffer with signature parameters */
 #endif
 #if !defined(NO_SKID) && !defined(NO_ASN)
-    byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
+    byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif
+    byte    crlNumberSet:1;     /* CRL number set indicator */
 };
 
 
