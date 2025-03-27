@@ -80,8 +80,13 @@ void wc_chacha_setiv(word32* x, const byte* iv, word32 counter)
         "rev	lr, lr\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "stm	r3, {r4, r12, lr}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [iv] "+r" (iv), [counter] "+r" (counter)
         :
+#else
+        :
+        : [x] "r" (x), [iv] "r" (iv), [counter] "r" (counter)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4"
     );
 }
@@ -139,9 +144,15 @@ void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
         "\n"
     "L_chacha_arm32_setkey_same_keyb_ytes_%=: \n\t"
         "stm	%[x], {r4, r5, r12, lr}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
           [L_chacha_arm32_constants] "+r" (L_chacha_arm32_constants_c)
         :
+#else
+        :
+        : [x] "r" (x), [key] "r" (key), [keySz] "r" (keySz),
+          [L_chacha_arm32_constants] "r" (L_chacha_arm32_constants_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5"
     );
 }
@@ -510,8 +521,13 @@ void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len)
         "\n"
     "L_chacha_arm32_crypt_done_%=: \n\t"
         "add	sp, sp, #52\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [c] "r" (c), [m] "r" (m), [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -589,9 +605,15 @@ void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
         "b	L_chacha_arm32_over_byte_loop_%=\n\t"
         "\n"
     "L_chacha_arm32_over_done_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input),
           [len] "+r" (len)
         :
+#else
+        :
+        : [over] "r" (over), [output] "r" (output), [input] "r" (input),
+          [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }

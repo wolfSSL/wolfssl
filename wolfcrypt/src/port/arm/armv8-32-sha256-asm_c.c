@@ -1742,9 +1742,15 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "add	%[data], %[data], #0x40\n\t"
         "bne	L_SHA256_transform_len_begin_%=\n\t"
         "add	sp, sp, #0xc0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
           [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -2814,9 +2820,15 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "str	r10, [sp, #8]\n\t"
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
           [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
         :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr",
             "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9",
             "d10", "d11"

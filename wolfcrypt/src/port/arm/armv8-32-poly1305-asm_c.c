@@ -281,9 +281,15 @@ void poly1305_arm32_blocks_16(Poly1305* ctx, const byte* m, word32 len,
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [len] "r" (len),
+          [notLast] "r" (notLast)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -342,9 +348,15 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
         "stm	lr, {r5, r6, r7, r8, r12}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #52]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [key] "+r" (key),
           [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [key] "r" (key),
+          [L_poly1305_arm32_clamp] "r" (L_poly1305_arm32_clamp_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8"
     );
 }
@@ -404,8 +416,13 @@ void poly1305_final(Poly1305* ctx, byte* mac)
         /* Zero out padding. */
         "add	r9, %[ctx], #36\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [mac] "r" (mac)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9"
     );
@@ -636,9 +653,15 @@ void poly1305_arm32_blocks_16(Poly1305* ctx, const byte* m, word32 len,
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [len] "r" (len),
+          [notLast] "r" (notLast)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -1100,8 +1123,13 @@ void poly1305_arm32_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
         "stm	r12, {r7, r8, r9, r10, r11}\n\t"
         "\n"
     "L_poly1305_arm32_blocks_done_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [bytes] "+r" (bytes)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [bytes] "r" (bytes)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8",
             "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
@@ -1340,9 +1368,15 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
         "stm	lr, {r4, r5, r6, r7, r8, r9}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #56]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [key] "+r" (key),
           [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [key] "r" (key),
+          [L_poly1305_arm32_clamp] "r" (L_poly1305_arm32_clamp_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8",
             "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
@@ -1405,8 +1439,13 @@ void poly1305_final(Poly1305* ctx, byte* mac)
         /* Zero out padding. */
         "add	r9, %[ctx], #40\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [mac] "r" (mac)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9"
     );

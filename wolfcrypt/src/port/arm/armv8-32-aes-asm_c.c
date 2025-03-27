@@ -420,10 +420,17 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "str	r8, [%[ks]], #4\n\t"
         "subs	r11, r11, #1\n\t"
         "bne	L_AES_invert_key_mix_loop_%=\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ks] "+r" (ks), [rounds] "+r" (rounds),
           [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c),
           [L_AES_ARM32_td] "+r" (L_AES_ARM32_td_c)
         :
+#else
+        :
+        : [ks] "r" (ks), [rounds] "r" (rounds),
+          [L_AES_ARM32_te] "r" (L_AES_ARM32_te_c),
+          [L_AES_ARM32_td] "r" (L_AES_ARM32_td_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -956,10 +963,17 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
         "bne	L_AES_set_encrypt_key_loop_128_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_end_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c),
           [L_AES_ARM32_rcon] "+r" (L_AES_ARM32_rcon_c)
         :
+#else
+        :
+        : [key] "r" (key), [len] "r" (len), [ks] "r" (ks),
+          [L_AES_ARM32_te] "r" (L_AES_ARM32_te_c),
+          [L_AES_ARM32_rcon] "r" (L_AES_ARM32_rcon_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
     );
 }
@@ -1617,8 +1631,13 @@ void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r10\n\t"
         "eor	r7, r7, r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [te] "+r" (te), [nr] "+r" (nr), [len] "+r" (len), [ks] "+r" (ks)
         :
+#else
+        :
+        : [te] "r" (te), [nr] "r" (nr), [len] "r" (len), [ks] "r" (ks)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -1884,9 +1903,15 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         "\n"
     "L_AES_ECB_encrypt_end_%=: \n\t"
         "pop	{%[ks]}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_ARM32_te_ecb] "+r" (L_AES_ARM32_te_ecb_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [L_AES_ARM32_te_ecb] "r" (L_AES_ARM32_te_ecb_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -2175,10 +2200,17 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
     "L_AES_CBC_encrypt_end_%=: \n\t"
         "pop	{%[ks], r9}\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_ARM32_te_cbc] "+r" (L_AES_ARM32_te_cbc_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_ARM32_te_cbc] "r" (L_AES_ARM32_te_cbc_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -2468,10 +2500,17 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
         "rev	r7, r7\n\t"
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
         "stm	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_ARM32_te_ctr] "+r" (L_AES_ARM32_te_ctr_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [ctr] "r" (ctr),
+          [L_AES_ARM32_te_ctr] "r" (L_AES_ARM32_te_ctr_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -3130,8 +3169,13 @@ void AES_decrypt_block(const word32* td, int nr, const byte* td4)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r10\n\t"
         "eor	r7, r7, r11\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [td] "+r" (td), [nr] "+r" (nr), [td4] "+r" (td4)
         :
+#else
+        :
+        : [td] "r" (td), [nr] "r" (nr), [td4] "r" (td4)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "lr"
     );
 }
@@ -3431,10 +3475,17 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         "bne	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_end_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c),
           [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [L_AES_ARM32_td_ecb] "r" (L_AES_ARM32_td_ecb_c),
+          [L_AES_ARM32_td4] "r" (L_AES_ARM32_td4_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
@@ -4086,11 +4137,19 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         "\n"
     "L_AES_CBC_decrypt_end_%=: \n\t"
         "pop	{%[ks]-r4}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [iv] "+r" (iv),
           [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c),
           [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [iv] "r" (iv),
+          [L_AES_ARM32_td_ecb] "r" (L_AES_ARM32_td_ecb_c),
+          [L_AES_ARM32_td4] "r" (L_AES_ARM32_td4_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r8", "r9", "r10", "r11"
     );
 }
@@ -4701,9 +4760,15 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         "subs	%[len], %[len], #16\n\t"
         "add	%[data], %[data], #16\n\t"
         "bne	L_GCM_gmult_len_start_block_%=\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
           [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
+#else
+        :
+        : [x] "r" (x), [m] "r" (m), [data] "r" (data), [len] "r" (len),
+          [L_GCM_gmult_len_r] "r" (L_GCM_gmult_len_r_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11"
     );
@@ -4983,10 +5048,17 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
         "rev	r7, r7\n\t"
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
         "stm	r8, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks),
           [nr] "+r" (nr), [ctr] "+r" (ctr),
           [L_AES_ARM32_te_gcm] "+r" (L_AES_ARM32_te_gcm_c)
         :
+#else
+        :
+        : [in] "r" (in), [out] "r" (out), [len] "r" (len), [ks] "r" (ks),
+          [nr] "r" (nr), [ctr] "r" (ctr),
+          [L_AES_ARM32_te_gcm] "r" (L_AES_ARM32_te_gcm_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }

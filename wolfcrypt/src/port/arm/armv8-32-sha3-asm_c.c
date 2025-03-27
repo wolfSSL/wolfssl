@@ -346,9 +346,15 @@ void BlockSha3(word64* state)
         "vst1.8	{d20-d23}, [%[state]]!\n\t"
         "vst1.8	{d24}, [%[state]]\n\t"
         "add	sp, sp, #16\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [state] "+r" (state),
           [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c)
         :
+#else
+        :
+        : [state] "r" (state),
+          [L_sha3_arm2_neon_rt] "r" (L_sha3_arm2_neon_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6",
             "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16",
             "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25",
@@ -2354,8 +2360,13 @@ void BlockSha3(word64* state)
         "subs	r2, r2, #1\n\t"
         "bne	L_sha3_arm32_begin_%=\n\t"
         "add	sp, sp, #0xcc\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [state] "+r" (state), [L_sha3_arm2_rt] "+r" (L_sha3_arm2_rt_c)
         :
+#else
+        :
+        : [state] "r" (state), [L_sha3_arm2_rt] "r" (L_sha3_arm2_rt_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );

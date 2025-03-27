@@ -3095,9 +3095,15 @@ void mlkem_arm32_ntt(sword16* r)
         "add	%[r], %[r], #32\n\t"
         "bne	L_mlkem_arm32_ntt_loop_567_%=\n\t"
         "add	sp, sp, #8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_arm32_ntt_zetas] "+r" (L_mlkem_arm32_ntt_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r),
+          [L_mlkem_arm32_ntt_zetas] "r" (L_mlkem_arm32_ntt_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );
@@ -7536,9 +7542,15 @@ void mlkem_arm32_invntt(sword16* r)
         "add	%[r], %[r], #4\n\t"
         "bne	L_mlkem_invntt_loop_321_%=\n\t"
         "add	sp, sp, #8\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r),
           [L_mlkem_invntt_zetas_inv] "+r" (L_mlkem_invntt_zetas_inv_c)
         :
+#else
+        :
+        : [r] "r" (r),
+          [L_mlkem_invntt_zetas_inv] "r" (L_mlkem_invntt_zetas_inv_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );
@@ -7870,9 +7882,15 @@ void mlkem_arm32_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_mlkem_basemul_mont_loop_%=\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -8204,9 +8222,15 @@ void mlkem_arm32_basemul_mont_add(sword16* r, const sword16* a,
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_mlkem_arm32_basemul_mont_add_loop_%=\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -8393,9 +8417,15 @@ void mlkem_arm32_csubq(sword16* p)
         "stm	%[p]!, {r2, r3, r4, r5}\n\t"
         "subs	r1, r1, #8\n\t"
         "bne	L_mlkem_arm32_csubq_loop_%=\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [p] "r" (p),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
     );
@@ -8676,9 +8706,15 @@ unsigned int mlkem_arm32_rej_uniform(sword16* p, unsigned int len,
         "\n"
     "L_mlkem_arm32_rej_uniform_done_%=: \n\t"
         "lsr	r0, r12, #1\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
           [L_mlkem_basemul_mont_zetas] "+r" (L_mlkem_basemul_mont_zetas_c)
         :
+#else
+        :
+        : [p] "r" (p), [len] "r" (len), [r] "r" (r), [rLen] "r" (rLen),
+          [L_mlkem_basemul_mont_zetas] "r" (L_mlkem_basemul_mont_zetas_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
     );
     return (word32)(size_t)p;
