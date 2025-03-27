@@ -6603,6 +6603,145 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 }
 #endif /* ASN_DUMP_OID */
 
+#ifdef WOLFSSL_FPKI
+/* Handles the large number of collisions from FPKI certificate policy
+ * OID sums.  Returns a special value (100000 + actual sum) if a
+ * collision is detected.
+ * @param [in]      oid      Buffer holding OID.
+ * @param [in]      oidSz    Length of OID data in buffer.
+ * @param [in]      oidSum   The sum of the OID being passed in.
+ */
+static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
+
+    switch (oidSum) {
+        case CP_FPKI_COMMON_DEVICES_HARDWARE_OID:
+            if ((word32)sizeof(extCertPolicyDodPeerInteropOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyDodPeerInteropOid,
+            sizeof(extCertPolicyDodPeerInteropOid)) == 0)
+                return CP_DOD_PEER_INTEROP_OID;
+            break;
+        case CP_FPKI_PIV_AUTH_HW_OID:
+            if ((word32)sizeof(extCertPolicyDodMediumNpe112Oid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyDodMediumNpe112Oid,
+            sizeof(extCertPolicyDodMediumNpe112Oid)) == 0)
+                return CP_DOD_MEDIUM_NPE_112_OID;
+            else if ((word32)sizeof(extCertPolicyStateMediumDeviceHardwareOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyStateMediumDeviceHardwareOid,
+            sizeof(extCertPolicyStateMediumDeviceHardwareOid)) == 0)
+                return CP_STATE_MEDDEVHW_OID;
+            break;
+        case CP_FPKI_PIVI_AUTH_OID:
+            if ((word32)sizeof(extCertPolicyDodMedium128Oid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyDodMedium128Oid,
+            sizeof(extCertPolicyDodMedium128Oid)) == 0)
+                return CP_DOD_MEDIUM_128_OID;
+            break;
+        case CP_FPKI_COMMON_PIVI_CONTENT_SIGNING_OID:
+            if ((word32)sizeof(extCertPolicyDodMediumHardware112Oid) == (word32)oidSz &&
+                XMEMCMP(oid, extCertPolicyDodMediumHardware112Oid,
+                sizeof(extCertPolicyDodMediumHardware112Oid)) == 0)
+                    return CP_DOD_MEDIUM_HARDWARE_112_OID;
+            if ((word32)sizeof(extCertPolicyCertipathHighhwOid) == (word32)oidSz &&
+                XMEMCMP(oid, extCertPolicyCertipathHighhwOid,
+                sizeof(extCertPolicyCertipathHighhwOid)) == 0)
+                    return CP_CERTIPATH_HIGHHW_OID;
+            break;
+        case CP_DOD_MEDIUM_OID:
+            if ((word32)sizeof(extCertPolicyEcaMediumOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaMediumOid,
+            sizeof(extCertPolicyEcaMediumOid)) == 0)
+                return CP_ECA_MEDIUM_OID;
+            break;
+        case CP_FPKI_COMMON_AUTH_OID:
+            if ((word32)sizeof(extCertPolicyEcaMediumSha256Oid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaMediumSha256Oid,
+            sizeof(extCertPolicyEcaMediumSha256Oid)) == 0)
+                return CP_ECA_MEDIUM_SHA256_OID;
+            break;
+        case CP_FPKI_MEDIUM_HARDWARE_OID:
+            if ((word32)sizeof(extCertPolicyEcaMediumTokenOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaMediumTokenOid,
+            sizeof(extCertPolicyEcaMediumTokenOid)) == 0)
+                return CP_ECA_MEDIUM_TOKEN_OID;
+            else if ((word32)sizeof(extCertPolicyTreasuryPiviHardwareOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyTreasuryPiviHardwareOid,
+            sizeof(extCertPolicyTreasuryPiviHardwareOid)) == 0)
+                return CP_TREAS_PIVI_HW_OID;
+            break;
+        case CP_DOD_MEDIUM_HARDWARE_OID:
+            if ((word32)sizeof(extCertPolicyEcaMediumTokenSha256Oid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaMediumTokenSha256Oid,
+            sizeof(extCertPolicyEcaMediumTokenSha256Oid)) == 0)
+                return CP_ECA_MEDIUM_TOKEN_SHA256_OID;
+            else if ((word32)sizeof(extCertPolicyTreasuryPiviContentSigningOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyTreasuryPiviContentSigningOid,
+            sizeof(extCertPolicyTreasuryPiviContentSigningOid)) == 0)
+                return CP_TREAS_PIVI_CONTENT_OID;
+            break;
+        case CP_DOD_PIV_AUTH_OID:
+            if ((word32)sizeof(extCertPolicyEcaMediumHardwarePiviOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaMediumHardwarePiviOid,
+            sizeof(extCertPolicyEcaMediumHardwarePiviOid)) == 0)
+                return CP_ECA_MEDIUM_HARDWARE_PIVI_OID;
+            else if ((word32)sizeof(extCertPolicyStateMedHwOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyStateMedHwOid,
+            sizeof(extCertPolicyStateMedHwOid)) == 0)
+                return CP_STATE_MEDHW_OID;
+            break;
+        case CP_FPKI_COMMON_HARDWARE_OID:
+            if ((word32)sizeof(extCertPolicyStateHighOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyStateHighOid,
+            sizeof(extCertPolicyStateHighOid)) == 0)
+                return CP_STATE_HIGH_OID;
+            else if ((word32)sizeof(extCertPolicyTreasuryHighOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyTreasuryHighOid,
+            sizeof(extCertPolicyTreasuryHighOid)) == 0)
+                return CP_TREAS_HIGH_OID;
+            break;
+        case CP_ECA_MEDIUM_HARDWARE_OID:
+            if ((word32)sizeof(extCertPolicyExostarMediumHardwareSha2Oid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyExostarMediumHardwareSha2Oid,
+            sizeof(extCertPolicyExostarMediumHardwareSha2Oid)) == 0)
+                return CP_EXOSTAR_MEDIUMHW_SHA2_OID;
+            break;
+        case CP_ADO_HIGH_OID:
+            if ((word32)sizeof(extCertPolicyAdoResourceMediumAssuranceOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyAdoResourceMediumAssuranceOid,
+            sizeof(extCertPolicyAdoResourceMediumAssuranceOid)) == 0)
+                return CP_ADO_RESOURCE_MEDIUM_OID;
+            break;
+        case CP_DOD_ADMIN_OID:
+            if ((word32)sizeof(extCertPolicyCarillonAivcontentOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyCarillonAivcontentOid,
+            sizeof(extCertPolicyCarillonAivcontentOid)) == 0)
+                return CP_CARILLON_AIVCONTENT_OID;
+            break;
+        case CP_CIS_ICECAP_HW_OID:
+            if ((word32)sizeof(extCertPolicyNlModIrrefutabilityOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyNlModIrrefutabilityOid,
+            sizeof(extCertPolicyNlModIrrefutabilityOid)) == 0)
+                return CP_NL_MOD_IRREFUT_OID;
+            break;
+        case CP_DOD_MEDIUM_192_OID:
+            if ((word32)sizeof(extCertPolicyCertipathMediumhwOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyCertipathMediumhwOid,
+            sizeof(extCertPolicyCertipathMediumhwOid)) == 0)
+                return CP_CERTIPATH_MEDIUMHW_OID;
+            break;
+        case CP_CARILLON_AIVHW_OID:
+            if ((word32)sizeof(extCertPolicyCertipathVarMediumhwOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyCertipathVarMediumhwOid,
+            sizeof(extCertPolicyCertipathVarMediumhwOid)) == 0)
+                return CP_CERTIPATH_VAR_MEDIUMHW_OID;
+            break;
+        default:
+            break;
+    }
+
+    return 0;
+}
+#endif
+
 /* Get the OID data and verify it is of the type specified when compiled in.
  *
  * @param [in]      input     Buffer holding OID.
@@ -6628,13 +6767,13 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     const byte* checkOid = NULL;
     word32 checkOidSz;
 #endif /* NO_VERIFY_OID */
-#if defined(HAVE_SPHINCS)
+#if defined(HAVE_SPHINCS) || defined(WOLFSSL_FPKI)
     word32 found_collision = 0;
 #endif
     (void)oidType;
     *oid = 0;
 
-#ifndef NO_VERIFY_OID
+#if !defined(NO_VERIFY_OID) || defined(WOLFSSL_FPKI)
     /* Keep references to OID data and length for check. */
     actualOid = &input[idx];
     actualOidSz = (word32)length;
@@ -6663,7 +6802,16 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         idx++;
     }
 
-#ifdef HAVE_SPHINCS
+#ifdef WOLFSSL_FPKI
+    /* Due to the large number of OIDs for FPKI certificate policy, there
+       are multiple collsisions.  Handle them in a dedicated function,
+       if a collision is detected, the OID is adjusted. */
+    if (oidType == oidCertPolicyType) {
+        found_collision = fpkiCertPolOid(actualOid, actualOidSz, *oid);
+    }
+#endif
+
+#if defined(HAVE_SPHINCS) || defined(WOLFSSL_FPKI)
     if (found_collision) {
         *oid = found_collision;
     }
@@ -6690,9 +6838,6 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 
             checkOid   = blkAes256CbcOid;
             checkOidSz = sizeof(blkAes256CbcOid);
-        }
-        if (oidType == oidCertPolicyType) {
-            checkOid = fpkiCertPolOid(*oid, &checkOidSz, actualOid, actualOidSz);
         }
         #endif /* HAVE_AES_CBC */
     #endif /* WOLFSSL_FPKI */

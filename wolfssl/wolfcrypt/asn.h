@@ -1449,14 +1449,14 @@ enum CertificatePolicy_Sum {
     CP_DOD_MEDIUM_2048_OID           = 436, /* 2.16.840.1.101.2.1.11.18 */
     CP_DOD_MEDIUM_HARDWARE_2048_OID  = 437, /* 2.16.840.1.101.2.1.11.19 */
     CP_DOD_PIV_AUTH_2048_OID         = 438, /* 2.16.840.1.101.2.1.11.20 */
-    CP_DOD_PEER_INTEROP_OID          = 449, /* 2.16.840.1.101.2.1.11.31 */
-    CP_DOD_MEDIUM_NPE_112_OID        = 454, /* 2.16.840.1.101.2.1.11.36 */
+    CP_DOD_PEER_INTEROP_OID          = 100449, /* 2.16.840.1.101.2.1.11.31 */
+    CP_DOD_MEDIUM_NPE_112_OID        = 100454, /* 2.16.840.1.101.2.1.11.36 */
     CP_DOD_MEDIUM_NPE_128_OID        = 455, /* 2.16.840.1.101.2.1.11.37 */
     CP_DOD_MEDIUM_NPE_192_OID        = 456, /* 2.16.840.1.101.2.1.11.38 */
     CP_DOD_MEDIUM_112_OID            = 457, /* 2.16.840.1.101.2.1.11.39 */
-    CP_DOD_MEDIUM_128_OID            = 458, /* 2.16.840.1.101.2.1.11.40 */
+    CP_DOD_MEDIUM_128_OID            = 100458, /* 2.16.840.1.101.2.1.11.40 */
     CP_DOD_MEDIUM_192_OID            = 459, /* 2.16.840.1.101.2.1.11.41 */
-    CP_DOD_MEDIUM_HARDWARE_112_OID   = 460, /* 2.16.840.1.101.2.1.11.42 */
+    CP_DOD_MEDIUM_HARDWARE_112_OID   = 100460, /* 2.16.840.1.101.2.1.11.42 */
     CP_DOD_MEDIUM_HARDWARE_128_OID   = 461, /* 2.16.840.1.101.2.1.11.43 */
     CP_DOD_MEDIUM_HARDWARE_192_OID   = 462, /* 2.16.840.1.101.2.1.11.44 */
     CP_DOD_ADMIN_OID                 = 477, /* 2.16.840.1.101.2.1.11.59 */
@@ -1465,26 +1465,26 @@ enum CertificatePolicy_Sum {
     CP_DOD_INTERNAL_NPE_192_OID      = 480, /* 2.16.840.1.101.2.1.11.62 */
 
     /* ECA PKI OIDs */
-    CP_ECA_MEDIUM_OID                = 423, /* 2.16.840.1.101.3.2.1.12.1 */
+    CP_ECA_MEDIUM_OID                = 100423, /* 2.16.840.1.101.3.2.1.12.1 */
     CP_ECA_MEDIUM_HARDWARE_OID       = 424, /* 2.16.840.1.101.3.2.1.12.2 */
-    CP_ECA_MEDIUM_TOKEN_OID          = 425, /* 2.16.840.1.101.3.2.1.12.3 */
-    CP_ECA_MEDIUM_SHA256_OID         = 426, /* 2.16.840.1.101.3.2.1.12.4 */
-    CP_ECA_MEDIUM_TOKEN_SHA256_OID   = 427, /* 2.16.840.1.101.3.2.1.12.5 */
-    CP_ECA_MEDIUM_HARDWARE_PIVI_OID  = 428, /* 2.16.840.1.101.3.2.1.12.6 */
+    CP_ECA_MEDIUM_TOKEN_OID          = 100425, /* 2.16.840.1.101.3.2.1.12.3 */
+    CP_ECA_MEDIUM_SHA256_OID         = 100426, /* 2.16.840.1.101.3.2.1.12.4 */
+    CP_ECA_MEDIUM_TOKEN_SHA256_OID   = 100427, /* 2.16.840.1.101.3.2.1.12.5 */
+    CP_ECA_MEDIUM_HARDWARE_PIVI_OID  = 100428, /* 2.16.840.1.101.3.2.1.12.6 */
     CP_ECA_CONTENT_SIGNING_PIVI_OID  = 430, /* 2.16.840.1.101.3.2.1.12.8 */
     CP_ECA_MEDIUM_DEVICE_SHA256_OID  = 431, /* 2.16.840.1.101.3.2.1.12.9 */
     CP_ECA_MEDIUM_HARDWARE_SHA256_OID = 432, /* 2.16.840.1.101.3.2.1.12.10 */
 
     /* Department of State PKI OIDs */
-    CP_STATE_HIGH_OID               = 420, /* 2.16.840.1.101.3.2.1.6.4 */
-    CP_STATE_MEDHW_OID              = 428, /* 2.16.840.1.101.3.2.1.6.12 */
-    CP_STATE_MEDDEVHW_OID           = 454, /* 2.16.840.1.101.3.2.1.6.38 */
+    CP_STATE_HIGH_OID               = 100420, /* 2.16.840.1.101.3.2.1.6.4 */
+    CP_STATE_MEDHW_OID              = 101428, /* 2.16.840.1.101.3.2.1.6.12 */
+    CP_STATE_MEDDEVHW_OID           = 101454, /* 2.16.840.1.101.3.2.1.6.38 */
 
     /* U.S. Treasury SSP PKI OIDs */
     CP_TREAS_MEDIUMHW_OID           = 419, /* 2.16.840.1.101.3.2.1.5.4 */
-    CP_TREAS_HIGH_OID               = 420, /* 2.16.840.1.101.3.2.1.5.5 */
-    CP_TREAS_PIVI_HW_OID            = 425, /* 2.16.840.1.101.3.2.1.5.10 */
-    CP_TREAS_PIVI_CONTENT_OID       = 427, /* 2.16.840.1.101.3.2.1.5.12 */
+    CP_TREAS_HIGH_OID               = 101420, /* 2.16.840.1.101.3.2.1.5.5 */
+    CP_TREAS_PIVI_HW_OID            = 101425, /* 2.16.840.1.101.3.2.1.5.10 */
+    CP_TREAS_PIVI_CONTENT_OID       = 101427, /* 2.16.840.1.101.3.2.1.5.12 */
 
     /* Boeing PKI OIDs */
     CP_BOEING_MEDIUMHW_SHA256_OID   = 159, /* 1.3.6.1.4.1.73.15.3.1.12 */
@@ -1493,7 +1493,7 @@ enum CertificatePolicy_Sum {
     /* Carillon Federal Services OIDs */
     CP_CARILLON_MEDIUMHW_256_OID    = 467, /* 1.3.6.1.4.1.45606.3.1.12 */
     CP_CARILLON_AIVHW_OID           = 475, /* 1.3.6.1.4.1.45606.3.1.20 */
-    CP_CARILLON_AIVCONTENT_OID      = 477, /* 1.3.6.1.4.1.45606.3.1.22 */
+    CP_CARILLON_AIVCONTENT_OID      = 100477, /* 1.3.6.1.4.1.45606.3.1.22 */
 
     /* Carillon Information Security OIDs */
     CP_CIS_MEDIUMHW_256_OID         = 489, /* 1.3.6.1.4.1.25054.3.1.12 */
@@ -1502,11 +1502,11 @@ enum CertificatePolicy_Sum {
     CP_CIS_ICECAP_CONTENT_OID       = 499, /* 1.3.6.1.4.1.25054.3.1.22 */
 
     /* CertiPath Bridge OIDs */
-    CP_CERTIPATH_MEDIUMHW_OID       = 459, /* 1.3.6.1.4.1.24019.1.1.1.2 */
-    CP_CERTIPATH_HIGHHW_OID         = 460, /* 1.3.6.1.4.1.24019.1.1.1.3 */
+    CP_CERTIPATH_MEDIUMHW_OID       = 100459, /* 1.3.6.1.4.1.24019.1.1.1.2 */
+    CP_CERTIPATH_HIGHHW_OID         = 101460, /* 1.3.6.1.4.1.24019.1.1.1.3 */
     CP_CERTIPATH_ICECAP_HW_OID      = 464, /* 1.3.6.1.4.1.24019.1.1.1.7 */
     CP_CERTIPATH_ICECAP_CONTENT_OID = 466, /* 1.3.6.1.4.1.24019.1.1.1.9 */
-    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 475, /* 1.3.6.1.4.1.24019.1.1.1.18 */
+    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 100475, /* 1.3.6.1.4.1.24019.1.1.1.18 */
     CP_CERTIPATH_VAR_HIGHHW_OID     = 476, /* 1.3.6.1.4.1.24019.1.1.1.19 */
 
     /* TSCP Bridge OIDs */
@@ -1529,7 +1529,7 @@ enum CertificatePolicy_Sum {
     CP_ENTRUST_NFSSP_MEDDEVHW_OID   = 1031, /* 2.16.840.1.114027.200.3.10.7.16 */
 
     /* Exostar LLC PKI OIDs */
-    CP_EXOSTAR_MEDIUMHW_SHA2_OID    = 424, /* 1.3.6.1.4.1.13948.1.1.1.6 */
+    CP_EXOSTAR_MEDIUMHW_SHA2_OID    = 100424, /* 1.3.6.1.4.1.13948.1.1.1.6 */
 
     /* IdenTrust NFI OIDs */
     CP_IDENTRUST_MEDIUMHW_SIGN_OID  = 846, /* 2.16.840.1.113839.0.100.12.1 */
@@ -1563,11 +1563,11 @@ enum CertificatePolicy_Sum {
     /* Australian Defence Organisation PKI OIDs */
     CP_ADO_MEDIUM_OID               = 293, /* 1.2.36.1.334.1.2.1.2 */
     CP_ADO_HIGH_OID                 = 294, /* 1.2.36.1.334.1.2.1.3 */
-    CP_ADO_RESOURCE_MEDIUM_OID      = 294, /* 1.2.36.1.334.1.2.2.2 */
+    CP_ADO_RESOURCE_MEDIUM_OID      = 100294, /* 1.2.36.1.334.1.2.2.2 */
 
     /* Netherlands Ministry of Defence PKI OIDs */
     CP_NL_MOD_AUTH_OID              = 496, /* 2.16.528.1.1003.1.2.5.1 */
-    CP_NL_MOD_IRREFUT_OID           = 497, /* 2.16.528.1.1003.1.2.5.2 */
+    CP_NL_MOD_IRREFUT_OID           = 100497, /* 2.16.528.1.1003.1.2.5.2 */
     CP_NL_MOD_CONFID_OID            = 498, /* 2.16.528.1.1003.1.2.5.3 */
 #endif /* WOLFSSL_FPKI */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(CertificatePolicy_Sum)
