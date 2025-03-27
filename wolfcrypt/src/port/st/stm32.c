@@ -702,7 +702,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     PKA_ECCMulInTypeDef pka_mul;
     PKA_ECCMulOutTypeDef pka_mul_res;
     int szModulus;
-    int szkbin;
     int status;
     int res;
     uint8_t Gxbin[STM32_MAX_ECC_SIZE];
@@ -730,9 +729,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     }
 
     szModulus = mp_unsigned_bin_size(modulus);
-    szkbin = mp_unsigned_bin_size(k);
 
-    res = stm32_get_from_mp_int(kbin, k, szkbin);
+    res = stm32_get_from_mp_int(kbin, k, szModulus);
     if (res == MP_OKAY)
         res = stm32_get_from_mp_int(Gxbin, G->x, szModulus);
     if (res == MP_OKAY)
@@ -767,7 +765,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     pka_mul.modulus = prime;
     pka_mul.pointX = Gxbin;
     pka_mul.pointY = Gybin;
-    pka_mul.scalarMulSize = szkbin;
+    pka_mul.scalarMulSize = szModulus;
     pka_mul.scalarMul = kbin;
 #ifdef WOLFSSL_STM32_PKA_V2
     pka_mul.coefB = coefB;
