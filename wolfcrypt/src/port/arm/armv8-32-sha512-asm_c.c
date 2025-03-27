@@ -51,6 +51,8 @@
 #define __volatile__   volatile
 #endif /* __KEIL__ */
 #ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
 #define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __ghs__ */
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
