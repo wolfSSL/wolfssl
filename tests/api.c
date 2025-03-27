@@ -4908,6 +4908,7 @@ static int test_wolfSSL_FPKI(void)
 #if defined(WOLFSSL_FPKI) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     XFILE f = XBADFILE;
     const char* fpkiCert = "./certs/fpki-cert.der";
+    const char* fpkiCertPolCert = "./certs/fpki-certpol-cert.der";
     DecodedCert cert;
     byte buf[4096];
     byte* uuid = NULL;
@@ -4917,6 +4918,29 @@ static int test_wolfSSL_FPKI(void)
     int bytes = 0;
 
     ExpectTrue((f = XFOPEN(fpkiCert, "rb")) != XBADFILE);
+    ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
+    ExpectIntEQ(wc_GetFASCNFromCert(&cert, NULL, &fascnSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectNotNull(fascn = (byte*)XMALLOC(fascnSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_GetFASCNFromCert(&cert, fascn, &fascnSz), 0);
+    XFREE(fascn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    ExpectIntEQ(wc_GetUUIDFromCert(&cert, NULL, &uuidSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
+    ExpectNotNull(uuid = (byte*)XMALLOC(uuidSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(wc_GetUUIDFromCert(&cert, uuid, &uuidSz), 0);
+    XFREE(uuid, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_FreeDecodedCert(&cert);
+
+    XMEMSET(buf, 0, 4096);
+    fascnSz = uuidSz = bytes = 0;
+    f = XBADFILE;
+
+    ExpectTrue((f = XFOPEN(fpkiCertPolCert, "rb")) != XBADFILE);
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
     if (f != XBADFILE)
         XFCLOSE(f);

@@ -5724,7 +5724,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyStateMediumDeviceHardwareOid;
                     *oidSz = sizeof(extCertPolicyStateMediumDeviceHardwareOid);
                     break;
-                    
+
                 /* U.S. Treasury SSP PKI OIDs */
                 case CP_TREAS_MEDIUMHW_OID:
                     oid = extCertPolicyTreasuryMediumHardwareOid;
@@ -5742,7 +5742,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyTreasuryPiviContentSigningOid;
                     *oidSz = sizeof(extCertPolicyTreasuryPiviContentSigningOid);
                     break;
-                    
+
                 /* Boeing PKI OIDs */
                 case CP_BOEING_MEDIUMHW_SHA256_OID:
                     oid = extCertPolicyBoeingMediumHardwareSha256Oid;
@@ -5752,7 +5752,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyBoeingMediumHardwareContentSigningSha256Oid;
                     *oidSz = sizeof(extCertPolicyBoeingMediumHardwareContentSigningSha256Oid);
                     break;
-                    
+
                 /* DigiCert NFI PKI OIDs */
                 case CP_DIGICERT_NFSSP_MEDIUMHW_OID:
                     oid = extCertPolicyDigicertNfiMediumHardwareOid;
@@ -5774,7 +5774,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyDigicertNfiMediumDevicesHardwareOid;
                     *oidSz = sizeof(extCertPolicyDigicertNfiMediumDevicesHardwareOid);
                     break;
-                    
+
                 /* Entrust Managed Services NFI PKI OIDs */
                 case CP_ENTRUST_NFSSP_MEDIUMHW_OID:
                     oid = extCertPolicyEntrustNfiMediumHardwareOid;
@@ -5796,19 +5796,19 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyEntrustNfiMediumDevicesHwOid;
                     *oidSz = sizeof(extCertPolicyEntrustNfiMediumDevicesHwOid);
                     break;
-                    
+
                 /* Exostar LLC PKI OIDs */
                 case CP_EXOSTAR_MEDIUMHW_SHA2_OID:
                     oid = extCertPolicyExostarMediumHardwareSha2Oid;
                     *oidSz = sizeof(extCertPolicyExostarMediumHardwareSha2Oid);
                     break;
-                    
+
                 /* Lockheed Martin PKI OIDs */
                 case CP_LOCKHEED_MEDIUMHW_OID:
                     oid = extCertPolicyLockheedMediumAssuranceHardwareOid;
                     *oidSz = sizeof(extCertPolicyLockheedMediumAssuranceHardwareOid);
                     break;
-                    
+
                 /* Northrop Grumman PKI OIDs */
                 case CP_NORTHROP_MEDIUM_256_HW_OID:
                     oid = extCertPolicyNorthropMediumAssurance256HardwareTokenOid;
@@ -5826,7 +5826,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyNorthropMediumAssurance384HardwareTokenOid;
                     *oidSz = sizeof(extCertPolicyNorthropMediumAssurance384HardwareTokenOid);
                     break;
-                    
+
                 /* Raytheon PKI OIDs */
                 case CP_RAYTHEON_MEDIUMHW_OID:
                     oid = extCertPolicyRaytheonMediumHardwareOid;
@@ -5844,7 +5844,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyRaytheonSha2MediumDeviceHardwareOid;
                    *oidSz = sizeof(extCertPolicyRaytheonSha2MediumDeviceHardwareOid);
                     break;
-                    
+
                 /* WidePoint NFI PKI OIDs */
                 case CP_WIDEPOINT_MEDIUMHW_OID:
                     oid = extCertPolicyWidepointNfiMediumHardwareOid;
@@ -5862,7 +5862,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyWidepointNfiMediumDevicesHardwareOid;
                     *oidSz = sizeof(extCertPolicyWidepointNfiMediumDevicesHardwareOid);
                     break;
-                    
+
                 /* Australian Defence Organisation PKI OIDs */
                 case CP_ADO_MEDIUM_OID:
                     oid = extCertPolicyAdoIndividualMediumAssuranceOid;

@@ -75,6 +75,7 @@ EXTRA_DIST += \
              certs/x942dh2048.der \
              certs/x942dh2048.pem \
              certs/fpki-cert.der \
+             certs/fpki-certpol-cert.der \
              certs/rid-cert.der \
              certs/dh-priv-2048.der \
              certs/dh-priv-2048.pem \
