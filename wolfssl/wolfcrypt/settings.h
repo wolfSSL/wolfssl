@@ -4403,6 +4403,10 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ENTROPY_MEMUSE */
 
+#ifndef WANT_BASE64_TABLE
+#define BASE64_NO_TABLE
+#endif /* ! WANT_BASE64_TABLE */
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
