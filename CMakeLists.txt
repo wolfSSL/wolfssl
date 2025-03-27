@@ -125,6 +125,9 @@ check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
 
+include(CheckSymbolExists)
+check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
+
 include(CheckTypeSize)
 
 check_type_size("__uint128_t" __UINT128_T)
@@ -893,7 +896,7 @@ endif()
 #       - SEP
 
 add_option("WOLFSSL_KEYGEN"
-    "Enable key generation (default: disabled)])"
+    "Enable key generation (default: disabled)"
     "no" "yes;no")
 
 add_option("WOLFSSL_CERTGEN"
@@ -2318,6 +2321,18 @@ if (ENABLE_SCCACHE AND (NOT WOLFSSL_SCCACHE_ALREADY_SET_FLAG))
         endif()
         set(WOLFSSL_SCCACHE_ALREADY_SET_FLAG ON)
     endif()
+endif()
+
+add_option("WOLFSSL_KEYLOG_EXPORT"
+    "Enable insecure export of TLS secrets to an NSS keylog file (default: disabled)"
+    "no" "yes;no")
+if(WOLFSSL_KEYLOG_EXPORT)
+    message(WARNING "Keylog export enabled -- Sensitive key data will be stored insecurely.")
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DSHOW_SECRETS"
+        "-DHAVE_SECRET_CALLBACK"
+        "-DWOLFSSL_SSLKEYLOGFILE"
+        "-DWOLFSSL_KEYLOG_EXPORT_WARNED")
 endif()
 
 
