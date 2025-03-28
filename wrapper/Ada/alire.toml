@@ -9,3 +9,6 @@ licenses = "GPL-2.0-only"
 website = "https://www.wolfssl.com/"
 project-files = ["wolfssl.gpr"]
 tags = ["ssl", "tls", "embedded", "spark"]
+
+[configuration.variables]
+STATIC_PSK = {type = "Boolean", default = false}

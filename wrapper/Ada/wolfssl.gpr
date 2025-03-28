@@ -1,10 +1,8 @@
+with "config/wolfssl_config.gpr";
+
 library project WolfSSL is
 
    for Library_Name use "wolfssl";
-   --  for Library_Version use Project'Library_Name & ".so";
-   type OS_Kind is ("Windows", "Linux_Or_Mac");
-
-   OS : OS_Kind := external ("OS", "Linux_Or_Mac");
 
    for Languages use ("C", "Ada");
 
@@ -15,12 +13,13 @@ library project WolfSSL is
 
    --  Don't build the tls client or server application.
    --  They are not needed in order to build the library.
-   for Excluded_Source_Files use ("tls_client_main.adb",
-                                  "tls_client.ads",
-                                  "tls_client.adb",
-				  "tls_server_main.adb",
-				  "tls_server.ads",
-				  "tls_server.adb");
+   for Excluded_Source_Files use
+      ("tls_client_main.adb",
+      "tls_client.ads",
+      "tls_client.adb",
+      "tls_server_main.adb",
+      "tls_server.ads",
+      "tls_server.adb");
 
    for Object_Dir use "obj";
    for Library_Dir use "lib";
@@ -34,12 +33,19 @@ library project WolfSSL is
       for Spec_Suffix ("C") use ".h";
    end Naming;
 
-   package Builder is
-      for Global_Configuration_Pragmas use "gnat.adc";
-   end Builder;
+   C_Compiler_Config := ();
+
+   case Wolfssl_Config.STATIC_PSK is
+   when "True" => 
+      C_Compiler_Config := 
+         ("-DWOLFSSL_STATIC_PSK" -- Enable the static PSK cipher support
+         );
+   when others =>
+      C_Compiler_Config := ();
+   end case;
 
    package Compiler is
-      for Switches ("C") use
+      for Switches ("C") use C_Compiler_Config &
          ("-DWOLFSSL_USER_SETTINGS", --  Use the user_settings.h file.
           "-Wno-pragmas",
           "-Wall",
@@ -81,16 +87,5 @@ library project WolfSSL is
    package Binder is
       for Switches ("Ada") use ("-Es");  --  To include stack traces.
    end Binder;
- 
---     case OS is
---        when "Windows" =>
---           for Library_Options use ("-lm",  --  To include the math library (used by WolfSSL).
---  		                  "-lcrypt32");  --  Needed on Windows.
---        when "Linux_Or_Mac" =>
---  	 for Library_Options use ("-lm");  --  To include the math library (used by WolfSSL).
---     end case;
---  
---     --  Put user options in front, for options like --as-needed.
---     for Leading_Library_Options use External_As_List ("LDFLAGS", " ");
 
 end WolfSSl;

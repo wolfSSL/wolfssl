@@ -204,8 +204,8 @@ package body Tls_Client with SPARK_Mode is
       Output : WolfSSL.Write_Result;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS   : Boolean;
-      PSK    : Boolean;
+      DTLS   : Boolean := False;
+      PSK    : Boolean := False;
    begin
       Result := WolfSSL.Initialize;
       if Result /= Success then
