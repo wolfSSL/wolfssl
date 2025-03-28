@@ -221,11 +221,29 @@ static int disable_setkey_warnings = 0;
 
 #include <wolfssl/wolfcrypt/aes.h>
 
+#if !defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(WOLFSSL_AESNI) && (!defined(WC_AES_C_DYNAMIC_FALLBACK) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+    #define WC_LINUXKM_C_FALLBACK_IN_SHIMS
+#elif !defined(WOLFSSL_AESNI)
+    #undef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+#endif
+
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(WC_FLAG_DONT_USE_AESNI)
+    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_AESNI is missing.
+#endif
+
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(CAN_SAVE_VECTOR_REGISTERS)
+    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but CAN_SAVE_VECTOR_REGISTERS is missing.
+#endif
+
 struct km_AesCtx {
     Aes          *aes_encrypt; /* allocated in km_AesInitCommon() to assure
                                 * alignment, needed for AESNI.
                                 */
     Aes          *aes_decrypt; /* same. */
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+    Aes          *aes_encrypt_C; /* fallback if vector registers aren't available. */
+    Aes          *aes_decrypt_C;
+#endif
 #if defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106) || defined(LINUXKM_LKCAPI_REGISTER_AESCCM_RFC4309)
     union {
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
@@ -261,7 +279,8 @@ static int km_AesInitCommon(
     if (! ctx->aes_encrypt) {
         pr_err("%s: allocation of %zu bytes for encryption key failed.\n",
                name, sizeof(*ctx->aes_encrypt));
-        return MEMORY_E;
+        err = -MEMORY_E;
+        goto out;
     }
 
     err = wc_AesInit(ctx->aes_encrypt, NULL, INVALID_DEVID);
@@ -270,48 +289,166 @@ static int km_AesInitCommon(
         pr_err("%s: wc_AesInit failed: %d\n", name, err);
         free(ctx->aes_encrypt);
         ctx->aes_encrypt = NULL;
-        return -EINVAL;
+        err = -EINVAL;
+        goto out;
     }
 
     if (! need_decryption) {
         ctx->aes_decrypt = NULL;
-        return 0;
+    }
+    else {
+        ctx->aes_decrypt = (Aes *)malloc(sizeof(*ctx->aes_decrypt));
+
+        if (! ctx->aes_decrypt) {
+            pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
+                   name, sizeof(*ctx->aes_decrypt));
+            err = -MEMORY_E;
+            goto out;
+        }
+
+        err = wc_AesInit(ctx->aes_decrypt, NULL, INVALID_DEVID);
+
+        if (unlikely(err)) {
+            pr_err("%s: wc_AesInit failed: %d\n", name, err);
+            free(ctx->aes_decrypt);
+            ctx->aes_decrypt = NULL;
+            err = -EINVAL;
+            goto out;
+        }
     }
 
-    ctx->aes_decrypt = (Aes *)malloc(sizeof(*ctx->aes_decrypt));
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
 
-    if (! ctx->aes_decrypt) {
-        pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
-               name, sizeof(*ctx->aes_decrypt));
-        km_AesExitCommon(ctx);
-        return MEMORY_E;
+    ctx->aes_encrypt_C = (Aes *)malloc(sizeof(*ctx->aes_encrypt_C));
+
+    if (! ctx->aes_encrypt_C) {
+        pr_err("%s: allocation of %zu bytes for encryption key failed.\n",
+               name, sizeof(*ctx->aes_encrypt_C));
+        err = -MEMORY_E;
+        goto out;
     }
 
-    err = wc_AesInit(ctx->aes_decrypt, NULL, INVALID_DEVID);
+    err = wc_AesInit(ctx->aes_encrypt_C, NULL, INVALID_DEVID);
 
     if (unlikely(err)) {
         pr_err("%s: wc_AesInit failed: %d\n", name, err);
-        free(ctx->aes_decrypt);
-        ctx->aes_decrypt = NULL;
+        free(ctx->aes_encrypt_C);
+        ctx->aes_encrypt_C = NULL;
+        err = -EINVAL;
+        goto out;
+    }
+
+    ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+
+    if (! need_decryption) {
+        ctx->aes_decrypt_C = NULL;
+    }
+    else {
+        ctx->aes_decrypt_C = (Aes *)malloc(sizeof(*ctx->aes_decrypt_C));
+
+        if (! ctx->aes_decrypt_C) {
+            pr_err("%s: allocation of %zu bytes for decryption key failed.\n",
+                   name, sizeof(*ctx->aes_decrypt_C));
+            err = -MEMORY_E;
+            goto out;
+        }
+
+        err = wc_AesInit(ctx->aes_decrypt_C, NULL, INVALID_DEVID);
+
+        if (unlikely(err)) {
+            pr_err("%s: wc_AesInit failed: %d\n", name, err);
+            free(ctx->aes_decrypt_C);
+            ctx->aes_decrypt_C = NULL;
+            err = -EINVAL;
+            goto out;
+        }
+
+        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+    }
+
+#endif /* WC_LINUXKM_C_FALLBACK_IN_SHIMS */
+
+out:
+
+    if (err != 0)
         km_AesExitCommon(ctx);
-        return -EINVAL;
+
+    return err;
+}
+
+static int km_AesGet(struct km_AesCtx *ctx, int decrypt_p, int copy_p, Aes **aes) {
+    Aes *ret;
+
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+    if (! CAN_SAVE_VECTOR_REGISTERS()) {
+        if (decrypt_p && ctx->aes_decrypt_C)
+            ret = ctx->aes_decrypt_C;
+        else
+            ret = ctx->aes_encrypt_C;
+    }
+    else
+#endif
+    {
+        if (decrypt_p && ctx->aes_decrypt)
+            ret = ctx->aes_decrypt;
+        else
+            ret = ctx->aes_encrypt;
+    }
+
+    if (copy_p) {
+        /* Copy the cipher state to mitigate races on Aes.reg, Aes.tmp, and dynamic Aes.use_aesni. */
+        Aes *aes_copy = (struct Aes *)malloc(sizeof(Aes));
+        if (aes_copy == NULL)
+            return -ENOMEM;
+        XMEMCPY(aes_copy, ret, sizeof(Aes));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+        aes_copy->streamData = NULL;
+#endif
+        *aes = aes_copy;
+    }
+    else {
+        *aes = ret;
     }
 
     return 0;
 }
 
+static void km_AesFree(Aes **aes) {
+    if ((! aes) || (! *aes))
+        return;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    if ((*aes)->streamData) {
+        ForceZero((*aes)->streamData, 5 * AES_BLOCK_SIZE);
+        free((*aes)->streamData);
+    }
+    #endif
+#endif
+    wc_AesFree(*aes);
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    ForceZero(*aes, sizeof **aes);
+#endif
+    free(*aes);
+    *aes = NULL;
+}
+
 static void km_AesExitCommon(struct km_AesCtx * ctx)
 {
     if (ctx->aes_encrypt) {
-        wc_AesFree(ctx->aes_encrypt);
-        free(ctx->aes_encrypt);
-        ctx->aes_encrypt = NULL;
+        km_AesFree(&ctx->aes_encrypt);
     }
     if (ctx->aes_decrypt) {
-        wc_AesFree(ctx->aes_decrypt);
-        free(ctx->aes_decrypt);
-        ctx->aes_decrypt = NULL;
+        km_AesFree(&ctx->aes_decrypt);
     }
+
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+    if (ctx->aes_encrypt_C) {
+        km_AesFree(&ctx->aes_encrypt_C);
+    }
+    if (ctx->aes_decrypt_C) {
+        km_AesFree(&ctx->aes_decrypt_C);
+    }
+#endif
 }
 
 #if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
@@ -398,16 +535,14 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     ctx = crypto_skcipher_ctx(tfm);
 
     err = skcipher_walk_virt(&walk, req, false);
-
     if (unlikely(err)) {
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -438,7 +573,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -461,11 +596,10 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_decrypt, sizeof(Aes));
+    err = km_AesGet(ctx, 1 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -497,7 +631,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -556,11 +690,10 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -596,7 +729,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -620,14 +753,10 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* CFB uses the same
-                                                       * schedule for encrypt
-                                                       * and decrypt.
-                                                       */
+    err = km_AesGet(ctx, 1 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
 
@@ -664,7 +793,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -848,19 +977,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         return err;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg, Aes.tmp, and
-     * aes->streamData.
-     */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* GCM uses the same
-                                                       * schedule for encrypt
-                                                       * and decrypt.
-                                                       */
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
-    aes_copy->streamData = NULL;
-#endif
+    err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     if (rfc4106_p) {
@@ -1005,10 +1125,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
 out:
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
-    free(aes_copy->streamData);
-#endif
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1056,13 +1173,10 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         return -EINVAL;
     }
 
-    /* Copy the cipher state to mitigate races on Aes.reg, Aes.tmp, and
-     * aes->streamData.
-     */
-    aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
-    XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
+    err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
+    if (unlikely(err)) {
+        return err;
+    }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     if (rfc4106_p) {
@@ -1184,7 +1298,7 @@ out:
             scatterwalk_unmap(out_map);
     }
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1259,6 +1373,10 @@ static int gcmAesAead_rfc4106_loaded = 0;
 
 #ifndef WOLFSSL_AESXTS_STREAM
     #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
+#endif
+
+#ifndef WC_AES_C_DYNAMIC_FALLBACK
+    #error LKCAPI registration of AES-XTS requires WC_AES_C_DYNAMIC_FALLBACK.
 #endif
 
 struct km_AesXtsCtx {
@@ -1682,7 +1800,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1751,7 +1869,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1850,7 +1968,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1918,7 +2036,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
 
 out:
 
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }
@@ -1965,6 +2083,7 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
     int                      err;
+    Aes                     *aes;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -1975,9 +2094,14 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
         return err;
     }
 
+    err = km_AesGet(ctx, 0 /* decrypt_p */, 0 /* copy_p */, &aes);
+    if (unlikely(err)) {
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesEcbEncrypt(ctx->aes_encrypt, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
+        err = wc_AesEcbEncrypt(aes, walk.dst.virt.addr, walk.src.virt.addr,
+                               nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbEncrypt failed for %u bytes: %d\n",
@@ -2002,6 +2126,7 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
     int                      err;
+    Aes                     *aes;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -2012,9 +2137,14 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
         return err;
     }
 
+    err = km_AesGet(ctx, 1 /* decrypt_p */, 0 /* copy_p */, &aes);
+    if (unlikely(err)) {
+        return err;
+    }
+
     while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesEcbDecrypt(ctx->aes_decrypt, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
+        err = wc_AesEcbDecrypt(aes, walk.dst.virt.addr, walk.src.virt.addr,
+                               nbytes & (~(WC_AES_BLOCK_SIZE - 1)));
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesEcbDecrypt failed for %u bytes: %d\n",
@@ -2226,7 +2356,7 @@ out:
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
         free(aes_copy->streamData);
 #endif
-        free(aes_copy);
+        km_AesFree(&aes_copy);
     }
 
     return err;
@@ -2362,10 +2492,7 @@ static int km_AesCcmDecrypt(struct aead_request *req)
 
 out:
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
-    free(aes_copy->streamData);
-#endif
-    free(aes_copy);
+    km_AesFree(&aes_copy);
 
     return err;
 }

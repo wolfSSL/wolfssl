@@ -41,7 +41,7 @@
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
-#ifndef NO_AVX2_SUPPORT
+#if !defined(NO_AVX2_SUPPORT) && !defined(HAVE_INTEL_AVX2)
 #define HAVE_INTEL_AVX2
 #endif /* NO_AVX2_SUPPORT */
 

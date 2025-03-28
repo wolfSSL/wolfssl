@@ -3508,6 +3508,13 @@ AC_ARG_ENABLE([aesni],
     [ ENABLED_AESNI=no ]
     )
 
+# INTEL AES-NI with AVX
+AC_ARG_ENABLE([aesni-with-avx],
+    [AS_HELP_STRING([--enable-aesni-with-avx],[Enable AES-NI with additional AVX acceleration for AES (default: disabled)])],
+    [ ENABLED_AESNI_WITH_AVX=$enableval ],
+    [ ENABLED_AESNI_WITH_AVX=no ]
+    )
+
 # INTEL ASM
 AC_ARG_ENABLE([intelasm],
     [AS_HELP_STRING([--enable-intelasm],[Enable All Intel ASM speedups (default: disabled)])],
@@ -3520,6 +3527,17 @@ then
     if test "$ENABLED_AESNI" = "small"
     then
         AM_CFLAGS="$AM_CFLAGS -DAES_GCM_AESNI_NO_UNROLL"
+        ENABLED_AESNI=yes
+    fi
+
+    if test "$ENABLED_INTELASM" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DUSE_INTEL_SPEEDUP"
+        ENABLED_AESNI=yes
+	ENABLED_AESNI_WITH_AVX=yes
+    elif test "$ENABLED_AESNI_WITH_AVX" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DUSE_INTEL_SPEEDUP_FOR_AES"
         ENABLED_AESNI=yes
     fi
 
@@ -3546,12 +3564,6 @@ then
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
         AS_IF([test "x$ENABLED_SM3" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SM3"])
-    fi
-
-    if test "$ENABLED_INTELASM" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DUSE_INTEL_SPEEDUP"
-        ENABLED_AESNI=yes
     fi
 
     if test "$host_cpu" = "x86_64" || test "$host_cpu" = "amd64"
@@ -10837,6 +10849,7 @@ echo "   * snifftest:                  $ENABLED_SNIFFTEST"
 echo "   * ARC4:                       $ENABLED_ARC4"
 echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
+echo "   * AVX for AES:                $ENABLED_AESNI_WITH_AVX"
 echo "   * AES-CBC:                    $ENABLED_AESCBC"
 echo "   * AES-CBC length checks:      $ENABLED_AESCBC_LENGTH_CHECKS"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
