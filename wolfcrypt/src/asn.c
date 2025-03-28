@@ -16273,6 +16273,26 @@ static WC_INLINE int GetTime_Long(long* value, const byte* date, int* idx)
 int ExtractDate(const unsigned char* date, unsigned char format,
                 struct tm* certTime, int* idx)
 {
+    int i = *idx;
+
+    /* Validate date string length based on format */
+    if (format == ASN_UTC_TIME) {
+        /* UTCTime format requires YYMMDDHHMMSSZ.
+         * subtract 1 to exclude null terminator. */
+        if (XSTRLEN((const char*)date + i) < (ASN_UTC_TIME_SIZE - 1)) {
+            return ASN_PARSE_E;
+        }
+    }
+    else if (format == ASN_GENERALIZED_TIME) {
+        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ.
+         * subtract 1 to exclude null terminator. */
+        if (XSTRLEN((const char*)date + i) < (ASN_GENERALIZED_TIME_SIZE - 1)) {
+            return ASN_PARSE_E;
+        }
+    } else {
+        return ASN_PARSE_E;
+    }
+
     XMEMSET(certTime, 0, sizeof(struct tm));
 
     /* Get the first two bytes of the year (century) */
