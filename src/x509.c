@@ -8951,7 +8951,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
     }
 
-    if (crl->crlList->crlNumber) {
+    if (crl->crlList->crlNumberSet) {
         if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 4, "",
                     "X509v3 CRL Number:") >= MAX_WIDTH) {
             return WOLFSSL_FAILURE;
@@ -8961,11 +8961,11 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
         }
 
-        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%d\n", indent + 8, "",
-            crl->crlList->crlNumber) >= MAX_WIDTH)
-        {
+        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 8, "",
+            crl->crlList->crlNumber) >= MAX_WIDTH) {
             return WOLFSSL_FAILURE;
         }
+
         if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
             return WOLFSSL_FAILURE;
         }
@@ -9251,7 +9251,7 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 }
 #endif /* HAVE_CRL && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
-#ifdef OPENSSL_EXTRA
+#if defined(HAVE_CRL) && defined(OPENSSL_EXTRA)
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
     if ((crl != NULL) && (crl->crlList != NULL) &&
@@ -9281,7 +9281,7 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
     return 0;
 }
 #endif
-#endif /* OPENSSL_EXTRA */
+#endif /* HAVE_CRL && OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA
 

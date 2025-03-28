@@ -39077,50 +39077,38 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     return ret;
                 }
                 else {
-                    if (length > 1) {
-                        int    i;
-                    #ifdef WOLFSSL_SMALL_STACK
-                        mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
-                                DYNAMIC_TYPE_BIGINT);
-                        if (m == NULL) {
-                            return MEMORY_E;
-                        }
-                    #else
-                        mp_int m[1];
-                    #endif
-
-                        if (mp_init(m) != MP_OKAY) {
-                            ret = MP_INIT_E;
-                        }
-
-                        if (ret == 0)
-                            ret = mp_read_unsigned_bin(m, buf + idx, length);
-                        if (ret != MP_OKAY)
-                            ret = BUFFER_E;
-
-                        if (ret == 0) {
-                            dcrl->crlNumber = 0;
-                            for (i = 0; i < (int)(*m).used; ++i) {
-                                if (i > (CHAR_BIT *
-                                         (int)sizeof(word32) / DIGIT_BIT)) {
-                                    break;
-                                }
-                                dcrl->crlNumber |= ((word32)(*m).dp[i]) <<
-                                    (DIGIT_BIT * i);
-                            }
-                        }
-
-                        mp_free(m);
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
-                    #endif
-
-                        if (ret != 0)
-                            return ret;
+                #ifdef WOLFSSL_SMALL_STACK
+                    mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                            DYNAMIC_TYPE_BIGINT);
+                    if (m == NULL) {
+                        return MEMORY_E;
                     }
-                    else if (length == 1) {
-                        dcrl->crlNumber = buf[idx];
+                #else
+                    mp_int m[1];
+                #endif
+
+                    if (mp_init(m) != MP_OKAY) {
+                        ret = MP_INIT_E;
                     }
+
+                    if (ret == 0)
+                        ret = mp_read_unsigned_bin(m, buf + idx, length);
+                    if (ret != MP_OKAY)
+                        ret = BUFFER_E;
+
+                    if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_DEC)
+                            != MP_OKAY)
+                        ret = BUFFER_E;
+
+                    dcrl->crlNumberSet = 1;
+
+                    mp_free(m);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
+                #endif
+
+                    if (ret != 0)
+                        return ret;
                 }
             }
         }
@@ -39163,6 +39151,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
         ret = GetASN_Items(certExtASN, dataASN, certExtASN_Length, 0, buf, &idx,
                 maxIdx);
         if (ret == 0) {
+            word32 localIdx = idx;
             /* OID in extension. */
             word32 oid = dataASN[CERTEXTASN_IDX_OID].data.oid.sum;
             /* Length of extension data. */
@@ -39172,7 +39161,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             #ifndef NO_SKID
                 /* Parse Authority Key Id extension.
                  * idx is at start of OCTET_STRING data. */
-                ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
+                ret = ParseCRL_AuthKeyIdExt(buf + localIdx, length, dcrl);
                 if (ret != 0) {
                     WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
                 }
@@ -39195,11 +39184,14 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     }
                 }
                 if (ret == 0) {
-                    ret = GetInt(m, buf, &idx, maxIdx);
+                    ret = GetInt(m, buf, &localIdx, maxIdx);
                 }
-                if (ret == 0) {
-                    dcrl->crlNumber = (int)m->dp[0];
-                }
+
+                if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_DEC)
+                        != MP_OKAY)
+                    ret = BUFFER_E;
+
+                dcrl->crlNumberSet = 1;
 
                 mp_free(m);
             #ifdef WOLFSSL_SMALL_STACK
