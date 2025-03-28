@@ -375,7 +375,7 @@ typedef struct wc_CryptoInfo {
     } cipher;
 #endif /* !NO_AES || !NO_DES3 */
 #if !defined(NO_SHA) || !defined(NO_SHA256) || \
-    defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA3)
     struct {
         int type; /* enum wc_HashType */
         const byte* in;
