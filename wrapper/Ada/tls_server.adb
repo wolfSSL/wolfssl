@@ -139,10 +139,6 @@ package body Tls_Server with SPARK_Mode is
          return 0;
       end if;
 
-      put_line (Interfaces.C.Strings.Value
-        (Item   => Identity,
-         Length => Identity_String'Length) );
-
       Interfaces.C.Strings.Update
         (Item   => Key,
          Offset => 0,
@@ -261,13 +257,15 @@ package body Tls_Server with SPARK_Mode is
       if not PSK then
          --  Require mutual authentication.
          WolfSSL.Set_Verify
-            (Context => Ctx,
+           (Context => Ctx,
             Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
          --  Check verify is set correctly (GitHub #7461)
          if WolfSSL.Get_Verify(Context => Ctx) /= (WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert) then
-               Put ("Error: Verify does not match requested");
-               New_Line;
+               Put_Line ("Error: Verify does not match requested");
+               SPARK_Sockets.Close_Socket (L);
+               WolfSSL.Free (Context => Ctx);
+               Set (Exit_Status_Failure);
                return;
          end if;
 
