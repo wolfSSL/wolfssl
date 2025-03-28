@@ -8637,7 +8637,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8660,7 +8660,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8683,7 +8683,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTCP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8706,7 +8706,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTCP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
