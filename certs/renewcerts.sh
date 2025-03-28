@@ -373,6 +373,20 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ###########################################################
+    ########## update and sign fpki-certpol-cert.der ################
+    ###########################################################
+    echo "Updating fpki-certpol-cert.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nFPKI\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > fpki-certpol-req.pem
+    check_result $? "Step 1"
+
+    openssl x509 -req -in fpki-certpol-req.pem -extfile wolfssl.cnf -extensions fpki_ext_certpol -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 -out fpki-certpol-cert.der -outform DER
+    check_result $? "Step 2"
+    rm fpki-certpol-req.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ###########################################################
     ########## update and sign rid-cert.der ################
     ###########################################################
     echo "Updating rid-cert.der"
