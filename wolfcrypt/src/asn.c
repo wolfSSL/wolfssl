@@ -15030,18 +15030,18 @@ int ExtractDate(const unsigned char* date, unsigned char format,
 {
     int i = *idx;
 
-    /* Validate date string length based on format */
+    /* Validate date string length based on format Can not assume null
+     * terminated strings. Must check for the 'Z'. Subtract 2; one for zero
+     * indexing and one to exclude null terminator built into macro values */
     if (format == ASN_UTC_TIME) {
-        /* UTCTime format requires YYMMDDHHMMSSZ.
-         * subtract 1 to exclude null terminator. */
-        if (XSTRLEN((const char*)date + i) < (ASN_UTC_TIME_SIZE - 1)) {
+        /* UTCTime format requires YYMMDDHHMMSSZ. */
+        if (date[i + ASN_UTC_TIME_SIZE - 2] != 'Z') {
             return ASN_PARSE_E;
         }
     }
     else if (format == ASN_GENERALIZED_TIME) {
-        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ.
-         * subtract 1 to exclude null terminator. */
-        if (XSTRLEN((const char*)date + i) < (ASN_GENERALIZED_TIME_SIZE - 1)) {
+        /* GeneralizedTime format requires YYYYMMDDHHMMSSZ. */
+        if (date[ i + ASN_GENERALIZED_TIME_SIZE - 2] != 'Z') {
             return ASN_PARSE_E;
         }
     } else {
