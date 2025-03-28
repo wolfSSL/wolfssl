@@ -4496,6 +4496,8 @@ static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
 
 /* certPolicyType */
 static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
+static const byte extCertPolicyIsrgDomainValid[] =
+    {43, 6, 1, 4, 1, 130, 223, 19, 1, 1, 1};
 #ifdef WOLFSSL_FPKI
 #define CERT_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 3, num}
     static const byte extCertPolicyFpkiHighAssuranceOid[] =
@@ -5548,6 +5550,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CP_ANY_OID:
                     oid = extCertPolicyAnyOid;
                     *oidSz = sizeof(extCertPolicyAnyOid);
+                    break;
+                case CP_ISRG_DOMAIN_VALID:
+                    oid = extCertPolicyIsrgDomainValid;
+                    *oidSz = sizeof(extCertPolicyIsrgDomainValid);
                     break;
                 #if defined(WOLFSSL_FPKI)
                 case CP_FPKI_HIGH_ASSURANCE_OID:
@@ -6733,6 +6739,12 @@ static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
             XMEMCMP(oid, extCertPolicyCertipathVarMediumhwOid,
             sizeof(extCertPolicyCertipathVarMediumhwOid)) == 0)
                 return CP_CERTIPATH_VAR_MEDIUMHW_OID;
+            break;
+        case CP_ISRG_DOMAIN_VALID:
+            if ((word32)sizeof(extCertPolicyEcaContentSigningPiviOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyEcaContentSigningPiviOid,
+            sizeof(extCertPolicyEcaContentSigningPiviOid)) == 0)
+                return CP_ECA_CONTENT_SIGNING_PIVI_OID;
             break;
         default:
             break;

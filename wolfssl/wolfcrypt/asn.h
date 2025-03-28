@@ -1424,6 +1424,7 @@ enum Extensions_Sum {
 
 enum CertificatePolicy_Sum {
     CP_ANY_OID              = 146, /* id-ce 32 0 */
+    CP_ISRG_DOMAIN_VALID    = 430, /* 1.3.6.1.4.1.44947.1.1.1 */
 #ifdef WOLFSSL_FPKI
     /* Federal PKI OIDs */
     CP_FPKI_HIGH_ASSURANCE_OID       = 417, /* 2.16.840.1.101.3.2.1.3.4 */
@@ -1471,7 +1472,7 @@ enum CertificatePolicy_Sum {
     CP_ECA_MEDIUM_SHA256_OID         = 100426, /* 2.16.840.1.101.3.2.1.12.4 */
     CP_ECA_MEDIUM_TOKEN_SHA256_OID   = 100427, /* 2.16.840.1.101.3.2.1.12.5 */
     CP_ECA_MEDIUM_HARDWARE_PIVI_OID  = 100428, /* 2.16.840.1.101.3.2.1.12.6 */
-    CP_ECA_CONTENT_SIGNING_PIVI_OID  = 430, /* 2.16.840.1.101.3.2.1.12.8 */
+    CP_ECA_CONTENT_SIGNING_PIVI_OID  = 100430, /* 2.16.840.1.101.3.2.1.12.8 */
     CP_ECA_MEDIUM_DEVICE_SHA256_OID  = 431, /* 2.16.840.1.101.3.2.1.12.9 */
     CP_ECA_MEDIUM_HARDWARE_SHA256_OID = 432, /* 2.16.840.1.101.3.2.1.12.10 */
 
