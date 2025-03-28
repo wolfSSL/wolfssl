@@ -162,7 +162,7 @@ package body Tls_Server with SPARK_Mode is
       Ch : Character;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS, PSK : Boolean;
+      DTLS, PSK : Boolean := True;
       Shall_Continue : Boolean := True;
 
       Input  : WolfSSL.Read_Result;
