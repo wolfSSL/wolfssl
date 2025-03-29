@@ -221,7 +221,10 @@ static int disable_setkey_warnings = 0;
 
 #include <wolfssl/wolfcrypt/aes.h>
 
-#if !defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(WOLFSSL_AESNI) && (!defined(WC_AES_C_DYNAMIC_FALLBACK) || (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+#if defined(WOLFSSL_AESNI) &&                            \
+    (!defined(WC_C_DYNAMIC_FALLBACK) ||                  \
+     (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))) && \
+    !defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS)
     #define WC_LINUXKM_C_FALLBACK_IN_SHIMS
 #elif !defined(WOLFSSL_AESNI)
     #undef WC_LINUXKM_C_FALLBACK_IN_SHIMS
@@ -338,8 +341,6 @@ static int km_AesInitCommon(
         goto out;
     }
 
-    ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
-
     if (! need_decryption) {
         ctx->aes_decrypt_C = NULL;
     }
@@ -362,8 +363,6 @@ static int km_AesInitCommon(
             err = -EINVAL;
             goto out;
         }
-
-        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
     }
 
 #endif /* WC_LINUXKM_C_FALLBACK_IN_SHIMS */
@@ -380,14 +379,30 @@ static int km_AesGet(struct km_AesCtx *ctx, int decrypt_p, int copy_p, Aes **aes
     Aes *ret;
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
-    if (! CAN_SAVE_VECTOR_REGISTERS()) {
+    /* First, check if AESNI was disabled in the main SetKey for the requested
+     * direction.  If so, use it (the fallback schedule won't even be inited).
+     */
+    if (((! decrypt_p) || (! ctx->aes_decrypt)) && (! ctx->aes_encrypt->use_aesni))
+        ret = ctx->aes_encrypt;
+    else if (decrypt_p && ctx->aes_decrypt && (! ctx->aes_decrypt->use_aesni))
+        ret = ctx->aes_decrypt;
+    else if (
+#ifdef TEST_WC_LINUXKM_C_FALLBACK_IN_SHIMS
+             1
+#else
+             ! CAN_SAVE_VECTOR_REGISTERS()
+#endif
+        )
+    {
         if (decrypt_p && ctx->aes_decrypt_C)
             ret = ctx->aes_decrypt_C;
         else
             ret = ctx->aes_encrypt_C;
+        if (ret->use_aesni)
+            return -EINVAL;
     }
     else
-#endif
+#endif /* WC_LINUXKM_C_FALLBACK_IN_SHIMS */
     {
         if (decrypt_p && ctx->aes_decrypt)
             ret = ctx->aes_decrypt;
@@ -482,6 +497,43 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
             return -EINVAL;
         }
     }
+
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+
+    if (ctx->aes_encrypt->use_aesni) {
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+
+        err = wc_AesSetKey(ctx->aes_encrypt_C, in_key, key_len, NULL, AES_ENCRYPTION);
+
+        if (unlikely(err)) {
+            if (! disable_setkey_warnings)
+                pr_err("%s: wc_AesSetKey for encryption key failed: %d\n", name, err);
+            return -EINVAL;
+        }
+
+        if (ctx->aes_encrypt_C->use_aesni)
+            pr_err("%s: after wc_AesSetKey, ctx->aes_encrypt_C has AES-NI asserted.\n", name);
+
+    }
+
+    if (ctx->aes_decrypt_C && ctx->aes_decrypt->use_aesni) {
+        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+
+        err = wc_AesSetKey(ctx->aes_decrypt_C, in_key, key_len, NULL,
+                           AES_DECRYPTION);
+
+        if (unlikely(err)) {
+            if (! disable_setkey_warnings)
+                pr_err("%s: wc_AesSetKey for decryption key failed: %d\n",
+                       name, err);
+            return -EINVAL;
+        }
+
+        if (ctx->aes_decrypt_C->use_aesni)
+            pr_err("%s: after wc_AesSetKey, ctx->aes_decrypt_C has AES-NI asserted.\n", name);
+    }
+
+#endif /* WC_LINUXKM_C_FALLBACK_IN_SHIMS */
 
     return 0;
 }
@@ -850,6 +902,24 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
         return -EINVAL;
     }
 
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+    if (ctx->aes_encrypt->use_aesni) {
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+
+        err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
+
+        if (unlikely(err)) {
+            if (! disable_setkey_warnings)
+                pr_err("%s: wc_AesGcmSetKey failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return -EINVAL;
+        }
+
+        if (ctx->aes_encrypt_C->use_aesni)
+            pr_err("%s: after wc_AesGcmSetKey, ctx->aes_encrypt_C has AES-NI asserted.\n", WOLFKM_AESGCM_DRIVER);
+    }
+#endif
+
     return 0;
 }
 
@@ -876,6 +946,24 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
         return -EINVAL;
     }
+
+#ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
+    if (ctx->aes_encrypt->use_aesni) {
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+
+        err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
+
+        if (unlikely(err)) {
+            if (! disable_setkey_warnings)
+                pr_err("%s: wc_AesGcmSetKey failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
+            return -EINVAL;
+        }
+
+        if (ctx->aes_encrypt_C->use_aesni)
+            pr_err("%s: after wc_AesGcmSetKey, ctx->aes_encrypt_C has AES-NI asserted.\n", WOLFKM_AESGCM_DRIVER);
+    }
+#endif
 
     return 0;
 }
@@ -1375,8 +1463,8 @@ static int gcmAesAead_rfc4106_loaded = 0;
     #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
 #endif
 
-#ifndef WC_AES_C_DYNAMIC_FALLBACK
-    #error LKCAPI registration of AES-XTS requires WC_AES_C_DYNAMIC_FALLBACK.
+#ifndef WC_C_DYNAMIC_FALLBACK
+    #error LKCAPI registration of AES-XTS requires WC_C_DYNAMIC_FALLBACK.
 #endif
 
 struct km_AesXtsCtx {
