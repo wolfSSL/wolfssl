@@ -37,6 +37,16 @@
     #include <linux/fips.h>
 #endif
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    /* need misc.c for ForceZero(). */
+    #ifdef NO_INLINE
+        #include <wolfssl/wolfcrypt/misc.h>
+    #else
+        #define WOLFSSL_MISC_INCLUDED
+        #include <wolfcrypt/src/misc.c>
+    #endif
+#endif
+
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY
 /* Larger number means higher priority.  The highest in-tree priority is 4001,
  * in the Cavium driver.
