@@ -44,11 +44,17 @@
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
@@ -74,16 +80,27 @@ static const word32 L_SHA256_transform_len_k[] = {
 
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
     word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
     register word32* L_SHA256_transform_len_k_c asm ("r3") =
         (word32*)&L_SHA256_transform_len_k;
+#else
+    register word32* L_SHA256_transform_len_k_c =
+        (word32*)&L_SHA256_transform_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
+        "mov	r3, %[L_SHA256_transform_len_k]\n\t"
         /* Copy digest to add in at end */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldm	r0, {r4, r5}\n\t"
@@ -1727,9 +1744,15 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	%[data], %[data], #0x40\n\t"
         "bne	L_SHA256_transform_len_begin_%=\n\t"
         "add	sp, sp, #0xc0\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
           [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12"
     );
@@ -1760,13 +1783,23 @@ static const word32 L_SHA256_transform_neon_len_k[] = {
 
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
     word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
     register word32* L_SHA256_transform_neon_len_k_c asm ("r3") =
         (word32*)&L_SHA256_transform_neon_len_k;
+#else
+    register word32* L_SHA256_transform_neon_len_k_c =
+        (word32*)&L_SHA256_transform_neon_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #24\n\t"
@@ -2789,9 +2822,15 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "str	r10, [sp, #8]\n\t"
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
           [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
         :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr",
             "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9",
             "d10", "d11"

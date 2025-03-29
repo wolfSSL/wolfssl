@@ -3850,13 +3850,13 @@ L_AES_ECB_decrypt_end:
 	.type	AES_CBC_decrypt, %function
 AES_CBC_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ldr	r8, [sp, #36]
-	ldr	r4, [sp, #40]
 	mov	lr, r0
 	adr	r0, L_AES_ARM32_td_ecb
 	ldr	r0, [r0]
 	mov	r12, r2
 	adr	r2, L_AES_ARM32_td4
+	ldr	r8, [sp, #36]
+	ldr	r4, [sp, #40]
 	push	{r3, r4}
 	cmp	r8, #10
 	beq	L_AES_CBC_decrypt_loop_block_128

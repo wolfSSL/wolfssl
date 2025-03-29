@@ -214,6 +214,11 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
     register word32* L_AES_Thumb2_td_c __asm__ ("r3") =
         (word32*)L_AES_Thumb2_td;
 
+#else
+    register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
+
+    register word32* L_AES_Thumb2_td_c = (word32*)L_AES_Thumb2_td;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -358,6 +363,11 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
 
     register word32* L_AES_Thumb2_rcon_c __asm__ ("r4") =
         (word32*)&L_AES_Thumb2_rcon;
+
+#else
+    register word32* L_AES_Thumb2_te_c = (word32*)L_AES_Thumb2_te;
+
+    register word32* L_AES_Thumb2_rcon_c = (word32*)&L_AES_Thumb2_rcon;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
@@ -893,6 +903,9 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_te_ecb;
 
+#else
+    register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -901,7 +914,7 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r12, r4\n\t"
 #else
-        "LDR	r12, [sp, #36]\n\t"
+        "MOV	r12, %[nr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "PUSH	{%[ks]}\n\t"
         "CMP	r12, #0xa\n\t"
@@ -1115,18 +1128,21 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ecb;
 
+#else
+    register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r8, r4\n\t"
 #else
-        "LDR	r8, [sp, #36]\n\t"
+        "MOV	r8, %[nr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r9, r5\n\t"
 #else
-        "LDR	r9, [sp, #40]\n\t"
+        "MOV	r9, %[iv]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
@@ -1356,18 +1372,21 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_ecb;
 
+#else
+    register word32* L_AES_Thumb2_te_ecb_c = (word32*)L_AES_Thumb2_te_ecb;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r12, r4\n\t"
 #else
-        "LDR	r12, [sp, #36]\n\t"
+        "MOV	r12, %[nr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r8, r5\n\t"
 #else
-        "LDR	r8, [sp, #40]\n\t"
+        "MOV	r8, %[ctr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_ecb]\n\t"
@@ -1889,8 +1908,12 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte* L_AES_Thumb2_td4_c __asm__ ("r6") =
-        (byte*)&L_AES_Thumb2_td4;
+    register byte L_AES_Thumb2_td4_c __asm__ ("r6") = (byte)&L_AES_Thumb2_td4;
+
+#else
+    register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
+
+    register byte L_AES_Thumb2_td4_c = (byte)&L_AES_Thumb2_td4;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
@@ -1898,7 +1921,7 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r8, r4\n\t"
 #else
-        "LDR	r8, [sp, #36]\n\t"
+        "MOV	r8, %[nr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
@@ -2111,26 +2134,30 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte* L_AES_Thumb2_td4_c __asm__ ("r7") =
-        (byte*)&L_AES_Thumb2_td4;
+    register byte L_AES_Thumb2_td4_c __asm__ ("r7") = (byte)&L_AES_Thumb2_td4;
+
+#else
+    register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
+
+    register byte L_AES_Thumb2_td4_c = (byte)&L_AES_Thumb2_td4;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r8, r4\n\t"
-#else
-        "LDR	r8, [sp, #36]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
-#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-        "MOV	r4, r5\n\t"
-#else
-        "LDR	r4, [sp, #40]\n\t"
-#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_td_ecb]\n\t"
         "MOV	r12, %[len]\n\t"
         "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        "MOV	r8, r4\n\t"
+#else
+        "MOV	r8, %[nr]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        "MOV	r4, r5\n\t"
+#else
+        "MOV	r4, %[iv]\n\t"
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "PUSH	{%[ks], r4}\n\t"
         "CMP	r8, #0xa\n\t"
 #if defined(__GNUC__)
@@ -2523,6 +2550,9 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m,
     register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
     register word32* L_GCM_gmult_len_r_c __asm__ ("r4") =
         (word32*)&L_GCM_gmult_len_r;
+
+#else
+    register word32* L_GCM_gmult_len_r_c = (word32*)&L_GCM_gmult_len_r;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
@@ -3117,18 +3147,21 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_te_gcm_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_te_gcm;
 
+#else
+    register word32* L_AES_Thumb2_te_gcm_c = (word32*)L_AES_Thumb2_te_gcm;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r12, r4\n\t"
 #else
-        "LDR	r12, [sp, #36]\n\t"
+        "MOV	r12, %[nr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         "MOV	r8, r5\n\t"
 #else
-        "LDR	r8, [sp, #40]\n\t"
+        "MOV	r8, %[ctr]\n\t"
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         "MOV	lr, %[in]\n\t"
         "MOV	r0, %[L_AES_Thumb2_te_gcm]\n\t"

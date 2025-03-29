@@ -73,6 +73,9 @@ void BlockSha3(word64* state)
     register word64* L_sha3_thumb2_rt_c __asm__ ("r1") =
         (word64*)&L_sha3_thumb2_rt;
 
+#else
+    register word64* L_sha3_thumb2_rt_c = (word64*)&L_sha3_thumb2_rt;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

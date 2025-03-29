@@ -105,6 +105,10 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
     register word64* L_SHA512_transform_len_k_c __asm__ ("r3") =
         (word64*)&L_SHA512_transform_len_k;
 
+#else
+    register word64* L_SHA512_transform_len_k_c =
+        (word64*)&L_SHA512_transform_len_k;
+
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
