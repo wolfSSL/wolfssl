@@ -1,0 +1,21 @@
+<!-- Add this file to source control in order to automatically restore library dependencies when opening the project on another machine -->
+<ArduinoDependencyCollection xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Dependencies>
+    <Dependency>
+      <Type>Platform</Type>
+      <Key>
+        <Packager>teensy</Packager>
+        <Name>avr</Name>
+        <Version>1.59.0</Version>
+      </Key>
+    </Dependency>
+    <Dependency>
+      <Type>Library</Type>
+      <Key>
+        <Packager>wolfSSL Inc.</Packager>
+        <Name>wolfssl</Name>
+        <Version>5.7.6</Version>
+      </Key>
+    </Dependency>
+  </Dependencies>
+</ArduinoDependencyCollection>
