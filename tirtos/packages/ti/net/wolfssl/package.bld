@@ -11,7 +11,6 @@ Pkg.makePrologue = "vpath %.c $(subst ;,  ,$(XPKGPATH))";
 /* WOLFSSL sources */
 var wolfSSLObjList = [
     "wolfcrypt/src/aes.c",
-    "wolfcrypt/src/arc4.c",
     "wolfcrypt/src/asm.c",
     "wolfcrypt/src/asn.c",
     "wolfcrypt/src/blake2b.c",

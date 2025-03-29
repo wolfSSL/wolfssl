@@ -400,8 +400,7 @@ extern unsigned int custom_rand_generate(void);
 #undef  NO_DES3
 #define NO_DES3
 
-#undef  NO_RC4
-#define NO_RC4
+
 
 #undef  NO_OLD_TLS
 #define NO_OLD_TLS

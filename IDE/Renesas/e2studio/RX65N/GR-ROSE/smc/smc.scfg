@@ -961,7 +961,7 @@
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
         </configuration>
         <configuration inuse="true" name="r_tsip_rx">
-            <component description="依存モジュール: r_bsp バージョン 7.30&#10;Support functions: AES, GCM, CCM, CMAC, SHA, MD5, Triple-DES, ARC4, RSA, ECC, Random number generate, Key management, secure boot/secure firmware update." detailDescription="TSIP(Trusted Secure IP) driver." display="r_tsip_rx" id="r_tsip_rx1.21" version="1.21">
+            <component description="依存モジュール: r_bsp バージョン 7.30&#10;Support functions: AES, GCM, CCM, CMAC, SHA, MD5, Triple-DES, RSA, ECC, Random number generate, Key management, secure boot/secure firmware update." detailDescription="TSIP(Trusted Secure IP) driver." display="r_tsip_rx" id="r_tsip_rx1.21" version="1.21">
                 <gridItem id="TSIP_AES_128_ECB_ENCRYPT" selectedIndex="0"/>
                 <gridItem id="TSIP_AES_256_ECB_ENCRYPT" selectedIndex="0"/>
                 <gridItem id="TSIP_AES_128_ECB_DECRYPT" selectedIndex="0"/>
@@ -988,8 +988,6 @@
                 <gridItem id="TSIP_TDES_ECB_DECRYPT" selectedIndex="0"/>
                 <gridItem id="TSIP_TDES_CBC_ENCRYPT" selectedIndex="0"/>
                 <gridItem id="TSIP_TDES_CBC_DECRYPT" selectedIndex="0"/>
-                <gridItem id="TSIP_ARC4_ENCRYPT" selectedIndex="0"/>
-                <gridItem id="TSIP_ARC4_DECRYPT" selectedIndex="0"/>
                 <gridItem id="TSIP_SHA_1" selectedIndex="1"/>
                 <gridItem id="TSIP_SHA_256" selectedIndex="1"/>
                 <gridItem id="TSIP_MD5" selectedIndex="1"/>

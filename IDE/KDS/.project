@@ -36,11 +36,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/aes.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt-src/arc4.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/arc4.c</locationURI>
-		</link>
-		<link>
 			<name>src/wolfcrypt-src/asm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wolfcrypt/src/asm.c</locationURI>

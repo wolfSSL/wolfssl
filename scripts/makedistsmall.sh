@@ -79,7 +79,6 @@ find . -name "*.sln" -delete
 #rm -f ./wolfcrypt/src/*.i
 #rm -f ./wolfcrypt/src/*.S
 #rm -f ./wolfcrypt/src/*.asm
-#rm -f ./wolfcrypt/src/arc4.c
 #rm -f ./wolfcrypt/src/async.c
 #rm -f ./wolfcrypt/src/blake*
 #rm -f ./wolfcrypt/src/camellia.c

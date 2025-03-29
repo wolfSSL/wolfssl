@@ -170,7 +170,6 @@
 									<listOptionValue builtIn="false" value="&quot;src/wolfSSL/tls13.o&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;src/wolfSSL/wolfio.o&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;src/wolfCrypt/aes.o&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;src/wolfCrypt/arc4.o&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;src/wolfCrypt/asm.o&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;src/wolfCrypt/asn.o&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;src/wolfCrypt/blake2b.o&quot;"/>

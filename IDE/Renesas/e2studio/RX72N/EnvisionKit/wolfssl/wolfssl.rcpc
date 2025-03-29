@@ -27,7 +27,6 @@
         </Category>
         <Category Name="src">
           <Path>..\..\..\..\..\..\wolfcrypt\src\aes.c</Path>
-          <Path>..\..\..\..\..\..\wolfcrypt\src\arc4.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\asm.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\asn.c</Path>
           <Path>..\..\..\..\..\..\wolfcrypt\src\blake2b.c</Path>
@@ -153,7 +152,6 @@
           <Path>Debug\renesas_tsip_sha.obj</Path>
           <Path>Debug\renesas_tsip_util.obj</Path>
           <Path>Debug\aes.obj</Path>
-          <Path>Debug\arc4.obj</Path>
           <Path>Debug\asm.obj</Path>
           <Path>Debug\asn.obj</Path>
           <Path>Debug\blake2b.obj</Path>

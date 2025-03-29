@@ -424,9 +424,6 @@ static int ConvPemToDer(char* in, word32 offset, word32 len, DerBuffer** der,
 /* List of known PBE algorithms. */
 static const String2Val pbe_map[] = {
 #ifndef NO_SHA
-    #ifndef NO_RC4
-        { "SHA1_RC4_128"  , ENC_PKCS8_PBE_SHA1_RC4_128   },
-    #endif
     #ifndef NO_DES
         { "SHA1_DES3"     , ENC_PKCS8_PBE_SHA1_DES3      },
         { "PBES1_SHA1_DES", ENC_PKCS8_PBES1_SHA1_DES     },
