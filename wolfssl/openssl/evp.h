@@ -441,6 +441,8 @@ enum {
     WC_EVP_PKEY_HKDF          = WC_NID_hkdf,
     WC_EVP_PKEY_FALCON        = 300, /* Randomly picked value. */
     WC_EVP_PKEY_DILITHIUM     = 301, /* Randomly picked value. */
+    WC_EVP_PKEY_ED25519       = 302, /* Randomly picked value. */
+    WC_EVP_PKEY_ED448         = 303, /* Randomly picked value. */
     WC_AES_128_CFB1_TYPE      = 24,
     WC_AES_192_CFB1_TYPE      = 25,
     WC_AES_256_CFB1_TYPE      = 26,
