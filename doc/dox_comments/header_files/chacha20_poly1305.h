@@ -63,7 +63,9 @@ int wc_ChaCha20Poly1305_Encrypt(
     performs Poly-1305 authentication, comparing the given inAuthTag to an
     authentication generated with the inAAD (arbitrary length additional
     authentication data). Note: If the generated authentication tag does
-    not match the supplied authentication tag, the text is not decrypted.
+    not match the supplied authentication tag, the content in outPlaintext is
+    undefined and should not be used. To be clear, if MAC_CMP_FAILED_E is
+    returned, outPlaintext must not be read.
 
     \return 0 Returned upon successfully decrypting the message
     \return BAD_FUNC_ARG Returned if any of the function arguments do not
