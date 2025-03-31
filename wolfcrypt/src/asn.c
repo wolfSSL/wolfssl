@@ -4875,6 +4875,11 @@ static const byte dcOid[] = {9, 146, 38, 137, 147, 242, 44, 100, 1, 25}; /* doma
  *
  * Use oidIgnoreType to autofail.
  *
+ * Note that while this function currently handles a large
+ * number of FPKI certificate policy OIDs, these OIDs are not
+ * currently being handled in the code, they are just recognized
+ * as valid OIDs.
+ *
  * @param [in]  id     OID id.
  * @param [in]  type   Type of OID (enum Oid_Types).
  * @param [out] oidSz  Length of OID byte array returned.
