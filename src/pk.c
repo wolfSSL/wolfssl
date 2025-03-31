@@ -16499,7 +16499,8 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
 
         if (ret == 0) {
             /* Encrypt private into buffer. */
-            ret = TraditionalEnc((byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
+            ret = TraditionalEnc((byte*)pkey->pkey.ptr + pkey->pkcs8HeaderSz,
+                (word32)pkey->pkey_sz - pkey->pkcs8HeaderSz,
                 key, keySz, passwd, passwdSz, PKCS5, PBES2, encAlgId,
                 NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL);
             if (ret > 0) {
@@ -16580,8 +16581,9 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 
     if (ret >= 0) {
         /* Encode private key in PKCS#8 format. */
-        ret = wc_CreatePKCS8Key(key, keySz, (byte*)pkey->pkey.ptr,
-            (word32)pkey->pkey_sz, algId, curveOid, oidSz);
+        ret = wc_CreatePKCS8Key(key, keySz, (byte*)pkey->pkey.ptr +
+            pkey->pkcs8HeaderSz, (word32)pkey->pkey_sz - pkey->pkcs8HeaderSz,
+            algId, curveOid, oidSz);
     }
 
     return ret;
