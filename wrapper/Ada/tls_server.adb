@@ -122,10 +122,10 @@ package body Tls_Server with SPARK_Mode is
       Identity_String : constant String := "Client_identity";
       --  Test key in hex is 0x1a2b3c4d, in decimal 439,041,101
       Key_String : constant String :=
-        Character'Val   (26)
-        & Character'Val (43)
-        & Character'Val (60)
-        & Character'Val (77);
+        (Character'Val (26),
+         Character'Val (43),
+         Character'Val (60),
+         Character'Val (77));
       --  These values are aligned with test values in wolfssl/wolfssl/test.h
       --  and wolfssl-examples/psk/server-psk.c for testing interoperability.
 
