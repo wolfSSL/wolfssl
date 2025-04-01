@@ -23,8 +23,9 @@ jobs:
             zephyr-sdk: 0.16.1
           - zephyr-ref: v3.5.0
             zephyr-sdk: 0.16.3
-          - zephyr-ref: v2.7.4
-            zephyr-sdk: 0.16.3
+# 20250401 -- disable v2.7.4 due to obsolete cmake version requirements.
+#          - zephyr-ref: v2.7.4
+#            zephyr-sdk: 0.16.3
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
