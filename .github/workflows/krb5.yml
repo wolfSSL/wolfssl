@@ -90,7 +90,7 @@ jobs:
         run: |
           autoreconf -ivf
           # Using rpath because LD_LIBRARY_PATH is overwritten during testing
-          export WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl  -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
+          export WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl  -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib -DNO_RC4"
           export WOLFSSL_LIBS="-lwolfssl -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
           ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit --with-spake-openssl \
             CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address'
@@ -99,5 +99,5 @@ jobs:
       - name: Run tests
         working-directory: ./krb5/src
         run: |
-          CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address' make -j check
+          CFLAGS='-fsanitize=address -DNO_RC4' LDFLAGS='-fsanitize=address' make -j check
 
