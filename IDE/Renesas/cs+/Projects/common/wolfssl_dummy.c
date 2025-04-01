@@ -59,4 +59,9 @@ void abort(void)
     while(1);
 }
 
+/* dummy return true when char is alphanumeric character */
+int isascii(const char *s)
+{
+    return isalnum(s);
+}
 
