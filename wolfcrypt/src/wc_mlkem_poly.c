@@ -3166,7 +3166,8 @@ static unsigned int mlkem_rej_uniform_c(sword16* p, unsigned int len,
     unsigned int i;
     unsigned int j;
 
-#if defined(WOLFSSL_MLKEM_SMALL) || !defined(WC_64BIT_CPU)
+#if defined(WOLFSSL_MLKEM_SMALL) || !defined(WC_64BIT_CPU) || \
+    defined(BIG_ENDIAN_ORDER)
     /* Keep sampling until maximum number of integers reached or buffer used up.
      * Step 4. */
     for (i = 0, j = 0; (i < len) && (j <= rLen - 3); j += 3) {
