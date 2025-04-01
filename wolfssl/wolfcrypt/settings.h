@@ -3607,7 +3607,14 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif
     #ifndef WOLFSSL_TEST_SUBROUTINE
-        #define WOLFSSL_TEST_SUBROUTINE static
+        #ifdef LINUXKM_LKCAPI_REGISTER
+            #define WOLFSSL_TEST_SUBROUTINE
+        #else
+            #define WOLFSSL_TEST_SUBROUTINE static
+        #endif
+    #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #define WC_TEST_EXPORT_SUBTESTS
     #endif
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */

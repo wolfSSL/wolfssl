@@ -4575,21 +4575,23 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif /* WC_C_DYNAMIC_FALLBACK */
 
     #ifdef WOLFSSL_AESNI
-
-#if defined(WC_FLAG_DONT_USE_AESNI)
-        if (aes->use_aesni == WC_FLAG_DONT_USE_AESNI) {
-            aes->use_aesni = 0;
+        if (checkedAESNI == 0) {
+            haveAESNI  = Check_CPU_support_AES();
+            checkedAESNI = 1;
         }
-        else
+        if (haveAESNI
+#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK)
+            && (aes->use_aesni != WC_FLAG_DONT_USE_AESNI)
 #endif
+            )
         {
-            if (checkedAESNI == 0) {
-                haveAESNI  = Check_CPU_support_AES();
-                checkedAESNI = 1;
+#if defined(WC_FLAG_DONT_USE_AESNI)
+            if (aes->use_aesni == WC_FLAG_DONT_USE_AESNI) {
+                aes->use_aesni = 0;
+                return 0;
             }
-            aes->use_aesni = haveAESNI;
-        }
-        if (aes->use_aesni) {
+#endif
+            aes->use_aesni = 0;
             #ifdef WOLFSSL_LINUXKM
             /* runtime alignment check */
             if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
@@ -4622,6 +4624,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 return ret;
 #endif
             }
+        }
+        else {
+            aes->use_aesni = 0;
         }
     #endif /* WOLFSSL_AESNI */
 

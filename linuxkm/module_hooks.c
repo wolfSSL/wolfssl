@@ -45,7 +45,7 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
-#ifndef NO_CRYPT_TEST
+#if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
     #include <wolfcrypt/test/test.h>
 #endif
 #include <wolfssl/wolfcrypt/random.h>
