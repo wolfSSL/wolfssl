@@ -3007,8 +3007,8 @@ struct RevokedCert {
 };
 
 #ifndef CRL_MAX_NUM_SZ
-#define CRL_MAX_NUM_SZ 49 /* RFC5280 states that CRL number can be up to 20 */
-#endif                    /* octets long i.e 49 digits */
+#define CRL_MAX_NUM_SZ 20 /* RFC5280 states that CRL number can be up to 20 */
+#endif                    /* octets long */
 
 
 typedef struct DecodedCRL DecodedCRL;

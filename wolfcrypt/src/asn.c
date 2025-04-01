@@ -40049,8 +40049,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     if (ret != MP_OKAY)
                         ret = BUFFER_E;
 
-                    if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_DEC)
-                            != MP_OKAY)
+                    if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
+                                MP_RADIX_HEX) != MP_OKAY)
                         ret = BUFFER_E;
 
                     dcrl->crlNumberSet = 1;
@@ -40140,8 +40140,8 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     ret = GetInt(m, buf, &localIdx, maxIdx);
                 }
 
-                if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber, MP_RADIX_DEC)
-                        != MP_OKAY)
+                if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
+                            MP_RADIX_HEX) != MP_OKAY)
                     ret = BUFFER_E;
 
                 dcrl->crlNumberSet = 1;

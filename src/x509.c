@@ -8871,85 +8871,129 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         int indent)
 {
     char tmp[MAX_WIDTH]; /* buffer for XSNPRINTF */
+    int  ret = 0;
 
     if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent, "",
                 "CRL extensions:") >= MAX_WIDTH) {
-        return WOLFSSL_FAILURE;
+        ret = WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-            return WOLFSSL_FAILURE;
+    if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+        ret = WOLFSSL_FAILURE;
     }
 
-    if (crl->crlList->crlNumberSet) {
-        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 4, "",
+    if (ret == 0 && crl->crlList->crlNumberSet) {
+        char dec_string[49]; /* 20 octets can express numbers up to approx
+                                49 decimal digits */
+    #ifdef WOLFSSL_SMALL_STACK
+        mp_int* dec_num = (mp_int*)XMALLOC(sizeof(*dec_num), NULL,
+                            DYNAMIC_TYPE_BIGINT);
+        if (dec_num == NULL) {
+            ret = MEMORY_E;
+        }
+    #else
+        mp_int dec_num[1];
+    #endif
+
+        if (mp_init(dec_num) != MP_OKAY) {
+             ret = MP_INIT_E;
+        }
+
+        if (ret == 0 && mp_read_radix(dec_num, (char *)crl->crlList->crlNumber,
+                    MP_RADIX_HEX) != MP_OKAY) {
+            ret = WOLFSSL_FAILURE;
+        }
+
+        if (ret == 0 && mp_toradix(dec_num, dec_string, MP_RADIX_DEC)
+                    != MP_OKAY) {
+            ret = WOLFSSL_FAILURE;
+        }
+
+        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 4, "",
                     "X509v3 CRL Number:") >= MAX_WIDTH) {
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
         }
 
-        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-            return WOLFSSL_FAILURE;
+        if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            ret = WOLFSSL_FAILURE;
         }
 
-        if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 8, "",
-            crl->crlList->crlNumber) >= MAX_WIDTH) {
-            return WOLFSSL_FAILURE;
+        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH, "%*s%s\n", indent + 8, "",
+            dec_string) >= MAX_WIDTH) {
+            ret = WOLFSSL_FAILURE;
         }
 
-        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-            return WOLFSSL_FAILURE;
+        if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            ret = WOLFSSL_FAILURE;
         }
         XMEMSET(tmp, 0, sizeof(tmp));
+
+        mp_free(dec_num);
+    #ifdef WOLFSSL_SMALL_STACK
+        if (dec_num) {
+            XFREE(dec_num, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+    #endif
     }
 
 #if !defined(NO_SKID)
-    if (crl->crlList->extAuthKeyIdSet && crl->crlList->extAuthKeyId[0] != 0) {
+    if (ret == 0 && crl->crlList->extAuthKeyIdSet &&
+            crl->crlList->extAuthKeyId[0] != 0) {
         word32 i;
         char val[5];
         int valSz = 5;
 
         if (XSNPRINTF(tmp, MAX_WIDTH, "%*s%s", indent + 4, "",
                     "X509v3 Authority Key Identifier:") >= MAX_WIDTH) {
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
         }
 
-        XSTRNCAT(tmp, "\n", MAX_WIDTH - XSTRLEN(tmp) - 1);
+        if (ret == 0) {
+            XSTRNCAT(tmp, "\n", MAX_WIDTH - XSTRLEN(tmp) - 1);
+        }
 
-        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-            return WOLFSSL_FAILURE;
+        if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            ret = WOLFSSL_FAILURE;
         }
         XMEMSET(tmp, 0, MAX_WIDTH);
 
-        if (XSNPRINTF(tmp, MAX_WIDTH - 1, "%*s%s",
+        if (ret == 0 && XSNPRINTF(tmp, MAX_WIDTH - 1, "%*s%s",
                     indent + 8, "", "keyid") >= MAX_WIDTH) {
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
         }
 
 
         for (i = 0; i < XSTRLEN((char*)crl->crlList->extAuthKeyId); i++) {
             /* check if buffer is almost full */
-            if (XSTRLEN(tmp) >= sizeof(tmp) - valSz) {
+            if (ret == 0 && XSTRLEN(tmp) >= sizeof(tmp) - valSz) {
                 if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-                    return WOLFSSL_FAILURE;
+                    ret = WOLFSSL_FAILURE;
                 }
                 tmp[0] = '\0';
             }
-            if (XSNPRINTF(val, (size_t)valSz, ":%02X",
-                    crl->crlList->extAuthKeyId[i]) >= valSz)
-            {
+            if (ret == 0 && XSNPRINTF(val, (size_t)valSz, ":%02X",
+                    crl->crlList->extAuthKeyId[i]) >= valSz) {
                 WOLFSSL_MSG("buffer overrun");
-                return WOLFSSL_FAILURE;
+                ret = WOLFSSL_FAILURE;
             }
-            XSTRNCAT(tmp, val, valSz);
+            if (ret == 0) {
+                XSTRNCAT(tmp, val, valSz);
+            }
         }
-        XSTRNCAT(tmp, "\n", XSTRLEN("\n") + 1);
-        if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
-            return WOLFSSL_FAILURE;
+        if (ret == 0) {
+            XSTRNCAT(tmp, "\n", XSTRLEN("\n") + 1);
+        }
+        if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
+            ret = WOLFSSL_FAILURE;
         }
     }
 #endif
 
-    return WOLFSSL_SUCCESS;
+    if (ret == 0) {
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
 }
 
 /* iterate through a CRL's Revoked Certs and print out in human
