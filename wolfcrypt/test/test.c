@@ -2871,27 +2871,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
 {
     wc_test_ret_t ret;
-    WOLFSSL_SMALL_STACK_STATIC const byte good[] = "A+Gd\0\0\0";
-    WOLFSSL_SMALL_STACK_STATIC const byte goodEnd[] = "A+Gd \r\n";
-    WOLFSSL_SMALL_STACK_STATIC const byte good_spaces[] = " A + G d \0";
+    static const byte good[] = "A+Gd\0\0\0";
+    static const byte goodEnd[] = "A+Gd \r\n";
+    static const byte good_spaces[] = " A + G d \0";
     byte       out[128];
     word32     outLen;
 #ifdef WOLFSSL_BASE64_ENCODE
     byte       data[3];
     word32     dataLen;
     byte       longData[79] = { 0 };
-    WOLFSSL_SMALL_STACK_STATIC const byte symbols[] = "+/A=";
+    static const byte symbols[] = "+/A=";
 #endif
-    WOLFSSL_SMALL_STACK_STATIC const byte badSmall[] = "AAA!Gdj=";
-    WOLFSSL_SMALL_STACK_STATIC const byte badLarge[] = "AAA~Gdj=";
-    WOLFSSL_SMALL_STACK_STATIC const byte badEOL[] = "A+Gd!AA";
-    WOLFSSL_SMALL_STACK_STATIC const byte badPadding[] = "AA=A";
-    WOLFSSL_SMALL_STACK_STATIC const byte badChar[] = ",-.:;<=>?@[\\]^_`";
-    byte goodChar[] =
+    static const byte badSmall[] = "AAA!Gdj=";
+    static const byte badLarge[] = "AAA~Gdj=";
+    static const byte badEOL[] = "A+Gd!AA";
+    static const byte badPadding[] = "AA=A";
+    static const byte badChar[] = ",-.:;<=>?@[\\]^_`";
+    static const byte goodChar[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/;";
-    byte charTest[] = "A+Gd\0\0\0";
+    static const byte charTest[] = "A+Gd\0\0\0";
     int        i;
     WOLFSSL_ENTER("base64_test");
 
@@ -2905,7 +2905,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     outLen = sizeof(goodChar);
-    ret = Base64_Decode(goodChar, sizeof(goodChar), goodChar, &outLen);
+    XMEMCPY(out, goodChar, sizeof(goodChar));
+    ret = Base64_Decode(out, sizeof(goodChar), out, &outLen);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     if (outLen != 64 / 4 * 3)
@@ -2942,24 +2943,102 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     /* Invalid character less than 0x2b */
     for (i = 1; i < 0x2b; i++) {
         outLen = sizeof(out);
-        charTest[0] = (byte)i;
-        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = (byte)i;
+        ret = Base64_Decode(out, sizeof(charTest), out, &outLen);
         if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
             return WC_TEST_RET_ENC_I(i);
     }
     /* Bad characters in range 0x2b - 0x7a. */
     for (i = 0; i < (int)sizeof(badChar) - 1; i++) {
         outLen = sizeof(out);
-        charTest[0] = badChar[i];
-        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = badChar[i];
+        ret = Base64_Decode(out, sizeof(charTest), out, &outLen);
         if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
             return WC_TEST_RET_ENC_I(i);
     }
     /* Invalid character greater than 0x7a */
     for (i = 0x7b; i < 0x100; i++) {
         outLen = sizeof(out);
-        charTest[0] = (byte)i;
-        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = (byte)i;
+        ret = Base64_Decode(out, sizeof(charTest), out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    /* Same tests again, using Base64_Decode_nonCT() */
+
+    /* Good Base64 encodings. */
+    outLen = sizeof(out);
+    ret = Base64_Decode_nonCT(good, sizeof(good), out, &outLen);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    outLen = sizeof(out);
+    ret = Base64_Decode_nonCT(goodEnd, sizeof(goodEnd), out, &outLen);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    outLen = sizeof(goodChar);
+    XMEMCPY(out, goodChar, sizeof(goodChar));
+    ret = Base64_Decode_nonCT(out, sizeof(goodChar), out, &outLen);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    if (outLen != 64 / 4 * 3)
+        return WC_TEST_RET_ENC_NC;
+    outLen = sizeof(out);
+    ret = Base64_Decode_nonCT(good_spaces, sizeof(good_spaces), out, &outLen);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    /* Bad parameters. */
+    outLen = 1;
+    ret = Base64_Decode_nonCT(good, sizeof(good), out, &outLen);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
+
+    outLen = sizeof(out);
+    ret = Base64_Decode_nonCT(badEOL, sizeof(badEOL), out, &outLen);
+    if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+        return WC_TEST_RET_ENC_EC(ret);
+    outLen = sizeof(out);
+    ret = Base64_Decode_nonCT(badPadding, sizeof(badPadding), out, &outLen);
+    if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+        return WC_TEST_RET_ENC_EC(ret);
+    /* Bad character at each offset 0-3. */
+    for (i = 0; i < 4; i++) {
+        outLen = sizeof(out);
+        ret = Base64_Decode_nonCT(badSmall + i, 4, out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+            return WC_TEST_RET_ENC_I(i);
+        ret = Base64_Decode_nonCT(badLarge + i, 4, out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+            return WC_TEST_RET_ENC_I(i);
+    }
+    /* Invalid character less than 0x2b */
+    for (i = 1; i < 0x2b; i++) {
+        outLen = sizeof(out);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = (byte)i;
+        ret = Base64_Decode_nonCT(out, sizeof(charTest), out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+            return WC_TEST_RET_ENC_I(i);
+    }
+    /* Bad characters in range 0x2b - 0x7a. */
+    for (i = 0; i < (int)sizeof(badChar) - 1; i++) {
+        outLen = sizeof(out);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = badChar[i];
+        ret = Base64_Decode_nonCT(out, sizeof(charTest), out, &outLen);
+        if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
+            return WC_TEST_RET_ENC_I(i);
+    }
+    /* Invalid character greater than 0x7a */
+    for (i = 0x7b; i < 0x100; i++) {
+        outLen = sizeof(out);
+        XMEMCPY(out, charTest, sizeof(charTest));
+        out[0] = (byte)i;
+        ret = Base64_Decode_nonCT(out, sizeof(charTest), out, &outLen);
         if (ret != WC_NO_ERR_TRACE(ASN_INPUT_E))
             return WC_TEST_RET_ENC_I(i);
     }
