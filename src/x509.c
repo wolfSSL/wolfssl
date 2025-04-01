@@ -4230,38 +4230,7 @@ WOLFSSL_X509* wolfSSL_sk_X509_value(WOLF_STACK_OF(WOLFSSL_X509)* sk, int i)
 /* Return and remove the first x509 pushed on stack */
 WOLFSSL_X509* wolfSSL_sk_X509_shift(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
-    WOLFSSL_STACK* node;
-    WOLFSSL_X509*  x509;
-
-    if (sk == NULL) {
-        return NULL;
-    }
-
-    node = sk->next;
-    x509 = sk->data.x509;
-
-    if (node != NULL) {
-        /* walk to end of stack to first node pushed, and remove it */
-        WOLFSSL_STACK* prevNode = sk;
-
-        while (node->next != NULL) {
-            prevNode = node;
-            node = node->next;
-        }
-
-        x509 = node->data.x509;
-        prevNode->next = NULL;
-        XFREE(node, NULL, DYNAMIC_TYPE_X509);
-    }
-    else { /* only one x509 in stack */
-        sk->data.x509 = NULL;
-    }
-
-    if (sk->num > 0) {
-        sk->num -= 1;
-    }
-
-    return x509;
+    return wolfSSL_sk_pop_node(sk, 0);
 }
 
 #endif /* OPENSSL_EXTRA */
@@ -15318,7 +15287,6 @@ WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
 int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
         int nid, int lastpos)
 {
-    WOLFSSL_STACK* sk;
     int idx;
 
     WOLFSSL_ENTER("wolfSSL_X509_REQ_get_attr_by_NID");
@@ -15329,26 +15297,14 @@ int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
     }
 
     /* search through stack for first matching nid */
-    idx = lastpos + 1;
-    do {
-        sk = wolfSSL_sk_get_node(req->reqAttributes, idx);
-        if (sk != NULL) {
-            WOLFSSL_X509_ATTRIBUTE* attr;
-            attr = (WOLFSSL_X509_ATTRIBUTE*)sk->data.generic;
-            if (nid == attr->object->nid) {
-                /* found a match */
-                break;
-            }
-        }
-        idx++;
-    } while (sk != NULL);
-
-    /* no matches found */
-    if (sk == NULL) {
-        idx = WOLFSSL_FATAL_ERROR;
+    for (idx = lastpos + 1; idx < wolfSSL_sk_num(req->reqAttributes); idx++) {
+        WOLFSSL_X509_ATTRIBUTE* attr =
+             (WOLFSSL_X509_ATTRIBUTE*)wolfSSL_sk_value(req->reqAttributes, idx);
+        if (attr != NULL && attr->object != NULL && attr->object->nid == nid)
+            return idx;
     }
 
-    return idx;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 WOLFSSL_X509_ATTRIBUTE* wolfSSL_X509_ATTRIBUTE_new(void)

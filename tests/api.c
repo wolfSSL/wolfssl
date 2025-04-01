@@ -22069,7 +22069,7 @@ static int test_wolfSSL_X509_INFO_multiple_info(void)
         ExpectNotNull(info = sk_X509_INFO_value(info_stack, i));
         ExpectNotNull(info->x509);
         ExpectNull(info->crl);
-        if (i != 0) {
+        if (i != 2) {
             ExpectNotNull(info->x_pkey);
             ExpectIntEQ(X509_check_private_key(info->x509,
                                                info->x_pkey->dec_pkey), 1);
@@ -36213,7 +36213,7 @@ static int test_GENERAL_NAME_set0_othername(void)
 
     ExpectNull(sk_GENERAL_NAME_value(NULL, 0));
     ExpectNull(sk_GENERAL_NAME_value(gns, 20));
-    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 2));
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
     ExpectIntEQ(gn->type, 0);
 
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
@@ -46197,8 +46197,8 @@ static int test_sk_X509(void)
         sk_X509_push(s, &x2);
         ExpectIntEQ(sk_X509_num(s), 2);
         ExpectNull(sk_X509_value(s, 2));
-        ExpectIntEQ((sk_X509_value(s, 0) == &x2), 1);
-        ExpectIntEQ((sk_X509_value(s, 1) == &x1), 1);
+        ExpectIntEQ((sk_X509_value(s, 0) == &x1), 1);
+        ExpectIntEQ((sk_X509_value(s, 1) == &x2), 1);
         sk_X509_push(s, &x2);
 
         sk_X509_pop_free(s, free_x509);
@@ -46223,20 +46223,20 @@ static int test_sk_X509(void)
         for (i = 0; i < len; ++i) {
             sk_X509_push(s, xList[i]);
             ExpectIntEQ(sk_X509_num(s), i + 1);
-            ExpectIntEQ((sk_X509_value(s, 0) == xList[i]), 1);
-            ExpectIntEQ((sk_X509_value(s, i) == xList[0]), 1);
+            ExpectIntEQ((sk_X509_value(s, 0) == xList[0]), 1);
+            ExpectIntEQ((sk_X509_value(s, i) == xList[i]), 1);
         }
 
-        /* pop returns and removes last pushed on stack, which is index 0
+        /* pop returns and removes last pushed on stack, which is the last index
          * in sk_x509_value */
-        for (i = 0; i < len; ++i) {
-            X509 * x = sk_X509_value(s, 0);
+        for (i = len-1; i >= 0; --i) {
+            X509 * x = sk_X509_value(s, i);
             X509 * y = sk_X509_pop(s);
-            X509 * z = xList[len - 1 - i];
+            X509 * z = xList[i];
 
-            ExpectIntEQ((x == y), 1);
-            ExpectIntEQ((x == z), 1);
-            ExpectIntEQ(sk_X509_num(s), len - 1 - i);
+            ExpectPtrEq(x, y);
+            ExpectPtrEq(x, z);
+            ExpectIntEQ(sk_X509_num(s), i);
         }
 
         sk_free(s);
@@ -46248,14 +46248,14 @@ static int test_sk_X509(void)
         for (i = 0; i < len; ++i) {
             sk_X509_push(s, xList[i]);
             ExpectIntEQ(sk_X509_num(s), i + 1);
-            ExpectIntEQ((sk_X509_value(s, 0) == xList[i]), 1);
-            ExpectIntEQ((sk_X509_value(s, i) == xList[0]), 1);
+            ExpectIntEQ((sk_X509_value(s, 0) == xList[0]), 1);
+            ExpectIntEQ((sk_X509_value(s, i) == xList[i]), 1);
         }
 
         /* shift returns and removes first pushed on stack, which is index i
          * in sk_x509_value() */
         for (i = 0; i < len; ++i) {
-            X509 * x = sk_X509_value(s, len - 1 - i);
+            X509 * x = sk_X509_value(s, 0);
             X509 * y = sk_X509_shift(s);
             X509 * z = xList[i];
 
@@ -49234,12 +49234,12 @@ static int test_wolfSSL_d2i_X509_REQ(void)
         ExpectIntEQ(X509_REQ_get_attr_by_NID(NULL, NID_pkcs9_challengePassword,
             -1), -1);
         ExpectIntEQ(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword,
-            -1), 1);
+            -1), 0);
         ExpectNull(X509_REQ_get_attr(NULL, 3));
         ExpectNull(X509_REQ_get_attr(req, 3));
         ExpectNull(X509_REQ_get_attr(NULL, 0));
         ExpectNull(X509_REQ_get_attr(empty, 0));
-        ExpectNotNull(attr = X509_REQ_get_attr(req, 1));
+        ExpectNotNull(attr = X509_REQ_get_attr(req, 0));
         ExpectNull(X509_ATTRIBUTE_get0_type(NULL, 1));
         ExpectNull(X509_ATTRIBUTE_get0_type(attr, 1));
         ExpectNull(X509_ATTRIBUTE_get0_type(NULL, 0));

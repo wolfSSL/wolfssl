@@ -14743,14 +14743,14 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 {
     WOLFSSL_ENTER("wolfSSL_sk_push");
 
-    return wolfSSL_sk_insert(sk, data, 0);
+    return wolfSSL_sk_insert(sk, data, -1);
 }
 
 void* wolfSSL_sk_pop(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_pop");
 
-    return wolfSSL_sk_pop_node(sk, 0);
+    return wolfSSL_sk_pop_node(sk, -1);
 }
 
 /* return number of elements on success 0 on fail */
