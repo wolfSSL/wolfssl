@@ -14746,6 +14746,13 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
     return wolfSSL_sk_insert(sk, data, 0);
 }
 
+void* wolfSSL_sk_pop(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_pop");
+
+    return wolfSSL_sk_pop_node(sk, 0);
+}
+
 /* return number of elements on success 0 on fail */
 int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx)
 {
@@ -14917,15 +14924,100 @@ int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx)
     {
         /* insert node into stack. not using sk since we return sk->num after */
         WOLFSSL_STACK* prev_node = sk;
-        while (idx != 0 && prev_node->next != NULL) {
+        while (--idx != 0 && prev_node->next != NULL)
             prev_node = prev_node->next;
-            idx--;
-        }
         node->next = prev_node->next;
         prev_node->next = node;
     }
 
     return (int)sk->num;
+}
+
+void* wolfSSL_sk_pop_node(WOLFSSL_STACK* sk, int idx)
+{
+    void* ret = NULL;
+    WOLFSSL_STACK* tmp = NULL;
+
+    if (!sk)
+        return NULL;
+    if (sk->num == 0)
+        return NULL;
+
+    sk->num--;
+    if (idx == 0 || sk->next == NULL) {
+        switch (sk->type) {
+            case STACK_TYPE_CIPHER:
+                /* Can't return cipher type */
+                break;
+            case STACK_TYPE_X509:
+            case STACK_TYPE_GEN_NAME:
+            case STACK_TYPE_BIO:
+            case STACK_TYPE_OBJ:
+            case STACK_TYPE_STRING:
+            case STACK_TYPE_ACCESS_DESCRIPTION:
+            case STACK_TYPE_X509_EXT:
+            case STACK_TYPE_X509_REQ_ATTR:
+            case STACK_TYPE_NULL:
+            case STACK_TYPE_X509_NAME:
+            case STACK_TYPE_X509_NAME_ENTRY:
+            case STACK_TYPE_CONF_VALUE:
+            case STACK_TYPE_X509_INFO:
+            case STACK_TYPE_BY_DIR_entry:
+            case STACK_TYPE_BY_DIR_hash:
+            case STACK_TYPE_X509_OBJ:
+            case STACK_TYPE_DIST_POINT:
+            case STACK_TYPE_X509_CRL:
+            default:
+                ret = sk->data.generic;
+                sk->data.generic = NULL;
+                break;
+        }
+        if (sk->next) {
+            tmp = sk->next;
+            sk->next = tmp->next;
+            XMEMCPY(&sk->data, &tmp->data, sizeof(sk->data));
+            wolfSSL_sk_free_node(tmp);
+        }
+        return ret;
+    }
+
+    {
+        WOLFSSL_STACK* prev_node = sk;
+        tmp = sk->next;
+        while (--idx != 0 && tmp->next != NULL) {
+            prev_node = tmp;
+            tmp = tmp->next;
+        }
+        prev_node->next = tmp->next;
+        switch (sk->type) {
+            case STACK_TYPE_CIPHER:
+                /* Can't return cipher type */
+                break;
+            case STACK_TYPE_X509:
+            case STACK_TYPE_GEN_NAME:
+            case STACK_TYPE_BIO:
+            case STACK_TYPE_OBJ:
+            case STACK_TYPE_STRING:
+            case STACK_TYPE_ACCESS_DESCRIPTION:
+            case STACK_TYPE_X509_EXT:
+            case STACK_TYPE_X509_REQ_ATTR:
+            case STACK_TYPE_NULL:
+            case STACK_TYPE_X509_NAME:
+            case STACK_TYPE_X509_NAME_ENTRY:
+            case STACK_TYPE_CONF_VALUE:
+            case STACK_TYPE_X509_INFO:
+            case STACK_TYPE_BY_DIR_entry:
+            case STACK_TYPE_BY_DIR_hash:
+            case STACK_TYPE_X509_OBJ:
+            case STACK_TYPE_DIST_POINT:
+            case STACK_TYPE_X509_CRL:
+            default:
+                ret = tmp->data.generic;
+                break;
+        }
+        wolfSSL_sk_free_node(tmp);
+    }
+    return ret;
 }
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
@@ -18063,7 +18155,7 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
 
     while (sk != NULL) {
         WOLFSSL_STACK* next = sk->next;
-        XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_sk_free_node(sk);
         sk = next;
     }
 }
@@ -18098,34 +18190,11 @@ void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
  */
 void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk, WOLF_STACK_TYPE type)
 {
-    WOLFSSL_STACK* node;
     void* data = NULL;
 
     /* Check we have a stack passed in of the right type. */
-    if ((sk != NULL) && (sk->type == type)) {
-        /* Get the next node to become the new first node. */
-        node = sk->next;
-        /* Get the ASN.1 OBJECT_ID object in the first node. */
-        data = sk->data.generic;
-
-        /* Check whether there is a next node. */
-        if (node != NULL) {
-            /* Move content out of next node into current node. */
-            sk->data.obj = node->data.obj;
-            sk->next = node->next;
-            /* Dispose of node. */
-            XFREE(node, NULL, DYNAMIC_TYPE_ASN1);
-        }
-        else {
-            /* No more nodes - clear out data. */
-            sk->data.obj = NULL;
-        }
-
-        /* Decrement count as long as we thought we had nodes. */
-        if (sk->num > 0) {
-            sk->num -= 1;
-        }
-    }
+    if ((sk != NULL) && (sk->type == type))
+        data = wolfSSL_sk_pop(sk);
 
     return data;
 }
@@ -18249,7 +18318,7 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             if (sk->type != STACK_TYPE_CIPHER)
                 func(sk->data.generic);
         }
-        XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
         sk = next;
     }
 }

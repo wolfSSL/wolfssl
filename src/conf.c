@@ -984,8 +984,6 @@ void wolfSSL_NCONF_free(WOLFSSL_CONF *conf)
 
 void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
 {
-    WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *sk = NULL;
-
     if (val) {
         if (val->name) {
             /* Not a section. Don't free section as it is a shared pointer. */
@@ -997,12 +995,7 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
             XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Only free the stack structures. The contained conf values
              * will be freed in wolfSSL_NCONF_free */
-            sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;
-            while (sk) {
-                WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *tmp = sk->next;
-                XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
-                sk = tmp;
-            }
+            wolfSSL_sk_free((WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value);
         }
         XFREE(val, NULL, DYNAMIC_TYPE_OPENSSL);
     }
@@ -1028,19 +1021,9 @@ WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(
  */
 void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
 {
-    WOLFSSL_STACK* tmp;
     WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
 
-    if (sk == NULL)
-        return;
-
-    /* parse through stack freeing each node */
-    while (sk) {
-        tmp = sk->next;
-        wolfSSL_X509V3_conf_free(sk->data.conf);
-        XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
-        sk = tmp;
-    }
+    wolfSSL_sk_pop_free(sk, NULL);
 }
 
 int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk)

@@ -28646,7 +28646,7 @@ static int test_X509_STORE_get0_objects(void)
 #endif
     ExpectNotNull(objsCopy = sk_X509_OBJECT_deep_copy(objs, NULL, NULL));
     ExpectIntEQ(sk_X509_OBJECT_num(objs), sk_X509_OBJECT_num(objsCopy));
-    for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
+    for (i = 0; i < sk_X509_OBJECT_num(objs) && EXPECT_SUCCESS(); i++) {
         obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
     #ifdef HAVE_CRL
         objCopy = (X509_OBJECT*)sk_X509_OBJECT_value(objsCopy, i);
