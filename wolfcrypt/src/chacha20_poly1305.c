@@ -143,7 +143,7 @@ int wc_ChaCha20Poly1305_Decrypt(
     if (ret == 0)
         ret = wc_ChaCha20Poly1305_CheckTag(inAuthTag, calculatedAuthTag);
     if (ret == WC_NO_ERR_TRACE(MAC_CMP_FAILED_E))
-        XMEMSET(outPlaintext, 0, inCiphertextLen);
+        ForceZero(outPlaintext, inCiphertextLen);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
