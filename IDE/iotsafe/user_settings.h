@@ -177,7 +177,7 @@ static inline long XTIME(long *x) { return jiffies;}
 /* Disable Algorithms */
 #define NO_DES3
 #define NO_DSA
-#define NO_RC4
+
 #define NO_MD4
 #define NO_MD5
 #define NO_SHA

@@ -29,7 +29,6 @@
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -446,12 +445,6 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         break;
         #endif
     #endif /* !NO_DES3 */
-    #if !defined(NO_SHA) && !defined(NO_RC4)
-        case PBE_SHA1_RC4_128:
-            typeH = WC_SHA;
-            derivedLen = 16;
-            break;
-    #endif
     #if defined(WOLFSSL_AES_256)
         case PBE_AES256_CBC:
             switch(shaOid) {
@@ -551,14 +544,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                                     iterations, (int)derivedLen, typeH, 1);
                 if (ret < 0)
                     break;
-                if (id != PBE_SHA1_RC4_128) {
-                    i = ret;
-                    ret = wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
-                                    saltSz, iterations, 8, typeH, 2);
-                    if (ret < 0)
-                        break;
-                    ret += i;
-                }
+                i = ret;
+                ret = wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
+                                saltSz, iterations, 8, typeH, 2);
+                if (ret < 0)
+                    break;
+                ret += i;
                 break;
             }
     #endif /* HAVE_PKCS12 */
@@ -631,16 +622,6 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 break;
             }
         #endif /* !NO_SHA */
-    #endif
-    #if !defined(NO_RC4) && !defined(NO_SHA)
-            case PBE_SHA1_RC4_128:
-            {
-                Arc4    dec;
-
-                wc_Arc4SetKey(&dec, key, derivedLen);
-                wc_Arc4Process(&dec, input, input, (word32)length);
-                break;
-            }
     #endif
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #ifdef WOLFSSL_AES_256

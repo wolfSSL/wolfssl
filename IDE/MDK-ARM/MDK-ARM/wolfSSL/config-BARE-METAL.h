@@ -99,7 +99,7 @@
 
 //  <h>wolfCrypt Library
 
-//       <h>MD5, SHA, SHA-256, AES, RC4, ASN, RSA
+//       <h>MD5, SHA, SHA-256, AES, ASN, RSA
 //        </h>
 //      <e>MD2
 #define MDK_CONF_MD2 0

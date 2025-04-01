@@ -106,7 +106,6 @@ are as follows but new group can be made:
 
     \ingroup 3DES
     \ingroup AES
-    \ingroup ARC4
     \ingroup BLAKE2
     \ingroup Camellia
     \ingroup ChaCha

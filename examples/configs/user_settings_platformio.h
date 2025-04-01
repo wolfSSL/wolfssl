@@ -101,7 +101,6 @@
     #define HAVE_BLAKE2S
 
     #define WC_RC2
-    #define WOLFSSL_ALLOW_RC4
 
     #define HAVE_POLY1305
 

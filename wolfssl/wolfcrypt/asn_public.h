@@ -123,7 +123,6 @@ enum EncPkcs8Types {
 
     ENC_PKCS8_PBES2 =  13,
 
-    ENC_PKCS8_PBE_SHA1_RC4_128   = 1,
     ENC_PKCS8_PBE_SHA1_DES       = 2,
     ENC_PKCS8_PBE_SHA1_DES3      = 3,
     ENC_PKCS8_PBE_SHA1_40RC2_CBC = 6,

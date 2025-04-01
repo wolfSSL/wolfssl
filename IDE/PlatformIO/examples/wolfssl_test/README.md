@@ -172,7 +172,6 @@ X963-KDF    test passed!
 HPKE     test passed!
 GMAC     test passed!
 RC2      test passed!
-ARC4     test passed!
 POLY1305 test passed!
 DES      test passed!
 DES3     test passed!

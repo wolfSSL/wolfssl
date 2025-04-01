@@ -148,7 +148,6 @@
         #include <openssl/pkcs7.h>
         #include <openssl/rand.h>
         #include <openssl/rc2.h>
-        #include <openssl/rc4.h>
         #include <openssl/rc5.h>
         #include <openssl/ripemd.h>
         #include <openssl/rsa.h>
@@ -3849,7 +3848,6 @@ enum {
  * using explicit values to assist with serialization of a TLS session */
 enum BulkCipherAlgorithm {
     wolfssl_cipher_null = 0,
-    wolfssl_rc4         = 1,
     wolfssl_rc2         = 2,
     wolfssl_des         = 3,
     wolfssl_triple_des  = 4,

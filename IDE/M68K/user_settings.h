@@ -48,7 +48,7 @@
 
 #define NO_ASN_TIME
 #define NO_PWDBASED
-#define NO_RC4
+
 #define NO_DSA
 #define NO_DES3
 #define NO_DH

@@ -239,12 +239,7 @@
 #endif
 //  </e>
 
-//      <e>RC4
-#define MDK_CONF_RC4 0
-#if MDK_CONF_RC4 == 0
-#define NO_RC4
-#endif
-//  </e>
+
 
 //      <e>CHACHA
 #define MDK_CONF_CHACHA 1

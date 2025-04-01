@@ -446,7 +446,6 @@ extern unsigned int my_rng_seed_gen(void);
 #define NO_PSK
 
 #define NO_DSA
-#define NO_RC4
 #define NO_MD4
 #define NO_PWDBASED
 //#define NO_CODING

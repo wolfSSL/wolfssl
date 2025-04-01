@@ -126,7 +126,6 @@ update_user_settings(){
         printf '%s\n' "";
         printf '%s\n' "/* Tuning options */";
         printf '%s\n' "#define ALT_ECC_SIZE";
-        printf '%s\n' "#define NO_RC4";
         printf '%s\n' "#define NO_MD4";
         printf '%s\n' "#define NO_PSK";
         printf '%s\n' "#define GCM_SMALL";

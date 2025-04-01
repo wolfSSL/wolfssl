@@ -125,7 +125,7 @@ extern "C" {
 #define NO_SHA
 #define NO_DSA
 #define NO_DES3
-#define NO_RC4
+#define NO_BIG_INT
 #define WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE256
 

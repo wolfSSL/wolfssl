@@ -187,7 +187,6 @@ extern "C" {
 #define NO_PWDBASED
 #define NO_DSA
 #define NO_DES3
-#define NO_RC4
 #define NO_PSK
 #define NO_MD4
 #define NO_MD5
