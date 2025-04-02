@@ -1637,6 +1637,102 @@ static int Dtls13AcceptFragmented(WOLFSSL *ssl, enum HandShakeType type)
 #endif
     return 0;
 }
+
+int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
+{
+    w64wrapper plainEpoch = w64From32(0x0, 0x0);
+    w64wrapper hsEpoch = w64From32(0x0, DTLS13_EPOCH_HANDSHAKE);
+    w64wrapper t0Epoch = w64From32(0x0, DTLS13_EPOCH_TRAFFIC0);
+
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        switch (type) {
+            case client_hello:
+            case server_hello:
+            case hello_verify_request:
+            case hello_retry_request:
+            case hello_request:
+                if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
+                    WOLFSSL_MSG("Msg should be epoch 0");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+                }
+                break;
+            case encrypted_extensions:
+            case server_key_exchange:
+            case server_hello_done:
+            case client_key_exchange:
+                if (!w64Equal(ssl->keys.curEpoch64, hsEpoch)) {
+                    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+                        /* before processing SH we don't know which version
+                         * will be negotiated.  */
+                        if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
+                            WOLFSSL_MSG("Msg should be epoch 2 or 0");
+                            WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                            return SANITY_MSG_E;
+                        }
+                    }
+                    else {
+                        WOLFSSL_MSG("Msg should be epoch 2");
+                        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                        return SANITY_MSG_E;
+                    }
+                }
+                break;
+            case certificate_request:
+            case certificate:
+            case certificate_verify:
+            case finished:
+                if (!ssl->options.handShakeDone) {
+                    if (!w64Equal(ssl->keys.curEpoch64, hsEpoch)) {
+                        if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.serverState < SERVER_HELLO_COMPLETE) {
+                            /* before processing SH we don't know which version
+                             * will be negotiated.  */
+                            if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
+                                WOLFSSL_MSG("Msg should be epoch 2 or 0");
+                                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                                return SANITY_MSG_E;
+                            }
+                        }
+                        else {
+                            WOLFSSL_MSG("Msg should be epoch 2");
+                            WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                            return SANITY_MSG_E;
+                        }
+                    }
+                }
+                else {
+                    /* Allow epoch 2 in case of rtx */
+                    if (!w64GTE(ssl->keys.curEpoch64, hsEpoch)) {
+                        WOLFSSL_MSG("Msg should be epoch 2+");
+                        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                        return SANITY_MSG_E;
+                    }
+                }
+                break;
+            case certificate_status:
+            case change_cipher_hs:
+            case key_update:
+            case session_ticket:
+                if (!w64GTE(ssl->keys.curEpoch64, t0Epoch)) {
+                    WOLFSSL_MSG("Msg should be epoch 3+");
+                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                    return SANITY_MSG_E;
+                }
+                break;
+            case end_of_early_data:
+            case message_hash:
+            case no_shake:
+            default:
+                WOLFSSL_MSG("Unknown message type");
+                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+                return SANITY_MSG_E;
+        }
+    }
+    return 0;
+}
+
 /**
  * Dtls13HandshakeRecv() - process an handshake message. Deal with
  fragmentation if needed
@@ -1667,6 +1763,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 
     /* Need idx + fragLength as we don't advance the inputBuffer idx value */
     ret = EarlySanityCheckMsgReceived(ssl, handshakeType, idx + fragLength);
+    if (ret != 0) {
+        WOLFSSL_ERROR(ret);
+        return ret;
+    }
+
+    ret = Dtls13CheckEpoch(ssl, handshakeType);
     if (ret != 0) {
         WOLFSSL_ERROR(ret);
         return ret;

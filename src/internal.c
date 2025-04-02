@@ -21013,6 +21013,16 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
         isEarlyData = isEarlyData && w64Equal(ssl->keys.curEpoch64,
                 w64From32(0x0, DTLS13_EPOCH_EARLYDATA));
 #endif
+#ifdef WOLFSSL_DTLS13
+    /* Application data should never appear in epoch 0 or 2 */
+    if (ssl->options.tls1_3 && ssl->options.dtls &&
+        (w64Equal(ssl->keys.curEpoch64, w64From32(0x0, DTLS13_EPOCH_HANDSHAKE))
+                || w64Equal(ssl->keys.curEpoch64, w64From32(0x0, 0x0))))
+    {
+        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
+        return SANITY_MSG_E;
+    }
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
     if (isEarlyData && acceptEarlyData) {
