@@ -7038,6 +7038,7 @@ WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,
     word16 output_size, word16 length, enum HandShakeType handshake_type,
     int hash_output);
 WOLFSSL_LOCAL int Dtls13RecordRecvd(WOLFSSL* ssl);
+WOLFSSL_LOCAL int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type);
 WOLFSSL_LOCAL int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
     word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
