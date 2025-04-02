@@ -416,9 +416,11 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     \brief This function decrypts the input cipher text, held in the buffer
     in, and stores the resulting message text in the output buffer out.
     It also checks the input authentication vector, authIn, against the
-    supplied authentication tag, authTag.
+    supplied authentication tag, authTag.  If a nonzero error code is returned,
+    the output data is undefined.  However, callers must unconditionally zeroize
+    the output buffer to guard against leakage of cleartext data.
 
-    \return 0 On successfully decrypting the input message
+    \return 0 On successfully decrypting and authenticating the input message
     \return AES_GCM_AUTH_E If the authentication tag does not match the
     supplied authentication code vector, authTag.
 
@@ -609,8 +611,9 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     \brief This function decrypts the input cipher text, in, into
     the output buffer, out, using CCM (Counter with CBC-MAC). It
     subsequently calculates the authorization tag, authTag, from the
-    authIn input. If the authorization tag is invalid, it sets the
-    output buffer to zero and returns the error: AES_CCM_AUTH_E.
+    authIn input.  If a nonzero error code is returned, the output data is
+    undefined.  However, callers must unconditionally zeroize the output buffer
+    to guard against leakage of cleartext data.
 
     \return 0 On successfully decrypting the input message
     \return AES_CCM_AUTH_E If the authentication tag does not match the
@@ -1134,7 +1137,9 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
 /*!
     \ingroup AES
     \brief This function performs SIV (synthetic initialization vector)
-    decryption as described in RFC 5297.
+    decryption as described in RFC 5297.  If a nonzero error code is returned,
+    the output data is undefined.  However, callers must unconditionally zeroize
+    the output buffer to guard against leakage of cleartext data.
 
     \return 0 On successful decryption.
     \return BAD_FUNC_ARG If key, SIV, or output buffer are NULL. Also returned
@@ -1248,7 +1253,10 @@ WOLFSSL_API int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
     \brief This function performs AES EAX decryption and authentication as
     described in "EAX: A Conventional Authenticated-Encryption Mode"
     (https://eprint.iacr.org/2003/069). It is a "one-shot" API that performs
-    all decryption and authentication operations in one function call.
+    all decryption and authentication operations in one function call.  If a
+    nonzero error code is returned, the output data is undefined.
+    However, callers must unconditionally zeroize the output buffer to guard
+    against leakage of cleartext data.
 
     \return 0 on successful decryption
     \return BAD_FUNC_ARG if input or output buffers are NULL. Also returned
