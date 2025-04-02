@@ -82,6 +82,8 @@ static WC_INLINE byte Base64_Char2Val_CT(byte c)
     return (byte)(v - 1);
 }
 
+#ifndef BASE64_NO_TABLE
+
 static
 ALIGN64 const byte base64Decode_table[] = {    /* + starts at 0x2B */
 /* 0x28:       + , - . / */                   62, BAD, BAD, BAD,  63,
@@ -119,6 +121,8 @@ static WC_INLINE byte Base64_Char2Val_by_table(byte c)
     return base64Decode_table[c - BASE64_MIN];
 #endif
 }
+
+#endif /* !BASE64_NO_TABLE */
 
 int Base64_SkipNewline(const byte* in, word32 *inLen,
   word32 *outJ)
@@ -167,6 +171,8 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
     *outJ = j;
     return 0;
 }
+
+#ifndef BASE64_NO_TABLE
 
 int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
@@ -269,6 +275,8 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
+#endif /* !BASE64_NO_TABLE */
+
 int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
@@ -357,6 +365,12 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
     return 0;
 }
+
+#ifdef BASE64_NO_TABLE
+int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen) {
+    return Base64_Decode(in, inLen, out, outLen);
+}
+#endif /* BASE64_NO_TABLE */
 
 #endif /* WOLFSSL_BASE64_DECODE */
 
