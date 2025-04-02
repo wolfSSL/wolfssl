@@ -37981,6 +37981,7 @@ static int test_wolfSSL_ciphersuite_auth(void)
 static int test_wolfSSL_sigalg_info(void)
 {
     EXPECT_DECLS;
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
     word16 len = 0;
@@ -38011,6 +38012,7 @@ static int test_wolfSSL_sigalg_info(void)
         ExpectIntNE(hashAlgo, 0);
     }
 
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -56408,6 +56410,7 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
     }
 }
 
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #ifdef WOLFSSL_DTLS13
 static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
 {
@@ -56454,6 +56457,7 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
     }
 }
 #endif
+#endif
 
 static int test_wolfSSL_dtls_fragments(void)
 {
@@ -56470,9 +56474,11 @@ static int test_wolfSSL_dtls_fragments(void)
         {wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method,
                 test_wolfSSL_dtls12_fragments_spammer},
 #endif
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #ifdef WOLFSSL_DTLS13
         {wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method,
                 test_wolfSSL_dtls13_fragments_spammer},
+#endif
 #endif
     };
 
@@ -56668,7 +56674,7 @@ static int test_wolfSSL_dtls_bad_record(void)
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TEST_STATIC_BUILD)
 static volatile int test_AEAD_seq_num = 0;
 #ifdef WOLFSSL_ATOMIC_INITIALIZER
 wolfSSL_Atomic_Int test_AEAD_done = WOLFSSL_ATOMIC_INITIALIZER(0);
@@ -59051,7 +59057,8 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_EX_DATA_CRYPTO) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_EX_DATA_CRYPTO) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_TEST_STATIC_BUILD)
 
 #define SESSION_NEW_IDX_LONG 0xDEADBEEF
 #define SESSION_NEW_IDX_VAL  ((void*)0xAEADAEAD)
@@ -60403,6 +60410,7 @@ static int test_wolfSSL_FIPS_mode(void)
     return EXPECT_RESULT();
 }
 
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #ifdef WOLFSSL_DTLS
 
 /* Prints out the current window */
@@ -60496,7 +60504,9 @@ static int test_wolfSSL_DtlsUpdateWindow(void)
     return EXPECT_RESULT();
 }
 #endif /* WOLFSSL_DTLS */
+#endif
 
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #ifdef WOLFSSL_DTLS
 static int DFB_TEST(WOLFSSL* ssl, word32 seq, word32 len, word32 f_offset,
         word32 f_len, word32 f_count, byte ready, word32 bytesReceived)
@@ -60621,6 +60631,7 @@ static int test_wolfSSL_DTLS_fragment_buckets(void)
     return EXPECT_RESULT();
 }
 
+#endif
 #endif
 
 
@@ -60916,7 +60927,7 @@ static int test_WOLFSSL_dtls_version_alert(void)
         * !defined(NO_OLD_TLS) && !defined(NO_RSA)
         */
 
-
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))\
@@ -61094,6 +61105,7 @@ static int test_ticket_nonce_malloc(void)
 }
 
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC */
+#endif /* WOLFSSL_TEST_STATIC_BUILD */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12) && \
     !defined(WOLFSSL_TICKET_DECRYPT_NO_CREATE) &&                 \
@@ -67548,7 +67560,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CTX_get0_privatekey),
 #ifdef WOLFSSL_DTLS
     TEST_DECL(test_wolfSSL_DtlsUpdateWindow),
+#ifdef WOLFSSL_TEST_STATIC_BUILD
     TEST_DECL(test_wolfSSL_DTLS_fragment_buckets),
+#endif
 #endif
     TEST_DECL(test_wolfSSL_dtls_set_mtu),
     /* Uses Assert in handshake callback. */
@@ -67708,10 +67722,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_TLS_13_ticket_different_ciphers),
     TEST_DECL(test_WOLFSSL_dtls_version_alert),
 
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #if defined(WOLFSSL_TICKET_NONCE_MALLOC) && defined(HAVE_SESSION_TICKET)       \
     && defined(WOLFSSL_TLS13) &&                                               \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
     TEST_DECL(test_ticket_nonce_malloc),
+#endif
 #endif
     TEST_DECL(test_ticket_ret_create),
     TEST_DECL(test_wrong_cs_downgrade),

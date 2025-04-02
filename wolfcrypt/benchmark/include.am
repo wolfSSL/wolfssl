@@ -7,6 +7,9 @@ if BUILD_BENCHMARK
 noinst_PROGRAMS += wolfcrypt/benchmark/benchmark
 wolfcrypt_benchmark_benchmark_SOURCES      = wolfcrypt/benchmark/benchmark.c
 wolfcrypt_benchmark_benchmark_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+if BUILD_STATIC
+wolfcrypt_benchmark_benchmark_LDFLAGS      = -static
+endif
 wolfcrypt_benchmark_benchmark_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
 

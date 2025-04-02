@@ -1446,6 +1446,7 @@ WOLFSSL_API unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSIO
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX* ctx);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_free(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_shutdown(WOLFSSL* ssl);
+WOLFSSL_API void wolfSSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 WOLFSSL_API int wolfSSL_SendUserCanceled(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_send(WOLFSSL* ssl, const void* data, int sz, int flags);
 WOLFSSL_API int  wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags);
@@ -5841,6 +5842,12 @@ WOLFSSL_API size_t wolfSSL_get_peer_finished(const WOLFSSL *ssl, void *buf, size
 #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
 #ifdef HAVE_PK_CALLBACKS
+#ifdef WOLFSSL_PUBLIC_ASN
+/* Internal callback guarded by WOLFSSL_PUBLIC_ASN because of DecodedCert. */
+typedef int (*CallbackProcessPeerCert)(WOLFSSL* ssl, DecodedCert* p_cert);
+WOLFSSL_API void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
+       CallbackProcessPeerCert cb);
+#endif /* WOLFSSL_PUBLIC_ASN */
 WOLFSSL_API int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
 #endif

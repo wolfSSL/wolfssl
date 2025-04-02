@@ -8202,6 +8202,11 @@ AC_ARG_ENABLE([examples],
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
+# Enable static to be able to test internals
+if test "$ENABLED_EXAMPLES" = "yes"
+then
+    enable_static=yes
+fi
 
 # Enable wolfCrypt test and benchmark
 if test "$ENABLED_LINUXKM" = "yes"
@@ -10261,10 +10266,8 @@ case $host_os in
         fi ;;
 esac
 
-if test "$enable_shared" = "no"; then
-    if test "$enable_static" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TEST_STATIC_BUILD"
-    fi
+if test "$enable_static" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TEST_STATIC_BUILD"
 fi
 
 if test "x$ENABLED_LINUXKM" = "xyes"; then
@@ -10526,6 +10529,7 @@ AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 AM_CONDITIONAL([BUILD_ARIA],[test "x$ENABLED_ARIA" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AUTOSAR],[test "x$ENABLED_AUTOSAR" = "xyes"])
+AM_CONDITIONAL([BUILD_STATIC],[test "x$enable_static" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
