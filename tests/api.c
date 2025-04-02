@@ -67558,9 +67558,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SetMinMaxDhKey_Sz),
     TEST_DECL(test_SetTmpEC_DHE_Sz),
     TEST_DECL(test_wolfSSL_CTX_get0_privatekey),
+#ifdef WOLFSSL_TEST_STATIC_BUILD
 #ifdef WOLFSSL_DTLS
     TEST_DECL(test_wolfSSL_DtlsUpdateWindow),
-#ifdef WOLFSSL_TEST_STATIC_BUILD
     TEST_DECL(test_wolfSSL_DTLS_fragment_buckets),
 #endif
 #endif

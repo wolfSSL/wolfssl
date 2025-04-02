@@ -24,7 +24,9 @@ endif
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 tests_unit_test_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 if BUILD_STATIC
+if !BUILD_FIPS
 tests_unit_test_LDFLAGS      = -static
+endif
 endif
 tests_unit_test_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
 include tests/api/include.am

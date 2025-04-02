@@ -8203,9 +8203,14 @@ AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
 AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 # Enable static to be able to test internals
-if test "$ENABLED_EXAMPLES" = "yes"
+if test "$ENABLED_EXAMPLES" = "yes" && test "$ENABLED_FIPS" = "no"
 then
     enable_static=yes
+fi
+# Revert back to yes to make further checks easier
+if test "$ENABLED_EXAMPLES" = "dynamic"
+then
+    ENABLED_EXAMPLES=yes
 fi
 
 # Enable wolfCrypt test and benchmark
@@ -10266,7 +10271,8 @@ case $host_os in
         fi ;;
 esac
 
-if test "$enable_static" = "yes"; then
+if test "$enable_static" = "yes" && test "$ENABLED_FIPS" = "no"
+then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TEST_STATIC_BUILD"
 fi
 
