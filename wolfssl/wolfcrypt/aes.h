@@ -306,7 +306,8 @@ struct Aes {
     #if defined(WOLFSSL_LINUXKM) || defined(WC_WANT_FLAG_DONT_USE_AESNI)
         /* Note, we can't support WC_FLAG_DONT_USE_AESNI by default because we
          * need to support legacy applications that call wc_AesSetKey() on
-         * uninited struct Aes.
+         * uninited struct Aes.  For details see the software implementation of
+         * wc_AesSetKeyLocal() (aes.c).
          */
         #define WC_FLAG_DONT_USE_AESNI 2
     #endif

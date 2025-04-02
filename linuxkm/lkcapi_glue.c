@@ -210,6 +210,29 @@ static int disable_setkey_warnings = 0;
     static int  linuxkm_test_aesecb(void);
 #endif
 
+#if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCFB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESECB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESGCM) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106)
+    #define LINUXKM_LKCAPI_NEED_AES_COMMON_FUNCS
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCFB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESECB)
+    #define LINUXKM_LKCAPI_NEED_AES_SKCIPHER_COMMON_FUNCS
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_AESGCM) || \
+    defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106)
+    #define LINUXKM_LKCAPI_REGISTER_AEADS
+#endif
+
 /* km_AesX(): wrappers to wolfcrypt wc_AesX functions and
  * structures.  */
 
@@ -312,13 +335,7 @@ struct km_AesCtx {
 #endif
 };
 
-#if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCFB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESGCM) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESECB)
+#ifdef LINUXKM_LKCAPI_NEED_AES_COMMON_FUNCS
 
 static void km_AesExitCommon(struct km_AesCtx * ctx);
 
@@ -518,11 +535,7 @@ static void km_AesExitCommon(struct km_AesCtx * ctx)
 #endif
 }
 
-#if defined(LINUXKM_LKCAPI_REGISTER_AESCBC) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCFB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESCTR) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESOFB) || \
-    defined(LINUXKM_LKCAPI_REGISTER_AESECB)
+#ifdef LINUXKM_LKCAPI_NEED_AES_SKCIPHER_COMMON_FUNCS
 
 static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
                               unsigned int key_len, const char * name)
@@ -595,19 +608,9 @@ static void km_AesExit(struct crypto_skcipher *tfm)
     km_AesExitCommon(ctx);
 }
 
-#endif /* LINUXKM_LKCAPI_REGISTER_AESCBC ||
-        * LINUXKM_LKCAPI_REGISTER_AESCFB ||
-        * LINUXKM_LKCAPI_REGISTER_AESCTR ||
-        * LINUXKM_LKCAPI_REGISTER_AESOFB ||
-        * LINUXKM_LKCAPI_REGISTER_AESECB
-        */
+#endif /* LINUXKM_LKCAPI_NEED_AES_SKCIPHER_COMMON_FUNCS */
 
-#endif /* LINUXKM_LKCAPI_REGISTER_AESCBC ||
-        * LINUXKM_LKCAPI_REGISTER_AESCFB || LINUXKM_LKCAPI_REGISTER_AESGCM ||
-        * LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106 ||
-        * LINUXKM_LKCAPI_REGISTER_AESCTR || LINUXKM_LKCAPI_REGISTER_AESOFB ||
-        * LINUXKM_LKCAPI_REGISTER_AESECB
-        */
+#endif /* LINUXKM_LKCAPI_NEED_AES_COMMON_FUNCS */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
 
