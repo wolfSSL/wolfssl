@@ -595,3 +595,54 @@ int test_wolfSSL_dtls_cid_parse(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_dtls13_epochs(void) {
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    byte input[20];
+    word32 inOutIdx = 0;
+
+    XMEMSET(input, 0, sizeof(input));
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_3_client_method()));
+    ExpectNotNull(ssl = wolfSSL_new(ctx));
+    /* Some manual setup to enter the epoch check */
+    ExpectTrue(ssl->options.tls1_3 = 1);
+
+    inOutIdx = 0;
+    ssl->keys.curEpoch64 = w64From32(0x0, 0x0);
+    ExpectIntEQ(DoApplicationData(ssl, input, &inOutIdx, 0), SANITY_MSG_E);
+    inOutIdx = 0;
+    ssl->keys.curEpoch64 = w64From32(0x0, 0x2);
+    ExpectIntEQ(DoApplicationData(ssl, input, &inOutIdx, 0), SANITY_MSG_E);
+
+    ssl->keys.curEpoch64 = w64From32(0x0, 0x1);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, client_hello), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, server_hello), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, hello_verify_request), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, hello_retry_request), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, hello_request), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, encrypted_extensions), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, server_key_exchange), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, server_hello_done), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, client_key_exchange), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, certificate_request), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, certificate), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, certificate_verify), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, finished), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, certificate_status), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, change_cipher_hs), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, key_update), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, session_ticket), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, end_of_early_data), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, message_hash), SANITY_MSG_E);
+    ExpectIntEQ(Dtls13CheckEpoch(ssl, no_shake), SANITY_MSG_E);
+
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_free(ssl);
+#endif
+    return EXPECT_RESULT();
+}
+
