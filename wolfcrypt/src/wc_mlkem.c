@@ -348,12 +348,12 @@ int wc_MlKemKey_MakeKeyWithRandom(MlKemKey* key, const unsigned char* rand,
 #else
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 #ifndef WOLFSSL_MLKEM_CACHE_A
-    sword16 e[(MLKEM_MAX_K + 1) * MLKEM_MAX_K * MLKEM_N];
+    sword16 e[(WC_ML_KEM_MAX_K + 1) * WC_ML_KEM_MAX_K * MLKEM_N];
 #else
-    sword16 e[MLKEM_MAX_K * MLKEM_N];
+    sword16 e[WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 #else
-    sword16 e[MLKEM_MAX_K * MLKEM_N];
+    sword16 e[WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 #endif
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
@@ -667,9 +667,9 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     sword16* y = NULL;
 #else
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-    sword16 y[((MLKEM_MAX_K + 3) * MLKEM_MAX_K + 3) * MLKEM_N];
+    sword16 y[((WC_ML_KEM_MAX_K + 3) * WC_ML_KEM_MAX_K + 3) * MLKEM_N];
 #else
-    sword16 y[3 * MLKEM_MAX_K * MLKEM_N];
+    sword16 y[3 * WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 #endif
     sword16* u;
@@ -1266,39 +1266,6 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     return ret;
 }
 
-#ifndef WOLFSSL_NO_ML_KEM
-/* Derive the secret from z and cipher text.
- *
- * @param [in]  z     Implicit rejection value.
- * @param [in]  ct    Cipher text.
- * @param [in]  ctSz  Length of cipher text in bytes.
- * @param [out] ss    Shared secret.
- * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation failed.
- * @return  Other negative when a hash error occurred.
- */
-static int mlkem_derive_secret(const byte* z, const byte* ct, word32 ctSz,
-    byte* ss)
-{
-    int ret;
-    wc_Shake shake;
-
-    ret = wc_InitShake256(&shake, NULL, INVALID_DEVID);
-    if (ret == 0) {
-        ret = wc_Shake256_Update(&shake, z, WC_ML_KEM_SYM_SZ);
-        if (ret == 0) {
-            ret = wc_Shake256_Update(&shake, ct, ctSz);
-        }
-        if (ret == 0) {
-            ret = wc_Shake256_Final(&shake, ss, WC_ML_KEM_SS_SZ);
-        }
-        wc_Shake256_Free(&shake);
-    }
-
-    return ret;
-}
-#endif
-
 /**
  * Decapsulate the cipher text to calculate the shared secret.
  *
@@ -1461,7 +1428,7 @@ int wc_MlKemKey_Decapsulate(MlKemKey* key, unsigned char* ss,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
         {
-            ret = mlkem_derive_secret(key->z, ct, ctSz, msg);
+            ret = mlkem_derive_secret(&key->prf, key->z, ct, ctSz, msg);
             if (ret == 0) {
                /* Set secret to kr or fake secret on comparison failure. */
                for (i = 0; i < WC_ML_KEM_SYM_SZ; i++) {
