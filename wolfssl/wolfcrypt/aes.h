@@ -588,7 +588,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
- WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
@@ -610,8 +610,8 @@ WOLFSSL_API int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len,
         const byte* iv, word32 ivSz);
 WOLFSSL_API int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in,
         word32 sz, const byte* authIn, word32 authInSz);
-WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
-        word32 authTagSz);
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesGcmDecryptFinal(Aes* aes,
+        const byte* authTag, word32 authTagSz);
 #endif
 
 #ifndef WC_NO_RNG
@@ -648,7 +648,7 @@ WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
                                    const byte* nonce, word32 nonceSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
- WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
+ WOLFSSL_API WARN_UNUSED_RESULT int wc_AesCcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    const byte* authTag, word32 authTagSz,
@@ -761,7 +761,7 @@ WOLFSSL_API
 int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out);
-WOLFSSL_API
+WOLFSSL_API WARN_UNUSED_RESULT
 int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out);
@@ -770,7 +770,7 @@ WOLFSSL_API
 int wc_AesSivEncrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
                         word32 numAssoc, const byte* nonce, word32 nonceSz,
                         const byte* in, word32 inSz, byte* siv, byte* out);
-WOLFSSL_API
+WOLFSSL_API WARN_UNUSED_RESULT
 int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
                         word32 numAssoc, const byte* nonce, word32 nonceSz,
                         const byte* in, word32 inSz, byte* siv, byte* out);
@@ -805,7 +805,8 @@ WOLFSSL_API int  wc_AesEaxEncryptAuth(const byte* key, word32 keySz, byte* out,
                                       /* input data to authenticate (header) */
                                       const byte* authIn, word32 authInSz);
 
-WOLFSSL_API int  wc_AesEaxDecryptAuth(const byte* key, word32 keySz, byte* out,
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEaxDecryptAuth(const byte* key,
+                                      word32 keySz, byte* out,
                                       const byte* in, word32 inSz,
                                       const byte* nonce, word32 nonceSz,
                                       /* auth tag to verify against */
@@ -833,7 +834,7 @@ WOLFSSL_API int  wc_AesEaxAuthDataUpdate(AesEax* eax,
 WOLFSSL_API int wc_AesEaxEncryptFinal(AesEax* eax,
                                       byte* authTag, word32 authTagSz);
 
-WOLFSSL_API int wc_AesEaxDecryptFinal(AesEax* eax,
+WOLFSSL_API WARN_UNUSED_RESULT int wc_AesEaxDecryptFinal(AesEax* eax,
                                       const byte* authIn, word32 authInSz);
 
 WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
