@@ -50,7 +50,13 @@
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
-#else /* BUILDING_WOLFSSL */
+
+    #ifdef WOLFSSL_LOCALIZE_TEST_APIS
+        #define WOLFSSL_TEST_API WOLFSSL_LOCAL
+    #else
+        #define WOLFSSL_TEST_API WOLFSSL_API
+    #endif
+#else /* !BUILDING_WOLFSSL */
     #if defined(__WATCOMC__)
         #if defined(WOLFSSL_DLL) && defined(__NT__)
             #define WOLFSSL_API __declspec(dllimport)
@@ -70,7 +76,16 @@
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL
     #endif
-#endif /* BUILDING_WOLFSSL */
+
+    #ifdef WOLFSSL_LOCALIZE_TEST_APIS
+        #define WOLFSSL_TEST_API WOLFSSL_LOCAL WC_DEPRECATED
+    #elif defined(WOLFSSL_ALLOW_TEST_APIS)
+        #define WOLFSSL_TEST_API WOLFSSL_API
+    #else
+        #define WOLFSSL_TEST_API WOLFSSL_API WC_DEPRECATED
+    #endif
+
+#endif /* !BUILDING_WOLFSSL */
 
 /* WOLFSSL_ABI is used for public API symbols that must not change
  * their signature. This tag is used for all APIs that are a
