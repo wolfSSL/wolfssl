@@ -62,14 +62,18 @@ int wc_ChaCha20Poly1305_Encrypt(
     ChaCha20 stream cipher, into the output buffer, outPlaintext. It also
     performs Poly-1305 authentication, comparing the given inAuthTag to an
     authentication generated with the inAAD (arbitrary length additional
-    authentication data). Note: If the generated authentication tag does
-    not match the supplied authentication tag, the text is not decrypted.
+    authentication data).  If a nonzero error code is returned, the output
+    data, outPlaintext, is undefined.  However, callers must unconditionally
+    zeroize the output buffer to guard against leakage of cleartext data.
 
-    \return 0 Returned upon successfully decrypting the message
+    \return 0 Returned upon successfully decrypting and authenticating the
+    message
     \return BAD_FUNC_ARG Returned if any of the function arguments do not
     match what is expected
     \return MAC_CMP_FAILED_E Returned if the generated authentication tag
     does not match the supplied inAuthTag.
+    \return MEMORY_E Returned if internal buffer allocation failed.
+    \return CHACHA_POLY_OVERFLOW Can be returned if input is corrupted.
 
     \param inKey pointer to a buffer containing the 32 byte key to use for
     decryption
