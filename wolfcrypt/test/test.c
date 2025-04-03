@@ -41,7 +41,7 @@
     #define WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS
 #endif
 
-#ifndef NO_CRYPT_TEST
+#if !defined(NO_CRYPT_TEST) || defined(WC_TEST_EXPORT_SUBTESTS)
 
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -832,7 +832,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_eax_test(void);
 /* Not all unexpected conditions are actually errors .*/
 #define WARNING_OUT(err, eLabel) do { ret = (err); goto eLabel; } while (0)
 
-static void render_error_message(const char* msg, wc_test_ret_t es)
+void wc_test_render_error_message(const char* msg, wc_test_ret_t es)
 {
     (void)msg;
     (void)es;
@@ -917,7 +917,7 @@ static THREAD_RETURN err_sys(const char* msg, int es)
 static wc_test_ret_t err_sys(const char* msg, wc_test_ret_t es)
 #endif
 {
-    render_error_message(msg, es);
+    wc_test_render_error_message(msg, es);
     print_fiducials();
 #ifdef WOLFSSL_LINUXKM
     EXIT_TEST(es);
@@ -1433,7 +1433,7 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
 #endif
 
 #ifdef TEST_ALWAYS_RUN_TO_END
-    #define TEST_FAIL(msg, retval) do { last_failed_test_ret = (retval); render_error_message(msg, retval); } while (0)
+    #define TEST_FAIL(msg, retval) do { last_failed_test_ret = (retval); wc_test_render_error_message(msg, retval); } while (0)
 #elif !defined(TEST_FAIL)
     #define TEST_FAIL(msg, retval) return err_sys(msg, retval)
 #endif
@@ -60779,8 +60779,8 @@ static void print_fiducials(void) {
            fiducial1, fiducial2, fiducial3, fiducial4);
 }
 
-#else
+#else /* NO_CRYPT_TEST && !WC_TEST_EXPORT_SUBTESTS */
     #ifndef NO_MAIN_DRIVER
         int main(void) { return 0; }
     #endif
-#endif /* NO_CRYPT_TEST */
+#endif /* NO_CRYPT_TEST && !WC_TEST_EXPORT_SUBTESTS */

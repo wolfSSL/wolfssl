@@ -43,6 +43,8 @@ WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/
 
 ifeq "$(ENABLED_CRYPT_TESTS)" "yes"
     WOLFSSL_OBJ_FILES+=wolfcrypt/test/test.o
+else ifneq "$(ENABLED_LINUXKM_LKCAPI_REGISTER)" "none"
+    WOLFSSL_OBJ_FILES+=wolfcrypt/test/test.o
 else
     WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
 endif

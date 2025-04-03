@@ -4575,12 +4575,53 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif /* WC_C_DYNAMIC_FALLBACK */
 
     #ifdef WOLFSSL_AESNI
-        aes->use_aesni = 0;
+
+       /* The dynamics for determining whether AES-NI will be used are tricky.
+        *
+        * First, we check for CPU support and cache the result -- if AES-NI is
+        * missing, we always shortcut to the AesSetKey_C() path.
+        *
+        * Second, if the CPU supports AES-NI, we confirm on a per-call basis
+        * that it's safe to use in the caller context, using
+        * SAVE_VECTOR_REGISTERS2().  This is an always-true no-op in user-space
+        * builds, but has substantive logic behind it in kernel module builds.
+        *
+        * The outcome when SAVE_VECTOR_REGISTERS2() fails depends on
+        * WC_C_DYNAMIC_FALLBACK -- if that's defined, we return immediately with
+        * success but with AES-NI disabled (the earlier AesSetKey_C() allows
+        * future encrypt/decrypt calls to succeed), otherwise we fail.
+        *
+        * Upon successful return, aes->use_aesni will have a zero value if
+        * AES-NI is disabled, and a nonzero value if it's enabled.
+        *
+        * An additional, optional semantic is available via
+        * WC_FLAG_DONT_USE_AESNI, and is used in some kernel module builds to
+        * let the caller inhibit AES-NI.  When this macro is defined,
+        * wc_AesInit() before wc_AesSetKey() is imperative, to avoid a read of
+        * uninitialized data in aes->use_aesni.  That's why support for
+        * WC_FLAG_DONT_USE_AESNI must remain optional -- wc_AesInit() was only
+        * added in release 3.11.0, so legacy applications inevitably call
+        * wc_AesSetKey() on uninitialized Aes contexts.  This must continue to
+        * function correctly with default build settings.
+        */
+
         if (checkedAESNI == 0) {
             haveAESNI  = Check_CPU_support_AES();
             checkedAESNI = 1;
         }
-        if (haveAESNI) {
+        if (haveAESNI
+#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK)
+            && (aes->use_aesni != WC_FLAG_DONT_USE_AESNI)
+#endif
+            )
+        {
+#if defined(WC_FLAG_DONT_USE_AESNI)
+            if (aes->use_aesni == WC_FLAG_DONT_USE_AESNI) {
+                aes->use_aesni = 0;
+                return 0;
+            }
+#endif
+            aes->use_aesni = 0;
             #ifdef WOLFSSL_LINUXKM
             /* runtime alignment check */
             if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
@@ -4613,6 +4654,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 return ret;
 #endif
             }
+        }
+        else {
+            aes->use_aesni = 0;
+#ifdef WC_C_DYNAMIC_FALLBACK
+            /* If WC_C_DYNAMIC_FALLBACK, we already called AesSetKey_C()
+             * above.
+             */
+            return 0;
+#endif
         }
     #endif /* WOLFSSL_AESNI */
 
@@ -12992,6 +13042,10 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #ifdef WOLFSSL_AESNI
+
+#if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
+    #define USE_INTEL_SPEEDUP
+#endif
 
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1

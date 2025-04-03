@@ -210,8 +210,10 @@ extern "C" {
 #elif defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_X86_64)
     #if SP_ULONG_BITS == 64 || SP_ULLONG_BITS == 64
         #define SP_WORD_SIZE 64
-        #define HAVE_INTEL_AVX1
-        #ifndef NO_AVX2_SUPPORT
+        #ifndef HAVE_INTEL_AVX1
+            #define HAVE_INTEL_AVX1
+        #endif
+        #if !defined(NO_AVX2_SUPPORT) && !defined(HAVE_INTEL_AVX2)
             #define HAVE_INTEL_AVX2
         #endif
     #elif SP_ULONG_BITS == 32

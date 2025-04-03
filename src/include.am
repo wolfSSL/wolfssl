@@ -72,8 +72,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -194,8 +198,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -397,8 +405,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -1100,8 +1112,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 endif
