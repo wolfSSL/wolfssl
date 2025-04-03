@@ -540,308 +540,6 @@ static void mlkem_ntt(sword16* r)
 #endif
 }
 
-#if !defined(WOLFSSL_MLKEM_NO_MAKE_KEY) && \
-    !defined(WOLFSSL_MLKEM_SMALL) && !defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
-/* Number-Theoretic Transform.
- *
- * FIPS 203, Algorithm 9: NTT(f)
- * Computes the NTT representation f_hat of the given polynomial f element of
- * R_q.
- *   1: f_hat <- f
- *   2: i <- 1
- *   3: for (len <- 128; len >= 2; len <- len/2)
- *   4:     for (start <- 0; start < 256; start <- start + 2.len)
- *   5:         zeta <- zetas^BitRev_7(i) mod q
- *   6:         i <- i + 1
- *   7:         for (j <- start; j < start + len; j++)
- *   8:             t <- zeta.f[j+len]
- *   9:             f_hat[j+len] <- f_hat[j] - t
- *  10:             f_hat[j] <- f_hat[j] - t
- *  11:         end for
- *  12:     end for
- *  13: end for
- *  14: return f_hat
- *
- * @param  [in, out]  r  Polynomial to transform.
- */
-static void mlkem_ntt_add_to(sword16* r, sword16* a)
-{
-#if defined(WOLFSSL_MLKEM_NTT_UNROLL)
-    /* Unroll len loop (Step 3). */
-    unsigned int k = 1;
-    unsigned int j;
-    unsigned int start;
-    sword16 zeta = zetas[k++];
-
-    /* len = 128 */
-    for (j = 0; j < MLKEM_N / 2; ++j) {
-        sword32 p = (sword32)zeta * r[j + MLKEM_N / 2];
-        sword16 t = MLKEM_MONT_RED(p);
-        sword16 rj = r[j];
-        r[j + MLKEM_N / 2] = rj - t;
-        r[j] = rj + t;
-    }
-    /* len = 64 */
-    for (start = 0; start < MLKEM_N; start += 2 * 64) {
-        zeta = zetas[k++];
-        for (j = 0; j < 64; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 64];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 64] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* len = 32 */
-    for (start = 0; start < MLKEM_N; start += 2 * 32) {
-        zeta = zetas[k++];
-        for (j = 0; j < 32; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 32];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 32] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* len = 16 */
-    for (start = 0; start < MLKEM_N; start += 2 * 16) {
-        zeta = zetas[k++];
-        for (j = 0; j < 16; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 16];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 16] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* len = 8 */
-    for (start = 0; start < MLKEM_N; start += 2 * 8) {
-        zeta = zetas[k++];
-        for (j = 0; j < 8; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 8];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 8] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* len = 4 */
-    for (start = 0; start < MLKEM_N; start += 2 * 4) {
-        zeta = zetas[k++];
-        for (j = 0; j < 4; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 4];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 4] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* len = 2 */
-    for (start = 0; start < MLKEM_N; start += 2 * 2) {
-        zeta = zetas[k++];
-        for (j = 0; j < 2; ++j) {
-            sword32 p = (sword32)zeta * r[start + j + 2];
-            sword16 t = MLKEM_MONT_RED(p);
-            sword16 rj = r[start + j];
-            r[start + j + 2] = rj - t;
-            r[start + j] = rj + t;
-        }
-    }
-    /* Reduce coefficients with quick algorithm. */
-    for (j = 0; j < MLKEM_N; ++j) {
-        sword16 t = a[j] + r[j];
-        a[j] = MLKEM_BARRETT_RED(t);
-    }
-#else
-    /* Unroll len (2, 3, 2) and start loops. */
-    unsigned int j;
-    sword16 t0;
-    sword16 t1;
-    sword16 t2;
-    sword16 t3;
-
-    /* len = 128,64 */
-    sword16 zeta128 = zetas[1];
-    sword16 zeta64_0 = zetas[2];
-    sword16 zeta64_1 = zetas[3];
-    for (j = 0; j < MLKEM_N / 8; j++) {
-        sword16 r0 = r[j +   0];
-        sword16 r1 = r[j +  32];
-        sword16 r2 = r[j +  64];
-        sword16 r3 = r[j +  96];
-        sword16 r4 = r[j + 128];
-        sword16 r5 = r[j + 160];
-        sword16 r6 = r[j + 192];
-        sword16 r7 = r[j + 224];
-
-        t0 = MLKEM_MONT_RED((sword32)zeta128 * r4);
-        t1 = MLKEM_MONT_RED((sword32)zeta128 * r5);
-        t2 = MLKEM_MONT_RED((sword32)zeta128 * r6);
-        t3 = MLKEM_MONT_RED((sword32)zeta128 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
-
-        t0 = MLKEM_MONT_RED((sword32)zeta64_0 * r2);
-        t1 = MLKEM_MONT_RED((sword32)zeta64_0 * r3);
-        t2 = MLKEM_MONT_RED((sword32)zeta64_1 * r6);
-        t3 = MLKEM_MONT_RED((sword32)zeta64_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
-
-        r[j +   0] = r0;
-        r[j +  32] = r1;
-        r[j +  64] = r2;
-        r[j +  96] = r3;
-        r[j + 128] = r4;
-        r[j + 160] = r5;
-        r[j + 192] = r6;
-        r[j + 224] = r7;
-    }
-
-    /* len = 32,16,8 */
-    for (j = 0; j < MLKEM_N; j += 64) {
-        int i;
-        sword16 zeta32   = zetas[ 4 + j / 64 + 0];
-        sword16 zeta16_0 = zetas[ 8 + j / 32 + 0];
-        sword16 zeta16_1 = zetas[ 8 + j / 32 + 1];
-        sword16 zeta8_0  = zetas[16 + j / 16 + 0];
-        sword16 zeta8_1  = zetas[16 + j / 16 + 1];
-        sword16 zeta8_2  = zetas[16 + j / 16 + 2];
-        sword16 zeta8_3  = zetas[16 + j / 16 + 3];
-        for (i = 0; i < 8; i++) {
-            sword16 r0 = r[j + i +  0];
-            sword16 r1 = r[j + i +  8];
-            sword16 r2 = r[j + i + 16];
-            sword16 r3 = r[j + i + 24];
-            sword16 r4 = r[j + i + 32];
-            sword16 r5 = r[j + i + 40];
-            sword16 r6 = r[j + i + 48];
-            sword16 r7 = r[j + i + 56];
-
-            t0 = MLKEM_MONT_RED((sword32)zeta32 * r4);
-            t1 = MLKEM_MONT_RED((sword32)zeta32 * r5);
-            t2 = MLKEM_MONT_RED((sword32)zeta32 * r6);
-            t3 = MLKEM_MONT_RED((sword32)zeta32 * r7);
-            r4 = r0 - t0;
-            r5 = r1 - t1;
-            r6 = r2 - t2;
-            r7 = r3 - t3;
-            r0 += t0;
-            r1 += t1;
-            r2 += t2;
-            r3 += t3;
-
-            t0 = MLKEM_MONT_RED((sword32)zeta16_0 * r2);
-            t1 = MLKEM_MONT_RED((sword32)zeta16_0 * r3);
-            t2 = MLKEM_MONT_RED((sword32)zeta16_1 * r6);
-            t3 = MLKEM_MONT_RED((sword32)zeta16_1 * r7);
-            r2 = r0 - t0;
-            r3 = r1 - t1;
-            r6 = r4 - t2;
-            r7 = r5 - t3;
-            r0 += t0;
-            r1 += t1;
-            r4 += t2;
-            r5 += t3;
-
-            t0 = MLKEM_MONT_RED((sword32)zeta8_0 * r1);
-            t1 = MLKEM_MONT_RED((sword32)zeta8_1 * r3);
-            t2 = MLKEM_MONT_RED((sword32)zeta8_2 * r5);
-            t3 = MLKEM_MONT_RED((sword32)zeta8_3 * r7);
-            r1 = r0 - t0;
-            r3 = r2 - t1;
-            r5 = r4 - t2;
-            r7 = r6 - t3;
-            r0 += t0;
-            r2 += t1;
-            r4 += t2;
-            r6 += t3;
-
-            r[j + i +  0] = r0;
-            r[j + i +  8] = r1;
-            r[j + i + 16] = r2;
-            r[j + i + 24] = r3;
-            r[j + i + 32] = r4;
-            r[j + i + 40] = r5;
-            r[j + i + 48] = r6;
-            r[j + i + 56] = r7;
-        }
-    }
-
-    /* len = 4,2 and Final reduction */
-    for (j = 0; j < MLKEM_N; j += 8) {
-        sword16 zeta4  = zetas[32 + j / 8 + 0];
-        sword16 zeta2_0 = zetas[64 + j / 4 + 0];
-        sword16 zeta2_1 = zetas[64 + j / 4 + 1];
-        sword16 r0 = r[j + 0];
-        sword16 r1 = r[j + 1];
-        sword16 r2 = r[j + 2];
-        sword16 r3 = r[j + 3];
-        sword16 r4 = r[j + 4];
-        sword16 r5 = r[j + 5];
-        sword16 r6 = r[j + 6];
-        sword16 r7 = r[j + 7];
-
-        t0 = MLKEM_MONT_RED((sword32)zeta4 * r4);
-        t1 = MLKEM_MONT_RED((sword32)zeta4 * r5);
-        t2 = MLKEM_MONT_RED((sword32)zeta4 * r6);
-        t3 = MLKEM_MONT_RED((sword32)zeta4 * r7);
-        r4 = r0 - t0;
-        r5 = r1 - t1;
-        r6 = r2 - t2;
-        r7 = r3 - t3;
-        r0 += t0;
-        r1 += t1;
-        r2 += t2;
-        r3 += t3;
-
-        t0 = MLKEM_MONT_RED((sword32)zeta2_0 * r2);
-        t1 = MLKEM_MONT_RED((sword32)zeta2_0 * r3);
-        t2 = MLKEM_MONT_RED((sword32)zeta2_1 * r6);
-        t3 = MLKEM_MONT_RED((sword32)zeta2_1 * r7);
-        r2 = r0 - t0;
-        r3 = r1 - t1;
-        r6 = r4 - t2;
-        r7 = r5 - t3;
-        r0 += t0;
-        r1 += t1;
-        r4 += t2;
-        r5 += t3;
-
-        r0 += a[j + 0];
-        r1 += a[j + 1];
-        r2 += a[j + 2];
-        r3 += a[j + 3];
-        r4 += a[j + 4];
-        r5 += a[j + 5];
-        r6 += a[j + 6];
-        r7 += a[j + 7];
-
-        a[j + 0] = MLKEM_BARRETT_RED(r0);
-        a[j + 1] = MLKEM_BARRETT_RED(r1);
-        a[j + 2] = MLKEM_BARRETT_RED(r2);
-        a[j + 3] = MLKEM_BARRETT_RED(r3);
-        a[j + 4] = MLKEM_BARRETT_RED(r4);
-        a[j + 5] = MLKEM_BARRETT_RED(r5);
-        a[j + 6] = MLKEM_BARRETT_RED(r6);
-        a[j + 7] = MLKEM_BARRETT_RED(r7);
-    }
-#endif
-}
-#endif
-
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
     !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
 /* Zetas for inverse NTT. */
@@ -1783,6 +1481,308 @@ void mlkem_decapsulate(const sword16* s, sword16* w, sword16* u,
 #else
 
 #ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
+
+#if !defined(WOLFSSL_MLKEM_SMALL) && !defined(WOLFSSL_MLKEM_NO_LARGE_CODE)
+/* Number-Theoretic Transform.
+ *
+ * FIPS 203, Algorithm 9: NTT(f)
+ * Computes the NTT representation f_hat of the given polynomial f element of
+ * R_q.
+ *   1: f_hat <- f
+ *   2: i <- 1
+ *   3: for (len <- 128; len >= 2; len <- len/2)
+ *   4:     for (start <- 0; start < 256; start <- start + 2.len)
+ *   5:         zeta <- zetas^BitRev_7(i) mod q
+ *   6:         i <- i + 1
+ *   7:         for (j <- start; j < start + len; j++)
+ *   8:             t <- zeta.f[j+len]
+ *   9:             f_hat[j+len] <- f_hat[j] - t
+ *  10:             f_hat[j] <- f_hat[j] - t
+ *  11:         end for
+ *  12:     end for
+ *  13: end for
+ *  14: return f_hat
+ *
+ * @param  [in, out]  r  Polynomial to transform.
+ */
+static void mlkem_ntt_add_to(sword16* r, sword16* a)
+{
+#if defined(WOLFSSL_MLKEM_NTT_UNROLL)
+    /* Unroll len loop (Step 3). */
+    unsigned int k = 1;
+    unsigned int j;
+    unsigned int start;
+    sword16 zeta = zetas[k++];
+
+    /* len = 128 */
+    for (j = 0; j < MLKEM_N / 2; ++j) {
+        sword32 p = (sword32)zeta * r[j + MLKEM_N / 2];
+        sword16 t = MLKEM_MONT_RED(p);
+        sword16 rj = r[j];
+        r[j + MLKEM_N / 2] = rj - t;
+        r[j] = rj + t;
+    }
+    /* len = 64 */
+    for (start = 0; start < MLKEM_N; start += 2 * 64) {
+        zeta = zetas[k++];
+        for (j = 0; j < 64; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 64];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 64] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* len = 32 */
+    for (start = 0; start < MLKEM_N; start += 2 * 32) {
+        zeta = zetas[k++];
+        for (j = 0; j < 32; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 32];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 32] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* len = 16 */
+    for (start = 0; start < MLKEM_N; start += 2 * 16) {
+        zeta = zetas[k++];
+        for (j = 0; j < 16; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 16];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 16] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* len = 8 */
+    for (start = 0; start < MLKEM_N; start += 2 * 8) {
+        zeta = zetas[k++];
+        for (j = 0; j < 8; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 8];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 8] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* len = 4 */
+    for (start = 0; start < MLKEM_N; start += 2 * 4) {
+        zeta = zetas[k++];
+        for (j = 0; j < 4; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 4];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 4] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* len = 2 */
+    for (start = 0; start < MLKEM_N; start += 2 * 2) {
+        zeta = zetas[k++];
+        for (j = 0; j < 2; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 2];
+            sword16 t = MLKEM_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 2] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* Reduce coefficients with quick algorithm. */
+    for (j = 0; j < MLKEM_N; ++j) {
+        sword16 t = a[j] + r[j];
+        a[j] = MLKEM_BARRETT_RED(t);
+    }
+#else /* !WOLFSSL_MLKEM_NTT_UNROLL */
+    /* Unroll len (2, 3, 2) and start loops. */
+    unsigned int j;
+    sword16 t0;
+    sword16 t1;
+    sword16 t2;
+    sword16 t3;
+
+    /* len = 128,64 */
+    sword16 zeta128 = zetas[1];
+    sword16 zeta64_0 = zetas[2];
+    sword16 zeta64_1 = zetas[3];
+    for (j = 0; j < MLKEM_N / 8; j++) {
+        sword16 r0 = r[j +   0];
+        sword16 r1 = r[j +  32];
+        sword16 r2 = r[j +  64];
+        sword16 r3 = r[j +  96];
+        sword16 r4 = r[j + 128];
+        sword16 r5 = r[j + 160];
+        sword16 r6 = r[j + 192];
+        sword16 r7 = r[j + 224];
+
+        t0 = MLKEM_MONT_RED((sword32)zeta128 * r4);
+        t1 = MLKEM_MONT_RED((sword32)zeta128 * r5);
+        t2 = MLKEM_MONT_RED((sword32)zeta128 * r6);
+        t3 = MLKEM_MONT_RED((sword32)zeta128 * r7);
+        r4 = r0 - t0;
+        r5 = r1 - t1;
+        r6 = r2 - t2;
+        r7 = r3 - t3;
+        r0 += t0;
+        r1 += t1;
+        r2 += t2;
+        r3 += t3;
+
+        t0 = MLKEM_MONT_RED((sword32)zeta64_0 * r2);
+        t1 = MLKEM_MONT_RED((sword32)zeta64_0 * r3);
+        t2 = MLKEM_MONT_RED((sword32)zeta64_1 * r6);
+        t3 = MLKEM_MONT_RED((sword32)zeta64_1 * r7);
+        r2 = r0 - t0;
+        r3 = r1 - t1;
+        r6 = r4 - t2;
+        r7 = r5 - t3;
+        r0 += t0;
+        r1 += t1;
+        r4 += t2;
+        r5 += t3;
+
+        r[j +   0] = r0;
+        r[j +  32] = r1;
+        r[j +  64] = r2;
+        r[j +  96] = r3;
+        r[j + 128] = r4;
+        r[j + 160] = r5;
+        r[j + 192] = r6;
+        r[j + 224] = r7;
+    }
+
+    /* len = 32,16,8 */
+    for (j = 0; j < MLKEM_N; j += 64) {
+        int i;
+        sword16 zeta32   = zetas[ 4 + j / 64 + 0];
+        sword16 zeta16_0 = zetas[ 8 + j / 32 + 0];
+        sword16 zeta16_1 = zetas[ 8 + j / 32 + 1];
+        sword16 zeta8_0  = zetas[16 + j / 16 + 0];
+        sword16 zeta8_1  = zetas[16 + j / 16 + 1];
+        sword16 zeta8_2  = zetas[16 + j / 16 + 2];
+        sword16 zeta8_3  = zetas[16 + j / 16 + 3];
+        for (i = 0; i < 8; i++) {
+            sword16 r0 = r[j + i +  0];
+            sword16 r1 = r[j + i +  8];
+            sword16 r2 = r[j + i + 16];
+            sword16 r3 = r[j + i + 24];
+            sword16 r4 = r[j + i + 32];
+            sword16 r5 = r[j + i + 40];
+            sword16 r6 = r[j + i + 48];
+            sword16 r7 = r[j + i + 56];
+
+            t0 = MLKEM_MONT_RED((sword32)zeta32 * r4);
+            t1 = MLKEM_MONT_RED((sword32)zeta32 * r5);
+            t2 = MLKEM_MONT_RED((sword32)zeta32 * r6);
+            t3 = MLKEM_MONT_RED((sword32)zeta32 * r7);
+            r4 = r0 - t0;
+            r5 = r1 - t1;
+            r6 = r2 - t2;
+            r7 = r3 - t3;
+            r0 += t0;
+            r1 += t1;
+            r2 += t2;
+            r3 += t3;
+
+            t0 = MLKEM_MONT_RED((sword32)zeta16_0 * r2);
+            t1 = MLKEM_MONT_RED((sword32)zeta16_0 * r3);
+            t2 = MLKEM_MONT_RED((sword32)zeta16_1 * r6);
+            t3 = MLKEM_MONT_RED((sword32)zeta16_1 * r7);
+            r2 = r0 - t0;
+            r3 = r1 - t1;
+            r6 = r4 - t2;
+            r7 = r5 - t3;
+            r0 += t0;
+            r1 += t1;
+            r4 += t2;
+            r5 += t3;
+
+            t0 = MLKEM_MONT_RED((sword32)zeta8_0 * r1);
+            t1 = MLKEM_MONT_RED((sword32)zeta8_1 * r3);
+            t2 = MLKEM_MONT_RED((sword32)zeta8_2 * r5);
+            t3 = MLKEM_MONT_RED((sword32)zeta8_3 * r7);
+            r1 = r0 - t0;
+            r3 = r2 - t1;
+            r5 = r4 - t2;
+            r7 = r6 - t3;
+            r0 += t0;
+            r2 += t1;
+            r4 += t2;
+            r6 += t3;
+
+            r[j + i +  0] = r0;
+            r[j + i +  8] = r1;
+            r[j + i + 16] = r2;
+            r[j + i + 24] = r3;
+            r[j + i + 32] = r4;
+            r[j + i + 40] = r5;
+            r[j + i + 48] = r6;
+            r[j + i + 56] = r7;
+        }
+    }
+
+    /* len = 4,2 and Final reduction */
+    for (j = 0; j < MLKEM_N; j += 8) {
+        sword16 zeta4  = zetas[32 + j / 8 + 0];
+        sword16 zeta2_0 = zetas[64 + j / 4 + 0];
+        sword16 zeta2_1 = zetas[64 + j / 4 + 1];
+        sword16 r0 = r[j + 0];
+        sword16 r1 = r[j + 1];
+        sword16 r2 = r[j + 2];
+        sword16 r3 = r[j + 3];
+        sword16 r4 = r[j + 4];
+        sword16 r5 = r[j + 5];
+        sword16 r6 = r[j + 6];
+        sword16 r7 = r[j + 7];
+
+        t0 = MLKEM_MONT_RED((sword32)zeta4 * r4);
+        t1 = MLKEM_MONT_RED((sword32)zeta4 * r5);
+        t2 = MLKEM_MONT_RED((sword32)zeta4 * r6);
+        t3 = MLKEM_MONT_RED((sword32)zeta4 * r7);
+        r4 = r0 - t0;
+        r5 = r1 - t1;
+        r6 = r2 - t2;
+        r7 = r3 - t3;
+        r0 += t0;
+        r1 += t1;
+        r2 += t2;
+        r3 += t3;
+
+        t0 = MLKEM_MONT_RED((sword32)zeta2_0 * r2);
+        t1 = MLKEM_MONT_RED((sword32)zeta2_0 * r3);
+        t2 = MLKEM_MONT_RED((sword32)zeta2_1 * r6);
+        t3 = MLKEM_MONT_RED((sword32)zeta2_1 * r7);
+        r2 = r0 - t0;
+        r3 = r1 - t1;
+        r6 = r4 - t2;
+        r7 = r5 - t3;
+        r0 += t0;
+        r1 += t1;
+        r4 += t2;
+        r5 += t3;
+
+        r0 += a[j + 0];
+        r1 += a[j + 1];
+        r2 += a[j + 2];
+        r3 += a[j + 3];
+        r4 += a[j + 4];
+        r5 += a[j + 5];
+        r6 += a[j + 6];
+        r7 += a[j + 7];
+
+        a[j + 0] = MLKEM_BARRETT_RED(r0);
+        a[j + 1] = MLKEM_BARRETT_RED(r1);
+        a[j + 2] = MLKEM_BARRETT_RED(r2);
+        a[j + 3] = MLKEM_BARRETT_RED(r3);
+        a[j + 4] = MLKEM_BARRETT_RED(r4);
+        a[j + 5] = MLKEM_BARRETT_RED(r5);
+        a[j + 6] = MLKEM_BARRETT_RED(r6);
+        a[j + 7] = MLKEM_BARRETT_RED(r7);
+    }
+#endif /* !WOLFSSL_MLKEM_NTT_UNROLL */
+}
+#endif /* !WOLFSSL_MLKEM_SMALL && !WOLFSSL_MLKEM_NO_LARGE_CODE */
+
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 /* Generate a public-private key pair from randomly generated data.
  *
@@ -1873,7 +1873,7 @@ void mlkem_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
     }
 }
 
-#else
+#else /* WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM */
 
 /* Generate a public-private key pair from randomly generated data.
  *
@@ -1959,7 +1959,7 @@ int mlkem_keygen_seeds(sword16* s, sword16* t, MLKEM_PRF_T* prf,
     return ret;
 }
 
-#endif
+#endif /* WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM */
 #endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY */
 
 #if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
