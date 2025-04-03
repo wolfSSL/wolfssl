@@ -59,20 +59,19 @@ enum {
 
 #ifdef WOLFSSL_BASE64_DECODE
 
-#ifdef BASE64_NO_TABLE
-static WC_INLINE byte Base64_Char2Val(byte c)
+static WC_INLINE byte Base64_Char2Val_CT(byte c)
 {
-    word16 v;
-    sword16 smallEnd   = (sword16)c - 0x7b;
-    sword16 smallStart = (sword16)c - 0x61;
-    sword16 bigEnd     = (sword16)c - 0x5b;
-    sword16 bigStart   = (sword16)c - 0x41;
-    sword16 numEnd     = (sword16)c - 0x3a;
-    sword16 numStart   = (sword16)c - 0x30;
-    sword16 slashEnd   = (sword16)c - 0x30;
-    sword16 slashStart = (sword16)c - 0x2f;
-    sword16 plusEnd    = (sword16)c - 0x2c;
-    sword16 plusStart  = (sword16)c - 0x2b;
+    int v;
+    int smallEnd   = (int)c - 0x7b;
+    int smallStart = (int)c - 0x61;
+    int bigEnd     = (int)c - 0x5b;
+    int bigStart   = (int)c - 0x41;
+    int numEnd     = (int)c - 0x3a;
+    int numStart   = (int)c - 0x30;
+    int slashEnd   = (int)c - 0x30;
+    int slashStart = (int)c - 0x2f;
+    int plusEnd    = (int)c - 0x2c;
+    int plusStart  = (int)c - 0x2b;
 
     v  = ((smallStart >> 8) ^ (smallEnd >> 8)) & (smallStart + 26 + 1);
     v |= ((bigStart   >> 8) ^ (bigEnd   >> 8)) & (bigStart   +  0 + 1);
@@ -82,9 +81,11 @@ static WC_INLINE byte Base64_Char2Val(byte c)
 
     return (byte)(v - 1);
 }
-#else
+
+#ifndef BASE64_NO_TABLE
+
 static
-ALIGN64 const byte base64Decode[] = {          /* + starts at 0x2B */
+ALIGN64 const byte base64Decode_table[] = {    /* + starts at 0x2B */
 /* 0x28:       + , - . / */                   62, BAD, BAD, BAD,  63,
 /* 0x30: 0 1 2 3 4 5 6 7 */    52,  53,  54,  55,  56,  57,  58,  59,
 /* 0x38: 8 9 : ; < = > ? */    60,  61, BAD, BAD, BAD, BAD, BAD, BAD,
@@ -97,11 +98,11 @@ ALIGN64 const byte base64Decode[] = {          /* + starts at 0x2B */
 /* 0x70: p q r s t u v w */    41,  42,  43,  44,  45,  46,  47,  48,
 /* 0x78: x y z           */    49,  50,  51
                             };
-#define BASE64DECODE_SZ    (byte)(sizeof(base64Decode))
+#define BASE64DECODE_TABLE_SZ    (byte)(sizeof(base64Decode_table))
 
-static WC_INLINE byte Base64_Char2Val(byte c)
+static WC_INLINE byte Base64_Char2Val_by_table(byte c)
 {
-#ifndef WC_NO_CACHE_RESISTANT
+#ifdef WC_CACHE_RESISTANT_BASE64_TABLE
     /* 80 characters in table.
      * 64 bytes in a cache line - first line has 64, second has 16
      */
@@ -111,16 +112,17 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     c = (byte)(c - BASE64_MIN);
     mask = (byte)((((byte)(0x3f - c)) >> 7) - 1);
     /* Load a value from the first cache line and use when mask set. */
-    v  = (byte)(base64Decode[ c & 0x3f        ] &   mask);
+    v  = (byte)(base64Decode_table[ c & 0x3f        ] &   mask);
     /* Load a value from the second cache line and use when mask not set. */
-    v |= (byte)(base64Decode[(c & 0x0f) | 0x40] & (~mask));
+    v |= (byte)(base64Decode_table[(c & 0x0f) | 0x40] & (~mask));
 
     return v;
 #else
-    return base64Decode[c - BASE64_MIN];
+    return base64Decode_table[c - BASE64_MIN];
 #endif
 }
-#endif
+
+#endif /* !BASE64_NO_TABLE */
 
 int Base64_SkipNewline(const byte* in, word32 *inLen,
   word32 *outJ)
@@ -170,15 +172,15 @@ int Base64_SkipNewline(const byte* in, word32 *inLen,
     return 0;
 }
 
-int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+#ifndef BASE64_NO_TABLE
+
+int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
     word32 j = 0;
     word32 plainSz = inLen - ((inLen + (BASE64_LINE_SZ - 1)) / BASE64_LINE_SZ );
     int ret;
-#ifndef BASE64_NO_TABLE
-    const byte maxIdx = BASE64DECODE_SZ + BASE64_MIN - 1;
-#endif
+    const byte maxIdx = BASE64DECODE_TABLE_SZ + BASE64_MIN - 1;
 
     plainSz = (plainSz * 3 + 3) / 4;
     if (plainSz > *outLen) return BAD_FUNC_ARG;
@@ -225,7 +227,6 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (pad3 && !pad4)
             return ASN_INPUT_E;
 
-#ifndef BASE64_NO_TABLE
         if (e1 < BASE64_MIN || e2 < BASE64_MIN || e3 < BASE64_MIN ||
                                                               e4 < BASE64_MIN) {
             WOLFSSL_MSG("Bad Base64 Decode data, too small");
@@ -236,17 +237,16 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             WOLFSSL_MSG("Bad Base64 Decode data, too big");
             return ASN_INPUT_E;
         }
-#endif
 
         if (i + 1 + !pad3 + !pad4 > *outLen) {
             WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
             return BAD_FUNC_ARG;
         }
 
-        e1 = Base64_Char2Val(e1);
-        e2 = Base64_Char2Val(e2);
-        e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val(e3));
-        e4 = (byte)((e4 == PAD) ? 0 : Base64_Char2Val(e4));
+        e1 = Base64_Char2Val_by_table(e1);
+        e2 = Base64_Char2Val_by_table(e2);
+        e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val_by_table(e3));
+        e4 = (byte)((e4 == PAD) ? 0 : Base64_Char2Val_by_table(e4));
 
         if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
             WOLFSSL_MSG("Bad Base64 Decode bad character");
@@ -265,7 +265,8 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         else
             break;
     }
-/* If the output buffer has a room for an extra byte, add a null terminator */
+
+    /* If the output buffer has a room for an extra byte, add a null terminator */
     if (out && *outLen > i)
         out[i]= '\0';
 
@@ -273,6 +274,103 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
     return 0;
 }
+
+#endif /* !BASE64_NO_TABLE */
+
+int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
+{
+    word32 i = 0;
+    word32 j = 0;
+    word32 plainSz = inLen - ((inLen + (BASE64_LINE_SZ - 1)) / BASE64_LINE_SZ );
+    int ret;
+
+    plainSz = (plainSz * 3 + 3) / 4;
+    if (plainSz > *outLen) return BAD_FUNC_ARG;
+
+    while (inLen > 3) {
+        int pad3 = 0;
+        int pad4 = 0;
+        byte b1, b2, b3;
+        byte e1, e2, e3, e4;
+
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
+                /* Running out of buffer here is not an error */
+                break;
+            }
+            return ret;
+        }
+        e1 = in[j++];
+        if (e1 == '\0') {
+            break;
+        }
+        inLen--;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        e2 = in[j++];
+        inLen--;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        e3 = in[j++];
+        inLen--;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        e4 = in[j++];
+        inLen--;
+
+        if (e3 == PAD)
+            pad3 = 1;
+        if (e4 == PAD)
+            pad4 = 1;
+
+        if (pad3 && !pad4)
+            return ASN_INPUT_E;
+
+        if (i + 1 + !pad3 + !pad4 > *outLen) {
+            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
+            return BAD_FUNC_ARG;
+        }
+
+        e1 = Base64_Char2Val_CT(e1);
+        e2 = Base64_Char2Val_CT(e2);
+        e3 = (byte)((e3 == PAD) ? 0 : Base64_Char2Val_CT(e3));
+        e4 = (byte)((e4 == PAD) ? 0 : Base64_Char2Val_CT(e4));
+
+        if (e1 == BAD || e2 == BAD || e3 == BAD || e4 == BAD) {
+            WOLFSSL_MSG("Bad Base64 Decode bad character");
+            return ASN_INPUT_E;
+        }
+
+        b1 = (byte)((e1 << 2) | (e2 >> 4));
+        b2 = (byte)(((e2 & 0xF) << 4) | (e3 >> 2));
+        b3 = (byte)(((e3 & 0x3) << 6) | e4);
+
+        out[i++] = b1;
+        if (!pad3)
+            out[i++] = b2;
+        if (!pad4)
+            out[i++] = b3;
+        else
+            break;
+    }
+
+    /* If the output buffer has a room for an extra byte, add a null terminator */
+    if (out && *outLen > i)
+        out[i]= '\0';
+
+    *outLen = i;
+
+    return 0;
+}
+
+#ifdef BASE64_NO_TABLE
+int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen) {
+    return Base64_Decode(in, inLen, out, outLen);
+}
+#endif /* BASE64_NO_TABLE */
 
 #endif /* WOLFSSL_BASE64_DECODE */
 

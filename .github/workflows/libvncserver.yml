@@ -81,7 +81,7 @@ jobs:
         run: |
           patch -p1 < ../osp/libvncserver/${{ matrix.ref }}.patch
           PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig \
-            cmake -B build -DWITH_GNUTLS=OFF -DWITH_OPENSSL=OFF -DWITH_GCRYPT=OFF -DWITH_WOLFSSL=ON .
+            cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -B build -DWITH_GNUTLS=OFF -DWITH_OPENSSL=OFF -DWITH_GCRYPT=OFF -DWITH_WOLFSSL=ON .
           make -j -C build VERBOSE=1
           ldd build/libvncclient.so | grep wolfssl
           ldd build/libvncserver.so | grep wolfssl

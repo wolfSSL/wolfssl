@@ -26556,10 +26556,27 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     }
     der = *pDer;
 
-    if (Base64_Decode((byte*)headerEnd, (word32)neededSz,
-                      der->buffer, &der->length) < 0) {
-        WOLFSSL_ERROR(BUFFER_E);
-        return BUFFER_E;
+    switch (type) {
+    case PUBLICKEY_TYPE:
+    case ECC_PUBLICKEY_TYPE:
+    case RSA_PUBLICKEY_TYPE:
+    case CERT_TYPE:
+    case TRUSTED_CERT_TYPE:
+    case CRL_TYPE:
+        if (Base64_Decode_nonCT((byte*)headerEnd, (word32)neededSz,
+                          der->buffer, &der->length) < 0)
+        {
+            WOLFSSL_ERROR(BUFFER_E);
+            return BUFFER_E;
+        }
+        break;
+    default:
+        if (Base64_Decode((byte*)headerEnd, (word32)neededSz,
+                          der->buffer, &der->length) < 0) {
+            WOLFSSL_ERROR(BUFFER_E);
+            return BUFFER_E;
+        }
+        break;
     }
 
     if ((header == BEGIN_PRIV_KEY
