@@ -484,6 +484,9 @@ WOLFSSL_API void wc_CryptoCb_SetDeviceFindCb(CryptoDevCallbackFind cb);
 WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 #endif
 
+#ifdef WOLF_CRYPTO_CB_CMD
+WOLFSSL_API int wc_CryptoCb_Command(int devId, int cmd_type, void *arg, void* *out_arg);
+#endif
 /* old function names */
 #define wc_CryptoDev_RegisterDevice   wc_CryptoCb_RegisterDevice
 #define wc_CryptoDev_UnRegisterDevice wc_CryptoCb_UnRegisterDevice
