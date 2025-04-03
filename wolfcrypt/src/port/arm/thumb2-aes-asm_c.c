@@ -1908,12 +1908,13 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r5") =
         (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte L_AES_Thumb2_td4_c __asm__ ("r6") = (byte)(word32)&L_AES_Thumb2_td4;
+    register byte* L_AES_Thumb2_td4_c __asm__ ("r6") =
+        (byte*)&L_AES_Thumb2_td4;
 
 #else
     register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte L_AES_Thumb2_td4_c = (byte)&L_AES_Thumb2_td4;
+    register byte* L_AES_Thumb2_td4_c = (byte*)&L_AES_Thumb2_td4;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
@@ -2134,12 +2135,13 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
     register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r6") =
         (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte L_AES_Thumb2_td4_c __asm__ ("r7") = (byte)(word32)&L_AES_Thumb2_td4;
+    register byte* L_AES_Thumb2_td4_c __asm__ ("r7") =
+        (byte*)&L_AES_Thumb2_td4;
 
 #else
     register word32* L_AES_Thumb2_td_ecb_c = (word32*)L_AES_Thumb2_td_ecb;
 
-    register byte L_AES_Thumb2_td4_c = (byte)&L_AES_Thumb2_td4;
+    register byte* L_AES_Thumb2_td4_c = (byte*)&L_AES_Thumb2_td4;
 
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
