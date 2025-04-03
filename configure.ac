@@ -178,23 +178,6 @@ DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
 
-CAN_USE_32B_BOUNDARIES_FLAG=no
-AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
-    [CAN_USE_32B_BOUNDARIES_FLAG=yes],
-    [CAN_USE_32B_BOUNDARIES_FLAG=no],
-    [-Werror],[])
-
-if test "$CAN_USE_32B_BOUNDARIES_FLAG" = "yes"
-then
-    EXTRA_OPTS_CFLAGS=
-    if test "$host_cpu" = "x86_64"
-    then
-        if test "$GCC" = "yes" || test "$CC" = "icc"
-        then
-            EXTRA_OPTS_CFLAGS="$EXTRA_OPTS_CFLAGS -Wa,-mbranches-within-32B-boundaries -falign-loops=64"
-        fi
-    fi
-fi
 OPTIMIZE_CFLAGS="$OPTIMIZE_CFLAGS $EXTRA_OPTS_CFLAGS"
 OPTIMIZE_FAST_CFLAGS="$OPTIMIZE_FAST_CFLAGS $EXTRA_OPTS_CFLAGS"
 OPTIMIZE_HUGE_CFLAGS="$OPTIMIZE_HUGE_CFLAGS $EXTRA_OPTS_CFLAGS"
@@ -2534,6 +2517,30 @@ if test "$ENABLED_FAULTHARDEN" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHECK_SIG_FAULTS -DWOLFSSL_CHECK_VER_FAULTS"
 fi
+
+AC_ARG_ENABLE([compileharden],
+    [AS_HELP_STRING([--enable-compileharden],[Enable extra hardening compile flags (default: disabled)])],
+    [ENABLED_COMPILEHARDEN=$enableval],
+    [ENABLED_COMPILEHARDEN=no])
+
+EXTRA_OPTS_CFLAGS=
+if test "$ENABLED_COMPILEHARDEN" = "yes"
+then
+    CAN_USE_32B_BOUNDARIES_FLAG=no
+    AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
+        [CAN_USE_32B_BOUNDARIES_FLAG=yes],
+        [CAN_USE_32B_BOUNDARIES_FLAG=no],
+        [-Werror],[])
+
+    if test "$CAN_USE_32B_BOUNDARIES_FLAG" = "yes"
+    then
+        EXTRA_OPTS_CFLAGS="$EXTRA_OPTS_CFLAGS -Wa,-mbranches-within-32B-boundaries -falign-loops=64"
+    else
+        AC_MSG_ERROR([compiler does not accept -mbranches-within-32B-boundaries flag])
+    fi
+fi
+
+
 
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
