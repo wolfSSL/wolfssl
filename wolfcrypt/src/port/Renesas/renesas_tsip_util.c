@@ -2425,6 +2425,7 @@ WOLFSSL_LOCAL int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
         switch (keyType) {
 
         #if !defined(NO_RSA)
+        #if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
             case TSIP_KEY_TYPE_RSA2048:
             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
                 tuc->ClientRsa2048PubKey_set = 0;
@@ -2458,7 +2459,7 @@ WOLFSSL_LOCAL int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                     ret = WC_HW_E;
                 }
                 break;
-
+        #endif /* TSIP_RSAES_2048 */
             case TSIP_KEY_TYPE_RSA4096:
                 /* not supported as of TSIPv1.15 */
                 ret = CRYPTOCB_UNAVAILABLE;
@@ -3705,18 +3706,22 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     switch (tuc->wrappedKeyType) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
         case TSIP_KEY_TYPE_RSA1024:
             if (tuc->keyflgs_crypt.bits.rsapri1024_key_set != 1) {
                 WOLFSSL_MSG("tsip rsa private key 1024 not set");
                     ret = CRYPTOCB_UNAVAILABLE;
             }
             break;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
         case TSIP_KEY_TYPE_RSA2048:
             if (tuc->keyflgs_crypt.bits.rsapri2048_key_set != 1) {
                 WOLFSSL_MSG("tsip rsa private key 2048 not set");
                     ret = CRYPTOCB_UNAVAILABLE;
             }
             break;
+#endif
         default:
             WOLFSSL_MSG("wrapped private key is not supported");
             ret = CRYPTOCB_UNAVAILABLE;
@@ -3739,7 +3744,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     #endif
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
-            #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
                 case TSIP_KEY_TYPE_RSA1024:
                     err = R_TSIP_RsassaPkcs1024SignatureGenerate(
                                                 &hashData, &sigData,
@@ -3751,7 +3756,8 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                         ret = WC_HW_E;
                     }
                     break;
-            #endif
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     err = R_TSIP_RsassaPkcs2048SignatureGenerate(
                                                 &hashData, &sigData,
@@ -3766,8 +3772,9 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     if (err != TSIP_SUCCESS) {
                         ret = WC_HW_E;
                     }
+                    *(info->pk.rsa.outLen) = sigData.data_length;
                     break;
-
+#endif
                 case TSIP_KEY_TYPE_RSA4096:
                     ret = CRYPTOCB_UNAVAILABLE;
                     break;
@@ -3848,7 +3855,7 @@ WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
         if ((ret = tsip_hw_lock()) == 0) {
 
             switch (tuc->wrappedKeyType) {
-
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     sigData.data_length = 256;
                     err = R_TSIP_RsassaPkcs2048SignatureVerification(
@@ -3866,7 +3873,7 @@ WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
                         ret = WC_HW_E;
                     }
                     break;
-
+#endif
                 case TSIP_KEY_TYPE_RSA4096:
                     ret = CRYPTOCB_UNAVAILABLE;
                     break;
