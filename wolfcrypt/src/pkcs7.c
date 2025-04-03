@@ -2645,10 +2645,10 @@ static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
                 int amtWritten = 0;
 
                 /* loop over current buffer until it is empty */
-                while (idx + sz > BER_OCTET_LENGTH) {
+                while (idx + (word32)sz > BER_OCTET_LENGTH) {
                     sz = BER_OCTET_LENGTH;
                     if (idx > 0) { /* account for previously stored data */
-                        sz = BER_OCTET_LENGTH - idx;
+                        sz = BER_OCTET_LENGTH - (int)idx;
                     }
                     contentDataRead -= sz;
 
