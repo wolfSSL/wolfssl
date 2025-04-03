@@ -2642,21 +2642,32 @@ static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
             /* check and handle octet boundary */
             sz = contentDataRead;
             if ((int)idx + sz > BER_OCTET_LENGTH) {
-                sz = BER_OCTET_LENGTH - (int)idx;
-                contentDataRead -= sz;
+                int amtWritten = 0;
 
-                XMEMCPY(contentData + idx, buf, (word32)sz);
-                ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType,
-                    aes, encContentOut, contentData, BER_OCTET_LENGTH, out,
-                    &outIdx, esd);
-                if (ret != 0) {
-                    XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
-                    XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
-                    return ret;
+                /* loop over current buffer until it is empty */
+                while (idx + sz > BER_OCTET_LENGTH) {
+                    sz = BER_OCTET_LENGTH;
+                    if (idx > 0) { /* account for previously stored data */
+                        sz = BER_OCTET_LENGTH - idx;
+                    }
+                    contentDataRead -= sz;
+
+                    XMEMCPY(contentData + idx, buf, (word32)sz);
+                    ret = wc_PKCS7_EncodeContentStreamHelper(pkcs7, cipherType,
+                        aes, encContentOut, contentData, BER_OCTET_LENGTH, out,
+                        &outIdx, esd);
+                    if (ret != 0) {
+                        XFREE(encContentOut, heap, DYNAMIC_TYPE_PKCS7);
+                        XFREE(contentData, heap, DYNAMIC_TYPE_PKCS7);
+                        return ret;
+                    }
+                    idx = 0; /* cleared out previously stored data */
+                    amtWritten += sz;
+                    sz  = contentDataRead;
                 }
 
                 /* copy over any remaining data */
-                XMEMCPY(contentData, buf + sz, (word32)contentDataRead);
+                XMEMCPY(contentData, buf + amtWritten, (word32)contentDataRead);
                 idx = (word32)contentDataRead;
             }
             else {
