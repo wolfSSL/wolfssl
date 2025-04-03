@@ -1051,11 +1051,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1155,11 +1151,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1256,11 +1248,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1339,11 +1327,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
