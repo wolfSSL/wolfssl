@@ -1339,10 +1339,10 @@ static void wc_lmots_public_key_encode(const LmsParams* params,
     const byte* priv_i = priv + LMS_Q_LEN + params->hash_len;
 
     /* u32str(type) || ... || T(1) */
-    c32toa(params->lmsType, pub);
+    c32toa(params->lmsType & LMS_H_W_MASK, pub);
     pub += 4;
     /* u32str(type) || u32str(otstype) || ... || T(1) */
-    c32toa(params->lmOtsType, pub);
+    c32toa(params->lmOtsType & LMS_H_W_MASK, pub);
     pub += 4;
     /* u32str(type) || u32str(otstype) || I || T(1) */
     XMEMCPY(pub, priv_i, LMS_I_LEN);
@@ -1365,14 +1365,14 @@ static int wc_lmots_public_key_check(const LmsParams* params, const byte* pub)
     ato32(pub, &type);
     pub += 4;
     /* Compare with parameters. */
-    if (type != params->lmsType) {
+    if (type != (params->lmsType & LMS_H_W_MASK)) {
         ret = PUBLIC_KEY_E;
     }
     if (ret == 0) {
         /* Get node hash and Winternitz width type. */
         ato32(pub, &type);
         /* Compare with parameters. */
-        if (type != params->lmOtsType) {
+        if (type != (params->lmOtsType & LMS_H_W_MASK)) {
             ret = PUBLIC_KEY_E;
         }
     }
@@ -2250,7 +2250,7 @@ static int wc_lms_sign(LmsState* state, const byte* priv, const byte* msg,
     s += LMS_Q_LEN;
 
     /* ots_signature = sig = u32str(type) || ... */
-    c32toa(state->params->lmOtsType, s);
+    c32toa(state->params->lmOtsType & LMS_H_W_MASK, s);
     s += LMS_TYPE_LEN;
     /* Sign this level.
      * S = u32str(q) || ots_signature || ... */
@@ -2259,7 +2259,7 @@ static int wc_lms_sign(LmsState* state, const byte* priv, const byte* msg,
         /* Skip over ots_signature. */
         s += params->hash_len + params->p * params->hash_len;
         /* S = u32str(q) || ots_signature || u32str(type) || ... */
-        c32toa(params->lmsType, s);
+        c32toa(params->lmsType & LMS_H_W_MASK, s);
     }
 
     return ret;
@@ -2280,13 +2280,13 @@ static void wc_lms_sig_copy(const LmsParams* params, const byte* y,
     XMEMCPY(sig, priv, LMS_Q_LEN);
     sig += LMS_Q_LEN;
     /* S = u32str(q) || ... */
-    c32toa(params->lmOtsType, sig);
+    c32toa(params->lmOtsType & LMS_H_W_MASK, sig);
     sig += LMS_TYPE_LEN;
     /* S = u32str(q) || ots_signature || ... */
     XMEMCPY(sig, y, params->hash_len + params->p * params->hash_len);
     sig += params->hash_len + params->p * params->hash_len;
     /* S = u32str(q) || ots_signature || u32str(type) || ... */
-    c32toa(params->lmsType, sig);
+    c32toa(params->lmsType & LMS_H_W_MASK, sig);
 }
 #endif /* !WOLFSSL_WC_LMS_SMALL && !WOLFSSL_LMS_NO_SIG_CACHE */
 #endif /* !WOLFSSL_LMS_VERIFY_ONLY */
