@@ -25447,7 +25447,8 @@ int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
 #endif /* !NO_CERTS */
 
 #if defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS12) || \
-    (defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT))
+    (defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 int SetMyVersion(word32 version, byte* output, int header)
 {
     int i = 0;
