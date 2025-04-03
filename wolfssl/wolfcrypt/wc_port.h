@@ -83,8 +83,9 @@
 #endif /* !WC_MAYBE_UNUSED */
 
 #ifndef WC_DEPRECATED
-    #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || \
-            defined(__IAR_SYSTEMS_ICC__)
+    #if !defined(WOLFSSL_ZEPHYR) && \
+            ((defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || \
+            defined(__IAR_SYSTEMS_ICC__))
         #define WC_DEPRECATED __attribute__((deprecated))
     #else
         #define WC_DEPRECATED
