@@ -178,12 +178,21 @@ DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
 
-EXTRA_OPTS_CFLAGS=
-if test "$host_cpu" = "x86_64"
+CAN_USE_32B_BOUNDARIES_FLAG=no
+AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
+    [CAN_USE_32B_BOUNDARIES_FLAG=yes],
+    [CAN_USE_32B_BOUNDARIES_FLAG=no],
+    [-Werror],[])
+
+if test "$CAN_USE_32B_BOUNDARIES_FLAG" = "yes"
 then
-    if test "$CC" = "gcc" || test "$CC" = "icc"
+    EXTRA_OPTS_CFLAGS=
+    if test "$host_cpu" = "x86_64"
     then
-        EXTRA_OPTS_CFLAGS="$EXTRA_OPTS_CFLAGS -Wa,-mbranches-within-32B-boundaries -falign-loops=64"
+        if test "$GCC" = "yes" || test "$CC" = "icc"
+        then
+            EXTRA_OPTS_CFLAGS="$EXTRA_OPTS_CFLAGS -Wa,-mbranches-within-32B-boundaries -falign-loops=64"
+        fi
     fi
 fi
 OPTIMIZE_CFLAGS="$OPTIMIZE_CFLAGS $EXTRA_OPTS_CFLAGS"
