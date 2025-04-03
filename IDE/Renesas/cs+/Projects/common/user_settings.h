@@ -76,4 +76,5 @@
 
 #define NO_FILESYSTEM
 
+#define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
 
