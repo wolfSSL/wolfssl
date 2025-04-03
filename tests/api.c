@@ -4933,11 +4933,13 @@ static int test_wolfSSL_FPKI(void)
         DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_GetFASCNFromCert(&cert, fascn, &fascnSz), 0);
     XFREE(fascn, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    fascn = NULL;
 
     ExpectIntEQ(wc_GetUUIDFromCert(&cert, NULL, &uuidSz), WC_NO_ERR_TRACE(LENGTH_ONLY_E));
     ExpectNotNull(uuid = (byte*)XMALLOC(uuidSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_GetUUIDFromCert(&cert, uuid, &uuidSz), 0);
     XFREE(uuid, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    uuid = NULL;
     wc_FreeDecodedCert(&cert);
 
     XMEMSET(buf, 0, 4096);
