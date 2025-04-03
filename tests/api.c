@@ -2312,6 +2312,10 @@ static int test_wolfSSL_CTX_use_PrivateKey_file(void)
     /* invalid key type */
     ExpectFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, 9999));
 
+    /* invalid key format */
+    ExpectFalse(wolfSSL_CTX_use_PrivateKey_file(ctx, "./certs/dh-priv-2048.pem",
+                                                         WOLFSSL_FILETYPE_PEM));
+
     /* success */
 #ifdef NO_RSA
     /* rsa needed */
