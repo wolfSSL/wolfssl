@@ -2359,7 +2359,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     }
 
                     dns = dns->next;
-                    if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) <= 0) {
+                    /* Using wolfSSL_sk_insert to maintain backwards
+                     * compatiblity with earlier versions of _push API that
+                     * pushed items to the start of the list instead of the
+                     * end. */
+                    if (wolfSSL_sk_insert(sk, gn, 0) <= 0) {
                         WOLFSSL_MSG("Error pushing ASN1 object onto stack");
                         goto err;
                     }
