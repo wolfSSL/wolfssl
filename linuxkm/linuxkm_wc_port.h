@@ -289,6 +289,12 @@
         #include <crypto/internal/aead.h>
         #include <crypto/internal/skcipher.h>
 
+        #if defined(HAVE_ECC) && \
+            (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+             defined(LINUXKM_LKCAPI_REGISTER_ECDSA))
+             #include <crypto/internal/akcipher.h>
+        #endif /* HAVE_ECC && (REGISTER_ALL || REGISTER_ECDSA) */
+
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
          * AES key structs in each context, one for each direction.  in

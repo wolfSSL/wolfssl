@@ -4186,6 +4186,19 @@ static int linuxkm_test_aesecb(void) {
 
 #endif /* !NO_AES */
 
+#ifdef HAVE_ECC
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+        #define LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+#endif /* HAVE_ECC */
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #include "linuxkm/lkcapi_ecdsa_glue.c"
+#endif
+
 static int linuxkm_lkcapi_register(void)
 {
     int ret = 0;
@@ -4270,6 +4283,24 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecbAesAlg, crypto_register_skcipher, linuxkm_test_aesecb);
 #endif
 
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #if defined(HAVE_ECC192)
+    REGISTER_ALG(ecdsa_nist_p192, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p192);
+    #endif /* HAVE_ECC192 */
+
+    REGISTER_ALG(ecdsa_nist_p256, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p256);
+
+    REGISTER_ALG(ecdsa_nist_p384, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p384);
+
+    #if defined(HAVE_ECC521)
+    REGISTER_ALG(ecdsa_nist_p521, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p521);
+    #endif /* HAVE_ECC521 */
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
 #undef REGISTER_ALG
 
     out:
@@ -4319,6 +4350,17 @@ static void linuxkm_lkcapi_unregister(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     UNREGISTER_ALG(ecbAesAlg, crypto_unregister_skcipher);
 #endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #if defined(HAVE_ECC192)
+    UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
+    #endif /* HAVE_ECC192 */
+    UNREGISTER_ALG(ecdsa_nist_p256, crypto_unregister_akcipher);
+    UNREGISTER_ALG(ecdsa_nist_p384, crypto_unregister_akcipher);
+    #if defined(HAVE_ECC521)
+    UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
+    #endif /* HAVE_ECC521 */
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #undef UNREGISTER_ALG
 }
