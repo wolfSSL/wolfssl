@@ -1,4 +1,4 @@
-project Client is
+project Examples is
    type OS_Kind is ("Windows", "Linux_Or_Mac");
 
    OS : OS_Kind := external ("OS", "Linux_Or_Mac");
@@ -12,7 +12,7 @@ project Client is
 
    for Object_Dir use "obj";
 
-   for Main use ("tls_client_main.adb");
+   for Main use ("tls_server_main.adb", "tls_client_main.adb");
 
    package Naming is
       for Spec_Suffix ("C") use ".h";
@@ -75,4 +75,4 @@ project Client is
       for Switches ("Ada") use ("-Es");  --  To include stack traces.
    end Binder;
 
-end Client;
+end Examples;

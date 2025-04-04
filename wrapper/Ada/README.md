@@ -13,10 +13,11 @@ code to zero-out stack frames used by subprograms.
 Unfortunately this works well for the primary stack but not
 for the secondary stack. The GNAT User's Guide recommends
 avoiding the secondary stack using the restriction
-No_Secondary_Stack (see the GNAT configuration file gnat.adc
+No_Secondary_Stack (see the GNAT configuration file restricted.adc
 which instructs compilation of the WolfSSL Ada binding under
 this restriction). Note, however, that the examples do make use of the
-secondary stack.
+secondary stack and the Alire project does not include this restriction, for
+letting users of the library to define it at their level.
 
 Portability: The WolfSSL Ada binding makes no usage of controlled types
 and has no dependency upon the Ada.Finalization package.
@@ -25,11 +26,11 @@ the restriction No_Finalization. The WolfSSL Ada binding has
 been developed with maximum portability in mind.
 
 Not only can the WolfSSL Ada binding be used in Ada applications but
-also SPARK applications (a subset of the Ada language suitable
+also SPARK applications (a subset of the Ada language suitable for
 formal verification). To formally verify the Ada code in this repository
-open the client.gpr with GNAT Studio and then select
+open the examples.gpr with GNAT Studio and then select
 SPARK -> Prove All Sources and use Proof Level 2. Or when using the command
-line, use `gnatprove -Pclient.gpr --level=4 -j12` (`-j12` is there in
+line, use `gnatprove -Pexamples.gpr --level=4 -j12` (`-j12` is there in
 order to instruct the prover to use 12 CPUs if available).
 
 ```
@@ -83,7 +84,7 @@ and use gprbuild to build the source code.
 cd wrapper/Ada
 gprclean
 gprbuild default.gpr
-gprbuild client.gpr
+gprbuild examples.gpr
 
 cd obj/
 ./tls_server_main &
@@ -93,7 +94,7 @@ cd obj/
 On Windows, build the executables with:
 ```sh
 gprbuild -XOS=Windows default.gpr
-gprbuild -XOS=Windows client.gpr
+gprbuild -XOS=Windows examples.gpr
 ```
 
 ## Files
