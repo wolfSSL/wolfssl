@@ -130,7 +130,7 @@
  *   shift equivalent.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 #include <wolfssl/wolfcrypt/asn.h>

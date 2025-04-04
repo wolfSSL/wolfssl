@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
     (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)) && \

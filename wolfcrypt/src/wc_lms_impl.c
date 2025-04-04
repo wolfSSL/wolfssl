@@ -37,7 +37,7 @@
  *   Enable when memory is limited.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_lms.h>
 

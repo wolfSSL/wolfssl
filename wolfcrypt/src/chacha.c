@@ -29,7 +29,7 @@ Public domain.
 
 */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CHACHA
     #include <wolfssl/wolfcrypt/chacha.h>

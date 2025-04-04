@@ -22,7 +22,7 @@
 
  /* Based On Daniel J Bernstein's ed25519 Public Domain ref10 work. */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED25519
 #ifndef ED25519_SMALL /* run when not defined to use small memory math */

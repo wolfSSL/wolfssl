@@ -1,4 +1,4 @@
-/* wolfssl_sources.h
+/* libwolfssl_sources_asm.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -25,12 +25,12 @@
  * This file also includes the common headers needed by all sources.
  */
 
-#ifndef WOLFSSL_SOURCES_H
-#define WOLFSSL_SOURCES_H
+#ifndef LIBWOLFSSL_SOURCES_ASM_H
+#define LIBWOLFSSL_SOURCES_ASM_H
 
-#if defined(TEST_WOLFSSL_SOURCES_INCLUSION_SEQUENCE) && \
+#if defined(TEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE) && \
     defined(WOLF_CRYPT_SETTINGS_H)
-    #error settings.h included before wolfssl_sources.h.
+    #error settings.h included before libwolfssl_sources_asm.h.
 #endif
 
 #ifndef BUILDING_WOLFSSL
@@ -41,8 +41,6 @@
     #include <config.h>
 #endif
 
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
-#endif /* WOLFSSL_SOURCES_H */
+#endif /* LIBWOLFSSL_SOURCES_ASM_H */

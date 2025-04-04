@@ -67,7 +67,7 @@
  *   some platforms and is smaller in code size.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_mlkem.h>

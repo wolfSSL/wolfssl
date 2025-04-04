@@ -26,7 +26,7 @@
  * NO_BIG_INT: Disable support for all multi-precision math libraries
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 

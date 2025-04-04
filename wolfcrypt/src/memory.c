@@ -24,7 +24,7 @@
  */
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
 Possible memory options:

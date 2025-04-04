@@ -24,7 +24,7 @@
  * Reworked for ed448 by Sean Parkinson.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED448
 

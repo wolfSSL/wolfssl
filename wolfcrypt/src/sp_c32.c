@@ -21,7 +21,7 @@
 
 /* Implementation by Sean Parkinson. */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
     defined(WOLFSSL_HAVE_SP_ECC)

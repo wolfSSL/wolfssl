@@ -28,7 +28,7 @@
  *     Check that the private key didn't change during the signing operations.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED25519
 #if FIPS_VERSION3_GE(6,0,0)

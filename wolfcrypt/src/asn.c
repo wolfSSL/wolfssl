@@ -35,7 +35,7 @@
  * encoded items with explicit lengths.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
 ASN Options:

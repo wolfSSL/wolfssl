@@ -38,7 +38,7 @@ on the specific device platform.
 
 */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * SHA256 Build Options:

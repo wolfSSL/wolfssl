@@ -31,7 +31,7 @@
 
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
-#include "../wolfcrypt/src/wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFCRYPT_ONLY
     #include <wolfssl/version.h>

@@ -63,7 +63,7 @@
  *   Turn on when performing make key and decapsualtion with same object.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/mlkem.h>
 #include <wolfssl/wolfcrypt/wc_mlkem.h>

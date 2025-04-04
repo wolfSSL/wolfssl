@@ -22,7 +22,7 @@
 
 /* Name change compatibility layer no longer needs to be included here */
 
-#include "../wolfcrypt/src/wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
 

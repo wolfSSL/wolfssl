@@ -1401,16 +1401,6 @@
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/wolfmath.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt/src/wolfssl_sources.h</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/wolfssl_sources.h</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/wolfssl_sources_asm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/wolfssl_sources_asm.h</locationURI>
-		</link>
-		<link>
 			<name>src/wolfcrypt/test/test.c</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/test/test.c</locationURI>

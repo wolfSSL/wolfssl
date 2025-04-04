@@ -27,7 +27,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 
 */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_RSA
 

@@ -36,7 +36,7 @@
  * DEBUG_CRYPTOCB
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLF_CRYPTO_CB
 

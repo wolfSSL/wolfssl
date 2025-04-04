@@ -23,7 +23,7 @@
     #error pie_redirect_table.c must be compiled -fPIE.
 #endif
 
-#include "../wolfcrypt/src/wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/ssl.h>
 

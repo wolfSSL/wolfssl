@@ -27,7 +27,7 @@ or Authenticated Encryption with Additional Data (AEAD) algorithm.
 
 */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 

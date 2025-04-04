@@ -29,7 +29,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(NO_AES)
 

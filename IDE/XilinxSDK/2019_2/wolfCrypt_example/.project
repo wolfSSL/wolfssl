@@ -706,16 +706,6 @@
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/wolfmath.c</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt/src/wolfssl_sources.h</name>
-			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/wolfssl_sources.h</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/wolfssl_sources_asm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/src/wolfssl_sources_asm.h</locationURI>
-		</link>
-		<link>
 			<name>src/wolfcrypt/test/README.md</name>
 			<type>1</type>
 			<locationURI>PARENT-4-PROJECT_LOC/wolfcrypt/test/README.md</locationURI>

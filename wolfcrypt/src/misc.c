@@ -32,7 +32,7 @@ masking and clearing memory logic.
     #endif
     #include <wolfssl/wolfcrypt/settings.h>
 #else
-    #include "wolfssl_sources.h"
+    #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #endif
 
 #ifndef WOLF_CRYPT_MISC_C

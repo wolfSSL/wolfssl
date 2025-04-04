@@ -29,7 +29,7 @@
  *       (https://ece.engr.uvic.ca/~raltawy/SAC2021/9.pdf)
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 #include <wolfssl/wolfcrypt/hash.h>

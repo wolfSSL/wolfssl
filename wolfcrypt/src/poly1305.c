@@ -36,7 +36,7 @@ and Daniel J. Bernstein
  *                     303.004 MiB/s with and 1874.194 MiB/s without.
  */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>

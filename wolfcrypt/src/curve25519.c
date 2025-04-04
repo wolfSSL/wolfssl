@@ -22,7 +22,7 @@
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
-#include "wolfssl_sources.h"
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CURVE25519
 
