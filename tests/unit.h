@@ -23,6 +23,8 @@
 #ifndef TESTS_UNIT_H
 #define TESTS_UNIT_H
 
+#define WOLFSSL_VIS_FOR_TESTS
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
