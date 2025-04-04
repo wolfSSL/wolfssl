@@ -16290,7 +16290,8 @@ int ExtractDate(const unsigned char* date, unsigned char format,
         if (date[ i + ASN_GENERALIZED_TIME_SIZE - 2] != 'Z') {
             return 0;
         }
-    } else {
+    }
+    else {
         return 0;
     }
 
