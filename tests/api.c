@@ -323,6 +323,7 @@
 #include <tests/api/test_dtls.h>
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_evp.h>
+#include <tests/api/test_tls_ext.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -12863,31 +12864,6 @@ static int test_wolfSSL_set_alpn_protos(void)
 }
 
 #endif /* HAVE_ALPN_PROTOS_SUPPORT */
-
-static int test_wolfSSL_DisableExtendedMasterSecret(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(NO_TLS)
-    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    WOLFSSL     *ssl = wolfSSL_new(ctx);
-
-    ExpectNotNull(ctx);
-    ExpectNotNull(ssl);
-
-    /* error cases */
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(NULL));
-    ExpectIntNE(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(NULL));
-
-    /* success cases */
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_DisableExtendedMasterSecret(ctx));
-    ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_DisableExtendedMasterSecret(ssl));
-
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
-#endif
-    return EXPECT_RESULT();
-}
 
 static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
 {
@@ -67648,6 +67624,7 @@ TEST_CASE testCases[] = {
     /* Uses Assert in handshake callback. */
     TEST_DECL(test_wolfSSL_set_alpn_protos),
 #endif
+    TEST_DECL(test_tls_ems_downgrade),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
