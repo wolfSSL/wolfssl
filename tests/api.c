@@ -36208,12 +36208,12 @@ static int test_GENERAL_NAME_set0_othername(void)
     ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
         NID_subject_alt_name, NULL, NULL));
 
-    ExpectIntEQ(sk_GENERAL_NAME_num(NULL), WOLFSSL_FATAL_ERROR);
+    ExpectIntEQ(sk_GENERAL_NAME_num(NULL), 0);
     ExpectIntEQ(sk_GENERAL_NAME_num(gns), 3);
 
     ExpectNull(sk_GENERAL_NAME_value(NULL, 0));
     ExpectNull(sk_GENERAL_NAME_value(gns, 20));
-    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
+    ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 2));
     ExpectIntEQ(gn->type, 0);
 
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
@@ -49234,12 +49234,12 @@ static int test_wolfSSL_d2i_X509_REQ(void)
         ExpectIntEQ(X509_REQ_get_attr_by_NID(NULL, NID_pkcs9_challengePassword,
             -1), -1);
         ExpectIntEQ(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword,
-            -1), 0);
+            -1), 1);
         ExpectNull(X509_REQ_get_attr(NULL, 3));
         ExpectNull(X509_REQ_get_attr(req, 3));
         ExpectNull(X509_REQ_get_attr(NULL, 0));
         ExpectNull(X509_REQ_get_attr(empty, 0));
-        ExpectNotNull(attr = X509_REQ_get_attr(req, 0));
+        ExpectNotNull(attr = X509_REQ_get_attr(req, 1));
         ExpectNull(X509_ATTRIBUTE_get0_type(NULL, 1));
         ExpectNull(X509_ATTRIBUTE_get0_type(attr, 1));
         ExpectNull(X509_ATTRIBUTE_get0_type(NULL, 0));

@@ -14489,40 +14489,24 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
  * @param cm The cert manager that is queried for the issuer
  * @param x  This cert's issuer will be queried in cm
  * @param sk The issuer is pushed onto this stack
- * @return WOLFSSL_SUCCESS on success
- *         WOLFSSL_FAILURE on no issuer found
+ * @return 0 on success or no issuer found
  *         WOLFSSL_FATAL_ERROR on a fatal error
  */
 static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x, WOLFSSL_STACK* sk)
 {
-    WOLFSSL_X509* issuer[MAX_CHAIN_DEPTH];
     int i;
-    int push = 1;
-    int ret = WOLFSSL_SUCCESS;
-
     for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
-        if (x509GetIssuerFromCM(&issuer[i], cm, x)
-                != WOLFSSL_SUCCESS)
+        WOLFSSL_X509* issuer = NULL;
+        if (x509GetIssuerFromCM(&issuer, cm, x) != WOLFSSL_SUCCESS)
             break;
-        x = issuer[i];
-    }
-    if (i == 0) /* No further chain found */
-        return WOLFSSL_FAILURE;
-    i--;
-    for (; i >= 0; i--) {
-        if (push) {
-            if (wolfSSL_sk_X509_push(sk, issuer[i]) <= 0) {
-                wolfSSL_X509_free(issuer[i]);
-                ret = WOLFSSL_FATAL_ERROR;
-                push = 0; /* Free the rest of the unpushed certs */
-            }
+        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
+            wolfSSL_X509_free(issuer);
+            return WOLFSSL_FATAL_ERROR;
         }
-        else {
-            wolfSSL_X509_free(issuer[i]);
-        }
+        x = issuer;
     }
-    return ret;
+    return 0;
 }
 
 
@@ -14536,34 +14520,31 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
     WOLFSSL_STACK* sk;
     WOLFSSL_X509* x509;
     int i = 0;
-    int ret;
+    int err;
 
     WOLFSSL_ENTER("wolfSSL_set_peer_cert_chain");
     if ((ssl == NULL) || (ssl->session->chain.count == 0))
         return NULL;
 
     sk = wolfSSL_sk_X509_new_null();
-    i = ssl->session->chain.count-1;
-    for (; i >= 0; i--) {
+    for (i = 0; i < ssl->session->chain.count; i++) {
         x509 = wolfSSL_X509_new_ex(ssl->heap);
         if (x509 == NULL) {
             WOLFSSL_MSG("Error Creating X509");
             wolfSSL_sk_X509_pop_free(sk, NULL);
             return NULL;
         }
-        ret = DecodeToX509(x509, ssl->session->chain.certs[i].buffer,
+        err = DecodeToX509(x509, ssl->session->chain.certs[i].buffer,
                              ssl->session->chain.certs[i].length);
-        if (ret == 0 && i == ssl->session->chain.count-1 && verifiedFlag) {
+        if (err == 0 && wolfSSL_sk_X509_push(sk, x509) <= 0)
+            err = WOLFSSL_FATAL_ERROR;
+        if (err == 0 && i == ssl->session->chain.count-1 && verifiedFlag) {
             /* On the last element in the verified chain try to add the CA chain
-             * first if we have one for this cert */
+             * if we have one for this cert */
             SSL_CM_WARNING(ssl);
-            if (PushCAx509Chain(SSL_CM(ssl), x509, sk)
-                    == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
-                ret = WOLFSSL_FATAL_ERROR;
-            }
+            err = PushCAx509Chain(SSL_CM(ssl), x509, sk);
         }
-
-        if (ret != 0 || wolfSSL_sk_X509_push(sk, x509) <= 0) {
+        if (err != 0) {
             WOLFSSL_MSG("Error decoding cert");
             wolfSSL_X509_free(x509);
             wolfSSL_sk_X509_pop_free(sk, NULL);
@@ -14595,7 +14576,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
             if (ssl->session->peer)
                 wolfSSL_X509_free(ssl->session->peer);
 
-            ssl->session->peer = wolfSSL_sk_X509_pop(sk);
+            ssl->session->peer = wolfSSL_sk_X509_shift(sk);
             ssl->session->peerVerifyRet = ssl->peerVerifyRet;
         }
         if (ssl->peerCertChain != NULL)

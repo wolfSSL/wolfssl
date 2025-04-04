@@ -2360,7 +2360,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
 
                     dns = dns->next;
                     /* Using wolfSSL_sk_insert to maintain backwards
-                     * compatiblity with earlier versions of _push API that
+                     * compatibility with earlier versions of _push API that
                      * pushed items to the start of the list instead of the
                      * end. */
                     if (wolfSSL_sk_insert(sk, gn, 0) <= 0) {
@@ -4207,7 +4207,7 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 /* Return and remove the last x509 pushed on stack */
 WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 {
-    return wolfSSL_sk_pop(sk);
+    return (WOLFSSL_X509*)wolfSSL_sk_pop(sk);
 }
 
 /* Getter function for WOLFSSL_X509 pointer
@@ -4234,7 +4234,7 @@ WOLFSSL_X509* wolfSSL_sk_X509_value(WOLF_STACK_OF(WOLFSSL_X509)* sk, int i)
 /* Return and remove the first x509 pushed on stack */
 WOLFSSL_X509* wolfSSL_sk_X509_shift(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
-    return wolfSSL_sk_pop_node(sk, 0);
+    return (WOLFSSL_X509*)wolfSSL_sk_pop_node(sk, 0);
 }
 
 #endif /* OPENSSL_EXTRA */
@@ -4547,17 +4547,7 @@ int wolfSSL_sk_GENERAL_NAME_push(WOLFSSL_GENERAL_NAMES* sk,
  */
 WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int idx)
 {
-    WOLFSSL_STACK* ret;
-
-    if (sk == NULL) {
-        return NULL;
-    }
-
-    ret = wolfSSL_sk_get_node(sk, idx);
-    if (ret != NULL) {
-        return ret->data.gn;
-    }
-    return NULL;
+    return (WOLFSSL_GENERAL_NAME*)wolfSSL_sk_value(sk, idx);
 }
 
 /* Gets the number of nodes in the stack
@@ -4570,11 +4560,7 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_num");
 
-    if (sk == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    return (int)sk->num;
+    return wolfSSL_sk_num(sk);
 }
 
 /* Allocates an empty GENERAL NAME stack */
@@ -13398,7 +13384,7 @@ WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_value(
 WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_pop(
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 {
-    return wolfSSL_sk_pop(sk);
+    return (WOLFSSL_X509_NAME*)wolfSSL_sk_pop(sk);
 }
 
 void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
@@ -13549,7 +13535,7 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(
 WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(
         WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk)
 {
-    return wolfSSL_sk_pop(sk);
+    return (WOLFSSL_X509_INFO*)wolfSSL_sk_pop(sk);
 }
 
 #if defined(OPENSSL_ALL)
@@ -15206,7 +15192,10 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         }
         if ((req->reqAttributes != NULL) &&
                 (req->reqAttributes->type == STACK_TYPE_X509_REQ_ATTR)) {
-            ret = wolfSSL_sk_push(req->reqAttributes, attr) > 0
+            /* Using wolfSSL_sk_insert to maintain backwards compatibility with
+             * earlier versions of _push API that pushed items to the start of
+             * the list instead of the end. */
+            ret = wolfSSL_sk_insert(req->reqAttributes, attr, 0) > 0
                     ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
         else {

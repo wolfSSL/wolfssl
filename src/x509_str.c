@@ -803,43 +803,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
         if (sk == NULL)
             return NULL;
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(OPENSSL_EXTRA)
-        /* add CA used to verify top of chain to the list */
-        if (c->count > 0) {
-            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
-            WOLFSSL_X509* issuer = NULL;
-            if (x509 != NULL) {
-                if (wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509)
-                        == WOLFSSL_SUCCESS) {
-                    /* check that the certificate being looked up is not self
-                     * signed and that a issuer was found */
-                    if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
-                                &x509->subject) != 0) {
-                        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
-                            WOLFSSL_MSG("Unable to load CA x509 into stack");
-                            error = 1;
-                        }
-                    }
-                    else {
-                        WOLFSSL_MSG("Certificate is self signed");
-                        wolfSSL_X509_free(issuer);
-                    }
-                }
-                else {
-                    WOLFSSL_MSG("Could not find CA for certificate");
-                }
-            }
-            wolfSSL_X509_free(x509);
-            if (error) {
-                wolfSSL_sk_X509_pop_free(sk, NULL);
-                wolfSSL_X509_free(issuer);
-                return NULL;
-            }
-        }
-#endif
-
-        for (i = c->count - 1; i >= 0; i--) {
+        for (i = 0; i < c->count; i++) {
             WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, i);
 
             if (x509 == NULL) {
@@ -855,6 +819,38 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                 break;
             }
         }
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA)
+        /* add CA used to verify top of chain to the list */
+        if (!error && c->count > 0) {
+            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
+            WOLFSSL_X509* issuer = NULL;
+            if (x509 != NULL) {
+                if (wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509)
+                        == WOLFSSL_SUCCESS) {
+                    /* check that the certificate being looked up is not self
+                     * signed and that a issuer was found */
+                    if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
+                                &x509->subject) != 0) {
+                        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
+                            WOLFSSL_MSG("Unable to load CA x509 into stack");
+                            error = 1;
+                            wolfSSL_X509_free(issuer);
+                        }
+                    }
+                    else {
+                        WOLFSSL_MSG("Certificate is self signed");
+                        wolfSSL_X509_free(issuer);
+                    }
+                }
+                else {
+                    WOLFSSL_MSG("Could not find CA for certificate");
+                }
+            }
+            wolfSSL_X509_free(x509);
+        }
+#endif
         if (error) {
             wolfSSL_sk_X509_pop_free(sk, NULL);
             return NULL;
