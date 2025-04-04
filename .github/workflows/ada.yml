@@ -30,4 +30,4 @@ jobs:
       run: |
         mkdir obj
         gprbuild default.gpr
-        gprbuild client.gpr
+        gprbuild examples.gpr
