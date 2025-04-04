@@ -573,8 +573,13 @@ add_option(WOLFSSL_OQS
     "no" "yes;no")
 
 # ML-KEM/Kyber
-add_option(WOLFSSL_MMLKEM
+add_option(WOLFSSL_MLKEM
     "Enable the wolfSSL PQ ML-KEM library (default: disabled)"
+    "no" "yes;no")
+
+# LMS
+add_option(WOLFSSL_LMS
+    "Enable the PQ LMS Stateful Hash-based Signature Scheme (default: disabled)"
     "no" "yes;no")
 
 # Experimental features
@@ -590,7 +595,7 @@ if (WOLFSSL_EXPERIMENTAL)
     # check if any experimental features are also enabled:
     set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 0)
 
-    set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESUlT)
+    set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESULT)
 
     # Checking for experimental feature: OQS
     message(STATUS "Looking for WOLFSSL_OQS")
@@ -605,9 +610,9 @@ if (WOLFSSL_EXPERIMENTAL)
             list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
             list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
 
-            set_wolfssl_definitions("HAVE_LIBOQS"          RESUlT)
-            set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESUlT)
-            set_wolfssl_definitions("OPENSSL_EXTRA"        RESUlT)
+            set_wolfssl_definitions("HAVE_LIBOQS"          RESULT)
+            set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESULT)
+            set_wolfssl_definitions("OPENSSL_EXTRA"        RESULT)
 
         else()
             message(STATUS "Checking OQS - not found")
@@ -617,20 +622,41 @@ if (WOLFSSL_EXPERIMENTAL)
         message(STATUS "Looking for WOLFSSL_OQS - not found")
     endif()
 
-    # Checking for experimental feature: Kyber
-    message(STATUS "Looking for WOLFSSL_KYBER")
-    if (WOLFSSL_KYBER)
+    # Checking for experimental feature: WOLFSSL_MLKEM
+    message(STATUS "Looking for WOLFSSL_MLKEM")
+    if (WOLFSSL_MLKEM)
         set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
 
-        message(STATUS "Automatically set related requirements for Kyber:")
-        set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESUlT)
-        set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHA3"       RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESUlT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESUlT)
-        message(STATUS "Looking for WOLFSSL_KYBER - found")
+        message(STATUS "Automatically set related requirements for ML-KEM:")
+        add_definitions("-DWOLFSSL_HAVE_MLKEM")
+        add_definitions("-DWOLFSSL_WC_MLKEM")
+        add_definitions("-DWOLFSSL_SHA3")
+        add_definitions("-DWOLFSSL_SHAKE128")
+        add_definitions("-DWOLFSSL_SHAKE256")
+
+        set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESULT)
+        set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
+        message(STATUS "Looking for WOLFSSL_MLKEM - found")
     else()
-        message(STATUS "Looking for WOLFSSL_KYBER - not found")
+        message(STATUS "Looking for WOLFSSL_MLKEM - not found")
+    endif()
+
+    # Checking for experimental feature: WOLFSSL_LMS
+    message(STATUS "Looking for WOLFSSL_LMS")
+    if (WOLFSSL_LMS)
+        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 2)
+
+        message(STATUS "Automatically set related requirements for LMS")
+        add_definitions("-DWOLFSSL_HAVE_LMS")
+        add_definitions("-DWOLFSSL_WC_LMS")
+        set_wolfssl_definitions("WOLFSSL_HAVE_LMS" RESULT)
+        set_wolfssl_definitions("WOLFSSL_WC_LMS"   RESULT)
+        message(STATUS "Looking for WOLFSSL_LMS - found")
+    else()
+        message(STATUS "Looking for WOLFSSL_LMS - not found")
     endif()
 
     # Other experimental feature detection can be added here...
@@ -643,8 +669,8 @@ if (WOLFSSL_EXPERIMENTAL)
     endif()
 
     # Sanity checks
-    if(WOLFSSL_OQS AND WOLFSSL_KYBER)
-        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_KYBER at the same time.")
+    if(WOLFSSL_OQS AND WOLFSSL_MLKEM)
+        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_MLKEM at the same time.")
     endif()
 
 else()
@@ -653,8 +679,8 @@ else()
     if (WOLFSSL_OQS)
         message(FATAL_ERROR "Error: WOLFSSL_OQS requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()
-    if(WOLFSSL_KYBER)
-        message(FATAL_ERROR "Error: WOLFSSL_KYBER requires WOLFSSL_EXPERIMENTAL at this time.")
+    if(WOLFSSL_MLKEM)
+        message(FATAL_ERROR "Error: WOLFSSL_MLKEM requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()
 endif()
 
