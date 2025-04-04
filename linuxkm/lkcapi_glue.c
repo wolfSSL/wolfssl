@@ -485,7 +485,7 @@ static int km_AesGet(struct km_AesCtx *ctx, int decrypt_p, int copy_p, Aes **aes
         if (aes_copy == NULL)
             return -ENOMEM;
         XMEMCPY(aes_copy, ret, sizeof(Aes));
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
         aes_copy->streamData = NULL;
 #endif
         *aes = aes_copy;
@@ -500,14 +500,6 @@ static int km_AesGet(struct km_AesCtx *ctx, int decrypt_p, int copy_p, Aes **aes
 static void km_AesFree(Aes **aes) {
     if ((! aes) || (! *aes))
         return;
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
-    if ((*aes)->streamData) {
-        ForceZero((*aes)->streamData, 5 * AES_BLOCK_SIZE);
-        free((*aes)->streamData);
-    }
-    #endif
-#endif
     wc_AesFree(*aes);
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
     ForceZero(*aes, sizeof **aes);
