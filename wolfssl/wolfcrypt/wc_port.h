@@ -83,12 +83,21 @@
 #endif /* !WC_MAYBE_UNUSED */
 
 #ifndef WC_DEPRECATED
-    #if !defined(WOLFSSL_ZEPHYR) && \
-            ((defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || \
-            defined(__IAR_SYSTEMS_ICC__))
-        #define WC_DEPRECATED __attribute__((deprecated))
+    #ifdef WOLFSSL_ZEPHYR
+        #define WC_DEPRECATED(msg) /* null expansion */
+    #elif ((defined(__GNUC__) && \
+            ((__GNUC__ >= 5) || \
+            ((__GNUC__ == 4) && (__GNUC_MINOR__ > 5))))) ||  \
+          defined(__clang__)
+        #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
+    #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+          defined(_WIN32_WCE) || defined(__WATCOMC__)
+        #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
+    #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+          defined(__IAR_SYSTEMS_ICC__)
+        #define WC_DEPRECATED(msg) __attribute__((deprecated))
     #else
-        #define WC_DEPRECATED
+        #define WC_DEPRECATED(msg) /* null expansion */
     #endif
 #endif /* !WC_MAYBE_UNUSED */
 

@@ -51,10 +51,10 @@
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 
-    #ifdef WOLFSSL_LOCALIZE_TEST_APIS
-        #define WOLFSSL_TEST_API WOLFSSL_LOCAL
+    #ifdef WOLFSSL_PRIVATE_TEST_VIS
+        #define WOLFSSL_TEST_VIS WOLFSSL_LOCAL
     #else
-        #define WOLFSSL_TEST_API WOLFSSL_API
+        #define WOLFSSL_TEST_VIS WOLFSSL_API
     #endif
 #else /* !BUILDING_WOLFSSL */
     #if defined(__WATCOMC__)
@@ -77,12 +77,13 @@
         #define WOLFSSL_LOCAL
     #endif
 
-    #ifdef WOLFSSL_LOCALIZE_TEST_APIS
-        #define WOLFSSL_TEST_API WOLFSSL_LOCAL WC_DEPRECATED
-    #elif defined(WOLFSSL_ALLOW_TEST_APIS)
-        #define WOLFSSL_TEST_API WOLFSSL_API
+    #if defined(WOLFSSL_VIS_FOR_TESTS)
+        #ifdef WOLFSSL_PRIVATE_TEST_VIS
+            #error WOLFSSL_VIS_FOR_TESTS is unavailable in WOLFSSL_PRIVATE_TEST_VIS builds.
+        #endif
+        #define WOLFSSL_TEST_VIS WOLFSSL_API
     #else
-        #define WOLFSSL_TEST_API WOLFSSL_API WC_DEPRECATED
+        #define WOLFSSL_TEST_VIS WOLFSSL_API WC_DEPRECATED("internal use only")
     #endif
 
 #endif /* !BUILDING_WOLFSSL */
