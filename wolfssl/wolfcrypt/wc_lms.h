@@ -303,13 +303,13 @@
 #endif
 
 /* Indicates using SHA-256 for hashing. */
-#define LMS_SHA256                  0x00
+#define LMS_SHA256                  0x0000
 /* Indicates using SHA-256/192 for hashing. */
-#define LMS_SHA256_192              0x10
+#define LMS_SHA256_192              0x1000
 /* Mask to get hashing algorithm from type. */
-#define LMS_HASH_MASK               0xf0
+#define LMS_HASH_MASK               0xf000
 /* Mask to get height or Winternitz width from type. */
-#define LMS_H_W_MASK                0x0f
+#define LMS_H_W_MASK                0x0fff
 
 /* LMS Parameters. */
 /* SHA-256 hash, 32-bytes of hash used, tree height of 5. */
@@ -333,24 +333,24 @@
 #define LMOTS_SHA256_N32_W8         0x04
 
 /* SHA-256 hash, 32-bytes of hash used, tree height of 5. */
-#define LMS_SHA256_M24_H5           (0x05 | LMS_SHA256_192)
+#define LMS_SHA256_M24_H5           (0x0a | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, tree height of 10. */
-#define LMS_SHA256_M24_H10          (0x06 | LMS_SHA256_192)
+#define LMS_SHA256_M24_H10          (0x0b | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, tree height of 15. */
-#define LMS_SHA256_M24_H15          (0x07 | LMS_SHA256_192)
+#define LMS_SHA256_M24_H15          (0x0c | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, tree height of 20. */
-#define LMS_SHA256_M24_H20          (0x08 | LMS_SHA256_192)
+#define LMS_SHA256_M24_H20          (0x0d | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, tree height of 25. */
-#define LMS_SHA256_M24_H25          (0x09 | LMS_SHA256_192)
+#define LMS_SHA256_M24_H25          (0x0e | LMS_SHA256_192)
 
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 1 bit. */
-#define LMOTS_SHA256_N24_W1         (0x01 | LMS_SHA256_192)
+#define LMOTS_SHA256_N24_W1         (0x05 | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 2 bits. */
-#define LMOTS_SHA256_N24_W2         (0x02 | LMS_SHA256_192)
+#define LMOTS_SHA256_N24_W2         (0x06 | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 4 bits. */
-#define LMOTS_SHA256_N24_W4         (0x03 | LMS_SHA256_192)
+#define LMOTS_SHA256_N24_W4         (0x07 | LMS_SHA256_192)
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 8 bits. */
-#define LMOTS_SHA256_N24_W8         (0x04 | LMS_SHA256_192)
+#define LMOTS_SHA256_N24_W8         (0x08 | LMS_SHA256_192)
 
 typedef struct LmsParams {
     /* Number of tree levels. */
