@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
+#include "wolfssl_sources.h"
 
 /*
  * Based on public domain TomsFastMath 0.10 by Tom St Denis, tomstdenis@iahu.ca,
@@ -30,13 +30,6 @@
  *  Edited by Moises Guimaraes (moises@wolfssl.com)
  *  to fit wolfSSL's needs.
  */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-/* in case user set USE_FAST_MATH there */
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef USE_FAST_MATH
 

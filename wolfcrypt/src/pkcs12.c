@@ -21,11 +21,7 @@
 
 /* PKCS#12 allows storage of key and certificates into containers */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include "wolfssl_sources.h"
 
 #if defined(HAVE_PKCS12) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
@@ -33,9 +29,7 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

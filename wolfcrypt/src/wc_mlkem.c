@@ -63,14 +63,10 @@
  *   Turn on when performing make key and decapsualtion with same object.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include "wolfssl_sources.h"
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/mlkem.h>
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/memory.h>
 

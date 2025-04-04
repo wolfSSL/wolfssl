@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include "wolfssl_sources.h"
 
 #ifndef NO_PWDBASED
 
@@ -42,7 +37,6 @@
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

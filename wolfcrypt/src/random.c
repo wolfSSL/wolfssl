@@ -25,15 +25,8 @@ DESCRIPTION
 This library contains implementation for the random number generator.
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#if defined(DEBUG_WOLFSSL)
-    #include <wolfssl/wolfcrypt/logging.h>
-#endif
+#include "wolfssl_sources.h"
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I

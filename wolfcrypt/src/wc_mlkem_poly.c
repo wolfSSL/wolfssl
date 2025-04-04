@@ -67,14 +67,11 @@
  *   some platforms and is smaller in code size.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include "wolfssl_sources.h"
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_WC_MLKEM
 

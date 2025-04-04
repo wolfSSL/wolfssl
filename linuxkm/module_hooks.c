@@ -29,14 +29,10 @@
 
 #define FIPS_NO_WRAPPERS
 
-#define WOLFSSL_NEED_LINUX_CURRENT
+#define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include "../wolfcrypt/src/wolfssl_sources.h"
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFCRYPT_ONLY
     #include <wolfssl/version.h>
 #else

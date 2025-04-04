@@ -609,6 +609,16 @@
 			<type>1</type>
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/wolfmath.c</locationURI>
 		</link>
+		<link>
+			<name>wolfcrypt/src/wolfssl_sources.h</name>
+			<type>1</type>
+			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/wolfssl_sources.h</locationURI>
+		</link>
+		<link>
+			<name>wolfcrypt/src/wolfssl_sources_asm.h</name>
+			<type>1</type>
+			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/wolfssl_sources_asm.h</locationURI>
+		</link>
 	</linkedResources>
 	<variableList>
 		<variable>
