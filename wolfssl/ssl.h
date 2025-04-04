@@ -3748,6 +3748,7 @@ typedef int  (*CbCrlIO)(WOLFSSL_CRL* crl, const char* url, int urlSz);
 
 #ifdef HAVE_CRL_UPDATE_CB
 typedef struct CrlInfo {
+    byte crlNumber[CRL_MAX_NUM_SZ];
     byte *issuerHash;
     word32 issuerHashLen;
     byte *lastDate;
@@ -3756,7 +3757,7 @@ typedef struct CrlInfo {
     byte *nextDate;
     word32 nextDateMaxLen;
     byte nextDateFormat;
-    sword32 crlNumber;
+    byte crlNumberSet:1;
 } CrlInfo;
 
 typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* cnew);

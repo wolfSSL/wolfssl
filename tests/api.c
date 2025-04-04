@@ -42625,7 +42625,8 @@ static int test_wolfSSL_X509V3_set_ctx(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(HAVE_CRL)
     WOLFSSL_X509V3_CTX ctx;
     WOLFSSL_X509* issuer = NULL;
     WOLFSSL_X509* subject = NULL;
