@@ -301,10 +301,14 @@ typedef struct TsipUserCtx {
 /* for tsip crypt only mode */
 #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
 #ifndef NO_RSA
+    #if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
     tsip_rsa1024_private_key_index_t* rsa1024pri_keyIdx;
     tsip_rsa1024_public_key_index_t*  rsa1024pub_keyIdx;
+    #endif
+    #if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
     tsip_rsa2048_private_key_index_t* rsa2048pri_keyIdx;
     tsip_rsa2048_public_key_index_t*  rsa2048pub_keyIdx;
+    #endif
 #endif
 #ifdef HAVE_ECC
     #ifdef HAVE_ECC_SIGN

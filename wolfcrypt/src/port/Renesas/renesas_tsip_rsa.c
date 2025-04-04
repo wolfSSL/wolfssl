@@ -1,4 +1,4 @@
-/* renesas_sce_rsa.c
+/* renesas_tsip_rsa.c
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -38,7 +38,13 @@
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
-#ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+/* Make sure at least RSA 1024 or RSA 2048 is enabled */
+#if (defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 0) && \
+    (defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 0)
+    #error Please enable TSIP RSA 1024 or 2048. \
+This code assumes at least one is enabled
+#endif
+
 /* Make RSA key for TSIP and set it to callback ctx
  * Assumes to be called by Crypt Callback
  *
@@ -50,63 +56,84 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
 {
     e_tsip_err_t     ret;
     TsipUserCtx     *info = (TsipUserCtx*)ctx;
-
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
     tsip_rsa1024_key_pair_index_t *tsip_pair1024_key = NULL;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
     tsip_rsa2048_key_pair_index_t *tsip_pair2048_key = NULL;
+#endif
 
     /* sanity check */
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
+
     if (size != 1024 && size != 2048) {
-        WOLFSSL_MSG("Failed to generate key pair by TSIP");
+        WOLFSSL_MSG("TSIP RSA KeyGen bit size not supported");
         return CRYPTOCB_UNAVAILABLE;
     }
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 0
+    if (size == 1024)
+        return CRYPTOCB_UNAVAILABLE;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 0
+    if (size == 2048)
+        return CRYPTOCB_UNAVAILABLE;
+#endif
 
     if ((ret = tsip_hw_lock()) == 0) {
         if (size == 1024) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
             tsip_pair1024_key =
-            (tsip_rsa1024_key_pair_index_t*)XMALLOC(
-                sizeof(tsip_rsa1024_key_pair_index_t), NULL,
-                                                DYNAMIC_TYPE_RSA_BUFFER);
-            if (tsip_pair1024_key == NULL)
+                (tsip_rsa1024_key_pair_index_t*)XMALLOC(
+                    sizeof(tsip_rsa1024_key_pair_index_t), NULL,
+                    DYNAMIC_TYPE_RSA_BUFFER);
+            if (tsip_pair1024_key == NULL) {
+                tsip_hw_unlock();
                 return MEMORY_E;
-
+            }
             ret = R_TSIP_GenerateRsa1024RandomKeyIndex(tsip_pair1024_key);
+#endif
         }
         else if (size == 2048) {
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
             tsip_pair2048_key =
-            (tsip_rsa2048_key_pair_index_t*)XMALLOC(
-                sizeof(tsip_rsa2048_key_pair_index_t), NULL,
-                                                DYNAMIC_TYPE_RSA_BUFFER);
-            if (tsip_pair2048_key == NULL)
+                (tsip_rsa2048_key_pair_index_t*)XMALLOC(
+                    sizeof(tsip_rsa2048_key_pair_index_t), NULL,
+                    DYNAMIC_TYPE_RSA_BUFFER);
+            if (tsip_pair2048_key == NULL) {
+                tsip_hw_unlock();
                 return MEMORY_E;
-
+            }
             ret = R_TSIP_GenerateRsa2048RandomKeyIndex(tsip_pair2048_key);
+#endif
         }
-
         if (ret == TSIP_SUCCESS) {
             if (size == 1024) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
                 XFREE(info->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 XFREE(info->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+
                 info->rsa1024pri_keyIdx =
-                (tsip_rsa1024_private_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa1024_private_key_index_t), NULL,
-                                                DYNAMIC_TYPE_RSA_BUFFER);
+                    (tsip_rsa1024_private_key_index_t*)XMALLOC(
+                        sizeof(tsip_rsa1024_private_key_index_t), NULL,
+                        DYNAMIC_TYPE_RSA_BUFFER);
 
                 if (info->rsa1024pri_keyIdx == NULL) {
                     XFREE(tsip_pair1024_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+                    tsip_hw_unlock();
                     return MEMORY_E;
                 }
 
                 info->rsa1024pub_keyIdx =
-                (tsip_rsa1024_public_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa1024_public_key_index_t), NULL,
-                                                DYNAMIC_TYPE_RSA_BUFFER);
+                    (tsip_rsa1024_public_key_index_t*)XMALLOC(
+                        sizeof(tsip_rsa1024_public_key_index_t), NULL,
+                        DYNAMIC_TYPE_RSA_BUFFER);
 
                 if (info->rsa1024pub_keyIdx == NULL) {
                     XFREE(tsip_pair1024_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                     XFREE(info->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+                    tsip_hw_unlock();
                     return MEMORY_E;
                 }
                 /* copy generated key pair and free malloced key */
@@ -121,17 +148,21 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
                 info->keyflgs_crypt.bits.rsapri1024_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub1024_key_set = 1;
                 info->wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
+#endif
             }
             else if (size == 2048) {
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
                 XFREE(info->rsa2048pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 XFREE(info->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+
                 info->rsa2048pri_keyIdx =
-                (tsip_rsa2048_private_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa2048_private_key_index_t), NULL,
-                                    DYNAMIC_TYPE_RSA_BUFFER);
+                    (tsip_rsa2048_private_key_index_t*)XMALLOC(
+                        sizeof(tsip_rsa2048_private_key_index_t), NULL,
+                        DYNAMIC_TYPE_RSA_BUFFER);
 
                 if (info->rsa2048pri_keyIdx == NULL) {
                     XFREE(tsip_pair2048_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+                    tsip_hw_unlock();
                     return MEMORY_E;
                 }
 
@@ -144,6 +175,7 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
                     XFREE(tsip_pair2048_key, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                     XFREE(info->rsa2048pri_keyIdx, NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
+                    tsip_hw_unlock();
                     return MEMORY_E;
                 }
 
@@ -159,15 +191,15 @@ int wc_tsip_MakeRsaKey(int size, void* ctx)
                 info->keyflgs_crypt.bits.rsapri2048_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub2048_key_set = 1;
                 info->wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
+#endif
             }
         }
-
         tsip_hw_unlock();
     }
 
-
     return 0;
 }
+
 /* Generate TSIP key index if needed
  *
  * tuc    struct pointer of TsipUserCtx
@@ -178,6 +210,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
     int ret = 0;
 
     switch (tuc->wrappedKeyType) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
         case TSIP_KEY_TYPE_RSA1024:
             if (tuc->keyflgs_crypt.bits.rsapub1024_key_set != 1) {
                 ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
@@ -188,6 +221,8 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
 
             }
             break;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
         case TSIP_KEY_TYPE_RSA2048:
             if (tuc->keyflgs_crypt.bits.rsapub2048_key_set != 1) {
                 ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
@@ -197,6 +232,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
                     ret = CRYPTOCB_UNAVAILABLE;
             }
             break;
+#endif
         default:
             WOLFSSL_MSG("wrapped private key is not supported");
             ret = CRYPTOCB_UNAVAILABLE;
@@ -220,7 +256,6 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
     int type;
     tsip_rsa_byte_data_t plain, cipher;
 
-
     if (info == NULL || tuc == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -230,48 +265,57 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
         keySize = (int)tuc->wrappedKeyType;
 
         if ((ret = tsip_hw_lock()) == 0) {
-            if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+            if (type == RSA_PUBLIC_ENCRYPT ||
+                type == RSA_PUBLIC_DECRYPT)
+            {
                 plain.pdata = (uint8_t*)info->pk.rsa.in;
                 plain.data_length = info->pk.rsa.inLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.out;
                 cipher.data_length = *(info->pk.rsa.outLen);
 
-                if (keySize == TSIP_KEY_TYPE_RSA1024) {
+                switch (keySize) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+                case TSIP_KEY_TYPE_RSA1024:
                     ret = R_TSIP_RsaesPkcs1024Encrypt(&plain, &cipher,
                             tuc->rsa1024pub_keyIdx);
-                }
-                else if (keySize == TSIP_KEY_TYPE_RSA2048) {
+                    break;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+                case TSIP_KEY_TYPE_RSA2048:
                     ret = R_TSIP_RsaesPkcs2048Encrypt(&plain, &cipher,
                             tuc->rsa2048pub_keyIdx);
-                }
-                else {
-                    WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
-                                                          "1024 or 2048 bits.");
-                    return BAD_FUNC_ARG;
+                    break;
+#endif
+                default:
+                    ret = CRYPTOCB_UNAVAILABLE;
                 }
                 if (ret == 0) {
                     *(info->pk.rsa.outLen) = cipher.data_length;
                 }
             }
-            else if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
+            else if (type == RSA_PRIVATE_DECRYPT ||
+                     type == RSA_PRIVATE_ENCRYPT)
             {
                 plain.pdata = (uint8_t*)info->pk.rsa.out;
                 plain.data_length = *(info->pk.rsa.outLen);
                 cipher.pdata = (uint8_t*)info->pk.rsa.in;
                 cipher.data_length = info->pk.rsa.inLen;
 
-                if (keySize == TSIP_KEY_TYPE_RSA1024) {
+                switch (keySize) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+                case TSIP_KEY_TYPE_RSA1024:
                     ret = R_TSIP_RsaesPkcs1024Decrypt(&cipher, &plain,
                             tuc->rsa1024pri_keyIdx);
-                }
-                else if (keySize == TSIP_KEY_TYPE_RSA2048) {
+                    break;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+                case TSIP_KEY_TYPE_RSA2048:
                     ret = R_TSIP_RsaesPkcs2048Decrypt(&cipher, &plain,
                             tuc->rsa2048pri_keyIdx);
-                }
-                else {
-                    WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
-                                                          "1024 or 2048 bits.");
-                    return BAD_FUNC_ARG;
+                    break;
+#endif
+                default:
+                    ret = CRYPTOCB_UNAVAILABLE;
                 }
                 if (ret == 0) {
                     *(info->pk.rsa.outLen) = plain.data_length;
@@ -279,6 +323,10 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
             }
             tsip_hw_unlock();
         }
+    }
+
+    if (ret != 0) {
+        WOLFSSL_MSG("RSA key size is not supported (only 1024 or 2048 bits)");
     }
     return ret;
 }
@@ -324,6 +372,7 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
+#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
                 case TSIP_KEY_TYPE_RSA1024:
                     err = R_TSIP_RsassaPkcs1024SignatureVerification(&sigData,
                             &hashData,
@@ -340,6 +389,8 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                         ret = WC_HW_E;
                     }
                     break;
+#endif
+#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     err = R_TSIP_RsassaPkcs2048SignatureVerification(&sigData,
                             &hashData,
@@ -356,6 +407,9 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                         ret = WC_HW_E;
                     }
                     break;
+#endif
+                default:
+                    ret = CRYPTOCB_UNAVAILABLE;
             }
             tsip_hw_unlock();
         }
@@ -363,6 +417,4 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
     return ret;
 }
-#endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
-#endif /* WOLFSSL_RENESAS_TSIP_TLS || \
-          WOLFSSL_RENESAS_TSIP_CRYPTONLY */
+#endif /* !NO_RSA && WOLFSSL_RENESAS_TSIP_CRYPTONLY */
