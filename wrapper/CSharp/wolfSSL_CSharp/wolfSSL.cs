@@ -495,11 +495,17 @@ namespace wolfSSL.CSharp {
         /// <returns>return the platform specific path to the certificate</returns>
         /// </summary>
         public static string setPath(string file) {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            PlatformID platform = Environment.OSVersion.Platform;
+
+            if (platform == PlatformID.Unix ||
+                platform == PlatformID.MacOSX)
             {
                 Console.WriteLine("Linux - " + file);
                 return @"../../certs/" + file;
-            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            } else if (platform == PlatformID.Win32NT ||
+                       platform == PlatformID.Win32Windows ||
+                       platform == PlatformID.Win32S ||
+                       platform == PlatformID.WinCE)
             {
                 Console.WriteLine("Windows - " + file);
                 return @"../../../../certs/" + file;
@@ -790,7 +796,8 @@ namespace wolfSSL.CSharp {
                 int ret;
                 byte[] msg;
 
-                buf.Clear(); /* Clear incoming buffer */
+                /* Clear incoming buffer */
+                buf.Length = 0;
 
                 if (sslCtx == IntPtr.Zero)
                 {
@@ -1149,7 +1156,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static void CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb) 
+        public static void CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb)
         {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
@@ -1163,7 +1170,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int CTX_set_servername_arg(IntPtr ctx, IntPtr arg) 
+        public static int CTX_set_servername_arg(IntPtr ctx, IntPtr arg)
         {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
@@ -1178,7 +1185,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size) 
+        public static int CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size)
         {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
@@ -1191,7 +1198,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int UseSNI(IntPtr ssl, byte type, IntPtr data, ushort size) 
+        public static int UseSNI(IntPtr ssl, byte type, IntPtr data, ushort size)
         {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ssl);
@@ -1204,7 +1211,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static ushort SNI_GetRequest(IntPtr ssl, byte type, ref IntPtr data) 
+        public static ushort SNI_GetRequest(IntPtr ssl, byte type, ref IntPtr data)
         {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ssl);
@@ -1217,7 +1224,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int SNI_GetFromBuffer(byte []clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz) 
+        public static int SNI_GetFromBuffer(byte []clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz)
         {
             try {
                 return wolfSSL_SNI_GetFromBuffer(clientHello, helloSz, type, sni, inOutSz);
