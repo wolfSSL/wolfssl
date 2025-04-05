@@ -47,6 +47,12 @@
     extern "C" {
 #endif
 
+#if defined(TEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE) && \
+    defined(BUILDING_WOLFSSL) && !defined(LIBWOLFSSL_SOURCES_H) && \
+    !defined(LIBWOLFSSL_SOURCES_ASM_H)
+    #error settings.h included before libwolfssl_sources[_asm].h.
+#endif
+
 /* WOLFSSL_USE_OPTIONS_H directs wolfSSL to include options.h on behalf of
  * application code, rather than the application including it directly.  This is
  * not defined when compiling wolfSSL library objects, which are configured

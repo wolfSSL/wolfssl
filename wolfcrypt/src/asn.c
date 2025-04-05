@@ -34,11 +34,8 @@
  * Provides routines to convert BER into DER. Replaces indefinite length
  * encoded items with explicit lengths.
  */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
 ASN Options:
@@ -128,7 +125,6 @@ ASN Options:
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>

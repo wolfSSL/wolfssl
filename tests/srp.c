@@ -19,17 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#ifndef WOLFSSL_USER_SETTINGS
-    #include <wolfssl/options.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
-
 #include <tests/unit.h>
+
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/srp.h>
 

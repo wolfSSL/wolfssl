@@ -19,14 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /* Based from Daniel Beer's public domain work. */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if defined(CURVE25519_SMALL) || defined(ED25519_SMALL) /* use slower code that takes less memory */

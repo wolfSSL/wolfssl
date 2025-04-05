@@ -23,12 +23,8 @@
     #error pie_last.c must be compiled -fPIE.
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 
 int wolfCrypt_PIE_last_function(void);

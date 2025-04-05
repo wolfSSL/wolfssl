@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
 CRL Options:
@@ -32,11 +33,6 @@ CRL Options:
  *                         Return any errors encountered during loading CRL
  *                         from a directory.
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef WOLFCRYPT_ONLY
 #ifdef HAVE_CRL

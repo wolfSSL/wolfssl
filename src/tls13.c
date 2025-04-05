@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * BUILD_GCM
@@ -88,16 +89,7 @@
  *    Default behavior is to return a signed 64-bit value.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
 #ifdef WOLFSSL_TLS13
-#ifdef HAVE_SESSION_TICKET
-    #include <wolfssl/wolfcrypt/wc_port.h>
-#endif
 
 #ifndef WOLFCRYPT_ONLY
 

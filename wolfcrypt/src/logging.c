@@ -19,15 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 /* avoid adding WANT_READ and WANT_WRITE to error queue */
 #include <wolfssl/error-ssl.h>

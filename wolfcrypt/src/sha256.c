@@ -38,12 +38,7 @@ on the specific device platform.
 
 */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * SHA256 Build Options:

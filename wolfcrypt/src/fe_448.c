@@ -24,11 +24,7 @@
  * Reworked for curve448 by Sean Parkinson.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
 

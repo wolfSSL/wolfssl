@@ -19,11 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(OPENSSL_EXTRA) && (defined(HAVE_FIPS) || defined(HAVE_SELFTEST))
     #include <wolfssl/wolfcrypt/pkcs7.h>

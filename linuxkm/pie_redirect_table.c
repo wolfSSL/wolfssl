@@ -23,12 +23,8 @@
     #error pie_redirect_table.c must be compiled -fPIE.
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 
 /* compiling -fPIE results in references to the GOT or equivalent thereof, which remain after linking

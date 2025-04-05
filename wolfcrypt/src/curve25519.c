@@ -22,17 +22,11 @@
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CURVE25519
 
 #include <wolfssl/wolfcrypt/curve25519.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

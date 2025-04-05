@@ -19,17 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /*
 
 DESCRIPTION
 This library provides the interface to the RC2 encryption algorithm (RFC 2268)
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WC_RC2
 

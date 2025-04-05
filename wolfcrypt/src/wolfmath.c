@@ -26,15 +26,9 @@
  * NO_BIG_INT: Disable support for all multi-precision math libraries
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-/* in case user set USE_FAST_MATH there */
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>

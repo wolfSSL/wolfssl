@@ -855,7 +855,7 @@
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
-    #ifndef WOLFSSL_NEED_LINUX_CURRENT
+    #ifndef WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
         #undef current
     #endif
 

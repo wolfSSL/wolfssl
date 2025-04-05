@@ -22,19 +22,13 @@
 
  /* Based On Daniel J Bernstein's ed25519 Public Domain ref10 work. */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED25519
 #ifndef ED25519_SMALL /* run when not defined to use small memory math */
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

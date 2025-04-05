@@ -121,7 +121,10 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h \
                          wolfssl/wolfcrypt/port/maxim/max3266x.h \
                          wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h \
-                         wolfssl/wolfcrypt/port/rpi_pico/pico.h
+                         wolfssl/wolfcrypt/port/rpi_pico/pico.h \
+                         wolfssl/wolfcrypt/libwolfssl_sources.h \
+                         wolfssl/wolfcrypt/libwolfssl_sources_asm.h
+
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
