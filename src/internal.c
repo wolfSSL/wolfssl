@@ -2589,6 +2589,28 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
             ctx->CBIORecvFrom = uIPRecvFrom;
         }
         #endif
+    #elif defined(ARDUINO)
+        #if !defined(ARDUINO_ARCH_ESP32) && !defined(ARDUINO_ARCH_ESP8266) && \
+            !defined(ARDUINO_ARCH_SAMD)  && !defined(ARDUINO_ARCH_NRF52)   && \
+            !defined(ARDUINO_ARCH_MBED)  && !defined(ARDUINO_ARCH_STM32)   && \
+            !defined(ARDUINO_SEEED_XIAO) && !defined(ARDUINO_TEENSY41)     && \
+            !defined(WIFI_AVAILABLE)     && !defined(ETHERNET_AVAILABLE)
+            /* Unless a known board is detected, assume there's no network */
+            #define WOLFSSL_NO_NETWORK
+        #else
+            ctx->CBIORecv = EmbedReceive;
+            ctx->CBIOSend = EmbedSend;
+            #ifdef WOLFSSL_SESSION_EXPORT
+                ctx->CBGetPeer = EmbedGetPeer;
+                ctx->CBSetPeer = EmbedSetPeer;
+            #endif
+            #ifdef WOLFSSL_DTLS
+                if (method->version.major == DTLS_MAJOR) {
+                    ctx->CBIORecv   = EmbedReceiveFrom;
+                    ctx->CBIOSend   = EmbedSendTo;
+                }
+            #endif
+        #endif
     #else
         ctx->CBIORecv = EmbedReceive;
         ctx->CBIOSend = EmbedSend;

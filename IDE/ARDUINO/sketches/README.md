@@ -2,17 +2,19 @@
 
 There are currently five example Arduino sketches:
 
-* [template](./template/README.md): Reference template wolfSSL example, including optional VisualGDB project files.
-* [wolfssl_AES_CTR](./wolfssl_AES_CTR/README.md): Basic AES CTR Encryption / Decryption example.
-* [wolfssl_client](./wolfssl_client/README.md): Basic TLS listening client.
-* [wolfssl_server](./wolfssl_server/README.md): Basic TLS server.
-* [wolfssl_version](./wolfssl_version/README.md): Bare-bones wolfSSL example.
+NOTE: Moving; See https://github.com/wolfSSL/wolfssl-examples/pull/499
+
+* `template`: Reference template wolfSSL example, including optional VisualGDB project files.
+* `wolfssl_AES_CTR`: Basic AES CTR Encryption / Decryption example.
+* `wolfssl_client`: Basic TLS listening client.
+* `wolfssl_server`: Basic TLS server.
+* `wolfssl_version`: Bare-bones wolfSSL example.
 
 Examples have been most recently confirmed operational on the
 [Arduino IDE](https://www.arduino.cc/en/software) 2.2.1.
 
 For examples on other platforms, see the [IDE directory](https://github.com/wolfssl/wolfssl/tree/master/IDE).
-Additional wolfsll examples can be found at [wolfSSL/wolfssl-examples](https://github.com/wolfSSL/wolfssl-examples/).
+Additional wolfssl examples can be found at [wolfSSL/wolfssl-examples](https://github.com/wolfSSL/wolfssl-examples/).
 
 ## Using wolfSSL
 
@@ -60,7 +62,7 @@ exit status 1
 Compilation error: exit status 1
 ```
 
-Try deleting the the Arduino cache directory:
+Try deleting the Arduino cache directory:
 
 ```
 C:\Users\%USERNAME%\AppData\Local\arduino\sketches

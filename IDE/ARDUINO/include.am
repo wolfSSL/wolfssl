@@ -22,22 +22,12 @@ EXTRA_DIST+= IDE/ARDUINO/sketches/README.md
 
 # wolfssl_client example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/wolfssl_client.ino
 
 # wolfssl_server example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/wolfssl_server.ino
 
 # wolfssl_version example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/wolfssl_version.ino
-
-# wolfssl_AES_CTR example sketch
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_AES_CTR/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.ino
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.adeps
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.sln
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.vgdbproj
 
 # Publishing script, either local install or to github.com/wolfSSL/Arduino-wolfSSL clone directory.
 EXTRA_DIST+= IDE/ARDUINO/wolfssl-arduino.sh
