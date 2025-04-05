@@ -70,6 +70,9 @@ if [ "$ROOT_DIR" = "" ]; then
     exit 1
 fi
 
+
+ARDUINO_ROOT="$HOME/Arduino/libraries"
+
 # Check environment
 if [ -n "$WSL_DISTRO_NAME" ]; then
     # we found a non-blank WSL environment distro name
@@ -78,8 +81,6 @@ if [ -n "$WSL_DISTRO_NAME" ]; then
     if echo "$current_path" | grep -Eq "^$pattern"; then
         # if we are in WSL and shared Windows file system, 'ln' does not work.
         ARDUINO_ROOT="/mnt/c/Users/$USER/Documents/Arduino/libraries"
-    else
-        ARDUINO_ROOT="$HOME/Arduino/libraries"
     fi
 fi
 echo "The Arduino library root is: $ARDUINO_ROOT"
@@ -116,6 +117,8 @@ if [ $# -gt 0 ]; then
         echo "Error: not a valid operation: $THIS_OPERATION"
         exit 1
     fi
+else
+    echo "INSTALL parameter not specified. Installing to ROOT_DIR=$ROOT_DIR"
 fi
 
 
@@ -141,8 +144,16 @@ OPENSSL_DIR_TOP="${WOLFSSL_HEADERS_TOP}/openssl"
 
 WOLFSSL_VERSION=$(grep -i "LIBWOLFSSL_VERSION_STRING" ${TOP_DIR}/wolfssl/version.h | cut -d '"' -f 2)
 if [ "$WOLFSSL_VERSION" = "" ]; then
-    echo "ERROR: Could not find wolfSSL Version in ${TOP_DIR}/wolfssl/version.h"
-    exit 1
+    echo "Current user: [$USER]"
+    if [ "$USER" = "" ] || [ "$USER" = "runner" ]; then
+        # Typically when there's no user, it is a GitHub workflow. It is not guaranteed to be "runner"
+        echo "No USER found, no version.h found. Setting Version text to [GitHub] for assumed workflow."
+        WOLFSSL_VERSION="GitHub"
+    else
+        echo "ERROR: Could not find wolfSSL Version in ${TOP_DIR}/wolfssl/version.h"
+        echo "Check autogen.sh and configure"
+        exit 1
+    fi
 else
     echo "Found wolfSSL version $WOLFSSL_VERSION"
     echo "# WOLFSSL_VERSION_ARUINO_SUFFIX $WOLFSSL_VERSION_ARUINO_SUFFIX"
@@ -235,7 +246,8 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     $CP_CMD "${OPENSSL_DIR_TOP}"/* ."${OPENSSL_DIR}"                                          || exit 1
 
     # Finally, copy the Arduino-specific wolfssl library files into place: [lib]/src
-    $CP_CMD ./wolfssl.h ".${ROOT_SRC_DIR}"/wolfssl.h
+    $CP_CMD ./wolfssl.h           ".${ROOT_SRC_DIR}"/wolfssl.h           || exit 1
+    $CP_CMD ./wolfssl-arduino.cpp ".${ROOT_SRC_DIR}"/wolfssl-arduino.cpp || exit 1
 
     echo "Copy examples...."
     # Copy examples
@@ -273,6 +285,8 @@ fi
 # as an Arduino-specific README.md file.
 VERSION_PLACEHOLDER="\${WOLFSSL_VERSION}"
 ARDUINO_VERSION_SUFFIX_PLACEHOLDER="\${WOLFSSL_VERSION_ARUINO_SUFFIX}"
+
+# This is the SOURCE to prepend. Note the OUTPUT is PREPENDED_README.md later copied to README.md
 PREPEND_FILE="Arduino_README_prepend.md"
 PROPERTIES_FILE_TEMPLATE="library.properties.template"
 sed s/"$VERSION_PLACEHOLDER"/"$WOLFSSL_VERSION"/ "$PREPEND_FILE" > "$PREPEND_FILE.tmp"
