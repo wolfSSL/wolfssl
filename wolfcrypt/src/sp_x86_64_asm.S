@@ -42,7 +42,9 @@
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
 #ifndef NO_AVX2_SUPPORT
+#ifndef HAVE_INTEL_AVX2
 #define HAVE_INTEL_AVX2
+#endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_SP_X86_64_ASM

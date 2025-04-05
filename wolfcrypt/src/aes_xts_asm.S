@@ -41,8 +41,10 @@
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
-#if !defined(NO_AVX2_SUPPORT) && !defined(HAVE_INTEL_AVX2)
+#ifndef NO_AVX2_SUPPORT
+#ifndef HAVE_INTEL_AVX2
 #define HAVE_INTEL_AVX2
+#endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_AES_XTS
