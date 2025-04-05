@@ -582,6 +582,10 @@ add_option(WOLFSSL_LMS
     "Enable the PQ LMS Stateful Hash-based Signature Scheme (default: disabled)"
     "no" "yes;no")
 
+add_option(WOLFSSL_LMSSHA256192
+    "Enable the LMS SHA_256_192 truncated variant (default: disabled)"
+    "no" "yes;no")
+
 # Experimental features
 add_option(WOLFSSL_EXPERIMENTAL
     "Enable experimental features (default: disabled)"
@@ -655,6 +659,17 @@ if (WOLFSSL_EXPERIMENTAL)
         set_wolfssl_definitions("WOLFSSL_HAVE_LMS" RESULT)
         set_wolfssl_definitions("WOLFSSL_WC_LMS"   RESULT)
         message(STATUS "Looking for WOLFSSL_LMS - found")
+        # Checking for experimental feature: WOLFSSL_LMSSHA256192
+        if (WOLFSSL_LMSSHA256192)
+            message(STATUS "Automatically set related requirements for LMS SHA256-192")
+            add_definitions("-DWOLFSSL_LMS_SHA256_192")
+            add_definitions("-DWOLFSSL_NO_LMS_SHA256_256")
+            set_wolfssl_definitions("WOLFSSL_LMS_SHA256_192"    RESULT)
+            set_wolfssl_definitions("WOLFSSL_NO_LMS_SHA256_256" RESULT)
+            message(STATUS "Looking for WOLFSSL_LMSSHA256192 - found")
+        else()
+            message(STATUS "Looking for WOLFSSL_LMSSHA256192 - not found")
+        endif()
     else()
         message(STATUS "Looking for WOLFSSL_LMS - not found")
     endif()
