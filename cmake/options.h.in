@@ -386,6 +386,10 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_LMS
 #undef WOLFSSL_WC_LMS
 #cmakedefine WOLFSSL_WC_LMS
+#undef  WOLFSSL_LMS_SHA256_192
+#cmakedefine WOLFSSL_LMS_SHA256_192
+#undef  WOLFSSL_NO_LMS_SHA256_256
+#cmakedefine WOLFSSL_NO_LMS_SHA256_256
 #undef WOLFSSL_HAVE_XMSS
 #cmakedefine WOLFSSL_HAVE_XMSS
 #undef WOLFSSL_WC_XMSS
