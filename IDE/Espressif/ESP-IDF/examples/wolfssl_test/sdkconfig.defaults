@@ -1,5 +1,5 @@
 # Set the known example app config to template example (see user_settings.h)
-CONFIG_WOLFSSL_EXAMPLE_NAME_WOLFSSL_TEST=y
+CONFIG_WOLFSSL_EXAMPLE_NAME_TEST=y
 
 # CONFIG_EXAMPLE_WIFI_SSID="myssid"
 # CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"

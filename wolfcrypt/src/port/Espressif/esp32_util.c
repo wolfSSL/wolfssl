@@ -741,7 +741,8 @@ esp_err_t esp_DisableWatchdog(void)
         #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
-              defined(CONFIG_IDF_TARGET_ESP32H2)
+              defined(CONFIG_IDF_TARGET_ESP32H2) || \
+              defined(CONFIG_IDF_TARGET_ESP32P4)
             #if ESP_IDF_VERSION_MINOR >= 3
                 #if CONFIG_ESP_TASK_WDT
                     ret = esp_task_wdt_deinit();
@@ -791,7 +792,8 @@ esp_err_t esp_EnabledWatchdog(void)
         #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
-              defined(CONFIG_IDF_TARGET_ESP32H2)
+              defined(CONFIG_IDF_TARGET_ESP32H2) || \
+              defined(CONFIG_IDF_TARGET_ESP32P4)
             ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
             esp_task_wdt_config_t twdt_config = {
                 .timeout_ms = 5000,     /* Timeout in milliseconds  */

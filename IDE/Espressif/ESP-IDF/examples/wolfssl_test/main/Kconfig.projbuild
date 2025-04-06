@@ -1,29 +1,112 @@
-menu "Example Configuration"
+# Kconfig main
+#
+# Copyright (C) 2006-2025 wolfSSL Inc.
+#
+# This file is part of wolfSSL.
+#
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+#
 
-config BENCH_ARGV
-    string "Arguments for benchmark test"
-    default "-lng 0"
+# Kconfig File Version 5.7.2.001 for wolfssl_template
+
+menu "Example wolfSSL Configuration"
+
+choice WOLFSSL_EXAMPLE_CHOOSE
+    prompt "Choose Example (See wolfssl/include/user_settings.h)"
+    default WOLFSSL_EXAMPLE_NAME_NONE
     help
-        -? <num>    Help, print this usage
-                     0: English, 1: Japanese
-        -csv        Print terminal output in csv format
-        -base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)
-        -no_aad     No additional authentication data passed.
-        -dgst_full  Full digest operation performed.
-        -rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.
-        -<alg>      Algorithm to benchmark. Available algorithms include:
-                    cipher aes-cbc aes-gcm chacha20 chacha20-poly1305
-                    digest md5 poly1305 sha sha2 sha224 sha256 sha384 sha512 sha3
-                    sha3-224 sha3-256 sha3-384 sha3-512
-                    mac hmac hmac-md5 hmac-sha hmac-sha224 hmac-sha256 hmac-sha384
-                    hmac-sha512
-                    asym rsa rsa-sz dh ecc-kg ecc
-                    other rng
-        -lng <num>  Display benchmark result by specified language.
-                    0: English, 1: Japanese
-        <num>       Size of block in bytes
+        The user settings file can be adjusted to specific wolfSSL examples.
 
-        e.g -lng 1
-        e.g sha
+    config WOLFSSL_EXAMPLE_NAME_TEMPLATE
+        bool "wolfSSL Template"
+        help
+            The sample template app compiles in wolfSSL and prints the current wolfSSL Version. Nothing more.
+
+    config WOLFSSL_EXAMPLE_NAME_TEST
+        bool "wolfSSL Test"
+        help
+            This app tests all cryptographic functions currently enabled. See also Benchmark performance app.
+
+    config WOLFSSL_EXAMPLE_NAME_BENCHMARK
+        bool "wolfSSL Benchmark"
+        help
+            Benchmark performance app. See also cryptographic test.
+
+    config WOLFSSL_EXAMPLE_NAME_TLS_CLIENT
+        bool "TLS Client"
+        help
+            TLS Client Example app. Needs WiFi and a listening server on port 11111.
+
+    config WOLFSSL_EXAMPLE_NAME_TLS_SERVER
+        bool "TLS Server"
+        help
+            TLS Server Example app. Needs WiFi. More interesting with a TLS client using port 11111.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_TEMPLATE
+        bool "SSH Template App"
+        help
+            Bare-bones Hello World app that only compiles in wolfSSL and wolfSSH.
+            See wolfSSL/wolfssh on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_ECHOSERVER
+        bool "SSH Echo Server"
+        help
+            See wolfSSL/wolfssh on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_ESP32_SSH_SERVER
+        bool "SSH to UART Server for the ESP32"
+        help
+            See wolfSSL/wolfssh-examples on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_ESP8266_SSH_SERVER
+        bool "SSH to UART Server for the ESP8266"
+        help
+            See wolfSSL/wolfssh-examples on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFMQTT_TEMPLATE
+        bool "MQTT Template"
+        help
+            See wolfSSL/wolfmqtt on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFMQTT_AWS_IOT_MQTT
+        bool "MQTT AWS IoT"
+        help
+            See wolfSSL/wolfmqtt on GitHub.
+
+    config WOLFTPM_EXAMPLE_NAME_ESPRESSIF
+        bool "TPM Test Example for the ESP32"
+        help
+            See wolfSSL/wolfTPM on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_NONE
+        bool "Other"
+        help
+            A specific example app is not defined.
+
+endchoice
+
+config WOLFSSL_TARGET_HOST
+    string "Target host"
+    default "127.0.0.1"
+    help
+        host address for the example to connect
+
+config WOLFSSL_TARGET_PORT
+    int "Target port"
+    default 11111
+    help
+        host port for the example to connect
 
 endmenu

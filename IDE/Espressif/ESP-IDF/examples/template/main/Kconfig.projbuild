@@ -65,11 +65,6 @@ choice WOLFSSL_EXAMPLE_CHOOSE
         help
             See wolfSSL/wolfssh on GitHub.
 
-    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_ECHOSERVER
-        bool "SSH Echo Server"
-        help
-            See wolfSSL/wolfssh on GitHub.
-
     config WOLFSSL_EXAMPLE_NAME_ESP32_SSH_SERVER
         bool "SSH to UART Server for the ESP32"
         help
@@ -94,12 +89,6 @@ choice WOLFSSL_EXAMPLE_CHOOSE
         bool "TPM Test Example for the ESP32"
         help
             See wolfSSL/wolfTPM on GitHub.
-
-    config WOLFSSL_APPLE_HOMEKIT
-        bool "Apple HomeKit for the ESP32"
-        help
-            See AchimPieters/esp32-homekit-demo on GitHub.
-
 
     config WOLFSSL_EXAMPLE_NAME_NONE
         bool "Other"
