@@ -727,3 +727,266 @@ int test_dtls13_ack_order(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+static int test_dtls_shutdown(WOLFSSL *s, WOLFSSL *c, WOLFSSL_CTX *cc, WOLFSSL_CTX *cs)
+{
+    EXPECT_DECLS;
+    /* Cleanup */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_shutdown(c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_shutdown(s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_shutdown(c), 1);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_shutdown(s), 1);
+
+    wolfSSL_SetLoggingPrefix(NULL);
+    wolfSSL_free(c);
+    wolfSSL_CTX_free(cc);
+    wolfSSL_free(s);
+    wolfSSL_CTX_free(cs);
+    return EXPECT_RESULT();
+}
+
+static int test_dtls_communication(WOLFSSL *s, WOLFSSL *c)
+{
+    EXPECT_DECLS;
+    unsigned char readBuf[50];
+
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_write(c, "client message", 14), 14);
+
+    wolfSSL_SetLoggingPrefix("server");
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(s, readBuf, sizeof(readBuf)), 14);
+    ExpectStrEQ(readBuf, "client message");
+
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_write(s, "server message", 14), 14);
+
+    wolfSSL_SetLoggingPrefix("client");
+    XMEMSET(readBuf, 0, sizeof(readBuf));
+    ExpectIntEQ(wolfSSL_read(c, readBuf, sizeof(readBuf)), 14);
+    ExpectStrEQ(readBuf, "server message");
+
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_DTLS13)
+static int test_dtls13_longer_length(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char readBuf[50];
+    int seq16bit = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+        0);
+
+    ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_s, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_c, 0),
+        WOLFSSL_SUCCESS);
+    /* Complete handshake */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Create good record with length mismatch */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_write(ssl_c, "client message", 14), 14);
+
+    /* check client wrote the record */
+    ExpectIntGT(test_ctx.s_len, 14);
+    /* check length is included  in the record header */
+    ExpectIntGT(test_ctx.s_buff[0x0] & (1 << 2), 0);
+    seq16bit = (test_ctx.s_buff[0x0] & (1 << 3)) != 0;
+    /* big endian, modify LSB byte */
+    seq16bit *= 2;
+    /* modify length to be bigger */
+    test_ctx.s_buff[0x2 + seq16bit] = 0xff;
+
+    /* Try to read the malformed record */
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_shutdown(ssl_s, ssl_c, ctx_c, ctx_s), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
+static int test_dtls13_short_read(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char readBuf[50];
+    int i;
+
+    /* we setup two test, in the first one the server reads just two bytes of
+     * the header, in the second one it reads just the header (5) */
+    for (i = 0; i < 2; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        /* Setup DTLS contexts */
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+            0);
+        ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_s, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_c, 0),
+            WOLFSSL_SUCCESS);
+        /* Complete handshake */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* create a good record in the buffer */
+        wolfSSL_SetLoggingPrefix("client");
+        ExpectIntEQ(wolfSSL_write(ssl_c, "client message", 14), 14);
+
+        /* check client wrote the record */
+        ExpectIntGT(test_ctx.s_len, 14);
+        /* return less data */
+        test_ctx.s_len = (i == 0 ? 2 : 5);
+
+        /* Try to read the malformed record */
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.s_len, 0);
+
+        ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+        ExpectIntEQ(test_dtls_shutdown(ssl_s, ssl_c, ctx_c, ctx_s),
+            TEST_SUCCESS);
+        ssl_c = ssl_s = NULL;
+        ctx_c = ctx_s = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+
+#endif /* WOLFSSL_DTLS13 */
+
+static int test_dtls12_short_read(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char readBuf[50];
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        /* Setup DTLS contexts */
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
+            0);
+        ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_s, 0),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_c, 0),
+            WOLFSSL_SUCCESS);
+        /* Complete handshake */
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        /* create a good record in the buffer */
+        wolfSSL_SetLoggingPrefix("client");
+        ExpectIntEQ(wolfSSL_write(ssl_c, "bad", 3), 3);
+
+        /* check client wrote the record */
+        ExpectIntGT(test_ctx.s_len, 13 + 3);
+        /* return less data */
+        switch (i) {
+        case 0:
+            test_ctx.s_len = 2;
+            break;
+        case 1:
+            test_ctx.s_len = 13;
+            break;
+        case 2:
+            test_ctx.s_len = 15;
+            break;
+        }
+
+        /* Try to read the malformed record */
+        wolfSSL_SetLoggingPrefix("server");
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(test_ctx.s_len, 0);
+
+        ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+        ExpectIntEQ(test_dtls_shutdown(ssl_s, ssl_c, ctx_c, ctx_s),
+            TEST_SUCCESS);
+        ssl_c = ssl_s = NULL;
+        ctx_c = ctx_s = NULL;
+    }
+
+    return EXPECT_RESULT();
+}
+
+static int test_dtls12_record_length_mismatch(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char readBuf[50];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
+        0);
+    ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_s, 0),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_set_records_can_span_datagrams(ssl_c, 0),
+        WOLFSSL_SUCCESS);
+
+    /* Complete handshake */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* write a message from client */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "bad", 3), 3);
+
+    /* check that the message is written in the buffer */
+    ExpectIntGT(test_ctx.s_len, 14);
+    /* modify the length field to be bigger than the content */
+    test_ctx.s_buff[12] = 0xff;
+
+    /* Try to read the malformed record */
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_shutdown(ssl_s, ssl_c, ctx_c, ctx_s), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) */
+int test_dtls_record_length_mismatch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    ExpectIntEQ(test_dtls12_record_length_mismatch(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls12_short_read(), TEST_SUCCESS);
+#ifdef WOLFSSL_DTLS13
+    ExpectIntEQ(test_dtls13_longer_length(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls13_short_read(), TEST_SUCCESS);
+#endif /* WOLFSSL_DTLS13 */
+#endif
+    return EXPECT_RESULT();
+}
+
