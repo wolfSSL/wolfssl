@@ -37,9 +37,9 @@ static int  linuxkm_test_ecdsa_nist_driver(const char * driver,
                                            const byte * sig, word32 sig_len,
                                            const byte * hash, word32 hash_len);
 
-#if defined(HAVE_ECC192)
+#if defined(LINUXKM_ECC192)
 static int ecdsa_nist_p192_loaded = 0;
-#endif /* HAVE_ECC192 */
+#endif /* LINUXKM_ECC192 */
 static int ecdsa_nist_p256_loaded = 0;
 static int ecdsa_nist_p384_loaded = 0;
 #if defined(HAVE_ECC521)
@@ -60,16 +60,16 @@ static unsigned int km_ecdsa_max_size(struct crypto_akcipher *tfm);
 static int          km_ecdsa_verify(struct akcipher_request *req);
 
 /* ecdsa_nist_pN callbacks */
-#if defined(HAVE_ECC192)
+#if defined(LINUXKM_ECC192)
 static int          km_ecdsa_nist_p192_init(struct crypto_akcipher *tfm);
-#endif /* HAVE_ECC192 */
+#endif /* LINUXKM_ECC192 */
 static int          km_ecdsa_nist_p256_init(struct crypto_akcipher *tfm);
 static int          km_ecdsa_nist_p384_init(struct crypto_akcipher *tfm);
 #if defined(HAVE_ECC521)
 static int          km_ecdsa_nist_p521_init(struct crypto_akcipher *tfm);
 #endif /* HAVE_ECC521 */
 
-#if defined(HAVE_ECC192)
+#if defined(LINUXKM_ECC192)
 static struct akcipher_alg ecdsa_nist_p192 = {
     .base.cra_name        = "ecdsa-nist-p192",
     .base.cra_driver_name = "ecdsa-nist-p192-wolfcrypt",
@@ -82,7 +82,7 @@ static struct akcipher_alg ecdsa_nist_p192 = {
     .init                 = km_ecdsa_nist_p192_init,
     .exit                 = km_ecdsa_exit,
 };
-#endif /* HAVE_ECC192 */
+#endif /* LINUXKM_ECC192 */
 
 static struct akcipher_alg ecdsa_nist_p256 = {
     .base.cra_name        = "ecdsa-nist-p256",
@@ -145,7 +145,7 @@ static int km_ecdsa_set_pub(struct crypto_akcipher *tfm, const void *key,
     ctx = akcipher_tfm_ctx(tfm);
 
     switch (ctx->curve_len) {
-    #if defined(HAVE_ECC192)
+    #if defined(LINUXKM_ECC192)
     case 24: /* p192 */
     #endif
     case 32: /* p256 */
@@ -276,12 +276,12 @@ static int km_ecdsa_init(struct crypto_akcipher *tfm, int curve_id)
     return 0;
 }
 
-#if defined(HAVE_ECC192)
+#if defined(LINUXKM_ECC192)
 static int km_ecdsa_nist_p192_init(struct crypto_akcipher *tfm)
 {
     return km_ecdsa_init(tfm, ECC_SECP192R1);
 }
-#endif /* HAVE_ECC192 */
+#endif /* LINUXKM_ECC192 */
 
 static int km_ecdsa_nist_p256_init(struct crypto_akcipher *tfm)
 {
@@ -393,7 +393,7 @@ ecdsa_verify_end:
     return err;
 }
 
-#if defined(HAVE_ECC192)
+#if defined(LINUXKM_ECC192)
 static int linuxkm_test_ecdsa_nist_p192(void)
 {
     int rc = 0;
@@ -443,7 +443,7 @@ static int linuxkm_test_ecdsa_nist_p192(void)
 
     return rc;
 }
-#endif /* HAVE_ECC192 */
+#endif /* LINUXKM_ECC192 */
 
 static int linuxkm_test_ecdsa_nist_p256(void)
 {

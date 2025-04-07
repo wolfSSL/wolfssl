@@ -4195,7 +4195,22 @@ static int linuxkm_test_aesecb(void) {
     #undef LINUXKM_LKCAPI_REGISTER_ECDSA
 #endif /* HAVE_ECC */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0) && \
+    defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+    /**
+     * note: ecdsa only supported with linux 6.12 and earlier for now.
+     * In linux 6.13, ecdsa changed from a struct akcipher_alg type to
+     * struct sig_alg type, and the sign/verify callbacks were removed
+     * from akcipher_alg.
+     * */
+    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+#endif
+
 #if defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 192
+        #define LINUXKM_ECC192
+    #endif
     #include "linuxkm/lkcapi_ecdsa_glue.c"
 #endif
 
@@ -4284,10 +4299,10 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #if defined(HAVE_ECC192)
+    #if defined(LINUXKM_ECC192)
     REGISTER_ALG(ecdsa_nist_p192, crypto_register_akcipher,
                  linuxkm_test_ecdsa_nist_p192);
-    #endif /* HAVE_ECC192 */
+    #endif /* LINUXKM_ECC192 */
 
     REGISTER_ALG(ecdsa_nist_p256, crypto_register_akcipher,
                  linuxkm_test_ecdsa_nist_p256);
@@ -4352,9 +4367,9 @@ static void linuxkm_lkcapi_unregister(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #if defined(HAVE_ECC192)
+    #if defined(LINUXKM_ECC192)
     UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
-    #endif /* HAVE_ECC192 */
+    #endif /* LINUXKM_ECC192 */
     UNREGISTER_ALG(ecdsa_nist_p256, crypto_unregister_akcipher);
     UNREGISTER_ALG(ecdsa_nist_p384, crypto_unregister_akcipher);
     #if defined(HAVE_ECC521)
