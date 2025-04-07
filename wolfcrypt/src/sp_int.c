@@ -5272,6 +5272,9 @@ void sp_zero(sp_int* a)
  */
 void sp_clear(sp_int* a)
 {
+#ifdef HAVE_FIPS
+    sp_forcezero(a);
+#else
     /* Clear when valid pointer passed in. */
     if (a != NULL) {
         unsigned int i;
@@ -5284,6 +5287,7 @@ void sp_clear(sp_int* a)
         _sp_zero(a);
         sp_free(a);
     }
+#endif
 }
 
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \

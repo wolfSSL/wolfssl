@@ -4575,6 +4575,9 @@ void fp_zero(fp_int *a)
 
 void fp_clear(fp_int *a)
 {
+#ifdef HAVE_FIPS
+    fp_forcezero(a);
+#else
     int size;
     a->used = 0;
     a->sign = FP_ZPOS;
@@ -4585,6 +4588,7 @@ void fp_clear(fp_int *a)
 #endif
     XMEMSET(a->dp, 0, size * sizeof(fp_digit));
     fp_free(a);
+#endif
 }
 
 void fp_forcezero (mp_int * a)
