@@ -4516,6 +4516,19 @@ static const byte extCertPolicyIsrgDomainValid[] =
     static const byte extCertPolicyFpkiPiviAuthOid[] =
             CERT_POLICY_TYPE_OID_BASE(45);
 
+    /* Federal PKI Test OIDs - 2.16.840.1.101.3.2.1.48.x */
+    #define TEST_CERT_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 3, 2, 1, 48, num}
+    static const byte extCertPolicyFpkiAuthTestOid[] =
+        TEST_CERT_POLICY_TYPE_OID_BASE(11);
+    static const byte extCertPolicyFpkiCardauthTestOid[] =
+        TEST_CERT_POLICY_TYPE_OID_BASE(13);
+    static const byte extCertPolicyFpkiPivContentTestOid[] =
+        TEST_CERT_POLICY_TYPE_OID_BASE(86);
+    static const byte extCertPolicyFpkiAuthDerivedTestOid[] =
+        TEST_CERT_POLICY_TYPE_OID_BASE(109);
+    static const byte extCertPolicyFpkiAuthDerivedHwTestOid[] =
+        TEST_CERT_POLICY_TYPE_OID_BASE(110);
+
     /* DoD PKI OIDs - 2.16.840.1.101.2.1.11.X */
     #define DOD_POLICY_TYPE_OID_BASE(num) {96, 134, 72, 1, 101, 2, 1, 11, num}
     static const byte extCertPolicyDodMediumOid[] =
@@ -5600,6 +5613,26 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CP_FPKI_PIVI_AUTH_OID:
                     oid = extCertPolicyFpkiPiviAuthOid;
                     *oidSz = sizeof(extCertPolicyFpkiPiviAuthOid);
+                    break;
+                case CP_FPKI_AUTH_TEST_OID:
+                    oid = extCertPolicyFpkiAuthTestOid;
+                    *oidSz = sizeof(extCertPolicyFpkiAuthTestOid);
+                    break;
+                case CP_FPKI_CARDAUTH_TEST_OID:
+                    oid = extCertPolicyFpkiCardauthTestOid;
+                    *oidSz = sizeof(extCertPolicyFpkiCardauthTestOid);
+                    break;
+                case CP_FPKI_PIV_CONTENT_TEST_OID:
+                    oid = extCertPolicyFpkiPivContentTestOid;
+                    *oidSz = sizeof(extCertPolicyFpkiPivContentTestOid);
+                    break;
+                case CP_FPKI_PIV_AUTH_DERIVED_TEST_OID:
+                    oid = extCertPolicyFpkiAuthDerivedTestOid;
+                    *oidSz = sizeof(extCertPolicyFpkiAuthDerivedTestOid);
+                    break;
+                case CP_FPKI_PIV_AUTH_DERIVED_HW_TEST_OID:
+                    oid = extCertPolicyFpkiAuthDerivedHwTestOid;
+                    *oidSz = sizeof(extCertPolicyFpkiAuthDerivedHwTestOid);
                     break;
                 case CP_DOD_MEDIUM_OID:
                     oid = extCertPolicyDodMediumOid;
