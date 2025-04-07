@@ -6013,6 +6013,7 @@ struct WOLFSSL {
     int             dtls_timeout_init;  /* starting timeout value */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
+    int             dtlsRecordsCanSpanDatagrams;
 #ifndef NO_ASN_TIME
     word32          dtls_start_timeout;
 #endif /* !NO_ASN_TIME */
