@@ -36,17 +36,11 @@
  * DEBUG_CRYPTOCB
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLF_CRYPTO_CB
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef HAVE_ARIA
     #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>

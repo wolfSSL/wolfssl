@@ -19,18 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef DEBUG_WOLFSSL_VERBOSE
     #if defined(WOLFSSL_ESPIDF)
         #include <esp_log.h>
-    #else
-        #include <wolfssl/wolfcrypt/logging.h>
     #endif
 #endif
 

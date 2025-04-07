@@ -27,17 +27,11 @@ or Authenticated Encryption with Additional Data (AEAD) algorithm.
 
 */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
 #include <wolfssl/wolfcrypt/misc.h>

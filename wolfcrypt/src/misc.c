@@ -25,11 +25,15 @@ This module implements the arithmetic-shift right, left, byte swapping, XOR,
 masking and clearing memory logic.
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_VIS_FOR_TESTS
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+    #endif
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#endif
 
 #ifndef WOLF_CRYPT_MISC_C
 #define WOLF_CRYPT_MISC_C

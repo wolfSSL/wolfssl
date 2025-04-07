@@ -24,11 +24,7 @@
 #define WOLFSSL_STRERROR_BUFFER_SIZE 256
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef WOLFCRYPT_ONLY
 
