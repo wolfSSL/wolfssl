@@ -29,8 +29,24 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
-#define WOLFKM_ECDSA_NAME      "ecdsa"
-#define WOLFKM_ECDSA_DRIVER    ("ecdsa" WOLFKM_DRIVER_SUFFIX)
+#define WOLFKM_ECDSA_DRIVER       ("ecdsa-wolfcrypt")
+
+#define WOLFKM_ECDSA_P192_NAME    ("ecdsa-nist-p192")
+#define WOLFKM_ECDSA_P192_DRIVER  ("ecdsa-nist-p192" WOLFKM_DRIVER_FIPS \
+                                   "-wolfcrypt")
+
+#define WOLFKM_ECDSA_P256_NAME    ("ecdsa-nist-p256")
+#define WOLFKM_ECDSA_P256_DRIVER  ("ecdsa-nist-p256" WOLFKM_DRIVER_FIPS \
+                                   "-wolfcrypt")
+
+#define WOLFKM_ECDSA_P384_NAME    ("ecdsa-nist-p384")
+#define WOLFKM_ECDSA_P384_DRIVER  ("ecdsa-nist-p384" WOLFKM_DRIVER_FIPS \
+                                   "-wolfcrypt")
+
+#define WOLFKM_ECDSA_P521_NAME    ("ecdsa-nist-p521")
+#define WOLFKM_ECDSA_P521_DRIVER  ("ecdsa-nist-p521" WOLFKM_DRIVER_FIPS \
+                                   "-wolfcrypt")
+
 
 static int  linuxkm_test_ecdsa_nist_driver(const char * driver,
                                            const byte * pub, word32 pub_len,
@@ -71,8 +87,8 @@ static int          km_ecdsa_nist_p521_init(struct crypto_akcipher *tfm);
 
 #if defined(LINUXKM_ECC192)
 static struct akcipher_alg ecdsa_nist_p192 = {
-    .base.cra_name        = "ecdsa-nist-p192",
-    .base.cra_driver_name = "ecdsa-nist-p192-wolfcrypt",
+    .base.cra_name        = WOLFKM_ECDSA_P192_NAME,
+    .base.cra_driver_name = WOLFKM_ECDSA_P192_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
     .base.cra_module      = THIS_MODULE,
     .base.cra_ctxsize     = sizeof(struct km_ecdsa_ctx),
@@ -85,8 +101,8 @@ static struct akcipher_alg ecdsa_nist_p192 = {
 #endif /* LINUXKM_ECC192 */
 
 static struct akcipher_alg ecdsa_nist_p256 = {
-    .base.cra_name        = "ecdsa-nist-p256",
-    .base.cra_driver_name = "ecdsa-nist-p256-wolfcrypt",
+    .base.cra_name        = WOLFKM_ECDSA_P256_NAME,
+    .base.cra_driver_name = WOLFKM_ECDSA_P256_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
     .base.cra_module      = THIS_MODULE,
     .base.cra_ctxsize     = sizeof(struct km_ecdsa_ctx),
@@ -98,8 +114,8 @@ static struct akcipher_alg ecdsa_nist_p256 = {
 };
 
 static struct akcipher_alg ecdsa_nist_p384 = {
-    .base.cra_name        = "ecdsa-nist-p384",
-    .base.cra_driver_name = "ecdsa-nist-p384-wolfcrypt",
+    .base.cra_name        = WOLFKM_ECDSA_P384_NAME,
+    .base.cra_driver_name = WOLFKM_ECDSA_P384_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
     .base.cra_module      = THIS_MODULE,
     .base.cra_ctxsize     = sizeof(struct km_ecdsa_ctx),
@@ -112,8 +128,8 @@ static struct akcipher_alg ecdsa_nist_p384 = {
 
 #if defined(HAVE_ECC521)
 static struct akcipher_alg ecdsa_nist_p521 = {
-    .base.cra_name        = "ecdsa-nist-p521",
-    .base.cra_driver_name = "ecdsa-nist-p521-wolfcrypt",
+    .base.cra_name        = WOLFKM_ECDSA_P521_NAME,
+    .base.cra_driver_name = WOLFKM_ECDSA_P521_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
     .base.cra_module      = THIS_MODULE,
     .base.cra_ctxsize     = sizeof(struct km_ecdsa_ctx),
@@ -436,7 +452,7 @@ static int linuxkm_test_ecdsa_nist_p192(void)
     hash_len = sizeof(hash);
     sig_len = sizeof(sig);
 
-    rc = linuxkm_test_ecdsa_nist_driver("ecdsa-nist-p192-wolfcrypt",
+    rc = linuxkm_test_ecdsa_nist_driver(WOLFKM_ECDSA_P192_DRIVER,
                                         p192_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);
@@ -491,7 +507,7 @@ static int linuxkm_test_ecdsa_nist_p256(void)
     hash_len = sizeof(hash);
     sig_len = sizeof(sig);
 
-    rc = linuxkm_test_ecdsa_nist_driver("ecdsa-nist-p256-wolfcrypt",
+    rc = linuxkm_test_ecdsa_nist_driver(WOLFKM_ECDSA_P256_DRIVER,
                                         p256_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);
@@ -554,7 +570,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     hash_len = sizeof(hash);
     sig_len = sizeof(sig);
 
-    rc = linuxkm_test_ecdsa_nist_driver("ecdsa-nist-p384-wolfcrypt",
+    rc = linuxkm_test_ecdsa_nist_driver(WOLFKM_ECDSA_P384_DRIVER,
                                         p384_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);
@@ -629,7 +645,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     hash_len = sizeof(hash);
     sig_len = sizeof(sig);
 
-    rc = linuxkm_test_ecdsa_nist_driver("ecdsa-nist-p521-wolfcrypt",
+    rc = linuxkm_test_ecdsa_nist_driver(WOLFKM_ECDSA_P521_DRIVER,
                                         p521_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);

@@ -4195,24 +4195,36 @@ static int linuxkm_test_aesecb(void) {
     #undef LINUXKM_LKCAPI_REGISTER_ECDSA
 #endif /* HAVE_ECC */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0) && \
-    defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
-    /**
-     * note: ecdsa only supported with linux 6.12 and earlier for now.
-     * In linux 6.13, ecdsa changed from a struct akcipher_alg type to
-     * struct sig_alg type, and the sign/verify callbacks were removed
-     * from akcipher_alg.
-     * */
-    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
-#endif
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+        /**
+         * note: ecdsa supported with linux 6.12 and earlier for now, only.
+         * In linux 6.13, ecdsa changed from a struct akcipher_alg type to
+         * struct sig_alg type, and the sign/verify callbacks were removed
+         * from akcipher_alg.
+         * */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* linux >= 6.13.0 */
 
-#if defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
+        defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
+        /**
+         * note: ecdsa was not recognized as fips_allowed before linux v6.3
+         * in kernel crypto/testmgr.c, and will not pass the tests.
+         * */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* linux < 6.3.0 && CONFIG_CRYPTO_FIPS && CONFIG_CRYPTO_MANAGER */
+
     #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 192
+        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
+        /* only register p192 if specifically enabled, and if not fips. */
         #define LINUXKM_ECC192
     #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #include "linuxkm/lkcapi_ecdsa_glue.c"
-#endif
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 static int linuxkm_lkcapi_register(void)
 {
