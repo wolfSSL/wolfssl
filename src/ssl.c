@@ -26585,6 +26585,16 @@ void wolfSSL_FIPS_drbg_set_app_data(WOLFSSL_DRBG_CTX *ctx, void *app_data)
     }
 }
 #endif
+#ifdef WOLFSSL_DTLS
+int wolfSSL_dtls_set_records_can_span_datagrams(WOLFSSL* ssl, int value)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    ssl->dtlsRecordsCanSpanDatagrams = value;
+    return WOLFSSL_SUCCESS; 
+}
+#endif
 /*******************************************************************************
  * END OF OPENSSL FIPS DRBG APIs
  ******************************************************************************/
