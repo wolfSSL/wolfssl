@@ -25,7 +25,7 @@
  *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha3-asm.S
  */
 
-#include <wolfssl/wolfcrypt/wolfssl_sources_asm.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
 #ifdef WOLFSSL_ARMASM_THUMB2
