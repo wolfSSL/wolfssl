@@ -481,7 +481,7 @@ int test_wc_Ed25519PublicKeyToDer(void)
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     ed25519_key key;
-    byte        derBuf[1024];
+    byte        derBuf[CURVE25519_BUFSIZE];
 
     XMEMSET(&key, 0, sizeof(ed25519_key));
 
@@ -523,7 +523,7 @@ int test_wc_Ed25519KeyToDer(void)
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-    byte        output[ONEK_BUF];
+    byte        output[CURVE25519_BUFSIZE];
     ed25519_key ed25519Key;
     WC_RNG      rng;
     word32      inLen;
@@ -563,7 +563,7 @@ int test_wc_Ed25519PrivateKeyToDer(void)
     EXPECT_DECLS;
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-    byte        output[ONEK_BUF];
+    byte        output[CURVE25519_BUFSIZE];
     ed25519_key ed25519PrivKey;
     WC_RNG      rng;
     word32      inLen;

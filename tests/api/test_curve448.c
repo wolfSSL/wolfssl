@@ -347,7 +347,7 @@ int test_wc_Curve448PrivateKeyToDer(void)
     EXPECT_DECLS;
 #if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-    byte      output[ONEK_BUF];
+    byte      output[CURVE448_BUFSIZE];
     curve448_key curve448PrivKey;
     WC_RNG    rng;
     word32    inLen;
