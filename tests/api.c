@@ -15875,6 +15875,8 @@ static int test_wc_PKCS7_EncodeSignedData(void)
             /* use exact signed buffer size since BER encoded */
             ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out,
                 (word32)signedSz), 0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
         }
     }
 #endif
