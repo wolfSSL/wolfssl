@@ -169,6 +169,9 @@ int mp_init (mp_int * a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
+#ifdef HAVE_FIPS
+    mp_forcezero(a);
+#else
   int i;
 
   if (a == NULL)
@@ -194,6 +197,7 @@ void mp_clear (mp_int * a)
     a->alloc = a->used = 0;
     a->sign  = MP_ZPOS;
   }
+#endif
 }
 
 void mp_free (mp_int * a)
