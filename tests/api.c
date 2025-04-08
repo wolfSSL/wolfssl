@@ -15798,7 +15798,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         encodeSignedDataStream strm;
         int numberOfChunkSizes = 4;
         word32 chunkSizes[] = { 4080, 4096, 5000, 9999 };
-        /* chunkSizes were choosen to test around the default 4096 octet string
+        /* chunkSizes were chosen to test around the default 4096 octet string
          * size used in pkcs7.c */
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
