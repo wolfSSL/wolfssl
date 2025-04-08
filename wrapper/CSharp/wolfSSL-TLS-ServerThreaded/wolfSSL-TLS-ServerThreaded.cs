@@ -122,19 +122,29 @@ public class wolfSSL_TLS_ServerThreaded
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
-            return;
+            Environment.Exit(1);
         }
 
         /* example of function used for setting logging */
         wolfssl.SetLogging(standard_log);
-        wolfssl.Init();
+
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_server());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error in creating ctx structure");
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
@@ -142,27 +152,27 @@ public class wolfSSL_TLS_ServerThreaded
         {
             Console.WriteLine("Could not find cert or key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.CTX_use_PrivateKey_file(ctx, fileKey, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
@@ -201,5 +211,7 @@ public class wolfSSL_TLS_ServerThreaded
         tcp.Stop();
         wolfssl.CTX_free(ctx);
         wolfssl.Cleanup();
+
+        Environment.Exit(0);
     }
 }

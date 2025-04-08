@@ -64,7 +64,7 @@ public class wolfSSL_DTLS_Server
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
-            return;
+            Environment.Exit(1);
         }
 
         StringBuilder buff = new StringBuilder(1024);
@@ -73,7 +73,16 @@ public class wolfSSL_DTLS_Server
         //example of function used for setting logging
         wolfssl.SetLogging(standard_log);
 
-        wolfssl.Init();
+        Console.WriteLine("Initializing wolfssl...");
+        if (wolfssl.Init() == wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Successfully initialized wolfssl");
+        }
+        else
+        {
+            Console.WriteLine("ERROR: Failed to initialize wolfssl");
+            Environment.Exit(1);
+        }
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_dtls_new(wolfssl.useDTLSv1_2_server());
@@ -81,7 +90,7 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error creating ctx structure");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
@@ -89,13 +98,13 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Could not find cert or key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (!File.Exists(dhparam.ToString())) {
             Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
 
@@ -103,7 +112,7 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error setting cert file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
 
@@ -111,7 +120,7 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error setting key file");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         short minDhKey = 128;
@@ -127,7 +136,7 @@ public class wolfSSL_DTLS_Server
         {
             Console.WriteLine("Error creating ssl object");
             wolfssl.CTX_free(ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
@@ -136,7 +145,7 @@ public class wolfSSL_DTLS_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             udp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.set_dtls_fd(ssl, udp, ep) != wolfssl.SUCCESS)
@@ -144,7 +153,7 @@ public class wolfSSL_DTLS_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             udp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
@@ -152,7 +161,7 @@ public class wolfSSL_DTLS_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             udp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         /* print out results of TLS/SSL accept */
@@ -173,7 +182,7 @@ public class wolfSSL_DTLS_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             udp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
         Console.WriteLine(buff);
 
@@ -183,12 +192,14 @@ public class wolfSSL_DTLS_Server
             Console.WriteLine(wolfssl.get_error(ssl));
             udp.Close();
             clean(ssl, ctx);
-            return;
+            Environment.Exit(1);
         }
 
         Console.WriteLine("At the end freeing stuff");
         wolfssl.shutdown(ssl);
         udp.Close();
         clean(ssl, ctx);
+
+        Environment.Exit(0);
     }
 }

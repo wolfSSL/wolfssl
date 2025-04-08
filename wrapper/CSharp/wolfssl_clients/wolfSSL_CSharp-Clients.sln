@@ -1,40 +1,25 @@
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL_CSharp", "wolfSSL_CSharp\wolfSSL_CSharp.csproj", "{52609808-0418-46D3-8E17-141927A1A39A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL_CSharp", "..\wolfSSL_CSharp\wolfSSL_CSharp.csproj", "{52609808-0418-46D3-8E17-141927A1A39A}"
 	ProjectSection(ProjectDependencies) = postProject
 		{67932048-D67E-4C86-B55F-90899B9BDA64} = {67932048-D67E-4C86-B55F-90899B9BDA64}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-Server", "wolfSSL-TLS-Server\wolfSSL-TLS-Server.csproj", "{8921AD35-4E62-4DAC-8FEE-8C9F8E57DDD2}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wolfssl", "..\wolfssl.vcxproj", "{67932048-D67E-4C86-B55F-90899B9BDA64}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-PSK-Server", "wolfSSL-TLS-PSK-Server\wolfSSL-TLS-PSK-Server.csproj", "{030431C7-26AB-4447-815B-F27E88BE5D5B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-Client", "..\wolfSSL-TLS-Client\wolfSSL-TLS-Client.csproj", "{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-DTLS-Server", "wolfSSL-DTLS-Server\wolfSSL-DTLS-Server.csproj", "{730F047E-37A6-498F-A543-B6C98AA7B338}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-PSK-Client", "..\wolfSSL-TLS-PSK-Client\wolfSSL-TLS-PSK-Client.csproj", "{4F92ECF5-A1D8-4A13-AD0C-6571EB03C01C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-DTLS-PSK-Server", "wolfSSL-DTLS-PSK-Server\wolfSSL-DTLS-PSK-Server.csproj", "{77AEF1BE-4BE3-4837-8188-2A06E4D963F5}"
-	ProjectSection(ProjectDependencies) = postProject
-		{52609808-0418-46D3-8E17-141927A1A39A} = {52609808-0418-46D3-8E17-141927A1A39A}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wolfssl", "wolfssl.vcxproj", "{67932048-D67E-4C86-B55F-90899B9BDA64}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-Example-IOCallbacks", "wolfSSL-Example-IOCallbacks\wolfSSL-Example-IOCallbacks.csproj", "{E2415718-0A15-48DB-A774-01FB0093B626}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-Client", "wolfSSL-TLS-Client\wolfSSL-TLS-Client.csproj", "{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-ServerThreaded", "wolfSSL-TLS-ServerThreaded\wolfSSL-TLS-ServerThreaded.csproj", "{8ABD2E8F-AEE7-40ED-A966-900ACFAE555F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-PSK-Client", "wolfSSL-TLS-PSK-Client\wolfSSL-TLS-PSK-Client.csproj", "{4F92ECF5-A1D8-4A13-AD0C-6571EB03C01C}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfCrypt-Test", "wolfCrypt-Test\wolfCrypt-Test.csproj", "{A4F4A244-1306-47F4-A168-31F78D7362FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfCrypt-Test", "..\wolfCrypt-Test\wolfCrypt-Test.csproj", "{A4F4A244-1306-47F4-A168-31F78D7362FA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "wolfssl Files", "wolfssl Files", "{FF2B4F87-2F25-4123-BCF6-8A20089B965A}"
 	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
-		user_settings.h = user_settings.h
-		..\..\.github\workflows\visual-studio.yml = ..\..\.github\workflows\visual-studio.yml
+		README.md = ..\README.md
+		user_settings.h = //\user_settings.h
 	EndProjectSection
 EndProject
 Global
