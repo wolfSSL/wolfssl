@@ -15631,6 +15631,7 @@ typedef struct encodeSignedDataStream {
     byte out[FOURK_BUF*3];
     int  idx;
     word32 outIdx;
+    word32 chunkSz; /* max amount of data to be returned */
 } encodeSignedDataStream;
 
 
@@ -15641,8 +15642,8 @@ static int GetContentCB(PKCS7* pkcs7, byte** content, void* ctx)
     encodeSignedDataStream* strm = (encodeSignedDataStream*)ctx;
 
     if (strm->outIdx  < pkcs7->contentSz) {
-        ret = (pkcs7->contentSz > strm->outIdx + FOURK_BUF)?
-                FOURK_BUF : pkcs7->contentSz - strm->outIdx;
+        ret = (pkcs7->contentSz > strm->outIdx + strm->chunkSz)?
+                strm->chunkSz : pkcs7->contentSz - strm->outIdx;
         *content = strm->out + strm->outIdx;
         strm->outIdx += ret;
     }
@@ -15793,8 +15794,12 @@ static int test_wc_PKCS7_EncodeSignedData(void)
 
     /* reinitialize and test setting stream mode */
     {
-        int signedSz = 0;
+        int signedSz = 0, i;
         encodeSignedDataStream strm;
+        int numberOfChunkSizes = 4;
+        word32 chunkSizes[] = { 4080, 4096, 5000, 9999 };
+        /* chunkSizes were choosen to test around the default 4096 octet string
+         * size used in pkcs7.c */
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
@@ -15829,41 +15834,48 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
         /* use exact signed buffer size since BER encoded */
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)signedSz),
-            0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output,
+            (word32)signedSz), 0);
         wc_PKCS7_Free(pkcs7);
 
         /* now try with using callbacks for IO */
-        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+        for (i = 0; i < numberOfChunkSizes; i++) {
+            strm.idx    = 0;
+            strm.outIdx = 0;
+            strm.chunkSz = chunkSizes[i];
 
-        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-        if (pkcs7 != NULL) {
-            pkcs7->contentSz  = FOURK_BUF*2;
-            pkcs7->privateKey = key;
-            pkcs7->privateKeySz = (word32)sizeof(key);
-            pkcs7->encryptOID = encryptOid;
-        #ifdef NO_SHA
-            pkcs7->hashOID = SHA256h;
-        #else
-            pkcs7->hashOID = SHAh;
-        #endif
-            pkcs7->rng = &rng;
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+            if (pkcs7 != NULL) {
+                pkcs7->contentSz  = 10000;
+                pkcs7->privateKey = key;
+                pkcs7->privateKeySz = (word32)sizeof(key);
+                pkcs7->encryptOID = encryptOid;
+            #ifdef NO_SHA
+                pkcs7->hashOID = SHA256h;
+            #else
+                pkcs7->hashOID = SHAh;
+            #endif
+                pkcs7->rng = &rng;
+            }
+            ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, GetContentCB,
+                StreamOutputCB, (void*)&strm), 0);
+
+            ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, NULL, 0),
+                0);
+            wc_PKCS7_Free(pkcs7);
+            pkcs7 = NULL;
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+
+            /* use exact signed buffer size since BER encoded */
+            ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out,
+                (word32)signedSz), 0);
         }
-        XMEMSET(&strm, 0, sizeof(strm));
-        ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, GetContentCB,
-            StreamOutputCB, (void*)&strm), 0);
-
-        ExpectIntGT(signedSz = wc_PKCS7_EncodeSignedData(pkcs7, NULL, 0), 0);
-        wc_PKCS7_Free(pkcs7);
-        pkcs7 = NULL;
-
-        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-
-        /* use exact signed buffer size since BER encoded */
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out, (word32)signedSz), 0);
     }
 #endif
 #ifndef NO_PKCS7_STREAM
