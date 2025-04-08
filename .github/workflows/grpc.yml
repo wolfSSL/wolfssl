@@ -71,6 +71,11 @@ jobs:
         with:
           name: wolf-install-grpc
 
+      - name: Setup cmake version
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.25.x'
+
       - name: untar build-dir
         run: tar -xf build-dir.tgz
 
@@ -94,7 +99,7 @@ jobs:
           git submodule update --init
           mkdir cmake/build
           cd cmake/build
-          cmake -DgRPC_BUILD_TESTS=ON -DgRPC_SSL_PROVIDER=wolfssl \
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.1 -DgRPC_BUILD_TESTS=ON -DgRPC_SSL_PROVIDER=wolfssl \
             -DWOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir ../..
           make -j $(nproc) ${{ matrix.tests }}
 

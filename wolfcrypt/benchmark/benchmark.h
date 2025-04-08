@@ -102,7 +102,7 @@ void bench_rsaKeyGen_size(int useDeviceID, word32 keySz);
 void bench_rsa(int useDeviceID);
 void bench_rsa_key(int useDeviceID, word32 keySz);
 void bench_dh(int useDeviceID);
-void bench_kyber(int type);
+void bench_mlkem(int type);
 void bench_lms(void);
 void bench_xmss(int hash);
 void bench_ecc_curve(int curveId);

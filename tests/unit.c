@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 
+#ifndef NO_CRYPT_TEST
+#include <wolfssl/test.h>
+#include "wolfcrypt/test/test.h"
+#endif
 
 int allTesting = 1;
 int apiTesting = 1;
@@ -48,14 +52,19 @@ int main(int argc, char** argv)
 static void UnitTest_Usage(void)
 {
     printf("Usage: ./tests/unit.test <options>\n");
-    printf(" -?, --help     Display this usage information.\n");
-    printf(" --list         List the API tests.\n");
-    printf(" --api          Only perform API tests.\n");
-    printf(" -<number>      Run the API test identified by number.\n");
-    printf("                Can be specified multiple times.\n");
-    printf(" -<string>      Run the API test identified by name.\n");
-    printf("                Can be specified multiple times.\n");
-    printf(" <filename>     Name of cipher suite testing file.\n");
+    printf(" -?, --help        Display this usage information.\n");
+    printf(" --list            List the API tests.\n");
+    printf(" --api             Only perform API tests.\n");
+    printf(" --no-api          Do not perform API tests.\n");
+    printf(" --stopOnFail      Stops API testing on first failure.\n");
+    printf(" --groups          List known group names.\n");
+    printf(" --group <string>  Functions in this group are tested.\n");
+    printf(" -<number>         Run the API test identified by number.\n");
+    printf("                   Can be specified multiple times.\n");
+    printf(" -<string>         Run the API test identified by name.\n");
+    printf("                   Can be specified multiple times.\n");
+    printf(" -~<string>        Functions with this substring are tested.\n");
+    printf(" <filename>        Name of cipher suite testing file.\n");
 }
 
 int unit_test(int argc, char** argv)
@@ -192,6 +201,27 @@ int unit_test(int argc, char** argv)
         else if (XSTRCMP(argv[1], "--no-api") == 0) {
             apiTesting = 0;
         }
+        else if (XSTRCMP(argv[1], "--stopOnFail") == 0) {
+            ApiTest_StopOnFail();
+        }
+        else if (XSTRCMP(argv[1], "--groups") == 0) {
+            ApiTest_PrintGroups();
+            goto exit;
+        }
+        else if (XSTRCMP(argv[1], "--group") == 0) {
+            if (argc == 1) {
+                fprintf(stderr, "No group name supplied\n");
+                ret = -1;
+                goto exit;
+            }
+            ret = ApiTest_RunGroup(argv[2]);
+            if (ret != 0) {
+                goto exit;
+            }
+            allTesting = 0;
+            argc--;
+            argv++;
+        }
         else if (argv[1][0] == '-' && argv[1][1] >= '0' && argv[1][1] <= '9') {
             ret = ApiTest_RunIdx(atoi(argv[1] + 1));
             if (ret != 0) {
@@ -218,6 +248,34 @@ int unit_test(int argc, char** argv)
         argv++;
     }
 
+#ifndef NO_CRYPT_TEST
+    /* wc_ test */
+    if (allTesting) {
+        func_args wc_args;
+
+        printf("\nwolfCrypt unit test:\n");
+
+        if ((ret = wolfCrypt_Init()) != 0) {
+            fprintf(stderr, "wolfCrypt_Init failed: %d\n", (int)ret);
+            goto exit;
+        }
+
+        XMEMSET(&wc_args, 0, sizeof(wc_args));
+        wolfcrypt_test(&wc_args);
+        if (wc_args.return_code != 0) {
+            ret = 1;
+            goto exit;
+        }
+
+        if ((ret = wolfCrypt_Cleanup()) != 0) {
+            fprintf(stderr, "wolfCrypt_Cleanup failed: %d\n", (int)ret);
+            goto exit;
+        }
+
+        printf("wolfCrypt unit test completed successfully.\n\n");
+    }
+#endif
+
 #ifdef WOLFSSL_ALLOW_SKIP_UNIT_TESTS
     if (argc == 1)
 #endif
@@ -232,11 +290,6 @@ int unit_test(int argc, char** argv)
             goto exit;
         }
 
-        if ((ret = HashTest()) != 0) {
-            fprintf(stderr, "hash test failed with %d\n", ret);
-            goto exit;
-        }
-
     #ifdef WOLFSSL_W64_WRAPPER
         if ((ret = w64wrapper_test()) != 0) {
             fprintf(stderr, "w64wrapper test failed with %d\n", ret);
@@ -246,7 +299,7 @@ int unit_test(int argc, char** argv)
 
     #ifdef WOLFSSL_QUIC
         if ((ret = QuicTest()) != 0) {
-            printf("quic test failed with %d\n", ret);
+            fprintf(stderr, "quic test failed with %d\n", ret);
             goto exit;
         }
     #endif

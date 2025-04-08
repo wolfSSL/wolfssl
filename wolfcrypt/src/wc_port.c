@@ -19,10 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef __APPLE__
     #include <AvailabilityMacros.h>
@@ -1039,6 +1036,15 @@ int z_fs_close(XFILE file)
     XFREE(file, NULL, DYNAMIC_TYPE_FILE);
 
     return ret;
+}
+
+/* Rewind the file pointer to the beginning of the file */
+/* This is not a 'rewind' is not supported in Zephyr so */
+/* use fs_seek to move the file pointer to the beginning of the file */
+/* calling it z_fs_rewind to avoid future conflicts if rewind is added */
+int z_fs_rewind(XFILE file)
+{
+    return fs_seek(file, 0, FS_SEEK_SET);
 }
 
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */

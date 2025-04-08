@@ -167,13 +167,13 @@
 #ifdef HAVE_ED448
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
-#ifdef WOLFSSL_HAVE_KYBER
-    #include <wolfssl/wolfcrypt/kyber.h>
-    #ifdef WOLFSSL_WC_KYBER
-        #include <wolfssl/wolfcrypt/wc_kyber.h>
+#ifdef WOLFSSL_HAVE_MLKEM
+    #include <wolfssl/wolfcrypt/mlkem.h>
+    #ifdef WOLFSSL_WC_MLKEM
+        #include <wolfssl/wolfcrypt/wc_mlkem.h>
     #endif
     #if defined(HAVE_LIBOQS)
-        #include <wolfssl/wolfcrypt/ext_kyber.h>
+        #include <wolfssl/wolfcrypt/ext_mlkem.h>
     #endif
 #endif
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
@@ -781,8 +781,8 @@
 /* Define AES_AUTH_ADD_SZ already here, since it's used in the
  * static declaration of `bench_Usage_msg1`. */
 #if !defined(AES_AUTH_ADD_SZ) && \
-        defined(STM32_CRYPTO) && !defined(STM32_AESGCM_PARTIAL) || \
-        defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+        (defined(STM32_CRYPTO) || \
+         defined(WOLFSSL_XILINX_CRYPT_VERSAL))
     /* For STM32 use multiple of 4 to leverage crypto hardware
      * Xilinx Versal requires to use multiples of 16 bytes */
     #define AES_AUTH_ADD_SZ 16
@@ -1123,7 +1123,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 };
 #endif /* BENCH_PQ_STATEFUL_HBS */
 
-#if defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_FALCON) || \
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
 /* The post-quantum-specific mapping of command line option to bit values and
  * OQS name. */
@@ -1138,7 +1138,7 @@ typedef struct bench_pq_alg {
  * options. */
 static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-pq",                0xffffffff },
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     { "-kyber",             BENCH_KYBER             },
     { "-kyber512",          BENCH_KYBER512          },
     { "-kyber768",          BENCH_KYBER768          },
@@ -1290,7 +1290,7 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM)
 
 static const char* bench_desc_words[][15] = {
     /* 0           1          2         3        4        5         6            7            8          9        10        11       12          13       14 */
@@ -1753,7 +1753,7 @@ static const char* bench_result_words3[][5] = {
         || !defined(NO_DH) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_ECC) \
         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519) \
         || defined(HAVE_CURVE448) || defined(HAVE_ED448) \
-        || defined(WOLFSSL_HAVE_KYBER))
+        || defined(WOLFSSL_HAVE_MLKEM))
     #define HAVE_LOCAL_RNG
     static THREAD_LS_T WC_RNG gRng;
     #define GLOBAL_RNG &gRng
@@ -1765,7 +1765,7 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
     defined(WOLFSSL_HAVE_LMS)
     #define BENCH_ASYM
 #endif
@@ -1774,7 +1774,7 @@ static const char* bench_result_words3[][5] = {
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
     defined(WOLFSSL_HAVE_LMS)
 static const char* bench_result_words2[][5] = {
 #ifdef BENCH_MICROSECOND
@@ -2744,7 +2744,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_DILITHIUM) || \
     defined(WOLFSSL_HAVE_LMS)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
@@ -3634,9 +3634,9 @@ static void* benchmarks_do(void* args)
         bench_scrypt();
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WC_NO_RNG)
 #ifndef HAVE_RENESAS_SYNC
-    #ifdef WOLFSSL_KEY_GEN
+    #if defined(WOLFSSL_KEY_GEN)
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
@@ -3656,7 +3656,7 @@ static void* benchmarks_do(void* args)
             }
         #endif
         }
-    #endif
+    #endif /* WOLFSSL_KEY_GEN */
     if (bench_all || (bench_asym_algs & BENCH_RSA)) {
     #ifndef NO_SW_BENCH
         bench_rsa(0);
@@ -3677,9 +3677,9 @@ static void* benchmarks_do(void* args)
     }
     #endif
 #endif
-#endif
+#endif /* !NO_RSA && !WC_NO_RNG */
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_DH)) {
     #ifndef NO_SW_BENCH
         bench_dh(0);
@@ -3690,39 +3690,39 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER)) {
 #ifndef WOLFSSL_NO_ML_KEM
     #ifdef WOLFSSL_WC_ML_KEM_512
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
-            bench_kyber(WC_ML_KEM_512);
+            bench_mlkem(WC_ML_KEM_512);
         }
     #endif
     #ifdef WOLFSSL_WC_ML_KEM_768
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
-            bench_kyber(WC_ML_KEM_768);
+            bench_mlkem(WC_ML_KEM_768);
         }
     #endif
     #ifdef WOLFSSL_WC_ML_KEM_1024
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
-            bench_kyber(WC_ML_KEM_1024);
+            bench_mlkem(WC_ML_KEM_1024);
         }
     #endif
 #endif
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     #ifdef WOLFSSL_KYBER512
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
-            bench_kyber(KYBER512);
+            bench_mlkem(KYBER512);
         }
     #endif
     #ifdef WOLFSSL_KYBER768
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
-            bench_kyber(KYBER768);
+            bench_mlkem(KYBER768);
         }
     #endif
     #ifdef WOLFSSL_KYBER1024
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
-            bench_kyber(KYBER1024);
+            bench_mlkem(KYBER1024);
         }
     #endif
 #endif
@@ -3761,7 +3761,7 @@ static void* benchmarks_do(void* args)
 #endif
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
             (bench_asym_algs & BENCH_ECC) ||
             (bench_asym_algs & BENCH_ECC_ALL) ||
@@ -8637,7 +8637,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8660,7 +8660,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8683,7 +8683,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTCP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_128_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -8706,7 +8706,7 @@ void bench_srtpkdf(void)
     bench_stats_start(&count, &start);
     PRIVATE_KEY_UNLOCK();
     do {
-        for (i = 0; i < numBlocks; i++) {
+        for (i = 0; i < numBlocks * 1000; i++) {
             ret = wc_SRTCP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
                 kdrIdx, index, keyE, AES_256_KEY_SIZE, keyA, sizeof(keyA),
                 keyS, sizeof(keyS));
@@ -9370,7 +9370,7 @@ exit:
 #endif /* !NO_RSA */
 
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(WC_NO_RNG)
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -9650,19 +9650,19 @@ exit:
     WC_FREE_VAR(priv2, HEAP_HINT);
     WC_FREE_ARRAY(agree, BENCH_MAX_PENDING, HEAP_HINT);
 }
-#endif /* !NO_DH */
+#endif /* !NO_DH && !WC_NO_RNG */
 
-#ifdef WOLFSSL_HAVE_KYBER
-static void bench_kyber_keygen(int type, const char* name, int keySize,
+#ifdef WOLFSSL_HAVE_MLKEM
+static void bench_mlkem_keygen(int type, const char* name, int keySize,
     KyberKey* key)
 {
-#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
+#ifndef WOLFSSL_MLKEM_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    /* KYBER Make Key */
+    /* MLKEM Make Key */
     bench_stats_start(&count, &start);
     do {
         /* while free pending slots in queue, submit ops */
@@ -9672,11 +9672,13 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
             if (ret != 0)
                 goto exit;
 
-#ifdef KYBER_NONDETERMINISTIC
+#ifdef MLKEM_NONDETERMINISTIC
             ret = wc_KyberKey_MakeKey(key, &gRng);
 #else
-            unsigned char rand[KYBER_MAKEKEY_RAND_SZ] = {0,};
-            ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+            {
+                unsigned char rand[WC_ML_KEM_MAKEKEY_RAND_SZ] = {0,};
+                ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+            }
 #endif
             if (ret != 0)
                 goto exit;
@@ -9699,20 +9701,20 @@ exit:
    (void)name;
    (void)keySize;
    (void)key;
-#endif /* !WOLFSSL_KYBER_NO_MAKE_KEY */
+#endif /* !WOLFSSL_MLKEM_NO_MAKE_KEY */
 }
 
-#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
-static void bench_kyber_encap(int type, const char* name, int keySize,
+#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+static void bench_mlkem_encap(int type, const char* name, int keySize,
     KyberKey* key1, KyberKey* key2)
 {
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
-    byte ct[KYBER_MAX_CIPHER_TEXT_SIZE];
-    byte ss[KYBER_SS_SZ];
-    byte pub[KYBER_MAX_PUBLIC_KEY_SIZE];
+    byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    byte ss[WC_ML_KEM_SS_SZ];
+    byte pub[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
     word32 pubLen;
     word32 ctSz;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -9739,16 +9741,16 @@ static void bench_kyber_encap(int type, const char* name, int keySize,
         return;
     }
 
-#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
-    /* KYBER Encapsulate */
+#ifndef WOLFSSL_MLKEM_NO_ENCAPSULATE
+    /* MLKEM Encapsulate */
     bench_stats_start(&count, &start);
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-#ifdef KYBER_NONDETERMINISTIC
+#ifdef MLKEM_NONDETERMINISTIC
             ret = wc_KyberKey_Encapsulate(key2, ct, ss, &gRng);
 #else
-            unsigned char rand[KYBER_ENC_RAND_SZ] = {0,};
+            unsigned char rand[WC_ML_KEM_ENC_RAND_SZ] = {0,};
             ret = wc_KyberKey_EncapsulateWithRandom(key2, ct, ss, rand,
                 sizeof(rand));
 #endif
@@ -9770,10 +9772,10 @@ exit_encap:
 #endif
 #endif
 
-#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+#ifndef WOLFSSL_MLKEM_NO_DECAPSULATE
     RESET_MULTI_VALUE_STATS_VARS();
 
-    /* KYBER Decapsulate */
+    /* MLKEM Decapsulate */
     bench_stats_start(&count, &start);
     do {
         /* while free pending slots in queue, submit ops */
@@ -9799,7 +9801,7 @@ exit_decap:
 }
 #endif
 
-void bench_kyber(int type)
+void bench_mlkem(int type)
 {
     KyberKey key1;
     KyberKey key2;
@@ -9827,7 +9829,7 @@ void bench_kyber(int type)
         break;
 #endif
 #endif
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
 #ifdef WOLFSSL_KYBER512
     case KYBER512:
         name = "KYBER512 ";
@@ -9847,12 +9849,14 @@ void bench_kyber(int type)
         break;
 #endif
 #endif
+    default:
+        return;
     }
 
-    bench_kyber_keygen(type, name, keySize, &key1);
-#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
-    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
-    bench_kyber_encap(type, name, keySize, &key1, &key2);
+    bench_mlkem_keygen(type, name, keySize, &key1);
+#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    bench_mlkem_encap(type, name, keySize, &key1, &key2);
 #endif
 
     wc_KyberKey_Free(&key2);
@@ -11045,7 +11049,7 @@ void bench_xmss(int hash)
 }
 #endif /* if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY) */
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 
 /* Maximum ECC name plus null terminator:
  * "ECC   [%15s]" and "ECDHE [%15s]" and "ECDSA [%15s]" */
@@ -11938,7 +11942,7 @@ exit:
     (void)name;
 }
 #endif /* WOLFSSL_SM2 */
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && && !defined(WC_NO_RNG) */
 
 #ifdef HAVE_CURVE25519
 void bench_curve25519KeyGen(int useDeviceID)
@@ -14997,6 +15001,14 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)us / 1000000.0;
     }
 
+#elif defined(__WATCOMC__)
+
+    #include <time.h>
+    WC_INLINE double current_time(int reset)
+    {
+        (void)reset;
+        return ((double)clock())/CLOCKS_PER_SEC;
+    }
 #else
 
     #include <time.h>
@@ -15157,7 +15169,7 @@ static void Usage(void)
         print_alg(bench_asym_opt[i].str, &line);
     for (i=0; bench_other_opt[i].str != NULL; i++)
         print_alg(bench_other_opt[i].str, &line);
-#if defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_FALCON) || \
+#if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
     for (i=0; bench_pq_asym_opt[i].str != NULL; i++)
         print_alg(bench_pq_asym_opt[i].str, &line);
@@ -15440,7 +15452,7 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
                     optMatched = 1;
                 }
             }
-        #if defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_FALCON) || \
+        #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
             defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
             /* Known asymmetric post-quantum algorithms */
             for (i=0; !optMatched && bench_pq_asym_opt[i].str != NULL; i++) {

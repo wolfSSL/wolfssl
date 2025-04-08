@@ -19,14 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
-    #include <wolfssl/options.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -37,7 +30,6 @@
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <tests/unit.h>
 #include <tests/api/api.h>
 #include <tests/api/test_sha3.h>
 #include <tests/api/test_digest.h>
@@ -861,6 +853,7 @@ int test_wc_Shake128_Absorb(void)
 
     ExpectIntEQ(wc_InitShake128(&shake128, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake128_Absorb(NULL     , NULL    , 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL    , 1),
@@ -869,6 +862,8 @@ int test_wc_Shake128_Absorb(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, NULL, 0), 0);
+#endif
+
     ExpectIntEQ(wc_Shake128_Absorb(&shake128, (byte*)"a", 1), 0);
 
     wc_Shake128_Free(&shake128);
@@ -885,6 +880,7 @@ int test_wc_Shake128_SqueezeBlocks(void)
 
     ExpectIntEQ(wc_InitShake128(&shake128, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(NULL     , NULL, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, NULL, 1),
@@ -893,6 +889,7 @@ int test_wc_Shake128_SqueezeBlocks(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake128_SqueezeBlocks(&shake128, hash, 1), 0);
 
     wc_Shake128_Free(&shake128);
@@ -1281,6 +1278,7 @@ int test_wc_Shake256_Absorb(void)
 
     ExpectIntEQ(wc_InitShake256(&shake256, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake256_Absorb(NULL     , NULL    , 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL    , 1),
@@ -1289,6 +1287,7 @@ int test_wc_Shake256_Absorb(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake256_Absorb(&shake256, (byte*)"a", 1), 0);
 
     wc_Shake256_Free(&shake256);
@@ -1305,6 +1304,7 @@ int test_wc_Shake256_SqueezeBlocks(void)
 
     ExpectIntEQ(wc_InitShake256(&shake256, HEAP_HINT, INVALID_DEVID), 0);
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(NULL     , NULL, 1),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, NULL, 1),
@@ -1313,6 +1313,7 @@ int test_wc_Shake256_SqueezeBlocks(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, NULL, 0), 0);
+#endif
     ExpectIntEQ(wc_Shake256_SqueezeBlocks(&shake256, hash, 1), 0);
 
     wc_Shake256_Free(&shake256);

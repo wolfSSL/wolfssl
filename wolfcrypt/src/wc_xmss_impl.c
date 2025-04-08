@@ -29,13 +29,7 @@
  *       (https://ece.engr.uvic.ca/~raltawy/SAC2021/9.pdf)
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 #include <wolfssl/wolfcrypt/hash.h>

@@ -464,7 +464,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else
         #endif
     #endif /* WOLFSSL_NO_ML_KEM */
-    #ifdef WOLFSSL_KYBER_ORIGINAL
+    #ifdef WOLFSSL_MLKEM_KYBER
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
@@ -522,7 +522,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else
         #endif
-    #endif /* WOLFSSL_KYBER_ORIGINAL */
+    #endif /* WOLFSSL_MLKEM_KYBER */
             {
                 err_sys("invalid post-quantum KEM specified");
             }
@@ -1428,7 +1428,7 @@ static const char* client_usage_msg[][78] = {
             "X25519_ML_KEM_768,\n"
             "            X448_ML_KEM_768\n"
 #endif
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
             "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
             "P256_KYBER_LEVEL1,\n"
             "            P384_KYBER_LEVEL3, P256_KYBER_LEVEL3, "
@@ -1679,7 +1679,7 @@ static const char* client_usage_msg[][78] = {
             "\n"
             "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
 #endif
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
             "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
             "P256_KYBER_LEVEL1,\n"
             "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"

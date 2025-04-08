@@ -72,8 +72,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -194,8 +198,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -397,8 +405,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 
@@ -1100,8 +1112,12 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_x86_asm.S
 else
+if BUILD_AESGCM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+if BUILD_AESXTS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
+endif
 endif
 endif
 endif
@@ -1127,6 +1143,7 @@ endif
 
 if BUILD_CHACHA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha.c
+if !BUILD_CHACHA_NOASM
 if BUILD_ARMASM
 if BUILD_ARM_NONTHUMB
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c
@@ -1159,6 +1176,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha_asm.S
 endif BUILD_INTELASM
 endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
+endif !BUILD_CHACHA_NOASM
 if BUILD_POLY1305
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha20_poly1305.c
 endif BUILD_POLY1305
@@ -1193,34 +1211,34 @@ if BUILD_SAKKE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sakke.c
 endif
 
-if BUILD_WC_KYBER
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber_poly.c
+if BUILD_WC_MLKEM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mlkem.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mlkem_poly.c
 if BUILD_ARMASM
 if BUILD_ARM_THUMB
 if BUILD_ARMASM_INLINE
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-kyber-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-mlkem-asm_c.c
 else
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-kyber-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-mlkem-asm.S
 endif !BUILD_ARMASM_INLINE
 else
 if BUILD_ARMASM_INLINE
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-kyber-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-mlkem-asm_c.c
 else
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-kyber-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-mlkem-asm.S
 endif !BUILD_ARMASM_INLINE
 endif !BUILD_ARM_THUMB
 endif BUILD_ARMASM
 if !BUILD_X86_ASM
 if BUILD_INTELASM
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_kyber_asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_mlkem_asm.S
 endif
 endif
 if BUILD_ARMASM_NEON
 if BUILD_ARMASM_INLINE
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-kyber-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-mlkem-asm_c.c
 else
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-kyber-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-mlkem-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
 endif
@@ -1381,7 +1399,7 @@ if BUILD_LIBOQS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/falcon.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sphincs.c
-src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_kyber.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ext_mlkem.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/liboqs/liboqs.c
 endif
 

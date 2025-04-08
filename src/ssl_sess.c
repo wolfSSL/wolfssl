@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(WOLFSSL_SSL_SESS_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -4097,7 +4092,7 @@ void wolfSSL_FreeSession(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
     ForceZero(session->sessionID, ID_LEN);
 
     if (session->type == WOLFSSL_SESSION_TYPE_HEAP) {
-        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION);
+        XFREE(session, session->heap, DYNAMIC_TYPE_SESSION); /* // NOLINT(clang-analyzer-unix.Malloc) */
     }
 }
 

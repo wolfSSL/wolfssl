@@ -21,13 +21,11 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha256.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha256-asm.S
+ *   ruby ./sha2/sha256.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha256-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/wolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
 #ifdef WOLFSSL_ARMASM_THUMB2

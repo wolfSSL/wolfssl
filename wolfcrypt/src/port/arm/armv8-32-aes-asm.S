@@ -25,10 +25,7 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
@@ -297,7 +294,9 @@ L_AES_ARM32_td_data:
 	.word	0x74486c5c
 	.word	0x42d0b857
 #endif /* HAVE_AES_DECRYPT */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
+    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te_data, %object
 	.size	L_AES_ARM32_te_data, 1024
@@ -559,7 +558,8 @@ L_AES_ARM32_te_data:
 	.word	0xfca85454
 	.word	0xd66dbbbb
 	.word	0x3a2c1616
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
+        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.type	L_AES_ARM32_td, %object
@@ -568,14 +568,17 @@ L_AES_ARM32_te_data:
 L_AES_ARM32_td:
 	.word	L_AES_ARM32_td_data
 #endif /* HAVE_AES_DECRYPT */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
+    defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te, %object
 	.size	L_AES_ARM32_te, 12
 	.align	4
 L_AES_ARM32_te:
 	.word	L_AES_ARM32_te_data
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
+        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.align	4
@@ -1935,7 +1938,8 @@ L_AES_encrypt_block_nr:
 	eor	r7, r7, r11
 	pop	{pc}
 	.size	AES_encrypt_block,.-AES_encrypt_block
-#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 	.text
 	.type	L_AES_ARM32_te_ecb, %object
 	.size	L_AES_ARM32_te_ecb, 12
@@ -2175,7 +2179,8 @@ L_AES_ECB_encrypt_end:
 	pop	{r3}
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
-#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
+        * WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
 	.text
 	.type	L_AES_ARM32_te_cbc, %object
@@ -2691,7 +2696,8 @@ L_AES_CTR_encrypt_end:
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
+    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_CBC)
 	.text
 	.align	4
 	.globl	AES_decrypt_block
@@ -3841,13 +3847,13 @@ L_AES_ECB_decrypt_end:
 	.type	AES_CBC_decrypt, %function
 AES_CBC_decrypt:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	ldr	r8, [sp, #36]
-	ldr	r4, [sp, #40]
 	mov	lr, r0
 	adr	r0, L_AES_ARM32_td_ecb
 	ldr	r0, [r0]
 	mov	r12, r2
 	adr	r2, L_AES_ARM32_td4
+	ldr	r8, [sp, #36]
+	ldr	r4, [sp, #40]
 	push	{r3, r4}
 	cmp	r8, #10
 	beq	L_AES_CBC_decrypt_loop_block_128

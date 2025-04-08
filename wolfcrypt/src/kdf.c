@@ -19,15 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/wc_port.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_KDF
 
@@ -1051,11 +1043,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1155,11 +1143,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1256,11 +1240,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {
@@ -1339,11 +1319,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
             ret = MEMORY_E;
         }
     }
-    if (aes != NULL)
 #endif
-    {
-        XMEMSET(aes, 0, sizeof(Aes));
-    }
 
     /* Setup AES object. */
     if (ret == 0) {

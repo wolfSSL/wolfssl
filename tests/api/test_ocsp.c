@@ -19,22 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
-    #include <wolfssl/options.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_ocsp_test_blobs.h>
-#include <tests/unit.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
 
-#if defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && !defined(NO_SHA) && !defined(NO_RSA)
 struct ocsp_cb_ctx {
     byte* response;
     int responseSz;
@@ -155,17 +148,17 @@ int test_ocsp_response_parsing(void)
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
     ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
         TEST_SUCCESS);
-
     return EXPECT_SUCCESS();
 }
-#else  /* HAVE_OCSP */
+#else  /* HAVE_OCSP && !NO_SHA */
 int test_ocsp_response_parsing(void)
 {
     return TEST_SKIPPED;
 }
-#endif /* HAVE_OCSP */
+#endif /* HAVE_OCSP && !NO_SHA */
 
-#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(NO_RSA)
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
     unsigned char* ca, int caSz)
 {
@@ -222,7 +215,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntEQ(response->responseStatus, 0);
     ExpectIntEQ(response->responderIdType, OCSP_RESPONDER_ID_KEY);
     ExpectBufEQ(response->responderId.keyHash, cert.subjectKeyHash,
-        OCSP_DIGEST_SIZE);
+        OCSP_RESPONDER_ID_KEY_SZ);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* decoding with no embedded certificates */
@@ -349,7 +342,6 @@ int test_ocsp_basic_verify(void)
     wc_FreeDecodedCert(&cert);
     wolfSSL_sk_X509_pop_free(certs, wolfSSL_X509_free);
     wolfSSL_X509_STORE_free(store);
-
     return EXPECT_RESULT();
 }
 #else
@@ -592,3 +584,70 @@ int test_ocsp_status_callback(void)
         && defined(HAVE_CERTIFICATE_STATUS_REQUEST) &&                         \
         !defined(WOLFSSL_NO_TLS12)                                             \
         && defined(OPENSSL_ALL) */
+
+#if !defined(NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP) &&          \
+    !defined(WOLFSSL_SM3) && !defined(WOLFSSL_SM2) && !defined(NO_RSA)
+int test_ocsp_certid_enc_dec(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_OCSP_CERTID* certIdDec = NULL;
+    WOLFSSL_OCSP_CERTID* certId = NULL;
+    WOLFSSL_X509* subject = NULL;
+    WOLFSSL_X509* issuer = NULL;
+    unsigned char* temp = NULL;
+    unsigned char* der2 = NULL;
+    unsigned char* der = NULL;
+    int derSz = 0, derSz1 = 0;
+
+    /* Load test certificates */
+    ExpectNotNull(
+        subject = wolfSSL_X509_load_certificate_file(
+            "./certs/ocsp/intermediate1-ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(issuer = wolfSSL_X509_load_certificate_file(
+                      "./certs/ocsp/root-ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+
+    /* Create CERTID from certificates */
+    ExpectNotNull(certId = wolfSSL_OCSP_cert_to_id(NULL, subject, issuer));
+
+    /* get len */
+    ExpectIntGT(derSz = wolfSSL_i2d_OCSP_CERTID(certId, NULL), 0);
+
+    /* encode it */
+    ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der), 0);
+    ExpectIntEQ(derSz, derSz1);
+
+    if (EXPECT_SUCCESS())
+        temp = der2 = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+    ExpectNotNull(der2);
+    /* encode without allocation */
+    ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der2), 0);
+    ExpectIntEQ(derSz, derSz1);
+    ExpectPtrEq(der2, temp + derSz);
+    ExpectBufEQ(der, temp, derSz);
+    XFREE(temp, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    /* save original */
+    temp = der;
+    /* decode it */
+    ExpectNotNull(certIdDec = wolfSSL_d2i_OCSP_CERTID(NULL,
+                      (const unsigned char**)&der, derSz));
+    /* check ptr is advanced */
+    ExpectPtrEq(der, temp + derSz);
+    der = der2;
+    XFREE(temp, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    /* compare */
+    ExpectIntEQ(wolfSSL_OCSP_id_cmp(certId, certIdDec), 0);
+
+    wolfSSL_OCSP_CERTID_free(certId);
+    wolfSSL_OCSP_CERTID_free(certIdDec);
+    wolfSSL_X509_free(subject);
+    wolfSSL_X509_free(issuer);
+    return EXPECT_SUCCESS();
+}
+#else /* !NO_SHA && OPENSSL_ALL && HAVE_OCSP && !WOLFSSL_SM3 && !WOLFSSL_SM2 */
+int test_ocsp_certid_enc_dec(void)
+{
+    return TEST_SKIPPED;
+}
+#endif

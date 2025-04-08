@@ -29,15 +29,10 @@ Public domain.
 
 */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_CHACHA
     #include <wolfssl/wolfcrypt/chacha.h>
-    #include <wolfssl/wolfcrypt/error-crypt.h>
 
     #ifdef NO_INLINE
         #include <wolfssl/wolfcrypt/misc.h>
@@ -72,10 +67,10 @@ Public domain.
 #endif /* HAVE_CHACHA */
 
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(WOLFSSL_ARMASM) && !defined(NO_CHACHA_ASM)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
-#elif defined(WOLFSSL_RISCV_ASM)
+#elif defined(WOLFSSL_RISCV_ASM) && !defined(NO_CHACHA_ASM)
     /* implementation located in wolfcrypt/src/port/riscv/riscv-64-chacha.c */
 
 #else

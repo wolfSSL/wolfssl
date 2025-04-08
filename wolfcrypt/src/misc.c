@@ -25,11 +25,15 @@ This module implements the arithmetic-shift right, left, byte swapping, XOR,
 masking and clearing memory logic.
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_VIS_FOR_TESTS
+    #ifdef HAVE_CONFIG_H
+        #include <config.h>
+    #endif
+    #include <wolfssl/wolfcrypt/settings.h>
+#else
+    #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#endif
 
 #ifndef WOLF_CRYPT_MISC_C
 #define WOLF_CRYPT_MISC_C
@@ -189,6 +193,28 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
             out[i] = ByteReverseWord32(in[i]);
     }
 #ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x3) == 0) {
+        byte *out_bytes = (byte *)out;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            scratch = ByteReverseWord32(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x3) == 0) {
+        byte *in_bytes = (byte *)in;
+        word32 scratch;
+
+        byteCount &= ~0x3U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord32(scratch);
+        }
+    }
     else {
         byte *in_bytes = (byte *)in;
         byte *out_bytes = (byte *)out;
@@ -335,22 +361,68 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 {
     word32 count = byteCount/(word32)sizeof(word64), i;
 
-    for (i = 0; i < count; i++)
-        out[i] = ByteReverseWord64(in[i]);
+#ifdef WOLFSSL_USE_ALIGN
+    if ((((size_t)in & 0x7) == 0) &&
+        (((size_t)out & 0x7) == 0))
+#endif
+    {
+        for (i = 0; i < count; i++)
+            out[i] = ByteReverseWord64(in[i]);
+    }
+#ifdef WOLFSSL_USE_ALIGN
+    else if (((size_t)in & 0x7) == 0) {
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
 
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            scratch = ByteReverseWord64(*in++);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+    else if (((size_t)out & 0x7) == 0) {
+        byte *in_bytes = (byte *)in;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            *out++ = ByteReverseWord64(scratch);
+        }
+    }
+    else {
+        byte *in_bytes = (byte *)in;
+        byte *out_bytes = (byte *)out;
+        word64 scratch;
+
+        byteCount &= ~0x7U;
+
+        for (i = 0; i < byteCount; i += (word32)sizeof(word64)) {
+            XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
+            scratch = ByteReverseWord64(scratch);
+            XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
+        }
+    }
+#endif
 }
 
 #endif /* WORD64_AVAILABLE && !WOLFSSL_NO_WORD64_OPS */
 
 #ifndef WOLFSSL_NO_XOR_OPS
+
+/* Leave no doubt that WOLFSSL_WORD_SIZE is a power of 2. */
+wc_static_assert((WOLFSSL_WORD_SIZE & (WOLFSSL_WORD_SIZE - 1)) == 0);
+
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
 of wolfssl_words, placing the result in <*r>. */
 WC_MISC_STATIC WC_INLINE void XorWordsOut(wolfssl_word** r,
                        const wolfssl_word** a, const wolfssl_word** b, word32 n)
 {
-    word32 i;
+    const wolfssl_word *e = *a + n;
 
-    for (i = 0; i < n; i++)
+    while (*a < e)
         *((*r)++) = *((*a)++) ^ *((*b)++);
 }
 
@@ -360,48 +432,68 @@ counts, placing the result in <*buf>. */
 WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
                                         const void* mask, word32 count)
 {
-    word32      i;
-    byte*       o;
-    const byte* b;
-    const byte* m;
+    byte*       o = (byte*)out;
+    const byte* b = (const byte*)buf;
+    const byte* m = (const byte*)mask;
 
-    o = (byte*)out;
-    b = (const byte*)buf;
-    m = (const byte*)mask;
+    /* type-punning helpers */
+    union {
+        byte* bp;
+        wolfssl_word* wp;
+    } tpo;
+    union {
+        const byte* bp;
+        const wolfssl_word* wp;
+    } tpb, tpm;
 
+    if (((((wc_ptr_t)o) & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        ((((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        ((((wc_ptr_t)m) & (WOLFSSL_WORD_SIZE - 1)) == 0))
+    {
+        /* All buffers are already aligned.  Possible to XOR by words without
+         * fixup.
+         */
 
-    if (((wc_ptr_t)o) % WOLFSSL_WORD_SIZE ==
-            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE &&
-            ((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
-                        ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
-        /* type-punning helpers */
-        union {
-            byte* bp;
-            wolfssl_word* wp;
-        } tpo;
-        union {
-            const byte* bp;
-            const wolfssl_word* wp;
-        } tpb, tpm;
-        /* Alignment checks out. Possible to XOR words. */
-        /* Move alignment so that it lines up with a
-         * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
-            *(o++) = (byte)(*(b++) ^ *(m++));
-            count--;
-        }
         tpo.bp = o;
         tpb.bp = b;
         tpm.bp = m;
-        XorWordsOut( &tpo.wp, &tpb.wp, &tpm.wp, count / WOLFSSL_WORD_SIZE);
+        XorWordsOut(&tpo.wp, &tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
         o = tpo.bp;
         b = tpb.bp;
         m = tpm.bp;
-        count %= WOLFSSL_WORD_SIZE;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+    else if ((((wc_ptr_t)o) & (WOLFSSL_WORD_SIZE - 1)) ==
+             (((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) &&
+             (((wc_ptr_t)b) & (WOLFSSL_WORD_SIZE - 1)) ==
+             (((wc_ptr_t)m) & (WOLFSSL_WORD_SIZE - 1)))
+    {
+        /* Alignment can be fixed up to allow XOR by words. */
+
+        /* Perform bytewise xor until pointers are aligned to
+         * WOLFSSL_WORD_SIZE.
+         */
+        while ((((wc_ptr_t)b & (WOLFSSL_WORD_SIZE - 1)) != 0) && (count > 0))
+        {
+            *o++ = (byte)(*b++ ^ *m++);
+            count--;
+        }
+
+        tpo.bp = o;
+        tpb.bp = b;
+        tpm.bp = m;
+        XorWordsOut(&tpo.wp, &tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        o = tpo.bp;
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
     }
 
-    for (i = 0; i < count; i++)
-        o[i] = (byte)(b[i] ^ m[i]);
+    while (count > 0) {
+        *o++ = (byte)(*b++ ^ *m++);
+        count--;
+    }
+
 }
 
 /* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
@@ -409,9 +501,9 @@ of wolfssl_words, placing the result in <*r>. */
 WC_MISC_STATIC WC_INLINE void XorWords(wolfssl_word** r, const wolfssl_word** a,
                                        word32 n)
 {
-    word32 i;
+    const wolfssl_word *e = *a + n;
 
-    for (i = 0; i < n; i++)
+    while (*a < e)
         *((*r)++) ^= *((*a)++);
 }
 
@@ -420,47 +512,82 @@ counts, placing the result in <*buf>. */
 
 WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    word32      i;
-    byte*       b;
-    const byte* m;
+    byte*       b = (byte*)buf;
+    const byte* m = (const byte*)mask;
 
-    b = (byte*)buf;
-    m = (const byte*)mask;
+    /* type-punning helpers */
+    union {
+        byte* bp;
+        wolfssl_word* wp;
+    } tpb;
+    union {
+        const byte* bp;
+        const wolfssl_word* wp;
+    } tpm;
 
-    if (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE ==
-            ((wc_ptr_t)m) % WOLFSSL_WORD_SIZE) {
-        /* type-punning helpers */
-        union {
-            byte* bp;
-            wolfssl_word* wp;
-        } tpb;
-        union {
-            const byte* bp;
-            const wolfssl_word* wp;
-        } tpm;
-        /* Alignment checks out. Possible to XOR words. */
-        /* Move alignment so that it lines up with a
-         * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0) {
+    if ((((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        (((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)) == 0))
+    {
+        /* Both buffers are already aligned.  Possible to XOR by words without
+         * fixup.
+         */
+
+        tpb.bp = b;
+        tpm.bp = m;
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        XorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+    else if (((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) ==
+             ((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)))
+    {
+        /* Alignment can be fixed up to allow XOR by words. */
+
+        /* Perform bytewise xor until pointers are aligned to
+         * WOLFSSL_WORD_SIZE.
+         */
+        while ((((wc_ptr_t)b & (WOLFSSL_WORD_SIZE - 1)) != 0) && (count > 0))
+        {
             *(b++) ^= *(m++);
             count--;
         }
+
         tpb.bp = b;
         tpm.bp = m;
-        XorWords( &tpb.wp, &tpm.wp, count / WOLFSSL_WORD_SIZE);
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        XorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
         b = tpb.bp;
         m = tpm.bp;
-        count %= WOLFSSL_WORD_SIZE;
+        count &= (WOLFSSL_WORD_SIZE - 1);
     }
 
-    for (i = 0; i < count; i++)
-        b[i] ^= m[i];
+    while (count > 0) {
+        *b++ ^= *m++;
+        count--;
+    }
 }
-#endif
+
+#endif /* !WOLFSSL_NO_XOR_OPS */
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimizations doesn't skip it  */
+   with zeros. It ensures compiler optimization doesn't skip it  */
 WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;

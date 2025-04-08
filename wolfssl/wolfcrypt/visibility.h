@@ -50,9 +50,22 @@
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
-#else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
-        defined(_WIN32_WCE) || defined(__WATCOMC__)
+
+    #ifdef WOLFSSL_PRIVATE_TEST_VIS
+        #define WOLFSSL_TEST_VIS WOLFSSL_LOCAL
+    #else
+        #define WOLFSSL_TEST_VIS WOLFSSL_API
+    #endif
+#else /* !BUILDING_WOLFSSL */
+    #if defined(__WATCOMC__)
+        #if defined(WOLFSSL_DLL) && defined(__NT__)
+            #define WOLFSSL_API __declspec(dllimport)
+        #else
+            #define WOLFSSL_API
+        #endif
+        #define WOLFSSL_LOCAL
+    #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+        defined(_WIN32_WCE)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
         #else
@@ -63,7 +76,17 @@
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL
     #endif
-#endif /* BUILDING_WOLFSSL */
+
+    #if defined(WOLFSSL_VIS_FOR_TESTS)
+        #ifdef WOLFSSL_PRIVATE_TEST_VIS
+            #error WOLFSSL_VIS_FOR_TESTS is unavailable in WOLFSSL_PRIVATE_TEST_VIS builds.
+        #endif
+        #define WOLFSSL_TEST_VIS WOLFSSL_API
+    #else
+        #define WOLFSSL_TEST_VIS WOLFSSL_API WC_DEPRECATED("internal use only")
+    #endif
+
+#endif /* !BUILDING_WOLFSSL */
 
 /* WOLFSSL_ABI is used for public API symbols that must not change
  * their signature. This tag is used for all APIs that are a

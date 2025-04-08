@@ -28,12 +28,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 192-bits, and 256-bits of key sizes.
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(NO_AES)
 
@@ -1967,8 +1963,8 @@ static word32 GetTable8_4(const byte* t, byte o0, byte o1, byte o2, byte o3)
 static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
         word32 r)
 {
-    word32 s0, s1, s2, s3;
-    word32 t0, t1, t2, t3;
+    word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -3016,8 +3012,8 @@ static WARN_UNUSED_RESULT WC_INLINE word32 PreFetchTd4(void)
 static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 r)
 {
-    word32 s0, s1, s2, s3;
-    word32 t0, t1, t2, t3;
+    word32 s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    word32 t0 = 0, t1 = 0, t2 = 0, t3 = 0;
     const word32* rk;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -4575,12 +4571,53 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif /* WC_C_DYNAMIC_FALLBACK */
 
     #ifdef WOLFSSL_AESNI
-        aes->use_aesni = 0;
+
+       /* The dynamics for determining whether AES-NI will be used are tricky.
+        *
+        * First, we check for CPU support and cache the result -- if AES-NI is
+        * missing, we always shortcut to the AesSetKey_C() path.
+        *
+        * Second, if the CPU supports AES-NI, we confirm on a per-call basis
+        * that it's safe to use in the caller context, using
+        * SAVE_VECTOR_REGISTERS2().  This is an always-true no-op in user-space
+        * builds, but has substantive logic behind it in kernel module builds.
+        *
+        * The outcome when SAVE_VECTOR_REGISTERS2() fails depends on
+        * WC_C_DYNAMIC_FALLBACK -- if that's defined, we return immediately with
+        * success but with AES-NI disabled (the earlier AesSetKey_C() allows
+        * future encrypt/decrypt calls to succeed), otherwise we fail.
+        *
+        * Upon successful return, aes->use_aesni will have a zero value if
+        * AES-NI is disabled, and a nonzero value if it's enabled.
+        *
+        * An additional, optional semantic is available via
+        * WC_FLAG_DONT_USE_AESNI, and is used in some kernel module builds to
+        * let the caller inhibit AES-NI.  When this macro is defined,
+        * wc_AesInit() before wc_AesSetKey() is imperative, to avoid a read of
+        * uninitialized data in aes->use_aesni.  That's why support for
+        * WC_FLAG_DONT_USE_AESNI must remain optional -- wc_AesInit() was only
+        * added in release 3.11.0, so legacy applications inevitably call
+        * wc_AesSetKey() on uninitialized Aes contexts.  This must continue to
+        * function correctly with default build settings.
+        */
+
         if (checkedAESNI == 0) {
             haveAESNI  = Check_CPU_support_AES();
             checkedAESNI = 1;
         }
-        if (haveAESNI) {
+        if (haveAESNI
+#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK)
+            && (aes->use_aesni != WC_FLAG_DONT_USE_AESNI)
+#endif
+            )
+        {
+#if defined(WC_FLAG_DONT_USE_AESNI)
+            if (aes->use_aesni == WC_FLAG_DONT_USE_AESNI) {
+                aes->use_aesni = 0;
+                return 0;
+            }
+#endif
+            aes->use_aesni = 0;
             #ifdef WOLFSSL_LINUXKM
             /* runtime alignment check */
             if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
@@ -4613,6 +4650,15 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 return ret;
 #endif
             }
+        }
+        else {
+            aes->use_aesni = 0;
+#ifdef WC_C_DYNAMIC_FALLBACK
+            /* If WC_C_DYNAMIC_FALLBACK, we already called AesSetKey_C()
+             * above.
+             */
+            return 0;
+#endif
         }
     #endif /* WOLFSSL_AESNI */
 
@@ -6473,7 +6519,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 #endif
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
-    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
+    /* implemented in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
@@ -8245,8 +8291,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef STM32_CRYPTO_AES_GCM
 
 /* this function supports inline encrypt */
-/* define STM32_AESGCM_PARTIAL for STM HW that does not support authentication
- * on byte multiples (see CRYP_HEADERWIDTHUNIT_BYTE) */
 static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
                                   Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -8332,12 +8376,11 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
-        && !defined(STM32_AESGCM_PARTIAL)
+    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8359,12 +8402,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
-    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
-    hcryp.Init.HeaderSize = authInSz;
-    #else
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    #endif
+    hcryp.Init.HeaderSize = authPadSz / STM_CRYPT_HEADER_WIDTH;
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Encrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
@@ -8862,12 +8900,11 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
-        && !defined(STM32_AESGCM_PARTIAL)
+    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8913,12 +8950,8 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
-    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
-    hcryp.Init.HeaderSize = authInSz;
-    #else
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    #endif
+    hcryp.Init.HeaderSize = authPadSz / STM_CRYPT_HEADER_WIDTH;
+
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Decrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
@@ -10874,7 +10907,7 @@ int wc_AesCcmCheckTagSize(int sz)
 }
 
 #if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
-    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
+    /* implemented in wolfcrypt/src/port/arm/armv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implementation located in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
@@ -12818,7 +12851,12 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
     }
 
     if ((len != (AES_128_KEY_SIZE*2)) &&
+#ifndef HAVE_FIPS
+        /* XTS-384 not allowed by FIPS and can not be treated like
+         * RSA-4096 bit keys back in the day, can not vendor affirm
+         * the use of 2 concatenated 192-bit keys (XTS-384) */
         (len != (AES_192_KEY_SIZE*2)) &&
+#endif
         (len != (AES_256_KEY_SIZE*2)))
     {
         WOLFSSL_MSG("Unsupported key size");
@@ -13000,6 +13038,10 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #ifdef WOLFSSL_AESNI
+
+#if defined(USE_INTEL_SPEEDUP_FOR_AES) && !defined(USE_INTEL_SPEEDUP)
+    #define USE_INTEL_SPEEDUP
+#endif
 
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1

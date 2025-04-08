@@ -13,3 +13,6 @@ test:
   - set stack size in "bsp/stacksct.h"
   Build "test" wolfCrypt
 
+
+Note: It could need to initialize clock for the device. You can refer the link below
+https://www.renesas.com/ja/document/apn/rx65n-group-rx651-group-initial-settings-example-rev211?language=en&r=1054461

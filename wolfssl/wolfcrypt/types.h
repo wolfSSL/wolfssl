@@ -327,12 +327,15 @@ decouple library dependencies with standard string, memory and so on.
 
     #if defined(NO_64BIT)
           typedef word32 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 2
           #undef WORD64_AVAILABLE
     #else
         #ifdef WC_64BIT_CPU
           typedef word64 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 3
         #else
           typedef word32 wolfssl_word;
+          #define WOLFSSL_WORD_SIZE_LOG2 2
           #ifdef WORD64_AVAILABLE
               #define WOLFCRYPT_SLOW_WORD64
           #endif
@@ -344,12 +347,14 @@ decouple library dependencies with standard string, memory and so on.
         #undef WORD64_AVAILABLE
     #endif
         typedef word16 wolfssl_word;
+        #define WOLFSSL_WORD_SIZE_LOG2 1
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                            * mp_digit, no 64 bit type so make mp_digit 16 bit */
 
 #else
         #undef WORD64_AVAILABLE
         typedef word32 wolfssl_word;
+        #define WOLFSSL_WORD_SIZE_LOG2 2
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as \
                            * mp_digit, no 64 bit type so make mp_digit 16 bit */
 #endif
@@ -762,11 +767,13 @@ typedef struct w64wrapper {
         #endif
 
         #ifndef XSTRCASECMP
-        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000) && (__XC32_VERSION < 4000)
+        #if (defined(MICROCHIP_MPLAB_HARMONY) || defined(MICROCHIP_PIC32)) && \
+            (__XC32_VERSION >= 1000) && (__XC32_VERSION < 4000)
             /* XC32 supports str[n]casecmp in version >= 1.0 through 4.0. */
             #define XSTRCASECMP(s1,s2) strcasecmp((s1),(s2))
-        #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
-                defined(WOLFSSL_ZEPHYR) || defined(MICROCHIP_PIC24)
+        #elif defined(MICROCHIP_MPLAB_HARMONY) || defined(MICROCHIP_PIC32) || \
+              defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_ZEPHYR) || \
+              defined(MICROCHIP_PIC24)
             /* XC32 version < 1.0 does not support strcasecmp. */
             #define USE_WOLF_STRCASECMP
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
@@ -794,11 +801,13 @@ typedef struct w64wrapper {
         #endif /* !XSTRCASECMP */
 
         #ifndef XSTRNCASECMP
-        #if defined(MICROCHIP_PIC32) && (__XC32_VERSION >= 1000)
+        #if (defined(MICROCHIP_MPLAB_HARMONY) || defined(MICROCHIP_PIC32)) && \
+            (__XC32_VERSION >= 1000)
             /* XC32 supports str[n]casecmp in version >= 1.0. */
             #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
-        #elif defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
-                defined(WOLFSSL_ZEPHYR) || defined(MICROCHIP_PIC24)
+        #elif defined(MICROCHIP_MPLAB_HARMONY) || defined(MICROCHIP_PIC32) || \
+              defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_ZEPHYR) || \
+              defined(MICROCHIP_PIC24)
             /* XC32 version < 1.0 does not support strncasecmp. */
             #define USE_WOLF_STRNCASECMP
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
@@ -922,6 +931,13 @@ typedef struct w64wrapper {
             /* use only Thread Safe version of strtok */
             #if defined(USE_WOLF_STRTOK)
                 #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
+            #elif defined(__WATCOMC__)
+                #if __WATCOMC__ < 1300
+                    #define USE_WOLF_STRTOK
+                    #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
+                #else
+                    #define XSTRTOK(s1,d,ptr) strtok_r((s1),(d),(ptr))
+                #endif
             #elif defined(USE_WINDOWS_API) || defined(INTIME_RTOS)
                 #define XSTRTOK(s1,d,ptr) strtok_s((s1),(d),(ptr))
             #else
@@ -993,7 +1009,7 @@ typedef struct w64wrapper {
         #endif
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #define XISALNUM(c)     isalnum((c))
-        #ifdef NO_STDLIB_ISASCII
+        #if !defined(HAVE_ISASCII) || defined(NO_STDLIB_ISASCII)
             #define XISASCII(c) (((c) >= 0 && (c) <= 127) ? 1 : 0)
         #else
             #define XISASCII(c) isascii((c))
@@ -1240,6 +1256,16 @@ typedef struct w64wrapper {
     #endif /* HAVE_SELFTEST */
     };
 
+    enum wc_HashFlags {
+        WC_HASH_FLAG_NONE =     0x00000000,
+        WC_HASH_FLAG_WILLCOPY = 0x00000001, /* flag to indicate hash will be copied */
+        WC_HASH_FLAG_ISCOPY =   0x00000002, /* hash is copy */
+    #ifdef WOLFSSL_SHA3
+        WC_HASH_SHA3_KECCAK256 =0x00010000, /* Older KECCAK256 */
+    #endif
+        WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HASH)
+    };
+
     /* cipher types */
     enum wc_CipherType {
         WC_CIPHER_NONE = 0,
@@ -1279,7 +1305,7 @@ typedef struct w64wrapper {
         WC_PK_TYPE_CURVE25519_KEYGEN = 16,
         WC_PK_TYPE_RSA_GET_SIZE = 17,
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_GET_SIZE
-    #if defined(WOLFSSL_HAVE_KYBER)
+    #if defined(WOLFSSL_HAVE_MLKEM)
         WC_PK_TYPE_PQC_KEM_KEYGEN = 18,
         WC_PK_TYPE_PQC_KEM_ENCAPS = 19,
         WC_PK_TYPE_PQC_KEM_DECAPS = 20,
@@ -1300,12 +1326,12 @@ typedef struct w64wrapper {
         WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
     };
 
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
     /* Post quantum KEM algorithms */
     enum wc_PqcKemType {
         WC_PQC_KEM_TYPE_NONE = 0,
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_NONE
-    #if defined(WOLFSSL_HAVE_KYBER)
+    #if defined(WOLFSSL_HAVE_MLKEM)
         WC_PQC_KEM_TYPE_KYBER = 1,
         #undef _WC_PQC_KEM_TYPE_MAX
         #define _WC_PQC_KEM_TYPE_MAX WC_PQC_KEM_TYPE_KYBER
@@ -1503,6 +1529,7 @@ typedef struct w64wrapper {
             #define WOLFSSL_THREAD __stdcall
             #define WOLFSSL_THREAD_NO_JOIN _WCCALLBACK
         #elif defined(__OS2__)
+            #define WOLFSSL_THREAD_VOID_RETURN
             typedef void          THREAD_RETURN;
             typedef TID           THREAD_TYPE;
             typedef struct COND_TYPE {
@@ -1785,6 +1812,9 @@ typedef struct w64wrapper {
         #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
     #elif !defined(wc_static_assert)
+        #if defined(WOLFSSL_HAVE_ASSERT_H) && !defined(WOLFSSL_NO_ASSERT_H)
+            #include <assert.h>
+        #endif
         #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
                (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
                (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))

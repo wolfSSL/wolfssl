@@ -47,6 +47,12 @@
     extern "C" {
 #endif
 
+#if defined(TEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE) && \
+    defined(BUILDING_WOLFSSL) && !defined(LIBWOLFSSL_SOURCES_H) && \
+    !defined(LIBWOLFSSL_SOURCES_ASM_H)
+    #error settings.h included before libwolfssl_sources[_asm].h.
+#endif
+
 /* WOLFSSL_USE_OPTIONS_H directs wolfSSL to include options.h on behalf of
  * application code, rather than the application including it directly.  This is
  * not defined when compiling wolfSSL library objects, which are configured
@@ -841,17 +847,19 @@
 
     #endif /* ESP_ENABLE_WOLFSSH */
 
-    /* Experimental Kyber.  */
+    /* ML-KEM.  */
     #ifdef CONFIG_ESP_WOLFSSL_ENABLE_KYBER
+        #define CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
+    #endif
+    #ifdef CONFIG_ESP_WOLFSSL_ENABLE_MLKEM
         /* Kyber typically needs a minimum 10K stack */
-        #define WOLFSSL_EXPERIMENTAL_SETTINGS
-        #define WOLFSSL_HAVE_KYBER
-        #define WOLFSSL_WC_KYBER
+        #define WOLFSSL_HAVE_MLKEM
+        #define WOLFSSL_WC_MLKEM
         #define WOLFSSL_SHA3
         #if defined(CONFIG_IDF_TARGET_ESP8266)
             /* With limited RAM, we'll disable some of the Kyber sizes: */
-            #define WOLFSSL_NO_KYBER1024
-            #define WOLFSSL_NO_KYBER768
+            #define WOLFSSL_NO_ML_KEM_1024
+            #define WOLFSSL_NO_ML_KEM_768
             #define NO_SESSION_CACHE
         #endif
     #endif
@@ -2090,13 +2098,14 @@ extern void uITRON4_free(void *p) ;
 
 #endif /* WOLFSSL_MAXQ1065 || WOLFSSL_MAXQ108X */
 
-#if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
-    defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
-    defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-    defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
-    defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
-    defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL) || \
-    defined(WOLFSSL_STM32G4) || defined(WOLFSSL_STM32MP13)
+#if defined(WOLFSSL_STM32F2)  || defined(WOLFSSL_STM32F4)   || \
+    defined(WOLFSSL_STM32F7)  || defined(WOLFSSL_STM32F1)   || \
+    defined(WOLFSSL_STM32L4)  || defined(WOLFSSL_STM32L5)   || \
+    defined(WOLFSSL_STM32WB)  || defined(WOLFSSL_STM32H7)   || \
+    defined(WOLFSSL_STM32G0)  || defined(WOLFSSL_STM32U5)   || \
+    defined(WOLFSSL_STM32H5)  || defined(WOLFSSL_STM32WL)   || \
+    defined(WOLFSSL_STM32G4)  || defined(WOLFSSL_STM32MP13) || \
+    defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32WBA)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2117,7 +2126,7 @@ extern void uITRON4_free(void *p) ;
 
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
             defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32U5) || \
-            defined(WOLFSSL_STM32WL)
+            defined(WOLFSSL_STM32WL) || defined(WOLFSSL_STM32WBA)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -2144,6 +2153,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f7xx_hal.h"
         #elif defined(WOLFSSL_STM32F1)
             #include "stm32f1xx_hal.h"
+        #elif defined(WOLFSSL_STM32H7S)
+            #include "stm32h7rsxx_hal.h"
         #elif defined(WOLFSSL_STM32H7)
             #include "stm32h7xx_hal.h"
         #elif defined(WOLFSSL_STM32WB)
@@ -2164,6 +2175,8 @@ extern void uITRON4_free(void *p) ;
                 #include "stm32mp13xx_hal.h"
                 #include "stm32mp13xx_hal_conf.h"
             #endif
+        #elif defined(WOLFSSL_STM32WBA)
+            #include "stm32wbaxx_hal.h"
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -2839,6 +2852,10 @@ extern void uITRON4_free(void *p) ;
     #else
         /* default is SP Math. */
         #define WOLFSSL_SP_MATH_ALL
+    #endif
+#elif defined(WOLFCRYPT_FIPS_RAND)
+    #ifndef NO_BIG_INT
+        #define NO_BIG_INT
     #endif
 #else
     /* FIPS 140-2 or older */
@@ -3596,7 +3613,14 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif
     #ifndef WOLFSSL_TEST_SUBROUTINE
-        #define WOLFSSL_TEST_SUBROUTINE static
+        #ifdef LINUXKM_LKCAPI_REGISTER
+            #define WOLFSSL_TEST_SUBROUTINE
+        #else
+            #define WOLFSSL_TEST_SUBROUTINE static
+        #endif
+    #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #define WC_TEST_EXPORT_SUBTESTS
     #endif
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
@@ -3608,8 +3632,14 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
-    #define SIZEOF_LONG         8
-    #define SIZEOF_LONG_LONG    8
+    #undef WOLFSSL_HAVE_ASSERT_H
+    #define WOLFSSL_NO_ASSERT_H
+    #ifndef SIZEOF_LONG
+        #define SIZEOF_LONG         8
+    #endif
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG    8
+    #endif
     #define CHAR_BIT            8
     #ifndef WOLFSSL_SP_DIV_64
         #define WOLFSSL_SP_DIV_64
@@ -3636,6 +3666,8 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_SSL_NAMES
         #define NO_OLD_SSL_NAMES
     #endif
+    #undef WOLFSSL_MIN_AUTH_TAG_SZ
+    #define WOLFSSL_MIN_AUTH_TAG_SZ 4
 #endif
 
 
@@ -4093,7 +4125,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
 #define HAVE_PQC
 #endif
 
@@ -4108,11 +4140,14 @@ extern void uITRON4_free(void *p) ;
 #ifndef WOLFSSL_NO_SPHINCS
     #define HAVE_SPHINCS
 #endif
-#ifndef WOLFSSL_HAVE_KYBER
-    #define WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_HAVE_MLKEM
+    #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_KYBER512
     #define WOLFSSL_KYBER768
     #define WOLFSSL_KYBER1024
+    #define WOLFSSL_WC_ML_KEM_512
+    #define WOLFSSL_WC_ML_KEM_768
+    #define WOLFSSL_WC_ML_KEM_1024
 #endif
 #endif
 
@@ -4125,7 +4160,7 @@ extern void uITRON4_free(void *p) ;
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_KYBER)
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_MLKEM)
 #error Please do not define HAVE_PQC yourself.
 #endif
 

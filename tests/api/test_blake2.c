@@ -19,14 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
-    #include <wolfssl/options.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -37,7 +30,6 @@
 
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <tests/unit.h>
 #include <tests/api/api.h>
 #include <tests/api/test_blake2.h>
 
@@ -395,7 +387,7 @@ int test_wc_Blake2sFinal(void)
     EXPECT_DECLS;
 #ifdef HAVE_BLAKE2S
     Blake2s blake;
-    byte hash[WC_BLAKE2B_DIGEST_SIZE];
+    byte hash[WC_BLAKE2S_DIGEST_SIZE];
 
     /* Initialize */
     ExpectIntEQ(wc_InitBlake2s(&blake, WC_BLAKE2S_DIGEST_SIZE), 0);
@@ -407,7 +399,7 @@ int test_wc_Blake2sFinal(void)
     ExpectIntEQ(wc_Blake2sFinal(NULL, hash, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Test good args. */
-    ExpectIntEQ(wc_Blake2sFinal(&blake, hash, WC_BLAKE2B_DIGEST_SIZE), 0);
+    ExpectIntEQ(wc_Blake2sFinal(&blake, hash, WC_BLAKE2S_DIGEST_SIZE), 0);
 #endif
     return EXPECT_RESULT();
 }

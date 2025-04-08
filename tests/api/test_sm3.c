@@ -19,14 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
-    #include <wolfssl/options.h>
-#endif
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -37,7 +30,6 @@
 
 #include <wolfssl/wolfcrypt/sm3.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <tests/unit.h>
 #include <tests/api/api.h>
 #include <tests/api/test_sm3.h>
 #include <tests/api/test_digest.h>
@@ -422,26 +414,4 @@ int test_wc_Sm3_Flags(void)
 #endif
     return EXPECT_RESULT();
 }
-
-/*
- *  Testing wc_Sm3Hash()
- */
-int test_wc_Sm3Hash(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
-    byte data[WC_SM3_BLOCK_SIZE];
-    byte hash[WC_SM3_DIGEST_SIZE];
-
-    /* Invalid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(NULL, sizeof(data), hash),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), hash), 0);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Hash */
 

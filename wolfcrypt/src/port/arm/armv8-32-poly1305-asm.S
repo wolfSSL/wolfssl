@@ -25,10 +25,7 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-poly1305-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
@@ -815,7 +812,10 @@ L_poly1305_arm32_blocks_start_1:
 	mov	r12, #1
 	push	{r2}
 	# Load message
-	ldm	r1, {r2, r3, r4, r5}
+	ldr	r2, [r1]
+	ldr	r3, [r1, #4]
+	ldr	r4, [r1, #8]
+	ldr	r5, [r1, #12]
 	# Add message
 	adds	r7, r7, r2
 	adcs	r8, r8, r3

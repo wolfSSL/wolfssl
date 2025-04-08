@@ -36,17 +36,11 @@
  * DEBUG_CRYPTOCB
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLF_CRYPTO_CB
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef HAVE_ARIA
     #include <wolfssl/wolfcrypt/port/aria/aria-cryptocb.h>
@@ -207,6 +201,8 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             info->cipher.type, info->cipher.ctx);
     }
 #endif /* !NO_AES || !NO_DES3 */
+#if !defined(NO_SHA) || !defined(NO_SHA256) || \
+    defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA3)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
@@ -214,6 +210,8 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             info->hash.type, info->hash.ctx,
             (info->hash.in != NULL) ? "Update" : "Final");
     }
+#endif
+#ifndef NO_HMAC
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
@@ -221,6 +219,7 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             info->hmac.macType, info->hmac.hmac,
             (info->hmac.in != NULL) ? "Update" : "Final");
     }
+#endif
 #ifdef WOLFSSL_CMAC
     else if (info->algo_type == WC_ALGO_TYPE_CMAC) {
         printf("Crypto CB: %s %s (%d) (%p ctx) %s %s %s\n",
@@ -865,7 +864,7 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
 }
 #endif /* HAVE_ED25519 */
 
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
 int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 {
     int devId = INVALID_DEVID;
@@ -984,7 +983,7 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
 #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
@@ -1043,7 +1042,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
 }
 
 int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
-    WC_RNG* rng, int type, void* key)
+    const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
+    int type, void* key)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
@@ -1068,6 +1068,9 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
         cryptoInfo.pk.pqc_sign.inlen = inlen;
         cryptoInfo.pk.pqc_sign.out = out;
         cryptoInfo.pk.pqc_sign.outlen = outlen;
+        cryptoInfo.pk.pqc_sign.context = context;
+        cryptoInfo.pk.pqc_sign.contextLen = contextLen;
+        cryptoInfo.pk.pqc_sign.preHashType = preHashType;
         cryptoInfo.pk.pqc_sign.rng = rng;
         cryptoInfo.pk.pqc_sign.key = key;
         cryptoInfo.pk.pqc_sign.type = type;
@@ -1079,7 +1082,8 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
 }
 
 int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
-    word32 msglen, int* res, int type, void* key)
+    word32 msglen, const byte* context, byte contextLen, word32 preHashType,
+    int* res, int type, void* key)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
@@ -1104,6 +1108,9 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
         cryptoInfo.pk.pqc_verify.siglen = siglen;
         cryptoInfo.pk.pqc_verify.msg = msg;
         cryptoInfo.pk.pqc_verify.msglen = msglen;
+        cryptoInfo.pk.pqc_verify.context = context;
+        cryptoInfo.pk.pqc_verify.contextLen = contextLen;
+        cryptoInfo.pk.pqc_verify.preHashType = preHashType;
         cryptoInfo.pk.pqc_verify.res = res;
         cryptoInfo.pk.pqc_verify.key = key;
         cryptoInfo.pk.pqc_verify.type = type;
@@ -1874,6 +1881,12 @@ int wc_CryptoCb_DefaultDevID(void)
 {
     int ret;
 
+/* Explicitly disable the "default devId" behavior. Ensures that any devId
+ * will only be used if explicitly passed as an argument to crypto functions,
+ * and never automatically selected. */
+#ifdef WC_NO_DEFAULT_DEVID
+    ret = INVALID_DEVID;
+#else
     /* conditional macro selection based on build */
 #ifdef WOLFSSL_CAAM_DEVID
     ret = WOLFSSL_CAAM_DEVID;
@@ -1885,6 +1898,7 @@ int wc_CryptoCb_DefaultDevID(void)
     /* try first available */
     ret = wc_CryptoCb_GetDevIdAtIndex(0);
 #endif
+#endif /* WC_NO_DEFAULT_DEVID */
 
     return ret;
 }

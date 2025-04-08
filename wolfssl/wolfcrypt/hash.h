@@ -83,16 +83,6 @@ enum wc_MACAlgorithm {
     sm3_mac
 };
 
-enum wc_HashFlags {
-    WC_HASH_FLAG_NONE =     0x00000000,
-    WC_HASH_FLAG_WILLCOPY = 0x00000001, /* flag to indicate hash will be copied */
-    WC_HASH_FLAG_ISCOPY =   0x00000002, /* hash is copy */
-#ifdef WOLFSSL_SHA3
-    WC_HASH_SHA3_KECCAK256 =0x00010000, /* Older KECCAK256 */
-#endif
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HASH)
-};
-
 /* hash union */
 typedef union {
 #ifndef NO_MD5

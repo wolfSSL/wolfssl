@@ -11,20 +11,26 @@ project Default is
                         "../../src",
                         "../../wolfcrypt/src");
 
-   --  Don't build the tls client application because it makes use
+   --  Don't build the tls application examples because they make use
    --  of the Secondary Stack due to usage of the Ada.Command_Line
    --  package. All other Ada source code does not use the secondary stack.
-   for Excluded_Source_Files use ("tls_client_main.adb",
-                                  "tls_client.ads",
-                                  "tls_client.adb");
+   for Excluded_Source_Files use
+     ("tls_client_main.adb",
+      "tls_client.ads",
+      "tls_client.adb",
+      "tls_server_main.adb",
+      "tls_server.ads",
+      "tls_server.adb");
 
    for Object_Dir use "obj";
-
-   for Main use ("tls_server_main.adb");
 
    package Naming is
       for Spec_Suffix ("C") use ".h";
    end Naming;
+
+   package Builder is
+      for Global_Configuration_Pragmas use "restricted.adc";
+   end Builder;
 
    package Compiler is
       for Switches ("C") use

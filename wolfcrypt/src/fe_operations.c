@@ -19,14 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
@@ -150,7 +145,7 @@ int curve25519(byte* q, const byte* n, const byte* p)
   swap = 0;
   for (pos = 254;pos >= 0;--pos) {
     unsigned int b;
-    b = n[pos / 8] >> (pos & 7);
+    b = (unsigned int)(n[pos / 8]) >> (pos & 7);
     b &= 1;
     swap ^= b;
     fe_cswap(x2,x3,(int)swap);

@@ -427,7 +427,7 @@
     <ClCompile Include="wolfcrypt\src\ed25519.c" />
     <ClCompile Include="wolfcrypt\src\ed448.c" />
     <ClCompile Include="wolfcrypt\src\error.c" />
-    <ClCompile Include="wolfcrypt\src\ext_kyber.c" />
+    <ClCompile Include="wolfcrypt\src\ext_mlkem.c" />
     <ClCompile Include="wolfcrypt\src\falcon.c" />
     <ClCompile Include="wolfcrypt\src\fe_448.c" />
     <ClCompile Include="wolfcrypt\src\fe_low_mem.c" />
@@ -439,8 +439,8 @@
     <ClCompile Include="wolfcrypt\src\hmac.c" />
     <ClCompile Include="wolfcrypt\src\integer.c" />
     <ClCompile Include="wolfcrypt\src\kdf.c" />
-    <ClCompile Include="wolfcrypt\src\wc_kyber.c" />
-    <ClCompile Include="wolfcrypt\src\wc_kyber_poly.c" />
+    <ClCompile Include="wolfcrypt\src\wc_mlkem.c" />
+    <ClCompile Include="wolfcrypt\src\wc_mlkem_poly.c" />
     <ClCompile Include="wolfcrypt\src\logging.c" />
     <ClCompile Include="wolfcrypt\src\md2.c" />
     <ClCompile Include="wolfcrypt\src\md4.c" />

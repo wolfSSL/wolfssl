@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * WOLFSSL_SYS_CA_CERTS
@@ -1090,6 +1085,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int devId = wolfSSL_CTX_GetDevId(ctx, ssl);
     byte* keyType = NULL;
     int* keySz = NULL;
+    int matchAnyKey = 0;
 
     (void)heap;
     (void)devId;
@@ -1141,8 +1137,19 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = ProcessBufferTryDecodeRsa(ctx, ssl, der, keyFormat, heap, devId,
             keyType, keySz);
 #endif
+        matchAnyKey = 1;
     }
-#endif
+#ifdef WC_RSA_PSS
+    if(*keyFormat == RSAPSSk) {
+        /*
+            Require logic to verify that the der is RSAPSSk (when *keyFormat == RSAPSSK),
+            and to detect that the der is RSAPSSk (when *keyFormat == 0).
+        */
+
+        matchAnyKey = 1;
+    }
+#endif /* WC_RSA_PSS */
+#endif /* NO_RSA */
 #ifdef HAVE_ECC
     /* Try ECC if key format is ECDSA or SM2, or yet unknown. */
     if ((ret == 0) && ((*keyFormat == 0) || (*keyFormat == ECDSAk)
@@ -1152,6 +1159,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         )) {
         ret = ProcessBufferTryDecodeEcc(ctx, ssl, der, keyFormat, heap, devId,
             keyType, keySz);
+        matchAnyKey = 1;
     }
 #endif /* HAVE_ECC */
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
@@ -1159,6 +1167,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if ((ret == 0) && ((*keyFormat == 0 || *keyFormat == ED25519k))) {
         ret = ProcessBufferTryDecodeEd25519(ctx, ssl, der, keyFormat, heap,
             devId, keyType, keySz);
+        matchAnyKey = 1;
     }
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
@@ -1166,6 +1175,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if ((ret == 0) && ((*keyFormat == 0 || *keyFormat == ED448k))) {
         ret = ProcessBufferTryDecodeEd448(ctx, ssl, der, keyFormat, heap, devId,
             keyType, keySz);
+        matchAnyKey = 1;
     }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
 #if defined(HAVE_FALCON)
@@ -1174,6 +1184,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             (*keyFormat == FALCON_LEVEL5k))) {
         ret = ProcessBufferTryDecodeFalcon(ctx, ssl, der, keyFormat, heap,
             keyType, keySz);
+        matchAnyKey = 1;
     }
 #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
@@ -1193,11 +1204,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         )) {
         ret = ProcessBufferTryDecodeDilithium(ctx, ssl, der, keyFormat, heap,
             keyType, keySz);
+        matchAnyKey = 1;
     }
 #endif /* HAVE_DILITHIUM */
 
     /* Check we know the format. */
-    if ((ret == 0) && (*keyFormat == 0)) {
+    if ((ret == 0) &&
+        ((*keyFormat == 0) || ((*keyFormat != 0) && (matchAnyKey == 0)))) {
         WOLFSSL_MSG("Not a supported key type");
         /* Not supported key format. */
         ret = WOLFSSL_BAD_FILE;

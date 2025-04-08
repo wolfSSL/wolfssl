@@ -19,13 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
 #include <wolfssl/wolfcrypt/wc_lms.h>
@@ -1162,7 +1156,8 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen)
     if (ret == 0) {
         XMEMCPY(key->pub, in, inLen);
 
-        key->state = WC_LMS_STATE_VERIFYONLY;
+        if (key->state != WC_LMS_STATE_OK)
+            key->state = WC_LMS_STATE_VERIFYONLY;
     }
 
     return ret;

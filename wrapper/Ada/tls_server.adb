@@ -122,10 +122,10 @@ package body Tls_Server with SPARK_Mode is
       Identity_String : constant String := "Client_identity";
       --  Test key in hex is 0x1a2b3c4d, in decimal 439,041,101
       Key_String : constant String :=
-        Character'Val   (26)
-        & Character'Val (43)
-        & Character'Val (60)
-        & Character'Val (77);
+        (Character'Val (26),
+         Character'Val (43),
+         Character'Val (60),
+         Character'Val (77));
       --  These values are aligned with test values in wolfssl/wolfssl/test.h
       --  and wolfssl-examples/psk/server-psk.c for testing interoperability.
 
@@ -138,10 +138,6 @@ package body Tls_Server with SPARK_Mode is
       then
          return 0;
       end if;
-
-      put_line (Interfaces.C.Strings.Value
-        (Item   => Identity,
-         Length => Identity_String'Length) );
 
       Interfaces.C.Strings.Update
         (Item   => Key,
@@ -162,7 +158,7 @@ package body Tls_Server with SPARK_Mode is
       Ch : Character;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS, PSK : Boolean;
+      DTLS, PSK : Boolean := True;
       Shall_Continue : Boolean := True;
 
       Input  : WolfSSL.Read_Result;
@@ -261,13 +257,15 @@ package body Tls_Server with SPARK_Mode is
       if not PSK then
          --  Require mutual authentication.
          WolfSSL.Set_Verify
-            (Context => Ctx,
+           (Context => Ctx,
             Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
          --  Check verify is set correctly (GitHub #7461)
          if WolfSSL.Get_Verify(Context => Ctx) /= (WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert) then
-               Put ("Error: Verify does not match requested");
-               New_Line;
+               Put_Line ("Error: Verify does not match requested");
+               SPARK_Sockets.Close_Socket (L);
+               WolfSSL.Free (Context => Ctx);
+               Set (Exit_Status_Failure);
                return;
          end if;
 

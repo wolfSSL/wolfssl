@@ -19,16 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/siphash.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -582,7 +575,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
     return 0;
 }
 
-#elif !defined(WOLFSSL_NO_ASM) && defined(__GNUC__) && defined(__aarch64__) && \
+#elif defined(WOLFSSL_ARMASM) && defined(__GNUC__) && defined(__aarch64__) && \
     (WOLFSSL_SIPHASH_CROUNDS == 1 || WOLFSSL_SIPHASH_CROUNDS == 2) && \
     (WOLFSSL_SIPHASH_DROUNDS == 2 || WOLFSSL_SIPHASH_DROUNDS == 4)
 

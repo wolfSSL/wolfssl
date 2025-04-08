@@ -49,6 +49,11 @@ jobs:
             python3-ply python3-setuptools python-is-python3 qemu-kvm rsync socat srecord sudo \
             texinfo unzip wget ovmf xz-utils
 
+      - name: Setup cmake version
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.25.x'
+
       - name: Install west
         run: sudo pip install west
 

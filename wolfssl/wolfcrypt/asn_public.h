@@ -527,12 +527,15 @@ typedef struct Cert {
     /* Subject Alternative Public Key Info */
     byte *sapkiDer;
     int sapkiLen;
+    byte sapkiCrit;
     /* Alternative Signature Algorithm */
     byte *altSigAlgDer;
     int altSigAlgLen;
+    byte altSigAlgCrit;
     /* Alternative Signature Value */
     byte *altSigValDer;
     int altSigValLen;
+    byte altSigValCrit;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
@@ -551,6 +554,7 @@ typedef struct Cert {
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
     WC_BITFIELD basicConstSet:1;  /* Indicator for when Basic Constraint is set */
+    byte             basicConstCrit;  /* Indicator of criticality of Basic Constraints extension */
 #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
     WC_BITFIELD isCaSet:1;        /* Indicator for when isCA is set */
 #endif
@@ -728,6 +732,8 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
+
+WOLFSSL_API word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);
 
 #ifndef NO_RSA
     WOLFSSL_API int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,

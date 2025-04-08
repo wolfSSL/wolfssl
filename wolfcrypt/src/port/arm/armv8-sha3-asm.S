@@ -19,14 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha3-asm.S
+ *   ruby ./sha3/sha3.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha3-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__

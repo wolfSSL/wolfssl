@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /*
  * WOLFSSL_DTLS_NO_HVR_ON_RESUME
  * WOLFSSL_DTLS13_NO_HRR_ON_RESUME
@@ -45,12 +47,6 @@
  *     DTLS 1.3. The user MUST call wolfSSL_dtls13_allow_ch_frag() on the server
  *     to explicitly enable this during runtime.
  */
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef WOLFCRYPT_ONLY
 

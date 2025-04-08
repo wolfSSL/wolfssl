@@ -910,7 +910,7 @@ typedef struct WOLFSSL_ALERT_HISTORY {
 
 
 /* Valid Alert types from page 16/17
- * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
+ * Add alert string to the function AlertTypeToString in src/ssl.c
  */
 enum AlertDescription {
     invalid_alert                   =  -1,
@@ -1180,6 +1180,12 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 WOLFSSL_API int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx,
     const char* publicName, word16 kemId, word16 kdfId, word16 aeadId);
+
+WOLFSSL_API int wolfSSL_CTX_SetEchConfigsBase64(WOLFSSL_CTX* ctx,
+    const char* echConfigs64, word32 echConfigs64Len);
+
+WOLFSSL_API int wolfSSL_CTX_SetEchConfigs(WOLFSSL_CTX* ctx,
+    const byte* echConfigs, word32 echConfigsLen);
 
 WOLFSSL_API int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
     word32* outputLen);
@@ -4572,7 +4578,7 @@ enum {
 
 #ifdef HAVE_PQC
 
-#ifdef WOLFSSL_KYBER_ORIGINAL
+#ifdef WOLFSSL_MLKEM_KYBER
     /* Old code points to keep compatibility with Kyber Round 3.
      * Taken from OQS's openssl provider, see:
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
@@ -4589,7 +4595,7 @@ enum {
     WOLFSSL_X448_KYBER_LEVEL3     = 12176,
     WOLFSSL_X25519_KYBER_LEVEL3   = 25497,
     WOLFSSL_P256_KYBER_LEVEL3     = 25498,
-#endif /* WOLFSSL_KYBER_ORIGINAL */
+#endif /* WOLFSSL_MLKEM_KYBER */
 #ifndef WOLFSSL_NO_ML_KEM
     /* Taken from draft-connolly-tls-mlkem-key-agreement, see:
      * https://github.com/dconnolly/draft-connolly-tls-mlkem-key-agreement/

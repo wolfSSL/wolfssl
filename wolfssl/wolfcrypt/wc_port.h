@@ -82,6 +82,25 @@
     #endif
 #endif /* !WC_MAYBE_UNUSED */
 
+#ifndef WC_DEPRECATED
+    #ifdef WOLFSSL_ZEPHYR
+        #define WC_DEPRECATED(msg) /* null expansion */
+    #elif ((defined(__GNUC__) && \
+            ((__GNUC__ >= 5) || \
+            ((__GNUC__ == 4) && (__GNUC_MINOR__ > 5))))) ||  \
+          defined(__clang__)
+        #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
+    #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+          defined(_WIN32_WCE) || defined(__WATCOMC__)
+        #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
+    #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+          defined(__IAR_SYSTEMS_ICC__)
+        #define WC_DEPRECATED(msg) __attribute__((deprecated))
+    #else
+        #define WC_DEPRECATED(msg) /* null expansion */
+    #endif
+#endif /* !WC_MAYBE_UNUSED */
+
 /* use inlining if compiler allows */
 #ifndef WC_INLINE
 #ifndef NO_INLINE
@@ -120,13 +139,31 @@
 #endif
 
 /* THREADING/MUTEX SECTION */
-#if defined(__WATCOMC__)
-    #if !defined(SINGLE_THREADED)
+#if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
+    /* No system headers required for build. */
+#elif defined(__WATCOMC__)
+    #if defined(SINGLE_THREADED)
         #if defined(USE_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
+            #ifndef WOLFSSL_USER_IO
+                #include <winsock2.h>
+                #include <ws2tcpip.h> /* required for InetPton */
+            #endif
+        #elif defined(__OS2__)
+            #include <os2.h>
+        #endif
+    #else
+        #if defined(USE_WINDOWS_API)
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
+            #include <windows.h>
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
             #include <process.h>
+            #ifndef WOLFSSL_USER_IO
+                #include <winsock2.h>
+                #include <ws2tcpip.h> /* required for InetPton */
+            #endif
         #elif defined(__OS2__)
             #define INCL_DOSSEMAPHORES
             #define INCL_DOSPROCESS
@@ -140,17 +177,7 @@
                 #include <pthread.h>
             #endif
         #endif
-    #else
-        #if defined(USE_WINDOWS_API)
-            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
-            #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
-        #elif defined(__OS2__)
-            #include <os2.h>
-        #endif
     #endif
-#elif defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
-    /* No system headers required for build. */
 #elif defined(USE_WINDOWS_API)
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
@@ -164,7 +191,7 @@
         #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
             #include <windows.h>
-            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header */
             #ifndef WOLFSSL_USER_IO
                 #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */
@@ -796,13 +823,14 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
      * make the API more POSIX like. */
     XFILE z_fs_open(const char* filename, const char* mode);
     int z_fs_close(XFILE file);
+    int z_fs_rewind(XFILE file);
 
     #define XFOPEN              z_fs_open
     #define XFCLOSE             z_fs_close
     #define XFFLUSH             fs_sync
     #define XFSEEK              fs_seek
     #define XFTELL              fs_tell
-    #define XFREWIND            fs_rewind
+    #define XFREWIND            z_fs_rewind
     #define XFREAD(P,S,N,F)     fs_read(F, P, S*N)
     #define XFWRITE(P,S,N,F)    fs_write(F, P, S*N)
     #define XSEEK_SET           FS_SEEK_SET
@@ -926,7 +954,25 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-        #if defined(USE_WINDOWS_API)
+        #if defined(__WATCOMC__)
+            #include <unistd.h>
+            #include <sys/stat.h>
+            #define XWRITE      write
+            #define XREAD       read
+            #define XCLOSE      close
+            #define XSTAT       stat
+            #define XS_ISREG(s) S_ISREG(s)
+            #if defined(__UNIX__)
+                #include <dirent.h>
+                #define SEPARATOR_CHAR ':'
+            #else
+                #include <direct.h>
+                #define SEPARATOR_CHAR ';'
+            #endif
+            #if defined(__NT__)
+                #define XALTHOMEVARNAME "USERPROFILE"
+            #endif
+        #elif defined(USE_WINDOWS_API)
             #include <io.h>
             #include <sys/stat.h>
             #ifndef XSTAT
@@ -964,9 +1010,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
             #define SEPARATOR_CHAR ':'
 
         #else
-            #ifndef NO_WOLFSSL_DIR
-                #include <dirent.h>
-            #endif
+            #include <dirent.h>
             #include <unistd.h>
             #include <sys/stat.h>
             #define XWRITE      write

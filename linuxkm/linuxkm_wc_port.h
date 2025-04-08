@@ -30,6 +30,11 @@
         #error Unsupported kernel.
     #endif
 
+    #if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER_AESXTS) && defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS)
+        /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS expects AES-XTS-384 to work, even when CONFIG_CRYPTO_FIPS, but FIPS 140-3 only allows AES-XTS-256 and AES-XTS-512. */
+        #error CONFIG_CRYPTO_MANAGER_EXTRA_TESTS is incompatible with FIPS wolfCrypt AES-XTS -- please reconfigure the target kernel to disable CONFIG_CRYPTO_MANAGER_EXTRA_TESTS.
+    #endif
+
     #ifdef HAVE_CONFIG_H
         #ifndef PACKAGE_NAME
             #error wc_port.h included before config.h
@@ -492,10 +497,6 @@
         #error "compiling -fPIE requires PIE redirect table."
     #endif
 
-    #if defined(HAVE_FIPS) && !defined(HAVE_LINUXKM_PIE_SUPPORT)
-        #error "FIPS build requires PIE support."
-    #endif
-
     #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 
 #ifdef CONFIG_MIPS
@@ -854,7 +855,7 @@
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
-    #ifndef WOLFSSL_NEED_LINUX_CURRENT
+    #ifndef WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
         #undef current
     #endif
 

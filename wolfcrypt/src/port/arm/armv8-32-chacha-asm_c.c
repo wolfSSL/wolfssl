@@ -25,38 +25,43 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.c
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifdef HAVE_CHACHA
 #include <wolfssl/wolfcrypt/chacha.h>
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void wc_chacha_setiv(word32* x_p, const byte* iv_p, word32 counter_p)
+#else
+void wc_chacha_setiv(word32* x, const byte* iv, word32 counter)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register word32* x asm ("r0") = (word32*)x_p;
     register const byte* iv asm ("r1") = (const byte*)iv_p;
     register word32 counter asm ("r2") = (word32)counter_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "add	r3, %[x], #52\n\t"
@@ -70,8 +75,13 @@ void wc_chacha_setiv(word32* x_p, const byte* iv_p, word32 counter_p)
         "rev	lr, lr\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "stm	r3, {r4, r12, lr}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [iv] "+r" (iv), [counter] "+r" (counter)
         :
+#else
+        :
+        : [x] "r" (x), [iv] "r" (iv), [counter] "r" (counter)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4"
     );
 }
@@ -81,15 +91,26 @@ static const word32 L_chacha_arm32_constants[] = {
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
+#else
+void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register word32* x asm ("r0") = (word32*)x_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
     register word32 keySz asm ("r2") = (word32)keySz_p;
     register word32* L_chacha_arm32_constants_c asm ("r3") =
         (word32*)&L_chacha_arm32_constants;
+#else
+    register word32* L_chacha_arm32_constants_c =
+        (word32*)&L_chacha_arm32_constants;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
+        "mov	r3, %[L_chacha_arm32_constants]\n\t"
         "subs	%[keySz], %[keySz], #16\n\t"
         "add	r3, r3, %[keySz]\n\t"
         /* Start state with constants */
@@ -118,21 +139,33 @@ void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
         "\n"
     "L_chacha_arm32_setkey_same_keyb_ytes_%=: \n\t"
         "stm	%[x], {r4, r5, r12, lr}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz),
           [L_chacha_arm32_constants] "+r" (L_chacha_arm32_constants_c)
         :
+#else
+        :
+        : [x] "r" (x), [key] "r" (key), [keySz] "r" (keySz),
+          [L_chacha_arm32_constants] "r" (L_chacha_arm32_constants_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5"
     );
 }
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p,
     word32 len_p)
+#else
+void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register ChaCha* ctx asm ("r0") = (ChaCha*)ctx_p;
     register byte* c asm ("r1") = (byte*)c_p;
     register const byte* m asm ("r2") = (const byte*)m_p;
     register word32 len asm ("r3") = (word32)len_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #52\n\t"
@@ -483,20 +516,31 @@ void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p,
         "\n"
     "L_chacha_arm32_crypt_done_%=: \n\t"
         "add	sp, sp, #52\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [c] "r" (c), [m] "r" (m), [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p,
     word32 len_p)
+#else
+void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register byte* over asm ("r0") = (byte*)over_p;
     register byte* output asm ("r1") = (byte*)output_p;
     register const byte* input asm ("r2") = (const byte*)input_p;
     register word32 len asm ("r3") = (word32)len_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "\n"
@@ -556,9 +600,15 @@ void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p,
         "b	L_chacha_arm32_over_byte_loop_%=\n\t"
         "\n"
     "L_chacha_arm32_over_done_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input),
           [len] "+r" (len)
         :
+#else
+        :
+        : [over] "r" (over), [output] "r" (output), [input] "r" (input),
+          [len] "r" (len)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }

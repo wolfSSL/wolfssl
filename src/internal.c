@@ -19,11 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * WOLFSSL_SMALL_CERT_VERIFY:
@@ -7298,7 +7294,7 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
 
     /* save the original so we can put it back afterward */
     tmpHashes = ssl->hsHashes;
-    ssl->hsHashes = NULL;
+    ssl->hsHashes = *destination;
 
     ret = InitHandshakeHashes(ssl);
     if (ret != 0) {
@@ -8379,7 +8375,7 @@ void FreeKeyExchange(WOLFSSL* ssl)
 /* Free up all memory used by Suites structure from WOLFSSL */
 void FreeSuites(WOLFSSL* ssl)
 {
-#ifdef OPENSSL_ALL
+#ifdef OPENSSL_EXTRA
     if (ssl->suitesStack != NULL) {
         /* Enough to free stack structure since WOLFSSL_CIPHER
          * isn't allocated separately. */
@@ -8392,8 +8388,6 @@ void FreeSuites(WOLFSSL* ssl)
         wolfSSL_sk_SSL_CIPHER_free(ssl->clSuitesStack);
         ssl->clSuitesStack = NULL;
     }
-#endif
-#ifdef OPENSSL_EXTRA
     XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->clSuites = NULL;
 #endif
@@ -8437,6 +8431,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     FreeSuites(ssl);
     FreeHandshakeHashes(ssl);
+#ifdef HAVE_ECH
+    /* try to free the ech hashes in case we errored out */
+    ssl->hsHashes = ssl->hsHashesEch;
+    FreeHandshakeHashes(ssl);
+    ssl->hsHashes = ssl->hsHashesEchInner;
+    FreeHandshakeHashes(ssl);
+#endif
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     /* clear keys struct after session */
@@ -8450,9 +8451,6 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->options.useEch == 1) {
         FreeEchConfigs(ssl->echConfigs, ssl->heap);
         ssl->echConfigs = NULL;
-        /* free the ech specific hashes */
-        ssl->hsHashes = ssl->hsHashesEch;
-        FreeHandshakeHashes(ssl);
         ssl->options.useEch = 0;
     }
 #endif /* HAVE_ECH */
@@ -8906,6 +8904,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         FreeKey(ssl, DYNAMIC_TYPE_FALCON, (void**)&ssl->peerFalconKey);
         ssl->peerFalconKeyPresent = 0;
 #endif /* HAVE_FALCON */
+#if defined(HAVE_DILITHIUM)
+        FreeKey(ssl, DYNAMIC_TYPE_DILITHIUM, (void**)&ssl->peerDilithiumKey);
+        ssl->peerDilithiumKeyPresent = 0;
+#endif /* HAVE_DILITHIUM */
     }
 
 #ifdef HAVE_ECC
@@ -13475,7 +13477,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->isCa = dCert->isCA;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->pathLength = dCert->pathLength;
+    x509->pathLengthSet = dCert->pathLengthSet;
     x509->keyUsage = dCert->extKeyUsage;
 
     x509->CRLdistSet = dCert->extCRLdistSet;
@@ -13529,7 +13533,6 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     #endif
     x509->basicConstSet = dCert->extBasicConstSet;
-    x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->basicConstPlSet = dCert->pathLengthSet;
     x509->subjAltNameSet = dCert->extSubjAltNameSet;
     x509->subjAltNameCrit = dCert->extSubjAltNameCrit;
@@ -13642,6 +13645,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         if (x509->sapkiDer != NULL) {
             XMEMCPY(x509->sapkiDer, dCert->sapkiDer, dCert->sapkiLen);
             x509->sapkiLen = dCert->sapkiLen;
+            x509->sapkiCrit = dCert->extSapkiCrit;
         }
         else {
             ret = MEMORY_E;
@@ -13654,6 +13658,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->altSigAlgDer, dCert->altSigAlgDer,
                     dCert->altSigAlgLen);
             x509->altSigAlgLen = dCert->altSigAlgLen;
+            x509->altSigAlgCrit = dCert->extAltSigAlgCrit;
         }
         else {
             ret = MEMORY_E;
@@ -13666,6 +13671,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             XMEMCPY(x509->altSigValDer, dCert->altSigValDer,
                     dCert->altSigValLen);
             x509->altSigValLen = dCert->altSigValLen;
+            x509->altSigValCrit = dCert->extAltSigValCrit;
         }
         else {
             ret = MEMORY_E;
@@ -13804,8 +13810,6 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr;
-#else
-    (void)idx;
 #endif
     #ifdef WOLFSSL_SMALL_STACK
         CertStatus* status;
@@ -13834,6 +13838,8 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->status_request = 0;
                 break;
             }
+        #else
+            (void)idx;
         #endif
 
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -21271,6 +21277,13 @@ const char* AlertTypeToString(int type)
                 return internal_error_str;
             }
 
+        case inappropriate_fallback:
+            {
+                static const char inappropriate_fallback_str[] =
+                    "inappropriate_fallback";
+                return inappropriate_fallback_str;
+            }
+
         case user_canceled:
             {
                 static const char user_canceled_str[] =
@@ -21285,6 +21298,20 @@ const char* AlertTypeToString(int type)
                 return no_renegotiation_str;
             }
 
+        case missing_extension:
+            {
+                static const char missing_extension_str[] =
+                    "missing_extension";
+                return missing_extension_str;
+            }
+
+        case unsupported_extension:
+            {
+                static const char unsupported_extension_str[] =
+                    "unsupported_extension";
+                return unsupported_extension_str;
+            }
+
         case unrecognized_name:
             {
                 static const char unrecognized_name_str[] =
@@ -21297,6 +21324,20 @@ const char* AlertTypeToString(int type)
                 static const char bad_certificate_status_response_str[] =
                     "bad_certificate_status_response";
                 return bad_certificate_status_response_str;
+            }
+
+        case unknown_psk_identity:
+            {
+                static const char unknown_psk_identity_str[] =
+                    "unknown_psk_identity";
+                return unknown_psk_identity_str;
+            }
+
+        case certificate_required:
+            {
+                static const char certificate_required_str[] =
+                    "certificate_required";
+                return certificate_required_str;
             }
 
         case no_application_protocol:
@@ -25344,10 +25385,12 @@ int SendAsyncData(WOLFSSL* ssl)
  * 2 in SCR and we have plain data ready
  * Early data logic may bypass this logic in TLSv1.3 when appropriate.
  */
-static int ssl_in_handshake(WOLFSSL *ssl, int send)
+static int ssl_in_handshake(WOLFSSL *ssl, int sending_data)
 {
+int SendAsyncData = 1;
+(void)SendAsyncData;
     if (IsSCR(ssl)) {
-        if (send) {
+        if (sending_data) {
             /* allow sending data in SCR */
             return 0;
         } else {
@@ -25960,10 +26003,19 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     int  ret;
     int  outputSz;
     int  dtlsExtra = 0;
+    const char* alert_str = NULL;
 
     WOLFSSL_ENTER("SendAlert");
 
-    WOLFSSL_MSG_EX("SendAlert: %d %s", type, AlertTypeToString(type));
+    alert_str = AlertTypeToString(type);
+    if (alert_str != NULL)
+    {
+        WOLFSSL_MSG_EX("SendAlert: %d %s", type, alert_str);
+    }
+    else
+    {
+        WOLFSSL_MSG_EX("SendAlert: %d", type);
+    }
 
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
@@ -35141,7 +35193,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* HAVE_ECC */
 
-#ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_HAVE_MLKEM
     /* Returns 1 when the given group is a PQC group, 0 otherwise. */
     int NamedGroupIsPqc(int group)
     {
@@ -35151,7 +35203,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_ML_KEM_768:
             case WOLFSSL_ML_KEM_1024:
         #endif
-        #ifdef WOLFSSL_KYBER_ORIGINAL
+        #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_KYBER_LEVEL1:
             case WOLFSSL_KYBER_LEVEL3:
             case WOLFSSL_KYBER_LEVEL5:
@@ -35176,7 +35228,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_X25519_ML_KEM_512:
             case WOLFSSL_X448_ML_KEM_768:
         #endif
-        #ifdef WOLFSSL_KYBER_ORIGINAL
+        #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_P256_KYBER_LEVEL3:
             case WOLFSSL_X25519_KYBER_LEVEL3:
             case WOLFSSL_P256_KYBER_LEVEL1:
@@ -35190,7 +35242,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return 0;
         }
     }
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_MLKEM */
 
     int TranslateErrorToAlert(int err)
     {
@@ -41789,7 +41841,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ret = args->lastErr;
                         args->lastErr = 0; /* reset */
                         /* On error 'ret' will be negative */
-                        mask = (byte)((ret >> ((sizeof(ret) * 8) - 1)) & 0xFF) - 1;
+                        mask = (byte)(((unsigned int)ret >> ((sizeof(ret) * 8) - 1)) - 1);
 
                         /* build PreMasterSecret */
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;

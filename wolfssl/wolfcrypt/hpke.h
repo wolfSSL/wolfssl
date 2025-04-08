@@ -120,9 +120,18 @@ WOLFSSL_API int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key,
     const byte* in, word16 inSz);
 WOLFSSL_API void wc_HpkeFreeKey(Hpke* hpke, word16 kem, void* keypair,
     void* heap);
+WOLFSSL_API int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
+    void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz);
+WOLFSSL_API int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
+    byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* out);
 WOLFSSL_API int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey,
     void* receiverKey, byte* info, word32 infoSz, byte* aad, word32 aadSz,
     byte* plaintext, word32 ptSz, byte* ciphertext);
+WOLFSSL_API int wc_HpkeInitOpenContext(Hpke* hpke, HpkeBaseContext* context,
+    void* receiverKey, const byte* pubKey, word16 pubKeySz, byte* info,
+    word32 infoSz);
+WOLFSSL_API int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context,
+    byte* aad, word32 aadSz, byte* ciphertext, word32 ctSz, byte* out);
 WOLFSSL_API int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey,
     const byte* pubKey, word16 pubKeySz, byte* info, word32 infoSz, byte* aad,
     word32 aadSz, byte* ciphertext, word32 ctSz, byte* plaintext);

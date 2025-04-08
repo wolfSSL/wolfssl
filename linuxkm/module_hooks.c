@@ -29,14 +29,10 @@
 
 #define FIPS_NO_WRAPPERS
 
-#define WOLFSSL_NEED_LINUX_CURRENT
+#define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFCRYPT_ONLY
     #include <wolfssl/version.h>
 #else
@@ -45,9 +41,11 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
-#ifndef NO_CRYPT_TEST
+#if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
     #include <wolfcrypt/test/test.h>
 #endif
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/sha256.h>
 
 static int libwolfssl_cleanup(void) {
     int ret;
@@ -270,7 +268,7 @@ static int wolfssl_init(void)
     }
 #endif
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0)
     ret = wc_RunAllCast_fips();
     if (ret != 0) {
         pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
@@ -302,7 +300,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -314,8 +312,10 @@ static int wolfssl_init(void)
     }
     pr_info("wolfCrypt self-test passed.\n");
 #else
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LE(5,2,0)
     pr_info("skipping full wolfcrypt_test() "
             "(configure with --enable-crypttests to enable).\n");
+#endif
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER

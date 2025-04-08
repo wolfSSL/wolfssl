@@ -53,6 +53,7 @@ EXTRA_DIST += \
              certs/wolfssl-website-ca.pem \
              certs/test-degenerate.p7b \
              certs/test-stream-sign.p7b \
+             certs/test-stream-dec.p7b \
              certs/test-ber-exp02-05-2022.p7b \
              certs/test-servercert.p12 \
              certs/test-servercert-rc2.p12 \
@@ -74,6 +75,7 @@ EXTRA_DIST += \
              certs/x942dh2048.der \
              certs/x942dh2048.pem \
              certs/fpki-cert.der \
+             certs/fpki-certpol-cert.der \
              certs/rid-cert.der \
              certs/dh-priv-2048.der \
              certs/dh-priv-2048.pem \

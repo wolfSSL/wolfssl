@@ -25,41 +25,47 @@
  *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-poly1305-asm.c
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_arm32_blocks_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
     int notLast_p)
+#else
+void poly1305_arm32_blocks_16(Poly1305* ctx, const byte* m, word32 len,
+    int notLast)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* m asm ("r1") = (const byte*)m_p;
     register word32 len asm ("r2") = (word32)len_p;
     register int notLast asm ("r3") = (int)notLast_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #28\n\t"
@@ -270,9 +276,15 @@ void poly1305_arm32_blocks_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [len] "r" (len),
+          [notLast] "r" (notLast)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
@@ -282,12 +294,22 @@ static const word32 L_poly1305_arm32_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
+#else
+void poly1305_set_key(Poly1305* ctx, const byte* key)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
     register word32* L_poly1305_arm32_clamp_c asm ("r2") =
         (word32*)&L_poly1305_arm32_clamp;
+#else
+    register word32* L_poly1305_arm32_clamp_c =
+        (word32*)&L_poly1305_arm32_clamp;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Load mask. */
@@ -321,17 +343,29 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
         "stm	lr, {r5, r6, r7, r8, r12}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #52]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [key] "+r" (key),
           [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [key] "r" (key),
+          [L_poly1305_arm32_clamp] "r" (L_poly1305_arm32_clamp_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8"
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_final(Poly1305* ctx_p, byte* mac_p)
+#else
+void poly1305_final(Poly1305* ctx, byte* mac)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register byte* mac asm ("r1") = (byte*)mac_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "add	r9, %[ctx], #16\n\t"
@@ -377,21 +411,33 @@ void poly1305_final(Poly1305* ctx_p, byte* mac_p)
         /* Zero out padding. */
         "add	r9, %[ctx], #36\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [mac] "r" (mac)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9"
     );
 }
 
 #else
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_arm32_blocks_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
     int notLast_p)
+#else
+void poly1305_arm32_blocks_16(Poly1305* ctx, const byte* m, word32 len,
+    int notLast)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* m asm ("r1") = (const byte*)m_p;
     register word32 len asm ("r2") = (word32)len_p;
     register int notLast asm ("r3") = (int)notLast_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #28\n\t"
@@ -602,20 +648,32 @@ void poly1305_arm32_blocks_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
           [notLast] "+r" (notLast)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [len] "r" (len),
+          [notLast] "r" (notLast)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_arm32_blocks(Poly1305* ctx_p, const unsigned char* m_p,
     size_t bytes_p)
+#else
+void poly1305_arm32_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const unsigned char* m asm ("r1") = (const unsigned char*)m_p;
     register size_t bytes asm ("r2") = (size_t)bytes_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "cmp	%[bytes], #16\n\t"
@@ -870,7 +928,10 @@ void poly1305_arm32_blocks(Poly1305* ctx_p, const unsigned char* m_p,
         "mov	r12, #1\n\t"
         "push	{r2}\n\t"
         /* Load message */
-        "ldm	%[m], {r2, r3, r4, r5}\n\t"
+        "ldr	%[bytes], [%[m]]\n\t"
+        "ldr	r3, [%[m], #4]\n\t"
+        "ldr	r4, [%[m], #8]\n\t"
+        "ldr	r5, [%[m], #12]\n\t"
         /* Add message */
         "adds	r7, r7, %[bytes]\n\t"
         "adcs	r8, r8, r3\n\t"
@@ -1057,8 +1118,13 @@ void poly1305_arm32_blocks(Poly1305* ctx_p, const unsigned char* m_p,
         "stm	r12, {r7, r8, r9, r10, r11}\n\t"
         "\n"
     "L_poly1305_arm32_blocks_done_%=: \n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [m] "+r" (m), [bytes] "+r" (bytes)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [m] "r" (m), [bytes] "r" (bytes)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8",
             "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
@@ -1071,12 +1137,22 @@ static const word32 L_poly1305_arm32_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
+#else
+void poly1305_set_key(Poly1305* ctx, const byte* key)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
     register word32* L_poly1305_arm32_clamp_c asm ("r2") =
         (word32*)&L_poly1305_arm32_clamp;
+#else
+    register word32* L_poly1305_arm32_clamp_c =
+        (word32*)&L_poly1305_arm32_clamp;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         /* Load mask. */
@@ -1287,9 +1363,15 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
         "stm	lr, {r4, r5, r6, r7, r8, r9}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #56]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [key] "+r" (key),
           [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [key] "r" (key),
+          [L_poly1305_arm32_clamp] "r" (L_poly1305_arm32_clamp_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8",
             "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18",
@@ -1297,10 +1379,16 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
     );
 }
 
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void poly1305_final(Poly1305* ctx_p, byte* mac_p)
+#else
+void poly1305_final(Poly1305* ctx, byte* mac)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register byte* mac asm ("r1") = (byte*)mac_p;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "add	r9, %[ctx], #16\n\t"
@@ -1346,8 +1434,13 @@ void poly1305_final(Poly1305* ctx_p, byte* mac_p)
         /* Zero out padding. */
         "add	r9, %[ctx], #40\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
+#else
+        :
+        : [ctx] "r" (ctx), [mac] "r" (mac)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9"
     );
