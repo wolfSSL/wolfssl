@@ -21,31 +21,28 @@ jobs:
         include:
           - CC: gcc-9
             CXX: g++-9
-            OS: ubuntu-22.04
+            OS: ubuntu-24.04
           - CC: gcc-10
             CXX: g++-10
-            OS: ubuntu-22.04
+            OS: ubuntu-24.04
           - CC: gcc-11
             CXX: g++-11
-            OS: ubuntu-22.04
+            OS: ubuntu-24.04
           - CC: gcc-12
             CXX: g++-12
-            OS: ubuntu-22.04
-          - CC: clang-10
-            CXX: clang++-10
-            OS: ubuntu-20.04
+            OS: ubuntu-24.04
           - CC: clang-11
             CXX: clang++-11
-            OS: ubuntu-20.04
+            OS: ubuntu-22.04
           - CC: clang-12
             CXX: clang++-12
-            OS: ubuntu-20.04
+            OS: ubuntu-22.04
           - CC: clang-13
             CXX: clang++-13
             OS: ubuntu-22.04
           - CC: clang-14
             CXX: clang++-14
-            OS: ubuntu-22.04
+            OS: ubuntu-24.04
     if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.OS }}
     # This should be a safe limit for the tests to run.
