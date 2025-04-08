@@ -1806,8 +1806,8 @@ typedef struct w64wrapper {
         #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
-    #define WC_CPP_CAT_(a, b) a ## b
-    #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
+    #define WC_CPP_CAT4_(a, b, c, d) a ## b ## c ## d
+    #define WC_CPP_CAT4(a, b, c, d) WC_CPP_CAT4_(a, b, c, d)
     #if defined(WC_NO_STATIC_ASSERT)
         #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
@@ -1844,11 +1844,16 @@ typedef struct w64wrapper {
                 #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
             #endif
         #else
-            /* C89-compatible fallback */
-            #define wc_static_assert(expr)                                     \
-                struct WC_CPP_CAT(wc_static_assert_dummy_struct_L, __LINE__) { \
-                    char t[(expr) ? 1 : -1];                                   \
-                }
+            #ifdef __COUNTER__
+                #define wc_static_assert(expr)                          \
+                    struct WC_CPP_CAT4(wc_static_assert_dummy_struct_L, \
+                                       __LINE__, _, __COUNTER__) {      \
+                        char t[(expr) ? 1 : -1];                        \
+                    }
+            #else
+                #define wc_static_assert(expr) \
+                        struct wc_static_assert_dummy_struct
+            #endif
             #ifndef wc_static_assert2
                 #define wc_static_assert2(expr, msg) wc_static_assert(expr)
             #endif
