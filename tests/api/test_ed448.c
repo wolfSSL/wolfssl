@@ -415,7 +415,7 @@ int test_wc_Ed448PublicKeyToDer(void)
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
     ed448_key key;
-    byte      derBuf[CURVE448_BUFSIZE];
+    byte      derBuf[1024];
 
     XMEMSET(&key, 0, sizeof(ed448_key));
 
@@ -458,7 +458,7 @@ int test_wc_Ed448KeyToDer(void)
     EXPECT_DECLS;
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-    byte      output[CURVE448_BUFSIZE];
+    byte      output[ONEK_BUF];
     ed448_key ed448Key;
     WC_RNG    rng;
     word32    inLen;
@@ -497,7 +497,7 @@ int test_wc_Ed448PrivateKeyToDer(void)
     EXPECT_DECLS;
 #if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_EXPORT) && \
     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
-    byte      output[CURVE448_BUFSIZE];
+    byte      output[ONEK_BUF];
     ed448_key ed448PrivKey;
     WC_RNG    rng;
     word32    inLen;
