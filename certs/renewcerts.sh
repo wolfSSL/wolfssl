@@ -29,6 +29,7 @@
 #                       client-crl-dist.pem
 #                       entity-no-ca-bool-cert.pem
 #                       fpki-cert.der
+#                       fpki-certpol-cert.der
 #                       rid-cert.der
 # updates the following crls:
 #                       crl/cliCrl.pem
