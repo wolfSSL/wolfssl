@@ -37,7 +37,7 @@ int test_tls_ems_downgrade(void)
     EXPECT_DECLS;
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12) && \
         defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
-        defined(HAVE_SESSION_TICKET)
+        defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
