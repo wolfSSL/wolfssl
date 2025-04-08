@@ -2845,6 +2845,11 @@ int wolfSSL_HwPkMutexUnLock(void)
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
         int i;
+
+        if(!osKernelRunning()) {
+            return 0;
+        }
+
         for (i=0; i<CMSIS_NMUTEX; i++) {
             if(CMSIS_mutexID[i] == 0) {
                 CMSIS_mutexID[i] = osMutexCreate(CMSIS_mutex[i]);
@@ -2858,6 +2863,11 @@ int wolfSSL_HwPkMutexUnLock(void)
     int wc_FreeMutex(wolfSSL_Mutex* m)
     {
         int i;
+
+        if(!osKernelRunning()) {
+            return 0;
+        }
+
         osMutexDelete   (*m);
         for (i=0; i<CMSIS_NMUTEX; i++) {
             if(CMSIS_mutexID[i] == (*m)) {
@@ -2870,13 +2880,17 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_LockMutex(wolfSSL_Mutex* m)
     {
-        osMutexWait(*m, osWaitForever);
+        if(osKernelRunning()) {
+            osMutexWait(*m, osWaitForever);
+        }
         return(0);
     }
 
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
-        osMutexRelease (*m);
+        if(osKernelRunning()) {
+            osMutexRelease (*m);
+        }
         return 0;
     }
 
