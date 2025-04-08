@@ -43,6 +43,12 @@
 #define CURVE448_KEY_SIZE        56
 #define CURVE448_PUB_KEY_SIZE    56
 
+enum {
+    CURVE448_BUFSIZE = 128,  /* for DER exported keys temp buffer */
+
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(CURVE448)
+};
+
 #ifndef WC_CURVE448KEY_TYPE_DEFINED
     typedef struct curve448_key curve448_key;
     #define WC_CURVE448KEY_TYPE_DEFINED

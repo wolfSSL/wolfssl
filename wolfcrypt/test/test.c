@@ -35544,8 +35544,8 @@ static wc_test_ret_t curve255519_der_test(void)
         0xA2, 0x5B, 0x38, 0xFD, 0x96, 0xDB, 0x2A, 0x26
     };
     curve25519_key key;
-    byte output[128];
-    word32 outputSz = 128;
+    byte output[CURVE25519_BUFSIZE];
+    word32 outputSz = (word32)sizeof(output);
     word32 idx;
 
     ret = wc_curve25519_init_ex(&key, HEAP_HINT, devId);
