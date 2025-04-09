@@ -17551,6 +17551,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 
         if (i == 0) {
             XMEMSET(&strm, 0, sizeof(strm));
+            strm.chunkSz = FOURK_BUF;
             ExpectIntEQ(wc_PKCS7_SetStreamMode(pkcs7, 1, GetContentCB,
                 StreamOutputCB, (void*)&strm), 0);
             encodedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, NULL, 0);
