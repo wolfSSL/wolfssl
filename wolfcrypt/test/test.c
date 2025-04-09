@@ -6436,16 +6436,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif /* !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC) */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        if (exp_ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
-            /* re-init to the placeholder value so we can delete it properly */
-            ret = wc_HashInit(hash, typesGood[i]);
-            if (ret < 0) {
-                WOLFSSL_MSG("ERROR: Failed to initialize placeholder hash.");
-                ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
-            }
-        }
-
-        /* Even for not implemented, we created a known hash, always delete: */
         ret = wc_HashDelete(hash, &hash);
         if (ret < 0) {
             WOLFSSL_MSG("ERROR: Failed to delete hash.");
