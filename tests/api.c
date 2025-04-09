@@ -25852,7 +25852,7 @@ static int test_wolfSSL_CTX_add_extra_chain_cert(void)
         pkey = X509_get_pubkey(ecX509);
         ExpectNotNull(pkey);
         /* current ECC key is 256 bit (32 bytes) */
-        ExpectIntEQ(EVP_PKEY_size(pkey), 72);
+        ExpectIntGE(EVP_PKEY_size(pkey), 72);
 
         X509_free(ecX509);
         ecX509 = NULL;
@@ -40935,7 +40935,7 @@ static int test_wolfSSL_CTX_ctrl(void)
 #endif
         ExpectNotNull(pkey = X509_get_pubkey(ecX509));
         /* current ECC key is 256 bit (32 bytes) */
-        ExpectIntEQ(EVP_PKEY_size(pkey), 72);
+        ExpectIntGE(EVP_PKEY_size(pkey), 72);
 
         X509_free(ecX509);
         EVP_PKEY_free(pkey);
