@@ -53,7 +53,7 @@
 
 /* set to 0 for one test,
 ** set to 1 for continuous test loop */
-#define TEST_LOOP 1
+#define TEST_LOOP 0
 
 #define THIS_MONITOR_UART_RX_BUFFER_SIZE 200
 

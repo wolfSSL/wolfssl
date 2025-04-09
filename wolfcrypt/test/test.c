@@ -6264,7 +6264,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     hash = wc_HashNew(WC_HASH_TYPE_SHA256, HEAP_HINT, devId, &ret);
     if (hash == NULL) {
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
     else {
         PRINT_HEAP_ADDRESS(hash);
@@ -6304,7 +6304,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
     /* Delete the WC_HASH_TYPE_SHA256 type hash for the following tests */
     ret = wc_HashDelete(hash, &hash);
     if (ret != 0)
-        return WC_TEST_RET_ENC_EC(ret);
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 
     /* Try invalid hash algorithms. */
@@ -6314,7 +6314,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         hash = wc_HashNew(typesBad[i], HEAP_HINT, devId, &ret);
 #endif
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-            return WC_TEST_RET_ENC_I(i);
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
 #if !defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL_ESP32_HEAP)
         /* The prior wc_HashNew should have adjusted heap */
@@ -6330,17 +6330,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         ret = wc_HashFinal(hash, typesBad[i], out);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            return WC_TEST_RET_ENC_I(i);
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         ret = wc_HashFree(hash, typesBad[i]);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-            return WC_TEST_RET_ENC_I(i);
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         ret = wc_HashDelete(hash, &hash);
         PRINT_HEAP_CHECKPOINT("Check invalid hash delete", i);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             WOLFSSL_MSG("ERROR: wc_HashDelete failed, expected BAD_FUNC_ARG.");
-            return WC_TEST_RET_ENC_I(i);
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
 #endif
     }
@@ -6366,7 +6366,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 
         /* If the expected return value is HASH_TYPE_E before we've even started
          * it must be a hash type not implemented or disabled, so skip it. */
-        if (exp_ret == HASH_TYPE_E) {
+        if (exp_ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
             WOLFSSL_MSG_EX("Skipping this test for type = %d", typesNoImpl[j]);
             continue; /* go fetch the next typesGood[i] */
         }
@@ -6441,7 +6441,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
             ret = wc_HashInit(hash, typesGood[i]);
             if (ret < 0) {
                 WOLFSSL_MSG("ERROR: Failed to initialize placeholder hash.");
-                return WC_TEST_RET_ENC_I(i);
+                ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
             }
         }
 
@@ -6449,7 +6449,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         ret = wc_HashDelete(hash, &hash);
         if (ret < 0) {
             WOLFSSL_MSG("ERROR: Failed to delete hash.");
-            return WC_TEST_RET_ENC_I(i);
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
 #endif
     } /* Valid hash functions */
