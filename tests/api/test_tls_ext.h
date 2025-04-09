@@ -1,4 +1,4 @@
-/* test_tls_ems.h
+/* test_tls_ext.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
