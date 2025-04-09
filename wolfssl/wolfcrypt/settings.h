@@ -1901,8 +1901,6 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_ECC
     #endif
     #ifndef NO_AES
-        #undef  HAVE_AESCCM
-        #define HAVE_AESCCM
         #undef  HAVE_AESGCM
         #define HAVE_AESGCM
         #undef  WOLFSSL_AES_COUNTER
