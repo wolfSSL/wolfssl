@@ -6296,10 +6296,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#if !defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL_ESP32_HEAP)
-    PRINT_HEAP_CHECKPOINT("Initial hash test", 0);
-#endif
-
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Delete the WC_HASH_TYPE_SHA256 type hash for the following tests */
     ret = wc_HashDelete(hash, &hash);
@@ -6310,19 +6306,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
     /* Try invalid hash algorithms. */
     for (i = 0; i < (int)(sizeof(typesBad)/sizeof(*typesBad)); i++) {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        PRINT_HEAP_CHECKPOINT("Check invalid hash new", i);
         hash = wc_HashNew(typesBad[i], HEAP_HINT, devId, &ret);
 #endif
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
-#if !defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL_ESP32_HEAP)
-        /* The prior wc_HashNew should have adjusted heap */
-        PRINT_HEAP_CHECKPOINT("Check invalid hash init", i);
-#endif
         ret = wc_HashInit(hash, typesBad[i]);
 
-        PRINT_HEAP_CHECKPOINT("Check invalid hash update", i);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         ret = wc_HashUpdate(hash, typesBad[i], data, sizeof(data));
@@ -6337,7 +6327,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         ret = wc_HashDelete(hash, &hash);
-        PRINT_HEAP_CHECKPOINT("Check invalid hash delete", i);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             WOLFSSL_MSG("ERROR: wc_HashDelete failed, expected BAD_FUNC_ARG.");
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -6347,9 +6336,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 
     /* Try valid hash algorithms. */
     for (i = 0; i < (int)(sizeof(typesGood)/sizeof(*typesGood)); i++) {
-        WOLFSSL_MSG_EX("Looking at hash type list for index #%d", i);
-
-        PRINT_HEAP_CHECKPOINT("Check valid hashes", i);
         exp_ret = 0; /* For valid had, we expect return result to be zero */
 
         /* See if the current hash type is one of the known types that are
@@ -6357,8 +6343,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         for(j = 0; j < (int)(sizeof(typesNoImpl) / sizeof(*typesNoImpl)); j++) {
             if (typesGood[i] == typesNoImpl[j]) {
                 exp_ret = HASH_TYPE_E;
-                WOLFSSL_MSG_EX("Assigned HASH_TYPE_E for no Hash Type=%d, "
-                               "(not implemented / disabled)", typesNoImpl[j]);
                 break; /* found one. don't keep looking.
                         * we won't test hashes not implemented */
             }
@@ -6367,11 +6351,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         /* If the expected return value is HASH_TYPE_E before we've even started
          * it must be a hash type not implemented or disabled, so skip it. */
         if (exp_ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
-            WOLFSSL_MSG_EX("Skipping this test for type = %d", typesNoImpl[j]);
             continue; /* go fetch the next typesGood[i] */
         }
-        WOLFSSL_MSG_EX("Testing this iteration for hash type = %d",
-                        typesGood[i]);
 
         /* Good type and implemented: */
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -6379,9 +6360,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         if (hash == NULL) {
             WOLFSSL_MSG("ERROR: wc_HashNew failed.");
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-        }
-        else {
-            WOLFSSL_MSG("wc_HashNew success.");
         }
 
        if (ret != 0) {
