@@ -598,7 +598,7 @@ int test_wolfSSL_dtls_cid_parse(void)
 
 int test_dtls13_epochs(void) {
     EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS13)
+#if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     byte input[20];
@@ -612,13 +612,13 @@ int test_dtls13_epochs(void) {
     ExpectTrue(ssl->options.tls1_3 = 1);
 
     inOutIdx = 0;
-    ssl->keys.curEpoch64 = w64From32(0x0, 0x0);
+    if (ssl != NULL) ssl->keys.curEpoch64 = w64From32(0x0, 0x0);
     ExpectIntEQ(DoApplicationData(ssl, input, &inOutIdx, 0), SANITY_MSG_E);
     inOutIdx = 0;
-    ssl->keys.curEpoch64 = w64From32(0x0, 0x2);
+    if (ssl != NULL) ssl->keys.curEpoch64 = w64From32(0x0, 0x2);
     ExpectIntEQ(DoApplicationData(ssl, input, &inOutIdx, 0), SANITY_MSG_E);
 
-    ssl->keys.curEpoch64 = w64From32(0x0, 0x1);
+    if (ssl != NULL) ssl->keys.curEpoch64 = w64From32(0x0, 0x1);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, client_hello), SANITY_MSG_E);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, server_hello), SANITY_MSG_E);
     ExpectIntEQ(Dtls13CheckEpoch(ssl, hello_verify_request), SANITY_MSG_E);
