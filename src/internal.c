@@ -42369,32 +42369,7 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
 WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk)
 {
-    WOLFSSL_STACK* node;
-    WOLFSSL_BY_DIR_HASH* hash;
-
-    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_pop");
-
-    if (sk == NULL) {
-        return NULL;
-    }
-
-    node = sk->next;
-    hash = sk->data.dir_hash;
-
-    if (node != NULL) { /* update sk and remove node from stack */
-        sk->data.dir_hash = node->data.dir_hash;
-        sk->next = node->next;
-        wolfSSL_sk_free_node(node);
-    }
-    else { /* last x509 in stack */
-        sk->data.dir_hash = NULL;
-    }
-
-    if (sk->num > 0) {
-        sk->num -= 1;
-    }
-
-    return hash;
+    return wolfSSL_sk_pop(sk);
 }
 /* release all contents in stack, and then release stack itself. */
 /* Second argument is a function pointer to release resources.   */
@@ -42449,39 +42424,13 @@ void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
 int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
                                                WOLFSSL_BY_DIR_HASH* in)
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_push");
 
     if (sk == NULL || in == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    /* no previous values in stack */
-    if (sk->data.dir_hash == NULL) {
-        sk->data.dir_hash = in;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.dir_hash    = sk->data.dir_hash;
-    node->next             = sk->next;
-    node->type             = sk->type;
-    sk->next               = node;
-    sk->data.dir_hash      = in;
-    sk->num                += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, in);
 }
 /* create an instance of WOLFSSL_BY_DIR_entry structure */
 WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void)
@@ -42552,32 +42501,7 @@ WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
 WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk)
 {
-    WOLFSSL_STACK* node;
-    WOLFSSL_BY_DIR_entry* entry;
-
-    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_pop");
-
-    if (sk == NULL) {
-        return NULL;
-    }
-
-    node = sk->next;
-    entry = sk->data.dir_entry;
-
-    if (node != NULL) { /* update sk and remove node from stack */
-        sk->data.dir_entry = node->data.dir_entry;
-        sk->next = node->next;
-        wolfSSL_sk_free_node(node);
-    }
-    else { /* last x509 in stack */
-        sk->data.dir_entry = NULL;
-    }
-
-    if (sk->num > 0) {
-        sk->num -= 1;
-    }
-
-    return entry;
+    return wolfSSL_sk_pop(sk);
 }
 /* release all contents in stack, and then release stack itself. */
 /* Second argument is a function pointer to release resources.   */
@@ -42633,37 +42557,13 @@ void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk)
 int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
                                                WOLFSSL_BY_DIR_entry* in)
 {
-    WOLFSSL_STACK* node;
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_push");
 
     if (sk == NULL || in == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    /* no previous values in stack */
-    if (sk->data.dir_entry == NULL) {
-        sk->data.dir_entry = in;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.dir_entry    = sk->data.dir_entry;
-    node->next              = sk->next;
-    node->type              = sk->type;
-    sk->next                = node;
-    sk->data.dir_entry      = in;
-    sk->num                 += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, in);
 }
 
 #endif /* OPENSSL_ALL */
