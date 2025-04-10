@@ -215,6 +215,12 @@ static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
                                             int totalCerts);
 #endif /* #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
+#ifdef WOLFSSL_DTLS
+#ifndef DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT
+#define DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT 1
+#endif
+#endif
+
 #ifdef WOLFSSL_DTLS13
 #ifndef WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT
 #define WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT 0
@@ -7627,6 +7633,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
+    ssl->dtlsRecordsCanSpanDatagrams    = DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT;
 
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
@@ -11613,6 +11620,17 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
     return ret;
 }
 
+static int DtlsRecordsCanSpanDatagrams(WOLFSSL *ssl)
+{
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls && IsDtlsNotSctpMode(ssl))
+        return ssl->dtlsRecordsCanSpanDatagrams;
+#else
+    (void)ssl;
+#endif
+    return 1;
+}
+
 #ifdef WOLFSSL_DTLS13
 static int GetInputData(WOLFSSL *ssl, word32 size);
 static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
@@ -11672,6 +11690,10 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 
     if (readSize < ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE) {
+        if (!DtlsRecordsCanSpanDatagrams(ssl)) {
+            WOLFSSL_MSG("Partial record received");
+            return DTLS_PARTIAL_RECORD_READ;
+        }
         /* when using DTLS over a medium that does not guarantee that a full
          * message is received in a single read, we may end up without the full
          * header and minimum ciphertext to decrypt record sequence numbers */
@@ -11764,6 +11786,10 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     /* not a unified header, check that we have at least
      * DTLS_RECORD_HEADER_SZ */
     if (ssl->buffers.inputBuffer.length - *inOutIdx < DTLS_RECORD_HEADER_SZ) {
+        if (!DtlsRecordsCanSpanDatagrams(ssl)) {
+            WOLFSSL_MSG("Partial record received");
+            return DTLS_PARTIAL_RECORD_READ;
+        }
         ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ);
         /* Check if Dtls13RtxTimeout(ssl) returned socket error */
         if (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))
@@ -21522,9 +21548,18 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
             return RECV_OVERFLOW_E;
         }
 
+        if (!DtlsRecordsCanSpanDatagrams(ssl)) {
+            if ((word32)in < size) {
+                WOLFSSL_MSG("DTLS: Received partial record, ignoring");
+#ifdef WOLFSSL_DTLS_DROP_STATS
+                ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+                continue;
+            }
+        }
+
         ssl->buffers.inputBuffer.length += (word32)in;
         inSz -= in;
-
     } while (ssl->buffers.inputBuffer.length < size);
 
 #ifdef WOLFSSL_DEBUG_TLS
@@ -21691,7 +21726,8 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 
     if ((ssl->options.handShakeDone && retcode != 0)
         || retcode == WC_NO_ERR_TRACE(SEQUENCE_ERROR)
-        || retcode == WC_NO_ERR_TRACE(DTLS_CID_ERROR)) {
+        || retcode == WC_NO_ERR_TRACE(DTLS_CID_ERROR)
+        || retcode == WC_NO_ERR_TRACE(DTLS_PARTIAL_RECORD_READ)) {
         WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
         return 1;
     }
@@ -22075,9 +22111,20 @@ default:
                 /* read ahead may already have */
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
-                if (used < ssl->curSize)
+                if (used < ssl->curSize) {
+                    if (!DtlsRecordsCanSpanDatagrams(ssl)) {
+                        WOLFSSL_MSG("Partial record received, dropping");
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.length = 0;
+                        ssl->buffers.inputBuffer.idx = 0;
+    #ifdef WOLFSSL_DTLS_DROP_STATS
+                        ssl->replayDropCount++;
+    #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        continue;
+                    }
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
                         return ret;
+                }
 #endif
             }
 
