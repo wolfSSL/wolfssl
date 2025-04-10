@@ -44,16 +44,6 @@
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
 enum {
-    WC_PKCS12_KeyBag = 667,
-    WC_PKCS12_ShroudedKeyBag = 668,
-    WC_PKCS12_CertBag = 669,
-    WC_PKCS12_CertBag_Type1 = 675,
-    WC_PKCS12_CrlBag = 670,
-    WC_PKCS12_SecretBag = 671,
-    WC_PKCS12_SafeContentsBag = 672,
-    WC_PKCS12_DATA = 651,
-    WC_PKCS12_ENCRYPTED_DATA = 656,
-
     WC_PKCS12_DATA_OBJ_SZ = 11,
     WC_PKCS12_MAC_SALT_SZ = 8
 };
