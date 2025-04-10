@@ -18446,8 +18446,8 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 #ifndef NO_CERTS
     /* oidCertExtType */
-    { WC_NID_basic_constraints, BASIC_CA_OID, oidCertExtType, "basicConstraints",
-      "X509v3 Basic Constraints"},
+    { WC_NID_basic_constraints, BASIC_CA_OID, oidCertExtType,
+      "basicConstraints", "X509v3 Basic Constraints"},
     { WC_NID_subject_alt_name, ALT_NAMES_OID, oidCertExtType, "subjectAltName",
       "X509v3 Subject Alternative Name"},
     { WC_NID_crl_distribution_points, CRL_DIST_OID, oidCertExtType,
@@ -18493,40 +18493,48 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
       "OCSPSigning", "OCSP Signing"},
 
     /* oidCertNameType */
-    { WC_NID_commonName, WC_NID_commonName, oidCertNameType, "CN", "commonName"},
+    { WC_NID_commonName, WC_NAME_COMMON_NAME_OID, oidCertNameType,
+      "CN", "commonName"},
 #if !defined(WOLFSSL_CERT_REQ)
-    { WC_NID_surname, WC_NID_surname, oidCertNameType, "SN", "surname"},
+    { WC_NID_surname, WC_NAME_SURNAME_OID, oidCertNameType, "SN", "surname"},
 #endif
-    { WC_NID_serialNumber, WC_NID_serialNumber, oidCertNameType, "serialNumber",
-      "serialNumber"},
+    { WC_NID_serialNumber, WC_NAME_SERIAL_NUMBER_OID, oidCertNameType,
+      "serialNumber", "serialNumber"},
     { WC_NID_userId, WC_NID_userId, oidCertNameType, "UID", "userid"},
-    { WC_NID_countryName, WC_NID_countryName, oidCertNameType, "C", "countryName"},
-    { WC_NID_localityName, WC_NID_localityName, oidCertNameType, "L", "localityName"},
-    { WC_NID_stateOrProvinceName, WC_NID_stateOrProvinceName, oidCertNameType, "ST",
-      "stateOrProvinceName"},
-    { WC_NID_streetAddress, WC_NID_streetAddress, oidCertNameType, "street",
-      "streetAddress"},
-    { WC_NID_organizationName, WC_NID_organizationName, oidCertNameType, "O",
-      "organizationName"},
-    { WC_NID_organizationalUnitName, WC_NID_organizationalUnitName, oidCertNameType,
-      "OU", "organizationalUnitName"},
-    { WC_NID_emailAddress, WC_NID_emailAddress, oidCertNameType, "emailAddress",
-      "emailAddress"},
-    { WC_NID_domainComponent, WC_NID_domainComponent, oidCertNameType, "DC",
-      "domainComponent"},
-    { WC_NID_rfc822Mailbox, WC_NID_rfc822Mailbox, oidCertNameType, "rfc822Mailbox",
-      "rfc822Mailbox"},
-    { WC_NID_favouriteDrink, WC_NID_favouriteDrink, oidCertNameType, "favouriteDrink",
-      "favouriteDrink"},
-    { WC_NID_businessCategory, WC_NID_businessCategory, oidCertNameType,
+    { WC_NID_countryName, WC_NAME_COUNTRY_NAME_OID, oidCertNameType,
+      "C", "countryName"},
+    { WC_NID_localityName, WC_NAME_LOCALITY_NAME_OID, oidCertNameType,
+      "L", "localityName"},
+    { WC_NID_stateOrProvinceName, WC_NAME_STATE_NAME_OID, oidCertNameType,
+      "ST", "stateOrProvinceName"},
+    { WC_NID_streetAddress, WC_NAME_STREET_ADDRESS_OID, oidCertNameType,
+      "street", "streetAddress"},
+    { WC_NID_organizationName, WC_NAME_ORGANIZATION_NAME_OID, oidCertNameType,
+      "O", "organizationName"},
+    { WC_NID_organizationalUnitName, WC_NAME_ORGANIZATION_UNIT_NAME_OID,
+      oidCertNameType, "OU", "organizationalUnitName"},
+    { WC_NID_title, WC_NAME_TITLE_OID, oidCertNameType, "title", "title"},
+    { WC_NID_description, WC_NAME_DESCRIPTION_OID, oidCertNameType,
+      "description", "description"},
+    { WC_NID_emailAddress, WC_NAME_EMAIL_ADDRESS_OID, oidCertNameType,
+      "emailAddress", "emailAddress"},
+    { WC_NID_domainComponent, WC_NAME_DOMAIN_COMPONENT_OID, oidCertNameType,
+      "DC", "domainComponent"},
+    { WC_NID_rfc822Mailbox, WC_NAME_RFC822_MAILBOX_OID, oidCertNameType,
+      "rfc822Mailbox", "rfc822Mailbox"},
+    { WC_NID_favouriteDrink, WC_NAME_FAVOURITE_DRINK_OID, oidCertNameType,
+      "favouriteDrink", "favouriteDrink"},
+    { WC_NID_businessCategory, WC_NAME_BUSINESS_CATEGORY_OID, oidCertNameType,
       "businessCategory", "businessCategory"},
-    { WC_NID_jurisdictionCountryName, WC_NID_jurisdictionCountryName, oidCertNameType,
-      "jurisdictionC", "jurisdictionCountryName"},
-    { WC_NID_jurisdictionStateOrProvinceName, WC_NID_jurisdictionStateOrProvinceName,
+    { WC_NID_jurisdictionCountryName, WC_NAME_JURIS_COUNTRY_OID,
+      oidCertNameType, "jurisdictionC", "jurisdictionCountryName"},
+    { WC_NID_jurisdictionStateOrProvinceName, WC_NAME_JURIS_STATE_PROV_OID,
       oidCertNameType, "jurisdictionST", "jurisdictionStateOrProvinceName"},
-    { WC_NID_postalCode, WC_NID_postalCode, oidCertNameType, "postalCode",
+    { WC_NID_postalCode, WC_NAME_POSTAL_CODE_OID, oidCertNameType, "postalCode",
       "postalCode"},
-    { WC_NID_userId, WC_NID_userId, oidCertNameType, "UID", "userId"},
+    { WC_NID_userId, WC_NAME_USER_ID_OID, oidCertNameType, "UID", "userId"},
+    { WC_NID_netscape_cert_type, NETSCAPE_CT_OID, oidCertNameType,
+      "nsCertType", "Netscape Cert Type"},
 
 #if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_NAME_ALL)
     { WC_NID_pkcs9_challengePassword, CHALLENGE_PASSWORD_OID,
@@ -18535,12 +18543,12 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         oidCsrAttrType, "contentType", "contentType" },
     { WC_NID_pkcs9_unstructuredName, UNSTRUCTURED_NAME_OID,
         oidCsrAttrType, "unstructuredName", "unstructuredName" },
-    { WC_NID_name, NAME_OID, oidCsrAttrType, "name", "name" },
+    { WC_NID_name, WC_NAME_NAME_OID, oidCsrAttrType, "name", "name" },
     { WC_NID_surname, SURNAME_OID,
         oidCsrAttrType, "surname", "surname" },
-    { WC_NID_givenName, GIVEN_NAME_OID,
+    { WC_NID_givenName, WC_NAME_GIVEN_NAME_OID,
         oidCsrAttrType, "givenName", "givenName" },
-    { WC_NID_initials, INITIALS_OID,
+    { WC_NID_initials, WC_NAME_INITIALIS_OID,
         oidCsrAttrType, "initials", "initials" },
     { WC_NID_dnQualifier, DNQUALIFIER_OID,
         oidCsrAttrType, "dnQualifer", "dnQualifier" },
@@ -18592,7 +18600,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         /* oidSigType */
     #ifndef NO_DSA
         #ifndef NO_SHA
-        { WC_NID_dsaWithSHA1, CTC_SHAwDSA, oidSigType, "DSA-SHA1", "dsaWithSHA1"},
+        { WC_NID_dsaWithSHA1, CTC_SHAwDSA, oidSigType,
+          "DSA-SHA1", "dsaWithSHA1"},
         { WC_NID_dsa_with_SHA256, CTC_SHA256wDSA, oidSigType, "dsa_with_SHA256",
           "dsa_with_SHA256"},
         #endif
@@ -18611,20 +18620,20 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
           "sha1WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA224
-        { WC_NID_sha224WithRSAEncryption, CTC_SHA224wRSA, oidSigType, "RSA-SHA224",
-          "sha224WithRSAEncryption"},
+        { WC_NID_sha224WithRSAEncryption, CTC_SHA224wRSA, oidSigType,
+          "RSA-SHA224", "sha224WithRSAEncryption"},
         #endif
         #ifndef NO_SHA256
-        { WC_NID_sha256WithRSAEncryption, CTC_SHA256wRSA, oidSigType, "RSA-SHA256",
-          "sha256WithRSAEncryption"},
+        { WC_NID_sha256WithRSAEncryption, CTC_SHA256wRSA, oidSigType,
+          "RSA-SHA256", "sha256WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA384
-        { WC_NID_sha384WithRSAEncryption, CTC_SHA384wRSA, oidSigType, "RSA-SHA384",
-          "sha384WithRSAEncryption"},
+        { WC_NID_sha384WithRSAEncryption, CTC_SHA384wRSA, oidSigType,
+          "RSA-SHA384", "sha384WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA512
-        { WC_NID_sha512WithRSAEncryption, CTC_SHA512wRSA, oidSigType, "RSA-SHA512",
-          "sha512WithRSAEncryption"},
+        { WC_NID_sha512WithRSAEncryption, CTC_SHA512wRSA, oidSigType,
+          "RSA-SHA512", "sha512WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA3
         #ifndef WOLFSSL_NOSHA3_224
@@ -18645,7 +18654,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         #endif
         #endif
         #ifdef WC_RSA_PSS
-        { WC_NID_rsassaPss, CTC_RSASSAPSS, oidSigType, "RSASSA-PSS", "rsassaPss" },
+        { WC_NID_rsassaPss, CTC_RSASSAPSS, oidSigType,
+          "RSASSA-PSS", "rsassaPss" },
         #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
@@ -18739,22 +18749,22 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 
         /* oidCurveType */
     #ifdef HAVE_ECC
-        { WC_NID_X9_62_prime192v1, ECC_SECP192R1_OID, oidCurveType, "prime192v1",
-          "prime192v1"},
-        { WC_NID_X9_62_prime192v2, ECC_PRIME192V2_OID, oidCurveType, "prime192v2",
-          "prime192v2"},
-        { WC_NID_X9_62_prime192v3, ECC_PRIME192V3_OID, oidCurveType, "prime192v3",
-          "prime192v3"},
+        { WC_NID_X9_62_prime192v1, ECC_SECP192R1_OID, oidCurveType,
+          "prime192v1", "prime192v1"},
+        { WC_NID_X9_62_prime192v2, ECC_PRIME192V2_OID, oidCurveType,
+          "prime192v2", "prime192v2"},
+        { WC_NID_X9_62_prime192v3, ECC_PRIME192V3_OID, oidCurveType,
+          "prime192v3", "prime192v3"},
 
-        { WC_NID_X9_62_prime239v1, ECC_PRIME239V1_OID, oidCurveType, "prime239v1",
-          "prime239v1"},
-        { WC_NID_X9_62_prime239v2, ECC_PRIME239V2_OID, oidCurveType, "prime239v2",
-          "prime239v2"},
-        { WC_NID_X9_62_prime239v3, ECC_PRIME239V3_OID, oidCurveType, "prime239v3",
-          "prime239v3"},
+        { WC_NID_X9_62_prime239v1, ECC_PRIME239V1_OID, oidCurveType,
+          "prime239v1", "prime239v1"},
+        { WC_NID_X9_62_prime239v2, ECC_PRIME239V2_OID, oidCurveType,
+          "prime239v2", "prime239v2"},
+        { WC_NID_X9_62_prime239v3, ECC_PRIME239V3_OID, oidCurveType,
+          "prime239v3", "prime239v3"},
 
-        { WC_NID_X9_62_prime256v1, ECC_SECP256R1_OID, oidCurveType, "prime256v1",
-          "prime256v1"},
+        { WC_NID_X9_62_prime256v1, ECC_SECP256R1_OID, oidCurveType,
+          "prime256v1", "prime256v1"},
 
         { WC_NID_secp112r1, ECC_SECP112R1_OID,  oidCurveType, "secp112r1",
           "secp112r1"},
@@ -18896,7 +18906,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #endif
     #if defined(WOLFSSL_APACHE_HTTPD)
         /* "1.3.6.1.5.5.7.8.7" */
-        { WC_NID_id_on_dnsSRV, WC_NID_id_on_dnsSRV, oidCertNameType,
+        { WC_NID_id_on_dnsSRV, WOLFSSL_DNS_SRV_SUM, oidCertNameType,
             WOLFSSL_SN_DNS_SRV, WOLFSSL_LN_DNS_SRV },
 
         /* "1.3.6.1.4.1.311.20.2.3" */
@@ -20550,9 +20560,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         ret = EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0) {
             /* sum OID */
-            for (i = 0; i < outSz; i++) {
-                sum += out[i];
-            }
+            sum = wc_oid_sum(out, outSz);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -23149,9 +23157,12 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {CURVE_NAME("K-192"),   WC_NID_secp192k1, WOLFSSL_ECC_SECP192K1},
     {CURVE_NAME("K-224"),   WC_NID_secp224k1, WOLFSSL_ECC_SECP224R1},
     {CURVE_NAME("K-256"),   WC_NID_secp256k1, WOLFSSL_ECC_SECP256K1},
-    {CURVE_NAME("B-256"),   WC_NID_brainpoolP256r1, WOLFSSL_ECC_BRAINPOOLP256R1},
-    {CURVE_NAME("B-384"),   WC_NID_brainpoolP384r1, WOLFSSL_ECC_BRAINPOOLP384R1},
-    {CURVE_NAME("B-512"),   WC_NID_brainpoolP512r1, WOLFSSL_ECC_BRAINPOOLP512R1},
+    {CURVE_NAME("B-256"),   WC_NID_brainpoolP256r1,
+     WOLFSSL_ECC_BRAINPOOLP256R1},
+    {CURVE_NAME("B-384"),   WC_NID_brainpoolP384r1,
+     WOLFSSL_ECC_BRAINPOOLP384R1},
+    {CURVE_NAME("B-512"),   WC_NID_brainpoolP512r1,
+     WOLFSSL_ECC_BRAINPOOLP512R1},
 #endif
 #ifdef HAVE_CURVE25519
     {CURVE_NAME("X25519"),  WC_NID_X25519, WOLFSSL_ECC_X25519},

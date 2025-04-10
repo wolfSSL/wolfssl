@@ -81,22 +81,6 @@
 #define WOLFSSL_SIGNING_TIME_ATTRIBUTE 0x4
 #define WOLFSSL_MESSAGE_DIGEST_ATTRIBUTE 0x8
 
-/* PKCS#7 content types, ref RFC 2315 (Section 14) */
-enum PKCS7_TYPES {
-    PKCS7_MSG                 = 650,  /* 1.2.840.113549.1.7   */
-    DATA                      = 651,  /* 1.2.840.113549.1.7.1 */
-    SIGNED_DATA               = 652,  /* 1.2.840.113549.1.7.2 */
-    ENVELOPED_DATA            = 653,  /* 1.2.840.113549.1.7.3 */
-    SIGNED_AND_ENVELOPED_DATA = 654,  /* 1.2.840.113549.1.7.4 */
-    DIGESTED_DATA             = 655,  /* 1.2.840.113549.1.7.5 */
-    ENCRYPTED_DATA            = 656,  /* 1.2.840.113549.1.7.6 */
-#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
-    COMPRESSED_DATA           = 678,  /* 1.2.840.113549.1.9.16.1.9,  RFC 3274 */
-#endif
-    FIRMWARE_PKG_DATA         = 685,  /* 1.2.840.113549.1.9.16.1.16, RFC 4108 */
-    AUTH_ENVELOPED_DATA       = 692   /* 1.2.840.113549.1.9.16.1.23, RFC 5083 */
-};
-
 enum PKCS7_STATE {
     WC_PKCS7_START = 0,
 

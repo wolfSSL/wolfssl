@@ -6670,6 +6670,7 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 }
 #endif /* ASN_DUMP_OID */
 
+#ifdef WOLFSSL_OLD_OID_SUM
 #ifdef WOLFSSL_FPKI
 /* Handles the large number of collisions from FPKI certificate policy
  * OID sums.  Returns a special value (100000 + actual sum) if a
@@ -6832,6 +6833,31 @@ static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
     return 0;
 }
 #endif
+#endif /* WOLFSSL_OLD_OID_SUM */
+
+word32 wc_oid_sum(const byte* input, int length)
+{
+    int i;
+    word32 oid = 0;
+#ifndef WOLFSSL_OLD_OID_SUM
+    int shift = 0;
+#endif
+
+    /* Sum it up for now. */
+    for (i = 0; i < length; i++) {
+    #ifdef WOLFSSL_OLD_OID_SUM
+        oid += (word32)input[i];
+    #else
+        oid ^= ((word32)(~input[i])) << shift;
+        shift = (shift + 8) & 0x1f;
+    #endif
+    }
+#ifndef WOLFSSL_OLD_OID_SUM
+    oid &= 0x7fffffff;
+#endif
+
+    return oid;
+}
 
 /* Get the OID data and verify it is of the type specified when compiled in.
  *
@@ -6858,8 +6884,10 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     const byte* checkOid = NULL;
     word32 checkOidSz;
 #endif /* NO_VERIFY_OID */
+#ifdef WOLFSSL_OLD_OID_SUM
 #if defined(HAVE_SPHINCS) || defined(WOLFSSL_FPKI)
     word32 found_collision = 0;
+#endif
 #endif
     (void)oidType;
     *oid = 0;
@@ -6870,6 +6898,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
     actualOidSz = (word32)length;
 #endif /* NO_VERIFY_OID */
 
+#ifdef WOLFSSL_OLD_OID_SUM
 #if defined(HAVE_SPHINCS)
     /* Since we are summing it up, there could be collisions...and indeed there
      * are: SPHINCS_FAST_LEVEL1 and SPHINCS_FAST_LEVEL3.
@@ -6885,14 +6914,12 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         found_collision = SPHINCS_FAST_LEVEL3k;
     }
 #endif /* HAVE_SPHINCS */
+#endif
 
-    /* Sum it up for now. */
-    while (length--) {
-        /* odd HC08 compiler behavior here when input[idx++] */
-        *oid += (word32)input[idx];
-        idx++;
-    }
+    *oid = wc_oid_sum(actualOid, (int)actualOidSz);
+    idx += actualOidSz;
 
+#ifdef WOLFSSL_OLD_OID_SUM
 #ifdef WOLFSSL_FPKI
     /* Due to the large number of OIDs for FPKI certificate policy, there
        are multiple collsisions.  Handle them in a dedicated function,
@@ -6907,6 +6934,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         *oid = found_collision;
     }
 #endif /* HAVE_SPHINCS */
+#endif
 
     /* Return the index after the OID data. */
     *inOutIdx = idx;
@@ -6917,6 +6945,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         /* Get the OID data for the id-type. */
         checkOid = OidFromId(*oid, oidType, &checkOidSz);
 
+#ifdef WOLFSSL_OLD_OID_SUM
     #if defined(WOLFSSL_FPKI)
         /* Handle OID sum collision of
             AES256CBCb (454) 2.16.840.1.101.3.4.1.42
@@ -6932,6 +6961,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
         }
         #endif /* HAVE_AES_CBC */
     #endif /* WOLFSSL_FPKI */
+#endif
 
     #ifdef ASN_DUMP_OID
         /* Dump out the data for debug. */
@@ -41195,6 +41225,75 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file)
     return ret;
 }
 
+/* Set the OID name callback to use when printing.
+ *
+ * @param [in, out] asn1    ASN.1 parse object.
+ * @param [in]      nameCb  OID name callback.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when asn1 is NULL.
+ * @return  BAD_FUNC_ARG when nameCb is NULL.
+ */
+int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb)
+{
+    int ret = 0;
+
+    if ((asn1 == NULL) || (nameCb == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        asn1->nameCb = nameCb;
+    }
+
+    return ret;
+}
+
+/* Encode dotted form of OID into byte array version.
+ *
+ * @param [in]      in     Byte array containing OID.
+ * @param [in]      inSz   Size of OID in bytes.
+ * @param [in]      out    Array to hold dotted form of OID.
+ * @param [in, out] outSz  On in, number of elements in array.
+ *                         On out, count of numbers in dotted form.
+ * @return  0 on success
+ * @return  BAD_FUNC_ARG when in or outSz is NULL.
+ * @return  BUFFER_E when dotted form buffer too small.
+ */
+static int EncodedDottedForm(const byte* in, word32 inSz, word32* out,
+    word32* outSz)
+{
+    int x = 0, y = 0;
+    word32 t = 0;
+
+    /* check args */
+    if (in == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* decode bytes */
+    while (inSz--) {
+        t = (t << 7) | (in[x] & 0x7F);
+        if (!(in[x] & 0x80)) {
+            if (y >= (int)*outSz) {
+                return BUFFER_E;
+            }
+            if (y == 0) {
+                out[0] = (word16)(t / 40);
+                out[1] = (word16)(t % 40);
+                y = 2;
+            }
+            else {
+                out[y++] = t;
+            }
+            t = 0; /* reset tmp */
+        }
+        x++;
+    }
+
+    /* return length */
+    *outSz = (word32)y;
+
+    return 0;
+}
 /* Print OID in dotted form or as hex bytes.
  *
  * @param [in]  file        File pointer to write to.
@@ -41203,12 +41302,12 @@ int wc_Asn1_SetFile(Asn1* asn1, XFILE file)
  */
 static void PrintObjectIdNum(XFILE file, unsigned char* oid, word32 len)
 {
-    word16 dotted_nums[ASN1_OID_DOTTED_MAX_SZ];
+    word32 dotted_nums[ASN1_OID_DOTTED_MAX_SZ];
     word32 num = ASN1_OID_DOTTED_MAX_SZ;
     word32 i;
 
     /* Decode OBJECT_ID into dotted form array. */
-    if (DecodeObjectId(oid, len, dotted_nums, &num) == 0) {
+    if (EncodedDottedForm(oid, len, dotted_nums, &num) == 0) {
         /* Print out each number of dotted form. */
         for (i = 0; i < num; i++) {
             XFPRINTF(file, "%d", dotted_nums[i]);
@@ -41313,12 +41412,17 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     else
 #endif
     /* Lookup long name for extra known OID values. */
-    if (!Oid2LongName(oid, &ln)) {
+    if (Oid2LongName(oid, &ln) != 0) {
+    }
+    else if ((asn1->nameCb != NULL) &&
+             ((ln = asn1->nameCb(asn1->data + asn1->offset + 2,
+                                 i - 2))) != NULL) {
+    }
+    else {
         /* Unknown OID value. */
         ln = NULL;
         known = 0;
     }
-
     XFPRINTF(asn1->file, ":");
     /* Show OID value if not known or asked to. */
     if ((!known) || opts->show_oid) {

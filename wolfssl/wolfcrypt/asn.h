@@ -789,13 +789,14 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     /* otherName strings */
     #define WOLFSSL_SN_MS_UPN       "msUPN"
     #define WOLFSSL_LN_MS_UPN       "Microsoft User Principal Name"
-    #define WOLFSSL_MS_UPN_SUM 265
+    #define WOLFSSL_MS_UPN_SUM      UPN_OID
     #define WOLFSSL_SN_DNS_SRV      "id-on-dnsSRV"
     #define WOLFSSL_LN_DNS_SRV      "SRVName"
+    #define WOLFSSL_DNS_SRV_SUM     DNS_SRV_OID
     /* TLS features extension strings */
     #define WOLFSSL_SN_TLS_FEATURE  "tlsfeature"
     #define WOLFSSL_LN_TLS_FEATURE  "TLS Feature"
-    #define WOLFSSL_TLS_FEATURE_SUM 92
+    #define WOLFSSL_TLS_FEATURE_SUM TLS_FEATURE_OID
 #endif
 
 /* Maximum number of allowed subject alternative names in a certificate.
@@ -898,23 +899,23 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_initials 101  /* 2.5.4.43 */
 #define WC_NID_title 106
 #define WC_NID_description 107
-#define WC_NID_basic_constraints 133
-#define WC_NID_key_usage 129      /* 2.5.29.15 */
-#define WC_NID_ext_key_usage 151  /* 2.5.29.37 */
-#define WC_NID_subject_key_identifier 128
-#define WC_NID_authority_key_identifier 149
-#define WC_NID_private_key_usage_period 130  /* 2.5.29.16 */
-#define WC_NID_subject_alt_name 131
-#define WC_NID_issuer_alt_name 132
-#define WC_NID_info_access 69
-#define WC_NID_sinfo_access 79       /* id-pe 11 */
-#define WC_NID_name_constraints 144  /* 2.5.29.30 */
-#define WC_NID_crl_distribution_points 145  /* 2.5.29.31 */
-#define WC_NID_certificate_policies 146
-#define WC_NID_policy_mappings 147
-#define WC_NID_policy_constraints 150
-#define WC_NID_inhibit_any_policy 168       /* 2.5.29.54 */
-#define WC_NID_tlsfeature 1020              /* id-pe 24 */
+#define WC_NID_basic_constraints BASIC_CA_OID
+#define WC_NID_key_usage KEY_USAGE_OID      /* 2.5.29.15 */
+#define WC_NID_ext_key_usage EXT_KEY_USAGE_OID  /* 2.5.29.37 */
+#define WC_NID_subject_key_identifier SUBJ_KEY_OID
+#define WC_NID_authority_key_identifier AUTH_KEY_OID
+#define WC_NID_private_key_usage_period PRIV_KEY_USAGE_PERIOD_OID
+#define WC_NID_subject_alt_name ALT_NAMES_OID
+#define WC_NID_issuer_alt_name ISSUE_ALT_NAMES_OID
+#define WC_NID_info_access AUTH_INFO_OID
+#define WC_NID_sinfo_access SUBJ_INFO_ACC_OID       /* id-pe 11 */
+#define WC_NID_name_constraints NAME_CONS_OID  /* 2.5.29.30 */
+#define WC_NID_crl_distribution_points CRL_DIST_OID  /* 2.5.29.31 */
+#define WC_NID_certificate_policies CERT_POLICY_OID
+#define WC_NID_policy_mappings POLICY_MAP_OID
+#define WC_NID_policy_constraints POLICY_CONST_OID
+#define WC_NID_inhibit_any_policy INHIBIT_ANY_OID       /* 2.5.29.54 */
+#define WC_NID_tlsfeature TLS_FEATURE_OID              /* id-pe 24 */
 #define WC_NID_buildingName 1494
 
 #define WC_NID_dnQualifier 174              /* 2.5.4.46 */
@@ -940,7 +941,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_registeredAddress 870
 #define WC_NID_emailAddress 0x30            /* emailAddress */
 #define WC_NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
-#define WC_NID_ms_upn 265                   /* 1.3.6.1.4.1.311.20.2.3 */
+#define WC_NID_ms_upn UPN_OID               /* 1.3.6.1.4.1.311.20.2.3 */
 
 #define WC_NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
 
@@ -1267,375 +1268,6 @@ enum Oid_Types {
 };
 
 
-enum Hash_Sum  {
-    MD2h      = 646,
-    MD4h      = 648,
-    MD5h      = 649,
-    SHAh      =  88,
-    SHA224h   = 417,
-    SHA256h   = 414,
-    SHA384h   = 415,
-    SHA512h   = 416,
-    SHA512_224h = 418,
-    SHA512_256h = 419,
-    SHA3_224h = 420,
-    SHA3_256h = 421,
-    SHA3_384h = 422,
-    SHA3_512h = 423,
-    SHAKE128h = 424,
-    SHAKE256h = 425,
-    SM3h      = 640
-};
-
-#if !defined(NO_DES3) || !defined(NO_AES)
-enum Block_Sum {
-#ifdef WOLFSSL_AES_128
-    AES128CBCb = 414,
-    AES128GCMb = 418,
-    AES128CCMb = 419,
-#endif
-#ifdef WOLFSSL_AES_192
-    AES192CBCb = 434,
-    AES192GCMb = 438,
-    AES192CCMb = 439,
-#endif
-#ifdef WOLFSSL_AES_256
-    AES256CBCb = 454,
-    AES256GCMb = 458,
-    AES256CCMb = 459,
-#endif
-#ifndef NO_DES3
-    DESb       = 69,
-    DES3b      = 652
-#endif
-};
-#endif /* !NO_DES3 || !NO_AES */
-
-
-enum Key_Sum {
-    ANONk             = 0,
-    DSAk              = 515,
-    RSAk              = 645,
-    RSAPSSk           = 654,
-    RSAESOAEPk        = 651, /* 1.2.840.113549.1.1.7 */
-    ECDSAk            = 518,
-    SM2k              = 667,
-    ED25519k          = 256, /* 1.3.101.112 */
-    X25519k           = 254, /* 1.3.101.110 */
-    ED448k            = 257, /* 1.3.101.113 */
-    X448k             = 255, /* 1.3.101.111 */
-    DHk               = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
-    FALCON_LEVEL1k    = 273, /* 1.3.9999.3.6 */
-    FALCON_LEVEL5k    = 276, /* 1.3.9999.3.9 */
-    DILITHIUM_LEVEL2k = 218,    /* 1.3.6.1.4.1.2.267.12.4.4 */
-    DILITHIUM_LEVEL3k = 221,    /* 1.3.6.1.4.1.2.267.12.6.5 */
-    DILITHIUM_LEVEL5k = 225,    /* 1.3.6.1.4.1.2.267.12.8.7 */
-    ML_DSA_LEVEL2k    = 431,    /* 2.16.840.1.101.3.4.3.17 */
-    ML_DSA_LEVEL3k    = 432,    /* 2.16.840.1.101.3.4.3.18 */
-    ML_DSA_LEVEL5k    = 433,    /* 2.16.840.1.101.3.4.3.19 */
-    SPHINCS_FAST_LEVEL1k   = 281, /* 1 3 9999 6 7 4 */
-    SPHINCS_FAST_LEVEL3k   = 283, /* 1 3 9999 6 8 3 + 2 (See GetOID() in asn.c) */
-    SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
-    SPHINCS_SMALL_LEVEL1k  = 287, /* 1 3 9999 6 7 10 */
-    SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
-    SPHINCS_SMALL_LEVEL5k  = 286  /* 1 3 9999 6 9 7 */
-};
-
-#if !defined(NO_AES) || defined(HAVE_PKCS7)
-enum KeyWrap_Sum {
-#ifdef WOLFSSL_AES_128
-    AES128_WRAP  = 417,
-#endif
-#ifdef WOLFSSL_AES_192
-    AES192_WRAP  = 437,
-#endif
-#ifdef WOLFSSL_AES_256
-    AES256_WRAP  = 457,
-#endif
-#ifdef HAVE_PKCS7
-    PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
-#endif
-};
-#endif /* !NO_AES || PKCS7 */
-
-enum Key_Agree {
-    dhSinglePass_stdDH_sha1kdf_scheme   = 464,
-    dhSinglePass_stdDH_sha224kdf_scheme = 188,
-    dhSinglePass_stdDH_sha256kdf_scheme = 189,
-    dhSinglePass_stdDH_sha384kdf_scheme = 190,
-    dhSinglePass_stdDH_sha512kdf_scheme = 191
-};
-
-
-
-enum KDF_Sum {
-    PBKDF2_OID = 660,
-    MGF1_OID = 652
-};
-
-
-enum HMAC_Sum {
-    HMAC_SHA224_OID   = 652,
-    HMAC_SHA256_OID   = 653,
-    HMAC_SHA384_OID   = 654,
-    HMAC_SHA512_OID   = 655,
-    HMAC_SHA3_224_OID = 426,
-    HMAC_SHA3_256_OID = 427,
-    HMAC_SHA3_384_OID = 428,
-    HMAC_SHA3_512_OID = 429
-};
-
-
-enum Extensions_Sum {
-    BASIC_CA_OID    = 133,           /* 2.5.29.19 */
-    ALT_NAMES_OID   = 131,           /* 2.5.29.17 */
-    CRL_DIST_OID    = 145,           /* 2.5.29.31 */
-    AUTH_INFO_OID   = 69,            /* 1.3.6.1.5.5.7.1.1 */
-    AUTH_KEY_OID    = 149,           /* 2.5.29.35 */
-    SUBJ_KEY_OID    = 128,           /* 2.5.29.14 */
-    CERT_POLICY_OID = 146,           /* 2.5.29.32 */
-    CRL_NUMBER_OID  = 134,           /* 2.5.29.20 */
-    KEY_USAGE_OID   = 129,           /* 2.5.29.15 */
-    INHIBIT_ANY_OID = 168,           /* 2.5.29.54 */
-    EXT_KEY_USAGE_OID         = 151, /* 2.5.29.37 */
-    NAME_CONS_OID             = 144, /* 2.5.29.30 */
-    PRIV_KEY_USAGE_PERIOD_OID = 130, /* 2.5.29.16 */
-    SUBJ_INFO_ACC_OID         = 79,  /* 1.3.6.1.5.5.7.1.11 */
-    POLICY_MAP_OID            = 147, /* 2.5.29.33 */
-    POLICY_CONST_OID          = 150, /* 2.5.29.36 */
-    ISSUE_ALT_NAMES_OID       = 132, /* 2.5.29.18 */
-    TLS_FEATURE_OID           = 92,  /* 1.3.6.1.5.5.7.1.24 */
-    NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
-    OCSP_NOCHECK_OID          = 121, /* 1.3.6.1.5.5.7.48.1.5
-                                         id-pkix-ocsp-nocheck */
-    SUBJ_DIR_ATTR_OID         = 123, /* 2.5.29.9 */
-
-    AKEY_PACKAGE_OID          = 1048, /* 2.16.840.1.101.2.1.2.78.5
-                                        RFC 5958  - Asymmetric Key Packages */
-    FASCN_OID = 419, /* 2.16.840.1.101.3.6.6 Federal PKI Policy FASC-N */
-    UPN_OID   = 265, /* 1.3.6.1.4.1.311.20.2.3 UPN */
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-    SUBJ_ALT_PUB_KEY_INFO_OID = 186, /* 2.5.29.72 subject alt public key info */
-    ALT_SIG_ALG_OID           = 187, /* 2.5.29.73 alt sig alg */
-    ALT_SIG_VAL_OID           = 188,  /* 2.5.29.74 alt sig val */
-#endif
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(Extensions_Sum)
-};
-
-enum CertificatePolicy_Sum {
-    CP_ANY_OID              = 146, /* id-ce 32 0 */
-    CP_ISRG_DOMAIN_VALID    = 430, /* 1.3.6.1.4.1.44947.1.1.1 */
-#ifdef WOLFSSL_FPKI
-    /* Federal PKI OIDs */
-    CP_FPKI_HIGH_ASSURANCE_OID       = 417, /* 2.16.840.1.101.3.2.1.3.4 */
-    CP_FPKI_COMMON_HARDWARE_OID      = 420, /* 2.16.840.1.101.3.2.1.3.7 */
-    CP_FPKI_MEDIUM_HARDWARE_OID      = 425, /* 2.16.840.1.101.3.2.1.3.12 */
-    CP_FPKI_COMMON_AUTH_OID          = 426, /* 2.16.840.1.101.3.2.1.3.13 */
-    CP_FPKI_COMMON_HIGH_OID          = 429, /* 2.16.840.1.101.3.2.1.3.16 */
-    CP_FPKI_PIVI_HARDWARE_OID        = 431, /* 2.16.840.1.101.3.2.1.3.18 */
-    CP_FPKI_PIVI_CONTENT_SIGNING_OID = 433, /* 2.16.840.1.101.3.2.1.3.20 */
-    CP_FPKI_COMMON_DEVICES_HARDWARE_OID = 449, /* 2.16.840.1.101.3.2.1.3.36 */
-    CP_FPKI_MEDIUM_DEVICE_HARDWARE_OID = 451, /* 2.16.840.1.101.3.2.1.3.38 */
-    CP_FPKI_COMMON_PIV_CONTENT_SIGNING_OID = 452, /* 2.16.840.1.101.3.2.1.3.39 */
-    CP_FPKI_PIV_AUTH_OID             = 453, /* 2.16.840.1.101.3.2.1.3.40 */
-    CP_FPKI_PIV_AUTH_HW_OID          = 454, /* 2.16.840.1.101.3.2.1.3.41 */
-    CP_FPKI_PIVI_AUTH_OID            = 458, /* 2.16.840.1.101.3.2.1.3.45 */
-    CP_FPKI_COMMON_PIVI_CONTENT_SIGNING_OID = 460, /* 2.16.840.1.101.3.2.1.3.47 */
-
-    /* Federal PKI Test OIDs */
-    CP_FPKI_AUTH_TEST_OID                   = 469, /* 2.16.840.1.101.3.2.1.48.11 */
-    CP_FPKI_CARDAUTH_TEST_OID               = 471, /* 2.16.840.1.101.3.2.1.48.13 */
-    CP_FPKI_PIV_CONTENT_TEST_OID            = 544, /* 2.16.840.1.101.3.2.1.48.86 */
-    CP_FPKI_PIV_AUTH_DERIVED_TEST_OID       = 567, /* 2.16.840.1.101.3.2.1.48.109 */
-    CP_FPKI_PIV_AUTH_DERIVED_HW_TEST_OID    = 568, /* 2.16.840.1.101.3.2.1.48.110 */
-
-    /* DoD PKI OIDs */
-    CP_DOD_MEDIUM_OID                = 423, /* 2.16.840.1.101.2.1.11.5 */
-    CP_DOD_MEDIUM_HARDWARE_OID       = 427, /* 2.16.840.1.101.2.1.11.9 */
-    CP_DOD_PIV_AUTH_OID              = 428, /* 2.16.840.1.101.2.1.11.10 */
-    CP_DOD_MEDIUM_NPE_OID            = 435, /* 2.16.840.1.101.2.1.11.17 */
-    CP_DOD_MEDIUM_2048_OID           = 436, /* 2.16.840.1.101.2.1.11.18 */
-    CP_DOD_MEDIUM_HARDWARE_2048_OID  = 437, /* 2.16.840.1.101.2.1.11.19 */
-    CP_DOD_PIV_AUTH_2048_OID         = 438, /* 2.16.840.1.101.2.1.11.20 */
-    CP_DOD_PEER_INTEROP_OID          = 100449, /* 2.16.840.1.101.2.1.11.31 */
-    CP_DOD_MEDIUM_NPE_112_OID        = 100454, /* 2.16.840.1.101.2.1.11.36 */
-    CP_DOD_MEDIUM_NPE_128_OID        = 455, /* 2.16.840.1.101.2.1.11.37 */
-    CP_DOD_MEDIUM_NPE_192_OID        = 456, /* 2.16.840.1.101.2.1.11.38 */
-    CP_DOD_MEDIUM_112_OID            = 457, /* 2.16.840.1.101.2.1.11.39 */
-    CP_DOD_MEDIUM_128_OID            = 100458, /* 2.16.840.1.101.2.1.11.40 */
-    CP_DOD_MEDIUM_192_OID            = 459, /* 2.16.840.1.101.2.1.11.41 */
-    CP_DOD_MEDIUM_HARDWARE_112_OID   = 100460, /* 2.16.840.1.101.2.1.11.42 */
-    CP_DOD_MEDIUM_HARDWARE_128_OID   = 461, /* 2.16.840.1.101.2.1.11.43 */
-    CP_DOD_MEDIUM_HARDWARE_192_OID   = 462, /* 2.16.840.1.101.2.1.11.44 */
-    CP_DOD_ADMIN_OID                 = 477, /* 2.16.840.1.101.2.1.11.59 */
-    CP_DOD_INTERNAL_NPE_112_OID      = 478, /* 2.16.840.1.101.2.1.11.60 */
-    CP_DOD_INTERNAL_NPE_128_OID      = 479, /* 2.16.840.1.101.2.1.11.61 */
-    CP_DOD_INTERNAL_NPE_192_OID      = 480, /* 2.16.840.1.101.2.1.11.62 */
-
-    /* ECA PKI OIDs */
-    CP_ECA_MEDIUM_OID                = 100423, /* 2.16.840.1.101.3.2.1.12.1 */
-    CP_ECA_MEDIUM_HARDWARE_OID       = 424, /* 2.16.840.1.101.3.2.1.12.2 */
-    CP_ECA_MEDIUM_TOKEN_OID          = 100425, /* 2.16.840.1.101.3.2.1.12.3 */
-    CP_ECA_MEDIUM_SHA256_OID         = 100426, /* 2.16.840.1.101.3.2.1.12.4 */
-    CP_ECA_MEDIUM_TOKEN_SHA256_OID   = 100427, /* 2.16.840.1.101.3.2.1.12.5 */
-    CP_ECA_MEDIUM_HARDWARE_PIVI_OID  = 100428, /* 2.16.840.1.101.3.2.1.12.6 */
-    CP_ECA_CONTENT_SIGNING_PIVI_OID  = 100430, /* 2.16.840.1.101.3.2.1.12.8 */
-    CP_ECA_MEDIUM_DEVICE_SHA256_OID  = 431, /* 2.16.840.1.101.3.2.1.12.9 */
-    CP_ECA_MEDIUM_HARDWARE_SHA256_OID = 432, /* 2.16.840.1.101.3.2.1.12.10 */
-
-    /* Department of State PKI OIDs */
-    CP_STATE_BASIC_OID              = 100417, /* 2.16.840.1.101.3.2.1.6.1 */
-    CP_STATE_LOW_OID                = 418,    /* 2.16.840.1.101.3.2.1.6.2 */
-    CP_STATE_MODERATE_OID           = 100419, /* 2.16.840.1.101.3.2.1.6.3 */
-    CP_STATE_HIGH_OID               = 100420, /* 2.16.840.1.101.3.2.1.6.4 */
-    CP_STATE_MEDHW_OID              = 101428, /* 2.16.840.1.101.3.2.1.6.12 */
-    CP_STATE_MEDDEVHW_OID           = 101454, /* 2.16.840.1.101.3.2.1.6.38 */
-
-    /* U.S. Treasury SSP PKI OIDs */
-    CP_TREAS_MEDIUMHW_OID           = 419, /* 2.16.840.1.101.3.2.1.5.4 */
-    CP_TREAS_HIGH_OID               = 101420, /* 2.16.840.1.101.3.2.1.5.5 */
-    CP_TREAS_PIVI_HW_OID            = 101425, /* 2.16.840.1.101.3.2.1.5.10 */
-    CP_TREAS_PIVI_CONTENT_OID       = 101427, /* 2.16.840.1.101.3.2.1.5.12 */
-
-    /* Boeing PKI OIDs */
-    CP_BOEING_MEDIUMHW_SHA256_OID   = 159, /* 1.3.6.1.4.1.73.15.3.1.12 */
-    CP_BOEING_MEDIUMHW_CONTENT_SHA256_OID = 164, /* 1.3.6.1.4.1.73.15.3.1.17 */
-
-    /* Carillon Federal Services OIDs */
-    CP_CARILLON_MEDIUMHW_256_OID    = 467, /* 1.3.6.1.4.1.45606.3.1.12 */
-    CP_CARILLON_AIVHW_OID           = 475, /* 1.3.6.1.4.1.45606.3.1.20 */
-    CP_CARILLON_AIVCONTENT_OID      = 100477, /* 1.3.6.1.4.1.45606.3.1.22 */
-
-    /* Carillon Information Security OIDs */
-    CP_CIS_MEDIUMHW_256_OID         = 489, /* 1.3.6.1.4.1.25054.3.1.12 */
-    CP_CIS_MEDDEVHW_256_OID         = 491, /* 1.3.6.1.4.1.25054.3.1.14 */
-    CP_CIS_ICECAP_HW_OID            = 497, /* 1.3.6.1.4.1.25054.3.1.20 */
-    CP_CIS_ICECAP_CONTENT_OID       = 499, /* 1.3.6.1.4.1.25054.3.1.22 */
-
-    /* CertiPath Bridge OIDs */
-    CP_CERTIPATH_MEDIUMHW_OID       = 100459, /* 1.3.6.1.4.1.24019.1.1.1.2 */
-    CP_CERTIPATH_HIGHHW_OID         = 101460, /* 1.3.6.1.4.1.24019.1.1.1.3 */
-    CP_CERTIPATH_ICECAP_HW_OID      = 464, /* 1.3.6.1.4.1.24019.1.1.1.7 */
-    CP_CERTIPATH_ICECAP_CONTENT_OID = 466, /* 1.3.6.1.4.1.24019.1.1.1.9 */
-    CP_CERTIPATH_VAR_MEDIUMHW_OID   = 100475, /* 1.3.6.1.4.1.24019.1.1.1.18 */
-    CP_CERTIPATH_VAR_HIGHHW_OID     = 476, /* 1.3.6.1.4.1.24019.1.1.1.19 */
-
-    /* TSCP Bridge OIDs */
-    CP_TSCP_MEDIUMHW_OID            = 442, /* 1.3.6.1.4.1.38099.1.1.1.2 */
-    CP_TSCP_PIVI_OID                = 445, /* 1.3.6.1.4.1.38099.1.1.1.5 */
-    CP_TSCP_PIVI_CONTENT_OID        = 447, /* 1.3.6.1.4.1.38099.1.1.1.7 */
-
-    /* DigiCert NFI PKI OIDs */
-    CP_DIGICERT_NFSSP_MEDIUMHW_OID  = 796, /* 2.16.840.1.113733.1.7.23.3.1.7 */
-    CP_DIGICERT_NFSSP_AUTH_OID      = 802, /* 2.16.840.1.113733.1.7.23.3.1.13 */
-    CP_DIGICERT_NFSSP_PIVI_HW_OID   = 807, /* 2.16.840.1.113733.1.7.23.3.1.18 */
-    CP_DIGICERT_NFSSP_PIVI_CONTENT_OID = 809, /* 2.16.840.1.113733.1.7.23.3.1.20 */
-    CP_DIGICERT_NFSSP_MEDDEVHW_OID  = 825, /* 2.16.840.1.113733.1.7.23.3.1.36 */
-
-    /* Entrust Managed Services NFI PKI OIDs */
-    CP_ENTRUST_NFSSP_MEDIUMHW_OID   = 1017, /* 2.16.840.1.114027.200.3.10.7.2 */
-    CP_ENTRUST_NFSSP_MEDAUTH_OID    = 1019, /* 2.16.840.1.114027.200.3.10.7.4 */
-    CP_ENTRUST_NFSSP_PIVI_HW_OID    = 1021, /* 2.16.840.1.114027.200.3.10.7.6 */
-    CP_ENTRUST_NFSSP_PIVI_CONTENT_OID = 1024, /* 2.16.840.1.114027.200.3.10.7.9 */
-    CP_ENTRUST_NFSSP_MEDDEVHW_OID   = 1031, /* 2.16.840.1.114027.200.3.10.7.16 */
-
-    /* Exostar LLC PKI OIDs */
-    CP_EXOSTAR_MEDIUMHW_SHA2_OID    = 100424, /* 1.3.6.1.4.1.13948.1.1.1.6 */
-
-    /* IdenTrust NFI OIDs */
-    CP_IDENTRUST_MEDIUMHW_SIGN_OID  = 846, /* 2.16.840.1.113839.0.100.12.1 */
-    CP_IDENTRUST_MEDIUMHW_ENC_OID   = 847, /* 2.16.840.1.113839.0.100.12.2 */
-    CP_IDENTRUST_PIVI_HW_ID_OID     = 851, /* 2.16.840.1.113839.0.100.18.0 */
-    CP_IDENTRUST_PIVI_HW_SIGN_OID   = 852, /* 2.16.840.1.113839.0.100.18.1 */
-    CP_IDENTRUST_PIVI_HW_ENC_OID    = 853, /* 2.16.840.1.113839.0.100.18.2 */
-    CP_IDENTRUST_PIVI_CONTENT_OID   = 854, /* 2.16.840.1.113839.0.100.20.1 */
-
-    /* Lockheed Martin PKI OIDs */
-    CP_LOCKHEED_MEDIUMHW_OID        = 266, /* 1.3.6.1.4.1.103.100.1.1.3.3 */
-
-    /* Northrop Grumman PKI OIDs */
-    CP_NORTHROP_MEDIUM_256_HW_OID   = 654, /* 1.3.6.1.4.1.16334.509.2.8 */
-    CP_NORTHROP_PIVI_256_HW_OID     = 655, /* 1.3.6.1.4.1.16334.509.2.9 */
-    CP_NORTHROP_PIVI_256_CONTENT_OID = 657, /* 1.3.6.1.4.1.16334.509.2.11 */
-    CP_NORTHROP_MEDIUM_384_HW_OID   = 660, /* 1.3.6.1.4.1.16334.509.2.14 */
-
-    /* Raytheon PKI OIDs */
-    CP_RAYTHEON_MEDIUMHW_OID        = 251, /* 1.3.6.1.4.1.1569.10.1.12 */
-    CP_RAYTHEON_MEDDEVHW_OID        = 257, /* 1.3.6.1.4.1.1569.10.1.18 */
-    CP_RAYTHEON_SHA2_MEDIUMHW_OID   = 433, /* 1.3.6.1.4.1.26769.10.1.12 */
-    CP_RAYTHEON_SHA2_MEDDEVHW_OID   = 439, /* 1.3.6.1.4.1.26769.10.1.18 */
-
-    /* WidePoint NFI PKI OIDs */
-    CP_WIDEPOINT_MEDIUMHW_OID       = 310, /* 1.3.6.1.4.1.3922.1.1.1.12 */
-    CP_WIDEPOINT_PIVI_HW_OID        = 316, /* 1.3.6.1.4.1.3922.1.1.1.18 */
-    CP_WIDEPOINT_PIVI_CONTENT_OID   = 318, /* 1.3.6.1.4.1.3922.1.1.1.20 */
-    CP_WIDEPOINT_MEDDEVHW_OID       = 336, /* 1.3.6.1.4.1.3922.1.1.1.38 */
-
-    /* Australian Defence Organisation PKI OIDs */
-    CP_ADO_MEDIUM_OID               = 293, /* 1.2.36.1.334.1.2.1.2 */
-    CP_ADO_HIGH_OID                 = 294, /* 1.2.36.1.334.1.2.1.3 */
-    CP_ADO_RESOURCE_MEDIUM_OID      = 100294, /* 1.2.36.1.334.1.2.2.2 */
-
-    /* Comodo Ltd PKI OID */
-    CP_COMODO_OID                   = 100293, /* 1.3.6.1.4.1.6449.1.2.1.3.4 */
-
-    /* Netherlands Ministry of Defence PKI OIDs */
-    CP_NL_MOD_AUTH_OID              = 496, /* 2.16.528.1.1003.1.2.5.1 */
-    CP_NL_MOD_IRREFUT_OID           = 100497, /* 2.16.528.1.1003.1.2.5.2 */
-    CP_NL_MOD_CONFID_OID            = 498, /* 2.16.528.1.1003.1.2.5.3 */
-#endif /* WOLFSSL_FPKI */
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(CertificatePolicy_Sum)
-};
-
-enum SepHardwareName_Sum {
-    HW_NAME_OID     = 79   /* 1.3.6.1.5.5.7.8.4 from RFC 4108*/
-};
-
-enum AuthInfo_Sum {
-    AIA_OCSP_OID      = 116, /* 1.3.6.1.5.5.7.48.1, id-ad-ocsp */
-    AIA_CA_ISSUER_OID = 117, /* 1.3.6.1.5.5.7.48.2, id-ad-caIssuers */
-    #ifdef WOLFSSL_SUBJ_INFO_ACC
-    AIA_CA_REPO_OID   = 120, /* 1.3.6.1.5.5.7.48.5, id-ad-caRepository */
-    #endif /* WOLFSSL_SUBJ_INFO_ACC */
-    WOLF_ENUM_DUMMY_LAST_ELEMENT(AuthInfo_Sum)
-};
-
-#define ID_PKIX(num) (67+(num)) /* 1.3.6.1.5.5.7.num, id-pkix num */
-#define ID_KP(num) (ID_PKIX(3)+(num)) /* 1.3.6.1.5.5.7.3.num, id-kp num */
-enum ExtKeyUsage_Sum { /* From RFC 5280 */
-    EKU_ANY_OID         = 151, /* 2.5.29.37.0, anyExtendedKeyUsage         */
-    EKU_SERVER_AUTH_OID = 71,  /* 1.3.6.1.5.5.7.3.1, id-kp-serverAuth      */
-    EKU_CLIENT_AUTH_OID = 72,  /* 1.3.6.1.5.5.7.3.2, id-kp-clientAuth      */
-    EKU_CODESIGNING_OID = 73,  /* 1.3.6.1.5.5.7.3.3, id-kp-codeSigning     */
-    EKU_EMAILPROTECT_OID = 74, /* 1.3.6.1.5.5.7.3.4, id-kp-emailProtection */
-    EKU_TIMESTAMP_OID   = 78,  /* 1.3.6.1.5.5.7.3.8, id-kp-timeStamping    */
-    EKU_OCSP_SIGN_OID   = 79,  /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
-
-    /* From RFC 6187: X.509v3 Certificates for Secure Shell Authentication */
-    EKU_SSH_CLIENT_AUTH_OID    = ID_KP(21), /* id-kp-secureShellClient */
-    EKU_SSH_MSCL_OID           = 264,
-        /* 1.3.6.1.4.1.311.20.2.2, MS Smart Card Logon */
-    EKU_SSH_KP_CLIENT_AUTH_OID = 64
-        /* 1.3.6.1.5.2.3.4, id-pkinit-KPClientAuth*/
-};
-
-#ifdef WOLFSSL_SUBJ_DIR_ATTR
-#define ID_PDA(num) (ID_PKIX(9)+(num)) /* 1.3.6.1.5.5.7.9.num, id-pda num */
-enum SubjDirAttr_Sum { /* From RFC 3739, section 3.3.2 */
-    SDA_DOB_OID    = ID_PDA(1), /* id-pda-dateOfBirth */
-    SDA_POB_OID    = ID_PDA(2), /* id-pda-placeOfBirth */
-    SDA_GENDER_OID = ID_PDA(3), /* id-pda-gender */
-    SDA_COC_OID    = ID_PDA(4), /* id-pda-countryOfCitizenship */
-    SDA_COR_OID    = ID_PDA(5)  /* id-pda-countryOfResidence */
-};
-#endif /* WOLFSSL_SUBJ_DIR_ATTR */
-
-#ifdef HAVE_LIBZ
-enum CompressAlg_Sum {
-    ZLIBc = 679  /* 1.2.840.113549.1.9.16.3.8, id-alg-zlibCompress */
-};
-#endif
-
 enum VerifyType {
     NO_VERIFY   = 0,
     VERIFY      = 1,
@@ -1650,22 +1282,6 @@ enum VerifyType {
 enum KeyIdType {
     SKID_TYPE = 0,
     AKID_TYPE = 1
-};
-#endif
-
-#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_NAME_ALL)
-enum CsrAttrType {
-    UNSTRUCTURED_NAME_OID = 654,
-    PKCS9_CONTENT_TYPE_OID = 655,
-    CHALLENGE_PASSWORD_OID = 659,
-    SERIAL_NUMBER_OID = 94,
-    EXTENSION_REQUEST_OID = 666,
-    USER_ID_OID = 865,
-    DNQUALIFIER_OID = 135,
-    INITIALS_OID = 132,
-    SURNAME_OID = 93,
-    NAME_OID = 130,
-    GIVEN_NAME_OID = 131
 };
 #endif
 
@@ -2622,6 +2238,8 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
 WOLFSSL_ASN_API int GetASNInt(const byte* input, word32* inOutIdx, int* len,
                               word32 maxIdx);
 
+WOLFSSL_LOCAL word32 wc_oid_sum(const byte* input, int length);
+
 #ifdef HAVE_OID_ENCODING
     WOLFSSL_API int wc_EncodeObjectId(const word16* in, word32 inSz,
         byte* out, word32* outSz);
@@ -2817,11 +2435,6 @@ enum Ocsp_Cert_Status {
     CERT_UNKNOWN = 2
 };
 
-
-enum Ocsp_Sums {
-    OCSP_BASIC_OID = 117,
-    OCSP_NONCE_OID = 118
-};
 
 #ifdef OPENSSL_EXTRA
 enum Ocsp_Verify_Error {

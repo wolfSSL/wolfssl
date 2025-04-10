@@ -81,42 +81,6 @@ This library defines the interface APIs for X509 certificates.
     #define WC_SPHINCSKEY_TYPE_DEFINED
 #endif
 
-enum Ecc_Sum {
-    ECC_SECP112R1_OID = 182,
-    ECC_SECP112R2_OID = 183,
-    ECC_SECP128R1_OID = 204,
-    ECC_SECP128R2_OID = 205,
-    ECC_SECP160R1_OID = 184,
-    ECC_SECP160R2_OID = 206,
-    ECC_SECP160K1_OID = 185,
-    ECC_BRAINPOOLP160R1_OID = 98,
-    ECC_SECP192R1_OID = 520,
-    ECC_PRIME192V2_OID = 521,
-    ECC_PRIME192V3_OID = 522,
-    ECC_SECP192K1_OID = 207,
-    ECC_BRAINPOOLP192R1_OID = 100,
-    ECC_SECP224R1_OID = 209,
-    ECC_SECP224K1_OID = 208,
-    ECC_BRAINPOOLP224R1_OID = 102,
-    ECC_PRIME239V1_OID = 523,
-    ECC_PRIME239V2_OID = 524,
-    ECC_PRIME239V3_OID = 525,
-    ECC_SECP256R1_OID = 526,
-    ECC_SECP256K1_OID = 186,
-    ECC_BRAINPOOLP256R1_OID = 104,
-    ECC_SM2P256V1_OID = 667,
-    ECC_X25519_OID = 365,
-    ECC_ED25519_OID = 256,
-    ECC_BRAINPOOLP320R1_OID = 106,
-    ECC_X448_OID = 362,
-    ECC_ED448_OID = 257,
-    ECC_SECP384R1_OID = 210,
-    ECC_BRAINPOOLP384R1_OID = 108,
-    ECC_BRAINPOOLP512R1_OID = 110,
-    ECC_SECP521R1_OID = 211
-};
-
-
 enum EncPkcs8Types {
     ENC_PKCS8_VER_PKCS12 = 1,
     ENC_PKCS8_VER_PKCS5 =  5,
@@ -186,58 +150,6 @@ enum CertType {
     TRUSTED_CERT_TYPE
 };
 
-
-/* Signature type, by OID sum */
-enum Ctc_SigType {
-    CTC_SHAwDSA      = 517,
-    CTC_SHA256wDSA   = 416,
-    CTC_MD2wRSA      = 646,
-    CTC_MD5wRSA      = 648,
-    CTC_SHAwRSA      = 649,
-    CTC_SHAwECDSA    = 520,
-    CTC_SHA224wRSA   = 658,
-    CTC_SHA224wECDSA = 523,
-    CTC_SHA256wRSA   = 655,
-    CTC_SHA256wECDSA = 524,
-    CTC_SHA384wRSA   = 656,
-    CTC_SHA384wECDSA = 525,
-    CTC_SHA512wRSA   = 657,
-    CTC_SHA512wECDSA = 526,
-
-    /* https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration */
-    CTC_SHA3_224wECDSA = 423,
-    CTC_SHA3_256wECDSA = 424,
-    CTC_SHA3_384wECDSA = 425,
-    CTC_SHA3_512wECDSA = 426,
-    CTC_SHA3_224wRSA = 427,
-    CTC_SHA3_256wRSA = 428,
-    CTC_SHA3_384wRSA = 429,
-    CTC_SHA3_512wRSA = 430,
-
-    CTC_RSASSAPSS    = 654,
-
-    CTC_SM3wSM2      = 740, /* 1.2.156.10197.1.501 */
-
-    CTC_ED25519      = 256,
-    CTC_ED448        = 257,
-
-    CTC_FALCON_LEVEL1 = 273,
-    CTC_FALCON_LEVEL5 = 276,
-
-    CTC_DILITHIUM_LEVEL2     = 218,
-    CTC_DILITHIUM_LEVEL3     = 221,
-    CTC_DILITHIUM_LEVEL5     = 225,
-    CTC_ML_DSA_LEVEL2        = 431,
-    CTC_ML_DSA_LEVEL3        = 432,
-    CTC_ML_DSA_LEVEL5        = 433,
-
-    CTC_SPHINCS_FAST_LEVEL1  = 281,
-    CTC_SPHINCS_FAST_LEVEL3  = 283,
-    CTC_SPHINCS_FAST_LEVEL5  = 282,
-    CTC_SPHINCS_SMALL_LEVEL1 = 287,
-    CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286
-};
 
 enum Ctc_Encoding {
     CTC_UTF8       = 0x0c, /* utf8      */
@@ -1058,6 +970,8 @@ typedef struct Asn1Item {
 /* Maximum supported depth of ASN.1 items. */
 #define ASN_MAX_DEPTH       16
 
+typedef const char* (*Asn1OidToNameCb)(unsigned char* oid, word32 len);
+
 /* ASN.1 parsing state. */
 typedef struct Asn1 {
     /* ASN.1 item data. */
@@ -1080,6 +994,9 @@ typedef struct Asn1 {
 
     /* File pointer to print to. */
     XFILE            file;
+
+    /* Callback to get a name for an hex OID. */
+    Asn1OidToNameCb  nameCb;
 } Asn1;
 
 WOLFSSL_API int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
@@ -1088,6 +1005,7 @@ WOLFSSL_API int wc_Asn1PrintOptions_Set(Asn1PrintOptions* opts,
 
 WOLFSSL_API int wc_Asn1_Init(Asn1* asn1);
 WOLFSSL_API int wc_Asn1_SetFile(Asn1* asn1, XFILE file);
+WOLFSSL_API int wc_Asn1_SetOidToNameCb(Asn1* asn1, Asn1OidToNameCb nameCb);
 WOLFSSL_API int wc_Asn1_PrintAll(Asn1* asn1, Asn1PrintOptions* opts,
     unsigned char* data, word32 len);
 

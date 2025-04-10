@@ -33,6 +33,7 @@ decouple library dependencies with standard string, memory and so on.
 
     #include <wolfssl/wolfcrypt/settings.h>
     #include <wolfssl/wolfcrypt/wc_port.h>
+    #include <wolfssl/wolfcrypt/oid_sum.h>
 
     #if defined(EXTERNAL_OPTS_OPENVPN) && defined(BUILDING_WOLFSSL)
     #error EXTERNAL_OPTS_OPENVPN should not be defined in compiled wolfssl library files.
