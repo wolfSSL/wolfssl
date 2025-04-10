@@ -814,6 +814,10 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
+WOLFSSL_LOCAL int dilithium_get_oid_sum(dilithium_key* key, int* keyFormat);
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 WOLFSSL_API int wc_Dilithium_PrivateKeyDecode(const byte* input,
     word32* inOutIdx, dilithium_key* key, word32 inSz);
