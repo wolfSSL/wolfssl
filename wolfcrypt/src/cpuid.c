@@ -170,7 +170,7 @@
             if (hwcaps & HWCAP_SHA512)
                 cpuid_flags |= CPUID_SHA512;
         #endif
-        #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+        #if defined(HWCAP_ASIMDRDM) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
             if (hwcaps & HWCAP_ASIMDRDM)
                 cpuid_flags |= CPUID_RDM;
         #endif

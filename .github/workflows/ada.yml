@@ -1,0 +1,33 @@
+name: WolfSSL Ada Build Tests
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Install gnat
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gnat gprbuild
+
+    - name: Checkout wolfssl
+      uses: actions/checkout@master
+      with:
+        repository: wolfssl/wolfssl
+        path: wolfssl
+
+    - name: Build wolfssl Ada
+      working-directory: ./wolfssl/wrapper/Ada
+      run: |
+        mkdir obj
+        gprbuild default.gpr
+        gprbuild examples.gpr

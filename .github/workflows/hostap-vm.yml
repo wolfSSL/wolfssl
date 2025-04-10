@@ -217,6 +217,7 @@ jobs:
           sudo apt-get install -y libpcap0.8 libpcap-dev curl libcurl4-openssl-dev \
             libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev \
             libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
+          sudo pip install pycryptodome
 
       - name: Checking if we have hostap in cache
         uses: actions/cache/restore@v4
@@ -312,6 +313,7 @@ jobs:
             KERNELDIR=$GITHUB_WORKSPACE/linux
             KVMARGS="-cpu host"
           EOF
+          git config --global --add safe.directory $GITHUB_WORKSPACE/hostap
           # Run tests in increments of 200 to not stall out the parallel-vm script
           while mapfile -t -n 200 ary && ((${#ary[@]})); do
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')

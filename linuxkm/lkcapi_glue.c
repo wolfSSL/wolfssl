@@ -4186,6 +4186,46 @@ static int linuxkm_test_aesecb(void) {
 
 #endif /* !NO_AES */
 
+#ifdef HAVE_ECC
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+        #define LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+#endif /* HAVE_ECC */
+
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+        /**
+         * note: ecdsa supported with linux 6.12 and earlier for now, only.
+         * In linux 6.13, ecdsa changed from a struct akcipher_alg type to
+         * struct sig_alg type, and the sign/verify callbacks were removed
+         * from akcipher_alg.
+         * */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* linux >= 6.13.0 */
+
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
+        defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
+        /**
+         * note: ecdsa was not recognized as fips_allowed before linux v6.3
+         * in kernel crypto/testmgr.c, and will not pass the tests.
+         * */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* linux < 6.3.0 && CONFIG_CRYPTO_FIPS && CONFIG_CRYPTO_MANAGER */
+
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
+        /* only register p192 if specifically enabled, and if not fips. */
+        #define LINUXKM_ECC192
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #include "linuxkm/lkcapi_ecdsa_glue.c"
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
 static int linuxkm_lkcapi_register(void)
 {
     int ret = 0;
@@ -4270,6 +4310,24 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecbAesAlg, crypto_register_skcipher, linuxkm_test_aesecb);
 #endif
 
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #if defined(LINUXKM_ECC192)
+    REGISTER_ALG(ecdsa_nist_p192, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p192);
+    #endif /* LINUXKM_ECC192 */
+
+    REGISTER_ALG(ecdsa_nist_p256, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p256);
+
+    REGISTER_ALG(ecdsa_nist_p384, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p384);
+
+    #if defined(HAVE_ECC521)
+    REGISTER_ALG(ecdsa_nist_p521, crypto_register_akcipher,
+                 linuxkm_test_ecdsa_nist_p521);
+    #endif /* HAVE_ECC521 */
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
 #undef REGISTER_ALG
 
     out:
@@ -4319,6 +4377,17 @@ static void linuxkm_lkcapi_unregister(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     UNREGISTER_ALG(ecbAesAlg, crypto_unregister_skcipher);
 #endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #if defined(LINUXKM_ECC192)
+    UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
+    #endif /* LINUXKM_ECC192 */
+    UNREGISTER_ALG(ecdsa_nist_p256, crypto_unregister_akcipher);
+    UNREGISTER_ALG(ecdsa_nist_p384, crypto_unregister_akcipher);
+    #if defined(HAVE_ECC521)
+    UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
+    #endif /* HAVE_ECC521 */
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #undef UNREGISTER_ALG
 }

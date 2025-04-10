@@ -137,7 +137,13 @@
              * fortify_panic().
              */
             extern void __my_fortify_panic(const char *name) __noreturn __cold;
-            #define fortify_panic __my_fortify_panic
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+                /* see linux 3d965b33e40d9 */
+                #define fortify_panic(func, write, avail, size, retfail) \
+                        __my_fortify_panic(#func)
+            #else
+                #define fortify_panic __my_fortify_panic
+            #endif
         #endif
 
         /* the _FORTIFY_SOURCE macros and implementations for several string
@@ -288,6 +294,12 @@
         #include <crypto/scatterwalk.h>
         #include <crypto/internal/aead.h>
         #include <crypto/internal/skcipher.h>
+
+        #if defined(HAVE_ECC) && \
+            (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+             defined(LINUXKM_LKCAPI_REGISTER_ECDSA))
+             #include <crypto/internal/akcipher.h>
+        #endif /* HAVE_ECC && (REGISTER_ALL || REGISTER_ECDSA) */
 
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two

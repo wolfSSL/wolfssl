@@ -14,7 +14,6 @@ else()
     add_compile_definitions(WOLFSSL_ESP_NO_WATCHDOG=1)
 endif()
 
-
 # The wolfSSL CMake file should be able to find the source code.
 # Otherwise, assign an environment variable or set it here:
 #
@@ -129,7 +128,7 @@ endif()
 # an unintuitive error about  Unknown CMake command "esptool_py_flash_project_args".
 
 if(0)
-	message(STATUS "Begin optional PROTOCOL_EXAMPLES_DIR include")
+    message(STATUS "Begin optional PROTOCOL_EXAMPLES_DIR include")
     # This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
     set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
 
@@ -140,7 +139,7 @@ if(0)
     else()
         message(STATUS "NOT FOUND: PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
     endif()
-	message(STATUS "End optional PROTOCOL_EXAMPLES_DIR include")
+    message(STATUS "End optional PROTOCOL_EXAMPLES_DIR include")
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
