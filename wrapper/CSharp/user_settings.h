@@ -126,8 +126,9 @@
     #endif
 #endif
 
-/* Debug logging */
-#if 1
+/* Debug logging;
+ * DLL_DEBUG is a preprocessor for the "DLL Debug" build config  */
+#if defined(DLL_DEBUG) || defined(Debug) || defined(DEBUG)
     #define DEBUG_WOLFSSL
 #else
     /* #define NO_ERROR_STRINGS */

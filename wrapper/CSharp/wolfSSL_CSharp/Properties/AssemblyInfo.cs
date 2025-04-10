@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("wolfSSL")]
 [assembly: AssemblyProduct("wolfSSL.CSharp")]
-[assembly: AssemblyCopyright("Copyright wolfSSL 2020")]
+[assembly: AssemblyCopyright("Copyright (C) 2006-2025 wolfSSL Inc.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
