@@ -33015,6 +33015,21 @@ static int test_wolfSSL_PKCS8_d2i(void)
     evpPkey = NULL;
     BIO_free(bio);
     bio = NULL;
+
+    /* https://github.com/wolfSSL/wolfssl/issues/8610 */
+    bytes = (int)XSTRLEN((void*)pkcs8_buffer);
+    ExpectNotNull(bio = BIO_new_mem_buf((void*)pkcs8_buffer, bytes));
+    ExpectIntEQ(BIO_get_mem_data(bio, &p), bytes);
+    ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
+
+    ExpectNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+            (void*)"yassl123"));
+    ExpectIntEQ(PEM_write_PKCS8PrivateKey(stderr, evpPkey, NULL,
+            NULL, 0, NULL, NULL), bytes);
+    EVP_PKEY_free(evpPkey);
+    evpPkey = NULL;
+    BIO_free(bio);
+    bio = NULL;
 #endif /* OPENSSL_ALL && !NO_BIO && !NO_PWDBASED && HAVE_PKCS8 && HAVE_AES_CBC */
     EVP_PKEY_free(pkey);
     pkey = NULL;
