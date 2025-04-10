@@ -2971,8 +2971,9 @@ static int TLSX_TCA_VerifyParse(WOLFSSL* ssl, byte isRequest)
     (void)ssl;
 
     if (!isRequest) {
-        /* RFC 6066 section 6 states that the server responding to trusted_ca_keys
-           is optional.  Do not error out unless opted into with the define WOLFSSL_REQUIRE_TCA. */
+        /* RFC 6066 section 6 states that the server responding
+         * to trusted_ca_keys is optional.  Do not error out unless
+         * opted into with the define WOLFSSL_REQUIRE_TCA. */
     #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_REQUIRE_TCA)
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_TRUSTED_CA_KEYS);
 
