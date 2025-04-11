@@ -78,7 +78,6 @@ Public domain.
 /* BEGIN ChaCha C implementation */
 #if defined(HAVE_CHACHA)
 
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifdef CHACHA_AEAD_TEST

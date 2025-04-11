@@ -258,7 +258,6 @@ void WOLFSSL_TIME(int count)
     /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
-    #include <wolfssl/wolfcrypt/wc_port.h>
     #define fprintf FCL_FPRINTF
 #else
     #include <stdio.h>  /* for default printf stuff */

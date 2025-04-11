@@ -106,7 +106,6 @@ ASN Options:
  *  usage.
 */
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
     #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)

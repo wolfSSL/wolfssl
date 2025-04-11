@@ -93,8 +93,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 #else
 
-#include <wolfssl/wolfcrypt/logging.h>
-
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -348,7 +346,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #elif defined(HAVE_COLDFIRE_SEC)
     /* Freescale Coldfire SEC support for CBC mode.
      * NOTE: no support for AES-CTR/GCM/CCM/Direct */
-    #include <wolfssl/wolfcrypt/types.h>
     #include "sec.h"
     #include "mcf5475_sec.h"
     #include "mcf5475_siu.h"

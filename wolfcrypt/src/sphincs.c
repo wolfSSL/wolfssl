@@ -32,7 +32,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/sphincs.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

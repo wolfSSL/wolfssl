@@ -19,19 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * There are two versions one for 64 (Aarch64) and one for 32 bit (Aarch32).
  * If changing one check the other.
  */
-
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
@@ -56,7 +49,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #if FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =

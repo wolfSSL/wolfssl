@@ -27,10 +27,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/kdf.h>
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef NO_INLINE
 #include <wolfssl/wolfcrypt/misc.h>
