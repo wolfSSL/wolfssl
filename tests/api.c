@@ -15772,10 +15772,12 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     {
         int signedSz = 0, i;
         encodeSignedDataStream strm;
-        int numberOfChunkSizes = 4;
-        word32 chunkSizes[] = { 4080, 4096, 5000, 9999 };
+        static const int numberOfChunkSizes = 4;
+        static const word32 chunkSizes[] = { 4080, 4096, 5000, 9999 };
         /* chunkSizes were chosen to test around the default 4096 octet string
          * size used in pkcs7.c */
+
+        XMEMSET(&strm, 0, sizeof(strm));
 
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
