@@ -42369,7 +42369,7 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
 WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk)
 {
-    return wolfSSL_sk_pop(sk);
+    return (WOLFSSL_BY_DIR_HASH *)wolfSSL_sk_pop(sk);
 }
 /* release all contents in stack, and then release stack itself. */
 /* Second argument is a function pointer to release resources.   */
@@ -42501,7 +42501,7 @@ WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
 WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk)
 {
-    return wolfSSL_sk_pop(sk);
+    return (WOLFSSL_BY_DIR_entry *)wolfSSL_sk_pop(sk);
 }
 /* release all contents in stack, and then release stack itself. */
 /* Second argument is a function pointer to release resources.   */

@@ -33034,7 +33034,7 @@ static int test_wolfSSL_PKCS8_d2i(void)
     bio = NULL;
 
     /* https://github.com/wolfSSL/wolfssl/issues/8610 */
-    bytes = (int)XSTRLEN((void*)pkcs8_buffer);
+    bytes = (int)XSTRLEN((char *)pkcs8_buffer);
     ExpectNotNull(bio = BIO_new_mem_buf((void*)pkcs8_buffer, bytes));
     ExpectIntEQ(BIO_get_mem_data(bio, &p), bytes);
     ExpectIntEQ(XMEMCMP(p, pkcs8_buffer, bytes), 0);
