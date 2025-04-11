@@ -5580,6 +5580,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return ret;
             ssl->options.pskNegotiated = 1;
         }
+#else
+        /* no resumption possible */
+        ssl->options.resuming = 0;
 #endif
 
         /* sanity check on PSK / KSE */
