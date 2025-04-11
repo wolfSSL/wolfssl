@@ -2,16 +2,32 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
+# Library files:
 EXTRA_DIST+= IDE/ARDUINO/README.md
+
+# There's an Arduino-specific Arduino_README_prepend.md that will be prepended to wolfSSL README.md
+# Not to be confused with the interim PREPENDED_README.md that is created by script.
 EXTRA_DIST+= IDE/ARDUINO/Arduino_README_prepend.md
+
+# Core library files
+EXTRA_DIST+= IDE/ARDUINO/wolfssl.h
+EXTRA_DIST+= IDE/ARDUINO/wolfssl.h
+EXTRA_DIST+= IDE/ARDUINO/wolfssl-arduino.cpp
+
 EXTRA_DIST+= IDE/ARDUINO/keywords.txt
 EXTRA_DIST+= IDE/ARDUINO/library.properties.template
+
+# Sketch Examples
 EXTRA_DIST+= IDE/ARDUINO/sketches/README.md
+
+# wolfssl_client example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_client/wolfssl_client.ino
+
+# wolfssl_server example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_server/wolfssl_server.ino
+
+# wolfssl_version example sketch
 EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/README.md
-EXTRA_DIST+= IDE/ARDUINO/sketches/wolfssl_version/wolfssl_version.ino
-EXTRA_DIST+= IDE/ARDUINO/wolfssl.h
+
+# Publishing script, either local install or to github.com/wolfSSL/Arduino-wolfSSL clone directory.
 EXTRA_DIST+= IDE/ARDUINO/wolfssl-arduino.sh
