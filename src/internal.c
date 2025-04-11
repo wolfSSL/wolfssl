@@ -153,7 +153,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #error Cannot use both secure-renegotiation and renegotiation-indication
 #endif
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 
 #ifndef NO_WOLFSSL_CLIENT
     static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
@@ -179,7 +179,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #endif
 #endif /* !NO_WOLFSSL_SERVER */
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !NO_TLS && !WOLFSSL_NO_TLS12 */
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
     #if defined(WOLFSSL_HAPROXY)
@@ -236,13 +236,14 @@ enum processReply {
 };
 
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 
 /* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
 static const byte tls13Downgrade[7] = {
     0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44
 };
+
 #define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
 
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
@@ -253,7 +254,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
 #endif
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !NO_TLS && !WOLFSSL_NO_TLS12 */
 
 
 #if !defined(NO_CERT) && defined(WOLFSSL_BLIND_PRIVATE_KEY)
@@ -4900,7 +4901,8 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 }
 #endif
 
-#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) && \
+    !defined(WOLFSSL_NO_CLIENT_AUTH)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
@@ -4961,7 +4963,7 @@ word32 MacSize(const WOLFSSL* ssl)
 }
 
 #ifndef NO_RSA
-#if !defined(WOLFSSL_NO_TLS12) || \
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) || \
     (defined(WC_RSA_PSS) && defined(HAVE_PK_CALLBACKS))
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 static int TypeHash(int hashAlgo)
@@ -5974,7 +5976,7 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 }
 #endif /* HAVE_ED25519 */
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 
 #ifdef HAVE_CURVE25519
 #ifdef HAVE_PK_CALLBACKS
@@ -16853,7 +16855,7 @@ exit_ppc:
 }
 #endif
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 
 /* handle processing of certificate (11) */
@@ -17070,11 +17072,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #endif
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !NO_TLS && !WOLFSSL_NO_TLS12 */
 
 #endif /* !NO_CERTS */
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 
 static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                     word32 size, word32 totalSz)
@@ -17697,6 +17699,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
     return 0;
 }
 
+#if !defined(NO_TLS)
 
 int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                           byte type, word32 size, word32 totalSz)
@@ -18210,7 +18213,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_LEAVE("DoHandShakeMsg()", ret);
     return ret;
 }
-
+#endif /* NO_TLS */
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_EXTRA_ALERTS
@@ -24305,7 +24308,8 @@ int cipherExtraData(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef NO_CERTS
-#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
+    !defined(NO_TLS)
 /* handle generation of certificate (11) */
 int SendCertificate(WOLFSSL* ssl)
 {
@@ -24620,6 +24624,7 @@ int SendCertificate(WOLFSSL* ssl)
 }
 #endif /* !NO_WOLFSSL_SERVER || !WOLFSSL_NO_CLIENT_AUTH */
 
+#if !defined(NO_TLS)
 /* handle generation of certificate_request (13) */
 int SendCertificateRequest(WOLFSSL* ssl)
 {
@@ -24827,6 +24832,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     return ret;
 }
+#endif /* NO_TLS */
+
 
 #ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
@@ -25253,7 +25260,8 @@ static int ModifyForMTU(WOLFSSL* ssl, int buffSz, int outputSz, int mtuSz)
 }
 #endif /* WOLFSSL_DTLS */
 
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13) && \
+    !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
 /*
  * Enforce limits specified in
  * https://www.rfc-editor.org/rfc/rfc8446#section-5.5
@@ -30431,7 +30439,7 @@ exit_dapk:
     }
 #endif /* WOLFSSL_TLS13 */
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
 #if (!defined(NO_WOLFSSL_CLIENT) && (!defined(NO_DH) || defined(HAVE_ECC) || \
       defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))) || \
     (!defined(NO_WOLFSSL_SERVER) && (defined(HAVE_ECC) || \

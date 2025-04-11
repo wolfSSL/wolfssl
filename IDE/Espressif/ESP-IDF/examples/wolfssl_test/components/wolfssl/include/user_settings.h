@@ -20,6 +20,12 @@
  */
 #define WOLFSSL_ESPIDF_COMPONENT_VERSION 0x01
 
+#define NO_TLS
+#define WOLFCRYPT_ONLY
+#define NO_WOLFSSL_CLIENT
+#define NO_WOLFSSL_SERVER
+
+
 /* Examples such as test and benchmark are known to cause watchdog timeouts.
  * Note this is often set in project Makefile:
  * CFLAGS += -DWOLFSSL_ESP_NO_WATCHDOG=1 */

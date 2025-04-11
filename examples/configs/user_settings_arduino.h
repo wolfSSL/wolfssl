@@ -21,11 +21,18 @@
 
 /* This is a sample Arduino user_settings.h for wolfSSL
   >> Edit with caution. This is the file copied to wolfSSL Arduino library.
-  >> at publish time. (lines with ">>" are removed)
+  >> at publish time. (lines with ">>" are removed at publish time)
 */
 
 /* Define a macro to display user settings version in example code: */
-#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.7.4"
+#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.7.6"
+
+/* Disable wolfcrypt cryptographic security hardening. Comment out to enable: */
+/* #define WC_NO_HARDEN */
+
+/* Instead, we harden ECC and RSA */
+#define ECC_TIMING_RESISTANT
+#define WC_RSA_BLINDING
 
 /* Due to limited build control, we'll ignore file warnings. */
 /* See https://github.com/arduino/arduino-cli/issues/631     */
@@ -39,6 +46,7 @@
 #undef  WOLFSSL_ESPIDF
 
 #define HAVE_ECC
+
 #define WOLFSSL_SMALL_STACK
 /* #define WOLFSSL_SMALL_STACK_EXTRA    */
 /* #define WOLFSSL_SMALL_STACK_CIPHERS  */
@@ -76,17 +84,27 @@
  *    WOLFSSL_CLIENT_EXAMPLE
  *    WOLFSSL_SERVER_EXAMPLE
  */
+
+/* The examples must be manually selected here: */
+
 #if defined(WOLFSSL_CLIENT_EXAMPLE)
     #define NO_WOLFSSL_SERVER
 #elif defined(WOLFSSL_SERVER_EXAMPLE)
     #define NO_WOLFSSL_CLIENT
+#elif defined(WOLFSSL_TEMPLATE_EXAMPLE)
+    #define NO_WOLFSSL_SERVER
+    #define NO_WOLFSSL_CLIENT
+#elif defined(WOLFSSL_AES_CTR_EXAMPLE)
+    #define NO_WOLFSSL_SERVER
+    #define NO_WOLFSSL_CLIENT
+    #define WOLFSSL_AES
+    #define WOLFSSL_AES_COUNTER
 #else
     /* Provide a hint to application that neither WOLFSSL_CLIENT_EXAMPLE
      * or WOLFSSL_SERVER_EXAMPLE macro hint was desired but not found. */
     #define NO_WOLFSSL_SERVER_CLIENT_MISSING
-    #warning "Define WOLFSSL_CLIENT_EXAMPLE or WOLFSSL_SERVER_EXAMPLE to" \
-             " optimize memory for small embedded devices."
-    /* Both can be disabled in wolfssl test & benchmark */
+
+    /* By default all examples are enabled; no specific optimizations */
 #endif
 
 
@@ -114,8 +132,8 @@
 /* #define HAVE_PKCS7 */
 
 /* when you want to use AES counter mode */
-/* #define WOLFSSL_AES_DIRECT */
-/* #define WOLFSSL_AES_COUNTER */
+#define WOLFSSL_AES_DIRECT
+#define WOLFSSL_AES_COUNTER
 
 /* esp32-wroom-32se specific definition */
 #if defined(WOLFSSL_ESPWROOM32SE)
@@ -354,7 +372,7 @@
 */
 
 /* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm
-/* The section below defines macros used in typically all of the wolfSSL
+ * The section below defines macros used in typically all of the wolfSSL
  * examples such as the client and server for certs stored in header files.
  *
  * There are various certificate examples in this header file:

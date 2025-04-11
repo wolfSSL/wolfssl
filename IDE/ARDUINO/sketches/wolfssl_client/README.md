@@ -1,6 +1,14 @@
 # Arduino Basic TLS Listening Client
 
-Open the [wolfssl_client.ino](./wolfssl_client.ino) file in the Arduino IDE.
+Open the `wolfssl_client.ino` file in the Arduino IDE.
+
+NOTE: Moving; See https://github.com/wolfSSL/wolfssl-examples/pull/499
+
+If using WiFi, be sure to set `ssid` and `password` values.
+
+May need "Ethernet by Various" library to be installed. Tested with v2.0.2 and v2.8.1.
+
+See the `#define WOLFSSL_TLS_SERVER_HOST` to set your own server address.
 
 Other IDE products are also supported, such as:
 
