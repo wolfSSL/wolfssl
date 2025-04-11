@@ -559,9 +559,6 @@
     defined(WOLFSSL_SP_RISCV32)
 #endif
 
-#define WOLFSSL_SMALL_STACK
-
-
 #define HAVE_VERSION_EXTENDED_INFO
 /* #define HAVE_WC_INTROSPECTION */
 

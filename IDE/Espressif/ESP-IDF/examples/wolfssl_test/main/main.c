@@ -164,6 +164,8 @@ void app_main(void)
         .stop_bits = UART_STOP_BITS_1,
     };
     int stack_start = 0;
+    int heap_start = 0;
+    int heap_current = 0;
     int loops = 0;
     esp_err_t ret = 0;
 
@@ -245,8 +247,12 @@ void app_main(void)
     ** note it is still always called in wolf_test_task.
     */
     stack_start = uxTaskGetStackHighWaterMark(NULL);
+    heap_start = heap_caps_get_free_size(MALLOC_CAP_8BIT);
 
     do {
+        heap_current = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+        ESP_LOGI(TAG, "Free heap memory: %d bytes; Start %d",
+                                         heap_current, heap_start);
         ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
         ret = wolf_test_task();
@@ -272,7 +278,7 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 #endif
 
-#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
+#if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
     esp_hw_show_mp_metrics();
 #endif
 
