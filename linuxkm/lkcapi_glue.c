@@ -4191,8 +4191,14 @@ static int linuxkm_test_aesecb(void) {
         !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
         #define LINUXKM_LKCAPI_REGISTER_ECDSA
     #endif
+
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDH)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_ECDH)
+        #define LINUXKM_LKCAPI_REGISTER_ECDH
+    #endif
 #else
     #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #undef LINUXKM_LKCAPI_REGISTER_ECDH
 #endif /* HAVE_ECC */
 
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
@@ -4225,6 +4231,10 @@ static int linuxkm_test_aesecb(void) {
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #include "linuxkm/lkcapi_ecdsa_glue.c"
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDH)
+    #include "linuxkm/lkcapi_ecdh_glue.c"
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 static int linuxkm_lkcapi_register(void)
 {
@@ -4328,6 +4338,19 @@ static int linuxkm_lkcapi_register(void)
     #endif /* HAVE_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDH
+    #if defined(LINUXKM_ECC192)
+    REGISTER_ALG(ecdh_nist_p192, crypto_register_kpp,
+                 linuxkm_test_ecdh_nist_p192);
+    #endif /* LINUXKM_ECC192 */
+
+    REGISTER_ALG(ecdh_nist_p256, crypto_register_kpp,
+                 linuxkm_test_ecdh_nist_p256);
+
+    REGISTER_ALG(ecdh_nist_p384, crypto_register_kpp,
+                 linuxkm_test_ecdh_nist_p384);
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
+
 #undef REGISTER_ALG
 
     out:
@@ -4388,6 +4411,15 @@ static void linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
     #endif /* HAVE_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDH
+    #if defined(LINUXKM_ECC192)
+    UNREGISTER_ALG(ecdh_nist_p192, crypto_unregister_kpp);
+    #endif /* LINUXKM_ECC192 */
+    UNREGISTER_ALG(ecdh_nist_p256, crypto_unregister_kpp);
+    UNREGISTER_ALG(ecdh_nist_p384, crypto_unregister_kpp);
+    /* no ecdh p521 in kernel. */
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #undef UNREGISTER_ALG
 }
