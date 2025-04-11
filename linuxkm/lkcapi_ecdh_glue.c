@@ -565,7 +565,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
     const byte secret[] = {
-#ifdef __LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x1e, 0x00, /* len */
         0x18, 0x00, /* key_size */
@@ -620,7 +620,7 @@ static int linuxkm_test_ecdh_nist_p256(void)
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
     const byte secret[] = {
-#ifdef __LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x26, 0x00, /* len */
         0x20, 0x00, /* key_size */
@@ -679,7 +679,7 @@ static int linuxkm_test_ecdh_nist_p384(void)
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
     const byte secret[] = {
-#ifdef __LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x36, 0x00, /* len */
         0x30, 0x00, /* key_size */
