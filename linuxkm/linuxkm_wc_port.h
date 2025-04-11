@@ -294,6 +294,7 @@
         #include <crypto/scatterwalk.h>
         #include <crypto/internal/aead.h>
         #include <crypto/internal/skcipher.h>
+        #include <crypto/internal/kpp.h>
 
         #if defined(HAVE_ECC) && \
             (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
