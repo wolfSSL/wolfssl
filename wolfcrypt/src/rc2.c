@@ -38,7 +38,6 @@ This library provides the interface to the RC2 encryption algorithm (RFC 2268)
 #endif
 
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Table based on value of PI, defined in RFC 2268 */
 static const byte pitable[256] = {

@@ -19,11 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /* This source is included in wc_port.c */
 /* WOLFSSL_CRYPTOCELL_HASH_C is defined by wc_port.c in case compile tries
@@ -31,8 +27,6 @@
 #ifdef WOLFSSL_CRYPTOCELL_HASH_C
 #if !defined(NO_SHA256) && defined(WOLFSSL_CRYPTOCELL)
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 

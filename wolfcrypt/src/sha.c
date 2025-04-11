@@ -40,7 +40,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLF_CRYPTO_CB
@@ -103,7 +102,6 @@
 
 #else
 
-#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

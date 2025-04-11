@@ -36,8 +36,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dh.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #include <wolfssl/wolfcrypt/sp.h>
