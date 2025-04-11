@@ -1442,6 +1442,13 @@ enum CertificatePolicy_Sum {
     CP_FPKI_PIVI_AUTH_OID            = 458, /* 2.16.840.1.101.3.2.1.3.45 */
     CP_FPKI_COMMON_PIVI_CONTENT_SIGNING_OID = 460, /* 2.16.840.1.101.3.2.1.3.47 */
 
+    /* Federal PKI Test OIDs */
+    CP_FPKI_AUTH_TEST_OID                   = 469, /* 2.16.840.1.101.3.2.1.48.11 */
+    CP_FPKI_CARDAUTH_TEST_OID               = 471, /* 2.16.840.1.101.3.2.1.48.13 */
+    CP_FPKI_PIV_CONTENT_TEST_OID            = 544, /* 2.16.840.1.101.3.2.1.48.86 */
+    CP_FPKI_PIV_AUTH_DERIVED_TEST_OID       = 567, /* 2.16.840.1.101.3.2.1.48.109 */
+    CP_FPKI_PIV_AUTH_DERIVED_HW_TEST_OID    = 568, /* 2.16.840.1.101.3.2.1.48.110 */
+
     /* DoD PKI OIDs */
     CP_DOD_MEDIUM_OID                = 423, /* 2.16.840.1.101.2.1.11.5 */
     CP_DOD_MEDIUM_HARDWARE_OID       = 427, /* 2.16.840.1.101.2.1.11.9 */
