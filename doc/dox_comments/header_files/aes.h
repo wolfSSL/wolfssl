@@ -1733,5 +1733,244 @@ WOLFSSL_API int wc_AesEaxDecryptFinal(AesEax* eax,
 */
 WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 
+/*!
+    \ingroup AES
+    \brief This function performs AES encryption using Ciphertext Stealing (CTS)
+    mode. It is a one-shot API that handles all operations in a single call.
 
+    \return 0 on successful encryption.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return other negative error codes for encryption failures.
 
+    \param key pointer to the AES key used for encryption.
+    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param[out] out buffer to hold the encrypted ciphertext. Must be at least
+    the size of the input.
+    \param in pointer to the plaintext input data to encrypt.
+    \param inSz size of the plaintext input data in bytes.
+    \param iv pointer to the initialization vector (IV) used for encryption.
+    Must be 16 bytes.
+
+    _Example_
+    \code
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        byte ciphertext[sizeof(plaintext)];
+
+        int ret = wc_AesCtsEncrypt(key, sizeof(key), ciphertext, plaintext,
+            sizeof(plaintext), iv);
+        if (ret != 0) {
+        // handle encryption error
+    }
+    \endcode
+
+    \sa wc_AesCtsDecrypt
+*/
+int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
+                     const byte* in, word32 inSz,
+                     const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES encryption using Ciphertext Stealing (CTS)
+     mode. It is a one-shot API that handles all operations in a single call.
+
+    \return 0 on successful encryption.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return other negative error codes for encryption failures.
+
+    \param key pointer to the AES key used for encryption.
+    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param[out] out buffer to hold the encrypted ciphertext. Must be at least
+                 the same size as the input plaintext.
+    \param in pointer to the plaintext input data to encrypt.
+    \param inSz size of the plaintext input data in bytes.
+    \param iv pointer to the initialization vector (IV) used for encryption.
+             Must be 16 bytes.
+    _Example_
+    \code
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        byte ciphertext[sizeof(plaintext)];
+        int ret = wc_AesCtsEncrypt(key, sizeof(key), ciphertext, plaintext,
+                                   sizeof(plaintext), iv);
+        if (ret != 0) {
+            // handle encryption error
+        }
+    \endcode
+    \sa wc_AesCtsDecrypt
+*/
+int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
+                     const byte* in, word32 inSz,
+                     const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function performs AES decryption using Ciphertext Stealing (CTS) mode.
+           It is a one-shot API that handles all operations in a single call.
+    \return 0 on successful decryption.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \return other negative error codes for decryption failures.
+    \param key pointer to the AES key used for decryption.
+    \param keySz size of the AES key in bytes (16, 24, or 32 bytes).
+    \param[out] out buffer to hold the decrypted plaintext. Must be at least
+                 the same size as the input ciphertext.
+    \param in pointer to the ciphertext input data to decrypt.
+    \param inSz size of the ciphertext input data in bytes.
+    \param iv pointer to the initialization vector (IV) used for decryption.
+             Must be 16 bytes.
+    _Example_
+    \code
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte ciphertext[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        byte plaintext[sizeof(ciphertext)];
+        int ret = wc_AesCtsDecrypt(key, sizeof(key), plaintext, ciphertext,
+                                   sizeof(ciphertext), iv);
+        if (ret != 0) {
+            // handle decryption error
+        }
+    \endcode
+    \sa wc_AesCtsEncrypt
+*/
+int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
+                     const byte* in, word32 inSz,
+                     const byte* iv);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of the AES CTS encryption.
+           It processes a chunk of plaintext and stores intermediate data.
+    \return 0 on successful processing.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \param aes pointer to the Aes structure holding the context of the operation.
+    \param[out] out buffer to hold the encrypted ciphertext. Must be large enough
+                 to store the output from this update step.
+    \param[out] outSz size in bytes of the output data written to the \c out buffer.
+                     On input, it should contain the maximum number of bytes that can
+                     be written to the \c out buffer.
+    \param in pointer to the plaintext input data to encrypt.
+    \param inSz size of the plaintext input data in bytes.
+    _Example_
+    \code
+        Aes aes;
+        wc_AesInit(&aes, NULL, INVALID_DEVID);
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte plaintext[] = { ... };
+        byte ciphertext[sizeof(plaintext)];
+        word32 outSz = sizeof(ciphertext);
+        wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION);
+        int ret = wc_AesCtsEncryptUpdate(&aes, ciphertext, &outSz, plaintext, sizeof(plaintext));
+        if (ret != 0) {
+            // handle error
+        }
+        wc_AesFree(&aes);
+    \endcode
+    \sa wc_AesCtsDecryptUpdate
+*/
+int wc_AesCtsEncryptUpdate(Aes* aes, byte* out, word32* outSz,
+                           const byte* in, word32 inSz);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes the AES CTS encryption operation.
+           It processes any remaining plaintext and completes the encryption.
+    \return 0 on successful encryption completion.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \param aes pointer to the Aes structure holding the context of the operation.
+    \param[out] out buffer to hold the final encrypted ciphertext. Must be large
+                 enough to store any remaining ciphertext from this final step.
+    \param[out] outSz size in bytes of the output data written to the \c out buffer.
+                     On input, it should contain the maximum number of bytes that can
+                     be written to the \c out buffer.
+    _Example_
+    \code
+        Aes aes;
+        wc_AesInit(&aes, NULL, INVALID_DEVID);
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte plaintext[] = { ... };
+        byte ciphertext[sizeof(plaintext)];
+        word32 outSz = sizeof(ciphertext);
+        wc_AesSetKey(&aes, key, sizeof(key), iv, AES_ENCRYPTION);
+        // Perform any required update steps using wc_AesCtsEncryptUpdate
+        int ret = wc_AesCtsEncryptFinal(&aes, ciphertext, &outSz);
+        if (ret != 0) {
+            // handle error
+        }
+        wc_AesFree(&aes);
+    \endcode
+    \sa wc_AesCtsDecryptFinal
+*/
+int wc_AesCtsEncryptFinal(Aes* aes, byte* out, word32* outSz);
+
+/*!
+    \ingroup AES
+    \brief This function performs an update step of the AES CTS decryption.
+           It processes a chunk of ciphertext and stores intermediate data.
+    \return 0 on successful processing.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \param aes pointer to the Aes structure holding the context of the operation.
+    \param[out] out buffer to hold the decrypted plaintext. Must be large enough
+                 to store the output from this update step.
+    \param[out] outSz size in bytes of the output data written to the \c out buffer.
+                     On input, it should contain the maximum number of bytes that can
+                     be written to the \c out buffer.
+    \param in pointer to the ciphertext input data to decrypt.
+    \param inSz size of the ciphertext input data in bytes.
+    _Example_
+    \code
+        Aes aes;
+        wc_AesInit(&aes, NULL, INVALID_DEVID);
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte ciphertext[] = { ... };
+        byte plaintext[sizeof(ciphertext)];
+        word32 outSz = sizeof(plaintext);
+        wc_AesSetKey(&aes, key, sizeof(key), iv, AES_DECRYPTION);
+        int ret = wc_AesCtsDecryptUpdate(&aes, plaintext, &outSz, ciphertext, sizeof(ciphertext));
+        if (ret != 0) {
+            // handle error
+        }
+        wc_AesFree(&aes);
+    \endcode
+    \sa wc_AesCtsEncryptUpdate
+*/
+int wc_AesCtsDecryptUpdate(Aes* aes, byte* out, word32* outSz,
+                           const byte* in, word32 inSz);
+
+/*!
+    \ingroup AES
+    \brief This function finalizes the AES CTS decryption operation.
+           It processes any remaining ciphertext and completes the decryption.
+    \return 0 on successful decryption completion.
+    \return BAD_FUNC_ARG if input arguments are invalid.
+    \param aes pointer to the Aes structure holding the context of the operation.
+    \param[out] out buffer to hold the final decrypted plaintext. Must be large
+                 enough to store any remaining plaintext from this final step.
+    \param[out] outSz size in bytes of the output data written to the \c out buffer.
+                     On input, it should contain the maximum number of bytes that can
+                     be written to the \c out buffer.
+    _Example_
+    \code
+        Aes aes;
+        wc_AesInit(&aes, NULL, INVALID_DEVID);
+        byte key[16] = { 0 };
+        byte iv[16] = { 0 };
+        byte ciphertext[] = { ... };
+        byte plaintext[sizeof(ciphertext)];
+        word32 outSz = sizeof(plaintext);
+        wc_AesSetKey(&aes, key, sizeof(key), iv, AES_DECRYPTION);
+        // Perform any required update steps using wc_AesCtsDecryptUpdate
+        int ret = wc_AesCtsDecryptFinal(&aes, plaintext, &outSz);
+        if (ret != 0) {
+            // handle error
+        }
+        wc_AesFree(&aes);
+    \endcode
+    \sa wc_AesCtsEncryptFinal
+*/
+int wc_AesCtsDecryptFinal(Aes* aes, byte* out, word32* outSz);

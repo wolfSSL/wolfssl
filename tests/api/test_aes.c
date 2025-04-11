@@ -264,6 +264,230 @@ int test_wc_AesCbcEncryptDecrypt(void)
 } /* END test_wc_AesCbcEncryptDecrypt */
 
 /*******************************************************************************
+ * AES-CTS
+ ******************************************************************************/
+
+int test_wc_AesCtsEncryptDecrypt(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_CTS) && \
+    defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_128)
+    /* Test vectors taken form RFC3962 Appendix B */
+    struct {
+        const char* input;
+        const char* output;
+        size_t inLen;
+        size_t outLen;
+    } vects[] = {
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20",
+            "\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
+            "\x97",
+            17, 17
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
+            "\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5",
+            31, 31
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
+            32, 32
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5",
+            47, 47
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8",
+            48, 48
+        },
+        {
+            "\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+            "\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+            "\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+            "\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e",
+            "\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+            "\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
+            "\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
+            "\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
+            64, 64
+        }
+    };
+    byte keyBytes[AES_128_KEY_SIZE] = {
+        0x63, 0x68, 0x69, 0x63, 0x6b, 0x65, 0x6e, 0x20,
+        0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
+    };
+    byte tmp[64]; /* Largest vector size */
+    size_t i;
+    byte iv[AES_IV_SIZE]; /* All-zero IV for all cases */
+
+    XMEMSET(iv, 0, sizeof(iv));
+    for (i = 0; i < XELEM_CNT(vects) && EXPECT_SUCCESS(); i++) {
+        /* One-shot encrypt */
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectIntEQ(wc_AesCtsEncrypt(keyBytes, sizeof(keyBytes), tmp,
+                 (const byte*)vects[i].input, (word32)vects[i].inLen, iv), 0);
+        ExpectBufEQ(tmp, vects[i].output, vects[i].outLen);
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectIntEQ(wc_AesCtsDecrypt(keyBytes, sizeof(keyBytes), tmp,
+                 (const byte*)vects[i].output, (word32)vects[i].outLen, iv), 0);
+        ExpectBufEQ(tmp, vects[i].input, vects[i].inLen);
+    }
+    /* Execute all branches */
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[5].input;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[5].outLen;
+        word32 remSz = (word32)vects[5].outLen;
+
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 1), 0);
+        in += 1; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 31), 0);
+        in += 31; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 32), 0);
+        in += 32; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[5].output, vects[5].outLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[5].input;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[5].outLen;
+        word32 remSz = (word32)vects[5].outLen;
+
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 1), 0);
+        in += 1; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 63), 0);
+        in += 63; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[5].output, vects[5].outLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[2].input;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[2].outLen;
+        word32 remSz = (word32)vects[2].outLen;
+
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_ENCRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 16), 0);
+        in += 16; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptUpdate(aes, out, &outSz, in, 16), 0);
+        in += 16; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsEncryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[2].output, vects[2].outLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[5].output;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[5].inLen;
+        word32 remSz = (word32)vects[5].inLen;
+
+        XMEMSET(tmp, 0, sizeof(tmp));
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_DECRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 1), 0);
+        in += 1; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 31), 0);
+        in += 31; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 32), 0);
+        in += 32; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[5].input, vects[5].inLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[5].output;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[5].inLen;
+        word32 remSz = (word32)vects[5].inLen;
+
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_DECRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 1), 0);
+        in += 1; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 63), 0);
+        in += 63; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[5].input, vects[5].inLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+    {
+        Aes* aes = NULL;
+        int result_code = 0;
+        const byte* in = (const byte*)vects[2].output;
+        byte* out = tmp;
+        word32 outSz = (word32)vects[2].inLen;
+        word32 remSz = (word32)vects[2].inLen;
+
+        ExpectNotNull(aes = wc_AesNew(NULL, INVALID_DEVID, &result_code));
+        ExpectIntEQ(wc_AesSetKey(aes, keyBytes, sizeof(keyBytes), iv,
+                                 AES_DECRYPTION), 0);
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 16), 0);
+        in += 16; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptUpdate(aes, out, &outSz, in, 16), 0);
+        in += 16; out += outSz; remSz -= outSz; outSz = remSz;
+        ExpectIntEQ(wc_AesCtsDecryptFinal(aes, out, &outSz), 0);
+        remSz -= outSz;
+        ExpectIntEQ(remSz, 0);
+        ExpectBufEQ(tmp, vects[2].input, vects[2].inLen);
+        ExpectIntEQ(wc_AesDelete(aes, &aes), 0);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/*******************************************************************************
  * AES-CTR
  ******************************************************************************/
 

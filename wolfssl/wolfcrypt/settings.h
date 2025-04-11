@@ -3170,6 +3170,11 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_AES_DIRECT
         #endif
     #endif
+    #ifdef WOLFSSL_AES_CTS
+        #if defined(NO_AES_CBC) || !defined(HAVE_AES_CBC)
+            #error "AES CTS requires AES CBC"
+        #endif
+    #endif
 #endif
 
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
