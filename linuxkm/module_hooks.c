@@ -646,8 +646,8 @@ extern const unsigned int wolfCrypt_FIPS_ro_end[];
 #define FIPS_IN_CORE_KEY_SZ 32
 #define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_KEY_SZ
 typedef int (*fips_address_function)(void);
-#define MAX_FIPS_DATA_SZ  100000
-#define MAX_FIPS_CODE_SZ 1000000
+#define MAX_FIPS_DATA_SZ 10000000
+#define MAX_FIPS_CODE_SZ 10000000
 extern int GenBase16_Hash(const byte* in, int length, char* out, int outSz);
 
 static int updateFipsHash(void)
