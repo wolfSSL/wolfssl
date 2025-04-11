@@ -9589,6 +9589,42 @@ static int mapOidToSecLevel(word32 oid)
     }
 }
 
+/* Get OID sum from dilithium key */
+int dilithium_get_oid_sum(dilithium_key* key, int* keyFormat) {
+    int ret = 0;
+
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+    if (key->params == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else if (key->params->level == WC_ML_DSA_44_DRAFT) {
+        *keyFormat = DILITHIUM_LEVEL2k;
+    }
+    else if (key->params->level == WC_ML_DSA_65_DRAFT) {
+        *keyFormat = DILITHIUM_LEVEL3k;
+    }
+    else if (key->params->level == WC_ML_DSA_87_DRAFT) {
+        *keyFormat = DILITHIUM_LEVEL5k;
+    }
+    else
+    #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+    if (key->level == WC_ML_DSA_44) {
+        *keyFormat = ML_DSA_LEVEL2k;
+    }
+    else if (key->level == WC_ML_DSA_65) {
+        *keyFormat = ML_DSA_LEVEL3k;
+    }
+    else if (key->level == WC_ML_DSA_87) {
+        *keyFormat = ML_DSA_LEVEL5k;
+    }
+    else {
+        /* Level is not set */
+        ret = ALGO_ID_E;
+    }
+
+    return ret;
+}
+
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
 /* Decode the DER encoded Dilithium key.
@@ -9627,9 +9663,13 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
 
     if (ret == 0) {
-        /* Get OID sum for level. */
+        /* Get OID sum for level. */ 
+        if(key->level == 0) { /* Check first, because key->params will be NULL when key->level = 0 */
+            /* Level not set by caller, decode from DER */
+            keytype = ANONk;
+        }
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
-        if (key->params == NULL) {
+        else if (key->params == NULL) {
             ret = BAD_FUNC_ARG;
         }
         else if (key->params->level == WC_ML_DSA_44_DRAFT) {
@@ -9641,9 +9681,8 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             keytype = DILITHIUM_LEVEL5k;
         }
-        else
     #endif
-        if (key->level == WC_ML_DSA_44) {
+        else if (key->level == WC_ML_DSA_44) {
             keytype = ML_DSA_LEVEL2k;
         }
         else if (key->level == WC_ML_DSA_65) {
@@ -9653,8 +9692,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             keytype = ML_DSA_LEVEL5k;
         }
         else {
-            /* Level not set by caller, decode from DER */
-            keytype = ANONk; /* 0, not a valid key type in this situation*/
+            ret = BAD_FUNC_ARG;
         }
     }
 

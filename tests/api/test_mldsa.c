@@ -2959,7 +2959,7 @@ int test_wc_dilithium_der(void)
     idx = 0;
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
-                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
 #else
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
                 WC_NO_ERR_TRACE(ASN_PARSE_E));

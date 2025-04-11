@@ -946,6 +946,9 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret;
     word32 idx;
     dilithium_key* key;
+    int keyFormatTemp = 0; 
+    int keyTypeTemp;
+    int keySizeTemp;
 
     /* Allocate a Dilithium key to parse into. */
     key = (dilithium_key*)XMALLOC(sizeof(dilithium_key), heap,
@@ -955,105 +958,74 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     /* Initialize Dilithium key. */
-    ret = wc_dilithium_init(key);
-    if (ret == 0) {
-        /* Set up key to parse the format specified. */
-        if ((*keyFormat == ML_DSA_LEVEL2k) || ((*keyFormat == 0) &&
-            ((der->length == ML_DSA_LEVEL2_KEY_SIZE) ||
-             (der->length == ML_DSA_LEVEL2_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_44);
-        }
-        else if ((*keyFormat == ML_DSA_LEVEL3k) || ((*keyFormat == 0) &&
-            ((der->length == ML_DSA_LEVEL3_KEY_SIZE) ||
-             (der->length == ML_DSA_LEVEL3_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_65);
-        }
-        else if ((*keyFormat == ML_DSA_LEVEL5k) || ((*keyFormat == 0) &&
-            ((der->length == ML_DSA_LEVEL5_KEY_SIZE) ||
-             (der->length == ML_DSA_LEVEL5_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_87);
-        }
-        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        else if ((*keyFormat == DILITHIUM_LEVEL2k) || ((*keyFormat == 0) &&
-            ((der->length == DILITHIUM_LEVEL2_KEY_SIZE) ||
-             (der->length == DILITHIUM_LEVEL2_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_44_DRAFT);
-        }
-        else if ((*keyFormat == DILITHIUM_LEVEL3k) || ((*keyFormat == 0) &&
-            ((der->length == DILITHIUM_LEVEL3_KEY_SIZE) ||
-             (der->length == DILITHIUM_LEVEL3_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_65_DRAFT);
-        }
-        else if ((*keyFormat == DILITHIUM_LEVEL5k) || ((*keyFormat == 0) &&
-            ((der->length == DILITHIUM_LEVEL5_KEY_SIZE) ||
-             (der->length == DILITHIUM_LEVEL5_PRV_KEY_SIZE)))) {
-            ret = wc_dilithium_set_level(key, WC_ML_DSA_87_DRAFT);
-        }
-        #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-        else {
-            wc_dilithium_free(key);
-            ret = ALGO_ID_E;
-        }
-    }
-
+    ret = wc_dilithium_init(key); 
     if (ret == 0) {
         /* Decode as a Dilithium private key. */
         idx = 0;
         ret = wc_Dilithium_PrivateKeyDecode(der->buffer, &idx, key, der->length);
         if (ret == 0) {
-            /* Get the minimum Dilithium key size from SSL or SSL context
-             * object. */
-            int minKeySz = ssl ? ssl->options.minDilithiumKeySz :
-                                 ctx->minDilithiumKeySz;
+            ret = dilithium_get_oid_sum(key, &keyFormatTemp);
+            if(ret == 0) {
+                /* Format is known. */
+                #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+                if (keyFormatTemp == DILITHIUM_LEVEL2k) {
+                    keyTypeTemp = dilithium_level2_sa_algo;
+                    keySizeTemp = DILITHIUM_LEVEL2_KEY_SIZE;
+                }
+                else if (keyFormatTemp == DILITHIUM_LEVEL3k) {
+                    keyTypeTemp = dilithium_level3_sa_algo;
+                    keySizeTemp = DILITHIUM_LEVEL3_KEY_SIZE;
+                }
+                else if (keyFormatTemp == DILITHIUM_LEVEL5k) {
+                    keyTypeTemp = dilithium_level5_sa_algo;
+                    keySizeTemp = DILITHIUM_LEVEL5_KEY_SIZE;
+                }
+                else
+                #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+                if (keyFormatTemp == ML_DSA_LEVEL2k) {
+                    keyTypeTemp = dilithium_level2_sa_algo;
+                    keySizeTemp = ML_DSA_LEVEL2_KEY_SIZE;
+                }
+                else if (keyFormatTemp == ML_DSA_LEVEL3k) {
+                    keyTypeTemp = dilithium_level3_sa_algo;
+                    keySizeTemp = ML_DSA_LEVEL3_KEY_SIZE;
+                }
+                else if (keyFormatTemp == ML_DSA_LEVEL5k) {
+                    keyTypeTemp = dilithium_level5_sa_algo;
+                    keySizeTemp = ML_DSA_LEVEL5_KEY_SIZE;
+                }
+                else {
+                    ret = ALGO_ID_E;
+                }
+            }
 
-            /* Format is known. */
-            if (*keyFormat == ML_DSA_LEVEL2k) {
-                *keyType = dilithium_level2_sa_algo;
-                *keySize = ML_DSA_LEVEL2_KEY_SIZE;
-            }
-            else if (*keyFormat == ML_DSA_LEVEL3k) {
-                *keyType = dilithium_level3_sa_algo;
-                *keySize = ML_DSA_LEVEL3_KEY_SIZE;
-            }
-            else if (*keyFormat == ML_DSA_LEVEL5k) {
-                *keyType = dilithium_level5_sa_algo;
-                *keySize = ML_DSA_LEVEL5_KEY_SIZE;
-            }
-            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-            else if (*keyFormat == DILITHIUM_LEVEL2k) {
-                *keyType = dilithium_level2_sa_algo;
-                *keySize = DILITHIUM_LEVEL2_KEY_SIZE;
-            }
-            else if (*keyFormat == DILITHIUM_LEVEL3k) {
-                *keyType = dilithium_level3_sa_algo;
-                *keySize = DILITHIUM_LEVEL3_KEY_SIZE;
-            }
-            else if (*keyFormat == DILITHIUM_LEVEL5k) {
-                *keyType = dilithium_level5_sa_algo;
-                *keySize = DILITHIUM_LEVEL5_KEY_SIZE;
-            }
-            #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+            if(ret == 0) {
+                /* Get the minimum Dilithium key size from SSL or SSL context
+                 * object. */
+                int minKeySz = ssl ? ssl->options.minDilithiumKeySz :
+                                     ctx->minDilithiumKeySz;
 
-            /* Check that the size of the Dilithium key is enough. */
-            if (*keySize < minKeySz) {
-                WOLFSSL_MSG("Dilithium private key too small");
-                ret = DILITHIUM_KEY_SIZE_E;
+                /* Check that the size of the Dilithium key is enough. */
+                if (keySizeTemp < minKeySz) {
+                    WOLFSSL_MSG("Dilithium private key too small");
+                    ret = DILITHIUM_KEY_SIZE_E;
+                }
+            }
+
+            if(ret == 0) {
+                *keyFormat = keyFormatTemp;
+                *keyType = keyTypeTemp;
+                *keySize = keySizeTemp;
             }
         }
-        /* Not a Dilithium key but check whether we know what it is. */
         else if (*keyFormat == 0) {
             WOLFSSL_MSG("Not a Dilithium key");
-            /* Format unknown so keep trying. */
+            /* Unknowun format was not dilithium, so keep trying other formats. */
             ret = 0;
         }
-
+        
         /* Free dynamically allocated data in key. */
         wc_dilithium_free(key);
-    }
-    else if ((ret == WC_NO_ERR_TRACE(ALGO_ID_E)) && (*keyFormat == 0)) {
-        WOLFSSL_MSG("Not a Dilithium key");
-        /* Format unknown so keep trying. */
-        ret = 0;
     }
 
     /* Dispose of allocated key. */
