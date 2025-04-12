@@ -13944,7 +13944,7 @@ static int test_wolfSSL_PKCS8_MLDSA(void)
     size_t i;
     const int derMaxSz = 8192;    /* Largest size will be 7520 of separated format, WC_ML_DSA_87, DER */
     const int tempMaxSz = 10240;  /* Largest size will be 10239 of separated format, WC_MLS_DSA_87, PEM */
-    byte* der = NULL;  
+    byte* der = NULL;
     byte* temp = NULL;  /* Store PEM or intermediate key */
     word32 derSz = 0;
     word32 pemSz = 0;
@@ -13964,7 +13964,7 @@ static int test_wolfSSL_PKCS8_MLDSA(void)
     (void) pemSz;
 
     ExpectNotNull(der = (byte*) XMALLOC(derMaxSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectNotNull(temp = (byte*) XMALLOC(tempMaxSz, NULL, DYNAMIC_TYPE_TMP_BUFFER)); 
+    ExpectNotNull(temp = (byte*) XMALLOC(tempMaxSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
 
 #ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -13980,7 +13980,7 @@ static int test_wolfSSL_PKCS8_MLDSA(void)
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId), 0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
 
-        ExpectIntGT(derSz = wc_Dilithium_KeyToDer(&mldsa_key, der, derMaxSz), 0); 
+        ExpectIntGT(derSz = wc_Dilithium_KeyToDer(&mldsa_key, der, derMaxSz), 0);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -13996,7 +13996,7 @@ static int test_wolfSSL_PKCS8_MLDSA(void)
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId), 0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
 
-        ExpectIntGT(derSz = wc_Dilithium_PrivateKeyToDer(&mldsa_key, der, derMaxSz), 0); 
+        ExpectIntGT(derSz = wc_Dilithium_PrivateKeyToDer(&mldsa_key, der, derMaxSz), 0);
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
@@ -14006,7 +14006,7 @@ static int test_wolfSSL_PKCS8_MLDSA(void)
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 #endif /* WOLFSSL_DER_TO_PEM */
     }
-    
+
     /* Test private + public key (integrated format) */
     for(i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId), 0);

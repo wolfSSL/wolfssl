@@ -946,7 +946,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret;
     word32 idx;
     dilithium_key* key;
-    int keyFormatTemp = 0; 
+    int keyFormatTemp = 0;
     int keyTypeTemp;
     int keySizeTemp;
 
@@ -958,7 +958,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     /* Initialize Dilithium key. */
-    ret = wc_dilithium_init(key); 
+    ret = wc_dilithium_init(key);
     if (ret == 0) {
         /* Decode as a Dilithium private key. */
         idx = 0;
@@ -1023,7 +1023,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Unknown format wasn't dilithium, so keep trying other formats. */
             ret = 0;
         }
-        
+
         /* Free dynamically allocated data in key. */
         wc_dilithium_free(key);
     }
