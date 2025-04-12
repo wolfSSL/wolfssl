@@ -89,7 +89,7 @@
  *    Default behavior is to return a signed 64-bit value.
  */
 
-#ifdef WOLFSSL_TLS13
+#if !defined(NO_TLS) && defined(WOLFSSL_TLS13)
 
 #ifndef WOLFCRYPT_ONLY
 
@@ -15077,4 +15077,4 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
 
 #endif /* !WOLFCRYPT_ONLY */
 
-#endif /* WOLFSSL_TLS13 */
+#endif /* !NO_TLS && WOLFSSL_TLS13 */

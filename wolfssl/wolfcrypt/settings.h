@@ -648,7 +648,7 @@
         #define            WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
     #endif
 
-    #if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
+    #if defined(CONFIG_TLS_STACK_WOLFSSL)
         /* When using ESP-TLS, some old algorithms such as SHA1 are no longer
          * enabled in wolfSSL, except for the OpenSSL compatibility. So enable
          * that here: */
@@ -1276,7 +1276,7 @@
             #error "https://www.wolfssl.com/docs/porting-guide/"
         #endif
     #endif
-    #define WOLFSSL_USER_IO
+
     #define HAVE_ECC
     #define NO_DH
     #define NO_SESSION_CACHE
@@ -4415,6 +4415,11 @@ extern void uITRON4_free(void *p) ;
         #define HAVE_ENTROPY_MEMUSE
     #endif
 #endif /* HAVE_ENTROPY_MEMUSE */
+
+#if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER) && \
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
+#error "If TLS is enabled please make sure either client or server is enabled."
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */
