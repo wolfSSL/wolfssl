@@ -1020,8 +1020,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (*keyFormat == 0) {
             WOLFSSL_MSG("Not a Dilithium key");
-            /* Unknowun format was not dilithium, so keep trying other formats. */
-            ret = 0;
+            /* Unknown format was not dilithium, so keep trying other formats. */
         }
         
         /* Free dynamically allocated data in key. */
