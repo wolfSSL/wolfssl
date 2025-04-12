@@ -70,6 +70,9 @@ if [ "$ROOT_DIR" = "" ]; then
     exit 1
 fi
 
+
+ARDUINO_ROOT="$HOME/Arduino/libraries"
+
 # Check environment
 if [ -n "$WSL_DISTRO_NAME" ]; then
     # we found a non-blank WSL environment distro name
@@ -78,8 +81,6 @@ if [ -n "$WSL_DISTRO_NAME" ]; then
     if echo "$current_path" | grep -Eq "^$pattern"; then
         # if we are in WSL and shared Windows file system, 'ln' does not work.
         ARDUINO_ROOT="/mnt/c/Users/$USER/Documents/Arduino/libraries"
-    else
-        ARDUINO_ROOT="$HOME/Arduino/libraries"
     fi
 fi
 echo "The Arduino library root is: $ARDUINO_ROOT"
@@ -116,11 +117,21 @@ if [ $# -gt 0 ]; then
         echo "Error: not a valid operation: $THIS_OPERATION"
         exit 1
     fi
+else
+    echo "INSTALL parameter not specified. Installing to ROOT_DIR=$ROOT_DIR"
 fi
 
 
 ROOT_SRC_DIR="${ROOT_DIR}/src"
 EXAMPLES_DIR="${ROOT_DIR}/examples"
+
+if [ -n "$WOLFSSL_EXAMPLES_ROOT" ]; then
+    EXTRA_EXAMPLES_DIR="${WOLFSSL_EXAMPLES_ROOT}/Arduino"
+    echo "EXTRA_EXAMPLES_DIR=$EXTRA_EXAMPLES_DIR"
+else
+    echo "There are additional examples at https://github.com/wolfSSL/wolfssl-examples"
+    echo "Set WOLFSSL_EXAMPLES_ROOT to your local directory to include those examples."
+fi
 WOLFSSL_SRC="${ROOT_SRC_DIR}/src"
 WOLFSSL_HEADERS="${ROOT_SRC_DIR}/wolfssl"
 WOLFCRYPT_ROOT="${ROOT_SRC_DIR}/wolfcrypt"
@@ -141,8 +152,16 @@ OPENSSL_DIR_TOP="${WOLFSSL_HEADERS_TOP}/openssl"
 
 WOLFSSL_VERSION=$(grep -i "LIBWOLFSSL_VERSION_STRING" ${TOP_DIR}/wolfssl/version.h | cut -d '"' -f 2)
 if [ "$WOLFSSL_VERSION" = "" ]; then
-    echo "ERROR: Could not find wolfSSL Version in ${TOP_DIR}/wolfssl/version.h"
-    exit 1
+    echo "Current user: [$USER]"
+    if [ "$USER" = "" ] || [ "$USER" = "runner" ]; then
+        # Typically when there's no user, it is a GitHub workflow. It is not guaranteed to be "runner"
+        echo "No USER found, no version.h found. Setting Version text to [GitHub] for assumed workflow."
+        WOLFSSL_VERSION="GitHub"
+    else
+        echo "ERROR: Could not find wolfSSL Version in ${TOP_DIR}/wolfssl/version.h"
+        echo "Check autogen.sh and configure"
+        exit 1
+    fi
 else
     echo "Found wolfSSL version $WOLFSSL_VERSION"
     echo "# WOLFSSL_VERSION_ARUINO_SUFFIX $WOLFSSL_VERSION_ARUINO_SUFFIX"
@@ -235,26 +254,46 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     $CP_CMD "${OPENSSL_DIR_TOP}"/* ."${OPENSSL_DIR}"                                          || exit 1
 
     # Finally, copy the Arduino-specific wolfssl library files into place: [lib]/src
-    $CP_CMD ./wolfssl.h ".${ROOT_SRC_DIR}"/wolfssl.h
+    $CP_CMD ./wolfssl.h           ".${ROOT_SRC_DIR}"/wolfssl.h           || exit 1
+    $CP_CMD ./wolfssl-arduino.cpp ".${ROOT_SRC_DIR}"/wolfssl-arduino.cpp || exit 1
 
+    unset NO_ARDUINO_EXAMPLES
     echo "Copy examples...."
     # Copy examples
     mkdir -p ".${ROOT_SRC_DIR}"/examples
 
-    echo "Copy wolfssl_client example...."
-    mkdir -p ".${EXAMPLES_DIR}"/wolfssl_client
-    $CP_CMD ./sketches/wolfssl_client/wolfssl_client.ino ".${EXAMPLES_DIR}"/wolfssl_client/wolfssl_client.ino || exit 1
-    $CP_CMD ./sketches/wolfssl_client/README.md          ".${EXAMPLES_DIR}"/wolfssl_client/README.md          || exit 1
+    if [ -n "$WOLFSSL_EXAMPLES_ROOT" ]; then
+        echo "Copy template example...."
+        mkdir -p ".${EXAMPLES_DIR}"/template/wolfssl_library/src
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/template.ino                             ".${EXAMPLES_DIR}"/template/template.ino                             || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/README.md                                ".${EXAMPLES_DIR}"/template/README.md                                || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/wolfssl_helper.c                         ".${EXAMPLES_DIR}"/template/wolfssl_helper.c                         || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/wolfssl_helper.h                         ".${EXAMPLES_DIR}"/template/wolfssl_helper.h                         || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/wolfssl_library/wolfssl_library.h        ".${EXAMPLES_DIR}"/template/wolfssl_library/wolfssl_library.h        || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/template/wolfssl_library/src/wolfssl_library.cpp  ".${EXAMPLES_DIR}"/template/wolfssl_library/src/wolfssl_library.cpp  || exit 1
 
-    echo "Copy wolfssl_server example...."
-    mkdir -p .${EXAMPLES_DIR}/wolfssl_server
-    $CP_CMD ./sketches/wolfssl_server/wolfssl_server.ino ".${EXAMPLES_DIR}"/wolfssl_server/wolfssl_server.ino || exit 1
-    $CP_CMD ./sketches/wolfssl_server/README.md          ".${EXAMPLES_DIR}"/wolfssl_server/README.md          || exit 1
+        echo "Copy wolfssl_AES_CTR example...."
+        mkdir -p ".${EXAMPLES_DIR}"/wolfssl_AES_CTR
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.ino ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/wolfssl_AES_CTR.ino || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/README.md           ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/README.md           || exit 1
 
-    echo "Copy wolfssl_server example...."
-    mkdir -p .${EXAMPLES_DIR}/wolfssl_version
-    $CP_CMD ./sketches/wolfssl_version/wolfssl_version.ino ".${EXAMPLES_DIR}"/wolfssl_version/wolfssl_version.ino || exit 1
-    $CP_CMD ./sketches/wolfssl_version/README.md           ".${EXAMPLES_DIR}"/wolfssl_version/README.md           || exit 1
+        echo "Copy wolfssl_client example...."
+        mkdir -p ".${EXAMPLES_DIR}"/wolfssl_client
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/wolfssl_client.ino   ".${EXAMPLES_DIR}"/wolfssl_client/wolfssl_client.ino   || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/README.md            ".${EXAMPLES_DIR}"/wolfssl_client/README.md            || exit 1
+
+        echo "Copy wolfssl_server example...."
+        mkdir -p .${EXAMPLES_DIR}/wolfssl_server
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/wolfssl_server.ino   ".${EXAMPLES_DIR}"/wolfssl_server/wolfssl_server.ino   || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/README.md            ".${EXAMPLES_DIR}"/wolfssl_server/README.md            || exit 1
+
+        echo "Copy wolfssl_version example...."
+        mkdir -p .${EXAMPLES_DIR}/wolfssl_version
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/wolfssl_version.ino ".${EXAMPLES_DIR}"/wolfssl_version/wolfssl_version.ino || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/README.md           ".${EXAMPLES_DIR}"/wolfssl_version/README.md           || exit 1
+    else
+        NO_ARDUINO_EXAMPLES=1
+    fi
 else
     echo "ERROR: You must be in the IDE/ARDUINO directory to run this script"
     exit 1
@@ -273,6 +312,8 @@ fi
 # as an Arduino-specific README.md file.
 VERSION_PLACEHOLDER="\${WOLFSSL_VERSION}"
 ARDUINO_VERSION_SUFFIX_PLACEHOLDER="\${WOLFSSL_VERSION_ARUINO_SUFFIX}"
+
+# This is the SOURCE to prepend. Note the OUTPUT is PREPENDED_README.md later copied to README.md
 PREPEND_FILE="Arduino_README_prepend.md"
 PROPERTIES_FILE_TEMPLATE="library.properties.template"
 sed s/"$VERSION_PLACEHOLDER"/"$WOLFSSL_VERSION"/ "$PREPEND_FILE" > "$PREPEND_FILE.tmp"
@@ -340,4 +381,9 @@ if [ "$THIS_OPERATION" = "INSTALL" ]; then
     fi
 fi
 
+if [ -n "$NO_ARDUINO_EXAMPLES" ]; then
+    echo ""
+    echo "WARNING: No examples copied. Set WOLFSSL_EXAMPLES_ROOT as appropriate."
+    echo ""
+fi
 echo "Done!"

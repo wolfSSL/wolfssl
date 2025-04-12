@@ -2,8 +2,19 @@
 
 See the [example sketches](./sketches/README.md):
 
-- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md)
-- [sketches/wolfssl_client](./sketches/wolfssl_client/README.md)
+NOTE: Moving; See https://github.com/wolfSSL/wolfssl-examples/pull/499
+
+Bare-bones templates:
+
+- [sketches/wolfssl_version](./sketches/wolfssl_version/README.md) single file.
+- [sketches/template](./sketches/template/README.md) multiple file example.
+
+Functional examples:
+- [sketches/wolfssl_AES_CTR](./sketches/wolfssl_AES_CTR/README.md) AES CTR Encrypt / decrypt.
+- [sketches/wolfssl_client](./sketches/wolfssl_client/README.md) TLS Client.
+- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md) TLS Server.
+
+Both the `template` and `wolfssl_AES_CTR` examples include VisualGDB project files.
 
 When publishing a new version to the Arduino Registry, be sure to edit `WOLFSSL_VERSION_ARUINO_SUFFIX` in the `wolfssl-arduino.sh` script.
 
@@ -62,7 +73,7 @@ from within the `wolfssl/IDE/ARDUINO` directory:
 
 1. `./wolfssl-arduino.sh`
     - Creates an Arduino Library directory structure in the local `wolfSSL` directory of `IDE/ARDUINO`.
-    - You can add your own `user_settings.h`, or copy/rename the [default](../../examples/configs/user_settings_arduino.h).
+    - You can add your own `user_settings.h`, or copy/rename the [default](https://github.com/wolfSSL/wolfssl/blob/master/examples/configs/user_settings_arduino.h).
 
 2. `./wolfssl-arduino.sh INSTALL` (The most common option)
     - Creates an Arduino Library in the local `wolfSSL` directory
