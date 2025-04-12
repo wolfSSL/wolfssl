@@ -23,6 +23,8 @@
 
 #if !defined(NO_AES) && defined(WOLFSSL_KCAPI_AES)
 
+#include <errno.h>
+
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 

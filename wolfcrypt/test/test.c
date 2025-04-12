@@ -6363,7 +6363,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         }
 
        if (ret != 0) {
-           ERROR_OUT(WC_TEST_RET_ENC_I(BAD_FUNC_ARG), out);
+           ERROR_OUT(WC_TEST_RET_ENC_EC(BAD_FUNC_ARG), out);
        }
 #endif
         ret = wc_HashInit(hash, typesGood[i]);

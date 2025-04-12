@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /*
 
 DESCRIPTION
@@ -26,15 +28,6 @@ This library provides the support interfaces to the liboqs library providing
 implementations for Post-Quantum cryptography algorithms.
 
 */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include <wolfssl/wolfcrypt/port/liboqs/liboqs.h>
 
