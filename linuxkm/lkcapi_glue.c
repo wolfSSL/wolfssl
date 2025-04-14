@@ -1145,7 +1145,12 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (req->src->length >= assoclen && req->src->length) {
         scatterwalk_start(&assocSgWalk, req->src);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+        scatterwalk_map(&assocSgWalk);
+        assoc = assocSgWalk.addr;
+#else
         assoc = scatterwalk_map(&assocSgWalk);
+#endif
         if (unlikely(IS_ERR(assoc))) {
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
@@ -1177,8 +1182,13 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     if (assocmem)
         free(assocmem);
-    else
+    else {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+        scatterwalk_unmap(&assocSgWalk);
+#else
         scatterwalk_unmap(assoc);
+#endif
+    }
 
     if (unlikely(err)) {
         pr_err("%s: %s failed: %d\n",
@@ -1328,7 +1338,12 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         (req->dst->length >= req->assoclen + req->cryptlen))
     {
         scatterwalk_start(&in_walk, req->src);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+        scatterwalk_map(&in_walk);
+        in_map = in_walk.addr;
+#else
         in_map = scatterwalk_map(&in_walk);
+#endif
         if (unlikely(IS_ERR(in_map))) {
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
@@ -1339,7 +1354,12 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
         in_text = in_map + req->assoclen;
 
         scatterwalk_start(&out_walk, req->dst);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+        scatterwalk_map(&out_walk);
+        out_map = out_walk.addr;
+#else
         out_map = scatterwalk_map(&out_walk);
+#endif
         if (unlikely(IS_ERR(out_map))) {
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
@@ -1425,10 +1445,20 @@ out:
         free(sg_buf);
     }
     else {
-        if (in_map)
+        if (in_map) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+            scatterwalk_unmap(&in_walk);
+#else
             scatterwalk_unmap(in_map);
-        if (out_map)
+#endif
+        }
+        if (out_map) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+            scatterwalk_unmap(&out_walk);
+#else
             scatterwalk_unmap(out_map);
+#endif
+        }
     }
 
     km_AesFree(&aes_copy);
