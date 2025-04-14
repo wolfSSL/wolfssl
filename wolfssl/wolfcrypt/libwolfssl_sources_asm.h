@@ -29,7 +29,8 @@
 #define LIBWOLFSSL_SOURCES_ASM_H
 
 #if defined(TEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE) && \
-    defined(WOLF_CRYPT_SETTINGS_H)
+    defined(WOLF_CRYPT_SETTINGS_H) &&                      \
+    !defined(LIBWOLFSSL_SOURCES_H)
     #error settings.h included before libwolfssl_sources_asm.h.
 #endif
 
@@ -37,8 +38,9 @@
     #define BUILDING_WOLFSSL
 #endif
 
-#ifdef HAVE_CONFIG_H
+#if defined(HAVE_CONFIG_H) && !defined(WC_CONFIG_H_INCLUDED)
     #include <config.h>
+    #define WC_CONFIG_H_INCLUDED
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>

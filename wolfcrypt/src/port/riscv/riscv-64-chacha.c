@@ -19,24 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /* The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to
  * optimize for ARM:
  *   https://cryptojedi.org/papers/veccrypto-20120320.pdf
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
 #ifdef WOLFSSL_RISCV_ASM
 #ifdef HAVE_CHACHA
 
 #include <wolfssl/wolfcrypt/chacha.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
