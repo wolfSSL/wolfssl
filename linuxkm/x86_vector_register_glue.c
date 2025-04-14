@@ -400,12 +400,34 @@ static inline void wc_linuxkm_fpu_state_release(
 
 WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
 {
+    /* First, check if we're already saved, per wc_linuxkm_fpu_states.
+     *
+     * On kernel >= 6.15, irq_fpu_usable() dumps a backtrace to the kernel log
+     * if called while already saved, so it's crucial to preempt that call by
+     * checking wc_linuxkm_fpu_states.
+     */
+
+    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0);
+
+    if ((pstate != NULL) && (pstate->fpu_state != 0U)) {
+        if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
+                     == WC_FPU_COUNT_MASK))
+        {
+            /* would overflow */
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
     if (irq_fpu_usable())
         return 1;
     else if (in_nmi() || (hardirq_count() > 0) || (softirq_count() > 0))
         return 0;
+#ifdef TIF_NEED_FPU_LOAD
     else if (test_thread_flag(TIF_NEED_FPU_LOAD))
         return 1;
+#endif
     return 0;
 }
 
@@ -441,7 +463,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
     }
 
     if (irq_fpu_usable()
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && defined(TIF_NEED_FPU_LOAD)
         /* work around a kernel bug -- see linux commit 59f5ede3bc0f0.
          * what we really want here is this_cpu_read(in_kernel_fpu), but
          * in_kernel_fpu is an unexported static array.
@@ -489,6 +511,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         wc_linuxkm_fpu_state_release(pstate);
 #endif
         return BAD_STATE_E;
+#ifdef TIF_NEED_FPU_LOAD
     } else if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
         static int warned_fpu_forbidden = 0;
         if (! warned_fpu_forbidden)
@@ -498,6 +521,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         wc_linuxkm_fpu_state_release(pstate);
 #endif
         return BAD_STATE_E;
+#endif
     } else {
         /* assume already safely in_kernel_fpu from caller, but recursively
          * preempt_disable() to be extra-safe.
