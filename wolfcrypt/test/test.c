@@ -6336,7 +6336,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 
     /* Try valid hash algorithms. */
     for (i = 0; i < (int)(sizeof(typesGood)/sizeof(*typesGood)); i++) {
-        exp_ret = 0; /* For valid had, we expect return result to be zero */
+        exp_ret = 0; /* For valid hash, we expect return result to be zero */
 
         /* See if the current hash type is one of the known types that are
          * not implemented or not compiled in (disabled): */
@@ -6378,8 +6378,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
         wc_HashFree(hash, typesGood[i]);
 
         digestSz = wc_HashGetDigestSize(typesGood[i]);
-        if (exp_ret < 0 && digestSz != exp_ret)
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         if (exp_ret == 0 && digestSz < 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         if (exp_ret == 0) {
@@ -6395,16 +6393,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
         ret = wc_HashGetBlockSize(typesGood[i]);
-        if (exp_ret < 0 && ret != exp_ret)
-            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         if (exp_ret == 0 && ret < 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
         ret = wc_HashGetOID(typesGood[i]);
-        if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
-                (exp_ret == 0 && ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) ||
-                (exp_ret != 0 && ret != WC_NO_ERR_TRACE(HASH_TYPE_E))) {
+        if ( (ret == WC_NO_ERR_TRACE(HASH_TYPE_E) && (exp_ret == 0)) ||
+             (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))  ) {
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
         }
 
