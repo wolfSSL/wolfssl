@@ -14925,8 +14925,7 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
 #ifdef WOLFSSL_SMALL_STACK
     Aes *aes = NULL;
 #else
-    Aes _aes;
-    Aes *aes = &_aes;
+    Aes aes[1];
 #endif
     int ret = 0;
     word32 outSz = inSz;
@@ -14964,8 +14963,7 @@ int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
 #ifdef WOLFSSL_SMALL_STACK
     Aes *aes = NULL;
 #else
-    Aes _aes;
-    Aes *aes = &_aes;
+    Aes aes[1];
 #endif
     int ret = 0;
     word32 outSz = inSz;

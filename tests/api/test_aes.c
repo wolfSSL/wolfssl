@@ -273,7 +273,7 @@ int test_wc_AesCtsEncryptDecrypt(void)
 #if !defined(NO_AES) && defined(WOLFSSL_AES_CTS) && \
     defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_128)
     /* Test vectors taken form RFC3962 Appendix B */
-    struct {
+    const struct {
         const char* input;
         const char* output;
         size_t inLen;
@@ -330,7 +330,7 @@ int test_wc_AesCtsEncryptDecrypt(void)
             64, 64
         }
     };
-    byte keyBytes[AES_128_KEY_SIZE] = {
+    const byte keyBytes[AES_128_KEY_SIZE] = {
         0x63, 0x68, 0x69, 0x63, 0x6b, 0x65, 0x6e, 0x20,
         0x74, 0x65, 0x72, 0x69, 0x79, 0x61, 0x6b, 0x69
     };
