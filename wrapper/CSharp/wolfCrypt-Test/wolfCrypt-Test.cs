@@ -548,7 +548,7 @@ public class wolfCrypt_Test_CSharp
         IntPtr keyB = IntPtr.Zero;
         IntPtr publicKeyA = IntPtr.Zero;
         IntPtr publicKeyB = IntPtr.Zero;
-        byte[] derKey;
+        byte[] rawPub, rawPrivate, derKey;
 
         Console.WriteLine("\nStarting Curve25519 shared secret test...");
 
@@ -568,6 +568,14 @@ public class wolfCrypt_Test_CSharp
             throw new Exception("Failed to generate key pair B.");
         }
         Console.WriteLine("Curve25519 Key generation test passed.");
+
+
+        /* Export Public Key A private and public to raw format */
+        wolfcrypt.Curve25519ExportKeyRaw(keyA, out rawPrivate, out rawPub);
+        /* Export Public Key B public to raw format */
+        rawPub = wolfcrypt.Curve25519ExportPublicKey(keyB);
+        /* rawPub / rawPrivate - not used */
+
 
         /* Export Public Key B to DER format */
         Console.WriteLine("Exporting Public Key B to DER format...");
