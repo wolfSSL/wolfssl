@@ -1,6 +1,6 @@
 /* armv8-32-sha256-asm
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,41 +21,38 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha256.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.c
+ *   ruby ./sha2/sha256.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.c
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 #ifdef WOLFSSL_ARMASM_INLINE
-
-#ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
 #define __volatile__   volatile
+#define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __IAR_SYSTEMS_ICC__ */
 #ifdef __KEIL__
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef __ghs__
+#define __asm__        __asm
+#define __volatile__
+#define WOLFSSL_NO_VAR_ASSIGN_REG
+#endif /* __ghs__ */
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const uint32_t L_SHA256_transform_len_k[] = {
+static const word32 L_SHA256_transform_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -74,20 +71,32 @@ static const uint32_t L_SHA256_transform_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
+    word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_len_k_c asm ("r3") = (uint32_t*)&L_SHA256_transform_len_k;
+    register word32* L_SHA256_transform_len_k_c asm ("r3") =
+        (word32*)&L_SHA256_transform_len_k;
+#else
+    register word32* L_SHA256_transform_len_k_c =
+        (word32*)&L_SHA256_transform_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
+        "mov	r3, %[L_SHA256_transform_len_k]\n\t"
         /* Copy digest to add in at end */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r4, [%[sha256]]\n\t"
-        "ldr	r5, [%[sha256], #4]\n\t"
+        "ldm	r0, {r4, r5}\n\t"
 #else
         "ldrd	r4, r5, [%[sha256]]\n\t"
 #endif
@@ -159,8 +168,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "eor	r6, r6, r10, lsr #8\n\t"
         "eor	r7, r7, r11, lsr #8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [sp]\n\t"
-        "str	r5, [sp, #4]\n\t"
+        "stm	sp, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [sp]\n\t"
 #endif
@@ -284,8 +292,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "rev	r10, r10\n\t"
         "rev	r11, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [sp]\n\t"
-        "str	r5, [sp, #4]\n\t"
+        "stm	sp, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [sp]\n\t"
 #endif
@@ -1624,8 +1631,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "str	r9, [%[sha256]]\n\t"
         /* Add in digest from start */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r4, [%[sha256]]\n\t"
-        "ldr	r5, [%[sha256], #4]\n\t"
+        "ldm	r0, {r4, r5}\n\t"
 #else
         "ldrd	r4, r5, [%[sha256]]\n\t"
 #endif
@@ -1652,8 +1658,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	r6, r6, r10\n\t"
         "add	r7, r7, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [%[sha256]]\n\t"
-        "str	r5, [%[sha256], #4]\n\t"
+        "stm	r0, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [%[sha256]]\n\t"
 #endif
@@ -1732,9 +1737,17 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	%[data], %[data], #0x40\n\t"
         "bne	L_SHA256_transform_len_begin_%=\n\t"
         "add	sp, sp, #0xc0\n\t"
-        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len), [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_len_k] "r" (L_SHA256_transform_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12"
     );
 }
 
@@ -1742,7 +1755,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifndef WOLFSSL_ARMASM_NO_NEON
-static const uint32_t L_SHA256_transform_neon_len_k[] = {
+static const word32 L_SHA256_transform_neon_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -1761,19 +1774,30 @@ static const uint32_t L_SHA256_transform_neon_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
+    word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+#else
+void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_neon_len_k_c asm ("r3") = (uint32_t*)&L_SHA256_transform_neon_len_k;
+    register word32* L_SHA256_transform_neon_len_k_c asm ("r3") =
+        (word32*)&L_SHA256_transform_neon_len_k;
+#else
+    register word32* L_SHA256_transform_neon_len_k_c =
+        (word32*)&L_SHA256_transform_neon_len_k;
+
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
         "sub	sp, sp, #24\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	%[sha256], [sp]\n\t"
-        "str	%[data], [sp, #4]\n\t"
+        "stm	sp, {r0, r1}\n\t"
 #else
         "strd	%[sha256], %[data], [sp]\n\t"
 #endif
@@ -1781,8 +1805,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "mov	r12, %[L_SHA256_transform_neon_len_k]\n\t"
         /* Load digest into registers */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	%[len], [%[sha256]]\n\t"
-        "ldr	r3, [%[sha256], #4]\n\t"
+        "ldm	r0, {r2, r3}\n\t"
 #else
         "ldrd	%[len], r3, [%[sha256]]\n\t"
 #endif
@@ -2732,16 +2755,14 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "ldr	r10, [sp]\n\t"
         /* Add in digest from start */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	%[sha256], [r10]\n\t"
-        "ldr	%[data], [r10, #4]\n\t"
+        "ldm	r10, {r0, r1}\n\t"
 #else
         "ldrd	%[sha256], %[data], [r10]\n\t"
 #endif
         "add	%[len], %[len], %[sha256]\n\t"
         "add	r3, r3, %[data]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	%[len], [r10]\n\t"
-        "str	r3, [r10, #4]\n\t"
+        "stm	r10, {r2, r3}\n\t"
 #else
         "strd	%[len], r3, [r10]\n\t"
 #endif
@@ -2794,17 +2815,24 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "str	r10, [sp, #8]\n\t"
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
-        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len), [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "cc"
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_transform_neon_len_k] "r" (L_SHA256_transform_neon_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr",
+            "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9",
+            "d10", "d11"
     );
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
-#endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */

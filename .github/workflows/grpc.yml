@@ -15,8 +15,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -50,7 +51,8 @@ jobs:
               test_core_security_ssl_credentials_test test_cpp_end2end_ssl_credentials_test
               h2_ssl_cert_test h2_ssl_session_reuse_test
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
     needs: build_wolfssl
@@ -68,6 +70,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-grpc
+
+      - name: Setup cmake version
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.25.x'
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
@@ -92,7 +99,7 @@ jobs:
           git submodule update --init
           mkdir cmake/build
           cd cmake/build
-          cmake -DgRPC_BUILD_TESTS=ON -DgRPC_SSL_PROVIDER=wolfssl \
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.1 -DgRPC_BUILD_TESTS=ON -DgRPC_SSL_PROVIDER=wolfssl \
             -DWOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir ../..
           make -j $(nproc) ${{ matrix.tests }}
 

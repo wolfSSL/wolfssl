@@ -1,6 +1,6 @@
 /* sha3.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -43,6 +43,10 @@
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
+#endif
+
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
 /* in bytes */
@@ -140,6 +144,9 @@ struct wc_Sha3 {
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#if defined(STM32_HASH_SHA3)
+    STM32_HASH_Context stmCtx;
+#endif
 };
 
 #ifndef WC_SHA3_TYPE_DEFINED
@@ -218,10 +225,15 @@ WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,
     word64 c);
 WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);
 WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
+WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+WOLFSSL_LOCAL void BlockSha3_crypto(word64 *s);
 #endif
-#if defined(WOLFSSL_ARMASM) && (defined(__arm__) || \
-    defined(WOLFSSL_ARMASM_CRYPTO_SHA3))
+WOLFSSL_LOCAL void BlockSha3_base(word64 *s);
+WOLFSSL_LOCAL void BlockSha3(word64 *s);
+#elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_RISCV_ASM)
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
 

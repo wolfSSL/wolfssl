@@ -1,6 +1,6 @@
 /* callbacks.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,7 +36,7 @@ enum { /* CALLBACK CONSTANTS */
     MAX_CIPHERNAME_SZ     =  24,
     MAX_TIMEOUT_NAME_SZ   =  24,
     MAX_PACKETS_HANDSHAKE =  14,       /* 12 for client auth plus 2 alerts */
-    MAX_VALUE_SZ          = 128,       /* all handshake packets but Cert should
+    MAX_VALUE_SZ          = 128        /* all handshake packets but Cert should
                                           fit here  */
 };
 

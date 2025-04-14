@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /*
  * Based on public domain TomsFastMath 0.10 by Tom St Denis, tomstdenis@iahu.ca,
@@ -30,13 +30,6 @@
  *  Edited by Moises Guimaraes (moises@wolfssl.com)
  *  to fit wolfSSL's needs.
  */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-/* in case user set USE_FAST_MATH there */
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef USE_FAST_MATH
 
@@ -321,7 +314,7 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -989,9 +982,9 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
   fp_digit mask;
   int i;
 
-  mask = 0 - (a->dp[0] & 1);
+  mask = (fp_digit)0 - (a->dp[0] & 1);
   for (i = 0; i < b->used; i++) {
-      fp_digit mask_a = 0 - (i < a->used);
+      fp_digit mask_a = (fp_digit)0 - (i < a->used);
 
       w         += b->dp[i] & mask;
       w         += a->dp[i] & mask_a;
@@ -3125,9 +3118,9 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
             return retHW;
             break;
 
-         case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+         case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
          case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
-         case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
+         case WC_NO_ERR_TRACE(MP_HW_VALIDATION_ACTIVE): /* use SW to compare to HW */
             /* use software calc */
             break;
 
@@ -3227,7 +3220,7 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3328,7 +3321,7 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3440,7 +3433,7 @@ int fp_sqr(fp_int *A, fp_int *B)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -4575,6 +4568,9 @@ void fp_zero(fp_int *a)
 
 void fp_clear(fp_int *a)
 {
+#ifdef HAVE_FIPS
+    fp_forcezero(a);
+#else
     int size;
     a->used = 0;
     a->sign = FP_ZPOS;
@@ -4585,6 +4581,7 @@ void fp_clear(fp_int *a)
 #endif
     XMEMSET(a->dp, 0, size * sizeof(fp_digit));
     fp_free(a);
+#endif
 }
 
 void fp_forcezero (mp_int * a)
@@ -4698,7 +4695,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
          /* successfully computed in HW */
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -5685,9 +5682,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 
     err = fp_randprime(a, len, rng, heap);
     switch(err) {
-        case FP_VAL:
+        case WC_NO_ERR_TRACE(MP_VAL):
             return MP_VAL;
-        case FP_MEM:
+        case WC_NO_ERR_TRACE(MP_MEM):
             return MP_MEM;
         default:
             break;

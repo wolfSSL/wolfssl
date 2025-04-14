@@ -1,6 +1,6 @@
 /* hmac.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -67,6 +67,8 @@ WOLFSSL_API void wolfSSL_HMAC_CTX_free(WOLFSSL_HMAC_CTX* ctx);
 WOLFSSL_API size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx);
 WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX *ctx);
 
+#ifndef OPENSSL_COEXIST
+
 typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
 #define HMAC wolfSSL_HMAC
@@ -85,6 +87,7 @@ typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 #define HMAC_size     wolfSSL_HMAC_size
 #define HMAC_CTX_get_md wolfSSL_HMAC_CTX_get_md
 
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     } /* extern "C" */

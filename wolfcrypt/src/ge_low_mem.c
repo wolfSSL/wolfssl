@@ -1,6 +1,6 @@
 /* ge_low_mem.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,20 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
  /* Based from Daniel Beer's public domain work. */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef HAVE_ED25519
 #ifdef ED25519_SMALL /* use slower code that takes less memory */
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -512,6 +506,33 @@ int ge_frombytes_negate_vartime(ge_p3 *p,const unsigned char *s)
     return ret;
 }
 
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+/* return 0 if equal and -1 if not equal */
+static int ge_equal(ge a, ge b)
+{
+    if (XMEMCMP(a, b, sizeof(ge)) == 0) {
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+/* returns 0 if a == b */
+static int ge_p3_equal(ge_p3* a, ge_p3* b)
+{
+    int ret = 0;
+
+    ret |= ge_equal(a->X, b->X);
+    ret |= ge_equal(a->Y, b->Y);
+    ret |= ge_equal(a->Z, b->Z);
+    ret |= ge_equal(a->T, b->T);
+
+    return ret;
+}
+#endif
+
+
 
 int ge_double_scalarmult_vartime(ge_p2* R, const unsigned char *h,
                                  const ge_p3 *inA,const unsigned char *sig)
@@ -526,9 +547,19 @@ int ge_double_scalarmult_vartime(ge_p2* R, const unsigned char *h,
 
     /* find H(R,A,M) * -A */
     ed25519_smult(&A, &A, h);
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    if (ge_p3_equal(&A, (ge_p3*)inA) == 0) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     /* SB + -H(R,A,M)A */
     ed25519_add(&A, &p, &A);
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    if (ge_p3_equal(&A, &p) == 0) {
+        ret = BAD_STATE_E;
+    }
+#endif
 
     lm_copy(R->X, A.X);
     lm_copy(R->Y, A.Y);

@@ -1,6 +1,6 @@
 /* riscv-sha256.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_RISCV_ASM
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
@@ -47,8 +42,6 @@
         return 0;
     }
 #endif
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
@@ -76,7 +69,7 @@ static const FLASH_QUALIFIER ALIGN32 word32 K[64] = {
     0x90BEFFFAL, 0xA4506CEBL, 0xBEF9A3F7L, 0xC67178F2L
 };
 
-/* Initialze SHA-256 object for hashing.
+/* Initialize SHA-256 object for hashing.
  *
  * @param [in, out] sha256  SHA-256 object.
  */
@@ -1192,7 +1185,7 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
 
 #ifdef WOLFSSL_SHA224
 
-/* Initialze SHA-224 object for hashing.
+/* Initialize SHA-224 object for hashing.
  *
  * @param [in, out] sha224  SHA-224 object.
  */

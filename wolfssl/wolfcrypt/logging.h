@@ -1,6 +1,6 @@
 /* logging.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -135,7 +135,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     WOLFSSL_LOCAL unsigned long wc_PeekErrorNodeLineData(
             const char **file, int *line, const char **data, int *flags,
             int (*ignore_err)(int err));
-    WOLFSSL_LOCAL unsigned long wc_GetErrorNodeErr(void);
+    WOLFSSL_LOCAL int wc_GetErrorNodeErr(void);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API void wc_ERR_print_errors_fp(XFILE fp);
         WOLFSSL_API void wc_ERR_print_errors_cb(int (*cb)(const char *str,
@@ -178,7 +178,11 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else
-    #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #ifdef WOLF_NO_VARIADIC_MACROS
+        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+    #else
+        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #endif
 #endif
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
 #ifdef WOLFSSL_DEBUG_CODEPOINTS
@@ -197,7 +201,11 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
         #define WOLFSSL_MSG_EX(fmt, args...) \
                 WOLFSSL_MSG_EX2(__FILE__, __LINE__, fmt, ## args)
     #else
-        #define WOLFSSL_MSG_EX2(...) WC_DO_NOTHING
+        #ifdef WOLF_NO_VARIADIC_MACROS
+            #define WOLFSSL_MSG_EX2() WC_DO_NOTHING
+        #else
+            #define WOLFSSL_MSG_EX2(...) WC_DO_NOTHING
+        #endif
     #endif
 #endif
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
@@ -209,7 +217,14 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_STUB(m)       WC_DO_NOTHING
     #define WOLFSSL_IS_DEBUG_ON() 0
 
-    #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
+    #ifdef WOLF_NO_VARIADIC_MACROS
+        /* note, modern preprocessors will generate errors with this definition.
+         * "error: macro "WOLFSSL_MSG_EX" passed 2 arguments, but takes just 0"
+         */
+        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+    #else
+        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #endif
     #define WOLFSSL_MSG(m)        WC_DO_NOTHING
     #define WOLFSSL_BUFFER(b, l)  WC_DO_NOTHING
 
@@ -221,8 +236,13 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         WOLFSSL_API void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
             const char* file, void* ctx);
-        #define WOLFSSL_ERROR(x) \
-            WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__, NULL)
+        #ifdef WOLF_C89
+            #define WOLFSSL_ERROR(x) \
+                WOLFSSL_ERROR_LINE((x), __FILE__, __LINE__, __FILE__, NULL)
+        #else
+            #define WOLFSSL_ERROR(x) \
+                WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__, NULL)
+        #endif
     #else
         WOLFSSL_API void WOLFSSL_ERROR(int err);
     #endif /* WOLFSSL_HAVE_ERROR_QUEUE */

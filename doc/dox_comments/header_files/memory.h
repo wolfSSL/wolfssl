@@ -4,9 +4,9 @@
     \brief This function is similar to malloc(), but calls the memory
     allocation function which wolfSSL has been configured to use. By default,
     wolfSSL uses malloc().  This can be changed using the wolfSSL memory
-    abstraction layer - see wolfSSL_SetAllocators(). Note wolfSSL_Malloc is not 
+    abstraction layer - see wolfSSL_SetAllocators(). Note wolfSSL_Malloc is not
     called directly by wolfSSL, but instead called by macro XMALLOC.
-    For the default build only the size argument exists. If using 
+    For the default build only the size argument exists. If using
     WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return pointer If successful, this function returns a pointer to
@@ -37,9 +37,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
     \brief This function is similar to free(), but calls the memory free
     function which wolfSSL has been configured to use. By default, wolfSSL
     uses free(). This can be changed using the wolfSSL memory abstraction
-    layer - see wolfSSL_SetAllocators(). Note wolfSSL_Free is not 
+    layer - see wolfSSL_SetAllocators(). Note wolfSSL_Free is not
     called directly by wolfSSL, but instead called by macro XFREE.
-    For the default build only the ptr argument exists. If using 
+    For the default build only the ptr argument exists. If using
     WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 
     \return none No returns.
@@ -73,8 +73,8 @@ void  wolfSSL_Free(void *ptr, void* heap, int type);
     \brief This function is similar to realloc(), but calls the memory
     re-allocation function which wolfSSL has been configured to use.
     By default, wolfSSL uses realloc().  This can be changed using the
-    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators(). 
-    Note wolfSSL_Realloc is not called directly by wolfSSL, but instead called 
+    wolfSSL memory abstraction layer - see wolfSSL_SetAllocators().
+    Note wolfSSL_Realloc is not called directly by wolfSSL, but instead called
     by macro XREALLOC. For the default build only the size argument exists.
     If using WOLFSSL_STATIC_MEMORY build then heap and type arguments are included.
 

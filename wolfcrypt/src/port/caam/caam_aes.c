@@ -1,6 +1,6 @@
 /* caam_aes.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -93,7 +93,8 @@ int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
         return ret;
     }
 
-#ifdef WOLFSSL_AES_COUNTER
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     aes->left = 0;
 #endif
 
@@ -111,7 +112,7 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    blocks = sz / AES_BLOCK_SIZE;
+    blocks = sz / WC_AES_BLOCK_SIZE;
 
     if (blocks > 0) {
         Buffer buf[4];
@@ -130,19 +131,19 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
 
         buf[1].BufferType = DataBuffer;
         buf[1].TheAddress = (Address)aes->reg;
-        buf[1].Length     = AES_BLOCK_SIZE;
+        buf[1].Length     = WC_AES_BLOCK_SIZE;
 
         buf[2].BufferType = DataBuffer;
         buf[2].TheAddress = (Address)in;
-        buf[2].Length     = blocks * AES_BLOCK_SIZE;
+        buf[2].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         buf[3].BufferType = DataBuffer | LastBuffer;
         buf[3].TheAddress = (Address)out;
-        buf[3].Length     = blocks * AES_BLOCK_SIZE;
+        buf[3].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         arg[0] = CAAM_ENC;
         arg[1] = keySz;
-        arg[2] = blocks * AES_BLOCK_SIZE;
+        arg[2] = blocks * WC_AES_BLOCK_SIZE;
 
         if ((ret = wc_caamAddAndWait(buf, 4, arg, CAAM_AESCBC)) != 0) {
             WOLFSSL_MSG("Error with CAAM AES CBC encrypt");
@@ -164,7 +165,7 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    blocks = sz / AES_BLOCK_SIZE;
+    blocks = sz / WC_AES_BLOCK_SIZE;
 
     if (blocks > 0) {
         Buffer buf[4];
@@ -183,19 +184,19 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
 
         buf[1].BufferType = DataBuffer;
         buf[1].TheAddress = (Address)aes->reg;
-        buf[1].Length     = AES_BLOCK_SIZE;
+        buf[1].Length     = WC_AES_BLOCK_SIZE;
 
         buf[2].BufferType = DataBuffer;
         buf[2].TheAddress = (Address)in;
-        buf[2].Length     = blocks * AES_BLOCK_SIZE;
+        buf[2].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         buf[3].BufferType = DataBuffer | LastBuffer;
         buf[3].TheAddress = (Address)out;
-        buf[3].Length     = blocks * AES_BLOCK_SIZE;
+        buf[3].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         arg[0] = CAAM_DEC;
         arg[1] = keySz;
-        arg[2] = blocks * AES_BLOCK_SIZE;
+        arg[2] = blocks * WC_AES_BLOCK_SIZE;
 
         if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESCBC)) != 0) {
             WOLFSSL_MSG("Error with CAAM AES CBC decrypt");
@@ -207,7 +208,7 @@ int  wc_AesCbcDecrypt(Aes* aes, byte* out,
 }
 
 #if defined(HAVE_AES_ECB)
-/* is assumed that input size is a multiple of AES_BLOCK_SIZE */
+/* is assumed that input size is a multiple of WC_AES_BLOCK_SIZE */
 int wc_AesEcbEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz)
 {
@@ -221,7 +222,7 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    blocks = sz / AES_BLOCK_SIZE;
+    blocks = sz / WC_AES_BLOCK_SIZE;
 
     if ((ret = wc_AesGetKeySize(aes, &keySz)) != 0) {
         return ret;
@@ -234,15 +235,15 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out,
 
     buf[1].BufferType = DataBuffer;
     buf[1].TheAddress = (Address)in;
-    buf[1].Length     = blocks * AES_BLOCK_SIZE;
+    buf[1].Length     = blocks * WC_AES_BLOCK_SIZE;
 
     buf[2].BufferType = DataBuffer | LastBuffer;
     buf[2].TheAddress = (Address)out;
-    buf[2].Length     = blocks * AES_BLOCK_SIZE;
+    buf[2].Length     = blocks * WC_AES_BLOCK_SIZE;
 
     arg[0] = CAAM_ENC;
     arg[1] = keySz;
-    arg[2] = blocks * AES_BLOCK_SIZE;
+    arg[2] = blocks * WC_AES_BLOCK_SIZE;
 
     if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESECB)) != 0) {
         WOLFSSL_MSG("Error with CAAM AES ECB encrypt");
@@ -266,7 +267,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    blocks = sz / AES_BLOCK_SIZE;
+    blocks = sz / WC_AES_BLOCK_SIZE;
 
     if ((ret = wc_AesGetKeySize(aes, &keySz)) != 0) {
         return ret;
@@ -279,15 +280,15 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out,
 
     buf[1].BufferType = DataBuffer;
     buf[1].TheAddress = (Address)in;
-    buf[1].Length     = blocks * AES_BLOCK_SIZE;
+    buf[1].Length     = blocks * WC_AES_BLOCK_SIZE;
 
     buf[2].BufferType = DataBuffer | LastBuffer;
     buf[2].TheAddress = (Address)out;
-    buf[2].Length     = blocks * AES_BLOCK_SIZE;
+    buf[2].Length     = blocks * WC_AES_BLOCK_SIZE;
 
     arg[0] = CAAM_DEC;
     arg[1] = keySz;
-    arg[2] = blocks * AES_BLOCK_SIZE;
+    arg[2] = blocks * WC_AES_BLOCK_SIZE;
 
     if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESECB)) != 0) {
         WOLFSSL_MSG("Error with CAAM AES ECB decrypt");
@@ -305,7 +306,7 @@ static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
 {
     /* in network byte order so start at end and work back */
     int i;
-    for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
         if (++inOutCtr[i])  /* we're done unless we overflow */
             return;
     }
@@ -330,7 +331,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
     }
 
     /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+    tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
     while (aes->left && sz) {
         *(out++) = *(in++) ^ *(tmp++);
         aes->left--;
@@ -338,7 +339,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
     }
 
     /* do full blocks to then get potential left over amount */
-    blocks = sz / AES_BLOCK_SIZE;
+    blocks = sz / WC_AES_BLOCK_SIZE;
     if (blocks > 0) {
         /* Set buffers for key, cipher text, and plain text */
         buf[0].BufferType = DataBuffer;
@@ -347,28 +348,28 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
 
         buf[1].BufferType = DataBuffer;
         buf[1].TheAddress = (Address)aes->reg;
-        buf[1].Length     = AES_BLOCK_SIZE;
+        buf[1].Length     = WC_AES_BLOCK_SIZE;
 
         buf[2].BufferType = DataBuffer;
         buf[2].TheAddress = (Address)in;
-        buf[2].Length     = blocks * AES_BLOCK_SIZE;
+        buf[2].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         buf[3].BufferType = DataBuffer | LastBuffer;
         buf[3].TheAddress = (Address)out;
-        buf[3].Length     = blocks * AES_BLOCK_SIZE;
+        buf[3].Length     = blocks * WC_AES_BLOCK_SIZE;
 
         arg[0] = CAAM_ENC;
         arg[1] = keySz;
-        arg[2] = blocks * AES_BLOCK_SIZE;
+        arg[2] = blocks * WC_AES_BLOCK_SIZE;
 
         if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESCTR)) != 0) {
             WOLFSSL_MSG("Error with CAAM AES CTR encrypt");
             return ret;
         }
 
-        out += blocks * AES_BLOCK_SIZE;
-        in  += blocks * AES_BLOCK_SIZE;
-        sz  -= blocks * AES_BLOCK_SIZE;
+        out += blocks * WC_AES_BLOCK_SIZE;
+        in  += blocks * WC_AES_BLOCK_SIZE;
+        sz  -= blocks * WC_AES_BLOCK_SIZE;
     }
 
     if (sz) {
@@ -376,7 +377,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out,
             return ret;
         IncrementAesCounter((byte*)aes->reg);
 
-        aes->left = AES_BLOCK_SIZE;
+        aes->left = WC_AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;
 
         while (sz--) {
@@ -414,15 +415,15 @@ int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 
      buf[1].BufferType = DataBuffer;
      buf[1].TheAddress = (Address)in;
-     buf[1].Length     = AES_BLOCK_SIZE;
+     buf[1].Length     = WC_AES_BLOCK_SIZE;
 
      buf[2].BufferType = DataBuffer | LastBuffer;
      buf[2].TheAddress = (Address)out;
-     buf[2].Length     = AES_BLOCK_SIZE;
+     buf[2].Length     = WC_AES_BLOCK_SIZE;
 
      arg[0] = CAAM_ENC;
      arg[1] = keySz;
-     arg[2] = AES_BLOCK_SIZE;
+     arg[2] = WC_AES_BLOCK_SIZE;
 
      if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESECB)) != 0) {
          WOLFSSL_MSG("Error with CAAM AES direct encrypt");
@@ -455,15 +456,15 @@ int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 
      buf[1].BufferType = DataBuffer;
      buf[1].TheAddress = (Address)in;
-     buf[1].Length     = AES_BLOCK_SIZE;
+     buf[1].Length     = WC_AES_BLOCK_SIZE;
 
      buf[2].BufferType = DataBuffer | LastBuffer;
      buf[2].TheAddress = (Address)out;
-     buf[2].Length     = AES_BLOCK_SIZE;
+     buf[2].Length     = WC_AES_BLOCK_SIZE;
 
      arg[0] = CAAM_DEC;
      arg[1] = keySz;
-     arg[2] = AES_BLOCK_SIZE;
+     arg[2] = WC_AES_BLOCK_SIZE;
 
      if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESECB)) != 0) {
          WOLFSSL_MSG("Error with CAAM AES direct decrypt");
@@ -492,7 +493,7 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     word32 arg[4];
     word32 keySz;
     word32 i;
-    byte B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
+    byte B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
     int lenSz;
     byte mask = 0xFF;
     const word32 wordSz = (word32)sizeof(word32);
@@ -501,7 +502,7 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
     /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
-        authTagSz > AES_BLOCK_SIZE)
+        authTagSz > WC_AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     if ((ret = wc_AesCcmCheckTagSize(authTagSz)) != 0) {
@@ -514,18 +515,18 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
 
     /* set up B0 and CTR0 similar to how wolfcrypt/src/aes.c does */
     XMEMCPY(B0Ctr0+1, nonce, nonceSz);
-    XMEMCPY(B0Ctr0+AES_BLOCK_SIZE+1, nonce, nonceSz);
-    lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    XMEMCPY(B0Ctr0+WC_AES_BLOCK_SIZE+1, nonce, nonceSz);
+    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
     B0Ctr0[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B0Ctr0[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
-        B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE - 1 - i] = 0;
+        B0Ctr0[WC_AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE - 1 - i] = 0;
     }
-    B0Ctr0[AES_BLOCK_SIZE] = lenSz - 1;
+    B0Ctr0[WC_AES_BLOCK_SIZE] = lenSz - 1;
 
     /* Set buffers for key, cipher text, and plain text */
     buf[0].BufferType = DataBuffer;
@@ -534,7 +535,7 @@ int  wc_AesCcmEncrypt(Aes* aes, byte* out,
 
     buf[1].BufferType = DataBuffer;
     buf[1].TheAddress = (Address)B0Ctr0;
-    buf[1].Length     = AES_BLOCK_SIZE + AES_BLOCK_SIZE;
+    buf[1].Length     = WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE;
 
     buf[2].BufferType = DataBuffer;
     buf[2].TheAddress = (Address)authIn;
@@ -574,8 +575,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     word32 arg[4];
     word32 keySz;
     word32 i;
-    byte B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE];
-    byte tag[AES_BLOCK_SIZE];
+    byte B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE];
+    byte tag[WC_AES_BLOCK_SIZE];
     int lenSz;
     byte mask = 0xFF;
     const word32 wordSz = (word32)sizeof(word32);
@@ -584,7 +585,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
     /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
-        authTagSz > AES_BLOCK_SIZE)
+        authTagSz > WC_AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     if ((ret = wc_AesCcmCheckTagSize(authTagSz)) != 0) {
@@ -597,19 +598,19 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
 
     /* set up B0 and CTR0 similar to how wolfcrypt/src/aes.c does */
     XMEMCPY(B0Ctr0+1, nonce, nonceSz);
-    XMEMCPY(B0Ctr0+AES_BLOCK_SIZE+1, nonce, nonceSz);
-    lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    XMEMCPY(B0Ctr0+WC_AES_BLOCK_SIZE+1, nonce, nonceSz);
+    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
     B0Ctr0[0] = (authInSz > 0 ? 64 : 0)
          + (8 * (((byte)authTagSz - 2) / 2))
          + (lenSz - 1);
     for (i = 0; i < lenSz; i++) {
         if (mask && i >= wordSz)
             mask = 0x00;
-        B0Ctr0[AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
-        B0Ctr0[AES_BLOCK_SIZE + AES_BLOCK_SIZE - 1 - i] = 0;
+        B0Ctr0[WC_AES_BLOCK_SIZE - 1 - i] = (inSz >> ((8 * i) & mask)) & mask;
+        B0Ctr0[WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE - 1 - i] = 0;
     }
-    B0Ctr0[AES_BLOCK_SIZE] = lenSz - 1;
-    if ((ret = wc_AesEncryptDirect(aes, tag, B0Ctr0 + AES_BLOCK_SIZE)) != 0)
+    B0Ctr0[WC_AES_BLOCK_SIZE] = lenSz - 1;
+    if ((ret = wc_AesEncryptDirect(aes, tag, B0Ctr0 + WC_AES_BLOCK_SIZE)) != 0)
         return ret;
 
     /* Set buffers for key, cipher text, and plain text */
@@ -619,7 +620,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
 
     buf[1].BufferType = DataBuffer;
     buf[1].TheAddress = (Address)B0Ctr0;
-    buf[1].Length     = AES_BLOCK_SIZE + AES_BLOCK_SIZE;
+    buf[1].Length     = WC_AES_BLOCK_SIZE + WC_AES_BLOCK_SIZE;
 
     buf[2].BufferType = DataBuffer;
     buf[2].TheAddress = (Address)authIn;
@@ -652,8 +653,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
         ret = AES_CCM_AUTH_E;
     }
 
-    ForceZero(tag, AES_BLOCK_SIZE);
-    ForceZero(B0Ctr0, AES_BLOCK_SIZE * 2);
+    ForceZero(tag, WC_AES_BLOCK_SIZE);
+    ForceZero(B0Ctr0, WC_AES_BLOCK_SIZE * 2);
 
     return ret;
 

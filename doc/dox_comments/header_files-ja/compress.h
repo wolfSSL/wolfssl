@@ -1,5 +1,5 @@
 /*!
-    \ingroup Compression 
+    \ingroup Compression
     \brief  この関数は、ハフマン符号化を用いて与えられた入力データを圧縮し、出力をOUTに格納する。出力バッファは、圧縮が可能でないことが存在するため、出力バッファが入力バッファよりも大きいはずです。これはまだルックアップテーブルを必要とします。出力バッファに対してSRCSZ + 0.1％+ 12を割り当てることをお勧めします。
     \return On  入力データの圧縮に成功し、出力バッファに格納されているバイト数を返します。
     \return COMPRESS_INIT_E  圧縮のためにストリームの初期化中にエラーがある場合
@@ -24,7 +24,7 @@
 int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags);
 
 /*!
-    \ingroup Compression 
+    \ingroup Compression
     \brief  この関数は、ハフマン符号化を用いて所定の圧縮データを解凍し、出力をOUTに格納する。
     \return Success  入力データの解凍に成功した場合は、出力バッファに格納されているバイト数を返します。
     \return COMPRESS_INIT_E:  圧縮のためにストリームの初期化中にエラーがある場合

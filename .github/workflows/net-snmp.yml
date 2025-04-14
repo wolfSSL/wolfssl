@@ -15,8 +15,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -46,7 +47,8 @@ jobs:
           - ref: 5.9.3
             test_opts: -e 'agentxperl'
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     needs: build_wolfssl
@@ -58,7 +60,7 @@ jobs:
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
-    
+
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:

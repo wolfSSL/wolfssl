@@ -1,6 +1,6 @@
 /* options.h.in
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,7 +22,9 @@
 
 /* cmake template for options.h */
 
-#ifndef WOLFSSL_OPTIONS_H
+#ifdef WOLFSSL_NO_OPTIONS_H
+/* options.h inhibited by configuration */
+#elif !defined(WOLFSSL_OPTIONS_H)
 #define WOLFSSL_OPTIONS_H
 
 
@@ -65,7 +67,7 @@ extern "C" {
 #undef GCM_WORD32
 #cmakedefine GCM_WORD32
 #undef HAVE___UINT128_T
-#cmakedefine HAVE___UINT128_T
+#cmakedefine HAVE___UINT128_T 1
 #undef HAVE_AES_KEYWRAP
 #cmakedefine HAVE_AES_KEYWRAP
 #undef HAVE_AESCCM
@@ -86,6 +88,8 @@ extern "C" {
 #cmakedefine HAVE_CRL
 #undef HAVE_CRL_IO
 #cmakedefine HAVE_CRL_IO
+#undef WOLFSSL_CUSTOM_CURVES
+#cmakedefine WOLFSSL_CUSTOM_CURVES
 #undef HAVE_CURVE25519
 #cmakedefine HAVE_CURVE25519
 #undef HAVE_CURVE448
@@ -129,7 +133,7 @@ extern "C" {
 #undef HAVE_POLY1305
 #cmakedefine HAVE_POLY1305
 #undef HAVE_PTHREAD
-#cmakedefine HAVE_PTHREAD
+#cmakedefine HAVE_PTHREAD 1
 #undef HAVE_REPRODUCIBLE_BUILD
 #cmakedefine HAVE_REPRODUCIBLE_BUILD
 #undef HAVE_SESSION_TICKET
@@ -362,12 +366,30 @@ extern "C" {
 #cmakedefine NO_DES3_TLS_SUITES
 #undef WOLFSSL_EXPERIMENTAL_SETTINGS
 #cmakedefine WOLFSSL_EXPERIMENTAL_SETTINGS
-#undef WOLFSSL_HAVE_KYBER
-#cmakedefine WOLFSSL_HAVE_KYBER
-#undef WOLFSSL_WC_KYBER
-#cmakedefine WOLFSSL_WC_KYBER
+#undef WOLFSSL_HAVE_MLKEM
+#cmakedefine WOLFSSL_HAVE_MLKEM
+#undef WOLFSSL_WC_MLKEM
+#cmakedefine WOLFSSL_WC_MLKEM
 #undef NO_WOLFSSL_STUB
 #cmakedefine NO_WOLFSSL_STUB
+#undef HAVE_ECC_SECPR2
+#cmakedefine HAVE_ECC_SECPR2
+#undef HAVE_ECC_SECPR3
+#cmakedefine HAVE_ECC_SECPR3
+#undef HAVE_ECC_BRAINPOOL
+#cmakedefine HAVE_ECC_BRAINPOOL
+#undef HAVE_ECC_KOBLITZ
+#cmakedefine HAVE_ECC_KOBLITZ
+#undef HAVE_ECC_CDH
+#cmakedefine HAVE_ECC_CDH
+#undef WOLFSSL_HAVE_LMS
+#cmakedefine WOLFSSL_HAVE_LMS
+#undef WOLFSSL_WC_LMS
+#cmakedefine WOLFSSL_WC_LMS
+#undef WOLFSSL_HAVE_XMSS
+#cmakedefine WOLFSSL_HAVE_XMSS
+#undef WOLFSSL_WC_XMSS
+#cmakedefine WOLFSSL_WC_XMSS
 
 #ifdef __cplusplus
 }

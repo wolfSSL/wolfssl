@@ -1,6 +1,6 @@
 /* armv8-curve25519
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,14 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
+ *   ruby ./x25519/x25519.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
@@ -337,8 +335,7 @@ _fe_cmov_table:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
-	str	x17, [x29, #40]
-	str	x19, [x29, #48]
+	stp	x17, x19, [x29, #40]
 	stp	x20, x21, [x29, #56]
 	stp	x22, x23, [x29, #72]
 	stp	x24, x25, [x29, #88]
@@ -546,8 +543,7 @@ _fe_cmov_table:
 	stp	x10, x11, [x0, #48]
 	stp	x12, x13, [x0, #64]
 	stp	x14, x15, [x0, #80]
-	ldr	x17, [x29, #40]
-	ldr	x19, [x29, #48]
+	ldp	x17, x19, [x29, #40]
 	ldp	x20, x21, [x29, #56]
 	ldp	x22, x23, [x29, #72]
 	ldp	x24, x25, [x29, #88]
@@ -573,8 +569,7 @@ _fe_mul:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
-	str	x17, [x29, #24]
-	str	x19, [x29, #32]
+	stp	x17, x19, [x29, #24]
 	stp	x20, x21, [x29, #40]
 	str	x22, [x29, #56]
 	# Multiply
@@ -703,8 +698,7 @@ _fe_mul:
 	# Store
 	stp	x6, x7, [x0]
 	stp	x8, x9, [x0, #16]
-	ldr	x17, [x29, #24]
-	ldr	x19, [x29, #32]
+	ldp	x17, x19, [x29, #24]
 	ldp	x20, x21, [x29, #40]
 	ldr	x22, [x29, #56]
 	ldp	x29, x30, [sp], #0x40
@@ -835,8 +829,7 @@ _fe_invert:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
-	str	x17, [x29, #160]
-	str	x20, [x29, #168]
+	stp	x17, x20, [x29, #160]
 	# Invert
 	str	x0, [x29, #144]
 	str	x1, [x29, #152]
@@ -1694,8 +1687,7 @@ L_fe_invert8:
 #else
 	bl	_fe_mul
 #endif /* __APPLE__ */
-	ldr	x17, [x29, #160]
-	ldr	x20, [x29, #168]
+	ldp	x17, x20, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 #ifndef __APPLE__
@@ -1715,8 +1707,7 @@ _curve25519:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-288]!
 	add	x29, sp, #0
-	str	x17, [x29, #200]
-	str	x19, [x29, #208]
+	stp	x17, x19, [x29, #200]
 	stp	x20, x21, [x29, #216]
 	stp	x22, x23, [x29, #232]
 	stp	x24, x25, [x29, #248]
@@ -3801,8 +3792,7 @@ L_curve25519_inv_8:
 	stp	x14, x15, [x0]
 	stp	x16, x17, [x0, #16]
 	mov	x0, xzr
-	ldr	x17, [x29, #200]
-	ldr	x19, [x29, #208]
+	ldp	x17, x19, [x29, #200]
 	ldp	x20, x21, [x29, #216]
 	ldp	x22, x23, [x29, #232]
 	ldp	x24, x25, [x29, #248]
@@ -3828,8 +3818,7 @@ _fe_pow22523:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
-	str	x17, [x29, #128]
-	str	x23, [x29, #136]
+	stp	x17, x23, [x29, #128]
 	# pow22523
 	str	x0, [x29, #112]
 	str	x1, [x29, #120]
@@ -4619,8 +4608,7 @@ L_fe_pow22523_7:
 #else
 	bl	_fe_mul
 #endif /* __APPLE__ */
-	ldr	x17, [x29, #128]
-	ldr	x23, [x29, #136]
+	ldp	x17, x23, [x29, #128]
 	ldp	x29, x30, [sp], #0x90
 	ret
 #ifndef __APPLE__
@@ -4640,8 +4628,7 @@ _ge_p1p1_to_p2:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
-	str	x17, [x29, #40]
-	str	x19, [x29, #48]
+	stp	x17, x19, [x29, #40]
 	stp	x20, x21, [x29, #56]
 	str	x22, [x29, #72]
 	str	x0, [x29, #16]
@@ -5002,8 +4989,7 @@ _ge_p1p1_to_p2:
 	# Store
 	stp	x14, x15, [x0]
 	stp	x16, x17, [x0, #16]
-	ldr	x17, [x29, #40]
-	ldr	x19, [x29, #48]
+	ldp	x17, x19, [x29, #40]
 	ldp	x20, x21, [x29, #56]
 	ldr	x22, [x29, #72]
 	ldp	x29, x30, [sp], #0x50
@@ -5025,8 +5011,7 @@ _ge_p1p1_to_p3:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
-	str	x17, [x29, #40]
-	str	x19, [x29, #48]
+	stp	x17, x19, [x29, #40]
 	stp	x20, x21, [x29, #56]
 	stp	x22, x23, [x29, #72]
 	stp	x24, x25, [x29, #88]
@@ -5505,8 +5490,7 @@ _ge_p1p1_to_p3:
 	# Store
 	stp	x14, x15, [x0]
 	stp	x16, x17, [x0, #16]
-	ldr	x17, [x29, #40]
-	ldr	x19, [x29, #48]
+	ldp	x17, x19, [x29, #40]
 	ldp	x20, x21, [x29, #56]
 	ldp	x22, x23, [x29, #72]
 	ldp	x24, x25, [x29, #88]
@@ -5530,8 +5514,7 @@ _ge_p2_dbl:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
-	str	x17, [x29, #40]
-	str	x19, [x29, #48]
+	stp	x17, x19, [x29, #40]
 	stp	x20, x21, [x29, #56]
 	stp	x22, x23, [x29, #72]
 	stp	x24, x25, [x29, #88]
@@ -5986,8 +5969,7 @@ _ge_p2_dbl:
 	sbc	x7, x7, xzr
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
-	ldr	x17, [x29, #40]
-	ldr	x19, [x29, #48]
+	ldp	x17, x19, [x29, #40]
 	ldp	x20, x21, [x29, #56]
 	ldp	x22, x23, [x29, #72]
 	ldp	x24, x25, [x29, #88]
@@ -6012,8 +5994,7 @@ _ge_madd:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
-	str	x17, [x29, #56]
-	str	x19, [x29, #64]
+	stp	x17, x19, [x29, #56]
 	stp	x20, x21, [x29, #72]
 	stp	x22, x23, [x29, #88]
 	stp	x24, x25, [x29, #104]
@@ -6503,8 +6484,7 @@ _ge_madd:
 	stp	x10, x11, [x0, #16]
 	stp	x4, x5, [x1]
 	stp	x6, x7, [x1, #16]
-	ldr	x17, [x29, #56]
-	ldr	x19, [x29, #64]
+	ldp	x17, x19, [x29, #56]
 	ldp	x20, x21, [x29, #72]
 	ldp	x22, x23, [x29, #88]
 	ldp	x24, x25, [x29, #104]
@@ -6529,8 +6509,7 @@ _ge_msub:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
-	str	x17, [x29, #56]
-	str	x19, [x29, #64]
+	stp	x17, x19, [x29, #56]
 	stp	x20, x21, [x29, #72]
 	stp	x22, x23, [x29, #88]
 	stp	x24, x25, [x29, #104]
@@ -7020,8 +6999,7 @@ _ge_msub:
 	stp	x10, x11, [x0, #16]
 	stp	x4, x5, [x1]
 	stp	x6, x7, [x1, #16]
-	ldr	x17, [x29, #56]
-	ldr	x19, [x29, #64]
+	ldp	x17, x19, [x29, #56]
 	ldp	x20, x21, [x29, #72]
 	ldp	x22, x23, [x29, #88]
 	ldp	x24, x25, [x29, #104]
@@ -7046,8 +7024,7 @@ _ge_add:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
-	str	x17, [x29, #56]
-	str	x19, [x29, #64]
+	stp	x17, x19, [x29, #56]
 	stp	x20, x21, [x29, #72]
 	stp	x22, x23, [x29, #88]
 	stp	x24, x25, [x29, #104]
@@ -7663,8 +7640,7 @@ _ge_add:
 	stp	x23, x24, [x0, #16]
 	stp	x12, x13, [x1]
 	stp	x14, x15, [x1, #16]
-	ldr	x17, [x29, #56]
-	ldr	x19, [x29, #64]
+	ldp	x17, x19, [x29, #56]
 	ldp	x20, x21, [x29, #72]
 	ldp	x22, x23, [x29, #88]
 	ldp	x24, x25, [x29, #104]
@@ -7689,8 +7665,7 @@ _ge_sub:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
-	str	x17, [x29, #56]
-	str	x19, [x29, #64]
+	stp	x17, x19, [x29, #56]
 	stp	x20, x21, [x29, #72]
 	stp	x22, x23, [x29, #88]
 	stp	x24, x25, [x29, #104]
@@ -8321,8 +8296,7 @@ _ge_sub:
 	stp	x14, x15, [x0, #16]
 	stp	x21, x22, [x1]
 	stp	x23, x24, [x1, #16]
-	ldr	x17, [x29, #56]
-	ldr	x19, [x29, #64]
+	ldp	x17, x19, [x29, #56]
 	ldp	x20, x21, [x29, #72]
 	ldp	x22, x23, [x29, #88]
 	ldp	x24, x25, [x29, #104]
@@ -8347,8 +8321,7 @@ _sc_reduce:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
-	str	x17, [x29, #16]
-	str	x19, [x29, #24]
+	stp	x17, x19, [x29, #16]
 	stp	x20, x21, [x29, #32]
 	stp	x22, x23, [x29, #48]
 	ldp	x2, x3, [x0]
@@ -8525,8 +8498,7 @@ _sc_reduce:
 	# Store result
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
-	ldr	x17, [x29, #16]
-	ldr	x19, [x29, #24]
+	ldp	x17, x19, [x29, #16]
 	ldp	x20, x21, [x29, #32]
 	ldp	x22, x23, [x29, #48]
 	ldp	x29, x30, [sp], #0x40
@@ -8548,8 +8520,7 @@ _sc_muladd:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-96]!
 	add	x29, sp, #0
-	str	x17, [x29, #24]
-	str	x19, [x29, #32]
+	stp	x17, x19, [x29, #24]
 	stp	x20, x21, [x29, #40]
 	stp	x22, x23, [x29, #56]
 	stp	x24, x25, [x29, #72]
@@ -8824,8 +8795,7 @@ _sc_muladd:
 	# Store result
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
-	ldr	x17, [x29, #24]
-	ldr	x19, [x29, #32]
+	ldp	x17, x19, [x29, #24]
 	ldp	x20, x21, [x29, #40]
 	ldp	x22, x23, [x29, #56]
 	ldp	x24, x25, [x29, #72]

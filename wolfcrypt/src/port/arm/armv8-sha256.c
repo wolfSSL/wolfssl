@@ -1,6 +1,6 @@
 /* armv8-sha256.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
@@ -47,14 +42,17 @@
         return 0;
     }
 #endif
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #if defined(FREESCALE_MMCAU_SHA)
@@ -65,8 +63,8 @@
     #endif
 #endif
 
-#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-static const ALIGN32 word32 K[64] = {
+#if defined(__aarch64__) || !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+static const FLASH_QUALIFIER ALIGN32 word32 K[64] = {
     0x428A2F98L, 0x71374491L, 0xB5C0FBCFL, 0xE9B5DBA5L, 0x3956C25BL,
     0x59F111F1L, 0x923F82A4L, 0xAB1C5ED5L, 0xD807AA98L, 0x12835B01L,
     0x243185BEL, 0x550C7DC3L, 0x72BE5D74L, 0x80DEB1FEL, 0x9BDC06A7L,
@@ -83,6 +81,202 @@ static const ALIGN32 word32 K[64] = {
 };
 #endif
 
+
+#if defined(__aarch64__)
+/* Both versions of Ch and Maj are logically the same, but with the second set
+    the compilers can recognize them better for optimization */
+#ifdef WOLFSSL_SHA256_BY_SPEC
+    /* SHA256 math based on specification */
+    #define Ch(x,y,z)       ((z) ^ ((x) & ((y) ^ (z))))
+    #define Maj(x,y,z)      ((((x) | (y)) & (z)) | ((x) & (y)))
+#else
+    /* SHA256 math reworked for easier compiler optimization */
+    #define Ch(x,y,z)       ((((y) ^ (z)) & (x)) ^ (z))
+    #define Maj(x,y,z)      ((((x) ^ (y)) & ((y) ^ (z))) ^ (y))
+#endif
+    #define R(x, n)         (((x) & 0xFFFFFFFFU) >> (n))
+
+    #define S(x, n)         rotrFixed(x, n)
+    #define Sigma0(x)       (S(x, 2)  ^ S(x, 13) ^ S(x, 22))
+    #define Sigma1(x)       (S(x, 6)  ^ S(x, 11) ^ S(x, 25))
+    #define Gamma0(x)       (S(x, 7)  ^ S(x, 18) ^ R(x, 3))
+    #define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
+
+    #define a(i) S[(0-(i)) & 7]
+    #define b(i) S[(1-(i)) & 7]
+    #define c(i) S[(2-(i)) & 7]
+    #define d(i) S[(3-(i)) & 7]
+    #define e(i) S[(4-(i)) & 7]
+    #define f(i) S[(5-(i)) & 7]
+    #define g(i) S[(6-(i)) & 7]
+    #define h(i) S[(7-(i)) & 7]
+
+    #ifndef XTRANSFORM
+         #define XTRANSFORM(S, D)         Transform_Sha256((S),(D))
+    #endif
+
+#ifndef SHA256_MANY_REGISTERS
+    #define RND(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+(j)] + \
+              W[i+(j)]; \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
+
+    static void Transform_Sha256(wc_Sha256* sha256, const byte* data)
+    {
+        word32 S[8], t0, t1;
+        int i;
+
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        word32* W = sha256->W;
+        if (W == NULL) {
+            W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
+                                                           DYNAMIC_TYPE_DIGEST);
+            if (W == NULL)
+                return;
+            sha256->W = W;
+        }
+    #elif defined(WOLFSSL_SMALL_STACK)
+        word32* W;
+        W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (W == NULL)
+            return;
+    #else
+        word32 W[WC_SHA256_BLOCK_SIZE];
+    #endif
+
+        /* Copy context->state[] to working vars */
+        for (i = 0; i < 8; i++)
+            S[i] = sha256->digest[i];
+
+        for (i = 0; i < 16; i++)
+            W[i] = *((const word32*)&data[i*(int)sizeof(word32)]);
+
+        for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
+           W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];
+
+    #ifdef USE_SLOW_SHA256
+        /* not unrolled - ~2k smaller and ~25% slower */
+        for (i = 0; i < WC_SHA256_BLOCK_SIZE; i += 8) {
+            int j;
+            for (j = 0; j < 8; j++) { /* braces needed here for macros {} */
+                RND(j);
+            }
+        }
+    #else
+        /* partially loop unrolled */
+        for (i = 0; i < WC_SHA256_BLOCK_SIZE; i += 8) {
+            RND(0); RND(1); RND(2); RND(3);
+            RND(4); RND(5); RND(6); RND(7);
+        }
+    #endif /* USE_SLOW_SHA256 */
+
+        /* Add the working vars back into digest state[] */
+        for (i = 0; i < 8; i++) {
+            sha256->digest[i] += S[i];
+        }
+
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
+        XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    }
+#else
+    /* SHA256 version that keeps all data in registers */
+    #define SCHED1(j) (W[j] = *((word32*)&data[j*sizeof(word32)]))
+    #define SCHED(j) (               \
+                   W[ j     & 15] += \
+            Gamma1(W[(j-2)  & 15])+  \
+                   W[(j-7)  & 15] +  \
+            Gamma0(W[(j-15) & 15])   \
+        )
+
+    #define RND1(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + SCHED1(j); \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
+    #define RNDN(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + SCHED(j); \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
+
+    static void Transform_Sha256(wc_Sha256* sha256, const byte* data)
+    {
+        word32 S[8], t0, t1;
+        int i;
+    #ifdef USE_SLOW_SHA256
+        int j;
+    #endif
+        word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
+
+        /* Copy digest to working vars */
+        S[0] = sha256->digest[0];
+        S[1] = sha256->digest[1];
+        S[2] = sha256->digest[2];
+        S[3] = sha256->digest[3];
+        S[4] = sha256->digest[4];
+        S[5] = sha256->digest[5];
+        S[6] = sha256->digest[6];
+        S[7] = sha256->digest[7];
+
+        i = 0;
+    #ifdef USE_SLOW_SHA256
+        for (j = 0; j < 16; j++) {
+            RND1(j);
+        }
+        for (i = 16; i < 64; i += 16) {
+            for (j = 0; j < 16; j++) {
+                RNDN(j);
+            }
+        }
+    #else
+        RND1( 0); RND1( 1); RND1( 2); RND1( 3);
+        RND1( 4); RND1( 5); RND1( 6); RND1( 7);
+        RND1( 8); RND1( 9); RND1(10); RND1(11);
+        RND1(12); RND1(13); RND1(14); RND1(15);
+        /* 64 operations, partially loop unrolled */
+        for (i = 16; i < 64; i += 16) {
+            RNDN( 0); RNDN( 1); RNDN( 2); RNDN( 3);
+            RNDN( 4); RNDN( 5); RNDN( 6); RNDN( 7);
+            RNDN( 8); RNDN( 9); RNDN(10); RNDN(11);
+            RNDN(12); RNDN(13); RNDN(14); RNDN(15);
+        }
+    #endif
+
+        /* Add the working vars back into digest */
+        sha256->digest[0] += S[0];
+        sha256->digest[1] += S[1];
+        sha256->digest[2] += S[2];
+        sha256->digest[3] += S[3];
+        sha256->digest[4] += S[4];
+        sha256->digest[5] += S[5];
+        sha256->digest[6] += S[6];
+        sha256->digest[7] += S[7];
+    }
+#endif /* SHA256_MANY_REGISTERS */
+
+static void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
+    word32 len)
+{
+    while (len > 0) {
+        byte tmp[WC_SHA256_BLOCK_SIZE];
+        ByteReverseWords((word32*)tmp, (const word32*)data,
+            WC_SHA256_BLOCK_SIZE);
+        Transform_Sha256(sha256, tmp);
+        data += WC_SHA256_BLOCK_SIZE;
+        len  -= WC_SHA256_BLOCK_SIZE;
+    }
+}
+#endif
+
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+static word32 cpuid_flags = 0;
+static int cpuid_flags_set = 0;
+#endif
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -329,23 +523,37 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data,
         AddLength(sha256, len);
 
         if (sha256->buffLen > 0) {
-             /* fill leftover buffer with data */
-             add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
-             XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
-             sha256->buffLen += add;
-             data            += add;
-             len             -= add;
-             if (sha256->buffLen == WC_SHA256_BLOCK_SIZE) {
-                 Sha256Transform(sha256, (byte*)sha256->buffer, 1);
+            /* fill leftover buffer with data */
+            add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+            XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
+            sha256->buffLen += add;
+            data            += add;
+            len             -= add;
+            if (sha256->buffLen == WC_SHA256_BLOCK_SIZE) {
+                if (IS_AARCH64_SHA256(cpuid_flags)) {
+                    Sha256Transform(sha256, (byte*)sha256->buffer, 1);
+                }
+                else {
+                    ByteReverseWords(sha256->buffer, sha256->buffer,
+                        WC_SHA256_BLOCK_SIZE);
+                    Transform_Sha256(sha256, (const byte*)sha256->buffer);
+                }
+
                  sha256->buffLen = 0;
-             }
+            }
         }
 
         /* number of blocks in a row to complete */
-        numBlocks = (len + sha256->buffLen)/WC_SHA256_BLOCK_SIZE;
+        numBlocks = (len + sha256->buffLen) / WC_SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
-            Sha256Transform(sha256, data, numBlocks);
+            if (IS_AARCH64_SHA256(cpuid_flags)) {
+                Sha256Transform(sha256, data, numBlocks);
+            }
+            else {
+                Transform_Sha256_Len(sha256, data,
+                    numBlocks * WC_SHA256_BLOCK_SIZE);
+            }
             data += numBlocks * WC_SHA256_BLOCK_SIZE;
             len  -= numBlocks * WC_SHA256_BLOCK_SIZE;
         }
@@ -375,158 +583,166 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
     /* pad with zeros */
     if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
-
-        XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+        XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE -
+                                                               sha256->buffLen);
         sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
-        k = K;
-        __asm__ volatile (
-            "LD1 {v4.2d-v7.2d}, %[buffer]          \n"
-            "MOV v0.16b, v4.16b                    \n"
-            "MOV v1.16b, v5.16b                    \n"
-            "REV32 v0.16b, v0.16b                  \n"
-            "REV32 v1.16b, v1.16b                  \n"
-            "MOV v2.16b, v6.16b                    \n"
-            "MOV v3.16b, v7.16b                    \n"
-            "REV32 v2.16b, v2.16b                  \n"
-            "REV32 v3.16b, v3.16b                  \n"
-            "MOV v4.16b, v0.16b                    \n"
-            "MOV v5.16b, v1.16b                    \n"
-            "LD1 {v20.2d-v21.2d}, %[digest]        \n"
+        if (IS_AARCH64_SHA256(cpuid_flags)) {
+            k = K;
+            __asm__ volatile (
+                "LD1 {v4.2d-v7.2d}, %[buffer]          \n"
+                "MOV v0.16b, v4.16b                    \n"
+                "MOV v1.16b, v5.16b                    \n"
+                "REV32 v0.16b, v0.16b                  \n"
+                "REV32 v1.16b, v1.16b                  \n"
+                "MOV v2.16b, v6.16b                    \n"
+                "MOV v3.16b, v7.16b                    \n"
+                "REV32 v2.16b, v2.16b                  \n"
+                "REV32 v3.16b, v3.16b                  \n"
+                "MOV v4.16b, v0.16b                    \n"
+                "MOV v5.16b, v1.16b                    \n"
+                "LD1 {v20.2d-v21.2d}, %[digest]        \n"
 
-            "#SHA256 operation on updated message  \n"
-            "MOV v16.16b, v20.16b \n"
-            "MOV v17.16b, v21.16b \n"
+                "#SHA256 operation on updated message  \n"
+                "MOV v16.16b, v20.16b \n"
+                "MOV v17.16b, v21.16b \n"
 
-            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-            "SHA256SU0 v4.4s, v1.4s        \n"
-            "ADD v0.4s, v0.4s, v22.4s      \n"
-            "MOV v6.16b, v2.16b            \n"
-            "MOV v18.16b, v16.16b          \n"
-            "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
-            "SHA256H q16, q17, v0.4s       \n"
-            "SHA256H2 q17, q18, v0.4s      \n"
+                "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+                "SHA256SU0 v4.4s, v1.4s        \n"
+                "ADD v0.4s, v0.4s, v22.4s      \n"
+                "MOV v6.16b, v2.16b            \n"
+                "MOV v18.16b, v16.16b          \n"
+                "SHA256SU1 v4.4s, v2.4s, v3.4s \n"
+                "SHA256H q16, q17, v0.4s       \n"
+                "SHA256H2 q17, q18, v0.4s      \n"
 
-            "SHA256SU0 v5.4s, v2.4s        \n"
-            "ADD v1.4s, v1.4s, v23.4s      \n"
-            "MOV v18.16b, v16.16b          \n"
-            "MOV v7.16b, v3.16b            \n"
-            "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
-            "SHA256H q16, q17, v1.4s       \n"
-            "SHA256H2 q17, q18, v1.4s      \n"
+                "SHA256SU0 v5.4s, v2.4s        \n"
+                "ADD v1.4s, v1.4s, v23.4s      \n"
+                "MOV v18.16b, v16.16b          \n"
+                "MOV v7.16b, v3.16b            \n"
+                "SHA256SU1 v5.4s, v3.4s, v4.4s \n"
+                "SHA256H q16, q17, v1.4s       \n"
+                "SHA256H2 q17, q18, v1.4s      \n"
 
-            "SHA256SU0 v6.4s, v3.4s        \n"
-            "ADD v2.4s, v2.4s, v24.4s      \n"
-            "MOV v18.16b, v16.16b          \n"
-            "MOV v8.16b, v4.16b            \n"
-            "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
-            "SHA256H q16, q17, v2.4s       \n"
-            "SHA256H2 q17, q18, v2.4s      \n"
+                "SHA256SU0 v6.4s, v3.4s        \n"
+                "ADD v2.4s, v2.4s, v24.4s      \n"
+                "MOV v18.16b, v16.16b          \n"
+                "MOV v8.16b, v4.16b            \n"
+                "SHA256SU1 v6.4s, v4.4s, v5.4s \n"
+                "SHA256H q16, q17, v2.4s       \n"
+                "SHA256H2 q17, q18, v2.4s      \n"
 
-            "SHA256SU0 v7.4s, v4.4s        \n"
-            "ADD v3.4s, v3.4s, v25.4s      \n"
-            "MOV v18.16b, v16.16b          \n"
-            "MOV v9.16b, v5.16b            \n"
-            "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
-            "SHA256H q16, q17, v3.4s       \n"
-            "SHA256H2 q17, q18, v3.4s      \n"
+                "SHA256SU0 v7.4s, v4.4s        \n"
+                "ADD v3.4s, v3.4s, v25.4s      \n"
+                "MOV v18.16b, v16.16b          \n"
+                "MOV v9.16b, v5.16b            \n"
+                "SHA256SU1 v7.4s, v5.4s, v6.4s \n"
+                "SHA256H q16, q17, v3.4s       \n"
+                "SHA256H2 q17, q18, v3.4s      \n"
 
-            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-            "SHA256SU0 v8.4s, v5.4s        \n"
-            "ADD v4.4s, v4.4s, v22.4s      \n"
-            "MOV v18.16b, v16.16b          \n"
-            "MOV v10.16b, v6.16b           \n"
-            "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
-            "SHA256H q16, q17, v4.4s       \n"
-            "SHA256H2 q17, q18, v4.4s      \n"
+                "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+                "SHA256SU0 v8.4s, v5.4s        \n"
+                "ADD v4.4s, v4.4s, v22.4s      \n"
+                "MOV v18.16b, v16.16b          \n"
+                "MOV v10.16b, v6.16b           \n"
+                "SHA256SU1 v8.4s, v6.4s, v7.4s \n"
+                "SHA256H q16, q17, v4.4s       \n"
+                "SHA256H2 q17, q18, v4.4s      \n"
 
-            "SHA256SU0 v9.4s, v6.4s        \n"
-            "ADD v5.4s, v5.4s, v23.4s      \n"
-            "MOV v18.16b, v16.16b          \n"
-            "MOV v11.16b, v7.16b           \n"
-            "SHA256SU1 v9.4s, v7.4s, v8.4s \n"
-            "SHA256H q16, q17, v5.4s       \n"
-            "SHA256H2 q17, q18, v5.4s      \n"
+                "SHA256SU0 v9.4s, v6.4s        \n"
+                "ADD v5.4s, v5.4s, v23.4s      \n"
+                "MOV v18.16b, v16.16b          \n"
+                "MOV v11.16b, v7.16b           \n"
+                "SHA256SU1 v9.4s, v7.4s, v8.4s \n"
+                "SHA256H q16, q17, v5.4s       \n"
+                "SHA256H2 q17, q18, v5.4s      \n"
 
-            "SHA256SU0 v10.4s, v7.4s        \n"
-            "ADD v6.4s, v6.4s, v24.4s       \n"
-            "MOV v18.16b, v16.16b           \n"
-            "MOV v12.16b, v8.16b            \n"
-            "SHA256SU1 v10.4s, v8.4s, v9.4s \n"
-            "SHA256H q16, q17, v6.4s        \n"
-            "SHA256H2 q17, q18, v6.4s       \n"
+                "SHA256SU0 v10.4s, v7.4s        \n"
+                "ADD v6.4s, v6.4s, v24.4s       \n"
+                "MOV v18.16b, v16.16b           \n"
+                "MOV v12.16b, v8.16b            \n"
+                "SHA256SU1 v10.4s, v8.4s, v9.4s \n"
+                "SHA256H q16, q17, v6.4s        \n"
+                "SHA256H2 q17, q18, v6.4s       \n"
 
-            "SHA256SU0 v11.4s, v8.4s         \n"
-            "ADD v7.4s, v7.4s, v25.4s        \n"
-            "MOV v18.16b, v16.16b            \n"
-            "MOV v13.16b, v9.16b             \n"
-            "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
-            "SHA256H q16, q17, v7.4s         \n"
-            "SHA256H2 q17, q18, v7.4s        \n"
+                "SHA256SU0 v11.4s, v8.4s         \n"
+                "ADD v7.4s, v7.4s, v25.4s        \n"
+                "MOV v18.16b, v16.16b            \n"
+                "MOV v13.16b, v9.16b             \n"
+                "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
+                "SHA256H q16, q17, v7.4s         \n"
+                "SHA256H2 q17, q18, v7.4s        \n"
 
-            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-            "SHA256SU0 v12.4s, v9.4s            \n"
-            "ADD v8.4s, v8.4s, v22.4s           \n"
-            "MOV v18.16b, v16.16b               \n"
-            "MOV v14.16b, v10.16b               \n"
-            "SHA256SU1 v12.4s, v10.4s, v11.4s   \n"
-            "SHA256H q16, q17, v8.4s            \n"
-            "SHA256H2 q17, q18, v8.4s           \n"
+                "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+                "SHA256SU0 v12.4s, v9.4s            \n"
+                "ADD v8.4s, v8.4s, v22.4s           \n"
+                "MOV v18.16b, v16.16b               \n"
+                "MOV v14.16b, v10.16b               \n"
+                "SHA256SU1 v12.4s, v10.4s, v11.4s   \n"
+                "SHA256H q16, q17, v8.4s            \n"
+                "SHA256H2 q17, q18, v8.4s           \n"
 
-            "SHA256SU0 v13.4s, v10.4s           \n"
-            "ADD v9.4s, v9.4s, v23.4s           \n"
-            "MOV v18.16b, v16.16b               \n"
-            "MOV v15.16b, v11.16b               \n"
-            "SHA256SU1 v13.4s, v11.4s, v12.4s   \n"
-            "SHA256H q16, q17, v9.4s            \n"
-            "SHA256H2 q17, q18, v9.4s           \n"
+                "SHA256SU0 v13.4s, v10.4s           \n"
+                "ADD v9.4s, v9.4s, v23.4s           \n"
+                "MOV v18.16b, v16.16b               \n"
+                "MOV v15.16b, v11.16b               \n"
+                "SHA256SU1 v13.4s, v11.4s, v12.4s   \n"
+                "SHA256H q16, q17, v9.4s            \n"
+                "SHA256H2 q17, q18, v9.4s           \n"
 
-            "SHA256SU0 v14.4s, v11.4s           \n"
-            "ADD v10.4s, v10.4s, v24.4s         \n"
-            "MOV v18.16b, v16.16b               \n"
-            "SHA256SU1 v14.4s, v12.4s, v13.4s   \n"
-            "SHA256H q16, q17, v10.4s           \n"
-            "SHA256H2 q17, q18, v10.4s          \n"
+                "SHA256SU0 v14.4s, v11.4s           \n"
+                "ADD v10.4s, v10.4s, v24.4s         \n"
+                "MOV v18.16b, v16.16b               \n"
+                "SHA256SU1 v14.4s, v12.4s, v13.4s   \n"
+                "SHA256H q16, q17, v10.4s           \n"
+                "SHA256H2 q17, q18, v10.4s          \n"
 
-            "SHA256SU0 v15.4s, v12.4s           \n"
-            "ADD v11.4s, v11.4s, v25.4s         \n"
-            "MOV v18.16b, v16.16b               \n"
-            "SHA256SU1 v15.4s, v13.4s, v14.4s   \n"
-            "SHA256H q16, q17, v11.4s           \n"
-            "SHA256H2 q17, q18, v11.4s          \n"
+                "SHA256SU0 v15.4s, v12.4s           \n"
+                "ADD v11.4s, v11.4s, v25.4s         \n"
+                "MOV v18.16b, v16.16b               \n"
+                "SHA256SU1 v15.4s, v13.4s, v14.4s   \n"
+                "SHA256H q16, q17, v11.4s           \n"
+                "SHA256H2 q17, q18, v11.4s          \n"
 
-            "LD1 {v22.4s-v25.4s}, [%[k]] \n"
-            "ADD v12.4s, v12.4s, v22.4s    \n"
-            "MOV v18.16b, v16.16b          \n"
-            "SHA256H q16, q17, v12.4s      \n"
-            "SHA256H2 q17, q18, v12.4s     \n"
+                "LD1 {v22.4s-v25.4s}, [%[k]] \n"
+                "ADD v12.4s, v12.4s, v22.4s    \n"
+                "MOV v18.16b, v16.16b          \n"
+                "SHA256H q16, q17, v12.4s      \n"
+                "SHA256H2 q17, q18, v12.4s     \n"
 
-            "ADD v13.4s, v13.4s, v23.4s    \n"
-            "MOV v18.16b, v16.16b          \n"
-            "SHA256H q16, q17, v13.4s      \n"
-            "SHA256H2 q17, q18, v13.4s     \n"
+                "ADD v13.4s, v13.4s, v23.4s    \n"
+                "MOV v18.16b, v16.16b          \n"
+                "SHA256H q16, q17, v13.4s      \n"
+                "SHA256H2 q17, q18, v13.4s     \n"
 
-            "ADD v14.4s, v14.4s, v24.4s  \n"
-            "MOV v18.16b, v16.16b        \n"
-            "SHA256H q16, q17, v14.4s    \n"
-            "SHA256H2 q17, q18, v14.4s   \n"
+                "ADD v14.4s, v14.4s, v24.4s  \n"
+                "MOV v18.16b, v16.16b        \n"
+                "SHA256H q16, q17, v14.4s    \n"
+                "SHA256H2 q17, q18, v14.4s   \n"
 
-            "ADD v15.4s, v15.4s, v25.4s  \n"
-            "MOV v18.16b, v16.16b        \n"
-            "SHA256H q16, q17, v15.4s    \n"
-            "SHA256H2 q17, q18, v15.4s   \n"
+                "ADD v15.4s, v15.4s, v25.4s  \n"
+                "MOV v18.16b, v16.16b        \n"
+                "SHA256H q16, q17, v15.4s    \n"
+                "SHA256H2 q17, q18, v15.4s   \n"
 
-            "#Add working vars back into digest state \n"
-            "ADD v16.4s, v16.4s, v20.4s \n"
-            "ADD v17.4s, v17.4s, v21.4s \n"
-            "ST1 {v16.2d-v17.2d}, %[out]        \n"
+                "#Add working vars back into digest state \n"
+                "ADD v16.4s, v16.4s, v20.4s \n"
+                "ADD v17.4s, v17.4s, v21.4s \n"
+                "ST1 {v16.2d-v17.2d}, %[out]        \n"
 
-            : [out] "=m" (sha256->digest), [k] "+r" (k)
-            : [digest] "m" (sha256->digest),
-              [buffer] "m" (sha256->buffer)
-            : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10", "v11"
-                            , "v12", "v13", "v14", "v15", "v16", "v17", "v18"
-                            , "v19", "v20", "v21", "v22", "v23", "v24", "v25"
-        );
+                : [out] "=m" (sha256->digest), [k] "+r" (k)
+                : [digest] "m" (sha256->digest),
+                  [buffer] "m" (sha256->buffer)
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v8",  "v9",  "v10"
+                                , "v11" , "v12", "v13", "v14", "v15", "v16"
+                                , "v17", "v18" , "v19", "v20", "v21", "v22"
+                                , "v23", "v24", "v25"
+            );
+        }
+        else {
+            ByteReverseWords(sha256->buffer, sha256->buffer,
+                WC_SHA256_BLOCK_SIZE);
+            Transform_Sha256(sha256, (const byte*)sha256->buffer);
+        }
 
         sha256->buffLen = 0;
     }
@@ -552,162 +768,173 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
-            sizeof(word32));
+        XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
+        XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
+                sizeof(word32));
 
-    k = K;
-    __asm__ volatile (
-        "#load in message and schedule updates \n"
-        "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
-        "MOV v0.16b, v4.16b \n"
-        "MOV v1.16b, v5.16b \n"
-        "MOV v2.16b, v6.16b \n"
-        "MOV v3.16b, v7.16b \n"
-        "LD1 {v20.2d-v21.2d}, %[digest] \n"
+    if (IS_AARCH64_SHA256(cpuid_flags)) {
+        k = K;
+        __asm__ volatile (
+            "#load in message and schedule updates \n"
+            "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
+            "MOV v0.16b, v4.16b \n"
+            "MOV v1.16b, v5.16b \n"
+            "MOV v2.16b, v6.16b \n"
+            "MOV v3.16b, v7.16b \n"
+            "LD1 {v20.2d-v21.2d}, %[digest] \n"
 
-        "MOV v16.16b, v20.16b      \n"
-        "MOV v17.16b, v21.16b      \n"
-        "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-        "SHA256SU0 v4.4s, v1.4s          \n"
-        "ADD v0.4s, v0.4s, v22.4s        \n"
-        "MOV v6.16b, v2.16b              \n"
-        "MOV v18.16b, v16.16b            \n"
-        "SHA256SU1 v4.4s, v2.4s, v3.4s   \n"
-        "SHA256H q16, q17, v0.4s         \n"
-        "SHA256H2 q17, q18, v0.4s        \n"
+            "MOV v16.16b, v20.16b      \n"
+            "MOV v17.16b, v21.16b      \n"
+            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+            "SHA256SU0 v4.4s, v1.4s          \n"
+            "ADD v0.4s, v0.4s, v22.4s        \n"
+            "MOV v6.16b, v2.16b              \n"
+            "MOV v18.16b, v16.16b            \n"
+            "SHA256SU1 v4.4s, v2.4s, v3.4s   \n"
+            "SHA256H q16, q17, v0.4s         \n"
+            "SHA256H2 q17, q18, v0.4s        \n"
 
-        "SHA256SU0 v5.4s, v2.4s          \n"
-        "ADD v1.4s, v1.4s, v23.4s        \n"
-        "MOV v7.16b, v3.16b              \n"
-        "MOV v18.16b, v16.16b            \n"
-        "SHA256SU1 v5.4s, v3.4s, v4.4s   \n"
-        "SHA256H q16, q17, v1.4s         \n"
-        "SHA256H2 q17, q18, v1.4s        \n"
+            "SHA256SU0 v5.4s, v2.4s          \n"
+            "ADD v1.4s, v1.4s, v23.4s        \n"
+            "MOV v7.16b, v3.16b              \n"
+            "MOV v18.16b, v16.16b            \n"
+            "SHA256SU1 v5.4s, v3.4s, v4.4s   \n"
+            "SHA256H q16, q17, v1.4s         \n"
+            "SHA256H2 q17, q18, v1.4s        \n"
 
-        "SHA256SU0 v6.4s, v3.4s          \n"
-        "ADD v2.4s, v2.4s, v24.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v8.16b, v4.16b              \n"
-        "SHA256SU1 v6.4s, v4.4s, v5.4s   \n"
-        "SHA256H q16, q17, v2.4s         \n"
-        "SHA256H2 q17, q18, v2.4s        \n"
+            "SHA256SU0 v6.4s, v3.4s          \n"
+            "ADD v2.4s, v2.4s, v24.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v8.16b, v4.16b              \n"
+            "SHA256SU1 v6.4s, v4.4s, v5.4s   \n"
+            "SHA256H q16, q17, v2.4s         \n"
+            "SHA256H2 q17, q18, v2.4s        \n"
 
-        "SHA256SU0 v7.4s, v4.4s          \n"
-        "ADD v3.4s, v3.4s, v25.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v9.16b, v5.16b              \n"
-        "SHA256SU1 v7.4s, v5.4s, v6.4s   \n"
-        "SHA256H q16, q17, v3.4s         \n"
-        "SHA256H2 q17, q18, v3.4s        \n"
+            "SHA256SU0 v7.4s, v4.4s          \n"
+            "ADD v3.4s, v3.4s, v25.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v9.16b, v5.16b              \n"
+            "SHA256SU1 v7.4s, v5.4s, v6.4s   \n"
+            "SHA256H q16, q17, v3.4s         \n"
+            "SHA256H2 q17, q18, v3.4s        \n"
 
-        "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-        "SHA256SU0 v8.4s, v5.4s          \n"
-        "ADD v4.4s, v4.4s, v22.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v10.16b, v6.16b             \n"
-        "SHA256SU1 v8.4s, v6.4s, v7.4s   \n"
-        "SHA256H q16, q17, v4.4s         \n"
-        "SHA256H2 q17, q18, v4.4s        \n"
+            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+            "SHA256SU0 v8.4s, v5.4s          \n"
+            "ADD v4.4s, v4.4s, v22.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v10.16b, v6.16b             \n"
+            "SHA256SU1 v8.4s, v6.4s, v7.4s   \n"
+            "SHA256H q16, q17, v4.4s         \n"
+            "SHA256H2 q17, q18, v4.4s        \n"
 
-        "SHA256SU0 v9.4s, v6.4s          \n"
-        "ADD v5.4s, v5.4s, v23.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v11.16b, v7.16b             \n"
-        "SHA256SU1 v9.4s, v7.4s, v8.4s   \n"
-        "SHA256H q16, q17, v5.4s         \n"
-        "SHA256H2 q17, q18, v5.4s        \n"
+            "SHA256SU0 v9.4s, v6.4s          \n"
+            "ADD v5.4s, v5.4s, v23.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v11.16b, v7.16b             \n"
+            "SHA256SU1 v9.4s, v7.4s, v8.4s   \n"
+            "SHA256H q16, q17, v5.4s         \n"
+            "SHA256H2 q17, q18, v5.4s        \n"
 
-        "SHA256SU0 v10.4s, v7.4s         \n"
-        "ADD v6.4s, v6.4s, v24.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v12.16b, v8.16b             \n"
-        "SHA256SU1 v10.4s, v8.4s, v9.4s  \n"
-        "SHA256H q16, q17, v6.4s         \n"
-        "SHA256H2 q17, q18, v6.4s        \n"
+            "SHA256SU0 v10.4s, v7.4s         \n"
+            "ADD v6.4s, v6.4s, v24.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v12.16b, v8.16b             \n"
+            "SHA256SU1 v10.4s, v8.4s, v9.4s  \n"
+            "SHA256H q16, q17, v6.4s         \n"
+            "SHA256H2 q17, q18, v6.4s        \n"
 
-        "SHA256SU0 v11.4s, v8.4s         \n"
-        "ADD v7.4s, v7.4s, v25.4s        \n"
-        "MOV v18.16b, v16.16b            \n"
-        "MOV v13.16b, v9.16b             \n"
-        "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
-        "SHA256H q16, q17, v7.4s         \n"
-        "SHA256H2 q17, q18, v7.4s        \n"
+            "SHA256SU0 v11.4s, v8.4s         \n"
+            "ADD v7.4s, v7.4s, v25.4s        \n"
+            "MOV v18.16b, v16.16b            \n"
+            "MOV v13.16b, v9.16b             \n"
+            "SHA256SU1 v11.4s, v9.4s, v10.4s \n"
+            "SHA256H q16, q17, v7.4s         \n"
+            "SHA256H2 q17, q18, v7.4s        \n"
 
-        "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
-        "SHA256SU0 v12.4s, v9.4s          \n"
-        "ADD v8.4s, v8.4s, v22.4s         \n"
-        "MOV v18.16b, v16.16b             \n"
-        "MOV v14.16b, v10.16b             \n"
-        "SHA256SU1 v12.4s, v10.4s, v11.4s \n"
-        "SHA256H q16, q17, v8.4s          \n"
-        "SHA256H2 q17, q18, v8.4s         \n"
+            "LD1 {v22.4s-v25.4s}, [%[k]], #64 \n"
+            "SHA256SU0 v12.4s, v9.4s          \n"
+            "ADD v8.4s, v8.4s, v22.4s         \n"
+            "MOV v18.16b, v16.16b             \n"
+            "MOV v14.16b, v10.16b             \n"
+            "SHA256SU1 v12.4s, v10.4s, v11.4s \n"
+            "SHA256H q16, q17, v8.4s          \n"
+            "SHA256H2 q17, q18, v8.4s         \n"
 
-        "SHA256SU0 v13.4s, v10.4s         \n"
-        "ADD v9.4s, v9.4s, v23.4s         \n"
-        "MOV v18.16b, v16.16b             \n"
-        "MOV v15.16b, v11.16b             \n"
-        "SHA256SU1 v13.4s, v11.4s, v12.4s \n"
-        "SHA256H q16, q17, v9.4s          \n"
-        "SHA256H2 q17, q18, v9.4s         \n"
+            "SHA256SU0 v13.4s, v10.4s         \n"
+            "ADD v9.4s, v9.4s, v23.4s         \n"
+            "MOV v18.16b, v16.16b             \n"
+            "MOV v15.16b, v11.16b             \n"
+            "SHA256SU1 v13.4s, v11.4s, v12.4s \n"
+            "SHA256H q16, q17, v9.4s          \n"
+            "SHA256H2 q17, q18, v9.4s         \n"
 
-        "SHA256SU0 v14.4s, v11.4s         \n"
-        "ADD v10.4s, v10.4s, v24.4s       \n"
-        "MOV v18.16b, v16.16b             \n"
-        "SHA256SU1 v14.4s, v12.4s, v13.4s \n"
-        "SHA256H q16, q17, v10.4s         \n"
-        "SHA256H2 q17, q18, v10.4s        \n"
+            "SHA256SU0 v14.4s, v11.4s         \n"
+            "ADD v10.4s, v10.4s, v24.4s       \n"
+            "MOV v18.16b, v16.16b             \n"
+            "SHA256SU1 v14.4s, v12.4s, v13.4s \n"
+            "SHA256H q16, q17, v10.4s         \n"
+            "SHA256H2 q17, q18, v10.4s        \n"
 
-        "SHA256SU0 v15.4s, v12.4s         \n"
-        "ADD v11.4s, v11.4s, v25.4s       \n"
-        "MOV v18.16b, v16.16b             \n"
-        "SHA256SU1 v15.4s, v13.4s, v14.4s \n"
-        "SHA256H q16, q17, v11.4s         \n"
-        "SHA256H2 q17, q18, v11.4s        \n"
+            "SHA256SU0 v15.4s, v12.4s         \n"
+            "ADD v11.4s, v11.4s, v25.4s       \n"
+            "MOV v18.16b, v16.16b             \n"
+            "SHA256SU1 v15.4s, v13.4s, v14.4s \n"
+            "SHA256H q16, q17, v11.4s         \n"
+            "SHA256H2 q17, q18, v11.4s        \n"
 
-        "LD1 {v22.4s-v25.4s}, [%[k]] \n"
-        "ADD v12.4s, v12.4s, v22.4s    \n"
-        "MOV v18.16b, v16.16b          \n"
-        "SHA256H q16, q17, v12.4s      \n"
-        "SHA256H2 q17, q18, v12.4s     \n"
+            "LD1 {v22.4s-v25.4s}, [%[k]] \n"
+            "ADD v12.4s, v12.4s, v22.4s    \n"
+            "MOV v18.16b, v16.16b          \n"
+            "SHA256H q16, q17, v12.4s      \n"
+            "SHA256H2 q17, q18, v12.4s     \n"
 
-        "ADD v13.4s, v13.4s, v23.4s \n"
-        "MOV v18.16b, v16.16b       \n"
-        "SHA256H q16, q17, v13.4s   \n"
-        "SHA256H2 q17, q18, v13.4s  \n"
+            "ADD v13.4s, v13.4s, v23.4s \n"
+            "MOV v18.16b, v16.16b       \n"
+            "SHA256H q16, q17, v13.4s   \n"
+            "SHA256H2 q17, q18, v13.4s  \n"
 
-        "ADD v14.4s, v14.4s, v24.4s \n"
-        "MOV v18.16b, v16.16b       \n"
-        "SHA256H q16, q17, v14.4s   \n"
-        "SHA256H2 q17, q18, v14.4s  \n"
+            "ADD v14.4s, v14.4s, v24.4s \n"
+            "MOV v18.16b, v16.16b       \n"
+            "SHA256H q16, q17, v14.4s   \n"
+            "SHA256H2 q17, q18, v14.4s  \n"
 
-        "ADD v15.4s, v15.4s, v25.4s \n"
-        "MOV v18.16b, v16.16b       \n"
-        "SHA256H q16, q17, v15.4s   \n"
-        "SHA256H2 q17, q18, v15.4s  \n"
+            "ADD v15.4s, v15.4s, v25.4s \n"
+            "MOV v18.16b, v16.16b       \n"
+            "SHA256H q16, q17, v15.4s   \n"
+            "SHA256H2 q17, q18, v15.4s  \n"
 
-        "#Add working vars back into digest state \n"
-        "ADD v16.4s, v16.4s, v20.4s \n"
-        "ADD v17.4s, v17.4s, v21.4s \n"
+            "#Add working vars back into digest state \n"
+            "ADD v16.4s, v16.4s, v20.4s \n"
+            "ADD v17.4s, v17.4s, v21.4s \n"
 
-        "#Store value as hash output \n"
-    #if defined(LITTLE_ENDIAN_ORDER)
-        "REV32 v16.16b, v16.16b \n"
+            "#Store value as hash output \n"
+        #if defined(LITTLE_ENDIAN_ORDER)
+            "REV32 v16.16b, v16.16b \n"
+        #endif
+            "ST1 {v16.16b}, [%[hashOut]], #16 \n"
+        #if defined(LITTLE_ENDIAN_ORDER)
+            "REV32 v17.16b, v17.16b \n"
+        #endif
+            "ST1 {v17.16b}, [%[hashOut]] \n"
+            : [hashOut] "=r" (hash), [k] "+r" (k)
+            : [digest] "m" (sha256->digest),
+              [buffer] "m" (sha256->buffer),
+              "0" (hash)
+                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+                            "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
+                            "v15", "v16", "v17", "v18", "v19", "v20", "v21",
+                            "v22", "v23", "v24", "v25", "cc"
+        );
+    }
+    else {
+        Transform_Sha256(sha256, (const byte*)sha256->buffer);
+
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords((word32*)hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+    #else
+        XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
     #endif
-        "ST1 {v16.16b}, [%[hashOut]], #16 \n"
-    #if defined(LITTLE_ENDIAN_ORDER)
-        "REV32 v17.16b, v17.16b \n"
-    #endif
-        "ST1 {v17.16b}, [%[hashOut]] \n"
-        : [hashOut] "=r" (hash), [k] "+r" (k)
-        : [digest] "m" (sha256->digest),
-          [buffer] "m" (sha256->buffer),
-          "0" (hash)
-            : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-                              "v8",  "v9",  "v10", "v11", "v12", "v13", "v14",
-                              "v15", "v16", "v17", "v18", "v19", "v20", "v21",
-                              "v22", "v23", "v24", "v25"
-    );
+    }
 
     return 0;
 }
@@ -972,7 +1199,8 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
         word32* bufPt = sha256->buffer;
         word32* digPt = sha256->digest;
-        XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+        XMEMSET(&local[sha256->buffLen], 0,
+            WC_SHA256_BLOCK_SIZE - sha256->buffLen);
         sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
         __asm__ volatile (
         "#load leftover data\n"
@@ -1403,7 +1631,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         return ret;
     }
 
-#else /* */
+#elif !defined(__aarch64__)
 
 extern void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     word32 len);
@@ -1411,7 +1639,8 @@ extern void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #endif
 
 /* ARMv8 hardware acceleration Aarch32 and Thumb2 */
-static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data,
+    word32 len)
 {
     int ret = 0;
     /* do block size increments */
@@ -1513,25 +1742,53 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
+    int ret = 0;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    ret = InitSha256(sha256);
+    if (ret != 0)
+        return ret;
 
     sha256->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha256->devId = devId;
+    sha256->devCtx = NULL;
 #endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
+#if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (!cpuid_flags_set) {
+        cpuid_flags = cpuid_get_flags();
+        cpuid_flags_set = 1;
+    }
+#endif
+
     (void)devId;
 
-    return InitSha256(sha256);
+    return ret;
 }
 
 int wc_InitSha256(wc_Sha256* sha256)
 {
-    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
+    int devId = INVALID_DEVID;
+
+#ifdef WOLF_CRYPTO_CB
+    devId = wc_CryptoCb_DefaultDevID();
+#endif
+    return wc_InitSha256_ex(sha256, NULL, devId);
 }
 
 void wc_Sha256Free(wc_Sha256* sha256)
 {
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha256->mxcCtx));
+#endif
     (void)sha256;
 }
 
@@ -1540,6 +1797,18 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     if (sha256 == NULL || (data == NULL && len != 0)) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     return Sha256Update(sha256, data, len);
 }
@@ -1572,6 +1841,18 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     if (sha256 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     ret = Sha256Final(sha256, hash);
     if (ret != 0)
@@ -1620,6 +1901,17 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
 
     return ret;
 }
@@ -1754,6 +2046,14 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
             return BAD_FUNC_ARG;
 
         sha224->heap = heap;
+
+    #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (!cpuid_flags_set) {
+            cpuid_flags = cpuid_get_flags();
+            cpuid_flags_set = 1;
+        }
+    #endif
+
         (void)devId;
 
         return InitSha224(sha224);
@@ -1841,6 +2141,10 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
             return BAD_FUNC_ARG;
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
+
+    #ifdef WOLFSSL_HASH_FLAGS
+        dst->flags |= WC_HASH_FLAG_ISCOPY;
+    #endif
 
         return ret;
     }

@@ -1,6 +1,6 @@
 /* fe_x25519_128.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -120,30 +120,30 @@ void fe_tobytes(unsigned char *out, const fe n)
     out[ 3] = (((byte)((in[0] >> 24)       ))      );
     out[ 4] = (((byte)((in[0] >> 32)       ))      );
     out[ 5] = (((byte)((in[0] >> 40)       ))      );
-    out[ 6] = (((byte)((in[0] >> 48) & 0x07))      )
-            | (((byte)((in[1]      ) & 0x1f)) <<  3);
+    out[ 6] = (byte)((((byte)((in[0] >> 48) & 0x07))      )
+                   | (((byte)((in[1]      ) & 0x1f)) <<  3));
     out[ 7] = (((byte)((in[1] >>  5)       ))      );
     out[ 8] = (((byte)((in[1] >> 13)       ))      );
     out[ 9] = (((byte)((in[1] >> 21)       ))      );
     out[10] = (((byte)((in[1] >> 29)       ))      );
     out[11] = (((byte)((in[1] >> 37)       ))      );
-    out[12] = (((byte)((in[1] >> 45) & 0x3f))      )
-            | (((byte)((in[2]      ) & 0x03)) <<  6);
+    out[12] = (byte)((((byte)((in[1] >> 45) & 0x3f))      )
+                   | (((byte)((in[2]      ) & 0x03)) <<  6));
     out[13] = (((byte)((in[2] >>  2)       ))      );
     out[14] = (((byte)((in[2] >> 10)       ))      );
     out[15] = (((byte)((in[2] >> 18)       ))      );
     out[16] = (((byte)((in[2] >> 26)       ))      );
     out[17] = (((byte)((in[2] >> 34)       ))      );
     out[18] = (((byte)((in[2] >> 42)       ))      );
-    out[19] = (((byte)((in[2] >> 50) & 0x01))      )
-            | (((byte)((in[3]      ) & 0x7f)) <<  1);
+    out[19] = (byte)((((byte)((in[2] >> 50) & 0x01))      )
+                   | (((byte)((in[3]      ) & 0x7f)) <<  1));
     out[20] = (((byte)((in[3] >>  7)       ))      );
     out[21] = (((byte)((in[3] >> 15)       ))      );
     out[22] = (((byte)((in[3] >> 23)       ))      );
     out[23] = (((byte)((in[3] >> 31)       ))      );
     out[24] = (((byte)((in[3] >> 39)       ))      );
-    out[25] = (((byte)((in[3] >> 47) & 0x0f))      )
-            | (((byte)((in[4]      ) & 0x0f)) <<  4);
+    out[25] = (byte)((((byte)((in[3] >> 47) & 0x0f))      )
+                   | (((byte)((in[4]      ) & 0x0f)) <<  4));
     out[26] = (((byte)((in[4] >>  4)       ))      );
     out[27] = (((byte)((in[4] >> 12)       ))      );
     out[28] = (((byte)((in[4] >> 20)       ))      );
@@ -404,6 +404,7 @@ void fe_invert(fe r, const fe a)
 }
 
 #ifndef CURVE25519_SMALL
+#ifndef WOLFSSL_CURVE25519_BLINDING
 /* Scalar multiply the field element a by n using Montgomery Ladder and places
  * result in r.
  *
@@ -427,7 +428,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
 
     swap = 0;
     for (pos = 254;pos >= 0;--pos) {
-        b = n[pos / 8] >> (pos & 7);
+        b = (unsigned int)(n[pos / 8] >> (pos & 7));
         b &= 1;
         swap ^= b;
         fe_cswap(x2, x3, (int)swap);
@@ -462,6 +463,69 @@ int curve25519(byte* r, const byte* n, const byte* a)
 
     return 0;
 }
+#else
+int curve25519_blind(byte* r, const byte* n, const byte* mask, const byte* a,
+    const byte* rz)
+{
+    fe           x1, x2, z2, x3, z3;
+    fe           t0, t1;
+    int          pos;
+    unsigned int b;
+
+    fe_frombytes(x1, a);
+    fe_1(x2);
+    fe_0(z2);
+    fe_copy(x3, x1);
+    fe_frombytes(z3, rz);
+    fe_mul(x3, x3, z3);
+
+    /* mask_bits[252] */
+    b = (unsigned int)(mask[31] >> 7);
+    b &= 1;
+    fe_cswap(x2,x3,(int)b);
+    fe_cswap(z2,z3,(int)b);
+    for (pos = 255;pos >= 1;--pos) {
+        b = (unsigned int)(n[pos / 8] >> (pos & 7));
+        b &= 1;
+        fe_cswap(x2, x3, (int)b);
+        fe_cswap(z2, z3, (int)b);
+
+        /* montgomery */
+        fe_sub(t0, x3, z3);
+        fe_sub(t1, x2, z2);
+        fe_add(x2, x2, z2);
+        fe_add(z2, x3, z3);
+        fe_mul(z3, t0, x2);
+        fe_mul(z2, z2, t1);
+        fe_sq(t0, t1);
+        fe_sq(t1, x2);
+        fe_add(x3, z3, z2);
+        fe_sub(z2, z3, z2);
+        fe_mul(x2, t1, t0);
+        fe_sub(t1, t1, t0);
+        fe_sq(z2, z2);
+        fe_mul121666(z3, t1);
+        fe_sq(x3, x3);
+        fe_add(t0, t0, z3);
+        fe_mul(z3, x1, z2);
+        fe_mul(z2, t1, t0);
+
+        b = (unsigned int)(mask[(pos - 1) / 8] >> ((pos - 1) & 7));
+        b &= 1;
+        fe_cswap(x2, x3, (int)b);
+        fe_cswap(z2, z3, (int)b);
+    }
+    b = (unsigned int)(n[0] & 1);
+    fe_cswap(x2, x3, (int)b);
+    fe_cswap(z2, z3, (int)b);
+
+    fe_invert(z2, z2);
+    fe_mul(x2, x2, z2);
+    fe_tobytes(r, x2);
+
+    return 0;
+}
+#endif /* WOLFSSL_CURVE25519_BLINDING */
 #endif /* !CURVE25519_SMALL */
 
 /* The field element value 0 as an array of bytes. */

@@ -12,7 +12,7 @@ These are the core examples for wolfSSL:
 
 - [TLS Client](./wolfssl_client/README.md). See also [CLI Client](https://github.com/wolfSSL/wolfssl/tree/master/examples/client) and [more TLS examples](https://github.com/wolfSSL/wolfssl-examples/tree/master/tls).
 
-- [TLS Server](./wolfssl_server/README.md). See also [CLI Server](https://github.com/wolfSSL/wolfssl/tree/master/examples/server) 
+- [TLS Server](./wolfssl_server/README.md). See also [CLI Server](https://github.com/wolfSSL/wolfssl/tree/master/examples/server)
 
 ## Other Espressif wolfSSL Examples
 
@@ -44,7 +44,7 @@ TLS1.3 Linux Client to Linux Server: `TLS_AES_128_GCM_SHA256` (default)
 ./examples/client/client -v 4 -h 127.0.0.1 -p 11111 -A ./certs/ca-cert.pem
 ```
 
-TLS1.2 Linux Server 
+TLS1.2 Linux Server
 ```
 ./examples/server/server -v 3 -b -d -p 11111 -c ./certs/server-cert.pem -k ./certs/server-key.pem
 ```
@@ -71,14 +71,14 @@ There's an additional example that uses wolfSSL installed as a component to the 
 
 ## Installing wolfSSL for Espressif projects
 
-[Core examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples) 
-have a local `components/wolfssl` directory with a special CMakeFile.txt that does not require 
+[Core examples](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples)
+have a local `components/wolfssl` directory with a special CMakeFile.txt that does not require
 wolfSSL to be installed.
 
-If you want to install wolfSSL, see the setup for [wolfSSL](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF#setup-for-linux) 
+If you want to install wolfSSL, see the setup for [wolfSSL](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF#setup-for-linux)
 and [wolfSSH](https://github.com/wolfSSL/wolfssh/tree/master/ide/Espressif#setup-for-linux).
 
-The [Espressif Managed Component for wolfSSL](https://components.espressif.com/components/wolfssl/wolfssl)
+The [Espressif Managed Component for wolfSSL](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/)
 also installs source code locally, instead of pointing to a source repository.
 
 ## VisualGDB
@@ -114,7 +114,4 @@ It may be helpful to also delete the `sdkconfig` file. (Save a backup if you've 
 
 - esp32.com: [GPIO6,GPIO7,GPIO8,and GPIO9 changed for ESP32-WROOM-32E](https://esp32.com/viewtopic.php?t=29058)
 
-See also [this ESP-FAQ Handbook](https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf).
-
-
-
+See also the `ESP-FAQ Handbook`.

@@ -8,8 +8,8 @@ extern int sizeof_client_key_der_1024 ;
 extern const unsigned char client_cert_der_1024[] ;
 extern int sizeof_client_cert_der_1024 ;
 /* ./certs/1024/dh1024.der, 1024-bit */
-extern const unsigned char dh_key_der_1024[] ; 
-extern int sizeof_dh_key_der_1024 ; 
+extern const unsigned char dh_key_der_1024[] ;
+extern int sizeof_dh_key_der_1024 ;
 /* ./certs/1024/dsa1024.der, 1024-bit */
 extern const unsigned char dsa_key_der_1024[] ;
 extern int sizeof_dsa_key_der_1024 ;

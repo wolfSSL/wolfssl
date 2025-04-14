@@ -1,6 +1,6 @@
 /* server-tls.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,10 +39,28 @@
 #endif
 
 /* wolfSSL */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/certs_test.h>
-#include <wolfssl/ssl.h>
-
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifndef WOLFSSL_ESPIDF
+        #warning "Problem with wolfSSL user_settings."
+        #warning "Check components/wolfssl/include"
+    #endif
+    #include <wolfssl/ssl.h>
+#else
+    /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
+    /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
+    CFLAGS +=-DWOLFSSL_USER_SETTINGS"
+#endif
+#if defined(WOLFSSL_WC_MLKEM)
+    #include <wolfssl/wolfcrypt/mlkem.h>
+    #include <wolfssl/wolfcrypt/wc_mlkem.h>
+#endif
+#if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)
+    #include <wolfssl/certs_test.h>
+#endif
 #ifdef WOLFSSL_TRACK_MEMORY
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
@@ -287,14 +305,18 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
+#ifdef WOLFSSL_EXAMPLE_VERBOSITY
+    ESP_LOGI(TAG, "Initial stack used: %d\n",
+             TLS_SMP_SERVER_TASK_BYTES  - uxTaskGetStackHighWaterMark(NULL) );
+#endif
     ESP_LOGI(TAG, "accept clients...");
     /* Continue to accept clients until shutdown is issued */
     while (!shutdown) {
-        ESP_LOGI(TAG, "Stack used: %d\n", TLS_SMP_SERVER_TASK_BYTES
-                                        - uxTaskGetStackHighWaterMark(NULL) );
         WOLFSSL_MSG("Waiting for a connection...");
+#if ESP_IDF_VERSION_MAJOR >=4
+        /* TODO: IP Address is problematic in RTOS SDK 3.4 */
         wifi_show_ip();
-
+#endif
         /* Accept client socket connections */
         if ((connd = accept(sockfd, (struct sockaddr*)&clientAddr, &size))
             == -1) {
@@ -307,7 +329,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");
         }
-#if defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_MLKEM)
         else {
             /* If success creating CTX and Kyber enabled, set key share: */
             ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_P521_KYBER_LEVEL5);
@@ -319,7 +341,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
             }
         }
 #else
-        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is not enabled");
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is not enabled, not using PQ.");
 #endif
         /* show what cipher connected for this WOLFSSL* object */
         ShowCiphers(ssl);
@@ -363,6 +385,10 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */
         close(connd);           /* Close the connection to the client   */
+#ifdef WOLFSSL_EXAMPLE_VERBOSITY
+        ESP_LOGI(TAG, "Stack used: %d\n",
+                TLS_SMP_SERVER_TASK_BYTES - uxTaskGetStackHighWaterMark(NULL));
+#endif
     } /* !shutdown */
     /* Cleanup and return */
     wolfSSL_free(ssl);      /* Free the wolfSSL object                  */
@@ -398,8 +424,7 @@ WOLFSSL_ESP_TASK tls_smp_server_init(void* args)
     xTaskHandle _handle;
 #endif
     /* Note that despite vanilla FreeRTOS using WORDS for a parameter,
-     * Espressif uses BYTES for the task stack size here.
-     * See https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32/api-reference/system/freertos.html */
+     * Espressif uses BYTES for the task stack size here. */
     ESP_LOGI(TAG, "Creating tls_smp_server_task with stack size = %d",
                    TLS_SMP_SERVER_TASK_BYTES);
     ret_i = xTaskCreate(tls_smp_server_task,

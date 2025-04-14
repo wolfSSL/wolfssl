@@ -1,6 +1,6 @@
 /* blake2.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -49,10 +49,12 @@ enum {
 #ifdef HAVE_BLAKE2B
     BLAKE2B_ID  = WC_HASH_TYPE_BLAKE2B,
     BLAKE2B_256 = 32,  /* 256 bit type, SSL default */
+    WC_BLAKE2B_DIGEST_SIZE = 64,
 #endif
 #ifdef HAVE_BLAKE2S
     BLAKE2S_ID  = WC_HASH_TYPE_BLAKE2S,
-    BLAKE2S_256 = 32   /* 256 bit type */
+    BLAKE2S_256 = 32,  /* 256 bit type */
+    WC_BLAKE2S_DIGEST_SIZE = 32
 #endif
 };
 

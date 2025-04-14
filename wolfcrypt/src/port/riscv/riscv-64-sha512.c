@@ -1,6 +1,6 @@
 /* riscv-sha512.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_RISCV_ASM
 #if !defined(NO_SHA512) || defined(WOLFSSL_SHA384)
@@ -47,8 +42,6 @@
         return 0;
     }
 #endif
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
@@ -129,7 +122,7 @@ static int InitSha512(wc_Sha512* sha512, void* heap, int devId)
     return ret;
 }
 
-/* Initialze SHA-512 object for hashing.
+/* Initialize SHA-512 object for hashing.
  *
  * @param [in, out] sha512  SHA-512 object.
  */
@@ -1216,7 +1209,7 @@ int wc_Sha512Transform(wc_Sha512* sha512, const unsigned char* data)
         ret = BAD_FUNC_ARG;
     }
     else {
-        ByteReverseWords(sha512->buffer, (word32*)data, WC_SHA512_BLOCK_SIZE);
+        ByteReverseWords((word32*)sha512->buffer, (word32*)data, WC_SHA512_BLOCK_SIZE);
         Sha512Transform(sha512, (byte*)sha512->buffer, 1);
     }
 
@@ -1493,7 +1486,7 @@ int wc_Sha512_256Transform(wc_Sha512* sha512, const unsigned char* data)
 
 #ifdef WOLFSSL_SHA384
 
-/* Initialze SHA-384 object for hashing.
+/* Initialize SHA-384 object for hashing.
  *
  * @param [in, out] sha384  SHA-384 object.
  */

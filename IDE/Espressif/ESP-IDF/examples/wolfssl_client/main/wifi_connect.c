@@ -1,6 +1,6 @@
 /* wifi_connect.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,12 +31,22 @@
 #include <esp_wifi.h>
 
 /* wolfSSL */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
-#include <wolfssl/wolfcrypt/types.h>
-#ifndef WOLFSSL_ESPIDF
-    #warning "Problem with wolfSSL user_settings."
-    #warning "Check components/wolfssl/include"
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifndef WOLFSSL_ESPIDF
+        #warning "Problem with wolfSSL user_settings."
+        #warning "Check components/wolfssl/include"
+    #endif
+    /* This project not yet using the library */
+    #undef USE_WOLFSSL_ESP_SDK_WIFI
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#else
+    /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
+    /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
+    CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
 
 /* When there's too little heap, WiFi quietly refuses to connect */
@@ -137,7 +147,7 @@ int wifi_init_sta(void)
     };
 
     /* Setting a password implies station will connect to all security modes including WEP/WPA.
-        * However these modes are deprecated and not advisable to be used. Incase your Access point
+        * However these modes are deprecated and not advisable to be used. In case your Access point
         * doesn't support WPA2, these mode can be enabled by commenting below line */
 
     if (strlen((char *)wifi_config.sta.password)) {
@@ -198,7 +208,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         ESP_LOGI(TAG, "got ip:%s",
                  ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
     #endif
-        /* see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html */
+        /* see Espressif api-reference/system/freertos_idf */
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
@@ -315,7 +325,7 @@ int wifi_init_sta(void)
             .ssid = EXAMPLE_ESP_WIFI_SSID,
             .password = EXAMPLE_ESP_WIFI_PASS,
             /* Authmode threshold resets to WPA2 as default if password matches
-             * WPA2 standards (pasword len => 8). If you want to connect the
+             * WPA2 standards (password len => 8). If you want to connect the
              * device to deprecated WEP/WPA networks, Please set the threshold
              * value WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with
              * length and format matching to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK

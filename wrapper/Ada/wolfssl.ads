@@ -20,7 +20,7 @@
 --
 
 with GNAT.Sockets;
-with Interfaces.C;
+with Interfaces.C.Strings;
 
 --  This package is annotated "with SPARK_Mode" that SPARK can verify
 --  the API of this package is used correctly.
@@ -39,7 +39,10 @@ package WolfSSL with SPARK_Mode is
    --  Doesn't have to be called, though it will free any resources
    --  used by the library.
 
+   subtype unsigned is Interfaces.C.unsigned;
+
    subtype char_array is Interfaces.C.char_array;  --  Remove?
+   subtype chars_ptr is Interfaces.C.Strings.chars_ptr;
 
    subtype Byte_Type  is Interfaces.C.char;
    subtype Byte_Index is Interfaces.C.size_t range 0 .. 16_000;
@@ -100,7 +103,7 @@ package WolfSSL with SPARK_Mode is
 
    type Mode_Type is private;
 
-   function "&" (Left, Right : Mode_Type) return Mode_Type;
+   function "or" (Left, Right : Mode_Type) return Mode_Type;
 
    Verify_None : constant Mode_Type;
    --  Client mode: the client will not verify the certificate received
@@ -142,6 +145,8 @@ package WolfSSL with SPARK_Mode is
                          Mode    : Mode_Type) with
       Pre => Is_Valid (Context);
    --  This function sets the verification method for remote peers
+
+   function Get_Verify (Context : Context_Type) return Mode_Type;
 
    type File_Format is private;
 
@@ -295,6 +300,64 @@ package WolfSSL with SPARK_Mode is
    --  This function wraps the corresponding WolfSSL C function to allow
    --  clients to use Ada socket types when implementing a DTLS client.
 
+   type PSK_Client_Callback is access function
+     (Ssl            : WolfSSL_Type;
+      Hint           : chars_ptr;
+      Identity       : chars_ptr;
+      Id_Max_Length  : unsigned;
+      Key            : chars_ptr;
+      Key_Max_Length : unsigned)
+      return unsigned with
+     Convention => C;
+     --  Return value is the key length on success or zero on error.
+     --  parameters:
+     --  Ssl - Pointer to the wolfSSL structure
+     --  Hint - A stored string that could be displayed to provide a
+     --         hint to the user.
+     --  Identity - The ID will be stored here.
+     --  Id_Max_Length - Size of the ID buffer.
+     --  Key - The key will be stored here.
+     --  Key_Max_Length - The max size of the key.
+     --
+     --  The implementation of this callback will need `SPARK_Mode => Off`
+     --  since it will require the code to use the C memory model.
+
+   procedure Set_PSK_Client_Callback
+     (Ssl      : WolfSSL_Type;
+      Callback : PSK_Client_Callback) with
+     Pre => Is_Valid (Ssl);
+     -- Sets the PSK client side callback.
+
+   
+   type PSK_Server_Callback is access function
+     (Ssl            : WolfSSL_Type;
+      Identity       : chars_ptr;
+      Key            : chars_ptr;
+      Key_Max_Length : unsigned)
+      return unsigned with
+     Convention => C;
+     --  Return value is the key length on success or zero on error.
+     --  PSK server callback parameters:
+     --  Ssl - Reference to the wolfSSL structure
+     --  Identity - The ID will be stored here. 
+     --  Key - The key will be stored here.
+     --  Key_Max_Length - The max size of the key.
+     --
+     --  The implementation of this callback will need `SPARK_Mode => Off`
+     --  since it will require the code to use the C memory model.
+
+   procedure Set_PSK_Server_Callback
+     (Ssl      : WolfSSL_Type;
+      Callback : PSK_Server_Callback) with
+     Pre => Is_Valid (Ssl);
+     -- Sets the PSK Server side callback.
+   
+   procedure Set_Context_PSK_Server_Callback
+     (Context  : Context_Type;
+      Callback : PSK_Server_Callback) with
+     Pre => Is_Valid (Context);
+     --  Sets the PSK callback for the server side in the WolfSSL Context. 
+   
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
                     return Subprogram_Result with

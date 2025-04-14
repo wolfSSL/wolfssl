@@ -1,6 +1,6 @@
 /* rc2.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,17 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /*
 
 DESCRIPTION
 This library provides the interface to the RC2 encryption algorithm (RFC 2268)
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WC_RC2
 
@@ -41,7 +38,6 @@ This library provides the interface to the RC2 encryption algorithm (RFC 2268)
 #endif
 
 #include <wolfssl/wolfcrypt/rc2.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Table based on value of PI, defined in RFC 2268 */
 static const byte pitable[256] = {

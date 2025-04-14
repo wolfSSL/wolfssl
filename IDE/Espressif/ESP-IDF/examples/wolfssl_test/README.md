@@ -7,10 +7,10 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## ESP Registry
 
-The easiest way to get started with wolfSSL is by using the 
-[ESP Registry](https://components.espressif.com/components/wolfssl/wolfssl/) examples.
+The easiest way to get started with wolfSSL is by using the
+[ESP Registry](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/) examples.
 
-```
+```bash
 . ~/esp/esp-idf/export.sh
 idf.py create-project-from-example "wolfssl/wolfssl^5.6.0-stable:wolfssl_test"
 cd wolfssl_benchmark
@@ -22,13 +22,13 @@ idf.py -b 115200 flash monitor
 Open the VisualGDB Visual Studio Project file in the [VisualGDB directory](./VisualGDB/README.md) and click the "Start" button.
 No wolfSSL setup is needed. You may need to adjust your specific COM port. The default is `COM20`.
 
-## ESP-IDF Commandline
+## ESP-IDF Commandline (version 4.4 or greater for the ESP32)
 
-1. `idf.py menuconfig` to configure the program.  
+1. `idf.py menuconfig` to configure the program.
     1-1. Example Configuration ->
 
-    TEST_ARG : argument that you want to use. Default is "-lng 0"  
-    The list of argument can be find in help.
+    There are no parametric arguments. See [wolfcrypt/test](https://github.com/wolfSSL/wolfssl/tree/master/wolfcrypt/test).
+    All features enabled in the `user_settings.h` will be tested.
 
 When you want to run the test program
 
@@ -41,17 +41,18 @@ Reminder than when building on WSL in `/mnt/c` there will be a noticeable perfor
 
 Example build on WSL, assuming `git clone` from `c:\workspace`:
 
-```
-WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.1
+```bash
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.2
+# WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/master
 
 echo "Run export.sh from ${WRK_IDF_PATH}"
 . ${WRK_IDF_PATH}/export.sh
 
 # switch to test example
-cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_test
+cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_test
 
-# Pick ESP-IDF install directory, this one for v5.1 in VisualGDB
-. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+# Pick ESP-IDF install directory, this one for v5.2 in VisualGDB
+. /mnt/c/SysGCC/esp32/esp-idf/v5.2/export.sh
 
 # set target chipset
 idf.py set-target esp32s3
@@ -60,21 +61,73 @@ idf.py set-target esp32s3
 idf.py erase-flash -p /dev/ttyS24 -b 115200
 
 # start with a low upload speed, then increase as found operational
-idf.py 
+idf.py
 # build and flash, in this example to COM24
 idf.py build flash -p /dev/ttyS24 -b 115200 monitor
 ```
 
+## ESP-IDF Commandline (version 3.5 or earlier for the ESP8266)
+
+
+```bash
+WRK_IDF_PATH=/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4
+. $WRK_IDF_PATH/export.sh
+
+# install as needed / prompted
+/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4/install.sh
+
+cd IDE/Espressif/ESP-IDF/examples/ESP8266
+
+# adjust settings as desired
+idf.py menuconfig
+
+idf.py build flash -p /dev/ttyS55 -b 115200
+```
+
+## Espressif ESP8266 RTOS SDK Make Commandline
+
+```bash
+# Find the ESP8266 SDK directory, shown here for WSL (Windows C:\ESP8266\esp\ESP8266_RTOS_SDK)
+cd /mnt/c/ESP8266/esp/ESP8266_RTOS_SDK
+
+# Optionally run install as needed
+./install.sh
+
+# Setup SDK
+. ./export.sh
+
+# Find example to build
+cd /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test
+
+make clean
+
+make
+
+make flash
+
+# or:
+python /mnt/c/ESP8266/esp/ESP8266_RTOS_SDK/components/esptool_py/esptool/esptool.py --chip esp8266 --port /dev/ttyUSB0 --baud 115200 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 40m --flash_size 2MB 0x0 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/bootloader/bootloader.bin 0x10000 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/wolfssl_test.bin 0x8000 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/partitions_singleapp.bin
+```
+
+## Putty (via WSL)
+
+Define a non-blank value for `ESPIDF_PUTTY_MONITOR` to launch `testMonitor.sh` output in putty.exe sessions from Windows.
+Assumes `PUTTY_EXE="/mnt/c/tools/putty.exe"`.
+
+```bash
+export ESPIDF_PUTTY_MONITOR=true
+```
+
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:
 
-```
+```text
 ets Jun  8 2016 00:22:57
 
 rst:0x3 (SW_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)

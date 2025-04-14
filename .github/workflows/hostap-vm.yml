@@ -13,7 +13,7 @@ concurrency:
 # END OF COMMON SECTION
 
 env:
-  LINUX_REF: v6.6
+  LINUX_REF: v6.12
 
 jobs:
   build_wolfssl:
@@ -24,10 +24,11 @@ jobs:
             wolf_extra_config: --disable-tls13
           - build_id: hostap-vm-build2
             wolf_extra_config: >-
-              --enable-wpas-dpp --enable-brainpool --with-eccminsz=192 
+              --enable-wpas-dpp --enable-brainpool --with-eccminsz=192
               --enable-tlsv10 --enable-oldtls
     name: Build wolfSSL
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:
@@ -62,33 +63,55 @@ jobs:
           path: build-dir.tgz
           retention-days: 5
 
-  build_uml_linux:
-    name: Build UML (UserMode Linux)
-    runs-on: ubuntu-latest
+  checkout_hostap:
+    name: Checkout hostap repo
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
+    steps:
+      - name: Checking if we have hostap in cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: hostap
+          key: hostap-repo
+          lookup-only: true
+
+      - name: Checkout hostap
+        run: git clone git://w1.fi/hostap.git hostap
+
+  build_uml_linux:
+    name: Build UML (UserMode Linux)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    needs: checkout_hostap
     steps:
       - name: Checking if we have kernel in cache
         uses: actions/cache@v4
         id: cache
         with:
           path: linux/linux
-          key: ${{ env.LINUX_REF }}
+          key: hostap-linux-${{ env.LINUX_REF }}
           lookup-only: true
 
-      - name: Checkout hostap
+      - name: Checking if we have hostap in cache
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/cache/restore@v4
         with:
-          repository: julek-wolfssl/hostap-mirror
           path: hostap
+          key: hostap-repo
+          fail-on-cache-miss: true
 
       - name: Checkout linux
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
-          repository: torvalds/linux 
+          repository: torvalds/linux
           path: linux
+          ref: ${{ env.LINUX_REF }}
 
       - name: Compile linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -139,18 +162,18 @@ jobs:
               build_id: hostap-vm-build2
             }
     name: hwsim test
-    # For openssl 1.1
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 45
-    needs: [build_wolfssl, build_uml_linux]
+    needs: [build_wolfssl, build_uml_linux, checkout_hostap]
     steps:
       - name: Checking if we have kernel in cache
         uses: actions/cache/restore@v4
         id: cache
         with:
           path: linux/linux
-          key: ${{ env.LINUX_REF }}
+          key: hostap-linux-${{ env.LINUX_REF }}
           fail-on-cache-miss: true
 
       - name: show file structure
@@ -193,15 +216,19 @@ jobs:
           # hostap dependencies
           sudo apt-get install -y libpcap0.8 libpcap-dev curl libcurl4-openssl-dev \
             libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev \
-            libnl-route-3-dev libdbus-1-dev bridge-utils tshark
-          sudo pip3 install pycryptodome
+            libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
+          sudo pip install pycryptodome
 
-      - name: Checkout hostap
-        uses: actions/checkout@v4
+      - name: Checking if we have hostap in cache
+        uses: actions/cache/restore@v4
         with:
-          repository: julek-wolfssl/hostap-mirror 
           path: hostap
-          ref: ${{ matrix.config.hostap_ref }}
+          key: hostap-repo
+          fail-on-cache-miss: true
+
+      - name: Checkout correct ref
+        working-directory: hostap
+        run: git checkout ${{ matrix.config.hostap_ref }}
 
       - name: Update certs
         working-directory: hostap/tests/hwsim/auth_serv
@@ -233,7 +260,7 @@ jobs:
           fi
 
       - if: ${{ matrix.hostapd }}
-        name: Setup hostapd config file 
+        name: Setup hostapd config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/hostapd.config \
              hostap/hostapd/.config
@@ -243,7 +270,7 @@ jobs:
           EOF
 
       - if: ${{ matrix.wpa_supplicant }}
-        name: Setup wpa_supplicant config file 
+        name: Setup wpa_supplicant config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/wpa_supplicant.config \
              hostap/wpa_supplicant/.config
@@ -286,6 +313,7 @@ jobs:
             KERNELDIR=$GITHUB_WORKSPACE/linux
             KVMARGS="-cpu host"
           EOF
+          git config --global --add safe.directory $GITHUB_WORKSPACE/hostap
           # Run tests in increments of 200 to not stall out the parallel-vm script
           while mapfile -t -n 200 ary && ((${#ary[@]})); do
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')

@@ -1,6 +1,6 @@
 /* hpke.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,7 @@ enum {
     DHKEM_P384_HKDF_SHA384 = 0x0011,
     DHKEM_P521_HKDF_SHA512 = 0x0012,
     DHKEM_X25519_HKDF_SHA256 = 0x0020,
-    DHKEM_X448_HKDF_SHA512 = 0x0021,
+    DHKEM_X448_HKDF_SHA512 = 0x0021
 };
 
 #define DHKEM_P256_ENC_LEN 65
@@ -55,13 +55,13 @@ enum {
 enum {
     HKDF_SHA256 = 0x0001,
     HKDF_SHA384 = 0x0002,
-    HKDF_SHA512 = 0x0003,
+    HKDF_SHA512 = 0x0003
 };
 
 /* AEAD enum */
 enum {
     HPKE_AES_128_GCM = 0x0001,
-    HPKE_AES_256_GCM = 0x0002,
+    HPKE_AES_256_GCM = 0x0002
 };
 
 /* TODO better way of doing this */
@@ -120,9 +120,18 @@ WOLFSSL_API int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key,
     const byte* in, word16 inSz);
 WOLFSSL_API void wc_HpkeFreeKey(Hpke* hpke, word16 kem, void* keypair,
     void* heap);
+WOLFSSL_API int wc_HpkeInitSealContext(Hpke* hpke, HpkeBaseContext* context,
+    void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz);
+WOLFSSL_API int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
+    byte* aad, word32 aadSz, byte* plaintext, word32 ptSz, byte* out);
 WOLFSSL_API int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey,
     void* receiverKey, byte* info, word32 infoSz, byte* aad, word32 aadSz,
     byte* plaintext, word32 ptSz, byte* ciphertext);
+WOLFSSL_API int wc_HpkeInitOpenContext(Hpke* hpke, HpkeBaseContext* context,
+    void* receiverKey, const byte* pubKey, word16 pubKeySz, byte* info,
+    word32 infoSz);
+WOLFSSL_API int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context,
+    byte* aad, word32 aadSz, byte* ciphertext, word32 ctSz, byte* out);
 WOLFSSL_API int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey,
     const byte* pubKey, word16 pubKeySz, byte* info, word32 infoSz, byte* aad,
     word32 aadSz, byte* ciphertext, word32 ctSz, byte* plaintext);

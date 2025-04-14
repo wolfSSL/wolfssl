@@ -1,6 +1,6 @@
 /* ed25519.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,12 +28,7 @@
  *     Check that the private key didn't change during the signing operations.
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-/* in case user set HAVE_ED25519 there */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_ED25519
 #if FIPS_VERSION3_GE(6,0,0)
@@ -48,7 +43,6 @@
 
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/ge_operations.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -628,6 +622,35 @@ int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
 
 #ifdef HAVE_ED25519_VERIFY
 #ifndef WOLFSSL_SE050
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+static const byte sha512_empty[] = {
+    0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
+    0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
+    0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
+    0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
+    0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
+    0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
+    0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+    0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
+};
+
+/* sanity check that hash operation happened
+ * returns 0 on success */
+static int ed25519_hash_check(ed25519_key* key, byte* h)
+{
+    (void)key; /* passing in key in case other hash algroithms are used */
+
+    if (XMEMCMP(h, sha512_empty, WC_SHA512_DIGEST_SIZE) != 0) {
+        return 0;
+    }
+    else {
+        return BAD_STATE_E;
+    }
+}
+#endif
+
+
 /*
    sig        is array of bytes containing the signature
    sigLen     is the length of sig byte array
@@ -675,6 +698,22 @@ static int ed25519_verify_msg_init_with_sha(const byte* sig, word32 sigLen,
     }
     if (ret == 0)
         ret = ed25519_hash_update(key, sha, sig, ED25519_SIG_SIZE/2);
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    /* sanity check that hash operation happened */
+    if (ret == 0) {
+        byte h[WC_MAX_DIGEST_SIZE];
+
+        ret = wc_Sha512GetHash(sha, h);
+        if (ret == 0) {
+            ret = ed25519_hash_check(key, h);
+            if (ret != 0) {
+                WOLFSSL_MSG("Unexpected initial state of hash found");
+            }
+        }
+    }
+#endif
+
     if (ret == 0)
         ret = ed25519_hash_update(key, sha, key->p, ED25519_PUB_KEY_SIZE);
 
@@ -791,7 +830,16 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2);
     if (ret != 0) {
         ret = SIG_VERIFY_E;
-    } else {
+    }
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    /* redundant comparison as sanity check that first one happened */
+    if (ret == 0 && ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2) != 0) {
+        ret = SIG_VERIFY_E;
+    }
+#endif
+
+    if (ret == 0) {
         /* set the verification status */
         *res = 1;
     }
@@ -968,6 +1016,39 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 }
 #endif /* HAVE_ED25519_VERIFY */
 
+#ifndef WC_NO_CONSTRUCTORS
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
+{
+    int ret;
+    ed25519_key* key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
+                        DYNAMIC_TYPE_ED25519);
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_ed25519_init_ex(key, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_ED25519);
+            key = NULL;
+        }
+    }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
+    return key;
+}
+
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p) {
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    wc_ed25519_free(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_ED25519);
+    if (key_p != NULL)
+        *key_p = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 /* initialize information and memory for key */
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
@@ -1016,6 +1097,9 @@ void wc_ed25519_free(ed25519_key* key)
 #endif
 
 #ifdef WOLFSSL_SE050
+#ifdef WOLFSSL_SE050_AUTO_ERASE
+    wc_se050_erase_object(key->keyId);
+#endif
     se050_ed25519_free_key(key);
 #endif
 

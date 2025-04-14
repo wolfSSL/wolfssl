@@ -1624,7 +1624,7 @@
         </option>
         <option>
           <name>IlinkOutputFile</name>
-          <state>###Unitialized###</state>
+          <state>###Uninitialized###</state>
         </option>
         <option>
           <name>IlinkDebugInfoEnable</name>
@@ -1914,7 +1914,7 @@
         </option>
         <option>
           <name>IarchiveOutput</name>
-          <state>###Unitialized###</state>
+          <state>###Uninitialized###</state>
         </option>
       </data>
     </settings>

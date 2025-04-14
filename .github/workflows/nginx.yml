@@ -15,8 +15,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -96,7 +97,7 @@ jobs:
               stream_ssl_preread.t stream_ssl_realip.t stream_ssl_session_reuse.t stream_ssl.t
               stream_ssl_variables.t stream_ssl_verify_client.t stream_upstream_zone_ssl.t
               upstream_zone_ssl.t uwsgi_ssl_certificate.t uwsgi_ssl_certificate_vars.t
-              uwsgi_ssl.t uwsgi_ssl_verify.t 
+              uwsgi_ssl.t uwsgi_ssl_verify.t
             # Following tests do not pass with sanitizer on (with OpenSSL too)
             sanitize-not-ok: >-
               grpc_ssl.t h2_proxy_request_buffering_ssl.t h2_proxy_ssl.t
@@ -105,7 +106,8 @@ jobs:
               stream_proxy_protocol_ssl.t stream_proxy_ssl_conf_command.t stream_proxy_ssl.t
               stream_proxy_ssl_verify.t
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     needs: build_wolfssl
@@ -221,4 +223,4 @@ jobs:
           LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib \
             TMPDIR=$GITHUB_WORKSPACE TEST_NGINX_BINARY=../nginx/objs/nginx \
             prove ${{ matrix.sanitize-ok }}
- 
+

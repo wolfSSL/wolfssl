@@ -1,6 +1,6 @@
 /* wc_encrypt.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,23 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -455,10 +449,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #if defined(WOLFSSL_AES_256)
         case PBE_AES256_CBC:
             switch(shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 32;
                     break;
+            #endif
             #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;
@@ -471,10 +467,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #if defined(WOLFSSL_AES_128)
         case PBE_AES128_CBC:
             switch(shaOid) {
+            #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     typeH = WC_SHA256;
                     derivedLen = 16;
                     break;
+            #endif
             #ifndef NO_SHA
                 default:
                     typeH = WC_SHA;

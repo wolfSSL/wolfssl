@@ -24,7 +24,7 @@ Requires the Microchip CryptoAuthLib library. The examples in `wolfcrypt/src/por
 * `WOLFSSL_ATECC_TFLXTLS`: Enable support for Microchip TrustFLEX with custom PKI module configuration
 * `WOLFSSL_ATECC_DEBUG`: Enable wolfSSL ATECC debug messages.
 * `WOLFSSL_ATMEL`: Enables ASF hooks seeding random data using the `atmel_get_random_number` function.
-* `WOLFSSL_ATMEL_TIME`: Enables the built-in `atmel_get_curr_time_and_date` function get getting time from ASF RTC. 
+* `WOLFSSL_ATMEL_TIME`: Enables the built-in `atmel_get_curr_time_and_date` function get getting time from ASF RTC.
 * `ATECC_GET_ENC_KEY`: Macro to define your own function for getting the encryption key.
 * `ATECC_SLOT_I2C_ENC`: Macro for the default encryption key slot. Can also get via the slot callback with `ATMEL_SLOT_ENCKEY`.
 * `ATECC_MAX_SLOT`: Macro for the maximum dynamically allocated slots.
@@ -35,7 +35,7 @@ Requires the Microchip CryptoAuthLib library. The examples in `wolfcrypt/src/por
 `#define HAVE_PK_CALLBACKS`
 `#define WOLFSSL_ATECC_PKCB`
 
-or 
+or
 
 `./configure CFLAGS="-DWOLFSSL_ATECC608A"`
 `#define WOLFSSL_ATECC608A`

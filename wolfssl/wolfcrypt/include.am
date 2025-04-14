@@ -4,6 +4,7 @@
 nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/aes.h \
                          wolfssl/wolfcrypt/arc4.h \
+                         wolfssl/wolfcrypt/ascon.h \
                          wolfssl/wolfcrypt/asn.h \
                          wolfssl/wolfcrypt/asn_public.h \
                          wolfssl/wolfcrypt/poly1305.h \
@@ -73,9 +74,9 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/siphash.h \
                          wolfssl/wolfcrypt/cpuid.h \
                          wolfssl/wolfcrypt/cryptocb.h \
-                         wolfssl/wolfcrypt/kyber.h \
-                         wolfssl/wolfcrypt/wc_kyber.h \
-                         wolfssl/wolfcrypt/ext_kyber.h \
+                         wolfssl/wolfcrypt/mlkem.h \
+                         wolfssl/wolfcrypt/wc_mlkem.h \
+                         wolfssl/wolfcrypt/ext_mlkem.h \
                          wolfssl/wolfcrypt/sm2.h \
                          wolfssl/wolfcrypt/sm3.h \
                          wolfssl/wolfcrypt/sm4.h \
@@ -107,8 +108,9 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/silabs/silabs_random.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
-                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
+                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
+                         wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
                          wolfssl/wolfcrypt/port/arm/cryptoCell.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h \
@@ -116,7 +118,13 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/Renesas/renesas_sync.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h \
-                         wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h
+                         wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h \
+                         wolfssl/wolfcrypt/port/maxim/max3266x.h \
+                         wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h \
+                         wolfssl/wolfcrypt/port/rpi_pico/pico.h \
+                         wolfssl/wolfcrypt/libwolfssl_sources.h \
+                         wolfssl/wolfcrypt/libwolfssl_sources_asm.h
+
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h

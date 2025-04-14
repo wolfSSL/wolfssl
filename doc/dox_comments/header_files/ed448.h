@@ -133,7 +133,6 @@ int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
     \brief This function signs a message digest using an ed448_key object
     to guarantee authenticity. The context is included as part of the data
     signed. The hash is the pre-hashed message before signature calculation.
-    The hash algorithm used to create message digest must be SHAKE-256.
 
     \return 0 Returned upon successfully generating a signature for the
     message digest.
@@ -162,7 +161,7 @@ int wc_ed448_sign_msg(const byte* in, word32 inlen, byte* out,
 
     byte sig[114]; // will hold generated signature
     sigSz = sizeof(sig);
-    byte hash[] = { initialize with SHAKE-256 hash of message };
+    byte hash[] = { initialize hash of message };
     byte context[] = { initialize with context of signing };
 
     wc_InitRng(&rng); // initialize rng
@@ -297,7 +296,6 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     \brief This function verifies the Ed448 signature of the digest of a message
     to ensure authenticity. The context is included as part of the data
     verified. The hash is the pre-hashed message before signature calculation.
-    The hash algorithm used to create message digest must be SHAKE-256.
     The answer is returned through res, with 1 corresponding to a valid
     signature, and 0 corresponding to an invalid signature.
 
@@ -325,7 +323,7 @@ int wc_ed448_verify_msg(const byte* sig, word32 siglen, const byte* msg,
     int ret, verified = 0;
 
     byte sig[] { initialize with received signature };
-    byte hash[] = { initialize with SHAKE-256 hash of message };
+    byte hash[] = { initialize hash of message };
     byte context[] = { initialize with context of signature };
     // initialize key with received public key
     ret = wc_ed448ph_verify_hash(sig, sizeof(sig), hash, sizeof(hash),

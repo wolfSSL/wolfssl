@@ -15,8 +15,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -26,7 +27,7 @@ jobs:
           path: wolfssl
           configure: >-
             --enable-openssh --enable-dsa --with-max-rsa-bits=8192
-            --enable-intelasm --enable-sp-asm
+            --enable-intelasm --enable-sp-asm CFLAGS="-DRSA_MIN_SIZE=1024"
           install: true
 
       - name: tar build-dir
@@ -47,7 +48,8 @@ jobs:
           - git_ref: 'V_9_6_P1'
             osp_ver: '9.6'
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     needs: build_wolfssl
     steps:
       - name: Download lib
@@ -74,7 +76,7 @@ jobs:
           configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-rpath=-Wl,-rpath=
           check: false
 
-      # make tests take >20 minutes. Consider limiting? 
+      # make tests take >20 minutes. Consider limiting?
       - name: Run tests
         working-directory: ./openssh
         run: |

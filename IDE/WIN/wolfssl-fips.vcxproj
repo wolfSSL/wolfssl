@@ -298,6 +298,7 @@
     <ClCompile Include="..\..\src\crl.c" />
     <ClCompile Include="..\..\wolfcrypt\src\des3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
     <ClCompile Include="..\..\wolfcrypt\src\error.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hash.c" />

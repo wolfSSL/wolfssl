@@ -7,8 +7,9 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## Espressif ESP Component Registry
 
-See the wolfSSL namespace at [components.espressif.com](https://components.espressif.com/components?q=wolfssl)
+See the wolfSSL namespace and additional details:
 
+https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/
 
 ## Windows COM Port
 
@@ -38,9 +39,7 @@ using the VisualGDB extension.
 
 The naming convention for project files is: `[project name]_IDF_[Version]_[chipset].vgdbproj`. The solution files (filename[.sln]) often will contain shortcuts to commonly used source and configuration files used by the respective project.
 
-
--------- |------------- |------------- |
-ChipSet  | ESP-IDF v4.4 | ESP-IDF v5.1 |
+ChipSet  | ESP-IDF v4.4 | ESP-IDF v5.2 |
 -------- |------------- |------------- |
 ESP32    |      x       |              |
 ESP32-S2 |              |              |
@@ -62,11 +61,12 @@ See the [feature request](https://sysprogs.com/w/forums/topic/feature-request-sh
 
 ## ESP-IDF Commandline
 
-1. `idf.py menuconfig` to configure the program.  
+1. `idf.py menuconfig` to configure the program.
     1-1. Example Configuration ->
 
-    BENCH_ARG : argument that you want to use. Default is "-lng 0"  
-    The list of argument can be find in help.
+    BENCH_ARG : argument that you want to use. Default is "-lng 0"
+    The list of arguments can be found in help. See [benchmark/README.md](https://github.com/wolfSSL/wolfssl/blob/master/wolfcrypt/benchmark/README.md)
+    Features to be benchmarked are enabled in the `user_settings.h`.
 
 When you want to run the benchmark program
 
@@ -89,13 +89,33 @@ git fetch
 git pull
 git submodule update --init --recursive
 
-cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
+# pick your workspace location
+# cd ~/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
+# cd /mnt/c/workspace/wolfssl/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
+# cd /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
+cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_benchmark
 
-# Pick ESP-IDF install directory, this one for v5.1 in VisualGDB
+# The ESP8266 uses a completely different toolchain:
+WRK_IDF_PATH=/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4
 
-WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.1
-WRK_IDF_PATH=/mnt/c/SysGCC/esp32-8.4/esp-idf/v4.4.1
+# Pick ESP-IDF toolchain install directory
 WRK_IDF_PATH=~/esp/esp-idf
+
+# ESP-IDF v4.x uses toolchain v8.4
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-8.4/esp-idf/v4.4.1
+
+# ESP-IDF v5.0 with toolchain v12.4
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.0
+
+# ESP-IDF v5.0 to v5.2.1 uses toolchain v12.4
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.0
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.1
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.2.1
+
+# The most recent version:
+# ESP-IDF v5.2 uses toolchain v13.2
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.2
+
 
 . $WRK_IDF_PATH/export.sh
 
@@ -110,9 +130,9 @@ idf.py build flash -p /dev/ttyS20 -b 115200 monitor
 
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:

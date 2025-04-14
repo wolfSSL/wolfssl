@@ -1,6 +1,6 @@
 /* wolfmath.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,15 +26,9 @@
  * NO_BIG_INT: Disable support for all multi-precision math libraries
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-/* in case user set USE_FAST_MATH there */
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -149,10 +143,10 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
         for (; i < b->used; i++) {
             b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
-        b->used ^= (a->used ^ b->used) & (unsigned int)mask;
+        b->used ^= (a->used ^ b->used) & (wc_mp_size_t)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
     defined(WOLFSSL_SP_INT_NEGATIVE)
-        b->sign ^= (a->sign ^ b->sign) & (unsigned int)mask;
+        b->sign ^= (wc_mp_sign_t)(a->sign ^ b->sign) & (wc_mp_sign_t)mask;
 #endif
     }
 
@@ -167,8 +161,6 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
 
-#if defined(WC_RSA_BLINDING) || defined(WOLFCRYPT_HAVE_SAKKE) || \
-    defined(WOLFSSL_ECC_BLIND_K)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
@@ -196,7 +188,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
     if (ret == MP_OKAY) {
-        a->used = (word32)digits;
+        a->used = (wc_mp_size_t)digits;
     }
 #endif
     /* fill the data with random bytes */
@@ -222,7 +214,6 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 
     return ret;
 }
-#endif /* WC_RSA_BLINDING || WOLFCRYPT_HAVE_SAKKE || WOLFSSL_ECC_BLIND_K */
 #endif /* !WC_NO_RNG */
 
 #if defined(HAVE_ECC) || defined(WOLFSSL_EXPORT_INT)
@@ -474,14 +465,16 @@ const char *wc_GetMathInfo(void)
         #elif defined(WOLFSSL_HAVE_SP_DH)
             " dh"
         #endif
-        #ifndef WOLFSSL_SP_NO_2048
-            " 2048"
-        #endif
-        #ifndef WOLFSSL_SP_NO_3072
-            " 3072"
-        #endif
-        #ifdef WOLFSSL_SP_4096
-            " 4096"
+        #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+            #ifndef WOLFSSL_SP_NO_2048
+                " 2048"
+            #endif
+            #ifndef WOLFSSL_SP_NO_3072
+                " 3072"
+            #endif
+            #ifdef WOLFSSL_SP_4096
+                " 4096"
+            #endif
         #endif
         #ifdef WOLFSSL_SP_ASM
             " asm"

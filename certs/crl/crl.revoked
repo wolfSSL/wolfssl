@@ -2,43 +2,44 @@ Certificate Revocation List (CRL):
         Version 2 (0x1)
         Signature Algorithm: sha256WithRSAEncryption
         Issuer: C = US, ST = Montana, L = Bozeman, O = Sawtooth, OU = Consulting, CN = www.wolfssl.com, emailAddress = info@wolfssl.com
-        Last Update: Jan  9 00:34:30 2024 GMT
-        Next Update: Oct  5 00:34:30 2026 GMT
+        Last Update: Dec 18 21:25:34 2024 GMT
+        Next Update: Sep 14 21:25:34 2027 GMT
         CRL extensions:
             X509v3 CRL Number: 
                 3
 Revoked Certificates:
     Serial Number: 01
-        Revocation Date: Jan  9 00:34:30 2024 GMT
+        Revocation Date: Dec 18 21:25:34 2024 GMT
     Serial Number: 02
-        Revocation Date: Jan  9 00:34:30 2024 GMT
+        Revocation Date: Dec 18 21:25:34 2024 GMT
     Signature Algorithm: sha256WithRSAEncryption
-         35:50:96:da:71:71:90:d5:b7:37:5a:a6:b9:09:07:2f:af:c9:
-         e0:02:32:6a:43:6e:20:ec:20:a4:ac:d0:39:a9:19:35:d0:d2:
-         6f:bb:d1:cd:46:10:a7:cb:8a:be:0a:02:a2:91:f5:29:74:ee:
-         34:83:a3:8c:a0:ca:39:af:94:4a:23:d7:56:57:6b:cc:c6:eb:
-         b0:ce:9f:0a:e1:b0:a8:12:6b:6a:8b:21:73:22:6f:49:41:cd:
-         fd:85:44:d1:fa:52:6b:2f:b2:2b:02:e7:43:0e:f1:92:bc:15:
-         8f:22:28:49:25:69:93:d8:50:10:2f:93:e2:f5:b0:31:5c:eb:
-         1a:35:e2:40:83:25:87:55:4d:c0:85:06:37:9e:23:44:80:a1:
-         f9:e2:eb:9c:90:28:7a:71:d8:55:a2:8b:70:32:31:33:26:70:
-         fe:1d:11:d5:4b:c1:04:47:19:59:44:8f:0b:0a:ec:d6:62:40:
-         8a:6f:67:2e:6a:50:38:54:35:c9:f8:d5:ec:e8:ae:93:88:3d:
-         a0:40:81:2c:e0:fe:f7:c8:68:24:8e:41:04:88:af:94:82:97:
-         75:e5:69:4c:22:1d:f9:67:53:a3:4c:a3:db:bf:55:08:e7:3a:
-         07:67:a2:28:25:63:af:f8:0e:c7:d3:c1:77:ef:20:20:20:63:
-         9e:5c:22:81
+    Signature Value:
+        8b:62:fa:68:b7:84:a7:0d:ac:47:bb:92:e7:e2:9a:a5:e3:2b:
+        ba:7a:af:06:8e:b2:3d:7d:42:48:66:78:e0:e4:f3:f4:0a:b1:
+        75:50:fe:02:30:ce:60:2d:ce:7d:2b:0d:31:02:02:a1:f3:be:
+        7b:08:75:c4:bb:2d:a3:d1:23:21:22:c7:72:0e:b7:7e:17:f6:
+        21:5d:aa:fd:cf:b0:b6:56:6d:80:8d:72:a5:25:82:5a:5b:5d:
+        b5:90:06:47:1a:d7:15:9a:64:10:96:24:b0:06:40:bc:fe:26:
+        ec:05:be:99:32:2e:ba:87:b2:a8:0e:7f:5e:3e:23:14:19:c5:
+        e7:16:b7:b8:79:f0:6b:be:20:64:b9:89:4e:69:0f:51:54:5f:
+        55:82:75:cc:e1:61:00:e9:7f:19:35:16:80:d1:80:39:0c:2b:
+        59:12:c6:27:de:68:1c:40:5f:e8:7d:68:ea:9c:30:75:5b:47:
+        4e:2e:78:4a:1d:37:ec:7f:b8:34:ba:cb:57:f8:ae:5e:cc:fa:
+        ba:66:be:13:5a:08:2b:37:e6:ac:ce:bf:22:82:9c:73:11:5b:
+        84:80:07:a7:2c:43:54:bf:1c:6a:55:d1:d2:02:28:35:4f:40:
+        8e:0e:c4:8c:dd:2d:01:40:e1:f9:f1:c3:ed:f3:82:9f:4c:ed:
+        30:aa:48:10
 -----BEGIN X509 CRL-----
 MIICGTCCAQECAQEwDQYJKoZIhvcNAQELBQAwgZQxCzAJBgNVBAYTAlVTMRAwDgYD
 VQQIDAdNb250YW5hMRAwDgYDVQQHDAdCb3plbWFuMREwDwYDVQQKDAhTYXd0b290
 aDETMBEGA1UECwwKQ29uc3VsdGluZzEYMBYGA1UEAwwPd3d3LndvbGZzc2wuY29t
-MR8wHQYJKoZIhvcNAQkBFhBpbmZvQHdvbGZzc2wuY29tFw0yNDAxMDkwMDM0MzBa
-Fw0yNjEwMDUwMDM0MzBaMCgwEgIBARcNMjQwMTA5MDAzNDMwWjASAgECFw0yNDAx
-MDkwMDM0MzBaoA4wDDAKBgNVHRQEAwIBAzANBgkqhkiG9w0BAQsFAAOCAQEANVCW
-2nFxkNW3N1qmuQkHL6/J4AIyakNuIOwgpKzQOakZNdDSb7vRzUYQp8uKvgoCopH1
-KXTuNIOjjKDKOa+USiPXVldrzMbrsM6fCuGwqBJraoshcyJvSUHN/YVE0fpSay+y
-KwLnQw7xkrwVjyIoSSVpk9hQEC+T4vWwMVzrGjXiQIMlh1VNwIUGN54jRICh+eLr
-nJAoenHYVaKLcDIxMyZw/h0R1UvBBEcZWUSPCwrs1mJAim9nLmpQOFQ1yfjV7Oiu
-k4g9oECBLOD+98hoJI5BBIivlIKXdeVpTCId+WdTo0yj279VCOc6B2eiKCVjr/gO
-x9PBd+8gICBjnlwigQ==
+MR8wHQYJKoZIhvcNAQkBFhBpbmZvQHdvbGZzc2wuY29tFw0yNDEyMTgyMTI1MzRa
+Fw0yNzA5MTQyMTI1MzRaMCgwEgIBARcNMjQxMjE4MjEyNTM0WjASAgECFw0yNDEy
+MTgyMTI1MzRaoA4wDDAKBgNVHRQEAwIBAzANBgkqhkiG9w0BAQsFAAOCAQEAi2L6
+aLeEpw2sR7uS5+KapeMrunqvBo6yPX1CSGZ44OTz9AqxdVD+AjDOYC3OfSsNMQIC
+ofO+ewh1xLsto9EjISLHcg63fhf2IV2q/c+wtlZtgI1ypSWCWltdtZAGRxrXFZpk
+EJYksAZAvP4m7AW+mTIuuoeyqA5/Xj4jFBnF5xa3uHnwa74gZLmJTmkPUVRfVYJ1
+zOFhAOl/GTUWgNGAOQwrWRLGJ95oHEBf6H1o6pwwdVtHTi54Sh037H+4NLrLV/iu
+Xsz6uma+E1oIKzfmrM6/IoKccxFbhIAHpyxDVL8calXR0gIoNU9Ajg7EjN0tAUDh
++fHD7fOCn0ztMKpIEA==
 -----END X509 CRL-----

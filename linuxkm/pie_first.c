@@ -1,6 +1,6 @@
 /* linuxkm/pie_first.c -- memory fenceposts for checking binary image stability
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,12 +23,8 @@
     #error pie_first.c must be compiled -fPIE.
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 
 int wolfCrypt_PIE_first_function(void);

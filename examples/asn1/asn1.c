@@ -1,6 +1,6 @@
 /* asn1.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -66,7 +66,7 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
     word32 len = 0;
     size_t read_len;
     /* Allocate a minimum amount. */
-    unsigned char* data = (unsigned char*)malloc(DATA_INC_LEN);
+    unsigned char* data = (unsigned char*)XMALLOC(DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (data != NULL) {
         /* Read more data. */
@@ -74,7 +74,7 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             unsigned char* p;
 
             if (ferror(fp)) {
-                free(data);
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return IO_FAILED_E;
             }
 
@@ -87,10 +87,10 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)realloc(data, len + DATA_INC_LEN);
+            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
-                free(data);
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 data = NULL;
                 break;
             }
@@ -132,7 +132,7 @@ static int PrintDer(FILE* fp)
         /* Print DER/BER. */
         ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
@@ -168,7 +168,7 @@ static int PrintBase64(FILE* fp)
             ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         }
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
@@ -280,7 +280,7 @@ static int PrintPem(FILE* fp, int pem_skip)
             ret = wc_Asn1_PrintAll(&asn1, &opts, data, len);
         }
         /* Dispose of buffer. */
-        free(data);
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;

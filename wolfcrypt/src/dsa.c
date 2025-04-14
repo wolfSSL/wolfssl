@@ -1,6 +1,6 @@
 /* dsa.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,19 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef NO_DSA
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/wolfmath.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/dsa.h>
 
@@ -45,7 +38,7 @@
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #undef RESTORE_VECTOR_REGISTERS
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
@@ -173,7 +166,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         return MEMORY_E;
     }
 
-    SAVE_VECTOR_REGISTERS();
+    SAVE_VECTOR_REGISTERS(;);
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
@@ -542,7 +535,7 @@ int wc_DsaExportParamsRaw(DsaKey* dsa, byte* p, word32* pSz,
         *pSz = pLen;
         *qSz = qLen;
         *gSz = gLen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (p == NULL || q == NULL || g == NULL)
@@ -616,7 +609,7 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
     if (x == NULL && y == NULL) {
         *xSz = xLen;
         *ySz = yLen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (x == NULL || y == NULL)
@@ -1112,32 +1105,32 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (s) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(s);
         XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (r) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(r);
         XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (u1) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(u1);
         XFREE(u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (u2) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(u2);
         XFREE(u2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (w) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(w);
         XFREE(w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (v) {
-        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E) && ret != WC_NO_ERR_TRACE(MEMORY_E))
             mp_clear(v);
         XFREE(v, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }

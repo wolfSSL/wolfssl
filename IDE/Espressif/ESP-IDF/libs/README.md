@@ -4,4 +4,4 @@ Files in IDE\Espressif\ESP-IDF\libs:
 
 `component.mk` used in ESP-IDF `wolfssl` component directory
 
-`tigard.cfg` Tigard JTAG config file 
+`tigard.cfg` Tigard JTAG config file

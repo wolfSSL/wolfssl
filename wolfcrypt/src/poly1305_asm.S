@@ -1,6 +1,6 @@
 /* poly1305_asm.S */
 /*
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,9 @@
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
 #ifndef NO_AVX2_SUPPORT
+#ifndef HAVE_INTEL_AVX2
 #define HAVE_INTEL_AVX2
+#endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_X86_64_BUILD

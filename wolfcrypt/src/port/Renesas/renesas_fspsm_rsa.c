@@ -1,6 +1,6 @@
 /* renesas_fspsm_rsa.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -67,7 +67,7 @@ WOLFSSL_LOCAL void wc_fspsm_RsaKeyFree(RsaKey *key)
 /* Set Rsa key by pre-created wrapped user key
  *
  * key    RsaKey object
- * size   desired keylenth, in bits. supports 1024 or 2048 bits
+ * size   desired key length, in bits. supports 1024 or 2048 bits
  * ctx    Callback context including pointer to hold generated key
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */

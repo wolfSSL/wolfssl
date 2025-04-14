@@ -1,6 +1,6 @@
 /* armv8-32-sha256-asm
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,16 +21,14 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha256.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
+ *   ruby ./sha2/sha256.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
@@ -113,8 +111,7 @@ Transform_Sha256_Len:
 	adr	r3, L_SHA256_transform_len_k
 	# Copy digest to add in at end
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -185,8 +182,7 @@ L_SHA256_transform_len_begin:
 	eor	r6, r6, r10, lsr #8
 	eor	r7, r7, r11, lsr #8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [sp]
-	str	r5, [sp, #4]
+	stm	sp, {r4, r5}
 #else
 	strd	r4, r5, [sp]
 #endif
@@ -310,8 +306,7 @@ L_SHA256_transform_len_begin:
 	rev	r10, r10
 	rev	r11, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [sp]
-	str	r5, [sp, #4]
+	stm	sp, {r4, r5}
 #else
 	strd	r4, r5, [sp]
 #endif
@@ -1649,8 +1644,7 @@ L_SHA256_transform_len_start:
 	str	r9, [r0]
 	# Add in digest from start
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1677,8 +1671,7 @@ L_SHA256_transform_len_start:
 	add	r6, r6, r10
 	add	r7, r7, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [r0]
-	str	r5, [r0, #4]
+	stm	r0, {r4, r5}
 #else
 	strd	r4, r5, [r0]
 #endif
@@ -1840,8 +1833,7 @@ Transform_Sha256_Len:
 	vpush	{d8-d11}
 	sub	sp, sp, #24
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r0, [sp]
-	str	r1, [sp, #4]
+	stm	sp, {r0, r1}
 #else
 	strd	r0, r1, [sp]
 #endif
@@ -1849,8 +1841,7 @@ Transform_Sha256_Len:
 	adr	r12, L_SHA256_transform_neon_len_k
 	# Load digest into registers
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [r0]
-	ldr	r3, [r0, #4]
+	ldm	r0, {r2, r3}
 #else
 	ldrd	r2, r3, [r0]
 #endif
@@ -2798,16 +2789,14 @@ L_SHA256_transform_neon_len_start:
 	ldr	r10, [sp]
 	# Add in digest from start
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r0, [r10]
-	ldr	r1, [r10, #4]
+	ldm	r10, {r0, r1}
 #else
 	ldrd	r0, r1, [r10]
 #endif
 	add	r2, r2, r0
 	add	r3, r3, r1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r2, [r10]
-	str	r3, [r10, #4]
+	stm	r10, {r2, r3}
 #else
 	strd	r2, r3, [r10]
 #endif
@@ -2865,7 +2854,7 @@ L_SHA256_transform_neon_len_start:
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

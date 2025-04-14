@@ -18,10 +18,11 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC"',
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
         ]
     name: make check
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     steps:
@@ -35,7 +36,7 @@ jobs:
           make
           ./wolfcrypt/test/testwolfcrypt
 
-      - name: Print errors 
+      - name: Print errors
         if: ${{ failure() }}
         run: |
           if [ -f test-suite.log ] ; then

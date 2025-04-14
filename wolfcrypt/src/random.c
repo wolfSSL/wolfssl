@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,15 +25,8 @@ DESCRIPTION
 This library contains implementation for the random number generator.
 
 */
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#if defined(DEBUG_WOLFSSL)
-    #include <wolfssl/wolfcrypt/logging.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
@@ -87,11 +80,12 @@ This library contains implementation for the random number generator.
     #ifndef _WIN32_WINNT
         #define _WIN32_WINNT 0x0400
     #endif
+    #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
     #include <wincrypt.h>
+    #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
 #elif defined(HAVE_WNR)
     #include <wnr.h>
-    #include <wolfssl/wolfcrypt/logging.h>
     wolfSSL_Mutex wnr_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wnr_mutex);    /* global netRandom mutex */
     int wnr_timeout     = 0;    /* entropy timeout, milliseconds */
     #ifndef WOLFSSL_MUTEX_INITIALIZER
@@ -111,6 +105,8 @@ This library contains implementation for the random number generator.
     #include <random.h>
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     #include "wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h"
+#elif defined(WOLFSSL_RPIPICO)
+    #include "wolfssl/wolfcrypt/port/rpi_pico/pico.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -136,6 +132,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
+#elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -594,14 +592,14 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
 
         dIdx = (int)dLen - 1;
         for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)((word16)d[dIdx] + (word16)s[sIdx]);
+            carry = (word16)(carry + d[dIdx] + s[sIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;
         }
 
         for (; dIdx >= 0; dIdx--) {
-            carry += (word16)d[dIdx];
+            carry = (word16)(carry + d[dIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }
@@ -814,7 +812,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
  */
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    return mach_absolute_time();
+    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
 /* Get the high resolution time counter.
@@ -909,7 +907,8 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
  * @param [in,out] args  Entropy data including: counter and stop flag.
  * @return  NULL always.
  */
-static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN Entropy_IncCounter(void* args)
+static THREAD_RETURN_NOJOIN WOLFSSL_THREAD_NO_JOIN
+    Entropy_IncCounter(void* args)
 {
     (void)args;
 
@@ -922,8 +921,9 @@ static THREAD_RETURN WOLFSSL_THREAD_NO_JOIN Entropy_IncCounter(void* args)
 #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
     fprintf(stderr, "EXITING ENTROPY COUNTER THREAD\n");
 #endif
+
     /* Exit from thread. */
-    WOLFSSL_RETURN_FROM_THREAD(0);
+    RETURN_FROM_THREAD_NOJOIN(0);
 }
 
 /* Start a thread that increments counter if not one already.
@@ -1700,7 +1700,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
         if (ret != 0) {
 #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG_EX("_InitRng failed. err = ", ret);
+            WOLFSSL_MSG_EX("_InitRng failed. err = %d", ret);
 #endif
         }
         else {
@@ -1717,16 +1717,21 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif /* WC_RNG_SEED_CB */
-            if (ret == 0)
-                ret = wc_RNG_TestSeed(seed, seedSz);
-            else {
+            if (ret != 0) {
     #if defined(DEBUG_WOLFSSL)
-                WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
+                WOLFSSL_MSG_EX("Seed generation failed... %d", ret);
     #endif
                 ret = DRBG_FAILURE;
                 rng->status = DRBG_FAILED;
             }
 
+            if (ret == 0)
+                ret = wc_RNG_TestSeed(seed, seedSz);
+    #if defined(DEBUG_WOLFSSL)
+            if (ret != 0) {
+                WOLFSSL_MSG_EX("wc_RNG_TestSeed failed... %d", ret);
+            }
+    #endif
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
@@ -2180,7 +2185,7 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, NULL,
+    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, heap,
                            DYNAMIC_TYPE_TMP_BUFFER);
     if (check == NULL) {
         return MEMORY_E;
@@ -2300,7 +2305,7 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(check, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(check, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -2762,7 +2767,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
-#elif defined(MICROCHIP_PIC32)
+#elif defined(MICROCHIP_PIC32) || defined(MICROCHIP_MPLAB_HARMONY)
 
     #ifdef MICROCHIP_MPLAB_HARMONY
         #ifdef MICROCHIP_MPLAB_HARMONY_3
@@ -2966,7 +2971,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return RAN_BLOCK_E;
     }
-
 #elif !defined(WOLFSSL_CAAM) && \
     (defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
      defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS))
@@ -3815,7 +3819,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
-#elif defined(DOLPHIN_EMULATOR)
+#elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -3834,6 +3838,38 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return maxq10xx_random(output, sz);
     }
+#elif defined(MAX3266X_RNG)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        #ifdef WOLFSSL_MAX3266X
+        int status;
+        #endif /* WOLFSSL_MAX3266X */
+        static int initDone = 0;
+        (void)os;
+        if (initDone == 0) {
+            #ifdef WOLFSSL_MAX3266X
+            status = wolfSSL_HwRngMutexLock();
+            if (status != 0) {
+                return status;
+            }
+            #endif /* WOLFSSL_MAX3266X */
+            if(MXC_TRNG_HealthTest() != 0) {
+                #ifdef DEBUG_WOLFSSL
+                WOLFSSL_MSG("TRNG HW Health Test Failed");
+                #endif /* DEBUG_WOLFSSL */
+                #ifdef WOLFSSL_MAX3266X
+                wolfSSL_HwRngMutexUnLock();
+                #endif /* WOLFSSL_MAX3266X */
+                return WC_HW_E;
+            }
+            #ifdef WOLFSSL_MAX3266X
+            wolfSSL_HwRngMutexUnLock();
+            #endif /* WOLFSSL_MAX3266X */
+            initDone = 1;
+        }
+        return wc_MXC_TRNG_Random(output, sz);
+    }
+
 #elif defined(WOLFSSL_GETRANDOM)
 
     /* getrandom() was added to the Linux kernel in version 3.17.
@@ -4055,7 +4091,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;
         for (i = 0; i < sz; i++ )
-            output[i] = i;
+            output[i] = (byte)i;
 
         (void)os;
 

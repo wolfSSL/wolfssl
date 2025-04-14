@@ -9,9 +9,9 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 ```
@@ -59,7 +59,7 @@ I (323) cpu_start: Compile time:     May 17 2024 19:42:07
 I (329) cpu_start: ELF file SHA256:  eebe816ce...
 I (334) cpu_start: ESP-IDF:          5.2.1
 I (339) cpu_start: Min chip rev:     v0.0
-I (344) cpu_start: Max chip rev:     v3.99 
+I (344) cpu_start: Max chip rev:     v3.99
 I (349) cpu_start: Chip rev:         v1.0
 I (354) heap_init: Initializing. RAM available for dynamic allocation:
 I (361) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
@@ -83,7 +83,7 @@ W (449) esp32_util: Warning: old cmake, user_settings.h location unknown.
 I (457) esp32_util: LIBWOLFSSL_VERSION_STRING = 5.7.0
 I (463) esp32_util: LIBWOLFSSL_VERSION_HEX = 5007000
 I (468) esp32_util: Stack HWM: 9204
-I (472) esp32_util: 
+I (472) esp32_util:
 I (475) esp32_util: Macro Name                 Defined   Not Defined
 I (482) esp32_util: ------------------------- --------- -------------
 I (489) esp32_util: NO_ESPIDF_DEFAULT........                 X
@@ -115,7 +115,7 @@ I (638) esp32_util: FREERTOS.................     X
 I (643) esp32_util: NO_WOLFSSL_DIR...........     X
 I (649) esp32_util: WOLFSSL_NO_CURRDIR.......     X
 I (654) esp32_util: WOLFSSL_LWIP.............     X
-I (660) esp32_util: 
+I (660) esp32_util:
 I (663) esp32_util: Compiler Optimization: Default
 I (668) esp32_util:
 I (671) esp32_util: CONFIG_IDF_TARGET = esp32

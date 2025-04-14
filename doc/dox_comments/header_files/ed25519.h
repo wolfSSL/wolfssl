@@ -8,7 +8,7 @@
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned if key or pubKey evaluate to NULL, or if the
     specified key size is not 32 bytes (Ed25519 has 32 byte keys).
-    \return ECC_PRIV_KEY_E returned if the ed25519_key object does not have 
+    \return ECC_PRIV_KEY_E returned if the ed25519_key object does not have
     the private key in it.
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.
@@ -188,8 +188,7 @@ int wc_ed25519ctx_sign_msg(const byte* in, word32 inlen, byte* out,
 
     \brief This function signs a message digest using an ed25519_key object
     to guarantee authenticity. The context is included as part of the data
-    signed. The message is pre-hashed before signature calculation. The hash
-    algorithm used to create message digest must be SHAKE-256.
+    signed. The message is pre-hashed before signature calculation.
 
     \return 0 Returned upon successfully generating a signature for the
     message digest.

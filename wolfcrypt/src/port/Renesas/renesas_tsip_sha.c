@@ -1,6 +1,6 @@
 /* renesas_tsip_sha.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,23 +18,25 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-#include <string.h>
-#include <stdio.h>
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
+
+#if !defined(NO_SHA) || !defined(NO_SHA256)
+#include <string.h>
+#include <stdio.h>
+
 #include <wolfssl/internal.h>
+#include <wolfssl/wolfcrypt/logging.h>
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-#if !defined(NO_SHA) || !defined(NO_SHA256)
-
-#include <wolfssl/wolfcrypt/logging.h>
 
 #if (defined(WOLFSSL_RENESAS_TSIP_TLS) || \
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))

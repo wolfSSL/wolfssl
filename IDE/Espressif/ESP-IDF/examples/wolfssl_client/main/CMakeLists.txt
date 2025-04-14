@@ -1,35 +1,43 @@
 # wolfSSL Espressif Example Project/main CMakeLists.txt
-#   v1.0
+#   v1.2
 #
 # wolfssl client test
 #
+message(STATUS "Begin wolfSSL main CMakeLists.txt")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
+if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
+    # `driver` component not available for ESP8266
+    SET(THIS_PRIV_REQUIRES_DRIVER "")
+else()
+    SET(THIS_PRIV_REQUIRES_DRIVER "driver")
+endif()
 
 if(WIN32)
     # Windows-specific configuration here
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WINDOWS")
-    message("Detected Windows")
+    message(STATUS "Detected Windows")
 endif()
 if(CMAKE_HOST_UNIX)
-    message("Detected UNIX")
+    message(STATUS "Detected UNIX")
 endif()
 if(APPLE)
-    message("Detected APPLE")
+    message(STATUS "Detected APPLE")
 endif()
 if(CMAKE_HOST_UNIX AND (NOT APPLE) AND EXISTS "/proc/sys/fs/binfmt_misc/WSLInterop")
     # Windows-specific configuration here
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WSL")
-    message("Detected WSL")
+    message(STATUS "Detected WSL")
 endif()
 if(CMAKE_HOST_UNIX AND (NOT APPLE) AND (NOT WIN32))
     # Windows-specific configuration here
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_LINUX")
-    message("Detected Linux")
+    message(STATUS "Detected Linux")
 endif()
 if(APPLE)
     # Windows-specific configuration here
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_APPLE")
-    message("Detected Apple")
+    message(STATUS "Detected Apple")
 endif()
 set (git_cmd "git")
 
@@ -43,14 +51,26 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
 endif()
 
+# The wolfSL component name is named "mywolfssl" on the staging site for Managed Components.
+if( NOT EXISTS "../components/wolfssl" AND ("$ENV{IDF_COMPONENT_REGISTRY_URL}" STREQUAL "https://components-staging.espressif.com") )
+    message(STATUS "WARNING: Using a staging instance of wolfssl.")
+    set(MAIN_WOLFSSL_COMPONENT_NAME "mywolfssl")
+else()
+    message(STATUS "Using release wolfssl component.")
+    set(MAIN_WOLFSSL_COMPONENT_NAME "wolfssl")
+endif()
+
 ## register_component()
 idf_component_register(SRCS main.c
                             wifi_connect.c
                             time_helper.c
                             client-tls.c
                        INCLUDE_DIRS "."
-                                    "./include")
-#
+                            "./include"
+                       PRIV_REQUIRES "${MAIN_WOLFSSL_COMPONENT_NAME}"
+                                     "${THIS_PRIV_REQUIRES_DRIVER}"
+                                     nvs_flash
+                                     protocol_examples_common)
 
 #
 # LIBWOLFSSL_SAVE_INFO(VAR_OUPUT THIS_VAR VAR_RESULT)
@@ -80,15 +100,24 @@ function ( LIBWOLFSSL_SAVE_INFO VAR_OUPUT THIS_VAR VAR_RESULT )
         message(STATUS "Found ${VAR_OUPUT}=${VAR_VALUE}")
 
         # the interesting part is defining the VAR_OUPUT name a value to use in the app
-        add_definitions(-D${VAR_OUPUT}=\"${VAR_VALUE}\")
+        add_compile_definitions(${VAR_OUPUT}=\"${VAR_VALUE}\")
     else()
         # if we get here, check the execute_process command and parameters.
-        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT")
+        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT.")
+        message(STATUS "Setting ${VAR_OUPUT} to \"Unknown\"")
         set(${VAR_OUPUT} "Unknown")
     endif()
 endfunction() # LIBWOLFSSL_SAVE_INFO
 
-if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+execute_process(
+    COMMAND ${git_cmd} "rev-parse" "--is-inside-work-tree"
+    OUTPUT_VARIABLE IS_GIT_REPO
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
+# Save some project-specific details. Repo may be different than component, or may not even be a repo at all:
+if(NOT CMAKE_BUILD_EARLY_EXPANSION AND (IS_GIT_REPO STREQUAL "true"))
     # LIBWOLFSSL_VERSION_GIT_HASH
     execute_process(COMMAND ${git_cmd} "rev-parse" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
@@ -104,3 +133,4 @@ endif()
 
 message(STATUS "")
 
+message(STATUS "End wolfSSL main CMakeLists.txt")

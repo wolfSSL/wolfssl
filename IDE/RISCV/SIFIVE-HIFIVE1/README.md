@@ -44,7 +44,7 @@ The `IDE/RISCV/SIFIVE-HIFIVE1/main.c` example application provides a function to
   $ export WOLFSSL_SRC_DIR=~/wolfssl
 ```
 
-5. Setup your riscv64 compiler 
+5. Setup your riscv64 compiler
 
 ```
   $ export RISCV_OPENOCD_PATH=/opt/riscv-openocd
@@ -64,7 +64,7 @@ You can build from source or create a static library.
   $ cd freedom-e-sdk
   $ make PROGRAM=wolfcrypt TARGET=sifive-hifive1-revb CONFIGURATION=debug clean software upload
 ```
-This example cleans, builds and uploads the software on the sifive-hifive1-revb target but you can also combine and build for any of the supported targets. 
+This example cleans, builds and uploads the software on the sifive-hifive1-revb target but you can also combine and build for any of the supported targets.
 
 Review the test results on the target console.
 

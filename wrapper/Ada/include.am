@@ -4,7 +4,7 @@
 
 EXTRA_DIST+= wrapper/Ada/README.md
 EXTRA_DIST+= wrapper/Ada/default.gpr
-EXTRA_DIST+= wrapper/Ada/gnat.adc
+EXTRA_DIST+= wrapper/Ada/restricted.adc
 EXTRA_DIST+= wrapper/Ada/ada_binding.c
 EXTRA_DIST+= wrapper/Ada/tls_client_main.adb
 EXTRA_DIST+= wrapper/Ada/tls_client.adb

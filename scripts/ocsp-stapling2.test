@@ -43,7 +43,7 @@ fi
 if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
     if [[ "$IPV6_SUPPORTED" == "no" ]]; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
-        exit 0
+        exit 77
     fi
     LOCALHOST='[::1]'
     LOCALHOST_FOR_NC='-6 ::1'
@@ -467,7 +467,8 @@ generate_port() {
     # Generate a random port number
     #-------------------------------------------------------------------------#
 
-    if [[ "$OSTYPE" == "linux"* ]]; then
+    if [[ "$OSTYPE" == "linux"* || "$OSTYPE" == "msys"
+                                || "$OSTYPE" == "cygwin" ]]; then
         port=$(($(od -An -N2 /dev/urandom) % (65535-49512) + 49512))
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))

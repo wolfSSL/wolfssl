@@ -1,6 +1,6 @@
 /* armv8-curve25519
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,15 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.c
+ *   ruby ./x25519/x25519.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.c
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
@@ -61,7 +59,7 @@ void fe_frombytes(fe out, const unsigned char* in)
         "stp	x4, x5, [%x[out], #16]\n\t"
         : [out] "+r" (out), [in] "+r" (in)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6"
     );
 }
 
@@ -85,7 +83,7 @@ void fe_tobytes(unsigned char* out, const fe n)
         "stp	x4, x5, [%x[out], #16]\n\t"
         : [out] "+r" (out), [n] "+r" (n)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7"
     );
 }
 
@@ -98,7 +96,7 @@ void fe_1(fe n)
         "stp	xzr, xzr, [%x[n], #16]\n\t"
         : [n] "+r" (n)
         :
-        : "memory", "x1", "cc"
+        : "memory", "cc", "x1"
     );
 }
 
@@ -124,7 +122,7 @@ void fe_copy(fe r, const fe a)
         "stp	x4, x5, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x2", "x3", "x4", "x5", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5"
     );
 }
 
@@ -155,7 +153,8 @@ void fe_sub(fe r, const fe a, const fe b)
         "stp	x5, x6, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13"
     );
 }
 
@@ -186,7 +185,8 @@ void fe_add(fe r, const fe a, const fe b)
         "stp	x5, x6, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13"
     );
 }
 
@@ -207,7 +207,7 @@ void fe_neg(fe r, const fe a)
         "stp	x8, x9, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
 }
 
@@ -232,9 +232,9 @@ int fe_isnonzero(const fe a)
         "orr	%x[a], %x[a], x3\n\t"
         : [a] "+r" (a)
         :
-        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "cc"
+        : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 int fe_isnegative(const fe a)
@@ -251,9 +251,9 @@ int fe_isnegative(const fe a)
         "eor	%x[a], %x[a], x5, lsr 63\n\t"
         : [a] "+r" (a)
         :
-        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "cc"
+        : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 void fe_cmov_table(fe* r, fe* base, signed char b)
@@ -466,7 +466,9 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
         "ldp	x29, x30, [sp], #32\n\t"
         : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -602,7 +604,9 @@ void fe_mul(fe r, const fe a, const fe b)
         "stp	x8, x9, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22"
     );
 }
 
@@ -704,7 +708,8 @@ void fe_sq(fe r, const fe a)
         "stp	x7, x8, [%x[r], #16]\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16"
     );
 }
 
@@ -1581,7 +1586,8 @@ void fe_invert(fe r, const fe a)
         "ldp	x29, x30, [sp], #0xa0\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x2", "x20", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "cc"
+        : "memory", "cc", "x2", "x20", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"
     );
 }
 
@@ -3681,9 +3687,11 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "ldp	x29, x30, [sp], #0xc0\n\t"
         : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
-    return (uint32_t)(size_t)r;
+    return (word32)(size_t)r;
 }
 
 #ifdef HAVE_ED25519
@@ -4491,7 +4499,8 @@ void fe_pow22523(fe r, const fe a)
         "ldp	x29, x30, [sp], #0x80\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x2", "x23", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "cc"
+        : "memory", "cc", "x2", "x23", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"
     );
 }
 
@@ -4861,7 +4870,9 @@ void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p)
         "ldp	x29, x30, [sp], #32\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22"
     );
 }
 
@@ -5347,7 +5358,9 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "ldp	x29, x30, [sp], #32\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26"
     );
 }
 
@@ -5808,7 +5821,9 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p)
         "ldp	x29, x30, [sp], #32\n\t"
         : [r] "+r" (r), [p] "+r" (p)
         :
-        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -6304,7 +6319,9 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "ldp	x29, x30, [sp], #48\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -6800,7 +6817,9 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "ldp	x29, x30, [sp], #48\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -7422,7 +7441,9 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "ldp	x29, x30, [sp], #48\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -8059,7 +8080,9 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "ldp	x29, x30, [sp], #48\n\t"
         : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
+            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
+            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -8242,7 +8265,9 @@ void sc_reduce(byte* s)
         "stp	x4, x5, [%x[s], #16]\n\t"
         : [s] "+r" (s)
         :
-        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "cc"
+        : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
+            "x20", "x21", "x22", "x23"
     );
 }
 
@@ -8521,7 +8546,9 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         "stp	x6, x7, [%x[s], #16]\n\t"
         : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
-        : "memory", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "cc"
+        : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+            "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21",
+            "x22", "x23", "x24", "x25", "x26"
     );
 }
 

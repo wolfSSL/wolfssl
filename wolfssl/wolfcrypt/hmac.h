@@ -1,6 +1,6 @@
 /* hmac.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -119,38 +119,15 @@ enum {
     #error "You have to have some kind of hash if you want to use HMAC."
 #endif
 
-
-/* hmac hash union */
-typedef union {
-#ifndef NO_MD5
-    wc_Md5 md5;
-#endif
-#ifndef NO_SHA
-    wc_Sha sha;
-#endif
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-#endif
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-#endif
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-#endif
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-#endif
-#ifdef WOLFSSL_SHA3
-    wc_Sha3 sha3;
-#endif
-#ifdef WOLFSSL_SM3
-    wc_Sm3 sm3;
-#endif
-} wc_HmacHash;
+typedef wc_Hashes wc_HmacHash;
 
 /* Hmac digest */
 struct Hmac {
     wc_HmacHash hash;
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    wc_HmacHash i_hash;
+    wc_HmacHash o_hash;
+#endif
     word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[WC_MAX_DIGEST_SIZE / sizeof(word32)];

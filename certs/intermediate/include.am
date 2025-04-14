@@ -40,4 +40,12 @@ EXTRA_DIST += \
 	     certs/intermediate/server-int-cert.der \
 	     certs/intermediate/server-int-cert.pem \
 	     certs/intermediate/server-int-ecc-cert.der \
-	     certs/intermediate/server-int-ecc-cert.pem
+	     certs/intermediate/ca_false_intermediate/gentestcert.sh \
+         certs/intermediate/ca_false_intermediate/int_ca.key \
+	     certs/intermediate/ca_false_intermediate/server.key \
+	     certs/intermediate/ca_false_intermediate/test_ca.key \
+	     certs/intermediate/ca_false_intermediate/test_ca.pem \
+         certs/intermediate/ca_false_intermediate/test_int_not_cacert.pem \
+         certs/intermediate/ca_false_intermediate/test_sign_bynoca_srv.pem \
+         certs/intermediate/ca_false_intermediate/wolfssl_base.conf \
+         certs/intermediate/ca_false_intermediate/wolfssl_srv.conf

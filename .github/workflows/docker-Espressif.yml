@@ -14,7 +14,8 @@ concurrency:
 jobs:
   espressif_latest:
     name: latest Docker container
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 12
     container:
@@ -22,22 +23,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Initialize Espressif IDE and build examples
-        run: . /opt/esp/idf/export.sh; IDE/Espressif/ESP-IDF/compileAllExamples.sh
+        run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh
   espressif_v4_4:
     name: v4.4 Docker container
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     container:
       image: espressif/idf:release-v4.4
     steps:
       - uses: actions/checkout@v4
       - name: Initialize Espressif IDE and build examples
-        run: . /opt/esp/idf/export.sh; IDE/Espressif/ESP-IDF/compileAllExamples.sh
+        run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh
   espressif_v5_0:
     name: v5.0 Docker container
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     container:
       image: espressif/idf:release-v5.0
     steps:
       - uses: actions/checkout@v4
       - name: Initialize Espressif IDE and build examples
-        run: . /opt/esp/idf/export.sh; IDE/Espressif/ESP-IDF/compileAllExamples.sh
+        run: cd /opt/esp/idf && . ./export.sh && cd $GITHUB_WORKSPACE; IDE/Espressif/ESP-IDF/compileAllExamples.sh

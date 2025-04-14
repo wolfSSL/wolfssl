@@ -1,6 +1,6 @@
 /* dilithium.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -114,18 +114,56 @@
 #define DILITHIUM_LEVEL2_PUB_KEY_SIZE   1312
 #define DILITHIUM_LEVEL2_PRV_KEY_SIZE   \
     (DILITHIUM_LEVEL2_PUB_KEY_SIZE + DILITHIUM_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE 1334
+#define DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE 2588
 
 #define DILITHIUM_LEVEL3_KEY_SIZE       4032
 #define DILITHIUM_LEVEL3_SIG_SIZE       3309
 #define DILITHIUM_LEVEL3_PUB_KEY_SIZE   1952
 #define DILITHIUM_LEVEL3_PRV_KEY_SIZE   \
     (DILITHIUM_LEVEL3_PUB_KEY_SIZE + DILITHIUM_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE 1974
+#define DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE 4060
+
 
 #define DILITHIUM_LEVEL5_KEY_SIZE       4896
 #define DILITHIUM_LEVEL5_SIG_SIZE       4627
 #define DILITHIUM_LEVEL5_PUB_KEY_SIZE   2592
 #define DILITHIUM_LEVEL5_PRV_KEY_SIZE   \
     (DILITHIUM_LEVEL5_PUB_KEY_SIZE + DILITHIUM_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE 2614
+#define DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE 4924
+
+#define ML_DSA_LEVEL2_KEY_SIZE          2560
+#define ML_DSA_LEVEL2_SIG_SIZE          2420
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE      1312
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL2_PUB_KEY_SIZE + ML_DSA_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL2_PUB_KEY_DER_SIZE DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_PRV_KEY_DER_SIZE DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE
+
+#define ML_DSA_LEVEL3_KEY_SIZE          4032
+#define ML_DSA_LEVEL3_SIG_SIZE          3309
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE      1952
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL3_PUB_KEY_SIZE + ML_DSA_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL3_PUB_KEY_DER_SIZE DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_PRV_KEY_DER_SIZE DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE
+
+#define ML_DSA_LEVEL5_KEY_SIZE          4896
+#define ML_DSA_LEVEL5_SIG_SIZE          4627
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE      2592
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL5_PUB_KEY_SIZE + ML_DSA_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL5_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
+
 
 
 /* Modulus. */
@@ -197,8 +235,8 @@
 #define PARAMS_ML_DSA_44_ETA            DILITHIUM_ETA_2
 /* Number of bits in private key for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_ETA_BITS       DILITHIUM_ETA_2_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-44. */
-#define PARAMS_ML_DSA_44_LAMBDA         16
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_LAMBDA         128
 /* # +/-1's in polynomial c, TAU, for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_TAU            39
 /* BETA = TAU * ETA for ML-DSA-44. */
@@ -242,7 +280,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_44_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_SIG_SIZE       \
-    ((PARAMS_ML_DSA_44_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_44_LAMBDA / 4) +    \
      PARAMS_ML_DSA_44_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_44_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_44_OMEGA + PARAMS_ML_DSA_44_K)
 
@@ -258,8 +296,8 @@
 #define PARAMS_ML_DSA_65_ETA            DILITHIUM_ETA_4
 /* Number of bits in private key for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_ETA_BITS       DILITHIUM_ETA_4_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-65. */
-#define PARAMS_ML_DSA_65_LAMBDA         24
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_LAMBDA         192
 /* # +/-1's in polynomial c, TAU, for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_TAU            49
 /* BETA = TAU * ETA for ML-DSA-65. */
@@ -303,7 +341,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_65_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_SIG_SIZE       \
-    ((PARAMS_ML_DSA_65_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_65_LAMBDA / 4) +    \
      PARAMS_ML_DSA_65_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_65_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_65_OMEGA + PARAMS_ML_DSA_65_K)
 
@@ -319,8 +357,8 @@
 #define PARAMS_ML_DSA_87_ETA            DILITHIUM_ETA_2
 /* Number of bits in private key for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_ETA_BITS       DILITHIUM_ETA_2_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-87. */
-#define PARAMS_ML_DSA_87_LAMBDA         32
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_LAMBDA         256
 /* # +/-1's in polynomial c, TAU, for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_TAU            60
 /* BETA = TAU * ETA for ML-DSA-87. */
@@ -365,7 +403,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_87_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_SIG_SIZE       \
-    ((PARAMS_ML_DSA_87_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_87_LAMBDA / 4) +    \
      PARAMS_ML_DSA_87_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_87_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_87_OMEGA + PARAMS_ML_DSA_87_K)
 
@@ -483,18 +521,55 @@
 #define DILITHIUM_LEVEL2_PUB_KEY_SIZE OQS_SIG_ml_dsa_44_ipd_length_public_key
 #define DILITHIUM_LEVEL2_PRV_KEY_SIZE \
     (DILITHIUM_LEVEL2_PUB_KEY_SIZE+DILITHIUM_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE 1334
+#define DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE 2588
 
 #define DILITHIUM_LEVEL3_KEY_SIZE     OQS_SIG_ml_dsa_65_ipd_length_secret_key
 #define DILITHIUM_LEVEL3_SIG_SIZE     OQS_SIG_ml_dsa_65_ipd_length_signature
 #define DILITHIUM_LEVEL3_PUB_KEY_SIZE OQS_SIG_ml_dsa_65_ipd_length_public_key
 #define DILITHIUM_LEVEL3_PRV_KEY_SIZE \
     (DILITHIUM_LEVEL3_PUB_KEY_SIZE+DILITHIUM_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE 1974
+#define DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE 4060
 
 #define DILITHIUM_LEVEL5_KEY_SIZE     OQS_SIG_ml_dsa_87_ipd_length_secret_key
 #define DILITHIUM_LEVEL5_SIG_SIZE     OQS_SIG_ml_dsa_87_ipd_length_signature
 #define DILITHIUM_LEVEL5_PUB_KEY_SIZE OQS_SIG_ml_dsa_87_ipd_length_public_key
 #define DILITHIUM_LEVEL5_PRV_KEY_SIZE \
     (DILITHIUM_LEVEL5_PUB_KEY_SIZE+DILITHIUM_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE 2614
+#define DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE 4924
+
+
+#define ML_DSA_LEVEL2_KEY_SIZE        OQS_SIG_ml_dsa_44_ipd_length_secret_key
+#define ML_DSA_LEVEL2_SIG_SIZE        OQS_SIG_ml_dsa_44_ipd_length_signature
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE    OQS_SIG_ml_dsa_44_ipd_length_public_key
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL2_PUB_KEY_SIZE+ML_DSA_LEVEL2_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL2_PUB_KEY_DER_SIZE DILITHIUM_LEVEL2_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL2_PRV_KEY_DER_SIZE DILITHIUM_LEVEL2_PRV_KEY_DER_SIZE
+
+#define ML_DSA_LEVEL3_KEY_SIZE        OQS_SIG_ml_dsa_65_ipd_length_secret_key
+#define ML_DSA_LEVEL3_SIG_SIZE        OQS_SIG_ml_dsa_65_ipd_length_signature
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE    OQS_SIG_ml_dsa_65_ipd_length_public_key
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL3_PUB_KEY_SIZE+ML_DSA_LEVEL3_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL3_PUB_KEY_DER_SIZE DILITHIUM_LEVEL3_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL3_PRV_KEY_DER_SIZE DILITHIUM_LEVEL3_PRV_KEY_DER_SIZE
+
+#define ML_DSA_LEVEL5_KEY_SIZE        OQS_SIG_ml_dsa_87_ipd_length_secret_key
+#define ML_DSA_LEVEL5_SIG_SIZE        OQS_SIG_ml_dsa_87_ipd_length_signature
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE    OQS_SIG_ml_dsa_87_ipd_length_public_key
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL5_PUB_KEY_SIZE+ML_DSA_LEVEL5_KEY_SIZE)
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define ML_DSA_LEVEL5_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define ML_DSA_LEVEL5_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
 
 #endif
 
@@ -502,6 +577,10 @@
 #define DILITHIUM_MAX_SIG_SIZE     DILITHIUM_LEVEL5_SIG_SIZE
 #define DILITHIUM_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE
 #define DILITHIUM_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE
+/* Buffer sizes large enough to store exported DER encoded keys */
+#define DILITHIUM_MAX_PUB_KEY_DER_SIZE DILITHIUM_LEVEL5_PUB_KEY_DER_SIZE
+#define DILITHIUM_MAX_PRV_KEY_DER_SIZE DILITHIUM_LEVEL5_PRV_KEY_DER_SIZE
+
 
 #ifdef WOLF_PRIVATE_KEY_ID
 #define DILITHIUM_MAX_ID_LEN    32
@@ -520,7 +599,7 @@ typedef struct wc_dilithium_params {
     byte tau;
     byte beta;
     byte omega;
-    byte lambda;
+    word16 lambda;
     byte gamma1_bits;
     word32 gamma2;
     word32 w1EncSz;
@@ -626,15 +705,38 @@ WOLFSSL_API
 int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed);
 
 WOLFSSL_API
-int wc_dilithium_sign_msg(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, dilithium_key* key, WC_RNG* rng);
+int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
+    word32* sigLen, dilithium_key* key, WC_RNG* rng);
 WOLFSSL_API
-int wc_dilithium_sign_msg_with_seed(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, dilithium_key* key, byte* seed);
+int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
+    word32 msgLen, byte* sig, word32* sigLen, dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
+    const byte* hash, word32 hashLen, byte* sig, word32* sigLen,
+    dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
+    word32 *sigLen, dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
+    int hashAlg, const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed);
 #endif
 WOLFSSL_API
 int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     word32 msgLen, int* res, dilithium_key* key);
+WOLFSSL_API
+int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
+    word32 ctxLen, const byte* msg, word32 msgLen, int* res,
+    dilithium_key* key);
+WOLFSSL_API
+int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
+    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
+    word32 hashLen, int* res, dilithium_key* key);
 
 WOLFSSL_API
 int wc_dilithium_init(dilithium_key* key);
@@ -703,6 +805,7 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen);
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
 WOLFSSL_API
 int wc_dilithium_export_private(dilithium_key* key, byte* out, word32* outLen);
+#define wc_dilithium_export_private_only    wc_dilithium_export_private
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
 WOLFSSL_API
@@ -737,10 +840,14 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 
 
+#define WC_ML_DSA_DRAFT         10
 
 #define WC_ML_DSA_44            2
 #define WC_ML_DSA_65            3
 #define WC_ML_DSA_87            5
+#define WC_ML_DSA_44_DRAFT      (2 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_65_DRAFT      (3 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_87_DRAFT      (5 + WC_ML_DSA_DRAFT)
 
 #define DILITHIUM_ML_DSA_44_KEY_SIZE        2560
 #define DILITHIUM_ML_DSA_44_SIG_SIZE        2420
@@ -775,7 +882,7 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #define wc_MlDsaKey_ExportPrivRaw(key, out, outLen)             \
     wc_dilithium_export_private_only(key, out, outLen)
 #define wc_MlDsaKey_ImportPrivRaw(key, in, inLen)               \
-    wc_dilithium_import_private_only(out, outLen, key)
+    wc_dilithium_import_private_only(in, inLen, key)
 #define wc_MlDsaKey_Sign(key, sig, sigSz, msg, msgSz, rng)      \
     wc_dilithium_sign_msg(msg, msgSz, sig, sigSz, key, rng)
 #define wc_MlDsaKey_Free(key)                                   \
@@ -783,13 +890,20 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #define wc_MlDsaKey_ExportPubRaw(key, out, outLen)              \
     wc_dilithium_export_public(key, out, outLen)
 #define wc_MlDsaKey_ImportPubRaw(key, in, inLen)                \
-    wc_dilithium_import_public(out, outLen, key)
+    wc_dilithium_import_public(in, inLen, key)
 #define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)    \
     wc_dilithium_verify_msg(sig, sigSz, msg, msgSz, res, key)
 
-int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
-int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
-int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
+#define wc_MlDsaKey_PublicKeyToDer(key, output, len, withAlg)   \
+    wc_Dilithium_PublicKeyToDer(key, output, len, withAlg)
+
+#define wc_MlDsaKey_PrivateKeyToDer(key, output, len)           \
+    wc_Dilithium_PrivateKeyToDer(key, output, len)
+
+
+WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
 
 #ifdef __cplusplus
     }    /* extern "C" */

@@ -38,7 +38,7 @@ steps below to generate that code.
 2. Set the Project path to the wolfSSL/IDE/MPLABX16 and enter your PIC device
 into the interface.
 
-3. Select MCC Clasic as the content type and click `Finish`.
+3. Select MCC Classic as the content type and click `Finish`.
 
 4. Under the Device Resources section, find the UART entry and add the UART1
 peripheral.

@@ -20,18 +20,18 @@ The Example contains a wolfSSL simple server.
 1. `idf.py menuconfig` to configure the project
 
     1-1. Example Connection Configuration ->
-    
-           WIFI SSID : your own WIFI, which is connected to the Internet.(default is "myssid")  
+
+           WIFI SSID : your own WIFI, which is connected to the Internet.(default is "myssid")
            WIFI Password : WIFI password, and default is "mypassword"
 
 When you want to test the wolfSSL simple server demo
 
 1. `idf.py -p <PORT> flash` to compile the code and load the firmware
 2. `idf.py monitor` to see the context. The assigned IP address can be found in output message.
-3. Once the server connects to the wifi, it is waiting for client request.  
+3. Once the server connects to the wifi, it is waiting for client request.
     ("Waiting for a connection..." message will be displayed.)
-   
-4. You can use <wolfssl>/examples/client to test the server  
+
+4. You can use <wolfssl>/examples/client to test the server
     e.g ./example/client/client -h xx.xx.xx
 
 See the README.md file in the upper level 'examples' directory for more information about examples.
@@ -39,7 +39,7 @@ See the README.md file in the upper level 'examples' directory for more informat
 
 ```
 # . /mnt/c/SysGCC/esp32/esp-idf/master/export.sh
-. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+. /mnt/c/SysGCC/esp32/esp-idf/v5.2/export.sh
 cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_server
 
 # optionally erase
@@ -82,7 +82,7 @@ After the server exits, remove the port proxy forward:
 netsh interface portproxy delete v4tov4 listenport=11111 listenaddress=0.0.0.0
 ```
 
-Cipers to consider
+Ciphers to consider
 
 ```
 TLS13-AES128-GCM-SHA256:

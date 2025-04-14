@@ -1,5 +1,5 @@
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は、引数として与えられたDES構造体のキーと初期化ベクトル（IV）を設定します。また、これらがまだ初期化されていない場合は、暗号化と復号化に必要なバッファーのスペースを初期化して割り当てます。注：IVが指定されていない場合（i.e.iv == null）初期化ベクトルは、デフォルトのIV 0になります。
     \return 0  DES構造体のキーと初期化ベクトルを正常に設定する
     \param des  初期化するDES構造へのポインタ
@@ -24,7 +24,7 @@ int  wc_Des_SetKey(Des* des, const byte* key,
                                const byte* iv, int dir);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は、引数として与えられたDES構造体の初期化ベクトル（IV）を設定します。NULL IVを渡したら、初期化ベクトルを0に設定します。
     \return none  いいえ返します。
     \param des  IVを設定するためのDES構造へのポインタ
@@ -41,7 +41,7 @@ int  wc_Des_SetKey(Des* des, const byte* key,
 void wc_Des_SetIV(Des* des, const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力メッセージを暗号化し、結果を出力バッファーに格納します。暗号ブロックチェーンチェーン（CBC）モードでDES暗号化を使用します。
     \return 0  与えられた入力メッセージの暗号化に成功したときに返されます
     \param des  暗号化に使用するDES構造へのポインタ
@@ -66,7 +66,7 @@ int  wc_Des_CbcEncrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力暗号文を復号化し、結果の平文を出力バッファーに出力します。暗号ブロックチェーンチェーン（CBC）モードでDES暗号化を使用します。
     \return 0  与えられた暗号文を正常に復号化したときに返されました
     \param des  復号化に使用するDES構造へのポインタ
@@ -91,7 +91,7 @@ int  wc_Des_CbcDecrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力メッセージを暗号化し、結果を出力バッファーに格納します。電子コードブック（ECB）モードでDES暗号化を使用します。
     \return 0:  与えられた平文を正常に暗号化すると返されます。
     \param des  暗号化に使用するDES構造へのポインタ
@@ -115,7 +115,7 @@ int  wc_Des_EcbEncrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力メッセージを暗号化し、結果を出力バッファーに格納します。電子コードブック（ECB）モードでDES3暗号化を使用します。警告：ほぼすべてのユースケースでECBモードは安全性が低いと考えられています。可能な限りECB APIを直接使用しないでください。
     \return 0  与えられた平文を正常に暗号化すると返されます
     \param des3  暗号化に使用するDES3構造へのポインタ
@@ -139,7 +139,7 @@ int wc_Des3_EcbEncrypt(Des3* des, byte* out,
                                    const byte* in, word32 sz);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は、引数として与えられたDES3構造のキーと初期化ベクトル（IV）を設定します。また、これらがまだ初期化されていない場合は、暗号化と復号化に必要なバッファーのスペースを初期化して割り当てます。注：IVが指定されていない場合（i.e.iv == null）初期化ベクトルは、デフォルトのIV 0になります。
     \return 0  DES構造体のキーと初期化ベクトルを正常に設定する
     \param des3  初期化するDES3構造へのポインタ
@@ -165,7 +165,7 @@ int  wc_Des3_SetKey(Des3* des, const byte* key,
                                 const byte* iv,int dir);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は、引数として与えられたDES3構造の初期化ベクトル（IV）を設定します。NULL IVを渡したら、初期化ベクトルを0に設定します。
     \return none  いいえ返します。
     \param des  IVを設定するためのDES3構造へのポインタ
@@ -184,7 +184,7 @@ int  wc_Des3_SetKey(Des3* des, const byte* key,
 int  wc_Des3_SetIV(Des3* des, const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力メッセージを暗号化し、結果を出力バッファーに格納します。暗号ブロックチェーン（CBC）モードでトリプルDES（3DES）暗号化を使用します。
     \return 0  与えられた入力メッセージの暗号化に成功したときに返されます
     \param des  暗号化に使用するDES3構造へのポインタ
@@ -209,7 +209,7 @@ int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
                                     const byte* in,word32 sz);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力暗号文を復号化し、結果の平文を出力バッファーに出力します。暗号ブロックチェーン（CBC）モードでトリプルDES（3DES）暗号化を使用します。
     \return 0  与えられた暗号文を正常に復号化したときに返されました
     \param des  復号化に使用するDES3構造へのポインタ

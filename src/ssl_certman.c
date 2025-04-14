@@ -1,6 +1,6 @@
 /* ssl_certman.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,11 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/internal.h>
 
@@ -44,6 +40,7 @@
  */
 static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void* heap)
 {
+    (void)heap;
     #ifndef NO_WOLFSSL_CLIENT
         #if !defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_SSLV3)
             return wolfSSLv3_client_method_ex(heap);
@@ -398,7 +395,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
         }
 
         /* Decode certificate. */
-        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS)) {
+        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) <= 0)) {
             wolfSSL_X509_free(x509);
             err = 1;
         }
@@ -455,11 +452,12 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
+static int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+                                WOLFSSL_CERT_MANAGER* cm, byte type)
 {
     int ret = WOLFSSL_SUCCESS;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCertsEx");
 
     /* Validate parameter. */
     if (cm == NULL) {
@@ -471,7 +469,7 @@ int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
     }
     if (ret == WOLFSSL_SUCCESS) {
         /* Dispose of CA table. */
-        FreeSignerTableType(cm->caTable, CA_TABLE_SIZE, WOLFSSL_CHAIN_CA,
+        FreeSignerTableType(cm->caTable, CA_TABLE_SIZE, type,
                 cm->heap);
 
         /* Unlock CA table. */
@@ -479,6 +477,22 @@ int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
     }
 
     return ret;
+}
+
+#if defined(OPENSSL_EXTRA)
+static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
+    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_TEMP_CA);
+}
+#endif
+
+int wolfSSL_CertManagerUnloadIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
+    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_CHAIN_CA);
 }
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -607,7 +621,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
         cm->verifyCallback = vc;
     }
 }
-#endif /* NO_WOLFSSL_CM_VERIFY */
+#endif /* !NO_WOLFSSL_CM_VERIFY */
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
@@ -1857,6 +1871,61 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm, CbMissingCRL cb)
 
     return ret;
 }
+
+int wolfSSL_CertManagerSetCRL_ErrorCb(WOLFSSL_CERT_MANAGER* cm, crlErrorCb cb,
+                                      void* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRL_Cb");
+
+    /* Validate parameters. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Store callback. */
+        cm->crlCb = cb;
+        cm->crlCbCtx = ctx;
+    }
+
+    return ret;
+}
+
+#ifdef HAVE_CRL_UPDATE_CB
+int wolfSSL_CertManagerGetCRLInfo(WOLFSSL_CERT_MANAGER* cm, CrlInfo* info,
+    const byte* buff, long sz, int type)
+{
+    return GetCRLInfo(cm->crl, info, buff, sz, type);
+}
+
+/* Set the callback to be called when a CRL entry has
+ * been updated (new entry had the same issuer hash and
+ * a newer CRL number).
+ *
+ * @param [in] cm  Certificate manager.
+ * @param [in] cb  CRL update callback.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  BAD_FUNC_ARG when cm is NULL.
+ */
+int wolfSSL_CertManagerSetCRLUpdate_Cb(WOLFSSL_CERT_MANAGER* cm, CbUpdateCRL cb)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRLUpdate_Cb");
+
+    /* Validate parameters. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Store callback. */
+        cm->cbUpdateCRL = cb;
+    }
+
+    return ret;
+}
+#endif
 
 #ifdef HAVE_CRL_IO
 /* Set the CRL I/O callback.

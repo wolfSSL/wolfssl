@@ -22,6 +22,7 @@ jobs:
           - build_id: hostap-build2
             wolf_extra_config: --enable-brainpool --enable-wpas-dpp
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-20.04
     # This should be a safe limit for the tests to run.
@@ -99,6 +100,7 @@ jobs:
               build_id: hostap-build2
             }
     name: hwsim test
+    if: github.repository_owner == 'wolfssl'
     # For openssl 1.1
     runs-on: ubuntu-20.04
     # This should be a safe limit for the tests to run.
@@ -181,7 +183,7 @@ jobs:
       - name: Checkout hostap
         uses: actions/checkout@v4
         with:
-          repository: julek-wolfssl/hostap-mirror 
+          repository: julek-wolfssl/hostap-mirror
           path: hostap
           ref: ${{ matrix.config.hostap_ref }}
           # necessary for cherry pick step
@@ -210,7 +212,7 @@ jobs:
           done
 
       - if: ${{ matrix.hostapd }}
-        name: Setup hostapd config file 
+        name: Setup hostapd config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/hostapd.config \
              hostap/hostapd/.config
@@ -220,7 +222,7 @@ jobs:
           EOF
 
       - if: ${{ matrix.wpa_supplicant }}
-        name: Setup wpa_supplicant config file 
+        name: Setup wpa_supplicant config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/wpa_supplicant.config \
              hostap/wpa_supplicant/.config

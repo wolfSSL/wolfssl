@@ -12,7 +12,7 @@
 */
 /* blake2b.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,20 +31,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef HAVE_BLAKE2
 
 #include <wolfssl/wolfcrypt/blake2.h>
 #include <wolfssl/wolfcrypt/blake2-impl.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
 
 static const word64 blake2b_IV[8] =
 {
@@ -491,6 +483,16 @@ int wc_InitBlake2b_WithKey(Blake2b* b2b, word32 digestSz, const byte *key, word3
 /* Blake2b Update */
 int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz)
 {
+    if (b2b == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (data == NULL && sz != 0){
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0){
+        return 0;
+    }
+
     return blake2b_update(b2b->S, data, sz);
 }
 
@@ -498,7 +500,16 @@ int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz)
 /* Blake2b Final, if pass in zero size we use init digestSz */
 int wc_Blake2bFinal(Blake2b* b2b, byte* final, word32 requestSz)
 {
-    word32 sz = requestSz ? requestSz : b2b->digestSz;
+    word32 sz;
+
+    if (b2b == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (final == NULL){
+        return BAD_FUNC_ARG;
+    }
+
+    sz = requestSz ? requestSz : b2b->digestSz;
 
     return blake2b_final(b2b->S, final, (byte)sz);
 }

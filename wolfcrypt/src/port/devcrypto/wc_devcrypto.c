@@ -1,6 +1,6 @@
 /* wc_devcrypto.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,19 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(WOLFSSL_DEVCRYPTO)
 
 static volatile int fd;
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 
 int wc_DevCryptoInit(void)
@@ -175,8 +168,13 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
         WOLFSSL_MSG("Error getting session info");
         return WC_DEVCRYPTO_E;
     }
-    printf("Using %s with driver %s\n", sesInfo.hash_info.cra_name,
-        sesInfo.hash_info.cra_driver_name);
+    if (ctx->sess.cipher == 0) {
+        printf("Using %s with driver %s\n", sesInfo.hash_info.cra_name,
+            sesInfo.hash_info.cra_driver_name);
+    } else {
+        printf("Using %s with driver %s\n", sesInfo.cipher_info.cra_name,
+            sesInfo.cipher_info.cra_driver_name);
+    }
 #endif
     (void)key;
     (void)keySz;

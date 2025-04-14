@@ -16,8 +16,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -46,7 +47,8 @@ jobs:
       matrix:
         git_ref: [ e4b13e6725abb178f62ee897fe1c0e81b06a9431 ]
     name: ${{ matrix.git_ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     needs: build_wolfssl
     steps:
       - name: Install dependencies
@@ -54,8 +56,7 @@ jobs:
           # Don't prompt for anything
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get install libpam-dev ninja-build
-          sudo pip3 install meson
+          sudo apt-get install libpam-dev ninja-build meson
 
       - name: Download lib
         uses: actions/download-artifact@v4

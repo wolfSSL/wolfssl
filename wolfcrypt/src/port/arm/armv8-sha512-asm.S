@@ -1,6 +1,6 @@
 /* armv8-sha512-asm
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,20 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
+ *   ruby ./sha2/sha512.rb arm64 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_SHA512
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_neon_len_k, %object
@@ -65,7 +62,7 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xc19bf174cf692694
 	.xword	0xe49b69c19ef14ad2
 	.xword	0xefbe4786384f25e3
-	.xword	0xfc19dc68b8cd5b5
+	.xword	0x0fc19dc68b8cd5b5
 	.xword	0x240ca1cc77ac9c65
 	.xword	0x2de92c6f592b0275
 	.xword	0x4a7484aa6ea6e483
@@ -77,7 +74,7 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xbf597fc7beef0ee4
 	.xword	0xc6e00bf33da88fc2
 	.xword	0xd5a79147930aa725
-	.xword	0x6ca6351e003826f
+	.xword	0x06ca6351e003826f
 	.xword	0x142929670a0e6e70
 	.xword	0x27b70a8546d22ffc
 	.xword	0x2e1b21385c26c926
@@ -115,8 +112,8 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xd186b8c721c0c207
 	.xword	0xeada7dd6cde0eb1e
 	.xword	0xf57d4f7fee6ed178
-	.xword	0x6f067aa72176fba
-	.xword	0xa637dc5a2c898a6
+	.xword	0x06f067aa72176fba
+	.xword	0x0a637dc5a2c898a6
 	.xword	0x113f9804bef90dae
 	.xword	0x1b710b35131c471b
 	.xword	0x28db77f523047d84
@@ -129,9 +126,9 @@ L_SHA512_transform_neon_len_k:
 	.xword	0x6c44198c4a475817
 #ifndef __APPLE__
 	.text
-	.type	L_SHA512_transform_neon_len_ror8, %object
+	.type	L_SHA512_transform_neon_len_r8, %object
 	.section	.rodata
-	.size	L_SHA512_transform_neon_len_ror8, 16
+	.size	L_SHA512_transform_neon_len_r8, 16
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -140,7 +137,7 @@ L_SHA512_transform_neon_len_k:
 #else
 	.p2align	4
 #endif /* __APPLE__ */
-L_SHA512_transform_neon_len_ror8:
+L_SHA512_transform_neon_len_r8:
 	.xword	0x7060504030201, 0x80f0e0d0c0b0a09
 #ifndef __APPLE__
 .text
@@ -156,8 +153,7 @@ _Transform_Sha512_Len_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
-	str	x17, [x29, #16]
-	str	x19, [x29, #24]
+	stp	x17, x19, [x29, #16]
 	stp	x20, x21, [x29, #32]
 	stp	x22, x23, [x29, #48]
 	stp	x24, x25, [x29, #64]
@@ -172,11 +168,11 @@ _Transform_Sha512_Len_neon:
 	add  x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x27, L_SHA512_transform_neon_len_ror8
-	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8
+	adrp x27, L_SHA512_transform_neon_len_r8
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8
 #else
-	adrp x27, L_SHA512_transform_neon_len_ror8@PAGE
-	add  x27, x27, :lo12:L_SHA512_transform_neon_len_ror8@PAGEOFF
+	adrp x27, L_SHA512_transform_neon_len_r8@PAGE
+	add  x27, x27, :lo12:L_SHA512_transform_neon_len_r8@PAGEOFF
 #endif /* __APPLE__ */
 	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
@@ -1082,8 +1078,7 @@ L_sha512_len_neon_start:
 	stp	x6, x7, [x0, #16]
 	stp	x8, x9, [x0, #32]
 	stp	x10, x11, [x0, #48]
-	ldr	x17, [x29, #16]
-	ldr	x19, [x29, #24]
+	ldp	x17, x19, [x29, #16]
 	ldp	x20, x21, [x29, #32]
 	ldp	x22, x23, [x29, #48]
 	ldp	x24, x25, [x29, #64]
@@ -1095,12 +1090,12 @@ L_sha512_len_neon_start:
 #ifndef __APPLE__
 	.size	Transform_Sha512_Len_neon,.-Transform_Sha512_Len_neon
 #endif /* __APPLE__ */
-#else
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
 	.text
-	.type	L_SHA512_transform_crypto_len_k, %object
+	.type	L_SHA512_trans_crypto_len_k, %object
 	.section	.rodata
-	.size	L_SHA512_transform_crypto_len_k, 640
+	.size	L_SHA512_trans_crypto_len_k, 640
 #else
 	.section	__DATA,__data
 #endif /* __APPLE__ */
@@ -1109,7 +1104,7 @@ L_sha512_len_neon_start:
 #else
 	.p2align	3
 #endif /* __APPLE__ */
-L_SHA512_transform_crypto_len_k:
+L_SHA512_trans_crypto_len_k:
 	.xword	0x428a2f98d728ae22
 	.xword	0x7137449123ef65cd
 	.xword	0xb5c0fbcfec4d3b2f
@@ -1128,7 +1123,7 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xc19bf174cf692694
 	.xword	0xe49b69c19ef14ad2
 	.xword	0xefbe4786384f25e3
-	.xword	0xfc19dc68b8cd5b5
+	.xword	0x0fc19dc68b8cd5b5
 	.xword	0x240ca1cc77ac9c65
 	.xword	0x2de92c6f592b0275
 	.xword	0x4a7484aa6ea6e483
@@ -1140,7 +1135,7 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xbf597fc7beef0ee4
 	.xword	0xc6e00bf33da88fc2
 	.xword	0xd5a79147930aa725
-	.xword	0x6ca6351e003826f
+	.xword	0x06ca6351e003826f
 	.xword	0x142929670a0e6e70
 	.xword	0x27b70a8546d22ffc
 	.xword	0x2e1b21385c26c926
@@ -1178,8 +1173,8 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xd186b8c721c0c207
 	.xword	0xeada7dd6cde0eb1e
 	.xword	0xf57d4f7fee6ed178
-	.xword	0x6f067aa72176fba
-	.xword	0xa637dc5a2c898a6
+	.xword	0x06f067aa72176fba
+	.xword	0x0a637dc5a2c898a6
 	.xword	0x113f9804bef90dae
 	.xword	0x1b710b35131c471b
 	.xword	0x28db77f523047d84
@@ -1212,11 +1207,11 @@ _Transform_Sha512_Len_crypto:
 .arch_extension sha3
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-	adrp x4, L_SHA512_transform_crypto_len_k
-	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k
+	adrp x4, L_SHA512_trans_crypto_len_k
+	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k
 #else
-	adrp x4, L_SHA512_transform_crypto_len_k@PAGE
-	add  x4, x4, :lo12:L_SHA512_transform_crypto_len_k@PAGEOFF
+	adrp x4, L_SHA512_trans_crypto_len_k@PAGE
+	add  x4, x4, :lo12:L_SHA512_trans_crypto_len_k@PAGEOFF
 #endif /* __APPLE__ */
 	# Load first 16 64-bit words of K permanently
 	ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40
@@ -1733,7 +1728,7 @@ L_sha512_len_crypto_begin:
 	.size	Transform_Sha512_Len_crypto,.-Transform_Sha512_Len_crypto
 #endif /* __APPLE__ */
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA512 */
-#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 

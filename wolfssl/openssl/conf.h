@@ -1,6 +1,6 @@
 /* conf.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -45,8 +45,10 @@ typedef struct WOLFSSL_CONF {
     WOLF_LHASH_OF(WOLFSSL_CONF_VALUE) *data;
 } WOLFSSL_CONF;
 
+#ifndef OPENSSL_COEXIST
 typedef WOLFSSL_CONF CONF;
 typedef WOLFSSL_CONF_VALUE CONF_VALUE;
+#endif
 
 #ifdef OPENSSL_EXTRA
 
@@ -58,7 +60,7 @@ WOLFSSL_API void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val);
 WOLFSSL_API WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth);
 WOLFSSL_API char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
         const char *group, const char *name);
-WOLFSSL_API int wolfSSL_NCONF_get_number(const CONF *conf, const char *group,
+WOLFSSL_API int wolfSSL_NCONF_get_number(const WOLFSSL_CONF *conf, const char *group,
         const char *name, long *result);
 WOLFSSL_API WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         const WOLFSSL_CONF *conf, const char *section);
@@ -80,6 +82,7 @@ WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* c
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
         WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value);
 
+#ifndef OPENSSL_COEXIST
 #define sk_CONF_VALUE_new               wolfSSL_sk_CONF_VALUE_new
 #define sk_CONF_VALUE_free              wolfSSL_sk_CONF_VALUE_free
 #define sk_CONF_VALUE_pop_free(a,b)     wolfSSL_sk_CONF_VALUE_free(a)
@@ -103,6 +106,7 @@ WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
 #define X509V3_EXT_nconf_nid            wolfSSL_X509V3_EXT_nconf_nid
 #define X509V3_EXT_nconf                wolfSSL_X509V3_EXT_nconf
 #define X509V3_conf_free                wolfSSL_X509V3_conf_free
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* OPENSSL_EXTRA */
 

@@ -14,6 +14,7 @@ include IDE/ECLIPSE/RTTHREAD/include.am
 include IDE/ECLIPSE/SIFIVE/include.am
 include IDE/Espressif/include.am
 include IDE/GCC-ARM/include.am
+include IDE/Gaisler-BCC/include.am
 include IDE/HEXAGON/include.am
 include IDE/IAR-MSP430/include.am
 include IDE/Infineon/include.am
@@ -60,6 +61,7 @@ include IDE/WINCE/include.am
 include IDE/WORKBENCH/include.am
 include IDE/XCODE-FIPSv2/include.am
 include IDE/XCODE-FIPSv5/include.am
+include IDE/XCODE-FIPSv6/include.am
 include IDE/XCODE/include.am
 include IDE/XilinxSDK/include.am
 include IDE/zephyr/include.am

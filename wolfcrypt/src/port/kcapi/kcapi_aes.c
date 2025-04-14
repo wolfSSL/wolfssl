@@ -1,6 +1,6 @@
 /* kcapi_aes.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,18 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <errno.h>
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(NO_AES) && defined(WOLFSSL_KCAPI_AES)
+
+#include <errno.h>
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
@@ -45,7 +38,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/kcapi/wc_kcapi.h>
 
 #ifdef NO_INLINE
@@ -123,7 +115,7 @@
         struct iovec iov;
 
         if (aes == NULL || out == NULL || in == NULL || \
-                                                     sz % AES_BLOCK_SIZE != 0) {
+                                                     sz % WC_AES_BLOCK_SIZE != 0) {
             ret = BAD_FUNC_ARG;
         }
 
@@ -243,7 +235,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -356,7 +348,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 

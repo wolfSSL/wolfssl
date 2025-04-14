@@ -1,6 +1,6 @@
 /* pkcs12.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,11 +21,7 @@
 
 /* PKCS#12 allows storage of key and certificates into containers */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if defined(HAVE_PKCS12) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
@@ -33,9 +29,7 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -289,6 +283,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         if (wc_BerToDer(input, safe->dataSz, NULL,
                         &pkcs12->safeDersz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_MSG("Not BER sequence");
+            freeSafe(safe, pkcs12->heap);
             return ASN_PARSE_E;
         }
 
@@ -978,7 +973,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 
         totalSz += 4; /* Element */
 
-        totalSz += 2 + sizeof(WC_PKCS12_DATA_OID);
+        totalSz += 2U + (word32)sizeof(WC_PKCS12_DATA_OID);
 
         totalSz += 4; /* Seq */
 
@@ -995,7 +990,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             if (der == NULL && derSz != NULL) {
                 *derSz = (int)totalSz;
                 XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-                return LENGTH_ONLY_E;
+                return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
 
             if (*der == NULL) {
@@ -1037,7 +1032,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
         /* OID */
         idx += (word32)SetObjectId(sizeof(WC_PKCS12_DATA_OID), &buf[idx]);
         XMEMCPY(&buf[idx], WC_PKCS12_DATA_OID, sizeof(WC_PKCS12_DATA_OID));
-        idx += sizeof(WC_PKCS12_DATA_OID);
+        idx += (word32)sizeof(WC_PKCS12_DATA_OID);
 
         /* Element */
         buf[idx++] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC;
@@ -1112,7 +1107,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
 
         InitDecodedCert(DeCert, current->buffer, current->bufferSz, heap);
         if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0) {
-            if (wc_CheckPrivateKeyCert(*pkey, *pkeySz, DeCert, 0) == 1) {
+            if (wc_CheckPrivateKeyCert(*pkey, *pkeySz, DeCert, 0, heap) == 1) {
                 WOLFSSL_MSG("Key Pair found");
                 *cert = current->buffer;
                 *certSz = current->bufferSz;
@@ -1144,7 +1139,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
 #ifdef ASN_BER_TO_DER
 /* append data to encrypted content cache in PKCS12 structure
  * return buffer on success, NULL on error */
-static byte* PKCS12_ConcatonateContent(WC_PKCS12* pkcs12,byte* mergedData,
+static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
         word32* mergedSz, byte* in, word32 inSz)
 {
     byte* oldContent;
@@ -1257,7 +1252,7 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
                     ret = MEMORY_E;
                 }
             }
-            mergedData = PKCS12_ConcatonateContent(pkcs12, mergedData,
+            mergedData = PKCS12_ConcatenateContent(pkcs12, mergedData,
                     &mergedSz, &data[*idx], (word32)encryptedContentSz);
             if (mergedData == NULL) {
                 ret = MEMORY_E;
@@ -1269,16 +1264,18 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
         *idx += (word32)encryptedContentSz;
     }
 
-    *idx = saveIdx;
+    if (ret == 0) {
+        *idx = saveIdx;
 
-    *idx += SetLength(mergedSz, &data[*idx]);
+        *idx += SetLength(mergedSz, &data[*idx]);
 
-    if (mergedSz > 0) {
-        /* Copy over concatenated octet strings into data buffer */
-        XMEMCPY(&data[*idx], mergedData, mergedSz);
-
-        XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        if (mergedSz > 0) {
+            /* Copy over concatenated octet strings into data buffer */
+            XMEMCPY(&data[*idx], mergedData, mergedSz);
+        }
     }
+
+    XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 
     return ret;
 }
@@ -1809,7 +1806,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     }
     if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         *outSz =  sz + MAX_LENGTH_SZ + 1;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if (ret < 0) {
         return ret;
@@ -1871,7 +1868,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     if (out == NULL) {
         *outSz = MAX_SEQ_SZ + WC_PKCS12_DATA_OBJ_SZ + 1 + MAX_LENGTH_SZ +
             length;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     heap = wc_PKCS12_GetHeap(pkcs12);
@@ -1948,7 +1945,7 @@ static int wc_PKCS12_create_cert_bag(WC_PKCS12* pkcs12,
         *outSz = (word32)(MAX_SEQ_SZ + WC_CERTBAG_OBJECT_ID + 1 + MAX_LENGTH_SZ +
             MAX_SEQ_SZ + WC_CERTBAG1_OBJECT_ID + 1 + MAX_LENGTH_SZ + 1 +
             MAX_LENGTH_SZ + (int)certSz);
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     /* check buffer size able to handle max size */
@@ -2080,12 +2077,12 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
         /* calculate size */
         totalSz  = (word32)SetObjectId(sizeof(WC_PKCS12_ENCRYPTED_OID), seq);
-        totalSz += sizeof(WC_PKCS12_ENCRYPTED_OID);
+        totalSz += (word32)sizeof(WC_PKCS12_ENCRYPTED_OID);
         totalSz += ASN_TAG_SZ;
 
         length  = (word32)SetMyVersion(0, seq, 0);
         tmpSz   = (word32)SetObjectId(sizeof(WC_PKCS12_DATA_OID), seq);
-        tmpSz  += sizeof(WC_PKCS12_DATA_OID);
+        tmpSz  += (word32)sizeof(WC_PKCS12_DATA_OID);
         tmpSz  += encSz;
         length += SetSequence(tmpSz, seq) + tmpSz;
         outerSz = SetSequence(length, seq) + length;
@@ -2093,7 +2090,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         totalSz += SetLength(outerSz, seq) + outerSz;
         if (out == NULL) {
             *outSz = totalSz + SetSequence(totalSz, seq);
-            return LENGTH_ONLY_E;
+            return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
 
         if (*outSz < totalSz + SetSequence(totalSz, seq)) {
@@ -2108,7 +2105,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         }
         XMEMCPY(out + idx, WC_PKCS12_ENCRYPTED_OID,
                 sizeof(WC_PKCS12_ENCRYPTED_OID));
-        idx += sizeof(WC_PKCS12_ENCRYPTED_OID);
+        idx += (word32)sizeof(WC_PKCS12_ENCRYPTED_OID);
 
         if (idx + 1 > *outSz){
             return BUFFER_E;
@@ -2149,7 +2146,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
             return BUFFER_E;
         }
         XMEMCPY(out + idx, WC_PKCS12_DATA_OID, sizeof(WC_PKCS12_DATA_OID));
-        idx += sizeof(WC_PKCS12_DATA_OID);
+        idx += (word32)sizeof(WC_PKCS12_DATA_OID);
 
         /* copy over encrypted data */
         if (idx + encSz > *outSz){
@@ -2171,7 +2168,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
     if (type == WC_PKCS12_DATA) {
         /* calculate size */
         totalSz = (word32)SetObjectId(sizeof(WC_PKCS12_DATA_OID), seq);
-        totalSz += sizeof(WC_PKCS12_DATA_OID);
+        totalSz += (word32)sizeof(WC_PKCS12_DATA_OID);
         totalSz += ASN_TAG_SZ;
 
         length   = SetOctetString(contentSz, seq);
@@ -2181,7 +2178,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
         if (out == NULL) {
             *outSz = totalSz + SetSequence(totalSz, seq);
-            return LENGTH_ONLY_E;
+            return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
 
         if (*outSz < (totalSz + SetSequence(totalSz, seq))) {
@@ -2197,7 +2194,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
             return BUFFER_E;
         }
         XMEMCPY(out + idx, WC_PKCS12_DATA_OID, sizeof(WC_PKCS12_DATA_OID));
-        idx += sizeof(WC_PKCS12_DATA_OID);
+        idx += (word32)sizeof(WC_PKCS12_DATA_OID);
 
         if (idx + 1 > *outSz){
             return BUFFER_E;

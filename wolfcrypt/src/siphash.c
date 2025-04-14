@@ -1,6 +1,6 @@
 /* siphash.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,16 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/siphash.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -69,14 +62,14 @@
  * @param [in] a  Little-endian byte array.
  * @return 64-bit number.
  */
-#define GET_U64(a)      (*(word64*)(a))
+#define GET_U64(a)      readUnalignedWord64(a)
 /**
  * Decode little-endian byte array to 32-bit number.
  *
  * @param [in] a  Little-endian byte array.
  * @return 32-bit number.
  */
-#define GET_U32(a)      (*(word32*)(a))
+#define GET_U32(a)      readUnalignedWord32(a)
 /**
  * Decode little-endian byte array to 16-bit number.
  *
@@ -90,7 +83,7 @@
  * @param [out] a  Byte array to write into.
  * @param [in]  n  Number to encode.
  */
-#define SET_U64(a, n)   ((*(word64*)(a)) = (n))
+#define SET_U64(a, n)   writeUnalignedWord64(a, n)
 #else
 /**
  * Decode little-endian byte array to 64-bit number.
@@ -112,7 +105,7 @@
  * @param [in] a  Little-endian byte array.
  * @return 32-bit number.
  */
-#define GET_U32(a)      (((word64)((a)[3]) << 24) |     \
+#define GET_U32(a)      (((word32)((a)[3]) << 24) |     \
                          ((word32)((a)[2]) << 16) |     \
                          ((word32)((a)[1]) <<  8) |     \
                          ((word32)((a)[0])      ))
@@ -256,14 +249,14 @@ int wc_SipHashUpdate(SipHash* sipHash, const unsigned char* in, word32 inSz)
     if ((ret == 0) && (inSz > 0)) {
         /* Add to cache if already started. */
         if (sipHash->cacheCnt > 0) {
-            byte len = SIPHASH_BLOCK_SIZE - sipHash->cacheCnt;
+            byte len = (byte)(SIPHASH_BLOCK_SIZE - sipHash->cacheCnt);
             if (len > inSz) {
                 len = (byte)inSz;
             }
             XMEMCPY(sipHash->cache + sipHash->cacheCnt, in, len);
             in += len;
             inSz -= len;
-            sipHash->cacheCnt += len;
+            sipHash->cacheCnt = (byte)(sipHash->cacheCnt + len);
 
             if (sipHash->cacheCnt == SIPHASH_BLOCK_SIZE) {
                 /* Compress the block from the cache. */
@@ -331,7 +324,7 @@ int wc_SipHashFinal(SipHash* sipHash, unsigned char* out, unsigned char outSz)
 
     if (ret == 0) {
         /* Put in remaining cached message bytes. */
-        XMEMSET(sipHash->cache + sipHash->cacheCnt, 0, 7 - sipHash->cacheCnt);
+        XMEMSET(sipHash->cache + sipHash->cacheCnt, 0, 7U - sipHash->cacheCnt);
         sipHash->cache[7] = (byte)(sipHash->inCnt + sipHash->cacheCnt);
 
         SipHashCompress(sipHash, sipHash->cache);
@@ -582,7 +575,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
     return 0;
 }
 
-#elif !defined(WOLFSSL_NO_ASM) && defined(__GNUC__) && defined(__aarch64__) && \
+#elif defined(WOLFSSL_ARMASM) && defined(__GNUC__) && defined(__aarch64__) && \
     (WOLFSSL_SIPHASH_CROUNDS == 1 || WOLFSSL_SIPHASH_CROUNDS == 2) && \
     (WOLFSSL_SIPHASH_DROUNDS == 2 || WOLFSSL_SIPHASH_DROUNDS == 4)
 
@@ -805,29 +798,29 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 #else
 
 #define SipRoundV(v0, v1, v2, v3)   \
-    v0 += v1;                       \
-    v2 += v3;                       \
-    v1 = rotlFixed64(v1, 13);       \
-    v3 = rotlFixed64(v3, 16);       \
-    v1 ^= v0;                       \
-    v3 ^= v2;                       \
-    v0 = rotlFixed64(v0, 32);       \
-    v2 += v1;                       \
-    v0 += v3;                       \
-    v1 = rotlFixed64(v1, 17);       \
-    v3 = rotlFixed64(v3, 21);       \
-    v1 ^= v2;                       \
-    v3 ^= v0;                       \
-    v2 = rotlFixed64(v2, 32);
+    (v0) += (v1);                   \
+    (v2) += (v3);                   \
+    (v1) = rotlFixed64(v1, 13);     \
+    (v3) = rotlFixed64(v3, 16);     \
+    (v1) ^= (v0);                   \
+    (v3) ^= (v2);                   \
+    (v0) = rotlFixed64(v0, 32);     \
+    (v2) += (v1);                   \
+    (v0) += (v3);                   \
+    (v1) = rotlFixed64(v1, 17);     \
+    (v3) = rotlFixed64(v3, 21);     \
+    (v1) ^= (v2);                   \
+    (v3) ^= (v0);                   \
+    (v2) = rotlFixed64(v2, 32);
 
 #define SipHashCompressV(v0, v1, v2, v3, m)             \
     do {                                                \
         int i;                                          \
-        v3 ^= m;                                        \
+        (v3) ^= (m);                                    \
         for (i = 0; i < WOLFSSL_SIPHASH_CROUNDS; i++) { \
             SipRoundV(v0, v1, v2, v3);                  \
         }                                               \
-        v0 ^= m;                                        \
+        (v0) ^= (m);                                    \
     }                                                   \
     while (0)
 
@@ -839,7 +832,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         for (i = 0; i < WOLFSSL_SIPHASH_DROUNDS; i++) { \
             SipRoundV(v0, v1, v2, v3);                  \
         }                                               \
-        n = v0 ^ v1 ^ v2 ^ v3;                          \
+        n = (v0) ^ (v1) ^ (v2) ^ (v3);                  \
         SET_U64(out, n);                                \
     }                                                   \
     while (0)

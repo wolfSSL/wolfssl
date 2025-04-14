@@ -1,5 +1,5 @@
 /*!
-    \ingroup AES 
+    \ingroup AES
     \brief  入力バッファーから暗号を復号化し、AESでCipher Block Chainingを使用して出力バッファに出力バッファーに入れます。この関数は、AES構造を初期化する必要はありません。代わりに、キーとIV（初期化ベクトル）を取り、これらを使用してAESオブジェクトを初期化してから暗号テキストを復号化します。
     \return 0  メッセージの復号化に成功しました
     \return BAD_ALIGN_E  ブロック整列エラーに戻りました
@@ -33,7 +33,7 @@ int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                          const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力暗号文を復号化し、結果の平文を出力バッファーに出力します。暗号ブロックチェーンチェーン（CBC）モードでDES暗号化を使用します。この関数は、wc_des_cbcdecryptの代わりに、ユーザーがDES構造体を直接インスタンス化せずにメッセージを復号化できるようにします。
     \return 0  与えられた暗号文を正常に復号化したときに返されました
     \return MEMORY_E  DES構造体の割り当てスペースが割り当てられている場合に返された
@@ -62,7 +62,7 @@ int  wc_Des_CbcDecryptWithKey(byte* out,
                                           const byte* key, const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力平文を暗号化し、結果の暗号文を出力バッファーに出力します。暗号ブロックチェーンチェーン（CBC）モードでDES暗号化を使用します。この関数は、WC_DES_CBCENCRYPTの代わりになり、ユーザーがDES構造を直接インスタンス化せずにメッセージを暗号化できます。
     \return 0  データの暗号化に成功した後に返されます。
     \return MEMORY_E  DES構造体にメモリを割り当てるエラーがある場合は返されます。
@@ -90,7 +90,7 @@ int  wc_Des_CbcEncryptWithKey(byte* out,
                                           const byte* key, const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力平文を暗号化し、結果の暗号文を出力バッファーに出力します。暗号ブロックチェーン（CBC）モードでトリプルDES（3DES）暗号化を使用します。この関数は、WC_DES3_CBCENCRYPTの代わりになり、ユーザーがDES3構造を直接インスタンス化せずにメッセージを暗号化できます。
     \return 0  データの暗号化に成功した後に返されます。
     \return MEMORY_E  DES構造体にメモリを割り当てるエラーがある場合は返されます。
@@ -121,7 +121,7 @@ int  wc_Des3_CbcEncryptWithKey(byte* out,
                                            const byte* key, const byte* iv);
 
 /*!
-    \ingroup 3DES 
+    \ingroup 3DES
     \brief  この関数は入力暗号文を復号化し、結果の平文を出力バッファーに出力します。暗号ブロックチェーン（CBC）モードでトリプルDES（3DES）暗号化を使用します。この関数は、wc_des3_cbcdecryptの代わりに、ユーザーがDES3構造を直接インスタンス化せずにメッセージを復号化できるようにします。
     \return 0  与えられた暗号文を正常に復号化したときに返されました
     \return MEMORY_E  DES構造体の割り当てスペースが割り当てられている場合に返された

@@ -1,6 +1,6 @@
 /* async-tls.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -45,7 +45,7 @@
 /* This is where you would plug-in calls to your own hardware crypto */
 int AsyncTlsCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE; /* return this to bypass HW and use SW */
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE); /* bypass HW by default */
     AsyncTlsCryptoCbCtx* myCtx = (AsyncTlsCryptoCbCtx*)ctx;
 
     if (info == NULL)

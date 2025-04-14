@@ -1,0 +1,53 @@
+name: Coverity Scan master branch
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1-5'
+    - cron: '0 0 * * 0'
+    - cron: '0 12 * * 0'
+
+jobs:
+  coverity:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: master
+
+    - name: Configure wolfSSL with enable-all M-F
+      if: github.event.schedule == '0 0 * * 1-5'
+      run: |
+        ./autogen.sh
+        ./configure --enable-all
+
+    - name: Configure wolfSSL with enable-all enable-smallstack Sun at 00:00
+      if: github.event.schedule == '0 0 * * 0'
+      run: |
+        ./autogen.sh
+        ./configure --enable-all --enable-smallstack
+
+    - name: Configure wolfSSL with bigendian Sun at 12:00
+      if: github.event.schedule == '0 12 * * 0'
+      run: |
+        ./autogen.sh
+        ./configure --enable-all CFLAGS="-DBIG_ENDIAN_ORDER"
+
+    - name: Check secrets
+      env:
+        token_var: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        email_var: ${{ secrets.COVERITY_SCAN_EMAIL }}
+      run: |
+        token_len=${#token_var}
+        echo "$token_len"
+        email_len=${#email_var}
+        echo "$email_len"
+
+    - uses: vapier/coverity-scan-action@v1
+      with:
+        build_language: 'cxx'
+        project: "wolfSSL/wolfssl"
+        token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+        command: "make"

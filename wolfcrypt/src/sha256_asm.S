@@ -1,6 +1,6 @@
 /* sha256_asm.S */
 /*
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,9 @@
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
 #ifndef NO_AVX2_SUPPORT
+#ifndef HAVE_INTEL_AVX2
 #define HAVE_INTEL_AVX2
+#endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
 #ifdef WOLFSSL_X86_64_BUILD
@@ -273,7 +275,6 @@ _Transform_Sha256_SSE2_Sha:
         movhpd	%xmm1, 16(%rdi)
         movhpd	%xmm2, 24(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_SSE2_Sha,.-Transform_Sha256_SSE2_Sha
@@ -476,7 +477,6 @@ L_sha256_sha_len_sse2_start:
         movhpd	%xmm1, 16(%rdi)
         movhpd	%xmm2, 24(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_SSE2_Sha_Len,.-Transform_Sha256_SSE2_Sha_Len
@@ -2920,7 +2920,6 @@ _Transform_Sha256_AVX1:
         addl	%r14d, 24(%rdi)
         addl	%r15d, 28(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x40, %rsp
         popq	%rbp
         popq	%r15
@@ -5327,7 +5326,6 @@ L_sha256_len_avx1_start:
         movl	%r15d, 28(%rdi)
         jnz	L_sha256_len_avx1_start
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x44, %rsp
         popq	%rbp
         popq	%r15
@@ -7735,7 +7733,6 @@ _Transform_Sha256_AVX1_RORX:
         addl	%r14d, 24(%rdi)
         addl	%r15d, 28(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x40, %rsp
         popq	%rbp
         popq	%r15
@@ -10101,7 +10098,6 @@ L_sha256_len_avx1_len_rorx_start:
         movl	%r15d, 28(%rdi)
         jnz	L_sha256_len_avx1_len_rorx_start
         xorq	%rax, %rax
-        vzeroupper
         addq	$0x44, %rsp
         popq	%rbp
         popq	%r15
@@ -10312,7 +10308,6 @@ _Transform_Sha256_AVX1_Sha:
         vmovhpd	%xmm1, 16(%rdi)
         vmovhpd	%xmm2, 24(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_AVX1_Sha,.-Transform_Sha256_AVX1_Sha
@@ -10487,7 +10482,6 @@ L_sha256_sha_len_avx1_start:
         vmovhpd	%xmm1, 16(%rdi)
         vmovhpd	%xmm2, 24(%rdi)
         xorq	%rax, %rax
-        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	Transform_Sha256_AVX1_Sha_Len,.-Transform_Sha256_AVX1_Sha_Len

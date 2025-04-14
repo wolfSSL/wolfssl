@@ -1,6 +1,6 @@
 /* tls1.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -45,10 +45,20 @@
 
 #ifdef WOLFSSL_QUIC
 /* from rfc9001 */
+#define WOLFSSL_TLSEXT_TYPE_quic_transport_parameters_draft   \
+    TLSXT_KEY_QUIC_TP_PARAMS_DRAFT
+#define WOLFSSL_TLSEXT_TYPE_quic_transport_parameters         \
+    TLSXT_KEY_QUIC_TP_PARAMS
+
+#ifndef OPENSSL_COEXIST
+
 #define TLSEXT_TYPE_quic_transport_parameters_draft   \
     TLSXT_KEY_QUIC_TP_PARAMS_DRAFT
 #define TLSEXT_TYPE_quic_transport_parameters         \
     TLSXT_KEY_QUIC_TP_PARAMS
-#endif
+
+#endif /* !OPENSSL_COEXIST */
+
+#endif /* WOLFSSL_QUIC */
 
 #endif /* WOLFSSL_OPENSSL_TLS1_H_ */

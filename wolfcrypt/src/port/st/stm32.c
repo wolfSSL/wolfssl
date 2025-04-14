@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,15 @@
 #elif defined(WOLFSSL_STM32WL)
 #include <stm32wlxx_hal_conf.h>
 #include <stm32wlxx_hal_pka.h>
+#elif defined(WOLFSSL_STM32MP13)
+#include <stm32mp13xx_hal_conf.h>
+#include <stm32mp13xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32H7S)
+#include <stm32h7rsxx_hal_conf.h>
+#include <stm32h7rsxx_hal_pka.h>
+#elif defined(WOLFSSL_STM32WBA)
+#include <stm32wbaxx_hal_conf.h>
+#include <stm32wbaxx_hal_pka.h>
 #else
 #error Please add the hal_pk.h include
 #endif
@@ -134,6 +143,9 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     ctx->HASH_IMR = HASH->IMR;
     ctx->HASH_STR = HASH->STR;
     ctx->HASH_CR  = HASH->CR;
+#ifdef STM32_HASH_SHA3
+    ctx->SHA3CFGR  = HASH->SHA3CFGR;
+#endif
     for (i=0; i<HASH_CR_SIZE; i++) {
         ctx->HASH_CSR[i] = HASH->CSR[i];
     }
@@ -181,6 +193,9 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
         HASH->CR = ctx->HASH_CR;
+#ifdef STM32_HASH_SHA3
+        HASH->SHA3CFGR = ctx->SHA3CFGR;
+#endif
 
         /* Initialize the hash processor */
         HASH->CR |= HASH_CR_INIT;
@@ -326,11 +341,11 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     while (len) {
         word32 add;
 
-        /* fill the FIFO plus one additional to flush the block */
-        chunkSz = ((STM32_HASH_FIFO_SIZE + 1) * STM32_HASH_REG_SIZE);
-        /* account for extra bytes in the FIFO (use mask 0x3F to get remain) */
-        chunkSz -= (stmCtx->fifoBytes &
-            ((STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE)-1));
+        chunkSz = blockSize;
+        /* fill the FIFO plus one additional to flush the first block */
+        if (!stmCtx->fifoBytes) {
+            chunkSz += STM32_HASH_REG_SIZE;
+        }
 
         add = min(len, chunkSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
@@ -442,8 +457,11 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #ifdef STM_CRYPT_HEADER_WIDTH
+    hcryp->Init.HeaderWidthUnit =
+            (STM_CRYPT_HEADER_WIDTH == 4) ?
+                CRYP_HEADERWIDTHUNIT_WORD :
+                CRYP_HEADERWIDTHUNIT_BYTE;
     #endif
 #endif
 
@@ -684,7 +702,6 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     PKA_ECCMulInTypeDef pka_mul;
     PKA_ECCMulOutTypeDef pka_mul_res;
     int szModulus;
-    int szkbin;
     int status;
     int res;
     uint8_t Gxbin[STM32_MAX_ECC_SIZE];
@@ -712,9 +729,8 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     }
 
     szModulus = mp_unsigned_bin_size(modulus);
-    szkbin = mp_unsigned_bin_size(k);
 
-    res = stm32_get_from_mp_int(kbin, k, szkbin);
+    res = stm32_get_from_mp_int(kbin, k, szModulus);
     if (res == MP_OKAY)
         res = stm32_get_from_mp_int(Gxbin, G->x, szModulus);
     if (res == MP_OKAY)
@@ -749,7 +765,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     pka_mul.modulus = prime;
     pka_mul.pointX = Gxbin;
     pka_mul.pointY = Gybin;
-    pka_mul.scalarMulSize = szkbin;
+    pka_mul.scalarMulSize = szModulus;
     pka_mul.scalarMul = kbin;
 #ifdef WOLFSSL_STM32_PKA_V2
     pka_mul.coefB = coefB;
@@ -807,14 +823,12 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 {
     PKA_ECDSAVerifInTypeDef pka_ecc;
     int size;
-    int szrbin;
     int status;
     uint8_t Rbin[STM32_MAX_ECC_SIZE];
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
     uint8_t Qxbin[STM32_MAX_ECC_SIZE];
     uint8_t Qybin[STM32_MAX_ECC_SIZE];
     uint8_t Hashbin[STM32_MAX_ECC_SIZE];
-    uint8_t privKeybin[STM32_MAX_ECC_SIZE];
     uint8_t prime[STM32_MAX_ECC_SIZE];
     uint8_t coefA[STM32_MAX_ECC_SIZE];
     uint8_t gen_x[STM32_MAX_ECC_SIZE];
@@ -828,21 +842,17 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
-    *res = 0;
+    *res = 0; /* default to failure */
+    size = wc_ecc_size(key); /* get key size in bytes */
 
-    szrbin = mp_unsigned_bin_size(r);
-    size = wc_ecc_size(key);
-
-    status = stm32_get_from_mp_int(Rbin, r, szrbin);
+    /* load R/S and public X/Y using key size */
+    status = stm32_get_from_mp_int(Rbin, r, size);
     if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(Sbin, s, szrbin);
+        status = stm32_get_from_mp_int(Sbin, s, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qxbin, key->pubkey.x, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qybin, key->pubkey.y, size);
-    if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(privKeybin, wc_ecc_key_get_priv(key),
-            size);
     if (status != MP_OKAY)
         return status;
 

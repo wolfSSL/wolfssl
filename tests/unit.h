@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,8 +20,22 @@
  */
 
 
-#ifndef CyaSSL_UNIT_H
-#define CyaSSL_UNIT_H
+#ifndef TESTS_UNIT_H
+#define TESTS_UNIT_H
+
+#define WOLFSSL_VIS_FOR_TESTS
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with unit tests */
+#undef OPENSSL_COEXIST /* can't use this option with unit tests */
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>    /* thread and tcp stuff */
@@ -121,27 +135,63 @@
 #define AssertPtrGE(x, y) AssertPtr(x, y, >=,  <)
 #define AssertPtrLE(x, y) AssertPtr(x, y, <=,  >)
 
+#define TEST_FAIL               0
+#define TEST_SUCCESS            1
+#define TEST_SUCCESS_NO_MSGS    2
+#define TEST_SKIPPED            3  /* Test skipped - not run. */
+#define TEST_SKIPPED_NO_MSGS    4  /* Test skipped - not run. */
 
 #define EXPECT_DECLS \
-    int _ret = TEST_SKIPPED
+    int _ret = TEST_SKIPPED, _fail_codepoint_id = TEST_FAIL
+#define EXPECT_SUCCESS_DECLS \
+    int _ret = TEST_SUCCESS, _fail_codepoint_id = TEST_SUCCESS
+#define EXPECT_DECLS_NO_MSGS(fail_codepoint_offset)     \
+    int _ret = TEST_SKIPPED_NO_MSGS,                    \
+        _fail_codepoint_id = (fail_codepoint_offset)
+#define EXPECT_FAILURE_CODEPOINT_ID _fail_codepoint_id
 #define EXPECT_RESULT() \
-    _ret
+    ((void)_fail_codepoint_id,                                          \
+     _ret == TEST_SUCCESS_NO_MSGS ? TEST_SUCCESS :                      \
+     _ret == TEST_SKIPPED_NO_MSGS ? TEST_SKIPPED :                      \
+     _ret)
 #define EXPECT_SUCCESS() \
-    ((_ret == TEST_SUCCESS) || (_ret == TEST_SKIPPED))
+    ((_ret == TEST_SUCCESS) ||                                          \
+     (_ret == TEST_SKIPPED) ||                                          \
+     (_ret == TEST_SUCCESS_NO_MSGS) ||                                  \
+     (_ret == TEST_SKIPPED_NO_MSGS))
 #define EXPECT_FAIL() \
-    (_ret == TEST_FAIL)
+    (! EXPECT_SUCCESS())
 
-#define ExpFail(description, result) do {                                      \
-    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
-    fputs("\n    expected: ", stdout); printf description;                     \
-    fputs("\n    result:   ", stdout); printf result; fputs("\n\n", stdout);   \
-    fflush(stdout);                                                            \
-    _ret = TEST_FAIL;                                                          \
+#define EXPECT_TEST(ret) do {                                                  \
+    if (EXPECT_SUCCESS()) {                                                    \
+        _ret = (ret);                                                          \
+    }                                                                          \
 } while (0)
 
-#define Expect(test, description, result) do {                                 \
-    if (_ret != TEST_FAIL) { if (!(test)) ExpFail(description, result);        \
-                             else _ret = TEST_SUCCESS; }                       \
+#define ExpFail(description, result) do {                                    \
+    if ((_ret == TEST_SUCCESS_NO_MSGS) || (_ret == TEST_SKIPPED_NO_MSGS))    \
+        _ret = _fail_codepoint_id;                                           \
+    else {                                                                   \
+        printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);     \
+        fputs("\n    expected: ", stdout); printf description;               \
+        fputs("\n    result:   ", stdout); printf result;                    \
+        fputs("\n\n", stdout);                                               \
+        fflush(stdout);                                                      \
+        _ret = TEST_FAIL;                                                    \
+    }                                                                        \
+} while (0)
+
+#define Expect(test, description, result) do {                               \
+    if (EXPECT_SUCCESS()) {                                                  \
+        if (!(test))                                                         \
+            ExpFail(description, result);                                    \
+        else if (_ret == TEST_SKIPPED_NO_MSGS)                               \
+            _ret = TEST_SUCCESS_NO_MSGS;                                     \
+        else                                                                 \
+            _ret = TEST_SUCCESS;                                             \
+    }                                                                        \
+    if (_ret == TEST_SUCCESS_NO_MSGS)                                        \
+        --_fail_codepoint_id;                                                \
 } while (0)
 
 #define ExpectTrue(x)    Expect( (x), ("%s is true",     #x), (#x " => FALSE"))
@@ -149,14 +199,14 @@
 #define ExpectNotNull(x) Expect( (x), ("%s is not null", #x), (#x " => NULL"))
 
 #define ExpectNull(x) do {                                                     \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         PEDANTIC_EXTENSION void* _x = (void*)(x);                              \
         Expect(!_x, ("%s is null", #x), (#x " => %p", _x));                    \
     }                                                                          \
 } while(0)
 
 #define ExpectInt(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         int _x = (int)(x);                                                     \
         int _y = (int)(y);                                                     \
         Expect(_x op _y, ("%s " #op " %s", #x, #y), ("%d " #er " %d", _x, _y));\
@@ -171,7 +221,7 @@
 #define ExpectIntLE(x, y) ExpectInt(x, y, <=,  >)
 
 #define ExpectStr(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         const char* _x = (const char*)(x);                                     \
         const char* _y = (const char*)(y);                                     \
         int         _z = (_x && _y) ? XSTRCMP(_x, _y) : -1;                    \
@@ -188,7 +238,7 @@
 #define ExpectStrLE(x, y) ExpectStr(x, y, <=,  >)
 
 #define ExpectPtr(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         PRAGMA_DIAG_PUSH                                                       \
           /* remarkably, without this inhibition, */                           \
           /* the _Pragma()s make the declarations warn. */                     \
@@ -211,11 +261,11 @@
 #define ExpectPtrLE(x, y) ExpectPtr(x, y, <=,  >)
 
 #define ExpectBuf(x, y, z, op, er) do {                                        \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         const byte* _x = (const byte*)(x);                                     \
         const byte* _y = (const byte*)(y);                                     \
         int         _z = (int)(z);                                             \
-        int         _w = ((_x) && (_y)) ? XMEMCMP(_x, _y, _z) : -1;            \
+        int _w = ((_x) && (_y)) ? XMEMCMP(_x, _y, (unsigned long)_z) : -1;     \
         Expect(_w op 0, ("%s " #op " %s for %s", #x, #y, #z),                  \
                              ("\"%p\" " #er " \"%p\" for \"%d\"",              \
                                 (const void *)_x, (const void *)_y, _z));      \
@@ -294,16 +344,91 @@
 #define DoExpectBufEQ(x, y, z) DoExpectBuf(x, y, z, ==, !=)
 #define DoExpectBufNE(x, y, z) DoExpectBuf(x, y, z, !=, ==)
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_TIRTOS)
+    #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
+#endif
+#ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
+
+typedef int (*ctx_cb)(WOLFSSL_CTX* ctx);
+typedef int (*ssl_cb)(WOLFSSL* ssl);
+typedef int (*test_cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+typedef int (*hs_cb)(WOLFSSL_CTX **ctx, WOLFSSL **ssl);
+
+typedef struct test_ssl_cbf {
+    method_provider method;
+    ctx_cb ctx_ready;
+    ssl_cb ssl_ready;
+    ssl_cb on_result;
+    ctx_cb on_ctx_cleanup;
+    ssl_cb on_cleanup;
+    hs_cb  on_handshake;
+    WOLFSSL_CTX* ctx;
+    const char* caPemFile;
+    const char* certPemFile;
+    const char* keyPemFile;
+    const char* crlPemFile;
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte*               mem;
+    word32              memSz;
+    wolfSSL_method_func method_ex;
+#endif
+    int devId;
+    int return_code;
+    int last_err;
+    unsigned char isSharedCtx:1;
+    unsigned char loadToSSL:1;
+    unsigned char ticNoInit:1;
+    unsigned char doUdp:1;
+} test_ssl_cbf;
+
+#define TEST_SSL_MEMIO_BUF_SZ   (64 * 1024)
+typedef struct test_ssl_memio_ctx {
+    WOLFSSL_CTX* s_ctx;
+    WOLFSSL_CTX* c_ctx;
+    WOLFSSL* s_ssl;
+    WOLFSSL* c_ssl;
+
+    const char* c_ciphers;
+    const char* s_ciphers;
+
+    char* c_msg;
+    int c_msglen;
+    char* s_msg;
+    int s_msglen;
+
+    test_ssl_cbf s_cb;
+    test_ssl_cbf c_cb;
+
+    byte c_buff[TEST_SSL_MEMIO_BUF_SZ];
+    int c_len;
+    byte s_buff[TEST_SSL_MEMIO_BUF_SZ];
+    int s_len;
+} test_ssl_memio_ctx;
+
+int test_ssl_memio_setup(test_ssl_memio_ctx *ctx);
+int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
+    int* rounds);
+void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx);
+int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
+    test_ssl_cbf* server_cb, test_cbType client_on_handshake);
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+
+void ApiTest_StopOnFail(void);
 void ApiTest_PrintTestCases(void);
+void ApiTest_PrintGroups(void);
+int ApiTest_RunGroup(char* name);
 int ApiTest_RunIdx(int idx);
+int ApiTest_RunPartName(char* name);
 int ApiTest_RunName(char* name);
 int ApiTest(void);
 
 int  SuiteTest(int argc, char** argv);
-int  HashTest(void);
 void SrpTest(void);
 int w64wrapper_test(void);
 int QuicTest(void);
 
 
-#endif /* CyaSSL_UNIT_H */
+#endif /* TESTS_UNIT_H */

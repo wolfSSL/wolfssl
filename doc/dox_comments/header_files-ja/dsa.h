@@ -1,5 +1,5 @@
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この関数は、デジタル署名アルゴリズム（DSA）を介した認証に使用するためにDSAKEYオブジェクトを初期化します。
     \return 0  成功に戻りました。
     \return BAD_FUNC_ARG  NULLキーが渡された場合に返されます。
@@ -14,7 +14,7 @@
 int wc_InitDsaKey(DsaKey* key);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この関数は、使用された後にdsakeyオブジェクトを解放します。
     \return none  いいえ返します。
     _Example_
@@ -29,7 +29,7 @@ int wc_InitDsaKey(DsaKey* key);
 void wc_FreeDsaKey(DsaKey* key);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この機能は入力ダイジェストに署名し、結果を出力バッファーに格納します。
     \return 0  入力ダイジェストに正常に署名したときに返されました
     \return MP_INIT_E  DSA署名の処理にエラーがある場合は返される可能性があります。
@@ -67,7 +67,7 @@ int wc_DsaSign(const byte* digest, byte* out,
                            DsaKey* key, WC_RNG* rng);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この関数は、秘密鍵を考えると、ダイジェストの署名を検証します。回答パラメータでキーが正しく検証されているかどうか、正常な検証に対応する1、および失敗した検証に対応する0が格納されます。
     \return 0  検証要求の処理に成功したときに返されます。注：これは、署名が検証されていることを意味するわけではなく、関数が成功したというだけです。
     \return MP_INIT_E  DSA署名の処理にエラーがある場合は返される可能性があります。
@@ -106,7 +106,7 @@ int wc_DsaVerify(const byte* digest, const byte* sig,
                              DsaKey* key, int* answer);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この機能は、DSA公開鍵を含むDERフォーマットの証明書バッファを復号し、与えられたDSakey構造体にキーを格納します。また、入力読み取りの長さに応じてINOUTIDXパラメータを設定します。
     \return 0  dsakeyオブジェクトの公開鍵を正常に設定する
     \return ASN_PARSE_E  証明書バッファを読みながらエンコーディングにエラーがある場合
@@ -133,7 +133,7 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                       DsaKey* key, word32 inSz);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  この機能は、DSA秘密鍵を含むDERフォーマットの証明書バッファをデコードし、指定されたDSakey構造体にキーを格納します。また、入力読み取りの長さに応じてINOUTIDXパラメータを設定します。
     \return 0  dsakeyオブジェクトの秘密鍵を正常に設定するに返されました
     \return ASN_PARSE_E  証明書バッファを読みながらエンコーディングにエラーがある場合
@@ -160,7 +160,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                        DsaKey* key, word32 inSz);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  DSAKEYキーをDERフォーマット、出力への書き込み（Inlen）、書き込まれたバイトを返します。
     \return outLen  成功、書かれたバイト数
     \return BAD_FUNC_ARG  キーまたは出力はNULLまたはキー - >タイプがDSA_PRIVATEではありません。
@@ -187,7 +187,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  DSAキーを作成します。
     \return MP_OKAY  成功
     \return BAD_FUNC_ARG  RNGまたはDSAのどちらかがnullです。
@@ -212,7 +212,7 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
 
 /*!
-    \ingroup DSA 
+    \ingroup DSA
     \brief  FIPS 186-4は、modulus_size値の有効な値を定義します（1024,160）（2048,256）（3072,256）
     \return 0  成功
     \return BAD_FUNC_ARG  RNGまたはDSAはNULLまたはMODULUS_SIZEが無効です。

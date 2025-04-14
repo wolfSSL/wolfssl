@@ -1,6 +1,6 @@
 /* eccsi.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,13 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -36,7 +30,6 @@
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/eccsi.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -46,7 +39,7 @@
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #undef RESTORE_VECTOR_REGISTERS
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
@@ -516,7 +509,7 @@ static int eccsi_encode_point(ecc_point* point, word32 size, byte* data,
 
     if (data == NULL) {
         *sz = size * 2 + !raw;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < size * 2 + !raw)) {
         err = BUFFER_E;
@@ -655,7 +648,7 @@ int wc_ExportEccsiKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)(key->ecc.dp->size * 3);
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size * 3) {
             err = BUFFER_E;
@@ -777,7 +770,7 @@ int wc_ExportEccsiPrivateKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -1016,7 +1009,7 @@ int wc_EncodeEccsiPair(const EccsiKey* key, mp_int* ssk, ecc_point* pvt,
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)(key->ecc.dp->size * 3);
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < (word32)(key->ecc.dp->size * 3))) {
         err = BUFFER_E;
@@ -1077,7 +1070,7 @@ int wc_EncodeEccsiSsk(const EccsiKey* key, mp_int* ssk, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -2000,7 +1993,7 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         sz = (word32)key->ecc.dp->size;
         if (sig == NULL) {
             *sigSz = sz * 4 + 1;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
     if ((err == 0) && (*sigSz < sz * 4 + 1)) {

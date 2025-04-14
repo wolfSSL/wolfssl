@@ -13,10 +13,10 @@ if(CONFIG_WOLFSSL)
     endif()
 
     zephyr_include_directories(
-  	${ZEPHYR_CURRENT_MODULE_DIR}
-  	${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl
-  	${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
-  	)
+        ${ZEPHYR_CURRENT_MODULE_DIR}
+        ${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl
+        ${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
+        )
 
     zephyr_library()
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
@@ -78,7 +78,7 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ed25519.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ed448.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/error.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ext_kyber.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/ext_mlkem.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/falcon.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/fe_448.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/fe_low_mem.c)
@@ -117,8 +117,10 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/tfm.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_dsp.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_encrypt.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_kyber.c)
-    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_kyber_poly.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_mlkem.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_mlkem_poly.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_lms.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_lms_impl.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_pkcs11.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wc_port.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/wolfevent.c)
@@ -134,15 +136,30 @@ if(CONFIG_WOLFSSL)
     if(CONFIG_WOLFCRYPT_ARMASM)
       # tested with board: "qemu_kvm_arm64"
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-aes.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha256.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
       zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-poly1305.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha.c)
-      zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
+
+      if(CONFIG_WOLFCRYPT_ARMASM_THUMB2)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-chacha.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-poly1305.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-aes-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-chacha-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-curve25519_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-kyber-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-poly1305-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/thumb2-sha512-asm_c.c)
+      else()
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-poly1305.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-chacha.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-curve25519_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
+        zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c)
+      endif()
+
 
       # Note: The cmake/gcc-m-cpu.cmake make need updated to add "+crypto -mstrict-align"
       set(TOOLCHAIN_C_FLAGS "-mcpu=cortex-a53+crypto -mstrict-align")
@@ -164,8 +181,8 @@ if(CONFIG_WOLFSSL)
 
     zephyr_library_link_libraries(wolfSSL)
 
-  	target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
-  	target_compile_definitions(wolfSSL INTERFACE WOLFSSL_USER_SETTINGS)
+        target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
+        target_compile_definitions(wolfSSL INTERFACE WOLFSSL_USER_SETTINGS)
     if(CONFIG_WOLFSSL_DEBUG)
       target_compile_definitions(wolfSSL INTERFACE DEBUG_WOLFSSL)
       zephyr_library_compile_options(-g3 -O0)
@@ -177,8 +194,8 @@ if(CONFIG_WOLFSSL)
     # therefore susceptible to bit rot
 
     target_include_directories(wolfSSL INTERFACE
-  	${CONFIG_WOLFSSL_INSTALL_PATH}
-  	)
+        ${CONFIG_WOLFSSL_INSTALL_PATH}
+        )
 
     zephyr_link_libraries(
       wolfssl_external

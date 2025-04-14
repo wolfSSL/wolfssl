@@ -1,6 +1,6 @@
 /* ssl_misc.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,13 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #if !defined(WOLFSSL_SSL_MISC_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -165,7 +159,15 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
     if (bio->type == WOLFSSL_BIO_MEMORY) {
         ret = wolfSSL_BIO_get_mem_data(bio, data);
         if (ret > 0) {
-            bio->rdIdx += ret;
+            /* Advance the write index in the memory bio */
+            WOLFSSL_BIO* mem_bio = bio;
+            for (; mem_bio != NULL; mem_bio = mem_bio->next) {
+                if (mem_bio->type == WOLFSSL_BIO_MEMORY)
+                    break;
+            }
+            if (mem_bio == NULL)
+                mem_bio = bio; /* Default to input */
+            mem_bio->rdIdx += ret;
         }
         *memAlloced = 0;
     }

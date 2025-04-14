@@ -1,6 +1,6 @@
 /* armv8-32-sha3-asm
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,17 +21,17 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
+ *   ruby ./sha3/sha3.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.type	L_sha3_arm2_neon_rt, %object
 	.size	L_sha3_arm2_neon_rt, 192
@@ -85,60 +85,6 @@ L_sha3_arm2_neon_rt:
 	.word	0x0
 	.word	0x80008008
 	.word	0x80000000
-	.text
-	.type	L_sha3_arm2_rt, %object
-	.size	L_sha3_arm2_rt, 192
-	.align	4
-L_sha3_arm2_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
-#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -408,6 +354,59 @@ L_sha3_arm32_neon_begin:
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
+	.type	L_sha3_arm2_rt, %object
+	.size	L_sha3_arm2_rt, 192
+	.align	4
+L_sha3_arm2_rt:
+	.word	0x1
+	.word	0x0
+	.word	0x8082
+	.word	0x0
+	.word	0x808a
+	.word	0x80000000
+	.word	0x80008000
+	.word	0x80000000
+	.word	0x808b
+	.word	0x0
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8009
+	.word	0x80000000
+	.word	0x8a
+	.word	0x0
+	.word	0x88
+	.word	0x0
+	.word	0x80008009
+	.word	0x0
+	.word	0x8000000a
+	.word	0x0
+	.word	0x8000808b
+	.word	0x0
+	.word	0x8b
+	.word	0x80000000
+	.word	0x8089
+	.word	0x80000000
+	.word	0x8003
+	.word	0x80000000
+	.word	0x8002
+	.word	0x80000000
+	.word	0x80
+	.word	0x80000000
+	.word	0x800a
+	.word	0x0
+	.word	0x8000000a
+	.word	0x80000000
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8080
+	.word	0x80000000
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008008
+	.word	0x80000000
+	.text
 	.align	4
 	.globl	BlockSha3
 	.type	BlockSha3, %function
@@ -508,8 +507,7 @@ L_sha3_arm32_begin:
 	eor	r3, r3, r5, lsl #1
 	# Calc b[0] and XOR t[0] into s[x*5+0]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -546,8 +544,7 @@ L_sha3_arm32_begin:
 	eor	r10, r10, r2
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [r0]
-	str	r5, [r0, #4]
+	stm	r0, {r4, r5}
 #else
 	strd	r4, r5, [r0]
 #endif
@@ -722,8 +719,7 @@ L_sha3_arm32_begin:
 	str	lr, [sp, #20]
 	# Calc t[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [sp]
-	ldr	r3, [sp, #4]
+	ldm	sp, {r2, r3}
 #else
 	ldrd	r2, r3, [sp]
 #endif
@@ -882,8 +878,7 @@ L_sha3_arm32_begin:
 	ldrd	r2, r3, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [sp]
-	ldr	r5, [sp, #4]
+	ldm	sp, {r4, r5}
 #else
 	ldrd	r4, r5, [sp]
 #endif
@@ -957,8 +952,7 @@ L_sha3_arm32_begin:
 	# Row Mix
 	# Row 0
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [r0]
-	ldr	r3, [r0, #4]
+	ldm	r0, {r2, r3}
 #else
 	ldrd	r2, r3, [r0]
 #endif
@@ -1034,8 +1028,7 @@ L_sha3_arm32_begin:
 	str	lr, [sp, #36]
 	# Get constant
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r10, [r1]
-	ldr	r11, [r1, #4]
+	ldm	r1, {r10, r11}
 #else
 	ldrd	r10, r11, [r1]
 #endif
@@ -1491,8 +1484,7 @@ L_sha3_arm32_begin:
 	eor	r3, r3, r5, lsl #1
 	# Calc b[0] and XOR t[0] into s[x*5+0]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [sp]
-	ldr	r5, [sp, #4]
+	ldm	sp, {r4, r5}
 #else
 	ldrd	r4, r5, [sp]
 #endif
@@ -1529,8 +1521,7 @@ L_sha3_arm32_begin:
 	eor	r10, r10, r2
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [sp]
-	str	r5, [sp, #4]
+	stm	sp, {r4, r5}
 #else
 	strd	r4, r5, [sp]
 #endif
@@ -1705,8 +1696,7 @@ L_sha3_arm32_begin:
 	str	lr, [r0, #20]
 	# Calc t[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [r0]
-	ldr	r3, [r0, #4]
+	ldm	r0, {r2, r3}
 #else
 	ldrd	r2, r3, [r0]
 #endif
@@ -1865,8 +1855,7 @@ L_sha3_arm32_begin:
 	ldrd	r2, r3, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1940,8 +1929,7 @@ L_sha3_arm32_begin:
 	# Row Mix
 	# Row 0
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [sp]
-	ldr	r3, [sp, #4]
+	ldm	sp, {r2, r3}
 #else
 	ldrd	r2, r3, [sp]
 #endif
@@ -2017,8 +2005,7 @@ L_sha3_arm32_begin:
 	str	lr, [r0, #36]
 	# Get constant
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r10, [r1]
-	ldr	r11, [r1, #4]
+	ldm	r1, {r10, r11}
 #else
 	ldrd	r10, r11, [r1]
 #endif
@@ -2391,7 +2378,8 @@ L_sha3_arm32_begin:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
+#endif /* WOLFSSL_SHA3 */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

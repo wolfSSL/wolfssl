@@ -15,8 +15,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -43,9 +44,10 @@ jobs:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 4.2.8p15 ]
+        ref: [ 4.2.8p15, 4.2.8p17 ]
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     needs: build_wolfssl
@@ -89,4 +91,3 @@ jobs:
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
           make -j
           make -j check
- 

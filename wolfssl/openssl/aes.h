@@ -1,6 +1,6 @@
 /* aes.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,26 +53,36 @@
 typedef struct WOLFSSL_AES_KEY {
     ALIGN16 void *buf[(sizeof(Aes) / sizeof(void *)) + 1];
 } WOLFSSL_AES_KEY;
-typedef WOLFSSL_AES_KEY AES_KEY;
 
 WOLFSSL_API int wolfSSL_AES_set_encrypt_key(
-    const unsigned char *key, const int bits, AES_KEY *aes);
+    const unsigned char *key, const int bits, WOLFSSL_AES_KEY *aes);
 WOLFSSL_API int wolfSSL_AES_set_decrypt_key(
-    const unsigned char *key, const int bits, AES_KEY *aes);
+    const unsigned char *key, const int bits, WOLFSSL_AES_KEY *aes);
 WOLFSSL_API void wolfSSL_AES_cbc_encrypt(
-    const unsigned char *in, unsigned char* out, size_t len, AES_KEY *key,
+    const unsigned char *in, unsigned char* out, size_t len, WOLFSSL_AES_KEY *key,
     unsigned char* iv, const int enc);
 WOLFSSL_API void wolfSSL_AES_ecb_encrypt(
-    const unsigned char *in, unsigned char* out, AES_KEY *key, const int enc);
+    const unsigned char *in, unsigned char* out, WOLFSSL_AES_KEY *key, const int enc);
 WOLFSSL_API void wolfSSL_AES_cfb128_encrypt(
-    const unsigned char *in, unsigned char* out, size_t len, AES_KEY *key,
+    const unsigned char *in, unsigned char* out, size_t len, WOLFSSL_AES_KEY *key,
     unsigned char* iv, int* num, const int enc);
 WOLFSSL_API int wolfSSL_AES_wrap_key(
-    AES_KEY *key, const unsigned char *iv, unsigned char *out,
+    WOLFSSL_AES_KEY *key, const unsigned char *iv, unsigned char *out,
     const unsigned char *in, unsigned int inlen);
 WOLFSSL_API int wolfSSL_AES_unwrap_key(
-    AES_KEY *key, const unsigned char *iv, unsigned char *out,
+    WOLFSSL_AES_KEY *key, const unsigned char *iv, unsigned char *out,
     const unsigned char *in, unsigned int inlen);
+
+#ifdef WOLFSSL_AES_DIRECT
+WOLFSSL_API void wolfSSL_AES_encrypt(
+    const unsigned char* input, unsigned char* output, WOLFSSL_AES_KEY *key);
+WOLFSSL_API void wolfSSL_AES_decrypt(
+    const unsigned char* input, unsigned char* output, WOLFSSL_AES_KEY *key);
+#endif /* WOLFSSL_AES_DIRECT */
+
+#ifndef OPENSSL_COEXIST
+
+typedef WOLFSSL_AES_KEY AES_KEY;
 
 #define AES_cbc_encrypt     wolfSSL_AES_cbc_encrypt
 #define AES_ecb_encrypt     wolfSSL_AES_ecb_encrypt
@@ -83,11 +93,6 @@ WOLFSSL_API int wolfSSL_AES_unwrap_key(
 #define AES_unwrap_key      wolfSSL_AES_unwrap_key
 
 #ifdef WOLFSSL_AES_DIRECT
-WOLFSSL_API void wolfSSL_AES_encrypt(
-    const unsigned char* input, unsigned char* output, AES_KEY *key);
-WOLFSSL_API void wolfSSL_AES_decrypt(
-    const unsigned char* input, unsigned char* output, AES_KEY *key);
-
 #define AES_encrypt         wolfSSL_AES_encrypt
 #define AES_decrypt         wolfSSL_AES_decrypt
 #endif /* WOLFSSL_AES_DIRECT */
@@ -98,6 +103,8 @@ WOLFSSL_API void wolfSSL_AES_decrypt(
 #ifndef AES_DECRYPT
 #define AES_DECRYPT AES_DECRYPTION
 #endif
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     } /* extern "C" */

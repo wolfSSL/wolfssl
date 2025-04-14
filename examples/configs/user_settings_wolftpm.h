@@ -1,6 +1,6 @@
 /* user_settings_wolftpm.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -216,7 +216,6 @@ extern "C" {
     #define NO_SIG_WRAPPER
     #define NO_ASN_TIME
     #define NO_CODING
-    #define NO_BIG_INT
 #endif
 
 #ifdef __cplusplus

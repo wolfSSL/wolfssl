@@ -80,24 +80,15 @@
         #define WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_FFC_IMPORT
         #define HAVE_FFDHE_Q
-        #define HAVE_PUBLIC_FFDHE
     #ifdef _WIN64
         #define WOLFSSL_AESNI
-        #define HAVE_INTEL_RDSEED
     #endif
-        #define FORCE_FAILURE_RDSEED
     #endif /* FIPS v2 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
-        #undef WOLFSSL_AESNI /* Comment out if using PAA */
-        #undef HAVE_INTEL_RDSEED
-        #undef FORCE_FAILURE_RDSEED
-        #undef HAVE_PUBLIC_FFDHE
-
         #define NO_DES
         #define NO_DES3
         #define NO_MD5
         #define NO_OLD_TLS
-
         #define WOLFSSL_TLS13
         #define HAVE_TLS_EXTENSIONS
         #define HAVE_SUPPORTED_CURVES
@@ -124,17 +115,28 @@
         #define FP_MAX_BITS 16384
     #endif /* FIPS v5 */
     #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 6)
+        #undef WOLFSSL_AESNI /* Comment out if using PAA */
         #define HAVE_ED25519
+        #define HAVE_CURVE25519
+        #define WOLFSSL_ED25519_STREAMING_VERIFY
+        #define HAVE_ED25519_KEY_IMPORT
         #define HAVE_ED448
+        #define HAVE_CURVE448
+        #define HAVE_ED448_KEY_IMPORT
+        #define WOLFSSL_ED448_STREAMING_VERIFY
+        #undef  WOLFSSL_NO_SHAKE256
         #define WOLFSSL_SHAKE256
         #define WOLFSSL_SHAKE128
         #define WOLFSSL_AES_CFB
         #define WOLFSSL_AES_XTS
+        #define WOLFSSL_AESXTS_STREAM
+        #define WOLFSSL_AESGCM_STREAM
         #define HAVE_AES_KEYWRAP
         #define WC_SRTP_KDF
         #define HAVE_PBKDF2
         #define WOLFCRYPT_FIPS_CORE_HASH_VALUE \
-                AA9F70F147FAB898A76F587873AC4E9C7050D6E1F5828046BE871C54EDF2BF1C
+      AE8F969C072FB4A87B5C594F96162002F3CCEB6026BDB2553C8621AE197F7059 //woPAA
+      //E257E8C21764333E4710316D208A90D4ECA0682D6F40DC3F4A6E259D4752E306 //wPAA
         #define WOLFSSL_NOSHA512_224
         #define WOLFSSL_NOSHA512_256
 
@@ -173,5 +175,25 @@
         #define NO_PSK
     #endif
 #endif /* HAVE_FIPS */
+
+/* For optesting and code review and harness/vector processing */
+#if 0
+    #undef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+
+    #undef USE_CERT_BUFFERS_256
+    #define USE_CERT_BUFFERS_256
+
+    #define NO_MAIN_DRIVER
+    #define HAVE_FORCE_FIPS_FAILURE
+    #define OPTEST_LOGGING_ENABLED
+    #define OPTEST_INVALID_LOGGING_ENABLED
+    #define DEBUG_FIPS_VERBOSE
+    #define OPTEST_RUNNING_ORGANIC
+    #define DEBUG_WOLFSSL
+    #define OPTEST_LOG_TE_MAPPING
+    #define DEEPLY_EMBEDDED
+    #define WORKING_WITH_AEGISOLVE
+#endif /* 1 || 0 */
 
 #endif /* _WIN_USER_SETTINGS_H_ */

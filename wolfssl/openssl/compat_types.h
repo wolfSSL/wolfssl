@@ -1,6 +1,6 @@
 /* compat_types.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,7 +50,9 @@ typedef struct WOLFSSL_EVP_PKEY_CTX   WOLFSSL_EVP_PKEY_CTX;
 typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 typedef struct WOLFSSL_ASN1_PCTX      WOLFSSL_ASN1_PCTX;
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
+
+#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 typedef WOLFSSL_EVP_MD         EVP_MD;
 typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
 typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
@@ -61,7 +63,7 @@ typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
 
 typedef WOLFSSL_ENGINE         ENGINE;
 typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
 

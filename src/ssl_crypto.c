@@ -1,6 +1,6 @@
 /* ssl_crypto.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifndef WOLFSSL_SSL_CRYPTO_INCLUDED
     #ifndef WOLFSSL_IGNORE_FILE_WARN
@@ -45,13 +40,12 @@
 void wolfSSL_MD4_Init(WOLFSSL_MD4_CTX* md4)
 {
     /* Ensure WOLFSSL_MD4_CTX is big enough for wolfCrypt Md4. */
-    typedef char ok[sizeof(md4->buffer) >= sizeof(Md4) ? 1 : -1];
-    (void)sizeof(ok);
+    WOLFSSL_ASSERT_SIZEOF_GE(md4->buffer, wc_Md4);
 
     WOLFSSL_ENTER("MD4_Init");
 
     /* Initialize wolfCrypt MD4 object. */
-    wc_InitMd4((Md4*)md4);
+    wc_InitMd4((wc_Md4*)md4);
 }
 
 /* Update MD4 hash with data.
@@ -66,7 +60,7 @@ void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX* md4, const void* data,
     WOLFSSL_ENTER("MD4_Update");
 
     /* Update wolfCrypt MD4 object with data. */
-    wc_Md4Update((Md4*)md4, (const byte*)data, (word32)len);
+    wc_Md4Update((wc_Md4*)md4, (const byte*)data, (word32)len);
 }
 
 /* Finalize MD4 hash and return output.
@@ -80,7 +74,7 @@ void wolfSSL_MD4_Final(unsigned char* digest, WOLFSSL_MD4_CTX* md4)
     WOLFSSL_ENTER("MD4_Final");
 
     /* Finalize wolfCrypt MD4 hash into digest. */
-    wc_Md4Final((Md4*)md4, digest);
+    wc_Md4Final((wc_Md4*)md4, digest);
 }
 
 #endif /* NO_MD4 */
@@ -97,8 +91,7 @@ void wolfSSL_MD4_Final(unsigned char* digest, WOLFSSL_MD4_CTX* md4)
 int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
 {
     /* Ensure WOLFSSL_MD5_CTX is big enough for wolfCrypt wc_Md5. */
-    typedef char md5_test[sizeof(WOLFSSL_MD5_CTX) >= sizeof(wc_Md5) ? 1 : -1];
-    (void)sizeof(md5_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_MD5_CTX, wc_Md5);
 
     WOLFSSL_ENTER("MD5_Init");
 
@@ -212,8 +205,7 @@ unsigned char* wolfSSL_MD5(const unsigned char* data, size_t len,
 int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
 {
     /* Ensure WOLFSSL_SHA_CTX is big enough for wolfCrypt wc_Sha. */
-    typedef char sha_test[sizeof(WOLFSSL_SHA_CTX) >= sizeof(wc_Sha) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA_CTX, wc_Sha);
 
     WOLFSSL_ENTER("SHA_Init");
 
@@ -296,7 +288,7 @@ int wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX* sha)
 {
     WOLFSSL_ENTER("SHA1_Init");
 
-    return SHA_Init(sha);
+    return wolfSSL_SHA_Init(sha);
 }
 
 
@@ -313,7 +305,7 @@ int wolfSSL_SHA1_Update(WOLFSSL_SHA_CTX* sha, const void* input,
 {
     WOLFSSL_ENTER("SHA1_Update");
 
-    return SHA_Update(sha, input, sz);
+    return wolfSSL_SHA_Update(sha, input, sz);
 }
 
 /* Finalize SHA-1 hash and return output.
@@ -328,7 +320,7 @@ int wolfSSL_SHA1_Final(byte* output, WOLFSSL_SHA_CTX* sha)
 {
     WOLFSSL_ENTER("SHA1_Final");
 
-    return SHA_Final(output, sha);
+    return wolfSSL_SHA_Final(output, sha);
 }
 
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
@@ -362,8 +354,7 @@ int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX* sha, const unsigned char* data)
 int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha224)
 {
     /* Ensure WOLFSSL_SHA224_CTX is big enough for wolfCrypt wc_Sha224. */
-    typedef char sha_test[sizeof(SHA224_CTX) >= sizeof(wc_Sha224) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA224_CTX, wc_Sha224);
 
     WOLFSSL_ENTER("SHA224_Init");
 
@@ -422,8 +413,7 @@ int wolfSSL_SHA224_Final(byte* output, WOLFSSL_SHA224_CTX* sha224)
 int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
 {
     /* Ensure WOLFSSL_SHA256_CTX is big enough for wolfCrypt wc_Sha256. */
-    typedef char sha_test[sizeof(SHA256_CTX) >= sizeof(wc_Sha256) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA256_CTX, wc_Sha256);
 
     WOLFSSL_ENTER("SHA256_Init");
 
@@ -512,8 +502,7 @@ int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256,
 int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha384)
 {
     /* Ensure WOLFSSL_SHA384_CTX is big enough for wolfCrypt wc_Sha384. */
-    typedef char sha_test[sizeof(SHA384_CTX) >= sizeof(wc_Sha384) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA384_CTX, wc_Sha384);
 
     WOLFSSL_ENTER("SHA384_Init");
 
@@ -572,8 +561,7 @@ int wolfSSL_SHA384_Final(byte* output, WOLFSSL_SHA384_CTX* sha384)
 int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha512)
 {
     /* Ensure WOLFSSL_SHA512_CTX is big enough for wolfCrypt wc_Sha512. */
-    typedef char sha_test[sizeof(SHA512_CTX) >= sizeof(wc_Sha512) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA512_CTX, wc_Sha512);
 
     WOLFSSL_ENTER("SHA512_Init");
 
@@ -809,8 +797,7 @@ int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
 int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha3_224)
 {
     /* Ensure WOLFSSL_SHA3_224_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_224_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_224_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_224_Init");
 
@@ -869,8 +856,7 @@ int wolfSSL_SHA3_224_Final(byte* output, WOLFSSL_SHA3_224_CTX* sha3)
 int wolfSSL_SHA3_256_Init(WOLFSSL_SHA3_256_CTX* sha3_256)
 {
     /* Ensure WOLFSSL_SHA3_256_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_256_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_256_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_256_Init");
 
@@ -929,8 +915,7 @@ int wolfSSL_SHA3_256_Final(byte* output, WOLFSSL_SHA3_256_CTX* sha3)
 int wolfSSL_SHA3_384_Init(WOLFSSL_SHA3_384_CTX* sha3_384)
 {
     /* Ensure WOLFSSL_SHA3_384_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_384_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_384_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_384_Init");
 
@@ -989,8 +974,7 @@ int wolfSSL_SHA3_384_Final(byte* output, WOLFSSL_SHA3_384_CTX* sha3)
 int wolfSSL_SHA3_512_Init(WOLFSSL_SHA3_512_CTX* sha3_512)
 {
     /* Ensure WOLFSSL_SHA3_512_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_512_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA3_512_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_512_Init");
 
@@ -1733,7 +1717,7 @@ const WOLFSSL_EVP_MD* wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX* ctx)
  * @return  0 on failure.
  */
 int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int keySz,
-    const EVP_MD* type, WOLFSSL_ENGINE* e)
+    const WOLFSSL_EVP_MD* type, WOLFSSL_ENGINE* e)
 {
     WOLFSSL_ENTER("wolfSSL_HMAC_Init_ex");
 
@@ -1757,7 +1741,7 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int keySz,
  * @return  0 on failure.
  */
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
-    const EVP_MD* type)
+    const WOLFSSL_EVP_MD* type)
 {
     int ret = 1;
     void* heap = NULL;
@@ -2239,7 +2223,7 @@ int wolfSSL_CMAC_Update(WOLFSSL_CMAC_CTX* ctx, const void* data, size_t len)
  *
  * @param [in, out] ctx  CMAC context object.
  * @param [out]     out  Buffer to place CMAC result into.
- *                       Must be able to hold AES_BLOCK_SIZE bytes.
+ *                       Must be able to hold WC_AES_BLOCK_SIZE bytes.
  * @param [out]     len  Length of CMAC result. May be NULL.
  * @return  1 on success.
  * @return  0 when ctx is NULL.
@@ -2259,7 +2243,7 @@ int wolfSSL_CMAC_Final(WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len)
 
     if (ret == 1) {
         /* Get the expected output size. */
-        blockSize = EVP_CIPHER_CTX_block_size(ctx->cctx);
+        blockSize = wolfSSL_EVP_CIPHER_CTX_block_size(ctx->cctx);
         /* Check value is valid. */
         if (blockSize <= 0) {
             ret = 0;
@@ -2442,7 +2426,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* key,
     /* Check key parity is odd. */
     if ((ret == 0) && (!wolfSSL_DES_check_key_parity(key))) {
         WOLFSSL_MSG("Odd parity test fail");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     /* Check whether key is weak. */
     if ((ret == 0) && wolfSSL_DES_is_weak_key(key)) {
@@ -2554,21 +2538,23 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
     if ((!err) && (dataSz % DES_BLOCK_SIZE)) {
         /* Allocate a buffer big enough to hold padded input. */
         dataSz += DES_BLOCK_SIZE - (dataSz % DES_BLOCK_SIZE);
-        data = (unsigned char*)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        data = (unsigned char*)XMALLOC((size_t)dataSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
         if (data == NULL) {
             WOLFSSL_MSG("Issue creating temporary buffer");
             err = 1;
         }
         else {
             /* Copy input and pad with 0s. */
-            XMEMCPY(data, in, length);
-            XMEMSET(data + length, 0, dataSz - length);
+            XMEMCPY(data, in, (size_t)length);
+            XMEMSET(data + length, 0, (size_t)(dataSz - length));
         }
     }
 
     if (!err) {
         /* Allocate buffer to hold encrypted data. */
-        tmp = (unsigned char*)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tmp = (unsigned char*)XMALLOC((size_t)dataSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             WOLFSSL_MSG("Issue creating temporary buffer");
             err = 1;
@@ -2578,7 +2564,7 @@ WOLFSSL_DES_LONG wolfSSL_DES_cbc_cksum(const unsigned char* in,
     if (!err) {
         /* Encrypt data into temporary. */
         wolfSSL_DES_cbc_encrypt(data, tmp, dataSz, sc, (WOLFSSL_DES_cblock*)iv,
-            DES_ENCRYPT);
+            WC_DES_ENCRYPT);
         /* Copy out last block. */
         XMEMCPY((unsigned char*)out, tmp + (dataSz - DES_BLOCK_SIZE),
             DES_BLOCK_SIZE);
@@ -2625,7 +2611,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
 
 #ifdef WOLFSSL_SMALL_STACK
-    des = XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
+    des = (Des*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
     if (des == NULL) {
         WOLFSSL_MSG("Failed to allocate memory for Des object");
     }
@@ -2642,13 +2628,13 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
         /* Length of data that is a multiple of a block. */
         word32 len   = (word32)(length - lb_sz);
 
-        if (enc == DES_ENCRYPT) {
+        if (enc == WC_DES_ENCRYPT) {
             /* Encrypt full blocks into output. */
             wc_Des_CbcEncrypt(des, output, input, len);
             if (lb_sz != 0) {
                 /* Create a 0 padded block from remaining bytes. */
                 XMEMSET(lastBlock, 0, DES_BLOCK_SIZE);
-                XMEMCPY(lastBlock, input + len, lb_sz);
+                XMEMCPY(lastBlock, input + len, (size_t)lb_sz);
                 /* Encrypt last block into output. */
                 wc_Des_CbcEncrypt(des, output + len, lastBlock,
                     (word32)DES_BLOCK_SIZE);
@@ -2662,7 +2648,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
                 wc_Des_CbcDecrypt(des, lastBlock, input + len,
                     (word32)DES_BLOCK_SIZE);
                 /* Copy out the required amount of the decrypted block. */
-                XMEMCPY(output + len, lastBlock, lb_sz);
+                XMEMCPY(output + len, lastBlock, (size_t)lb_sz);
             }
         }
     }
@@ -2698,7 +2684,7 @@ void wolfSSL_DES_ncbc_encrypt(const unsigned char* input, unsigned char* output,
     offset = (offset + DES_BLOCK_SIZE - 1) / DES_BLOCK_SIZE;
     offset *= DES_BLOCK_SIZE;
     offset -= DES_BLOCK_SIZE;
-    if (enc == DES_ENCRYPT) {
+    if (enc == WC_DES_ENCRYPT) {
         /* Encrypt data. */
         wolfSSL_DES_cbc_encrypt(input, output, length, schedule, ivec, enc);
         /* Use last encrypted block as new IV. */
@@ -2743,7 +2729,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
     WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
 
 #ifdef WOLFSSL_SMALL_STACK
-    des3 = XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
+    des3 = (Des3*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
     if (des3 == NULL) {
         WOLFSSL_MSG("Failed to allocate memory for Des3 object");
         sz = 0;
@@ -2772,7 +2758,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
         ret = wc_Des3Init(des3, NULL, INVALID_DEVID);
         (void)ret;
 
-        if (enc == DES_ENCRYPT) {
+        if (enc == WC_DES_ENCRYPT) {
             /* Initialize wolfCrypt DES3 object. */
             if (wc_Des3_SetKey(des3, key, (const byte*)ivec, DES_ENCRYPTION)
                     == 0) {
@@ -2786,7 +2772,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
                 if (lb_sz != 0) {
                     /* Create a 0 padded block from remaining bytes. */
                     XMEMSET(lastBlock, 0, DES_BLOCK_SIZE);
-                    XMEMCPY(lastBlock, input + len, lb_sz);
+                    XMEMCPY(lastBlock, input + len, (size_t)lb_sz);
                     /* Encrypt last block into output. */
                     ret = wc_Des3_CbcEncrypt(des3, output + len, lastBlock,
                         (word32)DES_BLOCK_SIZE);
@@ -2836,7 +2822,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
                     (void)ret;
                 #endif
                     /* Copy out the required amount of the decrypted block. */
-                    XMEMCPY(output + len, lastBlock, lb_sz);
+                    XMEMCPY(output + len, lastBlock, (size_t)lb_sz);
                 }
             }
         }
@@ -2869,22 +2855,24 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
 
     /* Validate parameters. */
     if ((in == NULL) || (out == NULL) || (key == NULL) ||
-           ((enc != DES_ENCRYPT) && (enc != DES_DECRYPT))) {
+           ((enc != WC_DES_ENCRYPT) && (enc != WC_DES_DECRYPT))) {
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     }
 #ifdef WOLFSSL_SMALL_STACK
-    else if ((des = XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER)) == NULL) {
+    else if ((des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER))
+             == NULL)
+    {
         WOLFSSL_MSG("Failed to allocate memory for Des object");
     }
 #endif
     /* Set key in wolfCrypt DES object for encryption or decryption.
-     * DES_ENCRYPT = 1, wolfSSL DES_ENCRYPTION = 0.
-     * DES_DECRYPT = 0, wolfSSL DES_DECRYPTION = 1.
+     * WC_DES_ENCRYPT = 1, wolfSSL DES_ENCRYPTION = 0.
+     * WC_DES_DECRYPT = 0, wolfSSL DES_DECRYPTION = 1.
      */
     else if (wc_Des_SetKey(des, (const byte*)key, NULL, !enc) != 0) {
         WOLFSSL_MSG("wc_Des_SetKey return error.");
     }
-    else if (enc == DES_ENCRYPT) {
+    else if (enc == WC_DES_ENCRYPT) {
         /* Encrypt a block with wolfCrypt DES object. */
         if (wc_Des_EcbEncrypt(des, (byte*)out, (const byte*)in, DES_KEY_SIZE)
                 != 0) {
@@ -2926,33 +2914,32 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
  * @param [in]  key   Key data.
  * @param [in]  bits  Number of bits in key.
  * @param [out] aes   AES key object.
- * @param [in]  enc   Whether to encrypt. AES_ENCRYPT or AES_DECRYPT.
+ * @param [in]  enc   Whether to encrypt. AES_ENCRYPTION or AES_DECRYPTION.
  * @return  0 on success.
  * @return  -1 when key or aes is NULL.
  * @return  -1 when setting key with wolfCrypt fails.
  */
 static int wolfssl_aes_set_key(const unsigned char *key, const int bits,
-    AES_KEY *aes, int enc)
+    WOLFSSL_AES_KEY *aes, int enc)
 {
-    typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
-    (void)sizeof(aes_test);
+    wc_static_assert(sizeof(WOLFSSL_AES_KEY) >= sizeof(Aes));
 
     /* Validate parameters. */
     if ((key == NULL) || (aes == NULL)) {
         WOLFSSL_MSG("Null argument passed in");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
-    XMEMSET(aes, 0, sizeof(AES_KEY));
+    XMEMSET(aes, 0, sizeof(WOLFSSL_AES_KEY));
 
     if (wc_AesInit((Aes*)aes, NULL, INVALID_DEVID) != 0) {
         WOLFSSL_MSG("Error in initting AES key");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
-    if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, enc) != 0) {
+    if (wc_AesSetKey((Aes*)aes, key, (word32)((bits)/8), NULL, enc) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     return 0;
 }
@@ -2967,11 +2954,11 @@ static int wolfssl_aes_set_key(const unsigned char *key, const int bits,
  * @return  -1 when setting key with wolfCrypt fails.
  */
 int wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
-    AES_KEY *aes)
+    WOLFSSL_AES_KEY *aes)
 {
     WOLFSSL_ENTER("wolfSSL_AES_set_encrypt_key");
 
-    return wolfssl_aes_set_key(key, bits, aes, AES_ENCRYPT);
+    return wolfssl_aes_set_key(key, bits, aes, AES_ENCRYPTION);
 }
 
 /* Sets the key into the AES key object for decryption.
@@ -2984,11 +2971,11 @@ int wolfSSL_AES_set_encrypt_key(const unsigned char *key, const int bits,
  * @return  -1 when setting key with wolfCrypt fails.
  */
 int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
-    AES_KEY *aes)
+    WOLFSSL_AES_KEY *aes)
 {
     WOLFSSL_ENTER("wolfSSL_AES_set_decrypt_key");
 
-    return wolfssl_aes_set_key(key, bits, aes, AES_DECRYPT);
+    return wolfssl_aes_set_key(key, bits, aes, AES_DECRYPTION);
 }
 
 #ifdef WOLFSSL_AES_DIRECT
@@ -2996,15 +2983,15 @@ int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
  *
  * wolfSSL_AES_set_encrypt_key() must have been called.
  *
- * #input must contain AES_BLOCK_SIZE bytes of data.
- * #output must be a buffer at least AES_BLOCK_SIZE bytes in length.
+ * #input must contain WC_AES_BLOCK_SIZE bytes of data.
+ * #output must be a buffer at least WC_AES_BLOCK_SIZE bytes in length.
  *
  * @param [in]  input   Data to encrypt.
  * @param [out] output  Encrypted data.
  * @param [in]  key     AES key to use for encryption.
  */
 void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
-    AES_KEY *key)
+    WOLFSSL_AES_KEY *key)
 {
     WOLFSSL_ENTER("wolfSSL_AES_encrypt");
 
@@ -3014,7 +3001,8 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
     }
     else
 #if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)) \
+    || defined(WOLFSSL_LINUXKM))
     /* Encrypt a block with wolfCrypt AES. */
     if (wc_AesEncryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesEncryptDirect failed");
@@ -3032,15 +3020,15 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
  *
  * wolfSSL_AES_set_decrypt_key() must have been called.
  *
- * #input must contain AES_BLOCK_SIZE bytes of data.
- * #output must be a buffer at least AES_BLOCK_SIZE bytes in length.
+ * #input must contain WC_AES_BLOCK_SIZE bytes of data.
+ * #output must be a buffer at least WC_AES_BLOCK_SIZE bytes in length.
  *
  * @param [in]  input   Data to decrypt.
  * @param [out] output  Decrypted data.
  * @param [in]  key     AES key to use for encryption.
  */
 void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
-    AES_KEY *key)
+    WOLFSSL_AES_KEY *key)
 {
     WOLFSSL_ENTER("wolfSSL_AES_decrypt");
 
@@ -3050,7 +3038,7 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
     }
     else
 #if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,3,0)))
     /* Decrypt a block with wolfCrypt AES. */
     if (wc_AesDecryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesDecryptDirect failed");
@@ -3072,17 +3060,17 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
  * wolfSSL_AES_set_encrypt_key() or wolfSSL_AES_set_decrypt_key ()must have been
  * called.
  *
- * #input must contain AES_BLOCK_SIZE bytes of data.
- * #output must be a buffer at least AES_BLOCK_SIZE bytes in length.
+ * #input must contain WC_AES_BLOCK_SIZE bytes of data.
+ * #output must be a buffer at least WC_AES_BLOCK_SIZE bytes in length.
  *
  * @param [in]  in   Data to encipher.
  * @param [out] out  Enciphered data.
  * @param [in]  key  AES key to use for encryption/decryption.
  * @param [in]  enc  Whether to encrypt.
- *                   AES_ENCRPT for encryption, AES_DECRYPT for decryption.
+ *                   AES_ENCRPT for encryption, AES_DECRYPTION for decryption.
  */
 void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
-    AES_KEY *key, const int enc)
+    WOLFSSL_AES_KEY *key, const int enc)
 {
     WOLFSSL_ENTER("wolfSSL_AES_ecb_encrypt");
 
@@ -3090,16 +3078,16 @@ void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
     if ((key == NULL) || (in == NULL) || (out == NULL)) {
         WOLFSSL_MSG("Error, Null argument passed in");
     }
-    else if (enc == AES_ENCRYPT) {
+    else if (enc == AES_ENCRYPTION) {
         /* Encrypt block. */
-        if (wc_AesEcbEncrypt((Aes*)key, out, in, AES_BLOCK_SIZE) != 0) {
+        if (wc_AesEcbEncrypt((Aes*)key, out, in, WC_AES_BLOCK_SIZE) != 0) {
             WOLFSSL_MSG("Error with AES CBC encrypt");
         }
     }
     else {
     #ifdef HAVE_AES_DECRYPT
         /* Decrypt block. */
-        if (wc_AesEcbDecrypt((Aes*)key, out, in, AES_BLOCK_SIZE) != 0) {
+        if (wc_AesEcbDecrypt((Aes*)key, out, in, WC_AES_BLOCK_SIZE) != 0) {
             WOLFSSL_MSG("Error with AES CBC decrypt");
         }
     #else
@@ -3123,10 +3111,10 @@ void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
  *                        On in, used with first block.
  *                        On out, IV for further operations.
  * @param [in]       enc  Whether to encrypt.
- *                   AES_ENCRPT for encryption, AES_DECRYPT for decryption.
+ *                   AES_ENCRPT for encryption, AES_DECRYPTION for decryption.
  */
 void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
-    size_t len, AES_KEY *key, unsigned char* iv, const int enc)
+    size_t len, WOLFSSL_AES_KEY *key, unsigned char* iv, const int enc)
 {
     WOLFSSL_ENTER("wolfSSL_AES_cbc_encrypt");
 
@@ -3143,7 +3131,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
         if ((ret = wc_AesSetIV(aes, (const byte*)iv)) != 0) {
             WOLFSSL_MSG("Error with setting iv");
         }
-        else if (enc == AES_ENCRYPT) {
+        else if (enc == AES_ENCRYPTION) {
             /* Encrypt with wolfCrypt AES object. */
             if ((ret = wc_AesCbcEncrypt(aes, out, in, (word32)len)) != 0) {
                 WOLFSSL_MSG("Error with AES CBC encrypt");
@@ -3158,7 +3146,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
 
         if (ret == 0) {
             /* Get IV for next operation. */
-            XMEMCPY(iv, (byte*)(aes->reg), AES_BLOCK_SIZE);
+            XMEMCPY(iv, (byte*)(aes->reg), WC_AES_BLOCK_SIZE);
         }
     }
 }
@@ -3178,10 +3166,10 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
  *                        On out, IV for further operations.
  * @param [out]      num  Number of bytes used from last incomplete block.
  * @param [in]       enc  Whether to encrypt.
- *                   AES_ENCRPT for encryption, AES_DECRYPT for decryption.
+ *                   AES_ENCRPT for encryption, AES_DECRYPTION for decryption.
  */
 void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
-    size_t len, AES_KEY *key, unsigned char* iv, int* num, const int enc)
+    size_t len, WOLFSSL_AES_KEY *key, unsigned char* iv, int* num, const int enc)
 {
 #ifndef WOLFSSL_AES_CFB
     WOLFSSL_MSG("CFB mode not enabled please use macro WOLFSSL_AES_CFB");
@@ -3208,9 +3196,9 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
          * leftover bytes field "left", and this function relies on the leftover
          * bytes being preserved between calls.
          */
-        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, iv, WC_AES_BLOCK_SIZE);
 
-        if (enc == AES_ENCRYPT) {
+        if (enc == AES_ENCRYPTION) {
             /* Encrypt data with AES-CFB. */
             if ((ret = wc_AesCfbEncrypt(aes, out, in, (word32)len)) != 0) {
                 WOLFSSL_MSG("Error with AES CBC encrypt");
@@ -3225,11 +3213,11 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 
         if (ret == 0) {
             /* Copy IV out after operation. */
-            XMEMCPY(iv, (byte*)(aes->reg), AES_BLOCK_SIZE);
+            XMEMCPY(iv, (byte*)(aes->reg), WC_AES_BLOCK_SIZE);
 
             /* Store number of left over bytes to num. */
             if (num != NULL) {
-                *num = (AES_BLOCK_SIZE - aes->left) % AES_BLOCK_SIZE;
+                *num = (WC_AES_BLOCK_SIZE - aes->left) % WC_AES_BLOCK_SIZE;
             }
         }
     }
@@ -3249,7 +3237,7 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
  * @return  0 when key, iv, out or in is NULL.
  * @return  0 when key length is not valid.
  */
-int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
+int wolfSSL_AES_wrap_key(WOLFSSL_AES_KEY *key, const unsigned char *iv,
     unsigned char *out, const unsigned char *in, unsigned int inSz)
 {
     int ret = 0;
@@ -3284,7 +3272,7 @@ int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
  * @return  0 when key, iv, out or in is NULL.
  * @return  0 when wrapped key data length is not valid.
  */
-int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
+int wolfSSL_AES_unwrap_key(WOLFSSL_AES_KEY *key, const unsigned char *iv,
     unsigned char *out, const unsigned char *in, unsigned int inSz)
 {
     int ret = 0;
@@ -3345,7 +3333,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
         }
 
         /* Encrypt data up to last block */
-        (*cbc)(in, out, len - lastBlkLen, key, iv, AES_ENCRYPT);
+        (*cbc)(in, out, len - lastBlkLen, key, iv, AES_ENCRYPTION);
 
         /* Move to last block */
         in += len - lastBlkLen;
@@ -3358,7 +3346,7 @@ size_t wolfSSL_CRYPTO_cts128_encrypt(const unsigned char *in,
         XMEMCPY(out, out - WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
         /* Encrypt last block. */
         (*cbc)(lastBlk, out - WOLFSSL_CTS128_BLOCK_SZ, WOLFSSL_CTS128_BLOCK_SZ,
-                key, iv, AES_ENCRYPT);
+                key, iv, AES_ENCRYPTION);
     }
 
     return len;
@@ -3413,13 +3401,13 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
          * Use 0 buffer as IV to do straight decryption.
          * This places the Cn-1 block at lastBlk */
         XMEMSET(lastBlk, 0, WOLFSSL_CTS128_BLOCK_SZ);
-        (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, AES_DECRYPT);
+        (*cbc)(in, prevBlk, WOLFSSL_CTS128_BLOCK_SZ, key, lastBlk, AES_DECRYPTION);
         /* RFC2040: Append the tail (BB minus Ln) bytes of Xn to Cn
          *          to create En. */
         XMEMCPY(prevBlk, in + WOLFSSL_CTS128_BLOCK_SZ, lastBlkLen);
         /* Cn and Cn-1 can now be decrypted */
-        (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPT);
-        (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPT);
+        (*cbc)(prevBlk, out, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPTION);
+        (*cbc)(lastBlk, lastBlk, WOLFSSL_CTS128_BLOCK_SZ, key, iv, AES_DECRYPTION);
         XMEMCPY(out + WOLFSSL_CTS128_BLOCK_SZ, lastBlk, lastBlkLen);
     }
 
@@ -3449,8 +3437,7 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
 void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
     const unsigned char* data)
 {
-    typedef char rc4_test[sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4) ? 1 : -1];
-    (void)sizeof(rc4_test);
+    wc_static_assert(sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4));
 
     WOLFSSL_ENTER("wolfSSL_RC4_set_key");
 

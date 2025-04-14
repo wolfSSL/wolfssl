@@ -1,6 +1,6 @@
 /* module_hooks.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,14 +29,10 @@
 
 #define FIPS_NO_WRAPPERS
 
-#define WOLFSSL_NEED_LINUX_CURRENT
+#define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFCRYPT_ONLY
     #include <wolfssl/version.h>
 #else
@@ -45,9 +41,11 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
-#ifndef NO_CRYPT_TEST
+#if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
     #include <wolfcrypt/test/test.h>
 #endif
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/sha256.h>
 
 static int libwolfssl_cleanup(void) {
     int ret;
@@ -105,7 +103,7 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 {
     if ((! ok) || (err != 0))
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
-    if (err == IN_CORE_FIPS_E) {
+    if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
         pr_err("In-core integrity hash check failure.\n"
                "Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                hash ? hash : "<null>");
@@ -237,11 +235,43 @@ static int wolfssl_init(void)
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
-        if (ret == IN_CORE_FIPS_E) {
+        if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
             pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                    newhash ? newhash : "<null>");
         }
+        return -ECANCELED;
+    }
+#endif /* HAVE_FIPS */
+
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret < 0) {
+        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#else
+    ret = wolfSSL_Init();
+    if (ret != WOLFSSL_SUCCESS) {
+        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#endif
+
+#if defined(HAVE_FIPS) && FIPS_VERSION3_GT(5,2,0)
+    ret = wc_RunAllCast_fips();
+    if (ret != 0) {
+        pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
         return -ECANCELED;
     }
 
@@ -270,32 +300,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
-
-#endif /* HAVE_FIPS */
-
-#ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
-    if (ret < 0) {
-        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
-        (void)libwolfssl_cleanup();
-        msleep(10);
-        return -ECANCELED;
-    }
-#endif
-
-#ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Init();
-    if (ret != 0) {
-        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#else
-    ret = wolfSSL_Init();
-    if (ret != WOLFSSL_SUCCESS) {
-        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#endif
+#endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -307,8 +312,10 @@ static int wolfssl_init(void)
     }
     pr_info("wolfCrypt self-test passed.\n");
 #else
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_LE(5,2,0)
     pr_info("skipping full wolfcrypt_test() "
             "(configure with --enable-crypttests to enable).\n");
+#endif
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -577,7 +584,26 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.GetCA = GetCA;
 #ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
+#ifdef HAVE_OCSP
+    wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
+#endif /* HAVE_OCSP */
+#endif /* NO_SKID */
+#ifdef WOLFSSL_AKID_NAME
+    wolfssl_linuxkm_pie_redirect_table.GetCAByAKID = GetCAByAKID;
+#endif /* WOLFSSL_AKID_NAME */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_add_entry_by_NID = wolfSSL_X509_NAME_add_entry_by_NID;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_free = wolfSSL_X509_NAME_free;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_new_ex = wolfSSL_X509_NAME_new_ex;
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
+
+#ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+    wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
+
+#ifdef CONFIG_ARM64
+    wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */
@@ -620,8 +646,8 @@ extern const unsigned int wolfCrypt_FIPS_ro_end[];
 #define FIPS_IN_CORE_KEY_SZ 32
 #define FIPS_IN_CORE_VERIFY_SZ FIPS_IN_CORE_KEY_SZ
 typedef int (*fips_address_function)(void);
-#define MAX_FIPS_DATA_SZ  100000
-#define MAX_FIPS_CODE_SZ 1000000
+#define MAX_FIPS_DATA_SZ 10000000
+#define MAX_FIPS_CODE_SZ 10000000
 extern int GenBase16_Hash(const byte* in, int length, char* out, int outSz);
 
 static int updateFipsHash(void)

@@ -16,7 +16,8 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -43,7 +44,8 @@ jobs:
       matrix:
         ref: [ 2.0.18 ]
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     needs: build_wolfssl
@@ -66,8 +68,7 @@ jobs:
         run: |
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
-            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make
-            sudo pip install --upgrade psutil
+            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
 
       - name: Checkout mosquitto
         uses: actions/checkout@v4
@@ -75,6 +76,12 @@ jobs:
           repository: eclipse/mosquitto
           ref: v${{ matrix.ref }}
           path: mosquitto
+
+      - name: Update certs
+        run: |
+            cd $GITHUB_WORKSPACE/mosquitto/test/ssl
+            ./gen.sh
+            cat all-ca.crt >> server.crt
 
       - name: Configure and build mosquitto
         run: |

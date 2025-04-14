@@ -1,5 +1,5 @@
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数は、DERフォーマットの証明書を使用してPKCS7構造を初期化します。空のPKCS7構造を初期化するには、NULL CERTとCERTSZの場合は0を渡すことができます。
     \return 0  PKCS7構造の初期化に成功しました
     \return MEMORY_E  xmallocでメモリを割り当てるエラーがある場合
@@ -33,7 +33,7 @@
 int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数は、PKCS7の初期化装置によって割り当てられたメモリを解放します。
     \return none  いいえ返します。
     _Example_
@@ -48,7 +48,7 @@ int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 void wc_PKCS7_Free(PKCS7* pkcs7);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数はPKCS7データコンテンツタイプを構築し、PKCS7構造をパーセル可能なPKCS7データパケットを含むバッファにエンコードします。
     \return Success  PKCS7データをバッファに正常にエンコードすると、PKCS7構造内の索引を返します。このインデックスは、出力バッファに書き込まれたバイトにも対応しています。
     \return BUFFER_E  指定されたバッファがエンコードされた証明書を保持するのに十分な大きさでない場合に返されます
@@ -81,7 +81,7 @@ int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数はPKCS7署名付きデータコンテンツタイプを構築し、PKCS7構造をPARSable PKCS7署名付きデータパケットを含むバッファにエンコードします。
     \return Success  PKCS7データをバッファに正常にエンコードすると、PKCS7構造内の索引を返します。このインデックスは、出力バッファに書き込まれたバイトにも対応しています。
     \return BAD_FUNC_ARG  PKCS7構造が署名付きデータパケットを生成するための1つ以上の要求要素が欠落している場合に返されます。
@@ -135,9 +135,9 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数は、PKCS7の署名付きデータコンテンツタイプを構築し、PKCS7構造をエンコードし、Parsable PKCS7署名付きデータパケットを含むヘッダーおよびフッターバッファにエンコードします。これにはコンテンツは含まれません。ハッシュを計算してデータに提供する必要があります
-    \return 0=Success 
+    \return 0=Success
     \return BAD_FUNC_ARG  PKCS7構造が署名付きデータパケットを生成するための1つ以上の要求要素が欠落している場合に返されます。
     \return MEMORY_E  メモリの割り当て中にエラーが発生した場合に返されます
     \return PUBLIC_KEY_E  公開鍵の解析中にエラーがある場合
@@ -194,7 +194,7 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
         wc_HashFree(&hash, hashType);
     }
 
-    ret = wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+    ret = wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff,
         &pkcs7HeadSz, pkcs7FootBuff, &pkcs7FootSz);
     if ( ret != 0 ) {
         // error encoding into output buffer
@@ -205,12 +205,12 @@ int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_VerifySignedData_ex
 */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
+int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
     word32* outputFootSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数は、送信されたPKCS7の署名付きデータメッセージを取り、証明書リストと証明書失効リストを抽出してから署名を検証します。与えられたPKCS7構造に抽出されたコンテンツを格納します。
     \return 0  メッセージから情報を抽出することに成功しました
     \return BAD_FUNC_ARG  入力パラメータの1つが無効な場合は返されます
@@ -263,7 +263,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
 
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この機能は、送信されたPKCS7署名付きデータメッセージをHASH /ヘッダー/フッターとして取り出してから、証明書リストと証明書失効リストを抽出してから、署名を検証します。与えられたPKCS7構造に抽出されたコンテンツを格納します。
     \return 0  メッセージから情報を抽出することに成功しました
     \return BAD_FUNC_ARG  入力パラメータの1つが無効な場合は返されます
@@ -321,7 +321,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
         wc_HashFree(&hash, hashType);
     }
 
-    ret = wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+    ret = wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff,
         sizeof(pkcs7HeadBuff), pkcs7FootBuff, sizeof(pkcs7FootBuff));
     if ( ret != 0 ) {
         // error encoding into output buffer
@@ -332,12 +332,12 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeSignedData_ex
 */
-int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
+int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数は、PKCS7構造を編集し、PKCS7構造を符号化し、Parsable PKCS7エンベロープデータパケットを含むバッファに編集します。
     \return Success  エンベロープデータ形式でメッセージを正常にエンコードする上で返信され、出力バッファに書き込まれたサイズを返します。
     \return BAD_FUNC_ARG:  入力パラメータの1つが無効な場合、またはPKCS7構造が必要な要素を欠落している場合
@@ -376,7 +376,7 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 
 /*!
-    \ingroup PKCS7 
+    \ingroup PKCS7
     \brief  この関数はPKCS7エンベロープデータコンテンツタイプをアントラップして復号化し、メッセージを出力にデコードします。渡されたPKCS7オブジェクトの秘密鍵を使用してメッセージを復号化します。
     \return On  メッセージから情報を抽出するには、出力に書き込まれたバイト数を返します。
     \return BAD_FUNC_ARG  入力パラメータの1つが無効な場合は返されます

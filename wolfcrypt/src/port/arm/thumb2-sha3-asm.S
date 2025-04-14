@@ -1,6 +1,6 @@
 /* thumb2-sha3-asm
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,16 +21,14 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha3-asm.S
+ *   ruby ./sha3/sha3.rb \
+ *       thumb2 ../wolfssl/wolfcrypt/src/port/arm/thumb2-sha3-asm.S
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources_asm.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -1167,7 +1165,7 @@ L_sha3_thumb2_begin:
 	/* Cycle Count = 1505 */
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_SHA3 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

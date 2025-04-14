@@ -4,11 +4,11 @@ This directory contains a CrossWorks solution named wolfssl.hzp.
 
 Inside are three projects:
 
-1. libwolfssl: 
+1. libwolfssl:
 This generates a library file named "libwolfssl_ARM_Debug/libwolfssl_v7em_t_le_eabi.a"
-2. benchmark: 
+2. benchmark:
 This is a sample benchmark application. It runs the "benchmark_test" suite repeatedly until a failure occurs.
-3. test: 
+3. test:
 This is a sample test application. It runs "wolfcrypt_test" suite suite repeatedly until a failure occurs.
 
 # Prerequisites
@@ -21,7 +21,7 @@ All hardware functions are defined in `kinetis_hw.c` and are currently setup for
 
 To create support for a new ARM microcontroller the functions in `hw.h` will need to be implemented.
 
-Also you will need to configure the ARM Architecture and ARM Core Type in the "Solution Properties" -> "ARM". 
+Also you will need to configure the ARM Architecture and ARM Core Type in the "Solution Properties" -> "ARM".
 Also the "Target Processor" in each of the projects ("Project Properties" -> "Target Processor")
 
 ## Hardware Crypto Acceleration

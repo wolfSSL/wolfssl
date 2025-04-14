@@ -1,6 +1,6 @@
 /* pie_redirect_table.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,12 +23,8 @@
     #error pie_redirect_table.c must be compiled -fPIE.
 #endif
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 
 /* compiling -fPIE results in references to the GOT or equivalent thereof, which remain after linking

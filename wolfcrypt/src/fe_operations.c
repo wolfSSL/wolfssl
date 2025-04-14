@@ -1,6 +1,6 @@
 /* fe_operations.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,14 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
@@ -128,11 +123,9 @@ void fe_init(void)
 
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
     !defined(FREESCALE_LTC_ECC)
+#ifndef WOLFSSL_CURVE25519_BLINDING
 int curve25519(byte* q, const byte* n, const byte* p)
 {
-#if 0
-  unsigned char e[32];
-#endif
   fe x1 = {0};
   fe x2 = {0};
   fe z2 = {0};
@@ -143,17 +136,6 @@ int curve25519(byte* q, const byte* n, const byte* p)
   int pos = 0;
   unsigned int swap = 0;
 
-  /* Clamp already done during key generation and import */
-#if 0
-  {
-    unsigned int i;
-    for (i = 0;i < 32;++i) e[i] = n[i];
-    e[0] &= 248;
-    e[31] &= 127;
-    e[31] |= 64;
-  }
-#endif
-
   fe_frombytes(x1,p);
   fe_1(x2);
   fe_0(z2);
@@ -163,11 +145,7 @@ int curve25519(byte* q, const byte* n, const byte* p)
   swap = 0;
   for (pos = 254;pos >= 0;--pos) {
     unsigned int b;
-#if 0
-    b = e[pos / 8] >> (pos & 7);
-#else
-    b = n[pos / 8] >> (pos & 7);
-#endif
+    b = (unsigned int)(n[pos / 8]) >> (pos & 7);
     b &= 1;
     swap ^= b;
     fe_cswap(x2,x3,(int)swap);
@@ -203,6 +181,74 @@ int curve25519(byte* q, const byte* n, const byte* p)
 
   return 0;
 }
+#else
+int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
+    const byte* rz)
+{
+  fe x1 = {0};
+  fe x2 = {0};
+  fe z2 = {0};
+  fe x3 = {0};
+  fe z3 = {0};
+  fe tmp0 = {0};
+  fe tmp1 = {0};
+  int pos = 0;
+  unsigned int b;
+
+  fe_frombytes(x1,p);
+  fe_1(x2);
+  fe_0(z2);
+  fe_copy(x3,x1);
+  fe_frombytes(z3, rz);
+  fe_mul(x3, x3, z3);
+
+  /* mask_bits[252] */
+  b = mask[31] >> 7;
+  b &= 1;
+  fe_cswap(x2,x3,(int)b);
+  fe_cswap(z2,z3,(int)b);
+  for (pos = 255;pos >= 1;--pos) {
+    b = n[pos / 8] >> (pos & 7);
+    b &= 1;
+    fe_cswap(x2,x3,(int)b);
+    fe_cswap(z2,z3,(int)b);
+
+    /* montgomery */
+    fe_sub(tmp0,x3,z3);
+    fe_sub(tmp1,x2,z2);
+    fe_add(x2,x2,z2);
+    fe_add(z2,x3,z3);
+    fe_mul(z3,tmp0,x2);
+    fe_mul(z2,z2,tmp1);
+    fe_sq(tmp0,tmp1);
+    fe_sq(tmp1,x2);
+    fe_add(x3,z3,z2);
+    fe_sub(z2,z3,z2);
+    fe_mul(x2,tmp1,tmp0);
+    fe_sub(tmp1,tmp1,tmp0);
+    fe_sq(z2,z2);
+    fe_mul121666(z3,tmp1);
+    fe_sq(x3,x3);
+    fe_add(tmp0,tmp0,z3);
+    fe_mul(z3,x1,z2);
+    fe_mul(z2,tmp1,tmp0);
+
+    b = mask[(pos-1) / 8] >> ((pos-1) & 7);
+    b &= 1;
+    fe_cswap(x2,x3,(int)b);
+    fe_cswap(z2,z3,(int)b);
+  }
+  b = n[0] & 1;
+  fe_cswap(x2,x3,(int)b);
+  fe_cswap(z2,z3,(int)b);
+
+  fe_invert(z2,z2);
+  fe_mul(x2,x2,z2);
+  fe_tobytes(q,x2);
+
+  return 0;
+}
+#endif
 #endif /* HAVE_CURVE25519 && !CURVE25519_SMALL && !FREESCALE_LTC_ECC */
 
 

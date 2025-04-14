@@ -4,7 +4,7 @@
  * Enabled via WOLFSSL_USER_SETTINGS.
  *
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -57,7 +57,6 @@
 #define WOLFSSL_SHAKE256
 
 /* RSA */
-#define HAVE_RSA
 #define WOLFSSL_HAVE_SP_RSA
 #define WC_RSA_BLINDING
 #define WOLFSSL_KEY_GEN

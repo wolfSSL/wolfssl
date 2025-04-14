@@ -1,6 +1,6 @@
 /* wc_xmss_impl.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,13 +29,7 @@
  *       (https://ece.engr.uvic.ca/~raltawy/SAC2021/9.pdf)
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #include <wolfssl/wolfcrypt/wc_xmss.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -2653,6 +2647,9 @@ static int wc_xmss_bds_state_alloc(const XmssParams* params, BdsState** bds)
         if (*bds == NULL) {
             ret = MEMORY_E;
         }
+        else {
+            XMEMSET(*bds, 0, sizeof(BdsState) * cnt);
+        }
     }
 
     return ret;
@@ -2675,7 +2672,7 @@ static void wc_xmss_bds_state_free(BdsState* bds)
  * @param [out] bds        BDS states.
  * @param [out] wots_sigs  WOTS signatures when XMSS^MT.
  */
-static void wc_xmss_bds_state_load(const XmssState* state, byte* sk,
+static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
     BdsState* bds, byte** wots_sigs)
 {
     const XmssParams* params = state->params;
@@ -2688,6 +2685,9 @@ static void wc_xmss_bds_state_load(const XmssState* state, byte* sk,
 
     /* Skip past standard SK = idx || wots_sk || SK_PRF || root || SEED; */
     sk += params->idx_len + 4 * n;
+
+    if (2 * (int)params->d - 1 <= 0)
+        return WC_FAILURE;
 
     for (i = 0; i < 2 * (int)params->d - 1; i++) {
         /* Set pointers into SK. */
@@ -2715,6 +2715,8 @@ static void wc_xmss_bds_state_load(const XmssState* state, byte* sk,
     if (wots_sigs != NULL) {
         *wots_sigs = sk;
     }
+
+    return 0;
 }
 
 /* Store the BDS state into the secret/private key.
@@ -2723,7 +2725,7 @@ static void wc_xmss_bds_state_load(const XmssState* state, byte* sk,
  * @param [in, out] sk      Secret/private key.
  * @param [in]      bds     BDS states.
  */
-static void wc_xmss_bds_state_store(const XmssState* state, byte* sk,
+static int wc_xmss_bds_state_store(const XmssState* state, byte* sk,
     BdsState* bds)
 {
     int i;
@@ -2743,15 +2745,20 @@ static void wc_xmss_bds_state_store(const XmssState* state, byte* sk,
     /* Ignore standard SK = idx || wots_sk || SK_PRF || root || SEED; */
     sk += params->idx_len + 4 * n;
 
+    if (2 * (int)params->d - 1 <= 0)
+        return WC_FAILURE;
+
     for (i = 0; i < 2 * (int)params->d - 1; i++) {
         /* Skip pointers into sk. */
         sk += skip;
         /* Save values - big-endian encoded. */
-        c32to24(bds[i].next, sk);
+        c32to24(bds[i].next, sk); /* NOLINT(clang-analyzer-core.CallAndMessage) */
         sk += 3;
         sk[0] = bds[i].offset;
         sk += 1;
     }
+
+    return 0;
 }
 
 /********************************************
@@ -2821,6 +2828,10 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
         /* HDSS, Section 4.5, 1: AUTH[h] = v[h][1], h = 0,...,H-1.
          * Cache left node if on authentication path. */
         if ((i >> h) == 1) {
+            if (bds->authPath == NULL) {
+                state->ret = WC_FAILURE;
+                return;
+            }
             XMEMCPY(bds->authPath + h * n, node, n);
         }
         /* This is a right node. */
@@ -2900,8 +2911,10 @@ static void wc_xmss_bds_treehash_initial(XmssState* state, BdsState* bds,
     bds->offset = 0;
     bds->next = 0;
     /* Reset the hash tree status. */
-    for (i = 0; i < hsk; i++) {
-        wc_xmss_bds_state_treehash_init(bds, i);
+    if (bds->treeHash != NULL) {
+        for (i = 0; i < hsk; i++) {
+            wc_xmss_bds_state_treehash_init(bds, i);
+        }
     }
 
     /* Copy hash address into local. */
@@ -3036,6 +3049,11 @@ static word8 wc_xmss_bds_treehash_updates(XmssState* state, BdsState* bds,
     const word8 hs = params->sub_h;
     const word8 hsk = params->sub_h - params->bds_k;
 
+    if (bds->treeHash == NULL) {
+        state->ret = WC_FAILURE;
+        return 0;
+    }
+
     while (updates > 0) {
         word8 minH = hs;
         word8 h = hsk;
@@ -3106,6 +3124,10 @@ static void wc_xmss_bds_update(XmssState* state, BdsState* bds,
         HashAddress addrCopy;
 
         XMSS_ADDR_OTS_SET_SUBTREE(addrCopy, addr);
+        if (bds->height == NULL) {
+            state->ret = WC_FAILURE;
+            return;
+        }
         wc_xmss_bds_next_idx(state, bds, sk_seed, pk_seed, addrCopy, bds->next,
             bds->height, &bds->offset, &sp);
         bds->offset++;
@@ -3161,6 +3183,11 @@ static void wc_xmss_bds_auth_path(XmssState* state, BdsState* bds,
     word8 tau;
     byte* node = state->encMsg;
     word8 parent;
+
+    if ((bds->keep == NULL) || (bds->authPath == NULL)) {
+        state->ret = WC_FAILURE;
+        return;
+    }
 
     /* Step 1. Find the height of first left node in authentication path. */
     tau = wc_xmss_lowest_zero_bit_index(leafIdx, hs, &parent);
@@ -3297,6 +3324,10 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
     if (ret == 0)
 #endif
     {
+        /* Setup pointers into sk - assumes sk is initialized to zeros. */
+        ret = wc_xmss_bds_state_load(state, sk, bds, NULL);
+    }
+    if (ret == 0) {
         /* Offsets into seed. */
         const byte* seed_priv = seed;
         const byte* seed_pub = seed + 2 * n;
@@ -3305,9 +3336,6 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
         byte* sk_seeds = sk + params->idx_len;
         /* Offsets into public key. */
         byte* pk_seed = pk + n;
-
-        /* Setup pointers into sk - assumes sk is initialized to zeros. */
-        wc_xmss_bds_state_load(state, sk, bds, NULL);
 
         /* Set first index to 0 in private key. idx_len always 4. */
         *sk_idx = 0;
@@ -3333,7 +3361,7 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
         XMEMCPY(sk_root, pk_root, 2 * n);
 
         /* Store BDS state back into secret/private key. */
-        wc_xmss_bds_state_store(state, sk, bds);
+        ret = wc_xmss_bds_state_store(state, sk, bds);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3412,8 +3440,9 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
 #endif
     {
         /* Load the BDS state from secret/private key. */
-        wc_xmss_bds_state_load(state, sk, bds, NULL);
-
+        ret = wc_xmss_bds_state_load(state, sk, bds, NULL);
+    }
+    if (ret == 0) {
         /* Copy the index into the signature data: Sig = idx_sig || ... */
         *((word32*)sig) = *((word32*)sk);
         /* Read index from the secret key. */
@@ -3490,7 +3519,7 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
     }
     if (ret == 0) {
         /* Store BDS state back into secret/private key. */
-        wc_xmss_bds_state_store(state, sk, bds);
+        ret = wc_xmss_bds_state_store(state, sk, bds);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3581,12 +3610,13 @@ int wc_xmssmt_keygen(XmssState* state, const unsigned char* seed,
     /* Allocate memory for BDS states and tree hash instances. */
     ret = wc_xmss_bds_state_alloc(params, &bds);
     if (ret == 0) {
+        /* Load the BDS state from secret/private key. */
+        ret = wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
+    }
+    if (ret == 0) {
         /* Offsets into seed. */
         const byte* seed_priv = seed;
         const byte* seed_pub  = seed + 2 * params->n;
-
-        /* Load the BDS state from secret/private key. */
-        wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
 
         /* Set first index to 0 in private key. */
         XMEMSET(sk, 0, params->idx_len);
@@ -3630,7 +3660,7 @@ int wc_xmssmt_keygen(XmssState* state, const unsigned char* seed,
         XMEMCPY(sk_root, pk_root, 2 * n);
 
         /* Store BDS state back into secret/private key. */
-        wc_xmss_bds_state_store(state, sk, bds);
+        ret = wc_xmss_bds_state_store(state, sk, bds);
     }
 
     /* Dispose of allocated data of BDS states. */
@@ -3825,10 +3855,16 @@ static int wc_xmssmt_sign_msg(XmssState* state, BdsState* bds, XmssIdx idx,
     }
     if (ret == 0) {
         word8 i;
+        byte *authPath;
 
         sig += params->wots_sig_len;
         /*   Add authentication path. */
-        XMEMCPY(sig, bds[BDS_IDX(idx, 0, hs, params->d)].authPath, hs * n);
+        authPath = bds[BDS_IDX(idx, 0, hs, params->d)].authPath;
+        if (authPath == NULL) {
+            state->ret = WC_FAILURE;
+            return state->ret;
+        }
+        XMEMCPY(sig, authPath, hs * n);
         sig += hs * n;
 
         /* Remaining iterations from storage. */
@@ -3838,7 +3874,12 @@ static int wc_xmssmt_sign_msg(XmssState* state, BdsState* bds, XmssIdx idx,
                 params->wots_sig_len);
             sig += params->wots_sig_len;
             /* Add authentication path (auth) and calc new root. */
-            XMEMCPY(sig, bds[BDS_IDX(idx, i, hs, params->d)].authPath, hs * n);
+            authPath = bds[BDS_IDX(idx, i, hs, params->d)].authPath;
+            if (authPath == NULL) {
+                state->ret = WC_FAILURE;
+                return state->ret;
+            }
+            XMEMCPY(sig, authPath, hs * n);
             sig += hs * n;
         }
         ret = state->ret;
@@ -4000,8 +4041,9 @@ int wc_xmssmt_sign(XmssState* state, const unsigned char* m, word32 mlen,
     ret = wc_xmss_bds_state_alloc(params, &bds);
     if (ret == 0) {
         /* Load the BDS state from secret/private key. */
-        wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
-
+        ret = wc_xmss_bds_state_load(state, sk, bds, &wots_sigs);
+    }
+    if (ret == 0) {
         /* Copy the index into the signature data: Sig_MT = idx_sig. */
         XMEMCPY(sig_mt, sk, idx_len);
 
@@ -4032,7 +4074,7 @@ int wc_xmssmt_sign(XmssState* state, const unsigned char* m, word32 mlen,
 
     if (ret == 0) {
         /* Store BDS state back into secret/private key. */
-        wc_xmss_bds_state_store(state, sk, bds);
+        ret = wc_xmss_bds_state_store(state, sk, bds);
     }
 
     /* Dispose of allocated data of BDS states. */

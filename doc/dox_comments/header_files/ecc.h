@@ -2006,3 +2006,29 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     \endcode
 */
 int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
+
+/*!
+    \ingroup ECC
+
+    \brief Compare a curve which has larger key than specified size or the curve matched curve ID,
+         set a curve with smaller key size to the key.
+
+    \return 0 Returned upon successfully setting the key
+
+    \param keysize Key size in bytes
+    \param curve_id Curve ID
+
+                                                                                                        _Example_
+    \code int ret;
+    ecc_key ecc;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret != 0)
+        return ret;
+        ret = wc_ecc_set_curve(&ecc, 32, ECC_SECP256R1));
+        if (ret != 0)
+            return ret;
+
+    \endcode
+*/
+int wc_ecc_set_curve(ecc_key *key, int keysize, int curve_id);

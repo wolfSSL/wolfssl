@@ -1,19 +1,34 @@
+# Set the known example app config to template example (see user_settings.h)
+CONFIG_WOLFSSL_EXAMPLE_NAME_TEST=y
+
+# CONFIG_EXAMPLE_WIFI_SSID="myssid"
+# CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"
+
+# Some wolfSSL helpers
+CONFIG_USE_WOLFSSL_ESP_SDK_TIME=y
+
 # sdkconfig.defaults for ESP8266 + ESP32
+# See separate sdkconfig.defaults.esp8266
 # Note that during the build process, settings from sdkconfig.defaults will not override those already in sdkconfig.
-# See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html#custom-sdkconfig-defaults
 CONFIG_BENCH_ARGV="-lng 0"
+# FreeRTOS ticks at 1ms interval
+CONFIG_FREERTOS_UNICORE=y
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 
 #
 # Default main stack size. See user_settings.h
 #
+# This is typically bigger than needed for stack size.
+# Units are words, not bytes. See user_settings.h
+#
 # For wolfSSL SMALL_STACK, 3072 bytes should be sufficient for benchmark app.
 # When using RSA, assign at least 10500 bytes, otherwise 5500 usually works for others
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=10500
+# We set this to 28672 for use in the "test everything possible" in the wolfssl_test app.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=28672
 
-# Legacy stack size for older ESP-IDF versions
-CONFIG_MAIN_TASK_STACK_SIZE=10500
+# Legacy stack size name for older ESP-IDF versions
+CONFIG_MAIN_TASK_STACK_SIZE=28672
 
 #
 # Benchmark must not have CONFIG_NEWLIB_NANO_FORMAT enabled
@@ -31,10 +46,44 @@ CONFIG_ESP_TASK_WDT_EN=n
 CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y
 CONFIG_ESP_INT_WDT=n
 
+# ESP8266 Watchdog:
+CONFIG_TASK_WDT=n
+CONFIG_TASK_WDT_PANIC=n
+
 # ESP8266 WDT
 # CONFIG_ESP_PANIC_PRINT_REBOOT is not set
 CONFIG_ESP_PANIC_PRINT_REBOOT=n
 CONFIG_ESP_PANIC_PRINT_HALT=y
+
+# CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS is not set
+CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=n
+
+# ESP8266 Memory
+CONFIG_FREERTOS_GLOBAL_DATA_LINK_IRAM=y
+CONFIG_HEAP_DISABLE_IRAM=y
+
+# Performance
+# CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Set max CPU frequency (falls back as needed for lower maximum)
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Enable wolfSSL TLS in esp-tls
+# CONFIG_ESP_TLS_USING_WOLFSSL=y
+# CONFIG_TLS_STACK_WOLFSSL=y
+
+# Bundles take up flash space and are disabled unless otherwise known to be needed
+CONFIG_WOLFSSL_CERTIFICATE_BUNDLE=n
+# CONFIG_WOLFSSL_CERTIFICATE_BUNDLE=y
+# CONFIG_ESP_WOLFSSL_SMALL_CERT_VERIFY=y
+# CONFIG_ESP_TLS_INSECURE=y
+
+# Disable mbedTLS
+CONFIG_ESP_TLS_USING_MBEDTLS=n
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n
+
+# Some wolfSSL helpers
+CONFIG_USE_WOLFSSL_ESP_SDK_TIME=n
 
 # CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS is not set
 CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=n
@@ -52,6 +101,26 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 # FreeRTOS ticks at 1ms interval
 CONFIG_FREERTOS_UNICORE=y
 CONFIG_FREERTOS_HZ=1000
+
+# Ensure mbedTLS options are disabled
+# CONFIG_MBEDTLS_TLS_SERVER_AND_CLIENT=n
+# CONFIG_MBEDTLS_TLS_CLIENT_ONLY=n
+# CONFIG_MBEDTLS_TLS_SERVER=n
+# CONFIG_MBEDTLS_TLS_CLIENT=n
+# CONFIG_MBEDTLS_HARDWARE_AES=n
+# CONFIG_MBEDTLS_HARDWARE_MPI=n
+# CONFIG_MBEDTLS_HARDWARE_SHA=n
+# CONFIG_MBEDTLS_ROM_MD5=n
+# CONFIG_MBEDTLS_SSL_RENEGOTIATION=n
+# CONFIG_MBEDTLS_SSL_PROTO_TLS1_2=n
+# CONFIG_MBEDTLS_SSL_PROTO_GMTSSL1_1=n
+# CONFIG_MBEDTLS_SSL_ALPN=n
+# CONFIG_MBEDTLS_CLIENT_SSL_SESSION_TICKETS=n
+# CONFIG_MBEDTLS_SERVER_SSL_SESSION_TICKETS=n
+
+# The same-name config is used for both WiFi and client/server TLS, so we cannot disable:
+# CONFIG_MBEDTLS_TLS_ENABLED=n
+# CONFIG_MBEDTLS_TLS_DISABLED=y
 
 #
 # Compiler options

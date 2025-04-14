@@ -1,6 +1,6 @@
 /* user_settings.h
 *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -561,7 +561,7 @@ extern "C" {
 
 #undef NO_FILESYSTEM
 /* #define NO_FILESYSTEM */
-    
+
 #undef NO_WRITE_TEMP_FILES
 #define NO_WRITE_TEMP_FILES
 
@@ -570,7 +570,7 @@ extern "C" {
 
 #undef NO_WRITEV
 #define NO_WRITEV
-    
+
 #undef WOLFSSL_NO_SOCK
 #define WOLFSSL_NO_SOCK
 
@@ -594,10 +594,10 @@ extern "C" {
 
 #undef NO_MD4
 #define NO_MD4
-    
+
 #undef WOLFSSL_NO_SHAKE128
 #define WOLFSSL_NO_SHAKE128
-    
+
 #undef WOLFSSL_NO_SHAKE256
 #define WOLFSSL_NO_SHAKE256
 

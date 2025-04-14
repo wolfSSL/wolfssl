@@ -1,6 +1,6 @@
 /* logging.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,15 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 /* avoid adding WANT_READ and WANT_WRITE to error queue */
 #include <wolfssl/error-ssl.h>
@@ -265,7 +258,6 @@ void WOLFSSL_TIME(int count)
     /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
-    #include <wolfssl/wolfcrypt/wc_port.h>
     #define fprintf FCL_FPRINTF
 #else
     #include <stdio.h>  /* for default printf stuff */
@@ -904,7 +896,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
  * Get the error value at the HEAD of the ERR queue or 0 if the queue
  * is empty. The HEAD entry is removed by this call.
  */
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     int ret;
 
@@ -923,7 +915,7 @@ unsigned long wc_GetErrorNodeErr(void)
             wc_ClearErrorNodes();
         }
     }
-    return (unsigned long)ret;
+    return ret;
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -1171,7 +1163,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             sz = WOLFSSL_MAX_ERROR_SZ - 1;
         }
         if (sz > 0) {
-            XMEMCPY(err->error, buf, sz);
+            XMEMCPY(err->error, buf, (size_t)sz);
         }
 
         sz = (int)XSTRLEN(file);
@@ -1179,7 +1171,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             sz = WOLFSSL_MAX_ERROR_SZ - 1;
         }
         if (sz > 0) {
-            XMEMCPY(err->file, file, sz);
+            XMEMCPY(err->file, file, (size_t)sz);
         }
 
         err->value = error;
@@ -1420,7 +1412,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     }
 }
 
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     int ret;
 
@@ -1428,7 +1420,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return (unsigned long)(0 - BAD_MUTEX_E);
+        return (0 - BAD_MUTEX_E);
     }
 
     ret = pullErrorNode(NULL, NULL, NULL);
@@ -1595,10 +1587,10 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     return (unsigned long)(0 - NOT_COMPILED_IN);
 }
 
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     WOLFSSL_ENTER("wc_GetErrorNodeErr");
-    return (unsigned long)(0 - NOT_COMPILED_IN);
+    return (0 - NOT_COMPILED_IN);
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -1720,6 +1712,14 @@ void WOLFSSL_ERROR_MSG(const char* msg)
 #endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+
+#ifdef WOLFSSL_LINUXKM
+
+void wc_backtrace_render(void) {
+    dump_stack();
+}
+
+#else /* !WOLFSSL_LINUXKM */
 
 #include <backtrace-supported.h>
 
@@ -1848,5 +1848,6 @@ void wc_backtrace_render(void) {
 
     wc_UnLockMutex(&backtrace_mutex);
 }
+#endif /* !WOLFSSL_LINUXKM */
 
 #endif /* WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES */

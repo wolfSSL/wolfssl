@@ -1,6 +1,6 @@
 /* wolfcrypt/test/test_paths.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,6 +20,15 @@
  */
 
 #ifndef NO_FILESYSTEM
+#ifdef CERT_REL_PREFIX
+    #define CERT_PREFIX CERT_REL_PREFIX
+    #ifndef NO_WRITE_TEMP_FILES
+        #ifndef CERT_WRITE_TEMP_DIR
+            #define CERT_WRITE_TEMP_DIR "./"
+        #endif
+    #endif
+#else
     #define CERT_PREFIX "@abs_top_srcdir@/"
     #define CERT_WRITE_TEMP_DIR "@abs_top_builddir@/"
+#endif /* CERT_REL_PREFIX */
 #endif /* NO_FILESYSTEM */

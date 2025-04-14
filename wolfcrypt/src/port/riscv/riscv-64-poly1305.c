@@ -1,6 +1,6 @@
 /* riscv-64-poly1305.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,25 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /*
- * Based off the public domain implementations by Andrew Moon
+ * Based on the public domain implementations by Andrew Moon
  * and Daniel J. Bernstein
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
 #ifdef WOLFSSL_RISCV_ASM
 
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -252,10 +246,9 @@ static WC_INLINE void poly1305_blocks_riscv64_16(Poly1305* ctx,
 #ifdef WOLFSSL_RISCV_VECTOR
 
 #define MUL_RES_REDIS(l, h, t)  \
-        VSRL_VI(t, l, 26)       \
-        VAND_VX(l, l, REG_A6)   \
-        VSRL_VI(t, t, 26)       \
+        VSRL_VX(t, l, REG_A7)   \
         VSLL_VI(h, h, 12)       \
+        VAND_VX(l, l, REG_A6)   \
         VOR_VV(h, h, t)
 
 #endif
@@ -273,6 +266,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
         "li     a4, 0xffffffc000000\n\t"
         "li     a5, 0x3ffffff\n\t"
         "li     a6, 0xfffffffffffff\n\t"
+        "li     a7, 52\n\t"
 
         /* Load r and r^2 */
         "mv     t0, %[r2]\n\t"
@@ -430,7 +424,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
         : [bytes] "+r" (bytes), [m] "+r" (m)
         : [r2] "r" (ctx->r2), [h] "r" (ctx->h)
         : "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
-          "s3", "s4", "s5", "a4", "a5", "a6"
+          "s3", "s4", "s5", "a4", "a5", "a6", "a7"
     );
 #endif
     poly1305_blocks_riscv64_16(ctx, m, bytes, 1);

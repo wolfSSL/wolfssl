@@ -1,7 +1,7 @@
 
 /* renesas_tsip_types.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,16 +58,16 @@ typedef wolfssl_TSIP_Hash wc_Sha256;
 
 #endif /* !NO_SHA || !NO_SHA256 */
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+#include "r_tsip_rx_if.h"
 
+/* TSIP TLS KEY Definition */
 typedef enum {
-    TSIP_RSA1024 = 1,
-    TSIP_RSA2048 = 2,
-    TSIP_RSA3072 = 3,
-    TSIP_RSA4096 = 4,
-    TSIP_ECCP256 = 5,
-    TSIP_ECCP384 = 6,
+    TSIP_RSA2048 = R_TSIP_TLS_PUBLIC_KEY_TYPE_RSA2048,
+    TSIP_RSA4096 = R_TSIP_TLS_PUBLIC_KEY_TYPE_RSA4096,
+    TSIP_ECCP256 = R_TSIP_TLS_PUBLIC_KEY_TYPE_ECDSA_P256,
 } TSIP_KEY_TYPE;
-
+#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT) || \
     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)

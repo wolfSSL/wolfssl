@@ -1,6 +1,6 @@
 /* xil-aesgcm.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -219,10 +219,10 @@ static WC_INLINE int handle_aad(       Aes* aes,
                                       byte* authTag,
                                 const byte* authIn, word32 authInSz) {
     int ret;
-    byte scratch[AES_BLOCK_SIZE];
-    byte initalCounter[AES_BLOCK_SIZE] = { 0 };
+    byte scratch[WC_AES_BLOCK_SIZE];
+    byte initalCounter[WC_AES_BLOCK_SIZE] = { 0 };
     XMEMCPY(initalCounter, iv, AEAD_NONCE_SZ);
-    initalCounter[AES_BLOCK_SIZE - 1] = 1;
+    initalCounter[WC_AES_BLOCK_SIZE - 1] = 1;
     GHASH(&aes->gcm, authIn, authInSz, data, sz, authTag, AES_GCM_AUTH_SZ);
     ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
     if (ret == 0)
@@ -524,8 +524,8 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz)
 {
     byte* tmp;
-    byte scratch[AES_BLOCK_SIZE];
-    byte initalCounter[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
+    byte initalCounter[WC_AES_BLOCK_SIZE];
     int ret;
 
     if ((in == NULL && sz > 0) || iv == NULL || authTag == NULL ||
@@ -572,9 +572,9 @@ int  wc_AesGcmEncrypt(Aes* aes, byte* out,
     /* handle completing tag with any additional data */
     if (authIn != NULL) {
         /* @TODO avoid hashing out again since Xilinx call already does */
-        XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
+        XMEMSET(initalCounter, 0, WC_AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
-        initalCounter[AES_BLOCK_SIZE - 1] = 1;
+        initalCounter[WC_AES_BLOCK_SIZE - 1] = 1;
         GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0)
@@ -594,8 +594,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
 {
     byte* tag;
     byte buf[AES_GCM_AUTH_SZ];
-    byte scratch[AES_BLOCK_SIZE];
-    byte initalCounter[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
+    byte initalCounter[WC_AES_BLOCK_SIZE];
     int ret;
 
     if (in == NULL || iv == NULL || authTag == NULL ||
@@ -610,9 +610,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out,
 
     /* account for additional data */
     if (authIn != NULL && authInSz > 0) {
-        XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
+        XMEMSET(initalCounter, 0, WC_AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
-        initalCounter[AES_BLOCK_SIZE - 1] = 1;
+        initalCounter[WC_AES_BLOCK_SIZE - 1] = 1;
         tag = buf;
         GHASH(&aes->gcm, NULL, 0, in, sz, tag, AES_GCM_AUTH_SZ);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);

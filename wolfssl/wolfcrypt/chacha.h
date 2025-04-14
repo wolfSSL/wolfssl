@@ -1,6 +1,6 @@
 /* chacha.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -97,15 +97,31 @@ WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
 
-WOLFSSL_LOCAL void wc_Chacha_purge_current_block(ChaCha* ctx);
-
 WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
 
 #ifdef HAVE_XCHACHA
+WOLFSSL_LOCAL void wc_Chacha_purge_current_block(ChaCha* ctx);
+
 WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
                                   const byte *nonce, word32 nonceSz,
                                   word32 counter);
 #endif
+
+#if defined(WOLFSSL_ARMASM)
+
+#ifndef __aarch64__
+void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
+void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
+#endif
+
+#if defined(WOLFSSL_ARMASM_NO_NEON) || defined(WOLFSSL_ARMASM_THUMB2)
+void wc_chacha_use_over(byte* over, byte* output, const byte* input,
+    word32 len);
+void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len);
+#endif
+
+#endif
+
 
 #ifdef __cplusplus
     } /* extern "C" */

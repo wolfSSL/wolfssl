@@ -1,6 +1,6 @@
 /* sha3_asm.S */
 /*
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,9 @@
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
 #ifndef NO_AVX2_SUPPORT
+#ifndef HAVE_INTEL_AVX2
 #define HAVE_INTEL_AVX2
+#endif /* HAVE_INTEL_AVX2 */
 #endif /* NO_AVX2_SUPPORT */
 
 #ifndef __APPLE__
@@ -244,11 +246,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 48(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 96(%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 96(%rdi)
         # XOR in constant
         xorq	$0x01, %rsi
         # Row 1
@@ -277,11 +279,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -72(%rdi)
+        movq	%r13, -72(%rdi)
         # Row 2
         movq	-88(%rdi), %r10
         movq	-40(%rdi), %r11
@@ -308,11 +310,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -88(%rdi)
+        movq	%r13, -88(%rdi)
         # Row 3
         movq	-64(%rdi), %r10
         movq	-56(%rdi), %r11
@@ -339,11 +341,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -64(%rdi)
+        movq	%r13, -64(%rdi)
         # Row 4
         xorq	-80(%rdi), %rcx
         xorq	-32(%rdi), %r8
@@ -427,11 +429,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 40(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 72(%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 72(%rdi)
         # XOR in constant
         xorq	$0x8082, %rsi
         # Row 1
@@ -460,11 +462,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 48(%rdi)
+        movq	%r13, 48(%rdi)
         # Row 2
         movq	-48(%rdi), %r10
         movq	-16(%rdi), %r11
@@ -491,11 +493,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -48(%rdi)
+        movq	%r13, -48(%rdi)
         # Row 3
         movq	96(%rdi), %r10
         movq	-72(%rdi), %r11
@@ -522,11 +524,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 96(%rdi)
+        movq	%r13, 96(%rdi)
         # Row 4
         xorq	(%rdi), %rcx
         xorq	32(%rdi), %r8
@@ -610,13 +612,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -8(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -32(%rdi)
-        movq	$0x800000000000808a, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -32(%rdi)
         # XOR in constant
+        movq	$0x800000000000808a, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	40(%rdi), %r10
@@ -644,11 +646,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 40(%rdi)
+        movq	%r13, 40(%rdi)
         # Row 2
         movq	-24(%rdi), %r10
         movq	-88(%rdi), %r11
@@ -675,11 +677,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, (%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -24(%rdi)
+        movq	%r13, -24(%rdi)
         # Row 3
         movq	72(%rdi), %r10
         movq	48(%rdi), %r11
@@ -706,11 +708,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 72(%rdi)
+        movq	%r13, 72(%rdi)
         # Row 4
         xorq	8(%rdi), %rcx
         xorq	-56(%rdi), %r8
@@ -794,13 +796,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -40(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 32(%rdi)
-        movq	$0x8000000080008000, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 32(%rdi)
         # XOR in constant
+        movq	$0x8000000080008000, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-8(%rdi), %r10
@@ -828,11 +830,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -8(%rdi)
+        movq	%r13, -8(%rdi)
         # Row 2
         movq	80(%rdi), %r10
         movq	-48(%rdi), %r11
@@ -859,11 +861,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 80(%rdi)
+        movq	%r13, 80(%rdi)
         # Row 3
         movq	-32(%rdi), %r10
         movq	40(%rdi), %r11
@@ -890,11 +892,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 96(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -32(%rdi)
+        movq	%r13, -32(%rdi)
         # Row 4
         xorq	56(%rdi), %rcx
         xorq	-72(%rdi), %r8
@@ -978,11 +980,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -16(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -56(%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -56(%rdi)
         # XOR in constant
         xorq	$0x808b, %rsi
         # Row 1
@@ -1011,11 +1013,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, (%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -40(%rdi)
+        movq	%r13, -40(%rdi)
         # Row 2
         movq	16(%rdi), %r10
         movq	-24(%rdi), %r11
@@ -1042,11 +1044,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 96(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 16(%rdi)
+        movq	%r13, 16(%rdi)
         # Row 3
         movq	32(%rdi), %r10
         movq	-8(%rdi), %r11
@@ -1073,11 +1075,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 32(%rdi)
+        movq	%r13, 32(%rdi)
         # Row 4
         xorq	88(%rdi), %rcx
         xorq	48(%rdi), %r8
@@ -1161,13 +1163,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -88(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -72(%rdi)
-        movq	$0x80000001, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -72(%rdi)
         # XOR in constant
+        movq	$0x80000001, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-16(%rdi), %r10
@@ -1195,11 +1197,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -16(%rdi)
+        movq	%r13, -16(%rdi)
         # Row 2
         movq	64(%rdi), %r10
         movq	80(%rdi), %r11
@@ -1226,11 +1228,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 64(%rdi)
+        movq	%r13, 64(%rdi)
         # Row 3
         movq	-56(%rdi), %r10
         movq	-40(%rdi), %r11
@@ -1257,11 +1259,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -56(%rdi)
+        movq	%r13, -56(%rdi)
         # Row 4
         xorq	24(%rdi), %rcx
         xorq	40(%rdi), %r8
@@ -1345,13 +1347,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -48(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 48(%rdi)
-        movq	$0x8000000080008081, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 48(%rdi)
         # XOR in constant
+        movq	$0x8000000080008081, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-88(%rdi), %r10
@@ -1379,11 +1381,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -88(%rdi)
+        movq	%r13, -88(%rdi)
         # Row 2
         movq	-80(%rdi), %r10
         movq	16(%rdi), %r11
@@ -1410,11 +1412,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -80(%rdi)
+        movq	%r13, -80(%rdi)
         # Row 3
         movq	-72(%rdi), %r10
         movq	-16(%rdi), %r11
@@ -1441,11 +1443,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -72(%rdi)
+        movq	%r13, -72(%rdi)
         # Row 4
         xorq	-64(%rdi), %rcx
         xorq	-8(%rdi), %r8
@@ -1529,13 +1531,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -24(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 40(%rdi)
-        movq	$0x8000000000008009, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 40(%rdi)
         # XOR in constant
+        movq	$0x8000000000008009, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-48(%rdi), %r10
@@ -1563,11 +1565,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -48(%rdi)
+        movq	%r13, -48(%rdi)
         # Row 2
         movq	(%rdi), %r10
         movq	64(%rdi), %r11
@@ -1594,11 +1596,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, (%rdi)
+        movq	%r13, (%rdi)
         # Row 3
         movq	48(%rdi), %r10
         movq	-88(%rdi), %r11
@@ -1625,11 +1627,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 48(%rdi)
+        movq	%r13, 48(%rdi)
         # Row 4
         xorq	96(%rdi), %rcx
         xorq	-40(%rdi), %r8
@@ -1713,11 +1715,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 80(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -8(%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -8(%rdi)
         # XOR in constant
         xorq	$0x8a, %rsi
         # Row 1
@@ -1746,11 +1748,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -24(%rdi)
+        movq	%r13, -24(%rdi)
         # Row 2
         movq	8(%rdi), %r10
         movq	-80(%rdi), %r11
@@ -1777,11 +1779,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 96(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 8(%rdi)
+        movq	%r13, 8(%rdi)
         # Row 3
         movq	40(%rdi), %r10
         movq	-48(%rdi), %r11
@@ -1808,11 +1810,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 40(%rdi)
+        movq	%r13, 40(%rdi)
         # Row 4
         xorq	72(%rdi), %rcx
         xorq	-16(%rdi), %r8
@@ -1896,11 +1898,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 16(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -40(%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -40(%rdi)
         # XOR in constant
         xorq	$0x88, %rsi
         # Row 1
@@ -1929,11 +1931,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 80(%rdi)
+        movq	%r13, 80(%rdi)
         # Row 2
         movq	56(%rdi), %r10
         movq	(%rdi), %r11
@@ -1960,11 +1962,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 56(%rdi)
+        movq	%r13, 56(%rdi)
         # Row 3
         movq	-8(%rdi), %r10
         movq	-24(%rdi), %r11
@@ -1991,11 +1993,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -8(%rdi)
+        movq	%r13, -8(%rdi)
         # Row 4
         xorq	-32(%rdi), %rcx
         xorq	-88(%rdi), %r8
@@ -2079,13 +2081,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 64(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -16(%rdi)
-        movq	$0x80008009, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -16(%rdi)
         # XOR in constant
+        movq	$0x80008009, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	16(%rdi), %r10
@@ -2113,11 +2115,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 96(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 16(%rdi)
+        movq	%r13, 16(%rdi)
         # Row 2
         movq	88(%rdi), %r10
         movq	8(%rdi), %r11
@@ -2144,11 +2146,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 88(%rdi)
+        movq	%r13, 88(%rdi)
         # Row 3
         movq	-40(%rdi), %r10
         movq	80(%rdi), %r11
@@ -2175,11 +2177,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -40(%rdi)
+        movq	%r13, -40(%rdi)
         # Row 4
         xorq	32(%rdi), %rcx
         xorq	-48(%rdi), %r8
@@ -2263,13 +2265,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -80(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -88(%rdi)
-        movq	$0x8000000a, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -88(%rdi)
         # XOR in constant
+        movq	$0x8000000a, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	64(%rdi), %r10
@@ -2297,11 +2299,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 64(%rdi)
+        movq	%r13, 64(%rdi)
         # Row 2
         movq	24(%rdi), %r10
         movq	56(%rdi), %r11
@@ -2328,11 +2330,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 24(%rdi)
+        movq	%r13, 24(%rdi)
         # Row 3
         movq	-16(%rdi), %r10
         movq	16(%rdi), %r11
@@ -2359,11 +2361,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, (%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -16(%rdi)
+        movq	%r13, -16(%rdi)
         # Row 4
         xorq	-56(%rdi), %rcx
         xorq	-24(%rdi), %r8
@@ -2447,13 +2449,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, (%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -48(%rdi)
-        movq	$0x8000808b, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -48(%rdi)
         # XOR in constant
+        movq	$0x8000808b, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-80(%rdi), %r10
@@ -2481,11 +2483,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -80(%rdi)
+        movq	%r13, -80(%rdi)
         # Row 2
         movq	-64(%rdi), %r10
         movq	88(%rdi), %r11
@@ -2512,11 +2514,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -64(%rdi)
+        movq	%r13, -64(%rdi)
         # Row 3
         movq	-88(%rdi), %r10
         movq	64(%rdi), %r11
@@ -2543,11 +2545,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -88(%rdi)
+        movq	%r13, -88(%rdi)
         # Row 4
         xorq	-72(%rdi), %rcx
         xorq	80(%rdi), %r8
@@ -2631,13 +2633,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 8(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -24(%rdi)
-        movq	$0x800000000000008b, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -24(%rdi)
         # XOR in constant
+        movq	$0x800000000000008b, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	(%rdi), %r10
@@ -2665,11 +2667,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 32(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, (%rdi)
+        movq	%r13, (%rdi)
         # Row 2
         movq	96(%rdi), %r10
         movq	24(%rdi), %r11
@@ -2696,11 +2698,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -40(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 96(%rdi)
+        movq	%r13, 96(%rdi)
         # Row 3
         movq	-48(%rdi), %r10
         movq	-80(%rdi), %r11
@@ -2727,11 +2729,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -48(%rdi)
+        movq	%r13, -48(%rdi)
         # Row 4
         xorq	48(%rdi), %rcx
         xorq	16(%rdi), %r8
@@ -2815,13 +2817,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 56(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 80(%rdi)
-        movq	$0x8000000000008089, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 80(%rdi)
         # XOR in constant
+        movq	$0x8000000000008089, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	8(%rdi), %r10
@@ -2849,11 +2851,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 8(%rdi)
+        movq	%r13, 8(%rdi)
         # Row 2
         movq	72(%rdi), %r10
         movq	-64(%rdi), %r11
@@ -2880,11 +2882,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 72(%rdi)
+        movq	%r13, 72(%rdi)
         # Row 3
         movq	-24(%rdi), %r10
         movq	(%rdi), %r11
@@ -2911,11 +2913,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -24(%rdi)
+        movq	%r13, -24(%rdi)
         # Row 4
         xorq	40(%rdi), %rcx
         xorq	64(%rdi), %r8
@@ -2999,13 +3001,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 88(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 16(%rdi)
-        movq	$0x8000000000008003, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 16(%rdi)
         # XOR in constant
+        movq	$0x8000000000008003, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	56(%rdi), %r10
@@ -3033,11 +3035,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, (%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -72(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 56(%rdi)
+        movq	%r13, 56(%rdi)
         # Row 2
         movq	-32(%rdi), %r10
         movq	96(%rdi), %r11
@@ -3064,11 +3066,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -32(%rdi)
+        movq	%r13, -32(%rdi)
         # Row 3
         movq	80(%rdi), %r10
         movq	8(%rdi), %r11
@@ -3095,11 +3097,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 80(%rdi)
+        movq	%r13, 80(%rdi)
         # Row 4
         xorq	-8(%rdi), %rcx
         xorq	-80(%rdi), %r8
@@ -3183,13 +3185,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 24(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 64(%rdi)
-        movq	$0x8000000000008002, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 64(%rdi)
         # XOR in constant
+        movq	$0x8000000000008002, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	88(%rdi), %r10
@@ -3217,11 +3219,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 88(%rdi)
+        movq	%r13, 88(%rdi)
         # Row 2
         movq	32(%rdi), %r10
         movq	72(%rdi), %r11
@@ -3248,11 +3250,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 32(%rdi)
+        movq	%r13, 32(%rdi)
         # Row 3
         movq	16(%rdi), %r10
         movq	56(%rdi), %r11
@@ -3279,11 +3281,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 16(%rdi)
+        movq	%r13, 16(%rdi)
         # Row 4
         xorq	-40(%rdi), %rcx
         xorq	(%rdi), %r8
@@ -3367,13 +3369,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -64(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -80(%rdi)
-        movq	$0x8000000000000080, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -80(%rdi)
         # XOR in constant
+        movq	$0x8000000000000080, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	24(%rdi), %r10
@@ -3401,11 +3403,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 24(%rdi)
+        movq	%r13, 24(%rdi)
         # Row 2
         movq	-56(%rdi), %r10
         movq	-32(%rdi), %r11
@@ -3432,11 +3434,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -56(%rdi)
+        movq	%r13, -56(%rdi)
         # Row 3
         movq	64(%rdi), %r10
         movq	88(%rdi), %r11
@@ -3463,11 +3465,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 96(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 64(%rdi)
+        movq	%r13, 64(%rdi)
         # Row 4
         xorq	-16(%rdi), %rcx
         xorq	8(%rdi), %r8
@@ -3551,11 +3553,11 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 96(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, (%rdi)
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, (%rdi)
         # XOR in constant
         xorq	$0x800a, %rsi
         # Row 1
@@ -3584,11 +3586,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 88(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -64(%rdi)
+        movq	%r13, -64(%rdi)
         # Row 2
         movq	-72(%rdi), %r10
         movq	32(%rdi), %r11
@@ -3615,11 +3617,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -72(%rdi)
+        movq	%r13, -72(%rdi)
         # Row 3
         movq	-80(%rdi), %r10
         movq	24(%rdi), %r11
@@ -3646,11 +3648,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -80(%rdi)
+        movq	%r13, -80(%rdi)
         # Row 4
         xorq	-88(%rdi), %rcx
         xorq	56(%rdi), %r8
@@ -3734,13 +3736,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 72(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 8(%rdi)
-        movq	$0x800000008000000a, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 8(%rdi)
         # XOR in constant
+        movq	$0x800000008000000a, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	96(%rdi), %r10
@@ -3768,11 +3770,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 24(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -40(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 96(%rdi)
+        movq	%r13, 96(%rdi)
         # Row 2
         movq	48(%rdi), %r10
         movq	-56(%rdi), %r11
@@ -3799,11 +3801,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 16(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 48(%rdi)
+        movq	%r13, 48(%rdi)
         # Row 3
         movq	(%rdi), %r10
         movq	-64(%rdi), %r11
@@ -3830,11 +3832,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 64(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, (%rdi)
+        movq	%r13, (%rdi)
         # Row 4
         xorq	-48(%rdi), %rcx
         xorq	88(%rdi), %r8
@@ -3918,13 +3920,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -32(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 56(%rdi)
-        movq	$0x8000000080008081, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 56(%rdi)
         # XOR in constant
+        movq	$0x8000000080008081, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	72(%rdi), %r10
@@ -3952,11 +3954,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 72(%rdi)
+        movq	%r13, 72(%rdi)
         # Row 2
         movq	40(%rdi), %r10
         movq	-72(%rdi), %r11
@@ -3983,11 +3985,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 64(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 40(%rdi)
+        movq	%r13, 40(%rdi)
         # Row 3
         movq	8(%rdi), %r10
         movq	96(%rdi), %r11
@@ -4014,11 +4016,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 8(%rdi)
+        movq	%r13, 8(%rdi)
         # Row 4
         xorq	-24(%rdi), %rcx
         xorq	24(%rdi), %r8
@@ -4102,13 +4104,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, 32(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 88(%rdi)
-        movq	$0x8000000000008080, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 88(%rdi)
         # XOR in constant
+        movq	$0x8000000000008080, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-32(%rdi), %r10
@@ -4136,11 +4138,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 96(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -88(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -32(%rdi)
+        movq	%r13, -32(%rdi)
         # Row 2
         movq	-8(%rdi), %r10
         movq	48(%rdi), %r11
@@ -4167,11 +4169,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -80(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -8(%rdi)
+        movq	%r13, -8(%rdi)
         # Row 3
         movq	56(%rdi), %r10
         movq	72(%rdi), %r11
@@ -4198,11 +4200,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -56(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, (%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 56(%rdi)
+        movq	%r13, 56(%rdi)
         # Row 4
         xorq	80(%rdi), %rcx
         xorq	-64(%rdi), %r8
@@ -4286,13 +4288,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -56(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, 24(%rdi)
-        movq	$0x80000001, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, 24(%rdi)
         # XOR in constant
+        movq	$0x80000001, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	32(%rdi), %r10
@@ -4320,11 +4322,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -48(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 32(%rdi)
+        movq	%r13, 32(%rdi)
         # Row 2
         movq	-40(%rdi), %r10
         movq	40(%rdi), %r11
@@ -4351,11 +4353,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, (%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 80(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -40(%rdi)
+        movq	%r13, -40(%rdi)
         # Row 3
         movq	88(%rdi), %r10
         movq	-32(%rdi), %r11
@@ -4382,11 +4384,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -72(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 8(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 88(%rdi)
+        movq	%r13, 88(%rdi)
         # Row 4
         xorq	16(%rdi), %rcx
         xorq	96(%rdi), %r8
@@ -4470,13 +4472,13 @@ _sha3_block_bmi2:
         andnq	%r10, %r14, %r15
         xorq	%r13, %r15
         movq	%r15, -72(%rdi)
-        andnq	%r11, %r10, %r15
-        xorq	%r14, %r15
-        movq	%r15, -64(%rdi)
-        movq	$0x8000000080008008, %r14
+        andnq	%r11, %r10, %r13
         andnq	%r12, %r11, %rsi
+        xorq	%r14, %r13
         xorq	%r10, %rsi
+        movq	%r13, -64(%rdi)
         # XOR in constant
+        movq	$0x8000000080008008, %r14
         xorq	%r14, %rsi
         # Row 1
         movq	-56(%rdi), %r10
@@ -4504,11 +4506,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, -32(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, -24(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -56(%rdi)
+        movq	%r13, -56(%rdi)
         # Row 2
         movq	-16(%rdi), %r10
         movq	-8(%rdi), %r11
@@ -4535,11 +4537,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 8(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 16(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, -16(%rdi)
+        movq	%r13, -16(%rdi)
         # Row 3
         movq	24(%rdi), %r10
         movq	32(%rdi), %r11
@@ -4566,11 +4568,11 @@ _sha3_block_bmi2:
         xorq	%r13, %r15
         movq	%r15, 48(%rdi)
         andnq	%r11, %r10, %r15
+        andnq	%r12, %r11, %r13
         xorq	%r14, %r15
+        xorq	%r10, %r13
         movq	%r15, 56(%rdi)
-        andnq	%r12, %r11, %r15
-        xorq	%r10, %r15
-        movq	%r15, 24(%rdi)
+        movq	%r13, 24(%rdi)
         # Row 4
         xorq	64(%rdi), %rcx
         xorq	72(%rdi), %r8
@@ -4937,11 +4939,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 48(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 96(%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 96(%rdi)
         # XOR in constant
         xorq	$0x01, %rcx
         # Row 1
@@ -4970,11 +4972,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -72(%rdi)
+        movq	%r15, -72(%rdi)
         # Row 2
         movq	-88(%rdi), %r12
         movq	-40(%rdi), %r13
@@ -5001,11 +5003,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -88(%rdi)
+        movq	%r15, -88(%rdi)
         # Row 3
         movq	-64(%rdi), %r12
         movq	-56(%rdi), %r13
@@ -5032,11 +5034,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -64(%rdi)
+        movq	%r15, -64(%rdi)
         # Row 4
         xorq	-80(%rdi), %r9
         xorq	-32(%rdi), %r10
@@ -5120,11 +5122,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 40(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 72(%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 72(%rdi)
         # XOR in constant
         xorq	$0x8082, %rcx
         # Row 1
@@ -5153,11 +5155,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 48(%rdi)
+        movq	%r15, 48(%rdi)
         # Row 2
         movq	-48(%rdi), %r12
         movq	-16(%rdi), %r13
@@ -5184,11 +5186,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -48(%rdi)
+        movq	%r15, -48(%rdi)
         # Row 3
         movq	96(%rdi), %r12
         movq	-72(%rdi), %r13
@@ -5215,11 +5217,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 96(%rdi)
+        movq	%r15, 96(%rdi)
         # Row 4
         xorq	(%rdi), %r9
         xorq	32(%rdi), %r10
@@ -5303,13 +5305,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -8(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -32(%rdi)
-        movq	$0x800000000000808a, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -32(%rdi)
         # XOR in constant
+        movq	$0x800000000000808a, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	40(%rdi), %r12
@@ -5337,11 +5339,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 40(%rdi)
+        movq	%r15, 40(%rdi)
         # Row 2
         movq	-24(%rdi), %r12
         movq	-88(%rdi), %r13
@@ -5368,11 +5370,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, (%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -24(%rdi)
+        movq	%r15, -24(%rdi)
         # Row 3
         movq	72(%rdi), %r12
         movq	48(%rdi), %r13
@@ -5399,11 +5401,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 72(%rdi)
+        movq	%r15, 72(%rdi)
         # Row 4
         xorq	8(%rdi), %r9
         xorq	-56(%rdi), %r10
@@ -5487,13 +5489,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -40(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 32(%rdi)
-        movq	$0x8000000080008000, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 32(%rdi)
         # XOR in constant
+        movq	$0x8000000080008000, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-8(%rdi), %r12
@@ -5521,11 +5523,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -8(%rdi)
+        movq	%r15, -8(%rdi)
         # Row 2
         movq	80(%rdi), %r12
         movq	-48(%rdi), %r13
@@ -5552,11 +5554,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 80(%rdi)
+        movq	%r15, 80(%rdi)
         # Row 3
         movq	-32(%rdi), %r12
         movq	40(%rdi), %r13
@@ -5583,11 +5585,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 96(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -32(%rdi)
+        movq	%r15, -32(%rdi)
         # Row 4
         xorq	56(%rdi), %r9
         xorq	-72(%rdi), %r10
@@ -5671,11 +5673,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -16(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -56(%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -56(%rdi)
         # XOR in constant
         xorq	$0x808b, %rcx
         # Row 1
@@ -5704,11 +5706,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, (%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -40(%rdi)
+        movq	%r15, -40(%rdi)
         # Row 2
         movq	16(%rdi), %r12
         movq	-24(%rdi), %r13
@@ -5735,11 +5737,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 96(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 16(%rdi)
+        movq	%r15, 16(%rdi)
         # Row 3
         movq	32(%rdi), %r12
         movq	-8(%rdi), %r13
@@ -5766,11 +5768,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 32(%rdi)
+        movq	%r15, 32(%rdi)
         # Row 4
         xorq	88(%rdi), %r9
         xorq	48(%rdi), %r10
@@ -5854,13 +5856,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -88(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -72(%rdi)
-        movq	$0x80000001, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -72(%rdi)
         # XOR in constant
+        movq	$0x80000001, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-16(%rdi), %r12
@@ -5888,11 +5890,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -16(%rdi)
+        movq	%r15, -16(%rdi)
         # Row 2
         movq	64(%rdi), %r12
         movq	80(%rdi), %r13
@@ -5919,11 +5921,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 64(%rdi)
+        movq	%r15, 64(%rdi)
         # Row 3
         movq	-56(%rdi), %r12
         movq	-40(%rdi), %r13
@@ -5950,11 +5952,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -56(%rdi)
+        movq	%r15, -56(%rdi)
         # Row 4
         xorq	24(%rdi), %r9
         xorq	40(%rdi), %r10
@@ -6038,13 +6040,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -48(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 48(%rdi)
-        movq	$0x8000000080008081, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 48(%rdi)
         # XOR in constant
+        movq	$0x8000000080008081, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-88(%rdi), %r12
@@ -6072,11 +6074,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -88(%rdi)
+        movq	%r15, -88(%rdi)
         # Row 2
         movq	-80(%rdi), %r12
         movq	16(%rdi), %r13
@@ -6103,11 +6105,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -80(%rdi)
+        movq	%r15, -80(%rdi)
         # Row 3
         movq	-72(%rdi), %r12
         movq	-16(%rdi), %r13
@@ -6134,11 +6136,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -72(%rdi)
+        movq	%r15, -72(%rdi)
         # Row 4
         xorq	-64(%rdi), %r9
         xorq	-8(%rdi), %r10
@@ -6222,13 +6224,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -24(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 40(%rdi)
-        movq	$0x8000000000008009, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 40(%rdi)
         # XOR in constant
+        movq	$0x8000000000008009, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-48(%rdi), %r12
@@ -6256,11 +6258,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -48(%rdi)
+        movq	%r15, -48(%rdi)
         # Row 2
         movq	(%rdi), %r12
         movq	64(%rdi), %r13
@@ -6287,11 +6289,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, (%rdi)
+        movq	%r15, (%rdi)
         # Row 3
         movq	48(%rdi), %r12
         movq	-88(%rdi), %r13
@@ -6318,11 +6320,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 48(%rdi)
+        movq	%r15, 48(%rdi)
         # Row 4
         xorq	96(%rdi), %r9
         xorq	-40(%rdi), %r10
@@ -6406,11 +6408,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 80(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -8(%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -8(%rdi)
         # XOR in constant
         xorq	$0x8a, %rcx
         # Row 1
@@ -6439,11 +6441,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -24(%rdi)
+        movq	%r15, -24(%rdi)
         # Row 2
         movq	8(%rdi), %r12
         movq	-80(%rdi), %r13
@@ -6470,11 +6472,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 96(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 8(%rdi)
+        movq	%r15, 8(%rdi)
         # Row 3
         movq	40(%rdi), %r12
         movq	-48(%rdi), %r13
@@ -6501,11 +6503,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 40(%rdi)
+        movq	%r15, 40(%rdi)
         # Row 4
         xorq	72(%rdi), %r9
         xorq	-16(%rdi), %r10
@@ -6589,11 +6591,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 16(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -40(%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -40(%rdi)
         # XOR in constant
         xorq	$0x88, %rcx
         # Row 1
@@ -6622,11 +6624,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 80(%rdi)
+        movq	%r15, 80(%rdi)
         # Row 2
         movq	56(%rdi), %r12
         movq	(%rdi), %r13
@@ -6653,11 +6655,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 56(%rdi)
+        movq	%r15, 56(%rdi)
         # Row 3
         movq	-8(%rdi), %r12
         movq	-24(%rdi), %r13
@@ -6684,11 +6686,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -8(%rdi)
+        movq	%r15, -8(%rdi)
         # Row 4
         xorq	-32(%rdi), %r9
         xorq	-88(%rdi), %r10
@@ -6772,13 +6774,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 64(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -16(%rdi)
-        movq	$0x80008009, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -16(%rdi)
         # XOR in constant
+        movq	$0x80008009, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	16(%rdi), %r12
@@ -6806,11 +6808,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 96(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 16(%rdi)
+        movq	%r15, 16(%rdi)
         # Row 2
         movq	88(%rdi), %r12
         movq	8(%rdi), %r13
@@ -6837,11 +6839,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 88(%rdi)
+        movq	%r15, 88(%rdi)
         # Row 3
         movq	-40(%rdi), %r12
         movq	80(%rdi), %r13
@@ -6868,11 +6870,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -40(%rdi)
+        movq	%r15, -40(%rdi)
         # Row 4
         xorq	32(%rdi), %r9
         xorq	-48(%rdi), %r10
@@ -6956,13 +6958,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -80(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -88(%rdi)
-        movq	$0x8000000a, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -88(%rdi)
         # XOR in constant
+        movq	$0x8000000a, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	64(%rdi), %r12
@@ -6990,11 +6992,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 64(%rdi)
+        movq	%r15, 64(%rdi)
         # Row 2
         movq	24(%rdi), %r12
         movq	56(%rdi), %r13
@@ -7021,11 +7023,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 24(%rdi)
+        movq	%r15, 24(%rdi)
         # Row 3
         movq	-16(%rdi), %r12
         movq	16(%rdi), %r13
@@ -7052,11 +7054,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, (%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -16(%rdi)
+        movq	%r15, -16(%rdi)
         # Row 4
         xorq	-56(%rdi), %r9
         xorq	-24(%rdi), %r10
@@ -7140,13 +7142,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, (%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -48(%rdi)
-        movq	$0x8000808b, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -48(%rdi)
         # XOR in constant
+        movq	$0x8000808b, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-80(%rdi), %r12
@@ -7174,11 +7176,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -80(%rdi)
+        movq	%r15, -80(%rdi)
         # Row 2
         movq	-64(%rdi), %r12
         movq	88(%rdi), %r13
@@ -7205,11 +7207,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -64(%rdi)
+        movq	%r15, -64(%rdi)
         # Row 3
         movq	-88(%rdi), %r12
         movq	64(%rdi), %r13
@@ -7236,11 +7238,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -88(%rdi)
+        movq	%r15, -88(%rdi)
         # Row 4
         xorq	-72(%rdi), %r9
         xorq	80(%rdi), %r10
@@ -7324,13 +7326,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 8(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -24(%rdi)
-        movq	$0x800000000000008b, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -24(%rdi)
         # XOR in constant
+        movq	$0x800000000000008b, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	(%rdi), %r12
@@ -7358,11 +7360,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 32(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, (%rdi)
+        movq	%r15, (%rdi)
         # Row 2
         movq	96(%rdi), %r12
         movq	24(%rdi), %r13
@@ -7389,11 +7391,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -40(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 96(%rdi)
+        movq	%r15, 96(%rdi)
         # Row 3
         movq	-48(%rdi), %r12
         movq	-80(%rdi), %r13
@@ -7420,11 +7422,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -48(%rdi)
+        movq	%r15, -48(%rdi)
         # Row 4
         xorq	48(%rdi), %r9
         xorq	16(%rdi), %r10
@@ -7508,13 +7510,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 56(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 80(%rdi)
-        movq	$0x8000000000008089, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 80(%rdi)
         # XOR in constant
+        movq	$0x8000000000008089, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	8(%rdi), %r12
@@ -7542,11 +7544,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 8(%rdi)
+        movq	%r15, 8(%rdi)
         # Row 2
         movq	72(%rdi), %r12
         movq	-64(%rdi), %r13
@@ -7573,11 +7575,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 72(%rdi)
+        movq	%r15, 72(%rdi)
         # Row 3
         movq	-24(%rdi), %r12
         movq	(%rdi), %r13
@@ -7604,11 +7606,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -24(%rdi)
+        movq	%r15, -24(%rdi)
         # Row 4
         xorq	40(%rdi), %r9
         xorq	64(%rdi), %r10
@@ -7692,13 +7694,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 88(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 16(%rdi)
-        movq	$0x8000000000008003, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 16(%rdi)
         # XOR in constant
+        movq	$0x8000000000008003, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	56(%rdi), %r12
@@ -7726,11 +7728,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, (%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -72(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 56(%rdi)
+        movq	%r15, 56(%rdi)
         # Row 2
         movq	-32(%rdi), %r12
         movq	96(%rdi), %r13
@@ -7757,11 +7759,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -32(%rdi)
+        movq	%r15, -32(%rdi)
         # Row 3
         movq	80(%rdi), %r12
         movq	8(%rdi), %r13
@@ -7788,11 +7790,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 80(%rdi)
+        movq	%r15, 80(%rdi)
         # Row 4
         xorq	-8(%rdi), %r9
         xorq	-80(%rdi), %r10
@@ -7876,13 +7878,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 24(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 64(%rdi)
-        movq	$0x8000000000008002, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 64(%rdi)
         # XOR in constant
+        movq	$0x8000000000008002, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	88(%rdi), %r12
@@ -7910,11 +7912,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 88(%rdi)
+        movq	%r15, 88(%rdi)
         # Row 2
         movq	32(%rdi), %r12
         movq	72(%rdi), %r13
@@ -7941,11 +7943,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 32(%rdi)
+        movq	%r15, 32(%rdi)
         # Row 3
         movq	16(%rdi), %r12
         movq	56(%rdi), %r13
@@ -7972,11 +7974,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 16(%rdi)
+        movq	%r15, 16(%rdi)
         # Row 4
         xorq	-40(%rdi), %r9
         xorq	(%rdi), %r10
@@ -8060,13 +8062,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -64(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -80(%rdi)
-        movq	$0x8000000000000080, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -80(%rdi)
         # XOR in constant
+        movq	$0x8000000000000080, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	24(%rdi), %r12
@@ -8094,11 +8096,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 24(%rdi)
+        movq	%r15, 24(%rdi)
         # Row 2
         movq	-56(%rdi), %r12
         movq	-32(%rdi), %r13
@@ -8125,11 +8127,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -56(%rdi)
+        movq	%r15, -56(%rdi)
         # Row 3
         movq	64(%rdi), %r12
         movq	88(%rdi), %r13
@@ -8156,11 +8158,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 96(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 64(%rdi)
+        movq	%r15, 64(%rdi)
         # Row 4
         xorq	-16(%rdi), %r9
         xorq	8(%rdi), %r10
@@ -8244,11 +8246,11 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 96(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, (%rdi)
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, (%rdi)
         # XOR in constant
         xorq	$0x800a, %rcx
         # Row 1
@@ -8277,11 +8279,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 88(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -64(%rdi)
+        movq	%r15, -64(%rdi)
         # Row 2
         movq	-72(%rdi), %r12
         movq	32(%rdi), %r13
@@ -8308,11 +8310,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -72(%rdi)
+        movq	%r15, -72(%rdi)
         # Row 3
         movq	-80(%rdi), %r12
         movq	24(%rdi), %r13
@@ -8339,11 +8341,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -80(%rdi)
+        movq	%r15, -80(%rdi)
         # Row 4
         xorq	-88(%rdi), %r9
         xorq	56(%rdi), %r10
@@ -8427,13 +8429,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 72(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 8(%rdi)
-        movq	$0x800000008000000a, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 8(%rdi)
         # XOR in constant
+        movq	$0x800000008000000a, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	96(%rdi), %r12
@@ -8461,11 +8463,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 24(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -40(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 96(%rdi)
+        movq	%r15, 96(%rdi)
         # Row 2
         movq	48(%rdi), %r12
         movq	-56(%rdi), %r13
@@ -8492,11 +8494,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 16(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 48(%rdi)
+        movq	%r15, 48(%rdi)
         # Row 3
         movq	(%rdi), %r12
         movq	-64(%rdi), %r13
@@ -8523,11 +8525,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 64(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, (%rdi)
+        movq	%r15, (%rdi)
         # Row 4
         xorq	-48(%rdi), %r9
         xorq	88(%rdi), %r10
@@ -8611,13 +8613,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -32(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 56(%rdi)
-        movq	$0x8000000080008081, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 56(%rdi)
         # XOR in constant
+        movq	$0x8000000080008081, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	72(%rdi), %r12
@@ -8645,11 +8647,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 72(%rdi)
+        movq	%r15, 72(%rdi)
         # Row 2
         movq	40(%rdi), %r12
         movq	-72(%rdi), %r13
@@ -8676,11 +8678,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 64(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 40(%rdi)
+        movq	%r15, 40(%rdi)
         # Row 3
         movq	8(%rdi), %r12
         movq	96(%rdi), %r13
@@ -8707,11 +8709,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 8(%rdi)
+        movq	%r15, 8(%rdi)
         # Row 4
         xorq	-24(%rdi), %r9
         xorq	24(%rdi), %r10
@@ -8795,13 +8797,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, 32(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 88(%rdi)
-        movq	$0x8000000000008080, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 88(%rdi)
         # XOR in constant
+        movq	$0x8000000000008080, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-32(%rdi), %r12
@@ -8829,11 +8831,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 96(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -88(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -32(%rdi)
+        movq	%r15, -32(%rdi)
         # Row 2
         movq	-8(%rdi), %r12
         movq	48(%rdi), %r13
@@ -8860,11 +8862,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -80(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -8(%rdi)
+        movq	%r15, -8(%rdi)
         # Row 3
         movq	56(%rdi), %r12
         movq	72(%rdi), %r13
@@ -8891,11 +8893,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -56(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, (%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 56(%rdi)
+        movq	%r15, 56(%rdi)
         # Row 4
         xorq	80(%rdi), %r9
         xorq	-64(%rdi), %r10
@@ -8979,13 +8981,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -56(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, 24(%rdi)
-        movq	$0x80000001, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, 24(%rdi)
         # XOR in constant
+        movq	$0x80000001, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	32(%rdi), %r12
@@ -9013,11 +9015,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -48(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 32(%rdi)
+        movq	%r15, 32(%rdi)
         # Row 2
         movq	-40(%rdi), %r12
         movq	40(%rdi), %r13
@@ -9044,11 +9046,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, (%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 80(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -40(%rdi)
+        movq	%r15, -40(%rdi)
         # Row 3
         movq	88(%rdi), %r12
         movq	-32(%rdi), %r13
@@ -9075,11 +9077,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -72(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 8(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 88(%rdi)
+        movq	%r15, 88(%rdi)
         # Row 4
         xorq	16(%rdi), %r9
         xorq	96(%rdi), %r10
@@ -9163,13 +9165,13 @@ L_sha3_block_n_bmi2_rounds:
         andnq	%r12, %rbx, %rbp
         xorq	%r15, %rbp
         movq	%rbp, -72(%rdi)
-        andnq	%r13, %r12, %rbp
-        xorq	%rbx, %rbp
-        movq	%rbp, -64(%rdi)
-        movq	$0x8000000080008008, %rbx
+        andnq	%r13, %r12, %r15
         andnq	%r14, %r13, %rcx
+        xorq	%rbx, %r15
         xorq	%r12, %rcx
+        movq	%r15, -64(%rdi)
         # XOR in constant
+        movq	$0x8000000080008008, %rbx
         xorq	%rbx, %rcx
         # Row 1
         movq	-56(%rdi), %r12
@@ -9197,11 +9199,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, -32(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, -24(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -56(%rdi)
+        movq	%r15, -56(%rdi)
         # Row 2
         movq	-16(%rdi), %r12
         movq	-8(%rdi), %r13
@@ -9228,11 +9230,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 8(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 16(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, -16(%rdi)
+        movq	%r15, -16(%rdi)
         # Row 3
         movq	24(%rdi), %r12
         movq	32(%rdi), %r13
@@ -9259,11 +9261,11 @@ L_sha3_block_n_bmi2_rounds:
         xorq	%r15, %rbp
         movq	%rbp, 48(%rdi)
         andnq	%r13, %r12, %rbp
+        andnq	%r14, %r13, %r15
         xorq	%rbx, %rbp
+        xorq	%r12, %r15
         movq	%rbp, 56(%rdi)
-        andnq	%r14, %r13, %rbp
-        xorq	%r12, %rbp
-        movq	%rbp, 24(%rdi)
+        movq	%r15, 24(%rdi)
         # Row 4
         xorq	64(%rdi), %r9
         xorq	72(%rdi), %r10
@@ -9520,15 +9522,15 @@ L_sha3_block_avx2_start:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
-.globl	kyber_sha3_blocksx4_avx2
-.type	kyber_sha3_blocksx4_avx2,@function
+.globl	sha3_blocksx4_avx2
+.type	sha3_blocksx4_avx2,@function
 .align	16
-kyber_sha3_blocksx4_avx2:
+sha3_blocksx4_avx2:
 #else
 .section	__TEXT,__text
-.globl	_kyber_sha3_blocksx4_avx2
+.globl	_sha3_blocksx4_avx2
 .p2align	4
-_kyber_sha3_blocksx4_avx2:
+_sha3_blocksx4_avx2:
 #endif /* __APPLE__ */
         leaq	L_sha3_x4_avx2_r(%rip), %rdx
         vmovdqu	(%rdi), %ymm15
@@ -14874,7 +14876,7 @@ _kyber_sha3_blocksx4_avx2:
         vzeroupper
         repz retq
 #ifndef __APPLE__
-.size	kyber_sha3_blocksx4_avx2,.-kyber_sha3_blocksx4_avx2
+.size	sha3_blocksx4_avx2,.-sha3_blocksx4_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 

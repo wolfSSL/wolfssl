@@ -8,16 +8,23 @@ noinst_PROGRAMS += tests/unit.test
 tests_unit_test_SOURCES = \
                   tests/unit.c \
                   tests/api.c \
+                  tests/utils.c \
+                  testsuite/utils.c \
                   tests/suites.c \
-                  tests/hash.c \
                   tests/w64wrapper.c \
                   tests/srp.c \
                   tests/quic.c \
                   examples/client/client.c \
                   examples/server/server.c
+
+if BUILD_WOLFCRYPT_TESTS
+tests_unit_test_SOURCES += wolfcrypt/test/test.c
+endif
+
 tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS) $(WOLFSENTRY_INCLUDE)
 tests_unit_test_LDADD        = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD) $(WOLFSENTRY_LIB)
 tests_unit_test_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+include tests/api/include.am
 endif
 EXTRA_DIST += tests/unit.h \
               tests/test.conf \
@@ -27,11 +34,11 @@ EXTRA_DIST += tests/unit.h \
               tests/test-tls13-ecc.conf \
               tests/test-tls13-psk.conf \
               tests/test-tls13-pq.conf \
-              tests/test-tls13-pq-2.conf \
+              tests/test-tls13-pq-hybrid.conf \
               tests/test-dtls13-pq.conf \
               tests/test-dtls13-pq-frag.conf \
-              tests/test-dtls13-pq-2.conf \
-              tests/test-dtls13-pq-2-frag.conf \
+              tests/test-dtls13-pq-hybrid.conf \
+              tests/test-dtls13-pq-hybrid-frag.conf \
               tests/test-psk.conf \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \

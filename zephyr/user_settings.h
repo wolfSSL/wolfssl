@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -158,6 +158,12 @@ extern "C" {
 
 #if defined(CONFIG_NET_SOCKETS_SOCKOPT_TLS)
     #define WOLFSSL_SET_CIPHER_BYTES
+#endif
+
+/* wolfTPM Zephyr */
+#if defined(CONFIG_WOLFTPM)
+    #define WOLF_CRYPTO_CB
+    #define WOLFSSL_AES_CFB
 #endif
 
 /* ------------------------------------------------------------------------- */

@@ -23,7 +23,8 @@ jobs:
           '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS"',
         ]
     name: make check
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6
     steps:
@@ -36,7 +37,7 @@ jobs:
           ./configure ${{ matrix.config }}
           make check
 
-      - name: Print errors 
+      - name: Print errors
         if: ${{ failure() }}
         run: |
           if [ -f test-suite.log ] ; then

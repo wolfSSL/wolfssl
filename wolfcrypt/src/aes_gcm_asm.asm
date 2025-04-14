@@ -1,6 +1,6 @@
 ; /* aes_gcm_asm.asm */
 ; /*
-; * Copyright (C) 2006-2024 wolfSSL Inc.
+;  * Copyright (C) 2006-2025 wolfSSL Inc.
 ;  *
 ;  * This file is part of wolfSSL.
 ;  *
@@ -40,6 +40,259 @@ IFNDEF _WIN64
 _WIN64 = 1
 ENDIF
 
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_aesni_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_aesni_rev8 QWORD L_GCM_generate_m0_aesni_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_aesni_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_aesni PROC
+        sub	rsp, 80
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	xmm9, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        movdqu	xmm10, OWORD PTR L_GCM_generate_m0_aesni_mod2_128
+        pxor	xmm8, xmm8
+        movdqu	xmm0, OWORD PTR [rcx]
+        movdqu	OWORD PTR [rdx], xmm8
+        movdqu	xmm8, xmm0
+        pshufb	xmm0, xmm9
+        movdqu	xmm5, xmm0
+        movdqu	xmm4, xmm0
+        psllq	xmm5, 63
+        psrlq	xmm4, 1
+        movdqu	xmm1, xmm5
+        pslldq	xmm1, 8
+        psrldq	xmm5, 8
+        pshufd	xmm1, xmm1, 255
+        por	xmm4, xmm5
+        psrad	xmm1, 31
+        pand	xmm1, xmm10
+        pxor	xmm1, xmm4
+        movdqu	xmm5, xmm1
+        movdqu	xmm4, xmm1
+        psllq	xmm5, 63
+        psrlq	xmm4, 1
+        movdqu	xmm2, xmm5
+        pslldq	xmm2, 8
+        psrldq	xmm5, 8
+        pshufd	xmm2, xmm2, 255
+        por	xmm4, xmm5
+        psrad	xmm2, 31
+        pand	xmm2, xmm10
+        pxor	xmm2, xmm4
+        movdqu	xmm5, xmm2
+        movdqu	xmm4, xmm2
+        psllq	xmm5, 63
+        psrlq	xmm4, 1
+        movdqu	xmm3, xmm5
+        pslldq	xmm3, 8
+        psrldq	xmm5, 8
+        pshufd	xmm3, xmm3, 255
+        por	xmm4, xmm5
+        psrad	xmm3, 31
+        pand	xmm3, xmm10
+        pxor	xmm3, xmm4
+        pshufb	xmm3, xmm9
+        pshufb	xmm2, xmm9
+        movdqu	xmm8, xmm3
+        pshufb	xmm1, xmm9
+        pshufb	xmm0, xmm9
+        pxor	xmm8, xmm2
+        movdqu	OWORD PTR [rdx+16], xmm3
+        movdqu	OWORD PTR [rdx+32], xmm2
+        movdqu	OWORD PTR [rdx+48], xmm8
+        movdqu	OWORD PTR [rdx+64], xmm1
+        movdqu	xmm4, xmm3
+        movdqu	xmm5, xmm2
+        movdqu	xmm6, xmm8
+        pxor	xmm4, xmm1
+        pxor	xmm5, xmm1
+        pxor	xmm6, xmm1
+        movdqu	OWORD PTR [rdx+80], xmm4
+        movdqu	OWORD PTR [rdx+96], xmm5
+        movdqu	OWORD PTR [rdx+112], xmm6
+        movdqu	OWORD PTR [rdx+128], xmm0
+        pxor	xmm1, xmm0
+        movdqu	xmm4, xmm3
+        movdqu	xmm6, xmm2
+        pxor	xmm4, xmm0
+        pxor	xmm6, xmm0
+        movdqu	OWORD PTR [rdx+144], xmm4
+        movdqu	OWORD PTR [rdx+160], xmm6
+        pxor	xmm6, xmm3
+        movdqu	OWORD PTR [rdx+176], xmm6
+        movdqu	OWORD PTR [rdx+192], xmm1
+        movdqu	xmm4, xmm3
+        movdqu	xmm5, xmm2
+        movdqu	xmm6, xmm8
+        pxor	xmm4, xmm1
+        pxor	xmm5, xmm1
+        pxor	xmm6, xmm1
+        movdqu	OWORD PTR [rdx+208], xmm4
+        movdqu	OWORD PTR [rdx+224], xmm5
+        movdqu	OWORD PTR [rdx+240], xmm6
+        movdqu	xmm0, OWORD PTR [rdx]
+        movdqu	xmm1, OWORD PTR [rdx+16]
+        movdqu	xmm2, OWORD PTR [rdx+32]
+        movdqu	xmm3, OWORD PTR [rdx+48]
+        pshufb	xmm0, xmm9
+        pshufb	xmm1, xmm9
+        pshufb	xmm2, xmm9
+        pshufb	xmm3, xmm9
+        movdqu	xmm4, xmm0
+        movdqu	xmm5, xmm1
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm3
+        psllq	xmm4, 60
+        psllq	xmm5, 60
+        psllq	xmm6, 60
+        psllq	xmm7, 60
+        psrlq	xmm0, 4
+        psrlq	xmm1, 4
+        psrlq	xmm2, 4
+        psrlq	xmm3, 4
+        psrldq	xmm4, 8
+        psrldq	xmm5, 8
+        psrldq	xmm6, 8
+        psrldq	xmm7, 8
+        por	xmm0, xmm4
+        por	xmm1, xmm5
+        por	xmm2, xmm6
+        por	xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        movdqu	OWORD PTR [rdx+256], xmm0
+        movdqu	OWORD PTR [rdx+272], xmm1
+        movdqu	OWORD PTR [rdx+288], xmm2
+        movdqu	OWORD PTR [rdx+304], xmm3
+        movdqu	xmm0, OWORD PTR [rdx+64]
+        movdqu	xmm1, OWORD PTR [rdx+80]
+        movdqu	xmm2, OWORD PTR [rdx+96]
+        movdqu	xmm3, OWORD PTR [rdx+112]
+        pshufb	xmm0, xmm9
+        pshufb	xmm1, xmm9
+        pshufb	xmm2, xmm9
+        pshufb	xmm3, xmm9
+        movdqu	xmm4, xmm0
+        movdqu	xmm5, xmm1
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm3
+        psllq	xmm4, 60
+        psllq	xmm5, 60
+        psllq	xmm6, 60
+        psllq	xmm7, 60
+        psrlq	xmm0, 4
+        psrlq	xmm1, 4
+        psrlq	xmm2, 4
+        psrlq	xmm3, 4
+        psrldq	xmm4, 8
+        psrldq	xmm5, 8
+        psrldq	xmm6, 8
+        psrldq	xmm7, 8
+        por	xmm0, xmm4
+        por	xmm1, xmm5
+        por	xmm2, xmm6
+        por	xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        movdqu	OWORD PTR [rdx+320], xmm0
+        movdqu	OWORD PTR [rdx+336], xmm1
+        movdqu	OWORD PTR [rdx+352], xmm2
+        movdqu	OWORD PTR [rdx+368], xmm3
+        movdqu	xmm0, OWORD PTR [rdx+128]
+        movdqu	xmm1, OWORD PTR [rdx+144]
+        movdqu	xmm2, OWORD PTR [rdx+160]
+        movdqu	xmm3, OWORD PTR [rdx+176]
+        pshufb	xmm0, xmm9
+        pshufb	xmm1, xmm9
+        pshufb	xmm2, xmm9
+        pshufb	xmm3, xmm9
+        movdqu	xmm4, xmm0
+        movdqu	xmm5, xmm1
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm3
+        psllq	xmm4, 60
+        psllq	xmm5, 60
+        psllq	xmm6, 60
+        psllq	xmm7, 60
+        psrlq	xmm0, 4
+        psrlq	xmm1, 4
+        psrlq	xmm2, 4
+        psrlq	xmm3, 4
+        psrldq	xmm4, 8
+        psrldq	xmm5, 8
+        psrldq	xmm6, 8
+        psrldq	xmm7, 8
+        por	xmm0, xmm4
+        por	xmm1, xmm5
+        por	xmm2, xmm6
+        por	xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        movdqu	OWORD PTR [rdx+384], xmm0
+        movdqu	OWORD PTR [rdx+400], xmm1
+        movdqu	OWORD PTR [rdx+416], xmm2
+        movdqu	OWORD PTR [rdx+432], xmm3
+        movdqu	xmm0, OWORD PTR [rdx+192]
+        movdqu	xmm1, OWORD PTR [rdx+208]
+        movdqu	xmm2, OWORD PTR [rdx+224]
+        movdqu	xmm3, OWORD PTR [rdx+240]
+        pshufb	xmm0, xmm9
+        pshufb	xmm1, xmm9
+        pshufb	xmm2, xmm9
+        pshufb	xmm3, xmm9
+        movdqu	xmm4, xmm0
+        movdqu	xmm5, xmm1
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm3
+        psllq	xmm4, 60
+        psllq	xmm5, 60
+        psllq	xmm6, 60
+        psllq	xmm7, 60
+        psrlq	xmm0, 4
+        psrlq	xmm1, 4
+        psrlq	xmm2, 4
+        psrlq	xmm3, 4
+        psrldq	xmm4, 8
+        psrldq	xmm5, 8
+        psrldq	xmm6, 8
+        psrldq	xmm7, 8
+        por	xmm0, xmm4
+        por	xmm1, xmm5
+        por	xmm2, xmm6
+        por	xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        movdqu	OWORD PTR [rdx+448], xmm0
+        movdqu	OWORD PTR [rdx+464], xmm1
+        movdqu	OWORD PTR [rdx+480], xmm2
+        movdqu	OWORD PTR [rdx+496], xmm3
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        add	rsp, 80
+        ret
+GCM_generate_m0_aesni ENDP
+_text ENDS
 _DATA SEGMENT
 ALIGN 16
 L_aes_gcm_one QWORD 0, 1
@@ -6205,6 +6458,225 @@ _text ENDS
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
+L_GCM_generate_m0_avx1_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_avx1_rev8 QWORD L_GCM_generate_m0_avx1_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx1_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_avx1 PROC
+        sub	rsp, 80
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_avx1_mod2_128
+        vpxor	xmm8, xmm8, xmm8
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vmovdqu	OWORD PTR [rdx], xmm8
+        vmovdqu	xmm8, xmm0
+        vpshufb	xmm0, xmm0, xmm9
+        vpsllq	xmm5, xmm0, 63
+        vpsrlq	xmm4, xmm0, 1
+        vpslldq	xmm1, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm1, xmm1, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm1, xmm1, 31
+        vpand	xmm1, xmm1, xmm10
+        vpxor	xmm1, xmm1, xmm4
+        vpsllq	xmm5, xmm1, 63
+        vpsrlq	xmm4, xmm1, 1
+        vpslldq	xmm2, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm2, xmm2, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm2, xmm2, 31
+        vpand	xmm2, xmm2, xmm10
+        vpxor	xmm2, xmm2, xmm4
+        vpsllq	xmm5, xmm2, 63
+        vpsrlq	xmm4, xmm2, 1
+        vpslldq	xmm3, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm3, xmm3, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm3, xmm3, 31
+        vpand	xmm3, xmm3, xmm10
+        vpxor	xmm3, xmm3, xmm4
+        vpshufb	xmm3, xmm3, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm0, xmm0, xmm9
+        vpxor	xmm8, xmm3, xmm2
+        vmovdqu	OWORD PTR [rdx+16], xmm3
+        vmovdqu	OWORD PTR [rdx+32], xmm2
+        vmovdqu	OWORD PTR [rdx+48], xmm8
+        vmovdqu	OWORD PTR [rdx+64], xmm1
+        vpxor	xmm4, xmm3, xmm1
+        vpxor	xmm5, xmm2, xmm1
+        vpxor	xmm6, xmm8, xmm1
+        vmovdqu	OWORD PTR [rdx+80], xmm4
+        vmovdqu	OWORD PTR [rdx+96], xmm5
+        vmovdqu	OWORD PTR [rdx+112], xmm6
+        vmovdqu	OWORD PTR [rdx+128], xmm0
+        vpxor	xmm1, xmm1, xmm0
+        vpxor	xmm4, xmm3, xmm0
+        vpxor	xmm6, xmm2, xmm0
+        vmovdqu	OWORD PTR [rdx+144], xmm4
+        vmovdqu	OWORD PTR [rdx+160], xmm6
+        vpxor	xmm6, xmm3, xmm6
+        vmovdqu	OWORD PTR [rdx+176], xmm6
+        vmovdqu	OWORD PTR [rdx+192], xmm1
+        vpxor	xmm4, xmm3, xmm1
+        vpxor	xmm5, xmm2, xmm1
+        vpxor	xmm6, xmm8, xmm1
+        vmovdqu	OWORD PTR [rdx+208], xmm4
+        vmovdqu	OWORD PTR [rdx+224], xmm5
+        vmovdqu	OWORD PTR [rdx+240], xmm6
+        vmovdqu	xmm0, OWORD PTR [rdx]
+        vmovdqu	xmm1, OWORD PTR [rdx+16]
+        vmovdqu	xmm2, OWORD PTR [rdx+32]
+        vmovdqu	xmm3, OWORD PTR [rdx+48]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+256], xmm0
+        vmovdqu	OWORD PTR [rdx+272], xmm1
+        vmovdqu	OWORD PTR [rdx+288], xmm2
+        vmovdqu	OWORD PTR [rdx+304], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+64]
+        vmovdqu	xmm1, OWORD PTR [rdx+80]
+        vmovdqu	xmm2, OWORD PTR [rdx+96]
+        vmovdqu	xmm3, OWORD PTR [rdx+112]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+320], xmm0
+        vmovdqu	OWORD PTR [rdx+336], xmm1
+        vmovdqu	OWORD PTR [rdx+352], xmm2
+        vmovdqu	OWORD PTR [rdx+368], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+128]
+        vmovdqu	xmm1, OWORD PTR [rdx+144]
+        vmovdqu	xmm2, OWORD PTR [rdx+160]
+        vmovdqu	xmm3, OWORD PTR [rdx+176]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+384], xmm0
+        vmovdqu	OWORD PTR [rdx+400], xmm1
+        vmovdqu	OWORD PTR [rdx+416], xmm2
+        vmovdqu	OWORD PTR [rdx+432], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+192]
+        vmovdqu	xmm1, OWORD PTR [rdx+208]
+        vmovdqu	xmm2, OWORD PTR [rdx+224]
+        vmovdqu	xmm3, OWORD PTR [rdx+240]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+448], xmm0
+        vmovdqu	OWORD PTR [rdx+464], xmm1
+        vmovdqu	OWORD PTR [rdx+480], xmm2
+        vmovdqu	OWORD PTR [rdx+496], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        add	rsp, 80
+        ret
+GCM_generate_m0_avx1 ENDP
+_text ENDS
+_DATA SEGMENT
+ALIGN 16
 L_avx1_aes_gcm_one QWORD 0, 1
 ptr_L_avx1_aes_gcm_one QWORD L_avx1_aes_gcm_one
 _DATA ENDS
@@ -9360,7 +9832,6 @@ L_AES_GCM_init_avx1_iv_done:
         vpaddd	xmm4, xmm4, OWORD PTR L_avx1_aes_gcm_one
         vmovdqa	OWORD PTR [rax], xmm5
         vmovdqa	OWORD PTR [r8], xmm4
-        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+16]
         vmovdqu	xmm7, OWORD PTR [rsp+32]
         vmovdqu	xmm8, OWORD PTR [rsp+48]
@@ -9433,7 +9904,6 @@ L_AES_GCM_aad_update_avx1_16_loop:
         cmp	ecx, edx
         jl	L_AES_GCM_aad_update_avx1_16_loop
         vmovdqa	OWORD PTR [r8], xmm5
-        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         add	rsp, 32
@@ -11434,6 +11904,225 @@ AES_GCM_decrypt_final_avx1 ENDP
 _text ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx2_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_avx2_rev8 QWORD L_GCM_generate_m0_avx2_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx2_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_avx2 PROC
+        sub	rsp, 80
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vmovdqu	OWORD PTR [rsp+32], xmm8
+        vmovdqu	OWORD PTR [rsp+48], xmm9
+        vmovdqu	OWORD PTR [rsp+64], xmm10
+        vmovdqu	xmm9, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vmovdqu	xmm10, OWORD PTR L_GCM_generate_m0_avx2_mod2_128
+        vpxor	xmm8, xmm8, xmm8
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vmovdqu	OWORD PTR [rdx], xmm8
+        vmovdqu	xmm8, xmm0
+        vpshufb	xmm0, xmm0, xmm9
+        vpsllq	xmm5, xmm0, 63
+        vpsrlq	xmm4, xmm0, 1
+        vpslldq	xmm1, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm1, xmm1, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm1, xmm1, 31
+        vpand	xmm1, xmm1, xmm10
+        vpxor	xmm1, xmm1, xmm4
+        vpsllq	xmm5, xmm1, 63
+        vpsrlq	xmm4, xmm1, 1
+        vpslldq	xmm2, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm2, xmm2, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm2, xmm2, 31
+        vpand	xmm2, xmm2, xmm10
+        vpxor	xmm2, xmm2, xmm4
+        vpsllq	xmm5, xmm2, 63
+        vpsrlq	xmm4, xmm2, 1
+        vpslldq	xmm3, xmm5, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpshufd	xmm3, xmm3, 255
+        vpor	xmm4, xmm4, xmm5
+        vpsrad	xmm3, xmm3, 31
+        vpand	xmm3, xmm3, xmm10
+        vpxor	xmm3, xmm3, xmm4
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpxor	xmm8, xmm3, xmm2
+        vmovdqu	OWORD PTR [rdx+16], xmm3
+        vmovdqu	OWORD PTR [rdx+32], xmm2
+        vmovdqu	OWORD PTR [rdx+48], xmm8
+        vmovdqu	OWORD PTR [rdx+64], xmm1
+        vpxor	xmm4, xmm3, xmm1
+        vpxor	xmm5, xmm2, xmm1
+        vpxor	xmm6, xmm8, xmm1
+        vmovdqu	OWORD PTR [rdx+80], xmm4
+        vmovdqu	OWORD PTR [rdx+96], xmm5
+        vmovdqu	OWORD PTR [rdx+112], xmm6
+        vmovdqu	OWORD PTR [rdx+128], xmm0
+        vpxor	xmm1, xmm1, xmm0
+        vpxor	xmm4, xmm3, xmm0
+        vpxor	xmm6, xmm2, xmm0
+        vmovdqu	OWORD PTR [rdx+144], xmm4
+        vmovdqu	OWORD PTR [rdx+160], xmm6
+        vpxor	xmm6, xmm3, xmm6
+        vmovdqu	OWORD PTR [rdx+176], xmm6
+        vmovdqu	OWORD PTR [rdx+192], xmm1
+        vpxor	xmm4, xmm3, xmm1
+        vpxor	xmm5, xmm2, xmm1
+        vpxor	xmm6, xmm8, xmm1
+        vmovdqu	OWORD PTR [rdx+208], xmm4
+        vmovdqu	OWORD PTR [rdx+224], xmm5
+        vmovdqu	OWORD PTR [rdx+240], xmm6
+        vmovdqu	xmm0, OWORD PTR [rdx]
+        vmovdqu	xmm1, OWORD PTR [rdx+16]
+        vmovdqu	xmm2, OWORD PTR [rdx+32]
+        vmovdqu	xmm3, OWORD PTR [rdx+48]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+256], xmm0
+        vmovdqu	OWORD PTR [rdx+272], xmm1
+        vmovdqu	OWORD PTR [rdx+288], xmm2
+        vmovdqu	OWORD PTR [rdx+304], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+64]
+        vmovdqu	xmm1, OWORD PTR [rdx+80]
+        vmovdqu	xmm2, OWORD PTR [rdx+96]
+        vmovdqu	xmm3, OWORD PTR [rdx+112]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+320], xmm0
+        vmovdqu	OWORD PTR [rdx+336], xmm1
+        vmovdqu	OWORD PTR [rdx+352], xmm2
+        vmovdqu	OWORD PTR [rdx+368], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+128]
+        vmovdqu	xmm1, OWORD PTR [rdx+144]
+        vmovdqu	xmm2, OWORD PTR [rdx+160]
+        vmovdqu	xmm3, OWORD PTR [rdx+176]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+384], xmm0
+        vmovdqu	OWORD PTR [rdx+400], xmm1
+        vmovdqu	OWORD PTR [rdx+416], xmm2
+        vmovdqu	OWORD PTR [rdx+432], xmm3
+        vmovdqu	xmm0, OWORD PTR [rdx+192]
+        vmovdqu	xmm1, OWORD PTR [rdx+208]
+        vmovdqu	xmm2, OWORD PTR [rdx+224]
+        vmovdqu	xmm3, OWORD PTR [rdx+240]
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vpsllq	xmm4, xmm0, 60
+        vpsllq	xmm5, xmm1, 60
+        vpsllq	xmm6, xmm2, 60
+        vpsllq	xmm7, xmm3, 60
+        vpsrlq	xmm0, xmm0, 4
+        vpsrlq	xmm1, xmm1, 4
+        vpsrlq	xmm2, xmm2, 4
+        vpsrlq	xmm3, xmm3, 4
+        vpsrldq	xmm4, xmm4, 8
+        vpsrldq	xmm5, xmm5, 8
+        vpsrldq	xmm6, xmm6, 8
+        vpsrldq	xmm7, xmm7, 8
+        vpor	xmm0, xmm0, xmm4
+        vpor	xmm1, xmm1, xmm5
+        vpor	xmm2, xmm2, xmm6
+        vpor	xmm3, xmm3, xmm7
+        vpshufb	xmm0, xmm0, xmm9
+        vpshufb	xmm1, xmm1, xmm9
+        vpshufb	xmm2, xmm2, xmm9
+        vpshufb	xmm3, xmm3, xmm9
+        vmovdqu	OWORD PTR [rdx+448], xmm0
+        vmovdqu	OWORD PTR [rdx+464], xmm1
+        vmovdqu	OWORD PTR [rdx+480], xmm2
+        vmovdqu	OWORD PTR [rdx+496], xmm3
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        vmovdqu	xmm8, OWORD PTR [rsp+32]
+        vmovdqu	xmm9, OWORD PTR [rsp+48]
+        vmovdqu	xmm10, OWORD PTR [rsp+64]
+        add	rsp, 80
+        ret
+GCM_generate_m0_avx2 ENDP
+_text ENDS
 _DATA SEGMENT
 ALIGN 16
 L_avx2_aes_gcm_one QWORD 0, 1

@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,7 +27,7 @@
 #define USE_CERT_BUFFERS_2048
 #define WOLFSSL_USER_CURRTIME
 #define SIZEOF_LONG_LONG 8
-#define NO_WOLFSSL_DIR 
+#define NO_WOLFSSL_DIR
 #define WOLFSSL_NO_CURRDIR
 #define NO_FILESYSTEM
 #define WOLFSSL_LOG_PRINTF

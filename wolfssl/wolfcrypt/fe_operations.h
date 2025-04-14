@@ -1,6 +1,6 @@
 /* fe_operations.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -76,6 +76,10 @@ Bounds on each t[i] vary depending on context.
 WOLFSSL_LOCAL void fe_init(void);
 
 WOLFSSL_LOCAL int  curve25519(byte * q, const byte * n, const byte * p);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+WOLFSSL_LOCAL int  curve25519_blind(byte * q, const byte * n, const byte* mask,
+                                    const byte * p, const byte* rz);
+#endif
 #endif
 
 /* default to be faster but take more memory */

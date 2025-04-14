@@ -1,6 +1,6 @@
 /* renesas_common.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -252,27 +252,74 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info->algo_type == WC_ALGO_TYPE_PK) {
     #if !defined(NO_RSA)
-        #if defined(WOLFSSL_KEY_GEN)
-        if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN &&
-            (info->pk.rsakg.size == 1024 || info->pk.rsakg.size == 2048)) {
+    #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+        if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
             ret = wc_tsip_MakeRsaKey(info->pk.rsakg.size, (void*)ctx);
+            if (ret == 0) {
+                TsipUserCtx* tsipCtx = (TsipUserCtx*)ctx;
+                RsaKey* key = info->pk.rsakg.key;
+            #if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+                if (info->pk.rsakg.size == 1024) {
+                    /* export generated public key to the RsaKey structure */
+                    ret = wc_RsaPublicKeyDecodeRaw(
+                        tsipCtx->rsa1024pub_keyIdx->value.key_n,
+                            R_TSIP_RSA_1024_KEY_N_LENGTH_BYTE_SIZE,
+                        tsipCtx->rsa1024pub_keyIdx->value.key_e,
+                            R_TSIP_RSA_1024_KEY_E_LENGTH_BYTE_SIZE,
+                        key
+                    );
+                }
+            #endif
+            #if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+                if (info->pk.rsakg.size == 2048) {
+                    /* export generated public key to the RsaKey structure */
+                    ret = wc_RsaPublicKeyDecodeRaw(
+                        tsipCtx->rsa2048pub_keyIdx->value.key_n,
+                            R_TSIP_RSA_2048_KEY_N_LENGTH_BYTE_SIZE,
+                        tsipCtx->rsa2048pub_keyIdx->value.key_e,
+                            R_TSIP_RSA_2048_KEY_E_LENGTH_BYTE_SIZE,
+                        key
+                    );
+                }
+            #endif
+            }
         }
+    #endif
+        /* tsip only supports PKCSV15 padding scheme */
+        if (info->pk.type == WC_PK_TYPE_RSA_PKCS) {
+            RsaPadding* pad = info->pk.rsa.padding;
+            if (pad && pad->pad_value == RSA_BLOCK_TYPE_1) {
+                /* sign / verify */
+                if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT ||
+                    info->pk.rsa.type == RSA_PRIVATE_DECRYPT) {
+                    ret = tsip_SignRsaPkcs(info, cbInfo);
+                }
+            #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+                else {
+                    ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
+                }
+            #endif
+            }
+        #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+            else if (pad && pad->pad_value == RSA_BLOCK_TYPE_2) {
+                /* encrypt/decrypt */
+                ret = wc_tsip_RsaFunction(info, cbInfo);
+            }
         #endif
-
-        /* RSA Signing
-         * Can handle only RSA PkCS#1v1.5 padding scheme here.
-         */
-        if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT) {
-            ret = tsip_SignRsaPkcs(info, cbInfo);
         }
-        #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-        /* RSA Verify */
-        if (info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
-            ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
-        }
+        if (info->pk.type == WC_PK_TYPE_RSA_GET_SIZE) {
+            if (cbInfo->wrappedKeyType == TSIP_KEY_TYPE_RSA2048) {
+                *info->pk.rsa_get_size.keySize = 256;
+                ret = 0;
+            }
+        #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+            else if (cbInfo->wrappedKeyType == TSIP_KEY_TYPE_RSA1024) {
+                *info->pk.rsa_get_size.keySize = 128;
+                ret = 0;
+            }
         #endif
+        }
     #endif /* !NO_RSA */
-
     #if defined(HAVE_ECC)
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
@@ -461,7 +508,7 @@ int Renesas_cmn_usable(const struct WOLFSSL* ssl, byte session_key_generated)
  * Get Callback ctx by devId
  *
  * devId   : devId to get its CTX
- * return  asocciated CTX when the method is successfully called.
+ * return  associated CTX when the method is successfully called.
  *         otherwise, NULL
  */
 WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)

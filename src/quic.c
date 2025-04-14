@@ -1,6 +1,6 @@
 /* quic.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,14 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
   /* Name change compatibility layer no longer needs to be included here */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -154,17 +150,15 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         }
     }
 
-    if (quic_record_complete(qr) || len == 0) {
-        return 0;
+    if (!quic_record_complete(qr) && len != 0) {
+        missing = qr->len - qr->end;
+        if (len > missing) {
+            len = missing;
+        }
+        XMEMCPY(qr->data + qr->end, data, len);
+        qr->end += (word32)len;
+        consumed += len;
     }
-
-    missing = qr->len - qr->end;
-    if (len > missing) {
-        len = missing;
-    }
-    XMEMCPY(qr->data + qr->end, data, len);
-    qr->end += (word32)len;
-    consumed += len;
 
 cleanup:
     *pconsumed = (ret == WOLFSSL_SUCCESS) ? consumed : 0;
@@ -200,7 +194,7 @@ static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 
     /* We check if the buf is at least RECORD_HEADER_SZ */
     if (sz < RECORD_HEADER_SZ) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (qr->rec_hdr_remain == 0) {
@@ -614,7 +608,7 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
             else {
                 ret = wolfSSL_read_early_data(ssl, tmpbuffer,
                                               sizeof(tmpbuffer), &len);
-                if (ret < 0 && ssl->error == ZERO_RETURN) {
+                if (ret < 0 && ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
                     /* this is expected, since QUIC handles the actual early
                      * data separately. */
                     ret = WOLFSSL_SUCCESS;
@@ -634,7 +628,9 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
 cleanup:
     if (ret <= 0
         && ssl->options.handShakeState == HANDSHAKE_DONE
-        && (ssl->error == ZERO_RETURN || ssl->error == WANT_READ)) {
+        && (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN) ||
+            ssl->error == WC_NO_ERR_TRACE(WANT_READ)))
+    {
         ret = WOLFSSL_SUCCESS;
     }
     if (ret == WOLFSSL_SUCCESS) {
@@ -783,7 +779,7 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 
             /* record too small to be fit into a RecordLayerHeader struct. */
             if (n == -1) {
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
             }
             if (quic_record_done(ssl->quic.input_head)) {
                 QuicRecord* qr = ssl->quic.input_head;
@@ -925,8 +921,12 @@ int wolfSSL_quic_forward_secrets(WOLFSSL* ssl, int ktype, int side)
         goto cleanup;
     }
 
-    ret = !ssl->quic.method->set_encryption_secrets(
-        ssl, level, rx_secret, tx_secret, ssl->specs.hash_size);
+    if(!ssl->quic.method->set_encryption_secrets(
+        ssl, level, rx_secret, tx_secret, ssl->specs.hash_size)) {
+        WOLFSSL_MSG("WOLFSSL_QUIC_FORWARD_SECRETS failed");
+        ret = WOLFSSL_FATAL_ERROR;
+        goto cleanup;
+    }
 
     /* Having installed the secrets, any future read/write will happen
      * at the level. Except early data, which is detected on the record
@@ -1191,7 +1191,7 @@ int wolfSSL_quic_hkdf_extract(uint8_t* dest, const WOLFSSL_EVP_MD* md,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_extract");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1199,7 +1199,7 @@ int wolfSSL_quic_hkdf_extract(uint8_t* dest, const WOLFSSL_EVP_MD* md,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)salt, (int)saltlen) != WOLFSSL_SUCCESS
@@ -1228,7 +1228,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_expand");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1236,7 +1236,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)"", 0) != WOLFSSL_SUCCESS
@@ -1251,7 +1251,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
 cleanup:
     if (pctx)
-        EVP_PKEY_CTX_free(pctx);
+        wolfSSL_EVP_PKEY_CTX_free(pctx);
     WOLFSSL_LEAVE("wolfSSL_quic_hkdf_expand", ret);
     return ret;
 }
@@ -1268,7 +1268,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1276,7 +1276,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)salt, (int)saltlen) != WOLFSSL_SUCCESS
@@ -1291,7 +1291,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
 cleanup:
     if (pctx)
-        EVP_PKEY_CTX_free(pctx);
+        wolfSSL_EVP_PKEY_CTX_free(pctx);
     WOLFSSL_LEAVE("wolfSSL_quic_hkdf", ret);
     return ret;
 }
@@ -1344,7 +1344,7 @@ int wolfSSL_quic_aead_encrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
                 ctx, dest, &len, plain, (int)plainlen) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherFinal(ctx, dest + len, &len) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CIPHER_CTX_ctrl(
-                ctx, EVP_CTRL_AEAD_GET_TAG, ctx->authTagSz, dest + plainlen)
+                ctx, WOLFSSL_EVP_CTRL_AEAD_GET_TAG, ctx->authTagSz, dest + plainlen)
            != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
@@ -1371,7 +1371,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
 
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 0) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CIPHER_CTX_ctrl(
-                ctx, EVP_CTRL_AEAD_SET_TAG, ctx->authTagSz, (uint8_t*)tag)
+                ctx, WOLFSSL_EVP_CTRL_AEAD_SET_TAG, ctx->authTagSz, (uint8_t*)tag)
             != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(ctx, NULL, &len, aad, (int)aadlen)
             != WOLFSSL_SUCCESS

@@ -16,7 +16,8 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 5
     steps:
@@ -48,7 +49,8 @@ jobs:
         # List of releases to test
         ref: [ 1.21.1 ]
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 8
     needs: build_wolfssl
@@ -90,7 +92,7 @@ jobs:
           # Using rpath because LD_LIBRARY_PATH is overwritten during testing
           export WOLFSSL_CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include -I$GITHUB_WORKSPACE/build-dir/include/wolfssl  -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
           export WOLFSSL_LIBS="-lwolfssl -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib"
-          ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit \
+          ./configure --with-crypto-impl=wolfssl --with-tls-impl=wolfssl --disable-pkinit --with-spake-openssl \
             CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address'
           CFLAGS='-fsanitize=address' LDFLAGS='-fsanitize=address' make -j
 

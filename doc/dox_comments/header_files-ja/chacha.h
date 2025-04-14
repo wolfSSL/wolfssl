@@ -1,5 +1,5 @@
 /*!
-    \ingroup ChaCha 
+    \ingroup ChaCha
     \brief  この関数はChachaオブジェクトの初期化ベクトル（nonce）を設定し、暗号として使用するために初期化します。WC_CHACHA_SETKEYを使用して、キーが設定された後に呼び出されるべきです。暗号化の各ラウンドに差し違いを使用する必要があります。
     \return 0  初期化ベクトルを正常に設定すると返されます
     \return BAD_FUNC_ARG  CTX入力引数の処理中にエラーが発生した場合
@@ -21,7 +21,7 @@
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 
 /*!
-    \ingroup ChaCha 
+    \ingroup ChaCha
     \brief  この関数は、バッファ入力からテキストを処理し、暗号化または復号化し、結果をバッファ出力に格納します。
     \return 0  入力の暗号化または復号化に成功したときに返されます
     \return BAD_FUNC_ARG  CTX入力引数の処理中にエラーが発生した場合
@@ -46,7 +46,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
 
 /*!
-    \ingroup ChaCha 
+    \ingroup ChaCha
     \brief  この関数はChachaオブジェクトのキーを設定し、それを暗号として使用するために初期化します。NONCEをWC_CHACHA_SETIVで設定する前に、WC_CHACHA_PROCESSを使用した暗号化に使用する前に呼び出す必要があります。
     \return 0  キーの設定に成功したときに返されます
     \return BAD_FUNC_ARG  CTX入力引数の処理中にエラーが発生した場合、またはキーが16または32バイトの長さがある場合

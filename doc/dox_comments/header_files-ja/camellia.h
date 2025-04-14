@@ -1,5 +1,5 @@
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この関数は、Camelliaオブジェクトのキーと初期化ベクトルを設定し、それを暗号として使用するために初期化します。
     \return 0  キーと初期化ベクトルを正常に設定すると返されます
     \return BAD_FUNC_ARG  入力引数の1つがエラー処理がある場合に返されます
@@ -27,7 +27,7 @@ int  wc_CamelliaSetKey(Camellia* cam,
                                    const byte* key, word32 len, const byte* iv);
 
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この関数は、Camelliaオブジェクトの初期化ベクトルを設定します。
     \return 0  キーと初期化ベクトルを正常に設定すると返されます
     \return BAD_FUNC_ARG  入力引数の1つがエラー処理がある場合に返されます
@@ -46,7 +46,7 @@ int  wc_CamelliaSetKey(Camellia* cam,
 int  wc_CamelliaSetIV(Camellia* cam, const byte* iv);
 
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この機能は、提供されたCamelliaオブジェクトを使用して1ブロック暗号化します。それはバッファーの最初の16バイトブロックを解析し、暗号化結果をバッファアウトに格納します。この機能を使用する前に、WC_CAMELLIASETKEYを使用してCamelliaオブジェクトを初期化する必要があります。
     \return none  いいえ返します。
     \param cam  暗号化に使用する椿構造へのポインタ
@@ -66,7 +66,7 @@ int  wc_CamelliaEncryptDirect(Camellia* cam, byte* out,
                                                                 const byte* in);
 
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この機能は、提供されたCamelliaオブジェクトを使用して1ブロック復号化します。それはバッファ内の最初の16バイトブロックを解析し、それを復号化し、結果をバッファアウトに格納します。この機能を使用する前に、WC_CAMELLIASETKEYを使用してCamelliaオブジェクトを初期化する必要があります。
     \return none  いいえ返します。
     \param cam  暗号化に使用する椿構造へのポインタ
@@ -86,7 +86,7 @@ int  wc_CamelliaDecryptDirect(Camellia* cam, byte* out,
                                                                 const byte* in);
 
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この関数は、バッファーの平文を暗号化し、その出力をバッファOUTに格納します。暗号ブロックチェーン（CBC）を使用してCamelliaを使用してこの暗号化を実行します。
     \return none  いいえ返します。
     \param cam  暗号化に使用する椿構造へのポインタ
@@ -107,7 +107,7 @@ int wc_CamelliaCbcEncrypt(Camellia* cam,
                                           byte* out, const byte* in, word32 sz);
 
 /*!
-    \ingroup Camellia 
+    \ingroup Camellia
     \brief  この関数は、バッファ内の暗号文を復号化し、その出力をバッファOUTに格納します。暗号ブロックチェーン（CBC）を搭載したCamelliaを使用してこの復号化を実行します。
     \return none  いいえ返します。
     \param cam  暗号化に使用する椿構造へのポインタ

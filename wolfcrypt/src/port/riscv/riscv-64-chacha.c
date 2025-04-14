@@ -1,6 +1,6 @@
 /* riscv-64-chacha.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,24 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
 /* The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to
  * optimize for ARM:
  *   https://cryptojedi.org/papers/veccrypto-20120320.pdf
  */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
 #ifdef WOLFSSL_RISCV_ASM
 #ifdef HAVE_CHACHA
 
 #include <wolfssl/wolfcrypt/chacha.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -698,7 +693,7 @@ static WC_INLINE void wc_chacha_encrypt_384(const word32* input, const byte* m,
          * v12-v15 - fourth block
          * v16-v19 - fifth block
          * v20-v24 - temp/message
-         * v25-v27 - indeces for rotating words in vector
+         * v25-v27 - indices for rotating words in vector
          * v28-v31 - input
          *
          * v0  0  1  2  3
@@ -1342,7 +1337,7 @@ static WC_INLINE int wc_chacha_encrypt_256(const word32* input, const byte* m,
          * v12-v15 - message
          * v16-v19 - input
          * v20-v22 - temp
-         * v23-v25 - indeces for rotating words in vector
+         * v23-v25 - indices for rotating words in vector
          *
          * v0  0  1  2  3
          * v1  4  5  6  7
@@ -1588,7 +1583,7 @@ static WC_INLINE int wc_chacha_encrypt_128(const word32* input, const byte* m,
          * v12-v15 - message
          * v16-v19 - input
          * v20-v22 - temp
-         * v23-v25 - indeces for rotating words in vector
+         * v23-v25 - indices for rotating words in vector
          *
          * v0  0  1  2  3
          * v1  4  5  6  7

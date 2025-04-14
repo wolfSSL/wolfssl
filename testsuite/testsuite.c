@@ -1,6 +1,6 @@
 /* testsuite.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,7 +24,14 @@
     #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#undef OPENSSL_COEXIST /* can't use this option with this example */
+
 #include <wolfssl/wolfcrypt/types.h>
 
 #include <wolfssl/ssl.h>
@@ -45,13 +52,16 @@
 #include <examples/server/server.h>
 #include <examples/client/client.h>
 
-#include "tests/utils.h"
+#include <testsuite/utils.h>
+/* include source file to not change all the testsuite build systems */
+#include <testsuite/utils.c>
 
 #ifndef NO_SHA256
 void file_test(const char* file, byte* check);
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
 
 #ifdef HAVE_STACK_SIZE
 static THREAD_RETURN simple_test(func_args *args);
@@ -104,6 +114,7 @@ static void *echoclient_test_wrapper(void* args) {
 int testsuite_test(int argc, char** argv)
 {
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
     func_args server_args;
 
@@ -406,6 +417,7 @@ cleanup:
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS) && \
    (!defined(WOLF_CRYPTO_CB_ONLY_RSA) && !defined(WOLF_CRYPTO_CB_ONLY_ECC))
 /* Perform a basic TLS handshake.
  *

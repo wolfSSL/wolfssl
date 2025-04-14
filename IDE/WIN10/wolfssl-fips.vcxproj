@@ -262,6 +262,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\curve448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\des3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ed25519.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ed448.c" />
