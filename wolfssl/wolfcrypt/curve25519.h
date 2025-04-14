@@ -46,7 +46,7 @@
 #define CURVE25519_PUB_KEY_SIZE 32
 
 enum {
-    CURVE25519_BUFSIZE = 128,  /* for exported DER keys temp buffer */
+    CURVE25519_MAX_KEY_TO_DER_SZ = 82,  /* for exported DER keys temp buffer */
 
     WOLF_ENUM_DUMMY_LAST_ELEMENT(CURVE25519)
 };
