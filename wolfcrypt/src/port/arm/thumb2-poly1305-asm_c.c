@@ -73,7 +73,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len,
         "STM	lr, {%[ctx], %[m], %[len], %[notLast]}\n\t"
         /* Get h pointer */
         "ADD	lr, %[ctx], #0x10\n\t"
-        "ldm   lr, {r4, r5, r6, r7, r8}\n\t"
+        "LDM	lr, {r4, r5, r6, r7, r8}\n\t"
         "\n"
 #if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_poly1305_thumb2_16_loop:\n\t"
@@ -195,7 +195,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len,
         "MOV	r12, %[ctx]\n\t"
         "MLA	r11, %[notLast], %[len], r11\n\t"
 #else
-        "ldm   %[m], {r0, r1, r2, r3}\n\t"
+        "LDM	%[m], {r0, r1, r2, r3}\n\t"
         /* r[0] * h[0] */
         "UMULL	r10, r11, %[ctx], r4\n\t"
         /* r[1] * h[0] */
@@ -243,7 +243,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len,
         /* r[3] * h[4] */
         "UMAAL	r11, r12, %[notLast], r5\n\t"
         /* DONE */
-        "ldm   sp, {r4, r5, r6}\n\t"
+        "LDM	sp, {r4, r5, r6}\n\t"
 #endif /* WOLFSSL_ARM_ARCH_7M */
         /* r12 will be zero because r is masked. */
         /* Load length */
@@ -321,7 +321,7 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
     __asm__ __volatile__ (
         /* Load mask. */
         "MOV	r10, %[L_poly1305_thumb2_clamp]\n\t"
-        "ldm   r10, {r6, r7, r8, r9}\n\t"
+        "LDM	r10, {r6, r7, r8, r9}\n\t"
         /* Load and cache padding. */
         "LDR	r2, [%[key], #16]\n\t"
         "LDR	r3, [%[key], #20]\n\t"
@@ -370,7 +370,7 @@ void poly1305_final(Poly1305* ctx, byte* mac)
 
     __asm__ __volatile__ (
         "ADD	r11, %[ctx], #0x10\n\t"
-        "ldm   r11, {r2, r3, r4, r5, r6}\n\t"
+        "LDM	r11, {r2, r3, r4, r5, r6}\n\t"
         /* Add 5 and check for h larger than p. */
         "ADDS	r7, r2, #0x5\n\t"
         "ADCS	r7, r3, #0x0\n\t"
@@ -388,7 +388,7 @@ void poly1305_final(Poly1305* ctx, byte* mac)
         "ADC	r5, r5, #0x0\n\t"
         /* Add padding */
         "ADD	r11, %[ctx], #0x24\n\t"
-        "ldm   r11, {r7, r8, r9, r10}\n\t"
+        "LDM	r11, {r7, r8, r9, r10}\n\t"
         "ADDS	r2, r2, r7\n\t"
         "ADCS	r3, r3, r8\n\t"
         "ADCS	r4, r4, r9\n\t"
