@@ -106,6 +106,7 @@ struct PKCS7State {
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
     word32 accumContSz;   /* size of accumulated content size */
+    int recipientSz; /* size of recipient set */
     byte tmpIv[MAX_CONTENT_IV_SIZE]; /* store IV if needed */
 #ifdef WC_PKCS7_STREAM_DEBUG
     word32 peakUsed; /* most bytes used for struct at any one time */
@@ -12460,14 +12461,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
             pkcs7->stream->aad = decryptedKey;
+            pkcs7->stream->expected = (word32)ret; /* get the full recipient set */
+            pkcs7->stream->recipientSz  = ret;
         #endif
             FALL_THROUGH;
 
         case WC_PKCS7_ENV_2:
         #ifndef NO_PKCS7_STREAM
             /* store up enough buffer for initial info set decode */
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_LENGTH_SZ +
-                            MAX_VERSION_SZ + ASN_TAG_SZ, &pkiMsg, &idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                    pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 return ret;
             }
         #endif
@@ -12483,6 +12486,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
+            tmpIdx = idx;
         #endif
 
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
@@ -12497,6 +12501,14 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
+            /* advance idx past recipient info set */
+            idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
+
+            /* process aditional recipients as read */
+            if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                break;
+            }
+
             tmpIdx               = idx;
             pkcs7->stream->aadSz = decryptedKeySz;
             pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
