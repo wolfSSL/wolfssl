@@ -4258,6 +4258,13 @@ static int linuxkm_test_aesecb(void) {
     #endif
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDH
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+        /* currently incompatible with kernel 5.12 or earlier. */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDH
+    #endif
+#endif
+
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #include "linuxkm/lkcapi_ecdsa_glue.c"
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
