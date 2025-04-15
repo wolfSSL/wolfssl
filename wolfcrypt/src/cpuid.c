@@ -187,6 +187,7 @@
                 cpuid_flags |= CPUID_SM4;
         #endif
 
+            (void)hwcaps;
             cpuid_check = 1;
         }
     }
