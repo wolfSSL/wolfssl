@@ -548,6 +548,7 @@
         #undef  printf
         #define printf XPRINTF
     #elif defined(NETOS)
+        int dc_log_printf(char* format, ...);
         #undef printf
         #define printf dc_log_printf
     #endif
