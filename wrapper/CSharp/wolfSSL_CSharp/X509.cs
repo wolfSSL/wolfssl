@@ -1,4 +1,25 @@
-﻿using System;
+﻿/* X509.cs
+ *
+ * Copyright (C) 2006-2025 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -9,6 +30,23 @@ namespace wolfSSL.CSharp
     {
         private const string wolfssl_dll = "wolfssl.dll";
 
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_X509_get_pubkey_buffer(IntPtr x509, IntPtr buf, IntPtr bufSz);
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_X509_get_der(IntPtr x509, IntPtr bufSz);
+        [DllImport(wolfssl_dll)]
+        private extern static void wolfSSL_X509_free(IntPtr x509);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_DerToPem(IntPtr der, int derSz, IntPtr pem, int pemSz, int type);
+
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_X509_get_name_oneline(IntPtr x509Name, IntPtr buf, int bufSz);
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_X509_get_subject_name(IntPtr x509);
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_X509_get_issuer_name(IntPtr x509);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_X509_get_pubkey_buffer(IntPtr x509, IntPtr buf, IntPtr bufSz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -25,6 +63,7 @@ namespace wolfSSL.CSharp
         private extern static IntPtr wolfSSL_X509_get_subject_name(IntPtr x509);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_X509_get_issuer_name(IntPtr x509);
+#endif
 
         private IntPtr x509;
         private int    type;
@@ -51,11 +90,12 @@ namespace wolfSSL.CSharp
             this.x509 = x509;
             ret = wolfSSL_X509_get_name_oneline(
                 wolfSSL_X509_get_issuer_name(this.x509), IntPtr.Zero, 0);
-            this.Issuer = Marshal.PtrToStringAnsi(ret);
+            this.Issuer = wolfssl.PtrToStringAnsi(ret);
 
             ret = wolfSSL_X509_get_name_oneline(
                 wolfSSL_X509_get_subject_name(this.x509), IntPtr.Zero, 0);
-            this.Subject = Marshal.PtrToStringAnsi(ret);
+            this.Subject = wolfssl.PtrToStringAnsi(ret);
+
             this.isDynamic = isDynamic;
         }
 

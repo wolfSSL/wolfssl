@@ -33,26 +33,66 @@ namespace wolfSSL.CSharp
         /********************************
          * Init wolfSSL library
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfCrypt_Init();
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfCrypt_Cleanup();
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfCrypt_Init();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfCrypt_Cleanup();
+#endif
 
 
         /********************************
          * Random
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_rng_new(IntPtr nonce, UInt32 nonceSz, IntPtr heap);
+        [DllImport(wolfssl_dll)]
+        private extern static void wc_rng_free(IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RNG_GenerateBlock(IntPtr rng, IntPtr output, UInt32 sz);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_rng_new(IntPtr nonce, UInt32 nonceSz, IntPtr heap);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wc_rng_free(IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_RNG_GenerateBlock(IntPtr rng, IntPtr output, UInt32 sz);
+#endif
 
 
         /********************************
          * ECC
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_ecc_key_new(IntPtr heap);
+        [DllImport(wolfssl_dll)]
+        private extern static void wc_ecc_key_free(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_set_rng(IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_make_key_ex(IntPtr rng, int keysize, IntPtr key, int curve_id);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_sign_hash(IntPtr hashPtr, uint hashlen, IntPtr sigPtr, IntPtr siglen, IntPtr rng, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_verify_hash(IntPtr sigPtr, uint siglen, IntPtr hashPtr, uint hashlen, IntPtr res, IntPtr key);
+
+        /* ASN.1 DER format */
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_EccPrivateKeyDecode(IntPtr keyBuf, IntPtr idx, IntPtr key, uint keyBufSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_EccPublicKeyDecode(byte[] input, ref uint inOutIdx, IntPtr key, uint inSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_EccPrivateKeyToDer(IntPtr key, byte[] output, uint inLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_EccPublicKeyToDer(IntPtr key, byte[] output, uint inLen, int with_AlgCurve);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_ecc_key_new(IntPtr heap);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -75,11 +115,40 @@ namespace wolfSSL.CSharp
         private static extern int wc_EccPrivateKeyToDer(IntPtr key, byte[] output, uint inLen);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_EccPublicKeyToDer(IntPtr key, byte[] output, uint inLen, int with_AlgCurve);
+#endif
 
 
         /********************************
          * ECIES
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_ecc_ctx_new(int flags, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_ecc_ctx_new_ex(int flags, IntPtr rng, IntPtr heap);
+        [DllImport(wolfssl_dll)]
+        private extern static void wc_ecc_ctx_free(IntPtr ctx);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_reset(IntPtr ctx, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_set_algo(IntPtr ctx, byte encAlgo, byte kdfAlgo, byte macAlgo);
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_ecc_ctx_get_own_salt(IntPtr ctx);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_set_peer_salt(IntPtr ctx, IntPtr salt);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_set_own_salt(IntPtr ctx, IntPtr salt, uint sz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_set_kdf_salt(IntPtr ctx, IntPtr salt, uint sz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_ctx_set_info(IntPtr ctx, IntPtr info, int sz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_encrypt(IntPtr privKey, IntPtr pubKey, IntPtr msg, uint msgSz, IntPtr outBuffer, IntPtr outSz, IntPtr ctx);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_encrypt_ex(IntPtr privKey, IntPtr pubKey, IntPtr msg, uint msgSz, IntPtr outBuffer, IntPtr outSz, IntPtr ctx, int compressed);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_decrypt(IntPtr privKey, IntPtr pubKey, IntPtr msg, uint msgSz, IntPtr outBuffer, IntPtr outSz, IntPtr ctx);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_ecc_ctx_new(int flags, IntPtr rng);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -106,18 +175,58 @@ namespace wolfSSL.CSharp
         private extern static int wc_ecc_encrypt_ex(IntPtr privKey, IntPtr pubKey, IntPtr msg, uint msgSz, IntPtr outBuffer, IntPtr outSz, IntPtr ctx, int compressed);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_ecc_decrypt(IntPtr privKey, IntPtr pubKey, IntPtr msg, uint msgSz, IntPtr outBuffer, IntPtr outSz, IntPtr ctx);
+#endif
+
 
 
         /********************************
          * ECDHE
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_ecc_shared_secret(IntPtr privateKey, IntPtr publicKey, byte[] outSharedSecret, ref int outlen);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_ecc_shared_secret(IntPtr privateKey, IntPtr publicKey, byte[] outSharedSecret, ref int outlen);
+#endif
 
 
         /********************************
          * RSA
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private static extern IntPtr wc_NewRsaKey(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_DeleteRsaKey(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_InitRsaKey(IntPtr key, IntPtr heap);
+        [DllImport(wolfssl_dll)]
+        private extern static void wc_FreeRsaKey(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_MakeRsaKey(IntPtr key, int keysize, Int32 exponent, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaSSL_Sign(IntPtr hashPtr, int hashLen, IntPtr sigPtr, int sigLen, IntPtr key, IntPtr rng);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaSSL_Verify(IntPtr sigPtr, int sigLen, IntPtr hashPtr, int hashLen, IntPtr key);
+
+        /* ASN.1 DER format */
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPublicEncrypt(IntPtr inPtr, int inLen, IntPtr outPtr, int outLen, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPrivateDecrypt(IntPtr inPtr, int inLen, IntPtr outPtr, int outLen, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPrivateKeyDecode(IntPtr keyBuf, IntPtr idx, IntPtr key, uint keyBufSz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPublicKeyDecode(IntPtr keyBuf, IntPtr idx, IntPtr key, uint keyBufSz);
+
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPSS_Sign(IntPtr hashPtr, int hashLen, IntPtr sigPtr, int sigLen, int hashType, IntPtr rng, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPSS_Verify(IntPtr sigPtr, int sigLen, IntPtr hashPtr, int hashLen, int hashType, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_RsaPSS_CheckPadding(IntPtr sigPtr, int sigLen, int hashType, IntPtr key);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr wc_NewRsaKey(IntPtr heap, int devId, IntPtr result_code);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -149,11 +258,52 @@ namespace wolfSSL.CSharp
         private extern static int wc_RsaPSS_Verify(IntPtr sigPtr, int sigLen, IntPtr hashPtr, int hashLen, int hashType, IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_RsaPSS_CheckPadding(IntPtr sigPtr, int sigLen, int hashType, IntPtr key);
+#endif
 
 
         /********************************
          * ED25519
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private static extern IntPtr wc_ed25519_new(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_init(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern void wc_ed25519_free(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_make_key(IntPtr rng, int keysize, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_sign_msg(IntPtr inMsg, uint inlen, IntPtr outMsg, ref uint outlen, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_verify_msg(IntPtr sig, uint siglen, IntPtr msg, uint msgLen, ref int ret, IntPtr key);
+
+        /* ASN.1 DER format */
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Ed25519PrivateKeyDecode(byte[] input, ref uint inOutIdx, IntPtr key, uint inSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Ed25519PublicKeyDecode(byte[] input, ref uint inOutIdx, IntPtr key, uint inSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Ed25519KeyToDer(IntPtr key, byte[] output, uint inLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Ed25519PrivateKeyToDer(IntPtr key, byte[] output, uint inLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Ed25519PublicKeyToDer(IntPtr key, byte[] output, uint inLen, int withAlg);
+
+        /* RAW format */
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_make_public(IntPtr key, IntPtr pubKey, uint pubKeySz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_import_public(IntPtr inMsg, uint inLen, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_export_public(IntPtr key, IntPtr outMsg, ref uint outLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_export_private(IntPtr key, IntPtr outMsg, ref uint outLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_ed25519_size(IntPtr key);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr wc_ed25519_new(IntPtr heap, int devId, IntPtr result_code);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -192,11 +342,52 @@ namespace wolfSSL.CSharp
         private static extern int wc_ed25519_export_private(IntPtr key, IntPtr outMsg, ref uint outLen);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_ed25519_size(IntPtr key);
+#endif
 
 
         /********************************
          * Curve25519
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private static extern IntPtr wc_curve25519_new(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_curve25519_delete(IntPtr key, IntPtr key_p);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_init(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static void wc_curve25519_free(IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_make_key(IntPtr rng, int keysize, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_shared_secret(IntPtr privateKey, IntPtr publicKey, byte[] outSharedSecret, ref int outlen);
+
+        /* ASN.1 DER format */
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Curve25519PrivateKeyDecode(byte[] input, ref uint inOutIdx, IntPtr key, uint inSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Curve25519PublicKeyDecode(byte[] input, ref uint inOutIdx, IntPtr key, uint inSz);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Curve25519PrivateKeyToDer(IntPtr key, byte[] output, uint inLen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_Curve25519PublicKeyToDer(IntPtr key, byte[] output, uint inLen, int withAlg);
+
+        /* RAW format */
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_import_private(IntPtr privKey, int privKeySz, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_curve25519_export_public(IntPtr key, byte[] outBuffer, ref uint outLen);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_import_public(IntPtr pubKey, int pubKeySz, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_export_public(IntPtr key, IntPtr outPubKey, ref int outlen);
+        [DllImport(wolfssl_dll)]
+        private static extern int wc_curve25519_export_key_raw(IntPtr key, byte[] priv, ref uint privSz, byte[] pub, ref uint pubSz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_import_private_raw(IntPtr privKey, IntPtr pubKey, IntPtr key);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_curve25519_export_private_raw(IntPtr key, IntPtr outPrivKey, IntPtr outPubKey);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr wc_curve25519_new(IntPtr heap, int devId, IntPtr result_code);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -235,11 +426,30 @@ namespace wolfSSL.CSharp
         private extern static int wc_curve25519_import_private_raw(IntPtr privKey, IntPtr pubKey, IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_curve25519_export_private_raw(IntPtr key, IntPtr outPrivKey, IntPtr outPubKey);
+#endif
 
 
         /********************************
          * AES-GCM
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_AesNew(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesDelete(IntPtr aes, IntPtr aes_p);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesFree(IntPtr aes);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesInit(IntPtr aes, IntPtr heap, int devId);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesGcmInit(IntPtr aes, IntPtr key, uint len, IntPtr iv, uint ivSz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesGcmSetKey(IntPtr aes, IntPtr key, uint len);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesGcmEncrypt(IntPtr aes, IntPtr output, IntPtr input, uint sz, IntPtr iv, uint ivSz, IntPtr authTag, uint authTagSz, IntPtr authIn, uint authInSz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_AesGcmDecrypt(IntPtr aes, IntPtr output, IntPtr input, uint sz, IntPtr iv, uint ivSz, IntPtr authTag, uint authTagSz, IntPtr authIn, uint authInSz);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_AesNew(IntPtr heap, int devId, IntPtr result_code);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -256,11 +466,28 @@ namespace wolfSSL.CSharp
         private extern static int wc_AesGcmEncrypt(IntPtr aes, IntPtr output, IntPtr input, uint sz, IntPtr iv, uint ivSz, IntPtr authTag, uint authTagSz, IntPtr authIn, uint authInSz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_AesGcmDecrypt(IntPtr aes, IntPtr output, IntPtr input, uint sz, IntPtr iv, uint ivSz, IntPtr authTag, uint authTagSz, IntPtr authIn, uint authInSz);
+#endif
 
 
         /********************************
          * HASH
          */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_HashNew(uint hashType, IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashDelete(IntPtr hash, IntPtr hash_p);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashInit(IntPtr hash, uint hashType);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashUpdate(IntPtr hash, uint hashType, IntPtr data, uint dataSz);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashFinal(IntPtr hash, uint hashType, IntPtr output);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashFree(IntPtr hash, uint hashType);
+        [DllImport(wolfssl_dll)]
+        private extern static int wc_HashGetDigestSize(uint hashType);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_HashNew(uint hashType, IntPtr heap, int devId, IntPtr result_code);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -275,15 +502,21 @@ namespace wolfSSL.CSharp
         private extern static int wc_HashFree(IntPtr hash, uint hashType);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_HashGetDigestSize(uint hashType);
+#endif
 
 
         /********************************
         * Logging
         */
+#if WindowsCE
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wc_GetErrorString(int error);
+        public delegate void loggingCb(int lvl, string msg);
+#else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_GetErrorString(int error);
-
         public delegate void loggingCb(int lvl, StringBuilder msg);
+#endif
         private static loggingCb internal_log;
 
         /// <summary>
@@ -291,6 +524,15 @@ namespace wolfSSL.CSharp
         /// </summary>
         /// <param name="lvl">Level of log message</param>
         /// <param name="msg">Message to log</param>
+#if WindowsCE
+        private static void log(int lvl, string msg)
+        {
+            /* if log is not set then print nothing */
+            if (internal_log == null)
+                return;
+            internal_log(lvl, msg);
+        }
+#else
         private static void log(int lvl, string msg)
         {
             /* if log is not set then print nothing */
@@ -299,6 +541,7 @@ namespace wolfSSL.CSharp
             StringBuilder ptr = new StringBuilder(msg);
             internal_log(lvl, ptr);
         }
+#endif
 
 
         /********************************
@@ -312,7 +555,7 @@ namespace wolfSSL.CSharp
         public static readonly int OTHER_LOG = 4;
         public static readonly int INVALID_DEVID = -2;
         public static readonly int ECC_MAX_SIG_SIZE = 141;    /* ECC max sig size */
-        public static readonly int  ECC_KEY_SIZE = 32;       /* ECC key size */
+        public static readonly int ECC_KEY_SIZE = 32;         /* ECC key size */
         public static readonly int MAX_ECIES_TEST_SZ = 200;   /* ECIES max sig size */
         public static readonly int ED25519_SIG_SIZE = 64;     /* ED25519 pub + priv  */
         public static readonly int ED25519_KEY_SIZE = 32;     /* Private key only */
@@ -1900,11 +2143,11 @@ namespace wolfSSL.CSharp
          **********************************************************************/
 
         /// <summary>
-    	/// Initialize an ED25519 key.
-    	/// </summary>
-    	/// <param name="key">Buffer to receive the initialized key</param>
-    	/// <returns>0 on success, otherwise an error code</returns>
-    	public static int Ed25519InitKey(out IntPtr key)
+        /// Initialize an ED25519 key.
+        /// </summary>
+        /// <param name="key">Buffer to receive the initialized key</param>
+        /// <returns>0 on success, otherwise an error code</returns>
+        public static int Ed25519InitKey(out IntPtr key)
         {
             key = IntPtr.Zero;
             try
@@ -1966,7 +2209,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception in EdImportPublic: {ex.Message}");
+                Console.WriteLine("Exception in EdImportPublic: " + ex.Message);
 
                 return EXCEPTION_E;
             }
@@ -2425,15 +2668,17 @@ namespace wolfSSL.CSharp
             return publicKey;
         }
 
+
         /// <summary>
         /// Export both private and public keys from a Curve25519 key structure
         /// </summary>
         /// <param name="key">Curve25519 key structure</param>
-        /// <returns>A tuple containing the private key and public key as byte arrays</returns>
-        public static (byte[] privateKey, byte[] publicKey) Curve25519ExportKeyRaw(IntPtr key)
+        /// <param name="privateKey">returned raw private key as byte array</param>
+        /// <param name="publicKey">returned raw public key as byte array</param>
+        public static void Curve25519ExportKeyRaw(IntPtr key, out byte[] privateKey, out byte[] publicKey)
         {
-            byte[] privateKey = new byte[ED25519_KEY_SIZE];
-            byte[] publicKey = new byte[ED25519_PUB_KEY_SIZE];
+            privateKey = new byte[ED25519_KEY_SIZE];
+            publicKey = new byte[ED25519_PUB_KEY_SIZE];
             uint privSize = (uint)privateKey.Length;
             uint pubSize = (uint)publicKey.Length;
             int ret = wc_curve25519_export_key_raw(key, privateKey, ref privSize, publicKey, ref pubSize);
@@ -2441,7 +2686,7 @@ namespace wolfSSL.CSharp
             {
                 throw new Exception("Failed to export Curve25519 keys. Error code: " + ret);
             }
-            return (privateKey, publicKey);
+            return;
         }
         /* END RAW Curve25519 */
 
@@ -2470,9 +2715,9 @@ namespace wolfSSL.CSharp
                 }
 
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine($"AES context creation failed: {e.Message}");
+                Console.WriteLine("AES context creation failed: " + ex.Message);
             }
 
             return aesPtr;
@@ -2498,7 +2743,7 @@ namespace wolfSSL.CSharp
                 ret = wc_AesGcmSetKey(aes, keyPtr, (uint)key.Length);
                 if (ret != 0)
                 {
-                    throw new Exception($"AES-GCM initialization failed with error code {ret}");
+                    throw new Exception("AES-GCM initialization failed with error code ret = " + ret.ToString());
                 }
             }
             finally
@@ -2534,7 +2779,7 @@ namespace wolfSSL.CSharp
                 ret = wc_AesGcmInit(aes, keyPtr, (uint)key.Length, ivPtr, (uint)iv.Length);
                 if (ret != 0)
                 {
-                    throw new Exception($"AES-GCM initialization failed with error code {ret}");
+                    throw new Exception("AES-GCM initialization failed with error code ret = " + ret.ToString());
                 }
             }
             finally
@@ -2557,7 +2802,7 @@ namespace wolfSSL.CSharp
         /// <param name="authTag">Buffer to receive the authentication tag</param>
         /// <returns>0 on success, otherwise an error code</returns>
         public static int AesGcmEncrypt(IntPtr aes, byte[] iv, byte[] plaintext,
-            byte[] ciphertext, byte[] authTag, byte[] addAuth = null)
+            byte[] ciphertext, byte[] authTag, byte[] addAuth)
         {
             int ret;
             IntPtr ivPtr = IntPtr.Zero;
@@ -2613,6 +2858,11 @@ namespace wolfSSL.CSharp
 
             return ret;
         }
+        public static int AesGcmEncrypt(IntPtr aes, byte[] iv, byte[] plaintext,
+            byte[] ciphertext, byte[] authTag)
+        {
+            return AesGcmEncrypt(aes, iv, plaintext, ciphertext, null);
+        }
 
         /// <summary>
         /// Decrypt data using AES-GCM
@@ -2624,7 +2874,7 @@ namespace wolfSSL.CSharp
         /// <param name="authTag">Authentication tag for verification</param>
         /// <returns>0 on success, otherwise an error code</returns>
         public static int AesGcmDecrypt(IntPtr aes, byte[] iv, byte[] ciphertext,
-            byte[] plaintext, byte[] authTag, byte[] addAuth = null)
+            byte[] plaintext, byte[] authTag, byte[] addAuth)
         {
             int ret;
             IntPtr ivPtr = IntPtr.Zero;
@@ -2679,6 +2929,11 @@ namespace wolfSSL.CSharp
             }
 
             return ret;
+        }
+        public static int AesGcmDecrypt(IntPtr aes, byte[] iv, byte[] ciphertext,
+            byte[] plaintext, byte[] authTag)
+        {
+            return AesGcmDecrypt(aes, iv, ciphertext, plaintext, authTag, null);
         }
 
         /// <summary>
@@ -2747,7 +3002,7 @@ namespace wolfSSL.CSharp
                 ret = wc_HashInit(hash, hashType);
                 if (ret != 0)
                 {
-                    throw new Exception($"Failed to initialize hash context. Error code: {ret}");
+                    throw new Exception("Failed to initialize hash context. Error code: ret = " + ret.ToString());
                 }
             }
             catch (Exception e)
@@ -2791,7 +3046,7 @@ namespace wolfSSL.CSharp
                 ret = wc_HashUpdate(hash, hashType, dataPtr, (uint)data.Length);
                 if (ret != 0)
                 {
-                    throw new Exception($"Failed to update hash. Error code: {ret}");
+                    throw new Exception("Failed to update hash. Error code: ret = " + ret.ToString());
                 }
             }
             catch (Exception e)
@@ -2837,7 +3092,7 @@ namespace wolfSSL.CSharp
                 ret = wc_HashFinal(hash, hashType, outputPtr);
                 if (ret != 0)
                 {
-                    throw new Exception($"Failed to finalize hash. Error code: {ret}");
+                    throw new Exception("Failed to finalize hash. Error code: ret = " + ret.ToString());
                 }
 
                 Marshal.Copy(outputPtr, output, 0, hashSize);
@@ -2877,7 +3132,7 @@ namespace wolfSSL.CSharp
                 hash = IntPtr.Zero;
                 if (ret != 0)
                 {
-                    throw new Exception($"Failed to free hash context. Error code: {ret}");
+                    throw new Exception("Failed to free hash context. Error code: ret = " + ret.ToString());
                 }
             }
             catch (Exception e)
@@ -2938,7 +3193,7 @@ namespace wolfSSL.CSharp
             try
             {
                 IntPtr errStr = wc_GetErrorString(error);
-                return Marshal.PtrToStringAnsi(errStr);
+                return wolfssl.PtrToStringAnsi(errStr);
             }
             catch (Exception e)
             {

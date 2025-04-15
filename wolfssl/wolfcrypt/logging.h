@@ -174,7 +174,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
     WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void);
-#if defined(XVSNPRINTF)
+#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else

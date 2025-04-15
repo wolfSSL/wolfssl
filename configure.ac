@@ -4321,7 +4321,8 @@ fi
 
 if test "$ENABLED_ECC" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC"
+
     if test "$ENABLED_ECC_SHAMIR" = "yes" && test "$ENABLED_LOWRESOURCE" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
@@ -4332,9 +4333,14 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWC_ECC_NONBLOCK"
     fi
 
-    if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_FASTMATH" = "yes"
+    if test "$ENABLED_FASTMATH" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DALT_ECC_SIZE"
+        if test "$ENABLED_LOWRESOURCE" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DALT_ECC_SIZE"
+        else
+            AM_CFLAGS="$AM_CFLAGS -DTFM_ECC256"
+        fi
     fi
 
     ENABLED_CERTS=yes
