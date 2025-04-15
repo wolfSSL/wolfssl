@@ -931,6 +931,14 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "ADDS       x8, x8, x14\n\t"
         "ADCS       x9, x9, x15\n\t"
         "ADC        x10, x10, xzr\n\t"
+        /* Get high bits from r^2[2]. */
+        "AND        x11, x10, -4\n\t"
+        "AND        x10, x10, 3\n\t"
+        "ADD        x11, x11, x11, LSR 2\n\t"
+        /* Add top bits. */
+        "ADDS       x8, x8, x11\n\t"
+        "ADCS       x9, x9, xzr\n\t"
+        "ADC        x10, x10, xzr\n\t"
         /* 130-bits: Base 64 -> Base 26 */
         "EXTR       x15, x10, x9, #40\n\t"
         "AND        x14, x20, x9, LSR #14\n\t"
