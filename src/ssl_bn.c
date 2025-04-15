@@ -1158,6 +1158,60 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
     return ret;
 }
 
+/* Same as above, but compare absolute value. */
+int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
+{
+    int ret;
+    int bIsNull;
+
+    WOLFSSL_ENTER("wolfSSL_BN_ucmp");
+
+    /* Must know whether b is NULL. */
+    bIsNull = BN_IS_NULL(b);
+    /* Check whether a is NULL. */
+    if (BN_IS_NULL(a)) {
+        if (bIsNull) {
+            /* NULL equals NULL. */
+            ret = 0;
+        }
+        else {
+            ret = -1; /* NULL less than not NULL. */
+        }
+    }
+    else if (bIsNull) {
+        /* not NULL greater than NULL. */
+        ret = 1;
+    }
+    else {
+        /* Neither are NULL; switch to positive if required, compare, and then
+         * swtich back if required. wolfssl_bn_set_neg() only returns -1 if the
+         * bn is NULL, but we already check that so we can ignore the return
+         * code. */
+        int aIsNeg = 0;
+        int bIsNeg = 0;
+        if (wolfSSL_BN_is_negative(a)) {
+            aIsNeg = 1;
+            wolfssl_bn_set_neg(a, 0);
+        }
+
+        if (wolfSSL_BN_is_negative(b)) {
+            bIsNeg = 1;
+            wolfssl_bn_set_neg(b, 0);
+        }
+
+        ret = wolfSSL_BN_cmp(a, b);
+
+        if (aIsNeg) {
+            wolfssl_bn_set_neg(a, 1);
+        }
+
+        if (bIsNeg) {
+            wolfssl_bn_set_neg(b, 1);
+        }
+    }
+    return ret;
+}
+
 /* Indicates whether a big number is the value 0.
  *
  * Return compliant with OpenSSL.
