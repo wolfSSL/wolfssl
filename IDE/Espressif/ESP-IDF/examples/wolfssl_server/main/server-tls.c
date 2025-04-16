@@ -322,9 +322,6 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
             == -1) {
              ESP_LOGE(TAG, "ERROR: failed to accept the connection");
         }
-#if defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
-        ESP_LOGW(TAG, "WOLFSSL_EXPERIMENTAL_SETTINGS is enabled");
-#endif
         /* Create a WOLFSSL object */
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");

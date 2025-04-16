@@ -29,7 +29,7 @@ jobs:
       - name: Test wolfSSL
         run: |
           ./autogen.sh
-          ./configure --enable-all --enable-experimental --enable-dilithium --enable-kyber
+          ./configure --enable-all --enable-dilithium --enable-kyber
           make
           ./wolfcrypt/test/testwolfcrypt
 

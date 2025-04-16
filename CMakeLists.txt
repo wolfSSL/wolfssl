@@ -586,117 +586,78 @@ add_option(WOLFSSL_LMSSHA256192
     "Enable the LMS SHA_256_192 truncated variant (default: disabled)"
     "no" "yes;no")
 
-# Experimental features
-add_option(WOLFSSL_EXPERIMENTAL
-    "Enable experimental features (default: disabled)"
-    "no" "yes;no")
-
-message(STATUS "Looking for WOLFSSL_EXPERIMENTAL")
-if (WOLFSSL_EXPERIMENTAL)
-    message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - found")
-
-    # We've enabled the experimental environment, but let's
-    # check if any experimental features are also enabled:
-    set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 0)
-
-    set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESULT)
-
-    # Checking for experimental feature: OQS
-    message(STATUS "Looking for WOLFSSL_OQS")
-    if (WOLFSSL_OQS)
-        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
-        message(STATUS "Looking for WOLFSSL_OQS - found")
-
-        message(STATUS "Checking OQS")
-        find_package(OQS)
-        if (OQS_FOUND)
-            message(STATUS "Checking OQS - found")
-            list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
-            list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
-
-            set_wolfssl_definitions("HAVE_LIBOQS"          RESULT)
-            set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESULT)
-            set_wolfssl_definitions("OPENSSL_EXTRA"        RESULT)
-
-        else()
-            message(STATUS "Checking OQS - not found")
-            message(STATUS "WARNING: WOLFSSL_OQS enabled but not found: OQS_LIBRARY=${OQS_LIBRARY}, OQS_INCLUDE_DIR=${OQS_INCLUDE_DIR} ")
-        endif()
+# Checking for feature: OQS
+message(STATUS "Looking for WOLFSSL_OQS")
+if (WOLFSSL_OQS)
+    message(STATUS "Looking for WOLFSSL_OQS - found")
+    
+    message(STATUS "Checking OQS")
+    find_package(OQS)
+    if (OQS_FOUND)
+        message(STATUS "Checking OQS - found")
+        list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
+        list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
+        
+        set_wolfssl_definitions("HAVE_LIBOQS"          RESULT)
+        set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESULT)
+        set_wolfssl_definitions("OPENSSL_EXTRA"        RESULT)
+        
     else()
-        message(STATUS "Looking for WOLFSSL_OQS - not found")
+        message(STATUS "Checking OQS - not found")
+        message(STATUS "WARNING: WOLFSSL_OQS enabled but not found: OQS_LIBRARY=${OQS_LIBRARY}, OQS_INCLUDE_DIR=${OQS_INCLUDE_DIR} ")
     endif()
-
-    # Checking for experimental feature: WOLFSSL_MLKEM
-    message(STATUS "Looking for WOLFSSL_MLKEM")
-    if (WOLFSSL_MLKEM)
-        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
-
-        message(STATUS "Automatically set related requirements for ML-KEM:")
-        add_definitions("-DWOLFSSL_HAVE_MLKEM")
-        add_definitions("-DWOLFSSL_WC_MLKEM")
-        add_definitions("-DWOLFSSL_SHA3")
-        add_definitions("-DWOLFSSL_SHAKE128")
-        add_definitions("-DWOLFSSL_SHAKE256")
-
-        set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESULT)
-        set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESULT)
-        set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
-        set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
-        message(STATUS "Looking for WOLFSSL_MLKEM - found")
-    else()
-        message(STATUS "Looking for WOLFSSL_MLKEM - not found")
-    endif()
-
-    # Checking for experimental feature: WOLFSSL_LMS
-    message(STATUS "Looking for WOLFSSL_LMS")
-    if (WOLFSSL_LMS)
-        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 2)
-
-        message(STATUS "Automatically set related requirements for LMS")
-        add_definitions("-DWOLFSSL_HAVE_LMS")
-        add_definitions("-DWOLFSSL_WC_LMS")
-        set_wolfssl_definitions("WOLFSSL_HAVE_LMS" RESULT)
-        set_wolfssl_definitions("WOLFSSL_WC_LMS"   RESULT)
-        message(STATUS "Looking for WOLFSSL_LMS - found")
-        # Checking for experimental feature: WOLFSSL_LMSSHA256192
-        if (WOLFSSL_LMSSHA256192)
-            message(STATUS "Automatically set related requirements for LMS SHA256-192")
-            add_definitions("-DWOLFSSL_LMS_SHA256_192")
-            add_definitions("-DWOLFSSL_NO_LMS_SHA256_256")
-            set_wolfssl_definitions("WOLFSSL_LMS_SHA256_192"    RESULT)
-            set_wolfssl_definitions("WOLFSSL_NO_LMS_SHA256_256" RESULT)
-            message(STATUS "Looking for WOLFSSL_LMSSHA256192 - found")
-        else()
-            message(STATUS "Looking for WOLFSSL_LMSSHA256192 - not found")
-        endif()
-    else()
-        message(STATUS "Looking for WOLFSSL_LMS - not found")
-    endif()
-
-    # Other experimental feature detection can be added here...
-
-    # Were any experimental features found? Display a message.
-    if(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE)
-        message(STATUS "WOLFSSL_EXPERIMENTAL enabled, experimental features enabled.")
-    else()
-        message(STATUS "Warning: WOLFSSL_EXPERIMENTAL enabled, but no experimental features enabled.")
-    endif()
-
-    # Sanity checks
-    if(WOLFSSL_OQS AND WOLFSSL_MLKEM)
-        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_MLKEM at the same time.")
-    endif()
-
 else()
-    # Experimental mode not enabled, but were any experimental features enabled? Error out if so:
-    message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - not found")
-    if (WOLFSSL_OQS)
-        message(FATAL_ERROR "Error: WOLFSSL_OQS requires WOLFSSL_EXPERIMENTAL at this time.")
+    message(STATUS "Looking for WOLFSSL_OQS - not found")
+endif()
+
+# Checking for feature: WOLFSSL_MLKEM
+message(STATUS "Looking for WOLFSSL_MLKEM")
+if (WOLFSSL_MLKEM)
+    message(STATUS "Looking for WOLFSSL_MLKEM - found")
+    message(STATUS "Automatically set related requirements for ML-KEM:")
+    add_definitions("-DWOLFSSL_HAVE_MLKEM")
+    add_definitions("-DWOLFSSL_WC_MLKEM")
+    add_definitions("-DWOLFSSL_SHA3")
+    add_definitions("-DWOLFSSL_SHAKE128")
+    add_definitions("-DWOLFSSL_SHAKE256")
+    
+    set_wolfssl_definitions("WOLFSSL_HAVE_MLKEM" RESULT)
+    set_wolfssl_definitions("WOLFSSL_WC_MLKEM"   RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHA3"       RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESULT)
+    set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESULT)
+else()
+    message(STATUS "Looking for WOLFSSL_MLKEM - not found")
+endif()
+
+# Checking for feature: WOLFSSL_LMS
+message(STATUS "Looking for WOLFSSL_LMS")
+if (WOLFSSL_LMS)
+    message(STATUS "Looking for WOLFSSL_LMS - found")
+    message(STATUS "Automatically set related requirements for LMS")
+    add_definitions("-DWOLFSSL_HAVE_LMS")
+    add_definitions("-DWOLFSSL_WC_LMS")
+    set_wolfssl_definitions("WOLFSSL_HAVE_LMS" RESULT)
+    set_wolfssl_definitions("WOLFSSL_WC_LMS"   RESULT)
+    
+    # Checking for feature: WOLFSSL_LMSSHA256192
+    if (WOLFSSL_LMSSHA256192)
+        message(STATUS "Looking for WOLFSSL_LMSSHA256192 - found")
+        message(STATUS "Automatically set related requirements for LMS SHA256-192")
+        add_definitions("-DWOLFSSL_LMS_SHA256_192")
+        add_definitions("-DWOLFSSL_NO_LMS_SHA256_256")
+        set_wolfssl_definitions("WOLFSSL_LMS_SHA256_192"    RESULT)
+        set_wolfssl_definitions("WOLFSSL_NO_LMS_SHA256_256" RESULT)
+    else()
+        message(STATUS "Looking for WOLFSSL_LMSSHA256192 - not found")
     endif()
-    if(WOLFSSL_MLKEM)
-        message(FATAL_ERROR "Error: WOLFSSL_MLKEM requires WOLFSSL_EXPERIMENTAL at this time.")
-    endif()
+else()
+    message(STATUS "Looking for WOLFSSL_LMS - not found")
+endif()
+
+# Sanity checks
+if(WOLFSSL_OQS AND WOLFSSL_MLKEM)
+    message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_MLKEM at the same time.")
 endif()
 
 # LMS

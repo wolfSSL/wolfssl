@@ -380,10 +380,6 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
         ESP_LOGE(TAG, "ERROR: failed to connect ret=%d\n", ret_i);
     }
 
-#if defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
-        ESP_LOGW(TAG, "WOLFSSL_EXPERIMENTAL_SETTINGS is enabled");
-#endif
-
     WOLFSSL_MSG("Create a WOLFSSL object");
     /* Create a WOLFSSL object */
     if ((ssl = wolfSSL_new(ctx)) == NULL) {

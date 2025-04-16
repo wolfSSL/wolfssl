@@ -106,19 +106,6 @@ fi
 # Fail when an option is passed that is not recognized
 m4_divert_once([DEFAULTS], [enable_option_checking=fatal])
 
-# Allow experimental settings
-AC_ARG_ENABLE([experimental],
-    [AS_HELP_STRING([--enable-experimental],[Allow experimental settings in the configuration (default: disabled)])],
-    [ ENABLED_EXPERIMENTAL=$enableval ],
-    [ ENABLED_EXPERIMENTAL=no ]
-    )
-if test "$ENABLED_EXPERIMENTAL" = "yes"
-then
-    AS_IF([ test "$ENABLED_DISTRO" = "yes" && test "$ENABLED_EXPERIMENTAL" = "yes" ],[ AC_MSG_ERROR([--enable-distro and --enable-experimental are mutually exclusive.]) ])
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
-fi
-
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
@@ -1009,7 +996,7 @@ then
 fi
 
 
-# All features, except conflicting or experimental:
+# All features, except conflicting
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
     [ ENABLED_ALL=$enableval ],
@@ -1381,9 +1368,8 @@ fi
 ENABLED_LIBOQS="no"
 tryliboqsdir=""
 AC_ARG_WITH([liboqs],
-    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local) (requires --enable-experimental)])],
+    [AS_HELP_STRING([--with-liboqs=PATH],[Path to liboqs install (default /usr/local)])],
     [
-        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
         LIBS="$LIBS -loqs"
         AM_CFLAGS="$AM_CFLAGS -pthread"
@@ -1687,9 +1673,8 @@ done
 ENABLED_LIBXMSS="no"
 trylibxmssdir=""
 AC_ARG_WITH([libxmss],
-    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir. (requires --enable-experimental)!])],
+    [AS_HELP_STRING([--with-libxmss=PATH],[PATH to xmss-reference root dir.])],
     [
-        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([libxmss requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for libxmss])
 
         trylibxmssdir=$withval
@@ -1785,9 +1770,8 @@ done
 ENABLED_LIBLMS="no"
 tryliblmsdir=""
 AC_ARG_WITH([liblms],
-    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local) (requires --enable-experimental)!])],
+    [AS_HELP_STRING([--with-liblms=PATH],[PATH to hash-sigs LMS/HSS install (default /usr/local)])],
     [
-        AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([liblms requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liblms])
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <hss.h>]], [[ param_set_t lm_type; param_set_t lm_ots_type; hss_get_public_key_len(4, &lm_type, &lm_ots_type); ]])], [ liblms_linked=yes ],[ liblms_linked=no ])
@@ -9535,12 +9519,10 @@ AC_ARG_ENABLE([sys-ca-certs],
     )
 
 AC_ARG_ENABLE([dual-alg-certs],
-    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (requires --enable-experimental) (default: disabled)])],
+    [AS_HELP_STRING([--enable-dual-alg-certs],[Enable support for dual key/signature certificates in TLS 1.3 as defined in X9.146 (default: disabled)])],
     [ ENABLED_DUAL_ALG_CERTS=$enableval ],
     [ ENABLED_DUAL_ALG_CERTS=no ]
     )
-
-AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([dual-alg-certs requires --enable-experimental.]) ])
 
 AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_CRYPTONLY" = "yes" ],[ AC_MSG_ERROR([dual-alg-certs is incompatible with --enable-cryptonly.]) ])
 
@@ -10872,12 +10854,6 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
-if test "$ENABLED_EXPERIMENTAL" = "yes"
-then
-    echo "   * Experimental settings:      Allowed"
-else
-    echo "   * Experimental settings:      Forbidden"
-fi
 if test "$ENABLED_FIPS" = "yes"; then
 echo "   * FIPS:                       $FIPS_VERSION"
 else

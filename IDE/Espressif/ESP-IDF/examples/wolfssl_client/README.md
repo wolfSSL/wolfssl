@@ -252,7 +252,7 @@ I hear you fa shizzle!
 
 ```
 # Ensure build with Kyber enabled:
-# ./configure --enable-kyber=all --enable-experimental && make
+# ./configure --enable-kyber=all && make
 
 ./examples/client/client  -h 192.168.1.38 -v 4 -l  TLS_AES_128_GCM_SHA256 --pqc KYBER_LEVEL5
 ```

@@ -33,15 +33,15 @@ jobs:
           '--enable-dtls --enable-dtls13 --enable-earlydata
              --enable-session-ticket --enable-psk
              CPPFLAGS=''-DWOLFSSL_DTLS13_NO_HRR_ON_RESUME'' ',
-          '--enable-experimental --enable-kyber --enable-dtls --enable-dtls13
+          '--enable-kyber --enable-dtls --enable-dtls13
              --enable-dtls-frag-ch',
           '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
            --enable-dtls-mtu',
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
             --enable-psk --enable-aesccm --enable-nullcipher CPPFLAGS=-DWOLFSSL_STATIC_RSA',
-          '--enable-ascon --enable-experimental',
-          '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
+          '--enable-ascon',
+          '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

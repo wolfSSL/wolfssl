@@ -592,9 +592,6 @@ extern ${variable.value} ${variable.name};
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
-
     #undef  WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_HAVE_MLKEM
 

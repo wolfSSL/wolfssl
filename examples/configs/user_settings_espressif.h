@@ -209,10 +209,9 @@
     /* the code is older or does not have application name defined. */
 #endif /* Example wolfSSL Configuration app settings */
 
-/* Experimental Kyber */
+/* Kyber */
 #ifdef CONFIG_WOLFSSL_ENABLE_KYBER
     /* Kyber typically needs a minimum 10K stack */
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
     #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_SHA3
