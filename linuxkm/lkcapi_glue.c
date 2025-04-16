@@ -4231,17 +4231,19 @@ static int linuxkm_test_aesecb(void) {
     #undef LINUXKM_LKCAPI_REGISTER_ECDH
 #endif /* HAVE_ECC */
 
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
-        /**
-         * note: ecdsa supported with linux 6.12 and earlier for now, only.
-         * In linux 6.13, ecdsa changed from a struct akcipher_alg type to
-         * struct sig_alg type, and the sign/verify callbacks were removed
-         * from akcipher_alg.
-         * */
-        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #endif /* linux >= 6.13.0 */
+#if !defined(NO_RSA)
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_RSA)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_RSA)
+        #define LINUXKM_LKCAPI_REGISTER_RSA
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_RSA
+#endif /* !NO_RSA */
 
+/**
+ * extra checks on kernel version, and ecc sizes.
+ * */
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
         defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
         /**
@@ -4265,6 +4267,29 @@ static int linuxkm_test_aesecb(void) {
     #endif
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    /**
+     * notes:
+     *   - ecdsa supported with linux 6.12 and earlier for now, only.
+     *   - pkcs1pad rsa supported both before and after linux 6.13, but
+     *     without sign/verify after linux 6.13.
+     *
+     * In linux 6.13 the sign/verify callbacks were removed from
+     * akcipher_alg, and ecdsa changed from a struct akcipher_alg type to
+     * struct sig_alg type.
+     *
+     * pkcs1pad rsa remained a struct akcipher_alg, but without sign/verify
+     * functionality.
+     * */
+    #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+    #if defined (LINUXKM_LKCAPI_REGISTER_RSA)
+        #define LINUXKM_AKCIPHER_NO_SIGNVERIFY
+    #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
+#endif /* linux >= 6.13.0 */
+
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #include "linuxkm/lkcapi_ecdsa_glue.c"
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
@@ -4272,6 +4297,10 @@ static int linuxkm_test_aesecb(void) {
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDH)
     #include "linuxkm/lkcapi_ecdh_glue.c"
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
+
+#if defined(LINUXKM_LKCAPI_REGISTER_RSA)
+    #include "linuxkm/lkcapi_rsa_glue.c"
+#endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
 static int linuxkm_lkcapi_register(void)
 {
@@ -4388,6 +4417,20 @@ static int linuxkm_lkcapi_register(void)
                  linuxkm_test_ecdh_nist_p384);
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
+#ifdef LINUXKM_LKCAPI_REGISTER_RSA
+    #if defined(LINUXKM_DIRECT_RSA)
+    REGISTER_ALG(direct_rsa, crypto_register_akcipher, linuxkm_test_rsa);
+    #endif /* LINUXKM_DIRECT_RSA */
+    #ifndef NO_SHA256
+    REGISTER_ALG(pkcs1_sha256, crypto_register_akcipher,
+                 linuxkm_test_pkcs1_sha256);
+    #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SHA512
+    REGISTER_ALG(pkcs1_sha512, crypto_register_akcipher,
+                 linuxkm_test_pkcs1_sha512);
+    #endif /* WOLFSSL_SHA512 */
+#endif
+
 #undef REGISTER_ALG
 
     out:
@@ -4457,6 +4500,18 @@ static void linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(ecdh_nist_p384, crypto_unregister_kpp);
     /* no ecdh p521 in kernel. */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_RSA
+    #if defined(LINUXKM_DIRECT_RSA)
+    UNREGISTER_ALG(direct_rsa, crypto_unregister_akcipher);
+    #endif /* LINUXKM_DIRECT_RSA */
+    #ifndef NO_SHA256
+    UNREGISTER_ALG(pkcs1_sha256, crypto_unregister_akcipher);
+    #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SHA512
+    UNREGISTER_ALG(pkcs1_sha512, crypto_unregister_akcipher);
+    #endif /* WOLFSSL_SHA512 */
+#endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
 #undef UNREGISTER_ALG
 }

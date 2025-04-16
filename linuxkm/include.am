@@ -16,4 +16,5 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_glue.c \
 	      linuxkm/lkcapi_ecdsa_glue.c \
 	      linuxkm/lkcapi_ecdh_glue.c \
+	      linuxkm/lkcapi_rsa_glue.c \
 	      linuxkm/x86_vector_register_glue.c
