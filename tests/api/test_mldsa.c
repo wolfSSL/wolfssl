@@ -16705,7 +16705,7 @@ int test_mldsa_pkcs8(void)
     ExpectIntEQ(wc_dilithium_init(&mldsa_key), 0);
 
     /* Test private + public key (separated format) */
-    for(i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
+    for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key,
             test_variant[i].wcId), 0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
@@ -16724,7 +16724,7 @@ int test_mldsa_pkcs8(void)
     }
 
     /* Test private key only */
-    for(i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
+    for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
             0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
@@ -16743,7 +16743,7 @@ int test_mldsa_pkcs8(void)
     }
 
     /* Test private + public key (integrated format) */
-    for(i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
+    for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
         ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
             0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);

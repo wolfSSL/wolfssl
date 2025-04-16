@@ -965,7 +965,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = wc_Dilithium_PrivateKeyDecode(der->buffer, &idx, key, der->length);
         if (ret == 0) {
             ret = dilithium_get_oid_sum(key, &keyFormatTemp);
-            if(ret == 0) {
+            if (ret == 0) {
                 /* Format is known. */
                 #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
                 if (keyFormatTemp == DILITHIUM_LEVEL2k) {
@@ -999,7 +999,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
 
-            if(ret == 0) {
+            if (ret == 0) {
                 /* Get the minimum Dilithium key size from SSL or SSL context
                  * object. */
                 int minKeySz = ssl ? ssl->options.minDilithiumKeySz :
@@ -1012,7 +1012,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 }
             }
 
-            if(ret == 0) {
+            if (ret == 0) {
                 *keyFormat = keyFormatTemp;
                 *keyType = keyTypeTemp;
                 *keySize = keySizeTemp;
