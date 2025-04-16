@@ -1886,6 +1886,13 @@ typedef struct w64wrapper {
         #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
     #endif
 
+    #ifndef WC_SANITIZE_DISABLE
+        #define WC_SANITIZE_DISABLE() WC_DO_NOTHING
+    #endif
+    #ifndef WC_SANITIZE_ENABLE
+        #define WC_SANITIZE_ENABLE() WC_DO_NOTHING
+    #endif
+
     #if FIPS_VERSION_GE(5,1)
         #define WC_SPKRE_F(x,y) wolfCrypt_SetPrivateKeyReadEnable_fips((x),(y))
         #define PRIVATE_KEY_LOCK() WC_SPKRE_F(0,WC_KEYTYPE_ALL)
