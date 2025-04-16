@@ -2541,6 +2541,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA)
     ctx->padding = WC_RSA_PKCS1_PADDING;
     ctx->md = NULL;
+    ctx->saltlen = 0;
 #endif
 #ifdef HAVE_ECC
     if (pkey->ecc && pkey->ecc->group) {
@@ -2591,6 +2592,25 @@ int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     (void)md;
 #endif
     return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx, int saltlen)
+{
+    if (ctx == NULL) return 0;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen");
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, WC_RSA_PKCS1_PSS_PADDING);
+#ifndef NO_RSA
+    ctx->saltlen = saltlen;
+#else
+    void(saltlen);
+#endif
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(WOLFSSL_EVP_PKEY_CTX *ctx, const WOLFSSL_EVP_MD *md)
+{
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, WC_RSA_PKCS1_OAEP_PADDING);
+    return wolfSSL_EVP_PKEY_CTX_set_signature_md(ctx, md);
 }
 
 /* create a PKEY context and return it */
