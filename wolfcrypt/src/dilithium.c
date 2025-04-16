@@ -9664,7 +9664,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Get OID sum for level. */
-        if(key->level == 0) { /* Check first, because key->params will be NULL
+        if (key->level == 0) { /* Check first, because key->params will be NULL
                                * when key->level = 0 */
             /* Level not set by caller, decode from DER */
             keytype = ANONk;
