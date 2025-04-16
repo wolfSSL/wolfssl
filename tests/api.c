@@ -47887,6 +47887,12 @@ static int test_tls13_apis(void)
 #elif defined(HAVE_ECC)
     const char*  ourCert = eccCertFile;
     const char*  ourKey  = eccKeyFile;
+#elif defined(HAVE_ED25519)
+    const char*  ourCert = edCertFile;
+    const char*  ourKey  = edKeyFile;
+#elif defined(HAVE_ED448)
+    const char*  ourCert = ed448CertFile;
+    const char*  ourKey  = ed448KeyFile;
 #endif
 #endif
 #endif
