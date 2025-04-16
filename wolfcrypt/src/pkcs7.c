@@ -12316,8 +12316,16 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
 
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->expected = (word32)length;
+
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                 break;
+            }
+
+            /* update the stored max length */
+            if (pkcs7->stream->totalRd + pkcs7->stream->expected >
+                    pkcs7->stream->maxLen) {
+                pkcs7->stream->maxLen = pkcs7->stream->totalRd +
+                    pkcs7->stream->expected;
             }
         #endif
 
@@ -12461,7 +12469,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
             pkcs7->stream->aad = decryptedKey;
-            pkcs7->stream->expected = (word32)ret; /* get the full recipient set */
+            /* get the full recipient set */
+            pkcs7->stream->expected     = (word32)ret;
             pkcs7->stream->recipientSz  = ret;
         #endif
             FALL_THROUGH;
@@ -12488,6 +12497,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
             tmpIdx = idx;
         #endif
+            pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                         decryptedKey, &decryptedKeySz,
@@ -12501,12 +12511,16 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
-            /* advance idx past recipient info set */
-            idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
+            /* advance idx past recipient info set if not all recipients
+             * parsed */
+            if (pkcs7->stream->totalRd < (pkcs7->stream->recipientSz +
+                    tmpIdx)) {
+                idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
 
-            /* process aditional recipients as read */
-            if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
-                break;
+                /* process additional recipients as read */
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
             }
 
             tmpIdx               = idx;
