@@ -36,6 +36,7 @@ int test_wc_dilithium_make_key_from_seed(void);
 int test_wc_dilithium_sig_kats(void);
 int test_wc_dilithium_verify_kats(void);
 int test_mldsa_pkcs8(void);
+int test_mldsa_pkcs12(void);
 
 #define TEST_MLDSA_DECLS                                            \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium),                    \
@@ -49,6 +50,7 @@ int test_mldsa_pkcs8(void);
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_make_key_from_seed), \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_sig_kats),           \
     TEST_DECL_GROUP("mldsa", test_wc_dilithium_verify_kats),        \
-    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8)
+    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs8),                     \
+    TEST_DECL_GROUP("mldsa", test_mldsa_pkcs12)
 
 #endif /* WOLFCRYPT_TEST_MLDSA_H */

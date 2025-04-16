@@ -16785,3 +16785,165 @@ int test_mldsa_pkcs8(void)
 #endif
     return EXPECT_RESULT();
 }
+
+int test_mldsa_pkcs12(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && \
+    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+    !defined(NO_CERTS) && !defined(NO_DES3) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+
+    WOLFSSL_CTX* ctx = NULL;
+    word32 i;
+    byte* inKey = NULL;
+    byte* inCert = NULL;
+    const word32 inKeyHeaderSz = 4;
+    const word32 inKeyMaxSz = inKeyHeaderSz + DILITHIUM_MAX_PRV_KEY_SIZE;
+    const word32 certConstSz = 412;
+    const word32 inCertMaxSz =
+        certConstSz + DILITHIUM_MAX_SIG_SIZE + DILITHIUM_MAX_PUB_KEY_SIZE;
+    const word32 pkcs8HeaderSz = 24;
+    WC_RNG rng;
+    dilithium_key mldsa_key;
+    char pkcs12Passwd[] = "mldsa";
+
+    struct {
+        int enc;
+        int wcId;
+        int oidSum;
+        int keySz;
+        int sigType;
+        int keyType;
+    } test_variant[] = {
+        {PBE_SHA1_DES3, WC_ML_DSA_44, ML_DSA_LEVEL2k,
+            ML_DSA_LEVEL2_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2_TYPE},
+        {PBE_SHA1_DES3, WC_ML_DSA_65, ML_DSA_LEVEL3k,
+            ML_DSA_LEVEL3_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3_TYPE},
+        {PBE_SHA1_DES3, WC_ML_DSA_87, ML_DSA_LEVEL5k,
+            ML_DSA_LEVEL5_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5_TYPE},
+        {-1, WC_ML_DSA_44, ML_DSA_LEVEL2k,
+            ML_DSA_LEVEL2_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL2, ML_DSA_LEVEL2_TYPE},
+        {-1, WC_ML_DSA_65, ML_DSA_LEVEL3k,
+            ML_DSA_LEVEL3_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL3, ML_DSA_LEVEL3_TYPE},
+        {-1, WC_ML_DSA_87, ML_DSA_LEVEL5k,
+            ML_DSA_LEVEL5_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5_TYPE},
+    };
+
+    ExpectNotNull(inKey = (byte*) XMALLOC(inKeyMaxSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectNotNull(inCert = (byte*) XMALLOC(inCertMaxSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif /* NO_WOLFSSL_SERVER */
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_dilithium_init(&mldsa_key), 0);
+
+    for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
+        WC_PKCS12* pkcs12Export = NULL;
+        WC_PKCS12* pkcs12Import = NULL;
+        byte* pkcs12Der = NULL;
+        byte* outKey = NULL;
+        byte* outCert = NULL;
+        word32 inKeySz = 0;
+        word32 inCertSz = 0;
+        word32 pkcs12DerSz = 0;
+        word32 outKeySz = 0;
+        word32 outCertSz = 0;
+        Cert cert;
+        word32 size;
+
+        if (EXPECT_FAIL())
+            break;
+
+        /* Create a key for wc_PKCS12_create() */
+        inKeySz = 0;
+        inKey[0] = 0x04;  /* ASN.1 OCTET STRING */
+        inKey[1] = 0x82;  /* 2 bytes length field */
+        inKey[2] = (test_variant[i].keySz >> 8) & 0xff;  /* MSB of the length */
+        inKey[3] = test_variant[i].keySz & 0xff;         /* LSB of the length */
+        inKeySz += inKeyHeaderSz;
+        ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
+            0);
+        ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
+        size = inKeyMaxSz - inKeySz;
+        ExpectIntEQ(wc_dilithium_export_private(&mldsa_key, inKey + inKeySz,
+            &size), 0);
+        inKeySz += size;
+        size = inKeyMaxSz - inKeySz;
+        ExpectIntEQ(wc_dilithium_export_public(&mldsa_key, inKey + inKeySz,
+            &size), 0);
+        inKeySz += size;
+
+        /* Create a certificate for wc_PKCS12_create() */
+        ExpectIntEQ(wc_InitCert(&cert), 0);
+        XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.state, "MT", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.unit, "Engineering", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+        XSTRNCPY(cert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+        XSTRNCPY((char*)cert.beforeDate, "\x18\x0f""20250101000000Z",
+            CTC_DATE_SIZE);
+        cert.beforeDateSz = 17;
+        XSTRNCPY((char*)cert.afterDate, "\x18\x0f""20493112115959Z",
+            CTC_DATE_SIZE);
+        cert.afterDateSz = 17;
+        cert.selfSigned = 1;
+        cert.sigType = test_variant[i].sigType;
+        cert.isCA    = 0;
+        ExpectIntGE(inCertSz = wc_MakeCert_ex(&cert, inCert, inCertMaxSz,
+            test_variant[i].keyType, &mldsa_key, &rng), 0);
+        ExpectIntGE(inCertSz = wc_SignCert_ex(cert.bodySz, cert.sigType, inCert,
+            inCertMaxSz, test_variant[i].keyType, &mldsa_key, &rng), 0);
+
+        ExpectNotNull(pkcs12Export = wc_PKCS12_create(pkcs12Passwd,
+            sizeof(pkcs12Passwd) - 1,
+            (char*) "friendlyName" /* not used currently */,
+            (byte*) inKey, inKeySz, (byte*) inCert, inCertSz,
+            NULL, test_variant[i].enc, test_variant[i].enc, 100, 100,
+            0 /* not used currently */, NULL));
+        pkcs12Der = NULL;
+        ExpectIntGE((pkcs12DerSz = wc_i2d_PKCS12(pkcs12Export, &pkcs12Der,
+            NULL)), 0);
+
+        ExpectNotNull(pkcs12Import = wc_PKCS12_new_ex(NULL));
+        ExpectIntGE(wc_d2i_PKCS12(pkcs12Der, pkcs12DerSz, pkcs12Import), 0);
+        ExpectIntEQ(wc_PKCS12_parse_ex(pkcs12Import, pkcs12Passwd, &outKey,
+            &outKeySz,
+            &outCert, &outCertSz, NULL, 1), 0);
+        ExpectIntGT(outKeySz, 0);
+        ExpectIntGT(outCertSz, 0);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, outKey, outKeySz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, outCert, outCertSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(inKeySz, outKeySz - pkcs8HeaderSz);
+        ExpectIntEQ(XMEMCMP(inKey, outKey + pkcs8HeaderSz, inKeySz), 0);
+        ExpectIntEQ(inCertSz, outCertSz);
+        ExpectIntEQ(XMEMCMP(inCert, outCert, inCertSz), 0);
+
+        XFREE(outKey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(outCert, NULL, DYNAMIC_TYPE_PKCS);
+        wc_PKCS12_free(pkcs12Import);
+        XFREE(pkcs12Der, NULL, DYNAMIC_TYPE_PKCS);
+        wc_PKCS12_free(pkcs12Export);
+    }
+
+    wc_dilithium_free(&mldsa_key);
+    ExpectIntEQ(wc_FreeRng(&rng), 0);
+    wolfSSL_CTX_free(ctx);
+    XFREE(inCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(inKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+#endif
+    return EXPECT_RESULT();
+}
