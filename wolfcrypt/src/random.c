@@ -1038,8 +1038,14 @@ static void Entropy_StopThread(void)
     #error "ENTROPY_NUM_64BIT_WORDS must be <= SHA3-256 digest size in bytes"
 #endif
 
+#if ENTROPY_BLOCK_SZ < ENTROPY_NUM_UPDATES_BITS
+#define EXTRA_ENTROPY_WORDS             ENTROPY_NUM_UPDATES
+#else
+#define EXTRA_ENTROPY_WORDS             0
+#endif
+
 /* State to update that is multiple cache lines long. */
-static word64 entropy_state[ENTROPY_NUM_WORDS] = {0};
+static word64 entropy_state[ENTROPY_NUM_WORDS + EXTRA_ENTROPY_WORDS] = {0};
 
 /* Using memory will take different amount of times depending on the CPU's
  * caches and business.
