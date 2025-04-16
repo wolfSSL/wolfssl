@@ -523,8 +523,10 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
         goto ecdh_shared_secret_end;
     }
 
+    PRIVATE_KEY_UNLOCK();
     err = wc_ecc_shared_secret(ctx->key, ecc_pub, shared_secret,
                                &shared_secret_len);
+    PRIVATE_KEY_LOCK();
 
     if (unlikely(err || shared_secret_len != ctx->curve_len)) {
         #ifdef WOLFKM_DEBUG_ECDH
