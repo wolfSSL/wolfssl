@@ -6092,6 +6092,53 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
+/* Removes the CA with the passed in subject hash from the cert manager's CA cert store. */
+int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
+{
+    Signer* current;
+    Signer* prev;
+    int     ret = 0;
+    word32  row;
+
+    if (cm == NULL || hash == NULL) {
+        return ret;
+    }
+
+    row = HashSigner(hash);
+
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        return ret;
+    }
+    current = cm->caTable[row];
+    prev = current;
+    while (current) {
+        byte* subjectHash;
+
+    #ifndef NO_SKID
+        subjectHash = current->subjectKeyIdHash;
+    #else
+        subjectHash = current->subjectNameHash;
+    #endif
+
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
+            if (current == cm->caTable[row]) {
+                cm->caTable[row] = cm->caTable[row]->next;
+            }
+            else {
+                prev->next = current->next;
+            }
+            FreeSigner(current, cm->heap);
+            ret = 1;
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    return ret;
+}
+
 #endif /* !NO_CERTS */
 
 

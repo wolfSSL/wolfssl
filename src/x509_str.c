@@ -34,6 +34,8 @@
 #ifdef OPENSSL_EXTRA
 static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                             WOLFSSL_STACK *certs, WOLFSSL_X509 *x);
+static int X509StorePopCert(WOLFSSL_STACK *certs_stack, WOLFSSL_STACK *dest_stack,
+                            WOLFSSL_X509 *cert);
 static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
                                           WOLFSSL_X509* x509, int type);
 #endif
@@ -415,10 +417,12 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int i = 0;
     int numInterAdd = 0;
     int depth = 0;
+    int origDepth = 0;
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* failedCerts = NULL;
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
@@ -427,6 +431,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     certs = ctx->store->certs;
+    if (certs == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
     if (ctx->setTrustedSk != NULL) {
         certs = ctx->setTrustedSk;
     }
@@ -450,6 +458,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
     ctx->chain = wolfSSL_sk_X509_new_null();
 
+    failedCerts = wolfSSL_sk_X509_new_null();
+    if (!failedCerts)
+        return WOLFSSL_FATAL_ERROR;
+
     if (ctx->depth > 0) {
         depth = ctx->depth + 1;
     }
@@ -458,6 +470,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     orig = ctx->current_cert;
+    origDepth = depth;
     while(done == 0 && depth > 0) {
         issuer = NULL;
 
@@ -491,12 +504,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             ret = X509StoreAddCa(ctx->store, issuer,
                                             WOLFSSL_TEMP_CA);
             if (ret != WOLFSSL_SUCCESS) {
-                goto exit;
+                goto retry;
             }
             added = 1;
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
-                goto exit;
+                if ((origDepth - depth) <= 1)
+                    added = 0;
+                goto retry;
             }
             /* Add it to the current chain and look at the issuer cert next */
             wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
@@ -515,8 +530,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     (added == 1)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
                     ret = WOLFSSL_SUCCESS;
+                } else {
+                    goto retry;
                 }
-                goto exit;
             }
 
             /* Cert verified, finish building the chain */
@@ -548,6 +564,19 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         }
 
         depth--;
+        continue;
+
+retry:
+        /* Current certificate failed, but it is possible there is an alternative
+         * cert with the same subject key which will work.  Retry until all
+         * possible candidate certs are exhausted. */
+         WOLFSSL_MSG("X509_verify_cert current cert failed, retrying with other certs.");
+         RemoveCA(ctx->store->cm, ctx->current_cert->subjKeyId);
+         X509StorePopCert(certs, failedCerts, ctx->current_cert);
+         if (numInterAdd > 0)
+            numInterAdd--;
+         ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
+         depth++;
     }
 
 exit:
@@ -570,6 +599,17 @@ exit:
     }
     if (certsToUse != NULL) {
         wolfSSL_sk_X509_free(certsToUse);
+    }
+
+    /* Copy back failed certs if verification failed. */
+    if (ret != WOLFSSL_SUCCESS) {
+        while (wolfSSL_sk_X509_num(failedCerts) > 0)
+        {
+            wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
+        }
+    }
+    if (failedCerts) {
+        wolfSSL_sk_X509_free(failedCerts);
     }
 
     return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -1049,6 +1089,22 @@ static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                 *issuer = wolfSSL_sk_X509_value(certs, i);
                 return WOLFSSL_SUCCESS;
             }
+        }
+    }
+
+    return WOLFSSL_FAILURE;
+}
+
+static int X509StorePopCert(WOLFSSL_STACK *certs_stack, WOLFSSL_STACK *dest_stack, WOLFSSL_X509 *cert) {
+    int i;
+
+    if (certs_stack == NULL || dest_stack == NULL || cert == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(certs_stack); i++) {
+        if (wolfSSL_sk_X509_value(certs_stack, i) == cert) {
+            wolfSSL_sk_X509_push(dest_stack, wolfSSL_sk_pop_node(certs_stack, i));
+            return WOLFSSL_SUCCESS;
         }
     }
 
