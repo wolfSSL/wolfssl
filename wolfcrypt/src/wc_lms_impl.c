@@ -3476,7 +3476,9 @@ static int wc_hss_sign_build_sig(LmsState* state, byte* priv_raw,
     /* Build from bottom up. */
     for (i = params->levels - 1; (ret == 0) && (i >= 0); i--) {
         byte* p = priv + i * (LMS_Q_LEN + params->hash_len + LMS_I_LEN);
+    #if !defined(WOLFSSL_LMS_MAX_LEVELS) || WOLFSSL_LMS_MAX_LEVELS > 1
         byte* root = NULL;
+    #endif
     #ifndef WOLFSSL_LMS_NO_SIG_CACHE
         int store_p = 0;
         word32 q_32 = LMS_Q_AT_LEVEL(q, params->levels, i,
@@ -3487,10 +3489,12 @@ static int wc_hss_sign_build_sig(LmsState* state, byte* priv_raw,
 
         /* Move to start of next signature at this level. */
         sig -= LMS_SIG_LEN(params->height, params->p, params->hash_len);
+    #if !defined(WOLFSSL_LMS_MAX_LEVELS) || WOLFSSL_LMS_MAX_LEVELS > 1
         if (i != 0) {
             /* Put root node into signature at this index. */
             root = sig - params->hash_len;
         }
+    #endif
 
     #ifndef WOLFSSL_LMS_NO_SIG_CACHE
         /* Check if we have a cached version of C and the p hashes that we
@@ -3526,10 +3530,12 @@ static int wc_hss_sign_build_sig(LmsState* state, byte* priv_raw,
             /* Copy the authentication path out of the private key. */
             XMEMCPY(s, priv_key->state[i].auth_path,
                 params->height * params->hash_len);
+        #if !defined(WOLFSSL_LMS_MAX_LEVELS) || WOLFSSL_LMS_MAX_LEVELS > 1
             /* Copy the root node into signature unless at top. */
             if (i != 0) {
                 XMEMCPY(root, priv_key->state[i].root, params->hash_len);
             }
+        #endif
         }
         if ((ret == 0) && (i != 0)) {
             /* Create public data for this level if there is another. */
