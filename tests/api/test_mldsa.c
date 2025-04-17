@@ -16793,7 +16793,8 @@ int test_mldsa_pkcs12(void)
     defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
     !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
     !defined(NO_CERTS) && !defined(NO_DES3) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    defined(WOLFSSL_CERT_GEN)
 
     WOLFSSL_CTX* ctx = NULL;
     word32 i;
@@ -16943,7 +16944,6 @@ int test_mldsa_pkcs12(void)
     wolfSSL_CTX_free(ctx);
     XFREE(inCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(inKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
 #endif
     return EXPECT_RESULT();
 }
