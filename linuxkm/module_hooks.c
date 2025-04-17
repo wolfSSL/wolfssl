@@ -27,8 +27,6 @@
 #endif
 #endif
 
-#define FIPS_NO_WRAPPERS
-
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
