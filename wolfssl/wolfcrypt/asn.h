@@ -1566,6 +1566,9 @@ enum CertificatePolicy_Sum {
     CP_ADO_HIGH_OID                 = 294, /* 1.2.36.1.334.1.2.1.3 */
     CP_ADO_RESOURCE_MEDIUM_OID      = 100294, /* 1.2.36.1.334.1.2.2.2 */
 
+    /* Comodo Ltd PKI OID */
+    CP_COMODO_OID                   = 100293, /* 1.3.6.1.4.1.6449.1.2.1.3.4 */
+
     /* Netherlands Ministry of Defence PKI OIDs */
     CP_NL_MOD_AUTH_OID              = 496, /* 2.16.528.1.1003.1.2.5.1 */
     CP_NL_MOD_IRREFUT_OID           = 100497, /* 2.16.528.1.1003.1.2.5.2 */
