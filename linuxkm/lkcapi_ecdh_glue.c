@@ -30,6 +30,14 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <crypto/ecdh.h>
 
+/* need misc.c for ForceZero(). */
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #define WOLFKM_ECDH_DRIVER       ("ecdh-wolfcrypt")
 
 #define WOLFKM_ECDH_P192_NAME    ("ecdh-nist-p192")
@@ -165,6 +173,24 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                WOLFKM_ECDH_DRIVER, params.key_size);
         #endif /* WOLFKM_DEBUG_ECDH */
         return -EINVAL;
+    }
+
+    if (ctx->key->type == ECC_PRIVATEKEY ||
+        ctx->key->type == ECC_PRIVATEKEY_ONLY) {
+        /* private key already set. force clear it. */
+        wc_ecc_free(ctx->key);
+
+        err = wc_ecc_init(ctx->key);
+        if (unlikely(err < 0)) {
+            return -ENOMEM;
+        }
+
+        #ifdef ECC_TIMING_RESISTANT
+        err = wc_ecc_set_rng(ctx->key, &ctx->rng);
+        if (unlikely(err < 0)) {
+            return -ENOMEM;
+        }
+        #endif /* ECC_TIMING_RESISTANT */
     }
 
     if (!params.key || !params.key_size) {
@@ -544,7 +570,11 @@ static int km_ecdh_compute_shared_secret(struct kpp_request *req)
     scatterwalk_map_and_copy(shared_secret, req->dst, 0, shared_secret_len, 1);
 
 ecdh_shared_secret_end:
-    if (shared_secret) { free(shared_secret); shared_secret = NULL; }
+    if (shared_secret) {
+        ForceZero(shared_secret, shared_secret_len);
+        free(shared_secret);
+        shared_secret = NULL;
+    }
     if (pub) { free(pub); pub = NULL; }
 
     if (ecc_pub) {
