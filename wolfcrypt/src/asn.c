@@ -38392,7 +38392,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         if (DecodeCerts(source, &idx, resp, size) < 0)
             return ASN_PARSE_E;
 
-        ret = OcspCheckCert(resp, noVerify, noVerifySignature, cm, heap);
+        ret = OcspCheckCert(resp, noVerify, noVerifySignature,
+            (WOLFSSL_CERT_MANAGER*)cm, heap);
         if (ret == 0) {
             sigValid = 1;
         }
@@ -38407,7 +38408,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     if (!noVerifySignature && !sigValid) {
         Signer* ca;
         SignatureCtx sigCtx;
-        ca = OcspFindSigner(resp, cm);
+        ca = OcspFindSigner(resp, (WOLFSSL_CERT_MANAGER*)cm);
         if (ca == NULL)
             return ASN_NO_SIGNER_E;
 
