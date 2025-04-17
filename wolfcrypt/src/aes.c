@@ -233,7 +233,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 
 #ifdef HAVE_AES_DECRYPT
-    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
+    #if defined(WOLFSSL_AES_DIRECT)
     static WARN_UNUSED_RESULT int wc_AesDecrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
@@ -340,7 +340,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
         return ret;
     }
-    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESCCM */
+    #endif /* WOLFSSL_AES_DIRECT */
 #endif /* HAVE_AES_DECRYPT */
 
 #elif defined(HAVE_COLDFIRE_SEC)
