@@ -26,6 +26,24 @@ This library contains implementation for the random number generator.
 
 */
 
+/* Possible defines:
+ *   ENTROPY_NUM_UPDATE                                         default: 18
+ *     Number of updates to perform. A hash is created and memory accessed
+ *     based on the hash values in each update of a sample.
+ *     More updates will result in better entropy quality but longer sample
+ *     times.
+ *   ENTROPY_NUM_UPDATES_BITS                                   default: 5
+ *     Number of bits needed to represent ENTROPY_NUM_UPDATE.
+ *      = upper(log2(ENTROPY_NUM_UPDATE))
+ *   ENTROPY_NUM_WORDS_BITS                                     default: 14
+ *     State has 2^ENTROPY_NUMN_WORDS_BITS entries.             Range: 8-30
+ *     The value should be based on the cache sizes.
+ *     Use a value that is at least as large as the L1 cache if possible.
+ *     The higher the value, the more likely there will be cache misses and
+ *     better the entropy quality.
+ *     A larger value will use more static memory.
+ */
+
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 /* on HPUX 11 you may need to install /dev/random see
@@ -788,8 +806,13 @@ static wc_Sha3 entropyHash;
 /* Reset the health tests. */
 static void Entropy_HealthTest_Reset(void);
 
-#if !defined(ENTROPY_MEMUSE_THREAD) && \
-    (defined(__x86_64__) || defined(__i386__))
+#ifdef CUSTOM_ENTROPY_TIMEHIRES
+static WC_INLINE word64 Entropy_TimeHiRes(void)
+{
+    return CUSTOM_ENTROPY_TIMEHIRES();
+}
+#elif !defined(ENTROPY_MEMUSE_THREAD) && \
+      (defined(__x86_64__) || defined(__i386__))
 /* Get the high resolution time counter.
  *
  * @return  64-bit count of CPU cycles.
@@ -1027,9 +1050,18 @@ static void Entropy_StopThread(void)
 #elif !defined(ENTROPY_NUM_UPDATES_BITS)
     #define ENTROPY_NUM_UPDATES_BITS     ENTROPY_BLOCK_SZ
 #endif
-/* Amount to shift offset to get better coverage of a block */
-#define ENTROPY_OFFSET_SHIFTING          \
-    (ENTROPY_BLOCK_SZ / ENTROPY_NUM_UPDATES_BITS)
+#ifndef ENTROPY_NUM_UPDATES_BITS
+    #error "ENTROPY_NUM_UPDATES_BITS must be defined - " \
+           "upper(log2(ENTROPY_NUM_UPDATES))"
+#endif
+#if ENTROPY_NUM_UPDATES_BITS != 0
+    /* Amount to shift offset to get better coverage of a block */
+    #define ENTROPY_OFFSET_SHIFTING          \
+        (ENTROPY_BLOCK_SZ / ENTROPY_NUM_UPDATES_BITS)
+#else
+    /* Amount to shift offset to get better coverage of a block */
+    #define ENTROPY_OFFSET_SHIFTING          ENTROPY_BLOCK_SZ
+#endif
 
 #ifndef ENTROPY_NUM_64BIT_WORDS
     /* Number of 64-bit words to update - 32. */
@@ -1038,8 +1070,14 @@ static void Entropy_StopThread(void)
     #error "ENTROPY_NUM_64BIT_WORDS must be <= SHA3-256 digest size in bytes"
 #endif
 
+#if ENTROPY_BLOCK_SZ < ENTROPY_NUM_UPDATES_BITS
+#define EXTRA_ENTROPY_WORDS             ENTROPY_NUM_UPDATES
+#else
+#define EXTRA_ENTROPY_WORDS             0
+#endif
+
 /* State to update that is multiple cache lines long. */
-static word64 entropy_state[ENTROPY_NUM_WORDS] = {0};
+static word64 entropy_state[ENTROPY_NUM_WORDS + EXTRA_ENTROPY_WORDS] = {0};
 
 /* Using memory will take different amount of times depending on the CPU's
  * caches and business.
