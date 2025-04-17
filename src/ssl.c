@@ -2882,23 +2882,32 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 #ifdef HAVE_ECC
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
+    int keySzBytes;
+
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
-    if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
+    if (ctx == NULL || keySz < 0) {
+        WOLFSSL_MSG("Key size must be positive value or ctx was null");
         return BAD_FUNC_ARG;
+    }
+
+    if (keySz % 8 == 0) {
+        keySzBytes = keySz / 8;
+    }
+    else {
+        keySzBytes = (keySz / 8) + 1;
     }
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     if (crypto_policy.enabled) {
-        if (ctx->minEccKeySz > (keySz / 8)) {
+        if (ctx->minEccKeySz > (keySzBytes)) {
             return CRYPTO_POLICY_FORBIDDEN;
         }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    ctx->minEccKeySz     = keySz / 8;
+    ctx->minEccKeySz     = keySzBytes;
 #ifndef NO_CERTS
-    ctx->cm->minEccKeySz = keySz / 8;
+    ctx->cm->minEccKeySz = keySzBytes;
 #endif
     return WOLFSSL_SUCCESS;
 }
@@ -2906,21 +2915,30 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
+    int keySzBytes;
+
     WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
-    if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
+    if (ssl == NULL || keySz < 0) {
+        WOLFSSL_MSG("Key size must be positive value or ctx was null");
         return BAD_FUNC_ARG;
+    }
+
+    if (keySz % 8 == 0) {
+        keySzBytes = keySz / 8;
+    }
+    else {
+        keySzBytes = (keySz / 8) + 1;
     }
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     if (crypto_policy.enabled) {
-        if (ssl->options.minEccKeySz > (keySz / 8)) {
+        if (ssl->options.minEccKeySz > (keySzBytes)) {
             return CRYPTO_POLICY_FORBIDDEN;
         }
     }
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
-    ssl->options.minEccKeySz = keySz / 8;
+    ssl->options.minEccKeySz = keySzBytes;
     return WOLFSSL_SUCCESS;
 }
 
