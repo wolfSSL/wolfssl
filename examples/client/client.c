@@ -2960,13 +2960,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 #endif
 
-#if defined(WOLFSSL_TLS13) &&  defined(HAVE_SUPPORTED_CURVES) && \
-    defined(HAVE_PQC)
+#if defined(HAVE_PQC)
             case 259:
+            {
                 usePqc = 1;
+    #if defined(WOLFSSL_TLS13) &&  defined(HAVE_SUPPORTED_CURVES)
                 onlyKeyShare = 3;
+    #endif
                 pqcAlg = myoptarg;
-                break;
+            }
+            break;
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
             case 263:
