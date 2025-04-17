@@ -6093,7 +6093,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 }
 
 /* Removes the CA with the passed in subject hash from the cert manager's CA cert store. */
-int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
+int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, byte type)
 {
     Signer* current;
     Signer* prev;
@@ -6120,7 +6120,8 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash)
         subjectHash = current->subjectNameHash;
     #endif
 
-        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
+        if ((current->type == type) &&
+            (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0)) {
             if (current == cm->caTable[row]) {
                 cm->caTable[row] = cm->caTable[row]->next;
             }
