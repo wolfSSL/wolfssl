@@ -252,7 +252,8 @@ decouple library dependencies with standard string, memory and so on.
          #endif
     #endif
 
-    #if (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
+    #if (defined(_MSC_VER) && (_MSC_VER == 1200)) ||  /* MSVC6 */ \
+        (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
            defined(__BCPLUSPLUS__) || \
            (defined(__WATCOMC__) && defined(__WATCOM_INT64__))
         /* windows types */
