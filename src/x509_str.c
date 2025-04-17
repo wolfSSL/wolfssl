@@ -571,7 +571,7 @@ retry:
          * cert with the same subject key which will work.  Retry until all
          * possible candidate certs are exhausted. */
          WOLFSSL_MSG("X509_verify_cert current cert failed, retrying with other certs.");
-         RemoveCA(ctx->store->cm, ctx->current_cert->subjKeyId);
+         RemoveCA(ctx->store->cm, ctx->current_cert->subjKeyId, WOLFSSL_TEMP_CA);
          X509StorePopCert(certs, failedCerts, ctx->current_cert);
          if (numInterAdd > 0)
             numInterAdd--;
