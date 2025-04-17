@@ -28,5 +28,4 @@ int test_wolfSSL_dtls_cid_parse(void);
 int test_dtls13_epochs(void);
 int test_dtls13_ack_order(void);
 int test_dtls_record_length_mismatch(void);
-
 #endif /* TESTS_API_DTLS_H */

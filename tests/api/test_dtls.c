@@ -876,6 +876,64 @@ static int test_dtls13_short_read(void)
 
 #endif /* WOLFSSL_DTLS13 */
 
+static int test_dtls_short_ciphertext(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char readBuf[50];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
+        0);
+
+    /* Complete handshake */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /* Create a message, that looks encrypted but shorter than minimum ciphertext length */
+    /* create the data in the buffer */
+    ExpectIntEQ(wolfSSL_write(ssl_c, "bad", 3), 3);
+
+    /* check client wrote the record */
+    ExpectIntGT(test_ctx.s_len, 14);
+
+    /* modify the length field to be smaller than the content */
+    test_ctx.s_buff[11] = 0x00;
+    test_ctx.s_buff[12] = 0x02;
+    /* modify the amount of data to send */
+    test_ctx.s_len = 15;
+
+    /* Try to read the malformed record */
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.s_len, 0);
+
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+
+    /* Cleanup */
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+    wolfSSL_SetLoggingPrefix("client");
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
+    wolfSSL_SetLoggingPrefix("server");
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
+
+    wolfSSL_SetLoggingPrefix(NULL);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+
 static int test_dtls12_short_read(void)
 {
     EXPECT_DECLS;
@@ -982,6 +1040,7 @@ int test_dtls_record_length_mismatch(void)
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
     ExpectIntEQ(test_dtls12_record_length_mismatch(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls12_short_read(), TEST_SUCCESS);
+    ExpectIntEQ(test_dtls_short_ciphertext(), TEST_SUCCESS);
 #ifdef WOLFSSL_DTLS13
     ExpectIntEQ(test_dtls13_longer_length(), TEST_SUCCESS);
     ExpectIntEQ(test_dtls13_short_read(), TEST_SUCCESS);
