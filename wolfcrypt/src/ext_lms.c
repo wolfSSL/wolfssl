@@ -1043,4 +1043,12 @@ int wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
     return 0;
 }
 
+const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
+{
+    if ((priv == NULL) || (privSz < 16)) {
+        return NULL;
+    }
+    return priv - 16;
+}
+
 #endif /* WOLFSSL_HAVE_LMS && HAVE_LIBLMS */

@@ -1258,4 +1258,28 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     return ret;
 }
 
+/* Get the Key ID from the raw private key data.
+ *
+ * PRIV = Q | PARAMS | SEED | I
+ * where I is the Key ID.
+ *
+ * @param [in] priv    Private key data.
+ * @param [in] privSz  Size of private key data.
+ * @param  Pointer to 16 byte Key ID in the private key.
+ * @return  NULL on failure.
+ */
+const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
+{
+    word32 seedSz = privSz - LMS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN - LMS_I_LEN;
+
+    if (priv == NULL) {
+        return NULL;
+    }
+    if ((seedSz != WC_SHA256_192_DIGEST_SIZE) &&
+            (seedSz != WC_SHA256_DIGEST_SIZE)) {
+        return NULL;
+    }
+    return priv - LMS_I_LEN;
+}
+
 #endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
