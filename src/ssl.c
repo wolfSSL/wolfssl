@@ -2882,7 +2882,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 #ifdef HAVE_ECC
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
-    int keySzBytes;
+    short keySzBytes;
 
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
     if (ctx == NULL || keySz < 0) {
@@ -2915,7 +2915,7 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
-    int keySzBytes;
+    short keySzBytes;
 
     WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
     if (ssl == NULL || keySz < 0) {
