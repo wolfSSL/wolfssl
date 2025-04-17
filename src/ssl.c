@@ -6150,6 +6150,8 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, byte type)
     int     ret = 0;
     word32  row;
 
+    WOLFSSL_MSG("Removing a CA");
+
     if (cm == NULL || hash == NULL) {
         return ret;
     }
@@ -6186,6 +6188,8 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, byte type)
         current = current->next;
     }
     wc_UnLockMutex(&cm->caLock);
+
+    WOLFSSL_LEAVE("RemoveCA", ret);
 
     return ret;
 }
