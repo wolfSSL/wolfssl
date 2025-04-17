@@ -4748,6 +4748,11 @@ static const byte extCertPolicyIsrgDomainValid[] =
     static const byte extCertPolicyAdoResourceMediumAssuranceOid[] =
             ADO_POLICY_TYPE_OID_BASE(2, 2);
 
+    /* Comodo Ltd PKI OID  1.3.6.1.4.1.6449.1.2.1.3.4 */
+    #define COMODO_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 178, 49, 1, 2, 1, 3, num}
+    static const byte extCertPolicyComodoLtdOid[] =
+            COMODO_POLICY_TYPE_OID_BASE(4);
+
     /* Netherlands Ministry of Defence PKI OIDs - 2.16.528.1.1003.1.2.5.X */
     #define NL_MOD_POLICY_TYPE_OID_BASE(num) {96, 132, 16, 1, 135, 107, 1, 2, 5, num}
     static const byte extCertPolicyNlModAuthenticityOid[] =
@@ -5994,6 +5999,11 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyCertipathVarHighhwOid;
                     *oidSz = sizeof(extCertPolicyCertipathVarHighhwOid);
                     break;
+                case CP_COMODO_OID:
+                    oid = extCertPolicyComodoLtdOid;
+                    *oidSz = sizeof(extCertPolicyComodoLtdOid);
+                    break;
+                /* FPKI OIDs */
                 #endif /* WOLFSSL_FPKI */
                 default:
                     break;
@@ -6620,6 +6630,12 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
 
     switch (oidSum) {
+        case CP_ADO_MEDIUM_OID:
+            if ((word32)sizeof(extCertPolicyComodoLtdOid) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyComodoLtdOid,
+            sizeof(extCertPolicyComodoLtdOid)) == 0)
+                return CP_COMODO_OID;
+            break;
         case CP_FPKI_COMMON_DEVICES_HARDWARE_OID:
             if ((word32)sizeof(extCertPolicyDodPeerInteropOid) == (word32)oidSz &&
             XMEMCMP(oid, extCertPolicyDodPeerInteropOid,
