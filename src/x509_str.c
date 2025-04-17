@@ -573,13 +573,22 @@ retry:
          WOLFSSL_MSG("X509_verify_cert current cert failed, retrying with other certs.");
          RemoveCA(ctx->store->cm, ctx->current_cert->subjKeyId, WOLFSSL_TEMP_CA);
          X509StorePopCert(certs, failedCerts, ctx->current_cert);
-         if (numInterAdd > 0)
-            numInterAdd--;
          ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
          depth++;
     }
 
 exit:
+    /* Copy back failed certs if verification failed. */
+    if (ret != WOLFSSL_SUCCESS) {
+        while (wolfSSL_sk_X509_num(failedCerts) > 0)
+        {
+            wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
+        }
+    }
+    if (failedCerts) {
+        wolfSSL_sk_X509_free(failedCerts);
+    }
+
     /* Remove additional intermediates from init from the store */
     if (ctx != NULL && numInterAdd > 0) {
         for (i = 0; i < numInterAdd; i++) {
@@ -599,17 +608,6 @@ exit:
     }
     if (certsToUse != NULL) {
         wolfSSL_sk_X509_free(certsToUse);
-    }
-
-    /* Copy back failed certs if verification failed. */
-    if (ret != WOLFSSL_SUCCESS) {
-        while (wolfSSL_sk_X509_num(failedCerts) > 0)
-        {
-            wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
-        }
-    }
-    if (failedCerts) {
-        wolfSSL_sk_X509_free(failedCerts);
     }
 
     return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -1103,7 +1101,7 @@ static int X509StorePopCert(WOLFSSL_STACK *certs_stack, WOLFSSL_STACK *dest_stac
 
     for (i = 0; i < wolfSSL_sk_X509_num(certs_stack); i++) {
         if (wolfSSL_sk_X509_value(certs_stack, i) == cert) {
-            wolfSSL_sk_X509_push(dest_stack, wolfSSL_sk_pop_node(certs_stack, i));
+            wolfSSL_sk_X509_push(dest_stack, (WOLFSSL_X509*)wolfSSL_sk_pop_node(certs_stack, i));
             return WOLFSSL_SUCCESS;
         }
     }
