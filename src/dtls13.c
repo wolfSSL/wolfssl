@@ -1959,6 +1959,9 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
 
 end:
     ForceZero(key_dig, MAX_PRF_DIG);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(key_dig, sizeof(key_dig));
+#endif
     return ret;
 }
 
