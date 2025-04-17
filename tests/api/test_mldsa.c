@@ -16748,6 +16748,9 @@ int test_mldsa_pkcs8(void)
             0);
         ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
 
+        if (EXPECT_FAIL())
+            break;
+
         keySz = 0;
         temp[0] = 0x04;  /* ASN.1 OCTET STRING */
         temp[1] = 0x82;  /* 2 bytes length field */
