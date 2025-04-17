@@ -1484,6 +1484,9 @@ enum CertificatePolicy_Sum {
     CP_ECA_MEDIUM_HARDWARE_SHA256_OID = 432, /* 2.16.840.1.101.3.2.1.12.10 */
 
     /* Department of State PKI OIDs */
+    CP_STATE_BASIC_OID              = 100417, /* 2.16.840.1.101.3.2.1.6.1 */
+    CP_STATE_LOW_OID                = 418,    /* 2.16.840.1.101.3.2.1.6.2 */
+    CP_STATE_MODERATE_OID           = 100419, /* 2.16.840.1.101.3.2.1.6.3 */
     CP_STATE_HIGH_OID               = 100420, /* 2.16.840.1.101.3.2.1.6.4 */
     CP_STATE_MEDHW_OID              = 101428, /* 2.16.840.1.101.3.2.1.6.12 */
     CP_STATE_MEDDEVHW_OID           = 101454, /* 2.16.840.1.101.3.2.1.6.38 */
