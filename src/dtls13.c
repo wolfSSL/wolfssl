@@ -1768,7 +1768,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         return ret;
     }
 
-    ret = Dtls13CheckEpoch(ssl, handshakeType);
+    ret = Dtls13CheckEpoch(ssl, (enum HandShakeType)handshakeType);
     if (ret != 0) {
         WOLFSSL_ERROR(ret);
         return ret;
