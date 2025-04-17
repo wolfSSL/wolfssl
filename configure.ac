@@ -9404,7 +9404,7 @@ then
     for lkcapi_alg in $(echo "$ENABLED_LINUXKM_LKCAPI_REGISTER" | tr ',' ' ')
     do
         case "$lkcapi_alg" in
-        all) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL"           ;;
+        all) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL -DWC_RSA_NO_PADDING" ;;
         'cbc(aes)') test "$ENABLED_AESCBC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CBC implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCBC" ;;
         'cfb(aes)') test "$ENABLED_AESCFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CFB implementation not enabled.])
@@ -9425,7 +9425,7 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ECDSA" ;;
         'ecdh')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ECDH" ;;
         'rsa')      test "$ENABLED_RSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: RSA implementation not enabled.])
-                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA" ;;
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA -DWC_RSA_NO_PADDING" ;;
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
         '-cfb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCFB" ;;

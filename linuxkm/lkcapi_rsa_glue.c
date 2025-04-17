@@ -33,11 +33,9 @@
     #error LINUXKM_LKCAPI_REGISTER_RSA and RSA_VERIFY_ONLY not supported
 #endif /* WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_RSA_PUBLIC_ONLY */
 
-#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WC_RSA_NO_PADDING
     #define LINUXKM_DIRECT_RSA
-#endif /* WC_RSA_DIRECT || WC_RSA_NO_PADDING || OPENSSL_EXTRA ||
-        * OPENSSL_EXTRA_X509_SMALL */
+#endif /* WC_RSA_NO_PADDING */
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/rsa.h>
