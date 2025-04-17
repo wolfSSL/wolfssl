@@ -431,9 +431,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     certs = ctx->store->certs;
-    if (certs == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
 
     if (ctx->setTrustedSk != NULL) {
         certs = ctx->setTrustedSk;
