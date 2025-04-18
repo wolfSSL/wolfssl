@@ -586,6 +586,10 @@ static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context,
     int ret;
     byte seq_bytes[HPKE_Nn_MAX];
 
+    if (hpke == NULL || context == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* convert the sequence into a byte string with the same length as the
      * nonce */
     ret = I2OSP(context->seq, (int)hpke->Nn, seq_bytes);
