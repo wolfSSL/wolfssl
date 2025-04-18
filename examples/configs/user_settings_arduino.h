@@ -92,9 +92,13 @@
 #elif defined(WOLFSSL_SERVER_EXAMPLE)
     #define NO_WOLFSSL_CLIENT
 #elif defined(WOLFSSL_TEMPLATE_EXAMPLE)
+    #define NO_TLS
+    #define WOLFCRYPT_ONLY
     #define NO_WOLFSSL_SERVER
     #define NO_WOLFSSL_CLIENT
 #elif defined(WOLFSSL_AES_CTR_EXAMPLE)
+    #define NO_TLS
+    #define WOLFCRYPT_ONLY
     #define NO_WOLFSSL_SERVER
     #define NO_WOLFSSL_CLIENT
     #define WOLFSSL_AES

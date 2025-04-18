@@ -316,6 +316,7 @@
 
     /* board-specific */
     #if defined(__AVR__)
+        #define WOLFSSL_USER_IO
         #define WOLFSSL_NO_SOCK
         #define NO_WRITEV
     #elif defined(__arm__)
