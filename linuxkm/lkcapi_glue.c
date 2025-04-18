@@ -176,9 +176,44 @@ WC_MAYBE_UNUSED static int check_aead_driver_masking(struct crypto_aead *tfm, co
 #endif
 }
 
+WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, const char *alg_name, const char *expected_driver_name) {
+#ifdef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+    (void)tfm; (void)alg_name; (void)expected_driver_name;
+    return 0;
+#else
+    const char *actual_driver_name;
+    int ret;
+    int alloced_tfm = 0;
+
+    if (! tfm) {
+        alloced_tfm = 1;
+        tfm = crypto_alloc_shash(alg_name, 0, 0);
+    }
+    if (IS_ERR(tfm)) {
+        pr_err("error: allocating shash algorithm %s failed: %ld\n",
+               alg_name, PTR_ERR(tfm));
+        return -EINVAL;
+    }
+    actual_driver_name = crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));
+    if (strcmp(actual_driver_name, expected_driver_name)) {
+        pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+               alg_name, actual_driver_name, expected_driver_name);
+        ret = -ENOENT;
+    } else
+        ret = 0;
+
+    if (alloced_tfm)
+        crypto_free_shash(tfm);
+
+    return ret;
+#endif
+}
+
 #ifndef NO_AES
     #include "lkcapi_aes_glue.c"
 #endif
+
+#include "lkcapi_sha_glue.c"
 
 #ifdef HAVE_ECC
     #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA)) && \
@@ -350,6 +385,64 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecbAesAlg, crypto_register_skcipher, linuxkm_test_aesecb);
 #endif
 
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
+    REGISTER_ALG(sha1_alg, crypto_register_shash, linuxkm_test_sha1);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
+    REGISTER_ALG(sha2_224_alg, crypto_register_shash, linuxkm_test_sha2_224);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
+    REGISTER_ALG(sha2_256_alg, crypto_register_shash, linuxkm_test_sha2_256);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
+    REGISTER_ALG(sha2_384_alg, crypto_register_shash, linuxkm_test_sha2_384);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
+    REGISTER_ALG(sha2_512_alg, crypto_register_shash, linuxkm_test_sha2_512);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
+    REGISTER_ALG(sha3_224_alg, crypto_register_shash, linuxkm_test_sha3_224);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
+    REGISTER_ALG(sha3_256_alg, crypto_register_shash, linuxkm_test_sha3_256);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
+    REGISTER_ALG(sha3_384_alg, crypto_register_shash, linuxkm_test_sha3_384);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
+    REGISTER_ALG(sha3_512_alg, crypto_register_shash, linuxkm_test_sha3_512);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
+    REGISTER_ALG(sha1_hmac_alg, crypto_register_shash, linuxkm_test_sha1_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
+    REGISTER_ALG(sha2_224_hmac_alg, crypto_register_shash, linuxkm_test_sha2_224_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
+    REGISTER_ALG(sha2_256_hmac_alg, crypto_register_shash, linuxkm_test_sha2_256_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
+    REGISTER_ALG(sha2_384_hmac_alg, crypto_register_shash, linuxkm_test_sha2_384_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
+    REGISTER_ALG(sha2_512_hmac_alg, crypto_register_shash, linuxkm_test_sha2_512_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
+    REGISTER_ALG(sha3_224_hmac_alg, crypto_register_shash, linuxkm_test_sha3_224_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
+    REGISTER_ALG(sha3_256_hmac_alg, crypto_register_shash, linuxkm_test_sha3_256_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
+    REGISTER_ALG(sha3_384_hmac_alg, crypto_register_shash, linuxkm_test_sha3_384_hmac);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
+    REGISTER_ALG(sha3_512_hmac_alg, crypto_register_shash, linuxkm_test_sha3_512_hmac);
+#endif
+
+
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECC192)
     REGISTER_ALG(ecdsa_nist_p192, crypto_register_akcipher,
@@ -444,6 +537,64 @@ static void linuxkm_lkcapi_unregister(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     UNREGISTER_ALG(ecbAesAlg, crypto_unregister_skcipher);
 #endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
+    UNREGISTER_ALG(sha1_alg, crypto_unregister_shash);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
+    UNREGISTER_ALG(sha2_224_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
+    UNREGISTER_ALG(sha2_256_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
+    UNREGISTER_ALG(sha2_384_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
+    UNREGISTER_ALG(sha2_512_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
+    UNREGISTER_ALG(sha3_224_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
+    UNREGISTER_ALG(sha3_256_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
+    UNREGISTER_ALG(sha3_384_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
+    UNREGISTER_ALG(sha3_512_alg, crypto_unregister_shash);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
+    UNREGISTER_ALG(sha1_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
+    UNREGISTER_ALG(sha2_224_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
+    UNREGISTER_ALG(sha2_256_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
+    UNREGISTER_ALG(sha2_384_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
+    UNREGISTER_ALG(sha2_512_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
+    UNREGISTER_ALG(sha3_224_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
+    UNREGISTER_ALG(sha3_256_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
+    UNREGISTER_ALG(sha3_384_hmac_alg, crypto_unregister_shash);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
+    UNREGISTER_ALG(sha3_512_hmac_alg, crypto_unregister_shash);
+#endif
+
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECC192)

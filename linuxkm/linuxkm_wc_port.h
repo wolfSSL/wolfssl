@@ -293,6 +293,7 @@
         #include <linux/scatterlist.h>
         #include <crypto/scatterwalk.h>
         #include <crypto/internal/aead.h>
+        #include <crypto/internal/hash.h>
         #include <crypto/internal/skcipher.h>
         #include <crypto/internal/akcipher.h>
         #include <crypto/internal/kpp.h>
