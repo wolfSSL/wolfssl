@@ -316,7 +316,7 @@ static int km_ecdsa_nist_p521_init(struct crypto_akcipher *tfm)
 }
 #endif /* HAVE_ECC521 */
 
-/**
+/*
  * Verify an ecdsa_nist signature.
  *
  * The total size of req->src is src_len + dst_len:
@@ -326,7 +326,7 @@ static int km_ecdsa_nist_p521_init(struct crypto_akcipher *tfm)
  * dst should be null.
  * See kernel:
  *   - include/crypto/akcipher.h
- * */
+ */
 static int km_ecdsa_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
@@ -358,26 +358,18 @@ static int km_ecdsa_verify(struct akcipher_request *req)
         goto ecdsa_verify_end;
     }
 
-    sig = malloc(sig_len);
+    sig = malloc(sig_len + hash_len);
     if (unlikely(sig == NULL)) {
         err = -ENOMEM;
         goto ecdsa_verify_end;
     }
 
-    hash = malloc(hash_len);
-    if (unlikely(hash == NULL)) {
-        err = -ENOMEM;
-        goto ecdsa_verify_end;
-    }
+    hash = sig + sig_len;
 
-    memset(sig, 0, sig_len);
-    memset(hash, 0, hash_len);
+    memset(sig, 0, sig_len + hash_len);
 
-    /* copy sig from req->src to sig */
-    scatterwalk_map_and_copy(sig, req->src, 0, sig_len, 0);
-
-    /* copy hash from req->src to hash */
-    scatterwalk_map_and_copy(hash, req->src, sig_len, hash_len, 0);
+    /* copy sig and hash from req->src to sig and contiguous hash buffer. */
+    scatterwalk_map_and_copy(sig, req->src, 0, sig_len + hash_len, 0);
 
     err = wc_ecc_verify_hash(sig, sig_len, hash, hash_len, &result, ctx->key);
 
@@ -401,7 +393,6 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 
 ecdsa_verify_end:
     if (sig != NULL) { free(sig); sig = NULL; }
-    if (hash != NULL) { free(hash); hash = NULL; }
 
     #ifdef WOLFKM_DEBUG_ECDSA
     pr_info("info: exiting km_ecdsa_verify: %d\n", result);
@@ -416,7 +407,7 @@ static int linuxkm_test_ecdsa_nist_p192(void)
     /* reference value from kernel crypto/testmgr.h
      * OID_id_ecdsa_with_sha256 */
     /* 49 byte pub key */
-    const byte p192_pub[] = {
+    static const byte p192_pub[] = {
         0x04, 0xe2, 0x51, 0x24, 0x9b, 0xf7, 0xb6, 0x32,
         0x82, 0x39, 0x66, 0x3d, 0x5b, 0xec, 0x3b, 0xae,
         0x0c, 0xd5, 0xf2, 0x67, 0xd1, 0xc7, 0xe1, 0x02,
@@ -427,7 +418,7 @@ static int linuxkm_test_ecdsa_nist_p192(void)
     };
 
     /* 32 byte hash */
-    const byte hash[] = {
+    static const byte hash[] = {
         0x35, 0xec, 0xa1, 0xa0, 0x9e, 0x14, 0xde, 0x33,
         0x03, 0xb6, 0xf6, 0xbd, 0x0c, 0x2f, 0xb2, 0xfd,
         0x1f, 0x27, 0x82, 0xa5, 0xd7, 0x70, 0x3f, 0xef,
@@ -435,7 +426,7 @@ static int linuxkm_test_ecdsa_nist_p192(void)
     };
 
     /* 55 byte sig */
-    const byte sig[] = {
+    static const byte sig[] = {
         0x30, 0x35, 0x02, 0x18, 0x3f, 0x72, 0x3f, 0x1f,
         0x42, 0xd2, 0x3f, 0x1d, 0x6b, 0x1a, 0x58, 0x56,
         0xf1, 0x8f, 0xf7, 0xfd, 0x01, 0x48, 0xfb, 0x5f,
@@ -467,7 +458,7 @@ static int linuxkm_test_ecdsa_nist_p256(void)
     /* reference value from kernel crypto/testmgr.h
      * OID_id_ecdsa_with_sha256 */
     /* 65 byte pub key */
-    const byte p256_pub[] = {
+    static const byte p256_pub[] = {
         0x04, 0xf1, 0xea, 0xc4, 0x53, 0xf3, 0xb9, 0x0e,
         0x9f, 0x7e, 0xad, 0xe3, 0xea, 0xd7, 0x0e, 0x0f,
         0xd6, 0x98, 0x9a, 0xca, 0x92, 0x4d, 0x0a, 0x80,
@@ -480,7 +471,7 @@ static int linuxkm_test_ecdsa_nist_p256(void)
     };
 
     /* 32 byte hash */
-    const byte hash[] = {
+    static const byte hash[] = {
         0x8f, 0x43, 0x43, 0x46, 0x64, 0x8f, 0x6b, 0x96,
         0xdf, 0x89, 0xdd, 0xa9, 0x01, 0xc5, 0x17, 0x6b,
         0x10, 0xa6, 0xd8, 0x39, 0x61, 0xdd, 0x3c, 0x1a,
@@ -488,7 +479,7 @@ static int linuxkm_test_ecdsa_nist_p256(void)
     };
 
     /* 71 byte sig */
-    const byte sig[] = {
+    static const byte sig[] = {
         0x30, 0x45, 0x02, 0x20, 0x08, 0x31, 0xfa, 0x74,
         0x0d, 0x1d, 0x21, 0x5d, 0x09, 0xdc, 0x29, 0x63,
         0xa8, 0x1a, 0xad, 0xfc, 0xac, 0x44, 0xc3, 0xe8,
@@ -520,7 +511,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     /* reference value from kernel crypto/testmgr.h
      * OID_id_ecdsa_with_sha384 */
     /* 97 byte pub key */
-    const byte p384_pub[] = {
+    static const byte p384_pub[] = {
         0x04, 0x3a, 0x2f, 0x62, 0xe7, 0x1a, 0xcf, 0x24,
         0xd0, 0x0b, 0x7c, 0xe0, 0xed, 0x46, 0x0a, 0x4f,
         0x74, 0x16, 0x43, 0xe9, 0x1a, 0x25, 0x7c, 0x55,
@@ -537,7 +528,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     };
 
     /* 48 byte hash */
-    const byte hash[] = {
+    static const byte hash[] = {
         0x8d, 0xf2, 0xc0, 0xe9, 0xa8, 0xf3, 0x8e, 0x44,
         0xc4, 0x8c, 0x1a, 0xa0, 0xb8, 0xd7, 0x17, 0xdf,
         0xf2, 0x37, 0x1b, 0xc6, 0xe3, 0xf5, 0x62, 0xcc,
@@ -547,7 +538,7 @@ static int linuxkm_test_ecdsa_nist_p384(void)
     };
 
     /* 104 byte sig */
-    const byte sig[] = {
+    static const byte sig[] = {
         0x30, 0x66, 0x02, 0x31, 0x00, 0x9b, 0x28, 0x68,
         0xc0, 0xa1, 0xea, 0x8c, 0x50, 0xee, 0x2e, 0x62,
         0x35, 0x46, 0xfa, 0x00, 0xd8, 0x2d, 0x7a, 0x91,
@@ -584,7 +575,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     /* reference value from kernel crypto/testmgr.h
      * OID_id_ecdsa_with_sha521 */
     /* 133 byte pub key */
-    const byte p521_pub[] = {
+    static const byte p521_pub[] = {
         0x04, 0x00, 0xc7, 0x65, 0xee, 0x0b, 0x86, 0x7d,
         0x8f, 0x02, 0xf1, 0x74, 0x5b, 0xb0, 0x4c, 0x3f,
         0xa6, 0x35, 0x60, 0x9f, 0x55, 0x23, 0x11, 0xcc,
@@ -605,7 +596,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     };
 
     /* 64 byte hash */
-    const byte hash[] = {
+    static const byte hash[] = {
         0x5c, 0xa6, 0xbc, 0x79, 0xb8, 0xa0, 0x1e, 0x11,
         0x83, 0xf7, 0xe9, 0x05, 0xdf, 0xba, 0xf7, 0x69,
         0x97, 0x22, 0x32, 0xe4, 0x94, 0x7c, 0x65, 0xbd,
@@ -617,7 +608,7 @@ static int linuxkm_test_ecdsa_nist_p521(void)
     };
 
     /* 139 byte sig */
-    const byte sig[] = {
+    static const byte sig[] = {
         0x30, 0x81, 0x88, 0x02, 0x42, 0x01, 0x5c, 0x71,
         0x86, 0x96, 0xac, 0x21, 0x33, 0x7e, 0x4e, 0xaa,
         0x86, 0xec, 0xa8, 0x05, 0x03, 0x52, 0x56, 0x63,
@@ -664,11 +655,26 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
     struct scatterlist        src_tab[2];
+    byte *                    param_copy = NULL;
     byte *                    bad_sig = NULL;
-    /**
+
+    /* Allocate param_copy -- scatterwalk_map_and_copy() unmaps the buffers in
+     * the sg list, so we can't safely use the passed pointers directly.
+     */
+    param_copy = (byte *)malloc(sig_len + hash_len);
+    if (! param_copy) {
+        pr_err("error: allocating param_copy buffer failed.\n");
+        goto test_ecdsa_nist_end;
+    }
+    memcpy(param_copy, sig, sig_len);
+    sig = param_copy;
+    memcpy(param_copy + sig_len, hash, hash_len);
+    hash = param_copy + sig_len;
+
+    /*
      * Allocate the akcipher transform, and set up
      * the akcipher request.
-     * */
+     */
     tfm = crypto_alloc_akcipher(driver, 0, 0);
     if (IS_ERR(tfm)) {
         pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
@@ -699,14 +705,15 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         }
     }
 
-    /**
+    /*
      * Set sig as src, and null as dst.
      * src_tab is:
      *   src_tab[0]: signature
      *   src_tab[1]: message (hash)
      *
      * src_len is sig size
-     * dst_len is hash size. */
+     * dst_len is hash size.
+     */
     sg_init_table(src_tab, 2);
     sg_set_buf(&src_tab[0], sig, sig_len);
     sg_set_buf(&src_tab[1], hash, hash_len);
@@ -747,6 +754,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
 test_ecdsa_nist_end:
     if (req) { akcipher_request_free(req); req = NULL; }
     if (tfm) { crypto_free_akcipher(tfm); tfm = NULL; }
+    if (param_copy) { free(param_copy); }
     if (bad_sig) { free(bad_sig); bad_sig = NULL; }
 
     #ifdef WOLFKM_DEBUG_ECDSA

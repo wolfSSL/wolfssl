@@ -26,6 +26,10 @@
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+    #error LINUXKM_LKCAPI_REGISTER is supported only on Linux kernel versions >= 5.4.0.
+#endif
+
 /* kernel crypto self-test includes test setups that have different expected
  * results FIPS vs non-FIPS.
  */
@@ -48,16 +52,16 @@
 #endif
 
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY
-/* Larger number means higher priority.  The highest in-tree priority is 4001,
- * in the Cavium driver.
- */
-#define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 10000
+    /* Larger number means higher priority.  The highest in-tree priority is
+     * 4001, in the Cavium driver.
+     */
+    #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 10000
 #endif
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-static int disable_setkey_warnings = 0;
+    static int disable_setkey_warnings = 0;
 #else
-#define disable_setkey_warnings 0
+    #define disable_setkey_warnings 0
 #endif
 
 #ifdef HAVE_FIPS
@@ -239,9 +243,9 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
     #undef LINUXKM_LKCAPI_REGISTER_RSA
 #endif /* !NO_RSA */
 
-/**
+/*
  * extra checks on kernel version, and ecc sizes.
- * */
+ */
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
         defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
@@ -388,7 +392,6 @@ static int linuxkm_lkcapi_register(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
     REGISTER_ALG(sha1_alg, crypto_register_shash, linuxkm_test_sha1);
 #endif
-
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
     REGISTER_ALG(sha2_224_alg, crypto_register_shash, linuxkm_test_sha2_224);
 #endif
@@ -541,7 +544,6 @@ static void linuxkm_lkcapi_unregister(void)
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
     UNREGISTER_ALG(sha1_alg, crypto_unregister_shash);
 #endif
-
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
     UNREGISTER_ALG(sha2_224_alg, crypto_unregister_shash);
 #endif
@@ -595,21 +597,20 @@ static void linuxkm_lkcapi_unregister(void)
     UNREGISTER_ALG(sha3_512_hmac_alg, crypto_unregister_shash);
 #endif
 
-
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECC192)
-    UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
+        UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
     #endif /* LINUXKM_ECC192 */
     UNREGISTER_ALG(ecdsa_nist_p256, crypto_unregister_akcipher);
     UNREGISTER_ALG(ecdsa_nist_p384, crypto_unregister_akcipher);
     #if defined(HAVE_ECC521)
-    UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
+        UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
     #endif /* HAVE_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
     #if defined(LINUXKM_ECC192)
-    UNREGISTER_ALG(ecdh_nist_p192, crypto_unregister_kpp);
+        UNREGISTER_ALG(ecdh_nist_p192, crypto_unregister_kpp);
     #endif /* LINUXKM_ECC192 */
     UNREGISTER_ALG(ecdh_nist_p256, crypto_unregister_kpp);
     UNREGISTER_ALG(ecdh_nist_p384, crypto_unregister_kpp);
@@ -618,13 +619,13 @@ static void linuxkm_lkcapi_unregister(void)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
     #if defined(LINUXKM_DIRECT_RSA)
-    UNREGISTER_ALG(direct_rsa, crypto_unregister_akcipher);
+        UNREGISTER_ALG(direct_rsa, crypto_unregister_akcipher);
     #endif /* LINUXKM_DIRECT_RSA */
     #ifndef NO_SHA256
-    UNREGISTER_ALG(pkcs1_sha256, crypto_unregister_akcipher);
+        UNREGISTER_ALG(pkcs1_sha256, crypto_unregister_akcipher);
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA512
-    UNREGISTER_ALG(pkcs1_sha512, crypto_unregister_akcipher);
+        UNREGISTER_ALG(pkcs1_sha512, crypto_unregister_akcipher);
     #endif /* WOLFSSL_SHA512 */
 #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
