@@ -718,7 +718,7 @@ static Dtls13RecordNumber* Dtls13NewRecordNumber(w64wrapper epoch,
     return rn;
 }
 
-static int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
+int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
 {
     Dtls13RecordNumber* rn;
 
@@ -728,12 +728,28 @@ static int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq)
     if (wc_LockMutex(&ssl->dtls13Rtx.mutex) == 0)
 #endif
     {
+        /* Find location to insert new record */
+        Dtls13RecordNumber** prevNext = &ssl->dtls13Rtx.seenRecords;
+        Dtls13RecordNumber* cur = ssl->dtls13Rtx.seenRecords;
+
+        for (; cur != NULL; prevNext = &cur->next, cur = cur->next) {
+            if (w64Equal(cur->epoch, epoch) && w64Equal(cur->seq, seq)) {
+                /* already in list. no duplicates. */
+                return 0;
+            }
+            else if (w64LT(epoch, cur->epoch)
+                    || (w64Equal(epoch, cur->epoch)
+                            && w64LT(seq, cur->seq))) {
+                break;
+            }
+        }
+
         rn = Dtls13NewRecordNumber(epoch, seq, ssl->heap);
         if (rn == NULL)
             return MEMORY_E;
 
-        rn->next = ssl->dtls13Rtx.seenRecords;
-        ssl->dtls13Rtx.seenRecords = rn;
+        *prevNext = rn;
+        rn->next = cur;
     #ifdef WOLFSSL_RW_THREADED
         wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
     #endif
@@ -2522,7 +2538,7 @@ static int Dtls13GetAckListLength(Dtls13RecordNumber* list, word16* length)
     return 0;
 }
 
-static int Dtls13WriteAckMessage(WOLFSSL* ssl,
+int Dtls13WriteAckMessage(WOLFSSL* ssl,
     Dtls13RecordNumber* recordNumberList, word32* length)
 {
     word16 msgSz, headerLength;

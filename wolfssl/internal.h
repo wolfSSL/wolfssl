@@ -6578,7 +6578,7 @@ WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
-WOLFSSL_LOCAL byte* GetOutputBuffer(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS byte* GetOutputBuffer(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int CipherRequires(byte first, byte second, int requirement);
 WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
@@ -7066,7 +7066,10 @@ WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,
     w64wrapper* epoch);
 WOLFSSL_LOCAL int Dtls13ReconstructSeqNumber(WOLFSSL* ssl,
     Dtls13UnifiedHdrInfo* hdrInfo, w64wrapper* out);
+WOLFSSL_TEST_VIS int Dtls13WriteAckMessage(WOLFSSL* ssl,
+    Dtls13RecordNumber* recordNumberList, word32* length);
 WOLFSSL_LOCAL int SendDtls13Ack(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS int Dtls13RtxAddAck(WOLFSSL* ssl, w64wrapper epoch, w64wrapper seq);
 WOLFSSL_LOCAL int Dtls13RtxProcessingCertificate(WOLFSSL* ssl, byte* input,
     word32 inputSize);
 WOLFSSL_LOCAL int Dtls13HashHandshake(WOLFSSL* ssl, const byte* input,
