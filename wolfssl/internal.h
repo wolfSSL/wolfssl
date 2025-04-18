@@ -2222,7 +2222,7 @@ WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            word32 size, word32 totalSz, int sniff);
 #endif
-WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+WOLFSSL_TEST_VIS int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     int sniff);
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, Suites* clSuites);
@@ -7052,6 +7052,7 @@ WOLFSSL_LOCAL int Dtls13HandshakeSend(WOLFSSL* ssl, byte* output,
     word16 output_size, word16 length, enum HandShakeType handshake_type,
     int hash_output);
 WOLFSSL_LOCAL int Dtls13RecordRecvd(WOLFSSL* ssl);
+WOLFSSL_TEST_VIS int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type);
 WOLFSSL_LOCAL int Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input,
     word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
