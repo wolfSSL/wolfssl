@@ -1675,6 +1675,9 @@ static int test_quic_early_data(int verbose) {
     QuicTestContext_free(&tclient);
     QuicTestContext_free(&tserver);
 
+    /* check for error value with null argument */
+    ExpectIntEQ(wolfSSL_SESSION_get_max_early_data(NULL), BAD_FUNC_ARG);
+
     /* QUIC requires 0 or 0xffffffff as only allowed values.
      * Since we enabled early data in the server that created the session,
      * we need to see it here. */

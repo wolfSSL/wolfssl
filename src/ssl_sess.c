@@ -3534,6 +3534,10 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 #ifdef WOLFSSL_EARLY_DATA
 unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSION *session)
 {
+    if (session == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     return session->maxEarlyDataSz;
 }
 #endif /* WOLFSSL_EARLY_DATA */
