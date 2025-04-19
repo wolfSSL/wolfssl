@@ -133,7 +133,7 @@ static struct kpp_alg ecdh_nist_p384 = {
     .exit                  = km_ecdh_exit,
 };
 
-/**
+/*
  * Set the secret. Kernel crypto expects secret is passed with
  * struct kpp_secret as header, followed by secret data as payload.
  * See these for more info:
@@ -141,7 +141,7 @@ static struct kpp_alg ecdh_nist_p384 = {
  *  - include/crypto/kpp.h
  *
  * An empty payload means this function will gen the ecc key pair.
- * */
+ */
 static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
                               unsigned int len)
 {
@@ -360,12 +360,12 @@ static int km_ecdh_nist_p384_init(struct crypto_kpp *tfm)
     return km_ecdh_init(tfm, ECC_SECP384R1);
 }
 
-/**
+/*
  * Generate the ecc public key:
  *   - req->src should be null
  *   - req->dst is where we place the public key.
  * The kernel api expects raw uncompressed pub key, without leading byte.
- * */
+ */
 static int km_ecdh_gen_pub(struct kpp_request *req)
 {
     struct crypto_kpp *  tfm = NULL;
@@ -463,11 +463,11 @@ ecdh_gen_pub_end:
     return err;
 }
 
-/**
+/*
  * Generate ecc shared secret.
  *   - req->src has raw pub key from other party.
  *   - req->dst is shared secret output buffer.
- * */
+ */
 static int km_ecdh_compute_shared_secret(struct kpp_request *req)
 {
     struct crypto_kpp *  tfm = NULL;
@@ -596,7 +596,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
 {
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
-    const byte secret[] = {
+    static const byte secret[] = {
 #ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x1e, 0x00, /* len */
@@ -613,7 +613,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
     };
 
     /* 48 byte pub key */
-    const byte b_pub[] = {
+    static const byte b_pub[] = {
         0xc3, 0xba, 0x67, 0x4b, 0x71, 0xec, 0xd0, 0x76,
         0x7a, 0x99, 0x75, 0x64, 0x36, 0x13, 0x9a, 0x94,
         0x5d, 0x8b, 0xdc, 0x60, 0x90, 0x91, 0xfd, 0x3f,
@@ -622,7 +622,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
         0x07, 0xd6, 0xbd, 0x1c, 0xe6, 0x8d, 0x9d, 0x67
     };
 
-    const byte expected_a_pub[] = {
+    static const byte expected_a_pub[] = {
         0x1a, 0x04, 0xdb, 0xa5, 0xe1, 0xdd, 0x4e, 0x79,
         0xa3, 0xe6, 0xef, 0x0e, 0x5c, 0x80, 0x49, 0x85,
         0xfa, 0x78, 0xb4, 0xef, 0x49, 0xbd, 0x4c, 0x7c,
@@ -632,7 +632,7 @@ static int linuxkm_test_ecdh_nist_p192(void)
     };
 
     /* 24 byte shared secret */
-    const byte shared_secret[] = {
+    static const byte shared_secret[] = {
         0xf4, 0x57, 0xcc, 0x4f, 0x1f, 0x4e, 0x31, 0xcc,
         0xe3, 0x40, 0x60, 0xc8, 0x06, 0x93, 0xc6, 0x2e,
         0x99, 0x80, 0x81, 0x28, 0xaf, 0xc5, 0x51, 0x74
@@ -651,7 +651,7 @@ static int linuxkm_test_ecdh_nist_p256(void)
 {
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
-    const byte secret[] = {
+    static const byte secret[] = {
 #ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x26, 0x00, /* len */
@@ -668,7 +668,7 @@ static int linuxkm_test_ecdh_nist_p256(void)
     };
 
     /* 64 byte pub key */
-    const byte b_pub[] = {
+    static const byte b_pub[] = {
         0xcc, 0xb4, 0xda, 0x74, 0xb1, 0x47, 0x3f, 0xea,
         0x6c, 0x70, 0x9e, 0x38, 0x2d, 0xc7, 0xaa, 0xb7,
         0x29, 0xb2, 0x47, 0x03, 0x19, 0xab, 0xdd, 0x34,
@@ -679,7 +679,7 @@ static int linuxkm_test_ecdh_nist_p256(void)
         0x6f, 0xdb, 0xa9, 0xaa, 0xfc, 0x77, 0x81, 0xf3,
     };
 
-    const byte expected_a_pub[] = {
+    static const byte expected_a_pub[] = {
         0x1a, 0x7f, 0xeb, 0x52, 0x00, 0xbd, 0x3c, 0x31,
         0x7d, 0xb6, 0x70, 0xc1, 0x86, 0xa6, 0xc7, 0xc4,
         0x3b, 0xc5, 0x5f, 0x6c, 0x6f, 0x58, 0x3c, 0xf5,
@@ -691,7 +691,7 @@ static int linuxkm_test_ecdh_nist_p256(void)
     };
 
     /* 32 byte shared secret */
-    const byte shared_secret[] = {
+    static const byte shared_secret[] = {
         0xea, 0x17, 0x6f, 0x7e, 0x6e, 0x57, 0x26, 0x38,
         0x8b, 0xfb, 0x41, 0xeb, 0xba, 0xc8, 0x6d, 0xa5,
         0xa8, 0x72, 0xd1, 0xff, 0xc9, 0x47, 0x3d, 0xaa,
@@ -710,7 +710,7 @@ static int linuxkm_test_ecdh_nist_p384(void)
 {
     int rc = 0;
     /* reference values from kernel crypto/testmgr.h */
-    const byte secret[] = {
+    static const byte secret[] = {
 #ifdef LITTLE_ENDIAN_ORDER
         0x02, 0x00, /* type */
         0x36, 0x00, /* len */
@@ -729,7 +729,7 @@ static int linuxkm_test_ecdh_nist_p384(void)
     };
 
     /* 96 byte pub key */
-    const byte b_pub[] = {
+    static const byte b_pub[] = {
         0xE5, 0x58, 0xDB, 0xEF, 0x53, 0xEE, 0xCD, 0xE3,
         0xD3, 0xFC, 0xCF, 0xC1, 0xAE, 0xA0, 0x8A, 0x89,
         0xA9, 0x87, 0x47, 0x5D, 0x12, 0xFD, 0x95, 0x0D,
@@ -745,7 +745,7 @@ static int linuxkm_test_ecdh_nist_p384(void)
     };
 
     /* 96 byte pub key */
-    const byte expected_a_pub[] = {
+    static const byte expected_a_pub[] = {
         0x66, 0x78, 0x42, 0xD7, 0xD1, 0x80, 0xAC, 0x2C,
         0xDE, 0x6F, 0x74, 0xF3, 0x75, 0x51, 0xF5, 0x57,
         0x55, 0xC7, 0x64, 0x5C, 0x20, 0xEF, 0x73, 0xE3,
@@ -761,7 +761,7 @@ static int linuxkm_test_ecdh_nist_p384(void)
     };
 
     /* 48 byte shared secret */
-    const byte shared_secret[] = {
+    static const byte shared_secret[] = {
         0x11, 0x18, 0x73, 0x31, 0xC2, 0x79, 0x96, 0x2D,
         0x93, 0xD6, 0x04, 0x24, 0x3F, 0xD5, 0x92, 0xCB,
         0x9D, 0x0A, 0x92, 0x6F, 0x42, 0x2E, 0x47, 0x18,
@@ -796,10 +796,10 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
     byte *               dst_buf = NULL;
     unsigned int         src_len = pub_len;
     unsigned int         dst_len = 0;
-    /**
+    /*
      * Allocate the kpp transform, and set up
      * the kpp request.
-     * */
+     */
     tfm = crypto_alloc_kpp(driver, 0, 0);
     if (IS_ERR(tfm)) {
         pr_err("error: allocating kpp algorithm %s failed: %ld\n",

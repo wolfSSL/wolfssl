@@ -209,41 +209,43 @@
 #endif
 
 #ifdef WOLFSSL_SHA3
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA3_224)
-        #define LINUXKM_LKCAPI_REGISTER_SHA3_224
-    #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_256)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA3_256)
-        #define LINUXKM_LKCAPI_REGISTER_SHA3_256
-    #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_384)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA3_384)
-        #define LINUXKM_LKCAPI_REGISTER_SHA3_384
-    #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA3_512)
-        #define LINUXKM_LKCAPI_REGISTER_SHA3_512
+    #ifdef LINUXKM_LKCAPI_REGISTER_ALL
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224) && \
+            !defined(LINUXKM_LKCAPI_REGISTER_SHA3_224)
+            #define LINUXKM_LKCAPI_REGISTER_SHA3_224
+        #endif
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_256) && \
+            !defined(LINUXKM_LKCAPI_REGISTER_SHA3_256)
+            #define LINUXKM_LKCAPI_REGISTER_SHA3_256
+        #endif
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_384) && \
+            !defined(LINUXKM_LKCAPI_REGISTER_SHA3_384)
+            #define LINUXKM_LKCAPI_REGISTER_SHA3_384
+        #endif
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512) && \
+            !defined(LINUXKM_LKCAPI_REGISTER_SHA3_512)
+            #define LINUXKM_LKCAPI_REGISTER_SHA3_512
+        #endif
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
-    #else
-        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224_HMAC)) && \
+    #elif defined(LINUXKM_LKCAPI_REGISTER_ALL)
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224_HMAC) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
         #endif
-        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_256_HMAC)) && \
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_256_HMAC) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
         #endif
-        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_384_HMAC)) && \
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_384_HMAC) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
         #endif
-        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512_HMAC)) && \
+        #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512_HMAC) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
         #endif
@@ -257,6 +259,19 @@
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)) &&  \
+    (defined(LINUXKM_LKCAPI_REGISTER_SHA1_HMAC) ||     \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC) || \
+     defined(LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC))
+    #error LINUXKM_LKCAPI_REGISTER for HMACs is supported only on Linux kernel versions >= 5.6.0.
 #endif
 
 struct km_sha_state {
@@ -326,7 +341,7 @@ static int km_ ## name ## _init(struct shash_desc *desc) {                 \
         return 0;                                                          \
     else                                                                   \
         return -EINVAL;                                                    \
-    }                                                                      \
+}                                                                          \
                                                                            \
 static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                   unsigned int len)                        \
@@ -339,7 +354,7 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
         return 0;                                                          \
     else                                                                   \
         return -EINVAL;                                                    \
-    }                                                                      \
+}                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
@@ -417,7 +432,6 @@ struct wc_swallow_the_semicolon
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
     int ret;                                                               \
-                                                                           \
                                                                            \
     ctx-> name ## _state = malloc(sizeof *ctx-> name ## _state);           \
     if (! ctx-> name ## _state)                                            \

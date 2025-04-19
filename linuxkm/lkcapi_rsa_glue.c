@@ -52,21 +52,21 @@
                                     "-wolfcrypt,sha512)")
 
 #if defined(WOLFSSL_KEY_GEN)
-#if defined(LINUXKM_DIRECT_RSA)
-static int  linuxkm_test_rsa_driver(const char * driver, int nbits);
-#endif /* LINUXKM_DIRECT_RSA */
-static int  linuxkm_test_pkcs1_driver(const char * driver, int nbits,
-                                      int hash_oid, word32 hash_len);
+    #if defined(LINUXKM_DIRECT_RSA)
+        static int  linuxkm_test_rsa_driver(const char * driver, int nbits);
+    #endif /* LINUXKM_DIRECT_RSA */
+    static int  linuxkm_test_pkcs1_driver(const char * driver, int nbits,
+                                          int hash_oid, word32 hash_len);
 #endif /* WOLFSSL_KEY_GEN */
 
 #if defined(LINUXKM_DIRECT_RSA)
-static int direct_rsa_loaded = 0;
+    static int direct_rsa_loaded = 0;
 #endif /* LINUXKM_DIRECT_RSA */
 #ifndef NO_SHA256
-static int pkcs1_sha256_loaded = 0;
+    static int pkcs1_sha256_loaded = 0;
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA512
-static int pkcs1_sha512_loaded = 0;
+    static int pkcs1_sha512_loaded = 0;
 #endif /* WOLFSSL_SHA512 */
 
 struct km_rsa_ctx {
@@ -87,28 +87,28 @@ static int          km_rsa_set_pub(struct crypto_akcipher *tfm,
 static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
 
 #if defined(LINUXKM_DIRECT_RSA)
-/* direct rsa callbacks */
-static int          km_direct_rsa_init(struct crypto_akcipher *tfm);
-static int          km_direct_rsa_enc(struct akcipher_request *req);
-static int          km_direct_rsa_dec(struct akcipher_request *req);
+    /* direct rsa callbacks */
+    static int          km_direct_rsa_init(struct crypto_akcipher *tfm);
+    static int          km_direct_rsa_enc(struct akcipher_request *req);
+    static int          km_direct_rsa_dec(struct akcipher_request *req);
 #endif /* LINUXKM_DIRECT_RSA */
 
 /* pkcs1 callbacks */
 #ifndef NO_SHA256
-static int          km_pkcs1_sha256_init(struct crypto_akcipher *tfm);
+    static int          km_pkcs1_sha256_init(struct crypto_akcipher *tfm);
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA512
-static int          km_pkcs1_sha512_init(struct crypto_akcipher *tfm);
+    static int          km_pkcs1_sha512_init(struct crypto_akcipher *tfm);
 #endif /* WOLFSSL_SHA512 */
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
-static int          km_pkcs1_sign(struct akcipher_request *req);
-static int          km_pkcs1_verify(struct akcipher_request *req);
+    static int          km_pkcs1_sign(struct akcipher_request *req);
+    static int          km_pkcs1_verify(struct akcipher_request *req);
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
-static int          km_pkcs1_enc(struct akcipher_request *req);
-static int          km_pkcs1_dec(struct akcipher_request *req);
+    static int          km_pkcs1_enc(struct akcipher_request *req);
+    static int          km_pkcs1_dec(struct akcipher_request *req);
 /* misc */
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
-static int          get_hash_enc_len(int hash_oid);
+    static int          get_hash_enc_len(int hash_oid);
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
 #if defined(LINUXKM_DIRECT_RSA)
@@ -231,7 +231,7 @@ static int km_rsa_init(struct crypto_akcipher *tfm, int hash_oid)
 }
 
 #if defined(LINUXKM_DIRECT_RSA)
-/**
+/*
  * RSA encrypt with public key.
  *
  * Requires that crypto_akcipher_set_pub_key has been called first.
@@ -242,7 +242,7 @@ static int km_rsa_init(struct crypto_akcipher *tfm, int hash_oid)
  *
  * returns 0   on success
  * returns < 0 on error
- * */
+ */
 static int km_direct_rsa_enc(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
@@ -321,14 +321,14 @@ rsa_enc_out:
     return err;
 }
 
-/**
+/*
  * RSA decrypt with private key.
  *
  * Requires that crypto_akcipher_set_priv_key has been called first.
  *
  * returns 0   on success
  * returns < 0 on error
- * */
+ */
 static int km_direct_rsa_dec(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
@@ -412,13 +412,13 @@ rsa_dec_out:
 }
 #endif /* LINUXKM_DIRECT_RSA */
 
-/**
+/*
  * Decodes and sets the RSA private key.
  *
  * param tfm     the crypto_akcipher transform
  * param key     BER encoded private key and parameters
  * param keylen  key length
- * */
+ */
 static int km_rsa_set_priv(struct crypto_akcipher *tfm, const void *key,
                             unsigned int keylen)
 {
@@ -472,13 +472,13 @@ static int km_rsa_set_priv(struct crypto_akcipher *tfm, const void *key,
     return err;
 }
 
-/**
+/*
  * Decodes and sets the RSA pub key.
  *
  * param tfm     the crypto_akcipher transform
  * param key     BER encoded pub key and parameters
  * param keylen  key length
- * */
+ */
 static int km_rsa_set_pub(struct crypto_akcipher *tfm, const void *key,
                            unsigned int keylen)
 {
@@ -527,9 +527,9 @@ static int km_rsa_set_pub(struct crypto_akcipher *tfm, const void *key,
     return err;
 }
 
-/**
+/*
  * Returns dest buffer size required for key.
- * */
+ */
 static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm)
 {
     struct km_rsa_ctx * ctx = NULL;
@@ -677,7 +677,7 @@ pkcs1_sign_out:
     return err;
 }
 
-/**
+/*
  * Verify a pkcs1 encoded signature.
  *
  * The total size of req->src is src_len + dst_len:
@@ -687,7 +687,7 @@ pkcs1_sign_out:
  * dst should be null.
  * See kernel:
  *   - include/crypto/akcipher.h
- * */
+ */
 static int km_pkcs1_verify(struct akcipher_request *req)
 {
     struct crypto_akcipher * tfm = NULL;
@@ -944,9 +944,9 @@ pkcs1_dec_out:
 }
 
 #if defined(LINUXKM_DIRECT_RSA) && defined(WC_RSA_NO_PADDING)
-/**
+/*
  * Tests implemented below.
- * */
+ */
 static int linuxkm_test_rsa(void)
 {
     int rc = 0;
@@ -1062,7 +1062,7 @@ static int linuxkm_test_pkcs1_sha512(void)
 #endif /* WOLFSSL_SHA512 */
 
 #if defined(LINUXKM_DIRECT_RSA) && defined(WOLFSSL_KEY_GEN)
-/**
+/*
  * Test linux kernel crypto driver:
  *   1. generate RSA key with wolfcrypt.
  *   2. sanity check wolfcrypt encrypt + decrypt.
@@ -1071,7 +1071,7 @@ static int linuxkm_test_pkcs1_sha512(void)
  *      crypto_akcipher_set_pub_key, crypto_akcipher_set_priv_key.
  *   5. test: kernel public encrypt + wolfcrypt private decrypt
  *   6. test: wolfcrypt public encrypt + kernel private decrypt
- * */
+ */
 static int linuxkm_test_rsa_driver(const char * driver, int nbits)
 {
     int                       test_rc = -1;
@@ -1410,7 +1410,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20,
         0x67,0x6f,0x6f,0x64,0x20,0x6d,0x65,0x6e
     };
-    byte                      hash[WC_SHA512_DIGEST_SIZE];
+    byte *                    hash = NULL;
     byte *                    sig = NULL;
     byte *                    km_sig = NULL;
     byte *                    dec = NULL;
@@ -1425,6 +1425,12 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     struct scatterlist        src_tab[2];
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
     int                       n_diff = 0;
+
+    hash = malloc(WC_SHA512_DIGEST_SIZE);
+    if (! hash) {
+        pr_err("error: allocating hash buffer failed.\n");
+        goto test_pkcs1_end;
+    }
 
     /* hash the test msg with hash algo. */
     ret = wc_Hash(wc_OidGetHash(hash_oid), p_vector, sizeof(p_vector),
@@ -1798,6 +1804,8 @@ test_pkcs1_end:
 
     if (key) { free(key); key = NULL; }
 
+    if (hash) { free(hash); }
+
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: %s, %d, %d: self test returned: %d\n", driver,
             nbits, key_len, ret);
@@ -1807,9 +1815,9 @@ test_pkcs1_end:
 }
 #endif /* (!NO_SHA256 || WOLFSSL_SHA512) && WOLFSSL_KEY_GEN */
 
-/**
+/*
  * returns the additional encoding length for given hash oid.
- * */
+ */
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
 static int get_hash_enc_len(int hash_oid)
 {

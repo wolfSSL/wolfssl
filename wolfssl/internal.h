@@ -3393,7 +3393,7 @@ WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 #endif
 
 #if defined(WOLFSSL_PUBLIC_ASN) && defined(HAVE_PK_CALLBACKS)
-/* Internal callback guarded by WOLFSSL_PUBLIC_ASN because of DecodedCert. */
+/* Internal callback guarded by WOLFSSL_TEST_VIS because of DecodedCert. */
 typedef int (*CallbackProcessPeerCert)(WOLFSSL* ssl, DecodedCert* p_cert);
 WOLFSSL_TEST_VIS void wolfSSL_CTX_SetProcessPeerCertCb(WOLFSSL_CTX* ctx,
        CallbackProcessPeerCert cb);
@@ -4715,7 +4715,6 @@ WOLFSSL_LOCAL int TlsSessionCacheGetAndRdLock(const byte *id,
 WOLFSSL_LOCAL int TlsSessionCacheGetAndWrLock(const byte *id,
     WOLFSSL_SESSION **sess, word32 *lockedRow, byte side);
 WOLFSSL_LOCAL void EvictSessionFromCache(WOLFSSL_SESSION* session);
-/* WOLFSSL_TEST_VIS to test it in tests/api.c */
 WOLFSSL_TEST_VIS int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output);
 WOLFSSL_LOCAL int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session);
 WOLFSSL_LOCAL void wolfSSL_FreeSession(WOLFSSL_CTX* ctx,
@@ -6578,7 +6577,7 @@ WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
-WOLFSSL_TEST_VIS byte* GetOutputBuffer(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte* GetOutputBuffer(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int CipherRequires(byte first, byte second, int requirement);
 WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,
@@ -6746,17 +6745,14 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
-    /* Use WOLFSSL_TEST_VIS to enable src/api.c testing */
     WOLFSSL_TEST_VIS void DtlsMsgListDelete(DtlsMsg* head, void* heap);
     WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
     WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch,
                                   const byte* data, byte type,
                                   word32 fragOffset, word32 fragSz, void* heap,
                                   word32 totalLen, byte encrypted);
-    /* Use WOLFSSL_TEST_VIS to enable src/api.c testing */
     WOLFSSL_TEST_VIS DtlsMsg* DtlsMsgFind(DtlsMsg* head, word16 epoch, word32 seq);
 
-    /* Use WOLFSSL_TEST_VIS to enable src/api.c testing */
     WOLFSSL_TEST_VIS void DtlsMsgStore(WOLFSSL* ssl, word16 epoch, word32 seq,
                                     const byte* data, word32 dataSz, byte type,
                                     word32 fragOffset, word32 fragSz,
@@ -6947,7 +6943,6 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         int sizeOnly, int asyncOkay, int epochOrder);
 
 #ifdef WOLFSSL_TLS13
-/* Use WOLFSSL_TEST_VIS to use this function in tests/api.c */
 WOLFSSL_TEST_VIS int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
 WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
@@ -7015,7 +7010,6 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 
 #ifdef WOLFSSL_DTLS13
 
-/* Use WOLFSSL_TEST_VIS to use this function in tests/api.c */
 WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
 WOLFSSL_LOCAL void Dtls13SetOlderEpochSide(WOLFSSL* ssl, w64wrapper epochNumber,
