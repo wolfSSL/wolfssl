@@ -660,7 +660,7 @@ int test_dtls13_ack_order(void)
      *     uint64 sequence_number;
      * } RecordNumber;
      * Big endian */
-    unsigned char expected_output[] = {
+    static const unsigned char expected_output[] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
@@ -706,12 +706,17 @@ int test_dtls13_ack_order(void)
     ExpectIntEQ(Dtls13RtxAddAck(ssl_c, w64From32(0, 2), w64From32(0, 2)), 0);
     ExpectIntEQ(Dtls13WriteAckMessage(ssl_c, ssl_c->dtls13Rtx.seenRecords,
             &length), 0);
+
+    /* must zero the span reserved for the header to avoid read of uninited
+     * data.
+     */
+    XMEMSET(ssl_c->buffers.outputBuffer.buffer, 0,
+            5 /* DTLS13_UNIFIED_HEADER_SIZE */);
     /* N * RecordNumber + 2 extra bytes for length */
     ExpectIntEQ(length, sizeof(expected_output) + 2);
     ExpectNotNull(mymemmem(ssl_c->buffers.outputBuffer.buffer,
             ssl_c->buffers.outputBuffer.bufferSize, expected_output,
             sizeof(expected_output)));
-
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
