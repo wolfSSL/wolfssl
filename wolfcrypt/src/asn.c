@@ -9234,9 +9234,12 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (dilithium == NULL)
             return MEMORY_E;
 
-        if (wc_dilithium_init(dilithium) != 0) {
-            tmpIdx = 0;
-            if (wc_dilithium_set_level(dilithium, WC_ML_DSA_44) == 0) {
+        /* wc_dilithium_init() returns 0 on success and a non-zero value on
+         * failure. */
+        if (wc_dilithium_init(dilithium) == 0) {
+            if ((*algoID == 0) &&
+                (wc_dilithium_set_level(dilithium, WC_ML_DSA_44) == 0)) {
+                tmpIdx = 0;
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
                         keySz) == 0) {
                     *algoID = ML_DSA_LEVEL2k;
@@ -9245,7 +9248,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Dilithium Level 2 DER key");
                 }
             }
-            else if (wc_dilithium_set_level(dilithium, WC_ML_DSA_65) == 0) {
+            if ((*algoID == 0) &&
+                (wc_dilithium_set_level(dilithium, WC_ML_DSA_65) == 0)) {
+                tmpIdx = 0;
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
                         keySz) == 0) {
                     *algoID = ML_DSA_LEVEL3k;
@@ -9254,7 +9259,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     WOLFSSL_MSG("Not Dilithium Level 3 DER key");
                 }
             }
-            else if (wc_dilithium_set_level(dilithium, WC_ML_DSA_87) == 0) {
+            if ((*algoID == 0) &&
+                (wc_dilithium_set_level(dilithium, WC_ML_DSA_87) == 0)) {
+                tmpIdx = 0;
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
                         keySz) == 0) {
                     *algoID = ML_DSA_LEVEL5k;

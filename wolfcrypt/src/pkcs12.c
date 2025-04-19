@@ -1298,6 +1298,27 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
         WC_DerCertList** ca)
 {
+    return wc_PKCS12_parse_ex(pkcs12, psw, pkey, pkeySz, cert, certSz, ca, 0);
+}
+
+/* return 0 on success and negative on failure.
+ * By side effect returns private key, cert, and optionally ca.
+ * Parses and decodes the parts of PKCS12
+ *
+ * NOTE: can parse with USER RSA enabled but may return cert that is not the
+ *       pair for the key when using RSA key pairs.
+ *
+ * pkcs12        : non-null WC_PKCS12 struct
+ * psw           : password to use for PKCS12 decode
+ * pkey          : Private key returned
+ * cert          : x509 cert returned
+ * ca            : optional ca returned
+ * keepKeyHeader : 0 removes PKCS8 header, other than 0 keeps PKCS8 header
+ */
+int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
+        byte** pkey, word32* pkeySz, byte** cert, word32* certSz,
+        WC_DerCertList** ca, int keepKeyHeader)
+{
     ContentInfo* ci       = NULL;
     WC_DerCertList* certList = NULL;
     WC_DerCertList* tailList = NULL;
@@ -1492,7 +1513,13 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             ERROR_OUT(MEMORY_E, exit_pk12par);
                         }
                         XMEMCPY(*pkey, data + idx, (size_t)size);
-                        *pkeySz = (word32)ToTraditional_ex(*pkey, (word32)size, &algId);
+                        if (keepKeyHeader) {
+                            *pkeySz = (word32)size;
+                        }
+                        else {
+                            *pkeySz = (word32)ToTraditional_ex(*pkey,
+                                (word32)size, &algId);
+                        }
                     }
 
                 #ifdef WOLFSSL_DEBUG_PKCS12
@@ -1531,10 +1558,19 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         XMEMCPY(k, data + idx, (size_t)size);
 
                         /* overwrites input, be warned */
-                        if ((ret = ToTraditionalEnc(k, (word32)size, psw, pswSz,
-                                                                 &algId)) < 0) {
-                            XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                            goto exit_pk12par;
+                        if (keepKeyHeader) {
+                            if ((ret = wc_DecryptPKCS8Key(k, (word32)size, psw,
+                                pswSz)) < 0) {
+                                XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                goto exit_pk12par;
+                            }
+                        }
+                        else {
+                            if ((ret = ToTraditionalEnc(k, (word32)size, psw,
+                                pswSz, &algId)) < 0) {
+                                XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                goto exit_pk12par;
+                            }
                         }
 
                         if (ret < size) {
