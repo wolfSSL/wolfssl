@@ -3478,14 +3478,44 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
  */
 int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 {
-    int bytes;
+    int ret = 0;
 
-    if (pkey == NULL) return 0;
-    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_bits");
-    if ((bytes = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey)) ==0) return 0;
-    if (bytes < 0)
+    if (pkey == NULL)
         return 0;
-    return bytes*8;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_bits");
+
+    switch (pkey->type) {
+#ifndef NO_RSA
+    case WC_EVP_PKEY_RSA:
+        ret = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
+        break;
+#endif /* !NO_RSA */
+
+#ifndef NO_DSA
+    case WC_EVP_PKEY_DSA:
+        if (pkey->dsa == NULL ||
+                (!pkey->dsa->exSet &&
+                        SetDsaExternal(pkey->dsa) != WOLFSSL_SUCCESS))
+            break;
+        ret = wolfSSL_BN_num_bytes(pkey->dsa->p);
+        break;
+#endif
+
+#ifdef HAVE_ECC
+    case WC_EVP_PKEY_EC:
+        if (pkey->ecc == NULL || pkey->ecc->internal == NULL) {
+            WOLFSSL_MSG("No ECC key has been set");
+            break;
+        }
+        ret = wc_ecc_size((ecc_key*)(pkey->ecc->internal));
+        break;
+#endif /* HAVE_ECC */
+
+    default:
+        break;
+    }
+    return ret > 0 ? ret * 8 : 0;
 }
 
 
@@ -3692,12 +3722,11 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     return ret;
 }
 
-/* Get the size in bytes for WOLFSSL_EVP_PKEY key
+/* Get the maximum suitable size for the operations that can be done with pkey
  *
  * pkey WOLFSSL_EVP_PKEY structure to get key size of
  *
- * returns the size of a key on success which is the maximum size of a
- *         signature
+ * returns the recommended size of buffers
  */
 int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 {
@@ -3725,7 +3754,7 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
             WOLFSSL_MSG("No ECC key has been set");
             break;
         }
-        return wc_ecc_size((ecc_key*)(pkey->ecc->internal));
+        return wc_ecc_sig_size((ecc_key*)(pkey->ecc->internal));
 #endif /* HAVE_ECC */
 
     default:
@@ -3894,7 +3923,6 @@ int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 {
     int ret = -1; /* failure */
-    int a_sz = 0, b_sz = 0;
 
     if (a == NULL || b == NULL)
         return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
@@ -3907,40 +3935,47 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
     switch (a->type) {
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-        a_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(a->rsa));
-        b_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(b->rsa));
+        if (wolfSSL_RSA_size((const WOLFSSL_RSA*)(a->rsa)) <= 0 ||
+                wolfSSL_RSA_size((const WOLFSSL_RSA*)(b->rsa)) <= 0) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (mp_cmp(&((RsaKey*)a->rsa->internal)->n,
+                   &((RsaKey*)b->rsa->internal)->n) != MP_EQ) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (mp_cmp(&((RsaKey*)a->rsa->internal)->e,
+                   &((RsaKey*)b->rsa->internal)->e) != MP_EQ) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
         break;
 #endif /* !NO_RSA */
 #ifdef HAVE_ECC
     case WC_EVP_PKEY_EC:
         if (a->ecc == NULL || a->ecc->internal == NULL ||
-            b->ecc == NULL || b->ecc->internal == NULL) {
+            b->ecc == NULL || b->ecc->internal == NULL ||
+            wc_ecc_size((ecc_key*)a->ecc->internal) <= 0 ||
+            wc_ecc_size((ecc_key*)b->ecc->internal) <= 0 ||
+            a->ecc->group == NULL || b->ecc->group == NULL) {
             return ret;
         }
-        a_sz = wc_ecc_size((ecc_key*)(a->ecc->internal));
-        b_sz = wc_ecc_size((ecc_key*)(b->ecc->internal));
+
+        /* check curve */
+        if (a->ecc->group->curve_idx != b->ecc->group->curve_idx) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
+
+        if (wc_ecc_cmp_point(&((ecc_key*)a->ecc->internal)->pubkey,
+                             &((ecc_key*)b->ecc->internal)->pubkey) != 0) {
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
+        }
         break;
 #endif /* HAVE_ECC */
     default:
         return WS_RETURN_CODE(ret, -2);
     } /* switch (a->type) */
 
-    /* check size */
-    if (a_sz <= 0 || b_sz <= 0 || a_sz != b_sz) {
-        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-    }
-
-    /* check public key size */
-    if (a->pkey_sz > 0 && b->pkey_sz > 0 && a->pkey_sz != b->pkey_sz) {
-        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-    }
-
-    /* check public key */
-    if (a->pkey.ptr && b->pkey.ptr) {
-        if (XMEMCMP(a->pkey.ptr, b->pkey.ptr, (size_t)a->pkey_sz) != 0) {
-            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
-        }
-    }
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     ret = 1; /* the keys match */
 #else
@@ -4802,7 +4837,9 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
                                              ctx->pctx->pkey->ecc);
             if (ecdsaSig == NULL)
                 break;
-            len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
+            len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
+            if (len > 0 && (size_t)len <= *siglen)
+                len = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sig);
             wolfSSL_ECDSA_SIG_free(ecdsaSig);
             if (len == 0)
                 break;
@@ -12468,7 +12505,7 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
         case WC_EVP_PKEY_RSA:
 
 #if !defined(NO_RSA)
-            keybits = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey) * 8;
+            keybits = wolfSSL_EVP_PKEY_bits((WOLFSSL_EVP_PKEY*)pkey);
             res     = PrintPubKeyRSA(
                         out,
                         (byte*)(pkey->pkey.ptr), /* buffer for pkey raw data */
@@ -12484,7 +12521,7 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
         case WC_EVP_PKEY_EC:
 
 #if defined(HAVE_ECC)
-            keybits = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey) * 8;
+            keybits = wolfSSL_EVP_PKEY_bits((WOLFSSL_EVP_PKEY*)pkey);
             res     = PrintPubKeyEC(
                         out,
                         (byte*)(pkey->pkey.ptr),  /* buffer for pkey raw data */
@@ -12500,7 +12537,7 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
         case WC_EVP_PKEY_DSA:
 
 #if !defined(NO_DSA)
-            keybits = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey) * 8;
+            keybits = wolfSSL_EVP_PKEY_bits((WOLFSSL_EVP_PKEY*)pkey);
             res     = PrintPubKeyDSA(
                         out,
                         (byte*)(pkey->pkey.ptr),  /* buffer for pkey raw data */
@@ -12516,7 +12553,7 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
         case WC_EVP_PKEY_DH:
 
 #if defined(WOLFSSL_DH_EXTRA)
-            keybits = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey) * 8;
+            keybits = wolfSSL_EVP_PKEY_bits((WOLFSSL_EVP_PKEY*)pkey);
             res     = PrintPubKeyDH(
                         out,
                         (byte*)(pkey->pkey.ptr),  /* buffer for pkey raw data */
