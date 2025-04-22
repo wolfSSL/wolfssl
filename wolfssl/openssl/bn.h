@@ -216,6 +216,7 @@ typedef WOLFSSL_BN_GENCB    BN_GENCB;
 
 #ifndef NO_WOLFSSL_BN_CTX
 #define BN_CTX_new        wolfSSL_BN_CTX_new
+#define BN_CTX_init       wolfSSL_BN_CTX_init
 #define BN_CTX_free       wolfSSL_BN_CTX_free
 #else
 #define BN_CTX_new()      ((BN_CTX*)-1)
