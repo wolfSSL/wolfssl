@@ -8231,11 +8231,16 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         ret = BAD_FUNC_ARG;
     }
 
+#ifndef WOLFSSL_NO_ASN_STRICT
     /* Sanity check: make sure key doesn't have PKCS #8 header. */
     if (ToTraditionalInline_ex(key, &keyIdx, keySz, &tmpAlgId) >= 0) {
         (void)tmpAlgId;
         ret = ASN_PARSE_E;
     }
+#else
+    (void)keyIdx;
+    (void)tmpAlgId;
+#endif
 
     CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
 
