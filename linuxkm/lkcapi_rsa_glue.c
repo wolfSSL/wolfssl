@@ -180,25 +180,32 @@ static int km_rsa_init(struct crypto_akcipher *tfm, int hash_oid)
 
     ctx->key = (RsaKey *)malloc(sizeof(RsaKey));
     if (!ctx->key) {
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto out;
     }
 
     ret = wc_InitRng(&ctx->rng);
     if (ret) {
         pr_err("%s: init rng returned: %d\n", WOLFKM_RSA_DRIVER, ret);
-        return -ENOMEM;
+        if (ret == WC_NO_ERR_TRACE(MEMORY_E))
+            ret = -ENOMEM;
+        else
+            ret = -EINVAL;
+        goto out;
     }
 
     ret = wc_InitRsaKey(ctx->key, NULL);
     if (ret) {
         pr_err("%s: init rsa key returned: %d\n", WOLFKM_RSA_DRIVER, ret);
-        return -ENOMEM;
+        ret = -EINVAL;
+        goto out;
     }
 
     #ifdef WC_RSA_BLINDING
     ret = wc_RsaSetRNG(ctx->key, &ctx->rng);
     if (ret) {
-        return -ENOMEM;
+        ret = -EINVAL;
+        goto out;
     }
     #endif /* WC_RSA_BLINDING */
 
@@ -221,13 +228,25 @@ static int km_rsa_init(struct crypto_akcipher *tfm, int hash_oid)
     default:
         pr_err("%s: init: unhandled hash_oid: %d\n", WOLFKM_RSA_DRIVER,
                hash_oid);
-        return -ENOMEM;
+        ret = -EINVAL;
+        goto out;
     }
 
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_rsa_init: hash_oid %d\n", ctx->hash_oid);
     #endif /* WOLFKM_DEBUG_RSA */
-    return 0;
+
+out:
+
+    if (ret != 0) {
+        if (ctx->key) {
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+        wc_FreeRng(&ctx->rng);
+    }
+
+    return ret;
 }
 
 #if defined(LINUXKM_DIRECT_RSA)
@@ -1260,6 +1279,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_rsa_end;
     }
 
@@ -1267,6 +1287,7 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     if (IS_ERR(req)) {
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
+        req = NULL;
         goto test_rsa_end;
     }
 
@@ -1609,6 +1630,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_pkcs1_end;
     }
 
@@ -1616,6 +1638,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     if (IS_ERR(req)) {
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
+        req = NULL;
         goto test_pkcs1_end;
     }
 

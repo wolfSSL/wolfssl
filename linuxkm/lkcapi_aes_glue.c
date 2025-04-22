@@ -1204,6 +1204,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
+            in_map = NULL;
             goto out;
         }
         assoc = in_map;
@@ -1220,6 +1221,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
+            out_map = NULL;
             goto out;
         }
         out_text = out_map + req->assoclen;
@@ -2329,6 +2331,7 @@ static int linuxkm_test_aescbc(void)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
                WOLFKM_AESCBC_DRIVER, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_cbc_end;
     }
 
@@ -2355,6 +2358,7 @@ static int linuxkm_test_aescbc(void)
     if (IS_ERR(req)) {
         pr_err("error: allocating AES skcipher request %s failed\n",
                WOLFKM_AESCBC_DRIVER);
+        req = NULL;
         goto test_cbc_end;
     }
 
@@ -2538,6 +2542,7 @@ static int linuxkm_test_aescfb(void)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
                WOLFKM_AESCFB_DRIVER, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_cfb_end;
     }
 
@@ -2555,6 +2560,7 @@ static int linuxkm_test_aescfb(void)
     if (IS_ERR(req)) {
         pr_err("error: allocating AES skcipher request %s failed\n",
                WOLFKM_AESCFB_DRIVER);
+        req = NULL;
         goto test_cfb_end;
     }
 
@@ -2763,6 +2769,7 @@ static int linuxkm_test_aesgcm(void)
     assoc2 = malloc(sizeof(assoc));
     if (IS_ERR(assoc2)) {
         pr_err("error: malloc failed\n");
+        assoc2 = NULL;
         goto test_gcm_end;
     }
     memset(assoc2, 0, sizeof(assoc));
@@ -2771,6 +2778,7 @@ static int linuxkm_test_aesgcm(void)
     iv = malloc(WC_AES_BLOCK_SIZE);
     if (IS_ERR(iv)) {
         pr_err("error: malloc failed\n");
+        iv = NULL;
         goto test_gcm_end;
     }
     memset(iv, 0, WC_AES_BLOCK_SIZE);
@@ -2779,12 +2787,14 @@ static int linuxkm_test_aesgcm(void)
     enc2 = malloc(decryptLen);
     if (IS_ERR(enc2)) {
         pr_err("error: malloc failed\n");
+        enc2 = NULL;
         goto test_gcm_end;
     }
 
     dec2 = malloc(decryptLen);
     if (IS_ERR(dec2)) {
         pr_err("error: malloc failed\n");
+        dec2 = NULL;
         goto test_gcm_end;
     }
 
@@ -2796,6 +2806,7 @@ static int linuxkm_test_aesgcm(void)
     if (IS_ERR(tfm)) {
         pr_err("error: allocating AES skcipher algorithm %s failed: %ld\n",
                WOLFKM_AESGCM_DRIVER, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_gcm_end;
     }
 
@@ -2819,15 +2830,25 @@ static int linuxkm_test_aesgcm(void)
     if (IS_ERR(req)) {
         pr_err("error: allocating AES aead request %s failed: %ld\n",
                WOLFKM_AESCBC_DRIVER, PTR_ERR(req));
+        req = NULL;
         goto test_gcm_end;
     }
 
     src = malloc(sizeof(struct scatterlist) * 2);
+
+    if (IS_ERR(src)) {
+        pr_err("error: malloc src failed: %ld\n",
+               PTR_ERR(src));
+        src = NULL;
+        goto test_gcm_end;
+    }
+
     dst = malloc(sizeof(struct scatterlist) * 2);
 
-    if (IS_ERR(src) || IS_ERR(dst)) {
-        pr_err("error: malloc src or dst failed: %ld, %ld\n",
-               PTR_ERR(src), PTR_ERR(dst));
+    if (IS_ERR(dst)) {
+        pr_err("error: malloc dst failed: %ld\n",
+               PTR_ERR(dst));
+        dst = NULL;
         goto test_gcm_end;
     }
 
@@ -3367,6 +3388,7 @@ static int aes_xts_128_test(void)
         ret = PTR_ERR(tfm);
         pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
+        tfm = NULL;
         goto test_xts_end;
     }
 
@@ -3404,6 +3426,7 @@ static int aes_xts_128_test(void)
         ret = PTR_ERR(req);
         pr_err("error: allocating AES skcipher request %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
+        req = NULL;
         goto test_xts_end;
     }
 
@@ -3847,6 +3870,7 @@ static int aes_xts_256_test(void)
         ret = PTR_ERR(tfm);
         pr_err("error: allocating AES skcipher algorithm %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
+        tfm = NULL;
         goto test_xts_end;
     }
 
@@ -3883,6 +3907,7 @@ static int aes_xts_256_test(void)
         ret = PTR_ERR(req);
         pr_err("error: allocating AES skcipher request %s failed: %d\n",
                WOLFKM_AESXTS_DRIVER, ret);
+        req = NULL;
         goto test_xts_end;
     }
 
