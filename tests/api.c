@@ -28737,6 +28737,7 @@ static int test_wolfSSL_BN_CTX(void)
     /* No implementation. */
     BN_CTX_start(NULL);
     BN_CTX_start(bn_ctx);
+    BN_CTX_init(NULL);
 #endif
 
     BN_CTX_free(NULL);
