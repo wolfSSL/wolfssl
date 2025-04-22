@@ -2767,34 +2767,30 @@ static int linuxkm_test_aesgcm(void)
 
     /* now the kernel crypto part */
     assoc2 = malloc(sizeof(assoc));
-    if (IS_ERR(assoc2)) {
+    if (! assoc2) {
         pr_err("error: malloc failed\n");
-        assoc2 = NULL;
         goto test_gcm_end;
     }
     memset(assoc2, 0, sizeof(assoc));
     memcpy(assoc2, assoc, sizeof(assoc));
 
     iv = malloc(WC_AES_BLOCK_SIZE);
-    if (IS_ERR(iv)) {
+    if (! iv) {
         pr_err("error: malloc failed\n");
-        iv = NULL;
         goto test_gcm_end;
     }
     memset(iv, 0, WC_AES_BLOCK_SIZE);
     memcpy(iv, ivstr, GCM_NONCE_MID_SZ);
 
     enc2 = malloc(decryptLen);
-    if (IS_ERR(enc2)) {
+    if (! enc2) {
         pr_err("error: malloc failed\n");
-        enc2 = NULL;
         goto test_gcm_end;
     }
 
     dec2 = malloc(decryptLen);
-    if (IS_ERR(dec2)) {
+    if (! dec2) {
         pr_err("error: malloc failed\n");
-        dec2 = NULL;
         goto test_gcm_end;
     }
 
@@ -2836,19 +2832,17 @@ static int linuxkm_test_aesgcm(void)
 
     src = malloc(sizeof(struct scatterlist) * 2);
 
-    if (IS_ERR(src)) {
+    if (! src) {
         pr_err("error: malloc src failed: %ld\n",
                PTR_ERR(src));
-        src = NULL;
         goto test_gcm_end;
     }
 
     dst = malloc(sizeof(struct scatterlist) * 2);
 
-    if (IS_ERR(dst)) {
+    if (! dst) {
         pr_err("error: malloc dst failed: %ld\n",
                PTR_ERR(dst));
-        dst = NULL;
         goto test_gcm_end;
     }
 
