@@ -28725,9 +28725,6 @@ static int test_wolfSSL_BN_CTX(void)
 
     ExpectNotNull(bn_ctx = BN_CTX_new());
 
-    /* No implementation. */
-    BN_CTX_init(NULL);
-
     ExpectNull(BN_CTX_get(NULL));
     ExpectNotNull(BN_CTX_get(bn_ctx));
     ExpectNotNull(BN_CTX_get(bn_ctx));
@@ -28740,6 +28737,7 @@ static int test_wolfSSL_BN_CTX(void)
     /* No implementation. */
     BN_CTX_start(NULL);
     BN_CTX_start(bn_ctx);
+    BN_CTX_init(NULL);
 #endif
 
     BN_CTX_free(NULL);
