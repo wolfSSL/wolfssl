@@ -1452,6 +1452,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     if (peer != NULL) {
         wolfSSL_X509_free(peer);
+        peer = NULL;
     }
 #endif
 

@@ -1059,7 +1059,7 @@ int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 WOLFSSL_MSG("Bad argument");
                 return WOLFSSL_FAILURE;
             }
-            XMEMCPY(out, in, inl);
+            XMEMMOVE(out, in, inl);
             *outl = inl;
             return WOLFSSL_SUCCESS;
 #if !defined(NO_AES) && defined(HAVE_AESGCM)

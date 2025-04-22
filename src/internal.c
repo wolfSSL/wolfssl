@@ -14178,8 +14178,10 @@ mem_error:
     if (store != NULL)
         wolfSSL_X509_STORE_CTX_free(store);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (x509 != NULL)
+    if (x509 != NULL) {
         wolfSSL_X509_free(x509);
+        x509 = NULL;
+    }
 #endif
     XFREE(domain, heap, DYNAMIC_TYPE_STRING);
     return MEMORY_E;
@@ -14605,6 +14607,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                     if (x509 != NULL) {
                        ret = wolfSSL_X509_STORE_add_cert(store, x509);
                        wolfSSL_X509_free(x509);
+                       x509 = NULL;
                     } else {
                        WOLFSSL_MSG("failed to load certificate");
                        ret = WOLFSSL_FAILURE;
@@ -31661,6 +31664,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                     return CLIENT_CERT_CB_ERROR;
                 }
                 wolfSSL_X509_free(x509);
+                x509 = NULL;
                 wolfSSL_EVP_PKEY_free(pkey);
 
             }

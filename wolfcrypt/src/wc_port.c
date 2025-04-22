@@ -650,11 +650,13 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     if (name)
         *name = NULL;
 
+    if (ctx != NULL)
+        XMEMSET(ctx, 0, sizeof(ReadDirCtx));
+
     if (ctx == NULL || path == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMSET(ctx, 0, sizeof(ReadDirCtx));
     pathLen = (int)XSTRLEN(path);
 
 #ifdef USE_WINDOWS_API

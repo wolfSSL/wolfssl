@@ -36772,6 +36772,9 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
         return BAD_FUNC_ARG;
     }
 
+    /* init pubKey */
+    XMEMSET(pubKey, 0, sizeof(pubKey));
+
     ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
         pubKey, &pubKeyLen, ED25519k);
     if (ret == 0) {
@@ -36811,6 +36814,9 @@ int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
     }
+
+    /* init pubKey */
+    XMEMSET(pubKey, 0, sizeof(pubKey));
 
     ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
         pubKey, &pubKeyLen, X25519k);
@@ -37213,6 +37219,9 @@ int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
         return BAD_FUNC_ARG;
     }
+
+    /* init pubKey */
+    XMEMSET(pubKey, 0, sizeof(pubKey));
 
     ret = DecodeAsymKeyPublic(input, inOutIdx, inSz,
         pubKey, &pubKeyLen, X448k);

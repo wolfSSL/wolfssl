@@ -8692,6 +8692,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                 ssl->options.sendVerify = SEND_CERT;
             }
             wolfSSL_X509_free(x509);
+            x509 = NULL;
             wolfSSL_EVP_PKEY_free(pkey);
         }
     }

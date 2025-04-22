@@ -4063,11 +4063,12 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
     int ret = 0;
     byte sigCheckBuf[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
     byte *sigCheck = sigCheckBuf;
-
+    int digSz;
     (void)bits;
 
-    if (in == NULL || sig == NULL ||
-                               inSz != (word32)wc_HashGetDigestSize(hashType)) {
+    digSz = wc_HashGetDigestSize(hashType);
+
+    if (in == NULL || sig == NULL || digSz < 0 || inSz != (word32)digSz) {
         ret = BAD_FUNC_ARG;
     }
 

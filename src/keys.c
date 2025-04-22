@@ -124,6 +124,9 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
     }
 #endif /* NO_WOLFSSL_CLIENT */
 
+    /* Initialize specs */
+    XMEMSET(specs, 0, sizeof(CipherSpecs));
+
     /* Chacha extensions, 0xcc */
     if (cipherSuite0 == CHACHA_BYTE) {
 

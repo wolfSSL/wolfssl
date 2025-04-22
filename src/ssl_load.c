@@ -4839,6 +4839,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     if (ret == 1) {
         /* On success WOLFSSL_X509 memory is responsibility of SSL context. */
         wolfSSL_X509_free(x509);
+        x509 = NULL;
     }
 
     WOLFSSL_LEAVE("wolfSSL_CTX_add_extra_chain_cert", ret);
@@ -4932,6 +4933,7 @@ int wolfSSL_CTX_add0_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     if (ret == 1) {
         /* Down reference or free original now as we own certificate. */
         wolfSSL_X509_free(x509);
+        x509 = NULL;
     }
 
     return ret;
@@ -4990,6 +4992,7 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
         if (ret != 1) {
             /* Decrease reference count on error as we didn't store it. */
             wolfSSL_X509_free(x509);
+            x509 = NULL;
         }
     }
 
@@ -5053,6 +5056,7 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
             if (ret != 1) {
                 /* Free it now on error. */
                 wolfSSL_X509_free(x509);
+                x509 = NULL;
             }
         }
     }
@@ -5085,6 +5089,7 @@ int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
         if ((ret = wolfSSL_add0_chain_cert(ssl, x509)) != 1) {
             /* Decrease reference count on error as not stored. */
             wolfSSL_X509_free(x509);
+            x509 = NULL;
         }
     }
 

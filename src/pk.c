@@ -731,7 +731,7 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
     if (indent > 0) {
         /* Print indent spaces. */
         int len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
-        if (len_wanted >= lineLen) {
+        if ((len_wanted < 0) || (len_wanted >= lineLen)) {
             WOLFSSL_ERROR_MSG("Buffer overflow formatting indentation");
             ret = 0;
         }
@@ -16172,6 +16172,11 @@ static int pem_write_data(const char *name, const char *header,
         /* Return buffer and length of data. */
         *pemOut = pem;
         *pemOutLen = (word32)((size_t)p - (size_t)pem);
+    }
+    else {
+        /* Dispose of any allocated memory. */
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = NULL;
     }
 
     return ret;

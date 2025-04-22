@@ -3599,9 +3599,8 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
                 WOLFSSL_MSG("Memory error");
                 return NULL;
             }
-            if ((strLen = XSNPRINTF(str, (size_t)strSz, "%s=%s, ", sn, buf))
-                >= strSz)
-            {
+            strLen = XSNPRINTF(str, (size_t)strSz, "%s=%s, ", sn, buf);
+            if ((strLen  < 0) || (strLen  >= strSz)) {
                 WOLFSSL_MSG("buffer overrun");
                 XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
@@ -3617,8 +3616,8 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
                 WOLFSSL_MSG("Memory error");
                 return NULL;
             }
-            if ((strLen = XSNPRINTF(str, (size_t)strSz, "%s=%s", sn,
-                    buf)) >= strSz) {
+            strLen = XSNPRINTF(str, (size_t)strSz, "%s=%s", sn, buf);
+            if ((strLen  < 0) || (strLen  >= strSz)) {
                 WOLFSSL_MSG("buffer overrun");
                 XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
@@ -6971,7 +6970,7 @@ static int X509PrintPubKey(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
         case ECDSAk:
             len = XSNPRINTF(scratch, MAX_WIDTH,
                     "%*sPublic Key Algorithm: EC\n", indent + 4, "");
-            if (len >= MAX_WIDTH)
+            if ((len < 0) || (len >= MAX_WIDTH))
                 return WOLFSSL_FAILURE;
             if (wolfSSL_BIO_write(bio, scratch, len) <= 0)
                 return WOLFSSL_FAILURE;
@@ -7033,22 +7032,21 @@ static int X509PrintVersion(WOLFSSL_BIO* bio, int version, int indent)
     char scratch[MAX_WIDTH];
     int scratchLen;
 
-    if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                                 "%*s%s", indent, "", "Version:"))
-        >= MAX_WIDTH)
-    {
+    scratchLen = XSNPRINTF(scratch, MAX_WIDTH, "%*s%s", indent, "", "Version:");
+    if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH)) {
         return WOLFSSL_FAILURE;
     }
+
     if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
         return WOLFSSL_FAILURE;
     }
 
-    if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH,
-                                 " %d (0x%x)\n", version, (byte)version-1))
-        >= MAX_WIDTH)
-    {
+    scratchLen = XSNPRINTF(scratch, MAX_WIDTH, " %d (0x%x)\n",
+                    version, (byte)version-1);
+    if ((scratchLen < 0) || (scratchLen >= MAX_WIDTH)) {
         return WOLFSSL_FAILURE;
     }
+
     if (wolfSSL_BIO_write(bio, scratch, scratchLen) <= 0) {
         return WOLFSSL_FAILURE;
     }
@@ -8064,6 +8062,7 @@ int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
 
     if (x != NULL) {
         wolfSSL_X509_free(x);
+        x = NULL;
     }
 
     return ret;

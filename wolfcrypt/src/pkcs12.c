@@ -1175,7 +1175,7 @@ static int PKCS12_CheckConstructedZero(byte* data, word32 dataSz, word32* idx)
 {
     word32 oid;
     int    ret = 0;
-    int    number, size;
+    int    number, size = 0;
     byte   tag = 0;
 
     if (GetSequence(data, idx, &size, dataSz) < 0) {
