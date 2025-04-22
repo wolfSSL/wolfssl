@@ -1112,7 +1112,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         matchAnyKey = 1;
     }
 #ifdef WC_RSA_PSS
-    if(*keyFormat == RSAPSSk) {
+    if((ret == 0) && (*keyFormat == RSAPSSk)) {
         /*
             Require logic to verify that the der is RSAPSSk (when *keyFormat == RSAPSSK),
             and to detect that the der is RSAPSSk (when *keyFormat == 0).

@@ -7306,6 +7306,8 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     ret = InitHandshakeHashes(ssl);
     if (ret != 0) {
         WOLFSSL_MSG_EX("InitHandshakeHashes failed. err = %d", ret);
+        ssl->hsHashes = tmpHashes; /* restore hsHashes pointer to original
+                                    * before returning */
         return ret;
     }
 
