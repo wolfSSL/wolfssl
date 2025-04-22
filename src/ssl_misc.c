@@ -30,7 +30,6 @@
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 #ifndef NO_BIO
 
-#ifdef WOLFSSL_NO_FSEEK
 /* Amount of memory to allocate/add. */
 #define READ_BIO_FILE_CHUNK     128
 
@@ -109,7 +108,6 @@ static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** data)
     *data = mem;
     return ret;
 }
-#endif
 
 /* Read exactly the required amount into a newly allocated buffer.
  *
@@ -171,15 +169,7 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
         }
         *memAlloced = 0;
     }
-#ifndef WOLFSSL_NO_FSEEK
     /* Get pending or, when a file BIO, get length of file. */
-    else if ((sz = wolfSSL_BIO_get_len(bio)) > 0) {
-        ret = wolfssl_read_bio_len(bio, sz, data);
-        if (ret > 0) {
-            *memAlloced = 1;
-        }
-    }
-#else
     else if ((sz = wolfSSL_BIO_pending(bio)) > 0) {
         ret = wolfssl_read_bio_len(bio, sz, data);
         if (ret > 0) {
@@ -192,7 +182,6 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
             *memAlloced = 1;
         }
     }
-#endif
     else {
         WOLFSSL_ERROR_MSG("No data read from bio");
         *memAlloced = 0;
