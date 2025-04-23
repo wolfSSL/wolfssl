@@ -34,8 +34,6 @@
 #ifdef OPENSSL_EXTRA
 static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                             WOLFSSL_STACK *certs, WOLFSSL_X509 *x);
-static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
-                                          WOLFSSL_X509* x509, int type);
 #endif
 
 /* Based on OpenSSL default max depth */
@@ -1367,8 +1365,7 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
     return &store->lookup;
 }
 
-static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
-                                          WOLFSSL_X509* x509, int type)
+int X509StoreAddCa(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509, int type)
 {
     int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     DerBuffer* derCert = NULL;
