@@ -209,7 +209,7 @@ int unit_test(int argc, char** argv)
             goto exit;
         }
         else if (XSTRCMP(argv[1], "--group") == 0) {
-            if (argc == 1) {
+            if (argc == 2) {
                 fprintf(stderr, "No group name supplied\n");
                 ret = -1;
                 goto exit;
