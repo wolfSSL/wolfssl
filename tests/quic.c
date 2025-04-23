@@ -346,6 +346,7 @@ static int test_provide_quic_data(void) {
     len = fake_record(1, 100, lbuffer);
     ExpectTrue(provide_data(ssl, wolfssl_encryption_initial, lbuffer, len, 1));
     wolfSSL_free(ssl);
+    ssl = NULL;
 
     ExpectNotNull(ssl = wolfSSL_new(ctx));
     len = fake_record(1, 100, lbuffer);
