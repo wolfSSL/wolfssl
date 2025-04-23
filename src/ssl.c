@@ -1006,7 +1006,7 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
     word32 totalLen = 2;
     word32 workingOutputLen;
 
-    if (configs == NULL || outputLen == NULL)
+    if (configs == NULL || outputLen == NULL || *outputLen < totalLen)
         return BAD_FUNC_ARG;
 
     workingOutputLen = *outputLen - totalLen;
@@ -12511,6 +12511,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             err = WOLFSSL_SUCCESS;
 cleanup:
             wolfSSL_X509_free(cert);
+            cert = NULL;
             wolfSSL_BIO_free(bio);
             if (err != WOLFSSL_SUCCESS) {
                 /* We failed so return NULL */
@@ -14520,6 +14521,7 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
             break;
         if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
             wolfSSL_X509_free(issuer);
+            issuer = NULL;
             return WOLFSSL_FATAL_ERROR;
         }
         x = issuer;
@@ -14565,6 +14567,7 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
         if (err != 0) {
             WOLFSSL_MSG("Error decoding cert");
             wolfSSL_X509_free(x509);
+            x509 = NULL;
             wolfSSL_sk_X509_pop_free(sk, NULL);
             return NULL;
         }
@@ -21159,6 +21162,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
                     WOLFSSL_MSG("Error adding certificate to context");
                     /* Decrease reference count on failure */
                     wolfSSL_X509_free(x509);
+                    x509 = NULL;
                 }
             }
         }
@@ -22993,7 +22997,7 @@ int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)
 {
-    word16 nameLen;
+    word16 nameLen = 0;
 
     if (ssl != NULL && data != NULL && len != NULL) {
         TLSX_ALPN_GetRequest(ssl->extensions, (void **)data, &nameLen);

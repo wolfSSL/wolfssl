@@ -100,6 +100,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
         if (ctx->current_issuer != NULL) {
             wolfSSL_X509_free(ctx->current_issuer);
+            ctx->current_issuer = NULL;
         }
 #endif
 
@@ -815,6 +816,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
             if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
                 wolfSSL_X509_free(x509);
+                x509 = NULL;
                 error = 1;
                 break;
             }
@@ -837,11 +839,13 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                             WOLFSSL_MSG("Unable to load CA x509 into stack");
                             error = 1;
                             wolfSSL_X509_free(issuer);
+                            issuer = NULL;
                         }
                     }
                     else {
                         WOLFSSL_MSG("Certificate is self signed");
                         wolfSSL_X509_free(issuer);
+                        issuer = NULL;
                     }
                 }
                 else {
@@ -849,6 +853,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                 }
             }
             wolfSSL_X509_free(x509);
+            x509 = NULL;
         }
 #endif
         if (error) {
@@ -968,6 +973,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
                                 <= 0) {
                         err = 1;
                         wolfSSL_X509_free(filteredCert);
+                        filteredCert = NULL;
                         break;
                     }
                 }
@@ -1405,6 +1411,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     else {
                         result = WOLFSSL_FATAL_ERROR;
                         wolfSSL_X509_free(x509);
+                        x509 = NULL;
                     }
                 }
             }
@@ -1420,6 +1427,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     else {
                         result = WOLFSSL_FATAL_ERROR;
                         wolfSSL_X509_free(x509);
+                        x509 = NULL;
                     }
                 }
             }
@@ -1491,7 +1499,7 @@ int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
             }
         }
         wolfSSL_X509_free(x509);
-
+        x509 = NULL;
     }
     else {
         ret = WOLFSSL_FAILURE;
@@ -1788,6 +1796,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
             if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
                 wolfSSL_X509_free(x509);
+                x509 = NULL;
                 goto error;
             }
         }
