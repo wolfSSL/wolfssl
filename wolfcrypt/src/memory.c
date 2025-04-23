@@ -1754,7 +1754,7 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
     }
     (void)lrand48_r(&wc_svr_fuzzing_state, &result);
     if (result & 1)
-        return IO_FAILED_E;
+        return WC_NO_ERR_TRACE(IO_FAILED_E);
     else
         return 0;
 }
@@ -1794,7 +1794,7 @@ WOLFSSL_LOCAL int SAVE_VECTOR_REGISTERS2_fuzzer(void) {
 
     balance_bit = !balance_bit;
 
-    return ((prn & 1) ^ balance_bit) ? IO_FAILED_E : 0;
+    return ((prn & 1) ^ balance_bit) ? WC_NO_ERR_TRACE(IO_FAILED_E) : 0;
 }
 
 #endif /* !HAVE_THREAD_LS */

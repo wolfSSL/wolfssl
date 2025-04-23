@@ -804,6 +804,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating kpp algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
+        tfm = NULL;
         goto test_ecdh_nist_end;
     }
 
@@ -811,6 +812,7 @@ static int linuxkm_test_ecdh_nist_driver(const char * driver,
     if (IS_ERR(req)) {
         pr_err("error: allocating kpp request %s failed\n",
                driver);
+        req = NULL;
         goto test_ecdh_nist_end;
     }
 
