@@ -164,8 +164,9 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
         /* init content */
 
     #if defined(HASH_IMR_DINIE) && defined(HASH_IMR_DCIE)
-        /* enable IRQ's */
-        HASH->IMR |= (HASH_IMR_DINIE | HASH_IMR_DCIE);
+        /* Disable IRQ's - wolfSSL does not use the HASH/RNG IRQ
+         * If using the HAL hashing API's directly it will re-enable the IRQs */
+        HASH->IMR &= ~(HASH_IMR_DINIE | HASH_IMR_DCIE);
     #endif
 
         /* reset the control register */
