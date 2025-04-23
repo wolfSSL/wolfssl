@@ -1742,6 +1742,10 @@
     {
         word32 blocks = sz / DES_BLOCK_SIZE;
 
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         while (blocks--) {
             XMEMCPY(des->tmp, in, DES_BLOCK_SIZE);
             DesProcessBlock(des, (byte*)des->tmp, out);
