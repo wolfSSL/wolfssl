@@ -1622,6 +1622,17 @@ typedef struct w64wrapper {
         typedef unsigned int   THREAD_RETURN;
         typedef TaskHandle_t   THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif defined(_WIN32_WCE)
+        typedef unsigned      THREAD_RETURN;
+        typedef size_t        THREAD_TYPE;
+        typedef struct COND_TYPE {
+            wolfSSL_Mutex mutex;
+            HANDLE cond;
+        } COND_TYPE;
+        #define WOLFSSL_COND
+        #define INVALID_THREAD_VAL ((THREAD_TYPE)(INVALID_HANDLE_VALUE))
+        #define WOLFSSL_THREAD __stdcall
+        #define WOLFSSL_THREAD_NO_JOIN __cdecl
     #elif defined(USE_WINDOWS_API)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
