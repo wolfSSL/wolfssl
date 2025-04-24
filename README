@@ -257,7 +257,7 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
  (PR 8575)
 * Additional sanity check on r and s lengths in DecodeECC_DSA_Sig_Bin (PR 8350)
 * Fix compat. layer ASN1_TIME_diff to accept NULL output params (PR 8407)
-* Fix CMake lean_tls build (PR 8460) 
+* Fix CMake lean_tls build (PR 8460)
 * Fix for QUIC callback failure (PR 8475)
 * Fix missing alert types in AlertTypeToString for print out with debugging
  enabled (PR 8572)
