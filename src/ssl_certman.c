@@ -1525,7 +1525,7 @@ int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const void* mem, int sz)
     WOLFSSL_ENTER("CM_MemRestoreCertCache");
 
     /* Check memory available is bigger than cache header. */
-    if (current > end) {
+    if ((sz < (int)sizeof(CertCacheHeader)) || (current > end)) {
         WOLFSSL_MSG("Cert Cache Memory buffer too small");
         ret = BUFFER_E;
     }
