@@ -1,10 +1,10 @@
 name = "wolfssl"
 description = "WolfSSL encryption library and its Ada bindings"
-version = "5.7.6"
+version = "5.8.0"
 
 authors = ["WolfSSL Team <support@wolfssl.com>"]
-maintainers = ["Fernando Oleo Blanco <irvise@irvise.xyz>"]
-maintainers-logins = ["Irvise"]
+maintainers = ["Fernando Oleo Blanco <irvise@irvise.xyz>", "Manuel Gomez <mgrojo@gmail.com>"]
+maintainers-logins = ["Irvise", "mgrojo"]
 licenses = "GPL-2.0-only"
 website = "https://www.wolfssl.com/"
 project-files = ["wolfssl.gpr"]
