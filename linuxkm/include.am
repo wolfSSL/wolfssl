@@ -17,6 +17,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_glue.c \
 	      linuxkm/lkcapi_aes_glue.c \
 	      linuxkm/lkcapi_sha_glue.c \
+	      linuxkm/lkcapi_dh_glue.c \
 	      linuxkm/lkcapi_ecdsa_glue.c \
 	      linuxkm/lkcapi_ecdh_glue.c \
 	      linuxkm/lkcapi_rsa_glue.c
