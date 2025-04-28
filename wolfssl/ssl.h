@@ -1775,10 +1775,6 @@ WOLFSSL_API int  wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu);
 #endif
 #endif
 
-#ifdef WOLFSSL_DTLS
-WOLFSSL_API int  wolfSSL_dtls_set_records_can_span_datagrams(WOLFSSL* ssl, int value);
-#endif
-
 #ifdef WOLFSSL_SRTP
 
 /* SRTP Profile ID's from RFC 5764 and RFC 7714 */

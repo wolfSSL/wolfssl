@@ -3789,26 +3789,6 @@ void  wolfSSL_dtls13_set_send_more_acks(WOLFSSL *ssl, int value);
 int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
 
 /*!
-    \ingroup Setup
-
-    \brief Configure whether DTLS records can span multiple datagrams.
-
-    This function allows the user to enforce stricter boundaries for DTLS records,
-    ensuring that records do not span across multiple datagrams. This is useful
-    for applications that require strict datagram boundaries for security or
-    performance reasons.
-
-    \return WOLFSSL_SUCCESS returned if the function executes without an error.
-    \return A negative error code returned on failure.
-
-    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param allowSpan a flag indicating whether records can span datagrams:
-                     - 0: Records cannot span datagrams.
-                     - 1: Records can span datagrams (default behavior).
-*/
-int wolfSSL_dtls_set_records_can_span_datagrams(WOLFSSL* ssl, int value);
-
-/*!
     \brief This function sets the maximum dtls timeout.
 
     \return SSL_SUCCESS returned if the function executed without an error.

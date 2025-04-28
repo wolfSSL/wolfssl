@@ -86,6 +86,8 @@
  * WOLFSSL_NO_INIT_CTX_KEY
  *      Allows SSL objects to be created from a CTX without a loaded key/cert
  *      pair
+ * WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS:
+ *     When defined, allows DTLS records to span across multiple datagrams.
  */
 
 #ifndef WOLFCRYPT_ONLY
@@ -7642,7 +7644,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
-    ssl->dtlsRecordsCanSpanDatagrams    = DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT;
 
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
@@ -11632,12 +11633,16 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 static int DtlsRecordsCanSpanDatagrams(WOLFSSL *ssl)
 {
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls && IsDtlsNotSctpMode(ssl))
-        return ssl->dtlsRecordsCanSpanDatagrams;
+    if (!ssl->options.dtls || !IsDtlsNotSctpMode(ssl))
+        return 1;
 #else
     (void)ssl;
 #endif
+#ifdef WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS
     return 1;
+#else
+    return 0;
+#endif
 }
 
 #ifdef WOLFSSL_DTLS13
@@ -21571,8 +21576,8 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
             return RECV_OVERFLOW_E;
         }
 
-        if (!DtlsRecordsCanSpanDatagrams(ssl)) {
-            if ((word32)in < size) {
+        if ((word32)in < size) {
+            if (!DtlsRecordsCanSpanDatagrams(ssl)) {
                 WOLFSSL_MSG("DTLS: Received partial record, ignoring");
 #ifdef WOLFSSL_DTLS_DROP_STATS
                 ssl->replayDropCount++;
