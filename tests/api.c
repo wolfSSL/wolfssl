@@ -61846,14 +61846,7 @@ static int test_wrong_cs_downgrade(void)
 #if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_EXTRA_ALERTS) &&             \
     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_SP_MATH)
 
-static void test_remove_msg(byte *msg, int tail_len, int *len, int msg_length)
-{
-    tail_len -= msg_length;
-    XMEMMOVE(msg, msg + msg_length, tail_len);
-    *len = *len - msg_length;
-}
-
-static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
+static int test_remove_hs_msg_from_buffer(struct test_memio_ctx *test_ctx, byte type,
     byte *found)
 {
     const unsigned int  _HANDSHAKE_HEADER_SZ = 4;
@@ -61862,16 +61855,17 @@ static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
     const int _change_cipher = 20;
     const int _handshake = 22;
     unsigned int tail_len;
-    byte *idx, *curr;
+    byte *idx;
+    int curr;
     word8 currType;
     word16 rLength;
     word32 hLength;
 
-    idx = buf;
-    tail_len = (unsigned int)*len;
+    idx = test_ctx->c_buff;
+    tail_len = (unsigned int)test_ctx->c_len;
     *found = 0;
     while (tail_len > _RECORD_HEADER_SZ) {
-        curr = idx;
+        curr = (int)(idx - test_ctx->c_buff);
         currType = *idx;
         ato16(idx + 3, &rLength);
         idx += _RECORD_HEADER_SZ;
@@ -61884,8 +61878,8 @@ static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
             if (rLength != 1)
                 return -1;
             /* match */
-            test_remove_msg(curr, *len - (int)(curr - buf),
-                len, _RECORD_HEADER_SZ + 1);
+            test_memio_remove_from_buffer(test_ctx, 1, curr,
+                _RECORD_HEADER_SZ + rLength);
             *found = 1;
             return 0;
         }
@@ -61910,7 +61904,7 @@ static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
         }
 
         /* match */
-        test_remove_msg(curr, *len - (int)(curr - buf), len,
+        test_memio_remove_from_buffer(test_ctx, 1, curr,
             hLength + _RECORD_HEADER_SZ);
         *found = 1;
         return 0;
@@ -61953,8 +61947,7 @@ static int test_remove_hs_message(byte hs_message_type,
         ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
     }
 
-    ExpectIntEQ(test_remove_hs_msg_from_buffer(test_ctx.c_buff,
-         &test_ctx.c_len, hs_message_type, &found), 0);
+    ExpectIntEQ(test_remove_hs_msg_from_buffer(&test_ctx, hs_message_type, &found), 0);
 
     if (!found) {
         wolfSSL_free(ssl_c);
@@ -65890,8 +65883,10 @@ static int test_tls_multi_handshakes_one_record(void)
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     RecordLayerHeader* rh = NULL;
     byte   *len ;
-    int newRecIdx = RECORD_HEADER_SZ;
-    int idx = 0;
+    int newRecIdx;
+    int idx;
+    byte buff[64 * 1024];
+    word16 recLen;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
@@ -65903,9 +65898,14 @@ static int test_tls_multi_handshakes_one_record(void)
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
+    XMEMSET(buff, 0, sizeof(buff));
+    rh = (RecordLayerHeader*)(test_ctx.c_buff);
+    len = &rh->length[0];
+    ato16((const byte*)len, &recLen);
+    XMEMCPY(buff, test_ctx.c_buff, RECORD_HEADER_SZ + recLen);
+    newRecIdx = idx = RECORD_HEADER_SZ + recLen;
     /* Combine server handshake msgs into one record */
     while (idx < test_ctx.c_len) {
-        word16 recLen;
 
         rh = (RecordLayerHeader*)(test_ctx.c_buff + idx);
         len = &rh->length[0];
@@ -65913,19 +65913,22 @@ static int test_tls_multi_handshakes_one_record(void)
         ato16((const byte*)len, &recLen);
         idx += RECORD_HEADER_SZ;
 
-        XMEMMOVE(test_ctx.c_buff + newRecIdx, test_ctx.c_buff + idx,
+        XMEMCPY(buff + newRecIdx, test_ctx.c_buff + idx,
                 (size_t)recLen);
 
         newRecIdx += recLen;
         idx += recLen;
     }
-    rh = (RecordLayerHeader*)(test_ctx.c_buff);
+    rh = (RecordLayerHeader*)(buff);
     len = &rh->length[0];
     c16toa((word16)newRecIdx - RECORD_HEADER_SZ, len);
-    test_ctx.c_len = newRecIdx;
+    test_memio_clear_buffer(&test_ctx, 1);
+    test_memio_inject_message(&test_ctx, 1, (const char*)buff, newRecIdx);
 
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);

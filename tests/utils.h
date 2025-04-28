@@ -46,12 +46,10 @@ struct test_memio_ctx
     int c_msg_sizes[TEST_MEMIO_MAX_MSGS];
     int c_msg_count;
     int c_msg_pos;
-    int c_msg_offset;
 
     int s_msg_sizes[TEST_MEMIO_MAX_MSGS];
     int s_msg_count;
     int s_msg_pos;
-    int s_msg_offset;
 };
 int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx);
 int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx);
@@ -69,6 +67,7 @@ void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client);
 int test_memio_inject_message(struct test_memio_ctx *ctx, int client, const char *data, int sz);
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len);
+int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
 #endif
 
 #endif /* TESTS_UTILS_H */

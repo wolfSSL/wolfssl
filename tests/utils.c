@@ -382,6 +382,59 @@ int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
     return 0;
 }
 
+int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz)
+{
+    int *len;
+    int *msg_count;
+    int *msg_sizes;
+    int msg_off;
+    int i;
+    byte *buff;
+
+    if (client) {
+        buff = ctx->c_buff;
+        len = &ctx->c_len;
+        msg_count = &ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    } else {
+        buff = ctx->s_buff;
+        len = &ctx->s_len;
+        msg_count = &ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (*len == 0) {
+        return -1;
+    }
+    if (off >= *len) {
+        return -1;
+    }
+    if (off + sz > *len) {
+        return -1;
+    }
+    /* find which message the offset is in */
+    msg_off = 0;
+    for (i = 0; i < *msg_count; i++) {
+        if (off >= msg_off && off < msg_off + msg_sizes[i]) {
+            break;
+        }
+        msg_off += msg_sizes[i];
+    }
+    /* don't support records that are split across messages */
+    if (off + sz > msg_off + msg_sizes[i]) {
+        return -1;
+    }
+    if (i == *msg_count) {
+        return -1;
+    }
+    if (sz == msg_sizes[i]) {
+        return test_memio_drop_message(ctx, client, i);
+    }
+    XMEMMOVE(buff + off, buff + off + sz, *len - off - sz);
+    msg_sizes[i] -= sz;
+    *len -= sz;
+    return 0;
+}
+
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len)
 {
     int *len;
