@@ -293,7 +293,7 @@ static void tsipFlushMessages(struct WOLFSSL* ssl)
 
 
 
-WOLFSSL_LOCAL int tsip_TlsCleanup(struct WOLFSSL* ssl)
+int tsip_TlsCleanup(struct WOLFSSL* ssl)
 {
     int ret = 0;
     TsipUserCtx* tuc = NULL;
@@ -321,7 +321,7 @@ WOLFSSL_LOCAL int tsip_TlsCleanup(struct WOLFSSL* ssl)
  * return 0 on success, CRYPTOCB_UNAVAILABLE when tsip can not handle and is
  * expecting to fallback to S/W, other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
+int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -439,7 +439,7 @@ WOLFSSL_LOCAL int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
  * return 0 on success, CRYPTOCB_UNAVAILABLE when tsip can not handle and is
  * expecting to fallback to S/W, other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
+int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
                                                     struct KeyShareEntry* kse)
 {
     int ret = 0;
@@ -520,7 +520,7 @@ WOLFSSL_LOCAL int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
     return ret;
 }
 
-WOLFSSL_LOCAL int tsip_Tls13DeriveEarlySecret(struct WOLFSSL* ssl)
+int tsip_Tls13DeriveEarlySecret(struct WOLFSSL* ssl)
 {
     int ret = 0;
     TsipUserCtx*    tuc = NULL;
@@ -553,7 +553,7 @@ WOLFSSL_LOCAL int tsip_Tls13DeriveEarlySecret(struct WOLFSSL* ssl)
  * return 0 on success, CRYPTOCB_UNAVAILABLE when tsip can not handle and is
  * expecting to fallback to S/W, other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13DeriveHandshakeSecret(struct WOLFSSL* ssl)
+int tsip_Tls13DeriveHandshakeSecret(struct WOLFSSL* ssl)
 {
     int ret = 0;
     e_tsip_err_t err = TSIP_SUCCESS;
@@ -1019,7 +1019,7 @@ static int tsipTls13UpdateServerTrafficKeys(struct WOLFSSL* ssl)
  * returns 0 on success, CRYPTOCB_UNAVAILABLE when tsip can not handle and is
  * expecting to fallback to S/W, other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13DeriveKeys(struct WOLFSSL* ssl,
+int tsip_Tls13DeriveKeys(struct WOLFSSL* ssl,
                                                 int keyType, int side)
 {
     int ret = 0;
@@ -1098,7 +1098,7 @@ WOLFSSL_LOCAL int tsip_Tls13DeriveKeys(struct WOLFSSL* ssl,
     return ret;
 }
 
-WOLFSSL_LOCAL int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
+int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -1266,7 +1266,7 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
  *  totalSz   Length in the record header. means message + type + pad.
  *  return    0, on success, others on failure.
  */
-WOLFSSL_LOCAL int tsip_Tls13HandleFinished(
+int tsip_Tls13HandleFinished(
                                             struct WOLFSSL* ssl,
                                             const byte*     input,
                                             word32*         inOutIdx,
@@ -1309,7 +1309,7 @@ WOLFSSL_LOCAL int tsip_Tls13HandleFinished(
  *             when tsip can not handle and is expecting to fallback to S/W,
  *             other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13BuildMessage(struct WOLFSSL* ssl,
+int tsip_Tls13BuildMessage(struct WOLFSSL* ssl,
                                          byte* output,
                                          int   outSz,
                                          const byte* input,
@@ -1402,7 +1402,7 @@ WOLFSSL_LOCAL int tsip_Tls13BuildMessage(struct WOLFSSL* ssl,
  * return  0 on success, CRYPTOCB_UNAVAILABLE when TSIP can not handle,
  *         other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13SendFinished(
+int tsip_Tls13SendFinished(
                                 struct WOLFSSL* ssl,
                                 byte*       output,
                                 int         outSz,
@@ -1466,7 +1466,7 @@ WOLFSSL_LOCAL int tsip_Tls13SendFinished(
  * return    0 on success, CRYPTOCB_UNAVAILABLE when TSIP can not handle,
  *           other negative values on error.
  */
-WOLFSSL_LOCAL int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
+int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
                                             const byte* input, word32* inOutIdx,
                                             word32 totalSz)
 {
@@ -1611,7 +1611,7 @@ WOLFSSL_LOCAL int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
  * Returns 0 on success, CRYPTOCB_UNAVAILABLE when the required key is not
  * provided or unsupported algo is specified and otherwise failure.
  */
-WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
+int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -2393,7 +2393,7 @@ int tsip_ImportPrivateKey(TsipUserCtx* tuc, int keyType)
  *   TSIP_KEY_TYPE_ECDSAP256   ecdsa p256r1 key
  *   TSIP_KEY_TYPE_ECDSAP384   ecdsa p384r1 key
  */
-WOLFSSL_LOCAL int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
+int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
 {
     int          ret = 0;
     e_tsip_err_t err = TSIP_SUCCESS;
@@ -2622,7 +2622,7 @@ int tsip_usable(const WOLFSSL *ssl, uint8_t session_key_generated)
 * lock hw engine.
 * this should be called before using engine.
 */
-WOLFSSL_LOCAL int tsip_hw_lock(void)
+int tsip_hw_lock(void)
 {
     int ret = 0;
 
@@ -2649,7 +2649,7 @@ WOLFSSL_LOCAL int tsip_hw_lock(void)
 /*
 * release hw engine
 */
-WOLFSSL_LOCAL void tsip_hw_unlock(void)
+void tsip_hw_unlock(void)
 {
     tsip_CryptHwMutexUnLock(&tsip_mutex);
 }
@@ -2657,7 +2657,7 @@ WOLFSSL_LOCAL void tsip_hw_unlock(void)
 /* open TSIP driver
  * return 0 on success.
  */
-WOLFSSL_LOCAL int tsip_Open(void)
+int tsip_Open(void)
 {
     int ret = TSIP_SUCCESS;
 
@@ -2757,7 +2757,7 @@ WOLFSSL_LOCAL int tsip_Open(void)
 }
 
 /* close TSIP driver */
-WOLFSSL_LOCAL void tsip_Close(void)
+void tsip_Close(void)
 {
     WOLFSSL_ENTER("tsip_Close");
     int ret;
@@ -3798,7 +3798,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 #endif /* !NO_RSA */
 
 #if !defined(NO_RSA) && defined(WOLFSSL_RENESAS_TSIP_TLS)
-WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
+int tsip_VerifyRsaPkcsCb(
                         WOLFSSL* ssl,
                         unsigned char* sig, unsigned int sigSz,
                         unsigned char** out,
@@ -3911,7 +3911,7 @@ WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
  *   signature will be DER encoded and stored into out buffer.
  *   the private key must be imported as TSIP specific format.
  */
-WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -4049,7 +4049,7 @@ static int tsip_HashPad(int curveSz, uint8_t* hash,
  * returns
  *   0 on success, CRYPTOCB_UNAVAILABLE on unsupported key type specified.
  */
-WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -4173,7 +4173,7 @@ static void hexdump(const uint8_t* in, uint32_t len)
 byte *ret2err(word32 ret)
 {
     switch(ret) {
-        case TSIP_SUCCESS:     return "success";
+        case TSIP_SUCCESS: return "success";
         case TSIP_ERR_SELF_CHECK1: return "selfcheck1";
         case TSIP_ERR_RESOURCE_CONFLICT: return "rsconflict";
         case TSIP_ERR_SELF_CHECK2: return "selfcheck2";
