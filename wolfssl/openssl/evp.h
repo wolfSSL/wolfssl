@@ -752,6 +752,7 @@ struct WOLFSSL_EVP_PKEY_CTX {
 #endif
 #ifndef NO_RSA
     const WOLFSSL_EVP_MD* md;
+    const WOLFSSL_EVP_MD* mfg1_md;
     int saltlen;
 #endif
 };
@@ -948,6 +949,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, 
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     const WOLFSSL_EVP_MD* md);
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx, int saltlen);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx, const WOLFSSL_EVP_MD *md);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(WOLFSSL_EVP_PKEY_CTX *ctx, const WOLFSSL_EVP_MD *md);
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY *peer);
