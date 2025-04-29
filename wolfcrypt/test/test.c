@@ -23348,6 +23348,40 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
+#if defined(WOLFSSL_DH_GEN_PUB) && defined(WOLFSSL_DH_EXTRA)
+    /* additional test for wc_DhGeneratePublic:
+     *   1. reset key2.
+     *   2. using priv from dh key 1, generate pub2 with
+     *      wc_DhGeneratePublic.
+     *   3. test equality pub2 == pub1. */
+    wc_FreeDhKey(key2);
+    pubSz2 = MAX_DH_KEY_SZ;
+    XMEMSET(pub2, 0, pubSz2);
+
+    ret = wc_InitDhKey_ex(key2, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+#ifdef HAVE_PUBLIC_FFDHE
+    ret = wc_DhSetKey_ex(key2, params->p, params->p_len, params->g,
+                         params->g_len, NULL /* q */, 0 /* qSz */);
+#else
+    ret = wc_DhSetNamedKey(key2, name);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    /* using key 1 private, generate key2 public and test equality. */
+    ret = wc_DhGeneratePublic(key2, priv, privSz, pub2, &pubSz2);
+    if (ret != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+    }
+
+    if (pubSz != pubSz2 || XMEMCMP(pub, pub2, pubSz)) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+#endif /* WOLFSSL_DH_GEN_PUB && WOLFSSL_DH_EXTRA */
+
 #if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
     !defined(HAVE_INTEL_QA)
     /* Make p even */

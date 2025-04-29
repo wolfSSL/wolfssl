@@ -9441,6 +9441,7 @@ then
         'ecdh')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ECDH" ;;
         'rsa')      test "$ENABLED_RSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: RSA implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA -DWC_RSA_NO_PADDING" ;;
+        'dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_DH -DWOLFSSL_DH_EXTRA -DWOLFSSL_DH_GEN_PUB" ;;
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
         '-cfb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCFB" ;;
@@ -9460,6 +9461,7 @@ then
         '-ecdsa')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ECDSA" ;;
         '-ecdh')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ECDH" ;;
         '-rsa')      AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_RSA" ;;
+        '-dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_DH" ;;
         *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
         esac
     done
