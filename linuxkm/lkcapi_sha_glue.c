@@ -33,6 +33,7 @@
 #define WOLFKM_SHA3_256_NAME "sha3-256"
 #define WOLFKM_SHA3_384_NAME "sha3-384"
 #define WOLFKM_SHA3_512_NAME "sha3-512"
+
 #define WOLFKM_SHA1_HMAC_NAME "hmac(sha1)"
 #define WOLFKM_SHA2_224_HMAC_NAME "hmac(sha224)"
 #define WOLFKM_SHA2_256_HMAC_NAME "hmac(sha256)"
@@ -42,6 +43,8 @@
 #define WOLFKM_SHA3_256_HMAC_NAME "hmac(sha3-256)"
 #define WOLFKM_SHA3_384_HMAC_NAME "hmac(sha3-384)"
 #define WOLFKM_SHA3_512_HMAC_NAME "hmac(sha3-512)"
+
+#define WOLFKM_STDRNG_NAME "stdrng"
 
 #if defined(USE_INTEL_SPEEDUP)
     #define WOLFKM_SHA_DRIVER_ISA_EXT "-avx"
@@ -71,6 +74,8 @@
 #define WOLFKM_SHA3_256_HMAC_DRIVER ("hmac-sha3-256" WOLFKM_SHA_DRIVER_SUFFIX)
 #define WOLFKM_SHA3_384_HMAC_DRIVER ("hmac-sha3-384" WOLFKM_SHA_DRIVER_SUFFIX)
 #define WOLFKM_SHA3_512_HMAC_DRIVER ("hmac-sha3-512" WOLFKM_SHA_DRIVER_SUFFIX)
+
+#define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg" WOLFKM_SHA_DRIVER_SUFFIX)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2
     #define LINUXKM_LKCAPI_REGISTER_SHA2_224
@@ -272,6 +277,19 @@
      defined(LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC) || \
      defined(LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC))
     #error LINUXKM_LKCAPI_REGISTER for HMACs is supported only on Linux kernel versions >= 5.6.0.
+#endif
+
+#ifdef HAVE_HASHDRBG
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG)
+        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    #endif
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
+        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
+        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
 
 struct km_sha_state {
@@ -811,3 +829,238 @@ struct wc_swallow_the_semicolon
                               WC_SHA3_512_BLOCK_SIZE, WOLFKM_SHA3_512_HMAC_NAME,
                               WOLFKM_SHA3_512_HMAC_DRIVER, hmac_sha3_test_once);
 #endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+
+#include <wolfssl/wolfcrypt/random.h>
+
+struct wc_linuxkm_drbg_ctx {
+    wolfSSL_Mutex lock;
+    WC_RNG rng;
+};
+
+static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
+{
+    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    int ret;
+
+    ret = wc_InitMutex(&ctx->lock);
+    if (ret != 0)
+        return -EINVAL;
+
+    /* Note the new DRBG instance is seeded, and later reseeded, from system
+     * get_random_bytes() via wc_GenerateSeed().
+     */
+    ret = wc_InitRng(&ctx->rng);
+    if (ret != 0) {
+        (void)wc_FreeMutex(&ctx->lock);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
+{
+    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+
+    wc_FreeRng(&ctx->rng);
+
+    (void)wc_FreeMutex(&ctx->lock);
+
+    return;
+}
+
+static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
+                        const u8 *src, unsigned int slen,
+                        u8 *dst, unsigned int dlen)
+{
+    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
+    int ret;
+
+    (void)tfm;
+
+    wc_LockMutex(&ctx->lock);
+
+    if (slen > 0) {
+        ret = wc_RNG_DRBG_Reseed(&ctx->rng, src, slen);
+        if (ret != 0) {
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    ret = wc_RNG_GenerateBlock(&ctx->rng, dst, dlen);
+    if (ret != 0)
+        ret = -EINVAL;
+
+out:
+
+    wc_UnLockMutex(&ctx->lock);
+
+    return ret;
+}
+
+static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
+                        const u8 *seed, unsigned int slen)
+{
+    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
+    int ret;
+
+    (void)tfm;
+
+    if (slen == 0)
+        return 0;
+
+    wc_LockMutex(&ctx->lock);
+
+    ret = wc_RNG_DRBG_Reseed(&ctx->rng, seed, slen);
+    if (ret != 0) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+out:
+
+    wc_UnLockMutex(&ctx->lock);
+
+    return ret;
+}
+
+static struct rng_alg wc_linuxkm_drbg = {
+    .generate = wc_linuxkm_drbg_generate,
+    .seed =     wc_linuxkm_drbg_seed,
+    .seedsize = 0,
+    .base           =       {
+        .cra_name        =      WOLFKM_STDRNG_NAME,
+        .cra_driver_name =      WOLFKM_STDRNG_DRIVER,
+        .cra_priority    =      WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
+        .cra_ctxsize     =      sizeof(struct wc_linuxkm_drbg_ctx),
+        .cra_init        =      wc_linuxkm_drbg_init_tfm,
+        .cra_exit        =      wc_linuxkm_drbg_exit_tfm,
+        .cra_module      =      THIS_MODULE
+    }
+};
+static int wc_linuxkm_drbg_loaded = 0;
+static int wc_linuxkm_drbg_default_instance_registered = 0;
+
+WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void) {
+    int ret;
+    int cur_refcnt;
+
+    if (wc_linuxkm_drbg_loaded) {
+        pr_err("wc_linuxkm_drbg_set_default called with wc_linuxkm_drbg_loaded.");
+        return -EBUSY;
+    }
+
+    ret = random_test();
+    if (ret) {
+        pr_err("ERROR: self-test for %s failed "
+                           "with return code %d.\n",
+                           wc_linuxkm_drbg.base.cra_driver_name, ret);
+        return -EINVAL;
+    }
+
+    ret = crypto_register_rng(&wc_linuxkm_drbg);
+    if (ret != 0) {
+        pr_err("crypto_register_rng: %d", ret);
+        return ret;
+    }
+
+    wc_linuxkm_drbg_loaded = 1;
+
+    WOLFKM_INSTALL_NOTICE(wc_linuxkm_drbg);
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    ret = crypto_del_default_rng();
+    if (ret) {
+        pr_err("crypto_del_default_rng returned %d", ret);
+        return ret;
+    }
+
+    ret = crypto_get_default_rng();
+    if (ret) {
+        pr_err("crypto_get_default_rng returned %d", ret);
+        return ret;
+    }
+
+    cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+    if (cur_refcnt < 2) {
+        pr_err("wc_linuxkm_drbg refcnt = %d after crypto_get_default_rng()", cur_refcnt);
+        crypto_put_default_rng();
+        return -EINVAL;
+    }
+
+    if (! crypto_default_rng) {
+        pr_err("crypto_default_rng is null");
+        crypto_put_default_rng();
+        return -EINVAL;
+    }
+
+    if (strcmp(crypto_tfm_alg_driver_name(&crypto_default_rng->base), wc_linuxkm_drbg.base.cra_driver_name) == 0) {
+        crypto_put_default_rng();
+        wc_linuxkm_drbg_default_instance_registered = 1;
+        pr_info("%s registered as systemwide default stdrng.", wc_linuxkm_drbg.base.cra_driver_name);
+        pr_info("to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs");
+    }
+    else {
+        pr_err("%s NOT registered as systemwide default stdrng -- found \"%s\".", wc_linuxkm_drbg.base.cra_driver_name, crypto_tfm_alg_driver_name(&crypto_default_rng->base));
+        crypto_put_default_rng();
+        return -EINVAL;
+    }
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
+
+    return 0;
+}
+
+WC_MAYBE_UNUSED static int wc_linuxkm_drbg_cleanup(void) {
+    int cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+    int ret;
+
+    if (! wc_linuxkm_drbg_loaded) {
+        pr_err("wc_linuxkm_drbg_cleanup called with ! wc_linuxkm_drbg_loaded");
+        return -EINVAL;
+    }
+
+    if (cur_refcnt - wc_linuxkm_drbg_default_instance_registered != 1) {
+        pr_err("wc_linuxkm_drbg_cleanup called with refcnt = %d, with wc_linuxkm_drbg %sset as default rng",
+               cur_refcnt, wc_linuxkm_drbg_default_instance_registered ? "" : "not ");
+        return -EBUSY;
+    }
+
+    /* The below is racey, but the kernel doesn't provide any other way.  It's
+     * written to be retryable.
+     */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    if (wc_linuxkm_drbg_default_instance_registered) {
+        ret = crypto_del_default_rng();
+        if (ret) {
+            pr_err("crypto_del_default_rng failed: %d", ret);
+            return ret;
+        }
+        cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
+        if (cur_refcnt != 1) {
+            pr_err("wc_linuxkm_drbg refcnt = %d after crypto_del_default_rng()", cur_refcnt);
+            return -EINVAL;
+        }
+    }
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
+
+    crypto_unregister_rng(&wc_linuxkm_drbg);
+
+    if (! (wc_linuxkm_drbg.base.cra_flags & CRYPTO_ALG_DEAD)) {
+        pr_err("wc_linuxkm_drbg_cleanup: after crypto_unregister_rng, wc_linuxkm_drbg isn't dead.");
+        return -EBUSY;
+    }
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    wc_linuxkm_drbg_default_instance_registered = 0;
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT */
+
+    wc_linuxkm_drbg_loaded = 0;
+
+    return 0;
+}
+
+#endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */

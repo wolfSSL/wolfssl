@@ -3676,7 +3676,7 @@ extern void uITRON4_free(void *p) ;
 
     #if defined(LINUXKM_LKCAPI_REGISTER) && !defined(WOLFSSL_ASN_INT_LEAD_0_ANY)
         /* kernel 5.10 crypto manager tests key(s) that fail unless leading
-         * bytes are tolerated in GetASN_Integer().
+         * zero bytes are tolerated in GetASN_Integer().
          */
         #define WOLFSSL_ASN_INT_LEAD_0_ANY
     #endif

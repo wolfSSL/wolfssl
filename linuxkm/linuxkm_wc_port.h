@@ -294,6 +294,7 @@
         #include <crypto/scatterwalk.h>
         #include <crypto/internal/aead.h>
         #include <crypto/internal/hash.h>
+        #include <crypto/internal/rng.h>
         #include <crypto/internal/skcipher.h>
         #include <crypto/internal/akcipher.h>
         #include <crypto/internal/kpp.h>
@@ -301,7 +302,7 @@
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
          * AES key structs in each context, one for each direction.  in
-         * linuxkm/lkcapi_glue.c (used for CBC, CFB, and GCM), we do the same
+         * linuxkm/lkcapi_aes_glue.c, we do the same
          * thing with "struct km_AesCtx".  however, wolfCrypt struct AesXts
          * already has two AES expanded keys, the main and tweak, and the tweak
          * is always used in the encrypt direction regardless of the main
@@ -313,6 +314,12 @@
          */
         #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
             #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #endif
+
+        #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
+            #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))
+        #else
+            #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount)))
         #endif
     #endif
 
@@ -930,7 +937,7 @@
     #define WC_LINUXKM_ROUND_UP_P_OF_2(x) (                                \
     {                                                                      \
         size_t _alloc_sz = (x);                                            \
-        if (_alloc_sz < 8192)                                              \
+        if ((_alloc_sz < 8192) && (_alloc_sz != 0))                        \
           _alloc_sz = 1UL <<                                               \
               ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz - 1)); \
         _alloc_sz;                                                         \

@@ -316,6 +316,16 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
+#ifdef LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND
+    ret = linuxkm_lkcapi_sysfs_install();
+
+    if (ret) {
+        pr_err("linuxkm_lkcapi_sysfs_install() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#else /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
     ret = linuxkm_lkcapi_register();
 
     if (ret) {
@@ -325,7 +335,8 @@ static int wolfssl_init(void)
         msleep(10);
         return -ECANCELED;
     }
-#endif
+#endif /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
+#endif /* LINUXKM_LKCAPI_REGISTER */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
     wolfcrypt_benchmark_main(0, (char**)NULL);
@@ -365,7 +376,8 @@ static void wolfssl_exit(void)
 #endif
 {
 #ifdef LINUXKM_LKCAPI_REGISTER
-    linuxkm_lkcapi_unregister();
+    (void)linuxkm_lkcapi_unregister();
+    (void)linuxkm_lkcapi_sysfs_deinstall();
 #endif
 
     (void)libwolfssl_cleanup();
