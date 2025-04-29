@@ -1348,6 +1348,38 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     return ret;
 }
 
+#if defined(WOLFSSL_DH_GEN_PUB)
+/**
+ * Given a DhKey with set params and a priv key, generate the corresponding
+ * public key. If fips, does pub key validation.
+ * */
+WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+    byte* pub, word32* pubSz)
+{
+    int ret = 0;
+
+    if (key == NULL || priv == NULL || privSz == 0 ||
+        pub == NULL || pubSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    SAVE_VECTOR_REGISTERS(return _svr_ret;);
+
+    ret = GeneratePublicDh(key, priv, privSz, pub, pubSz);
+
+    #if FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_DH_KEYGEN)
+    if (ret == 0)
+        ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
+    if (ret == 0)
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, privSz);
+    #endif /* FIPS V5 or later || WOLFSSL_VALIDATE_DH_KEYGEN */
+
+    RESTORE_VECTOR_REGISTERS();
+
+    return ret;
+}
+#endif /* WOLFSSL_DH_GEN_PUB */
+
 static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)
 {
@@ -2340,8 +2372,8 @@ int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz,
 #endif /* WOLFSSL_DH_EXTRA */
 
 static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
-                   word32 gSz, const byte* q, word32 qSz, int trusted,
-                   WC_RNG* rng)
+                     word32 gSz, const byte* q, word32 qSz, int trusted,
+                     WC_RNG* rng)
 {
     int ret = 0;
     mp_int* keyP = NULL;
