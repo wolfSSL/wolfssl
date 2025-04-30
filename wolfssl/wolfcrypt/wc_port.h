@@ -268,6 +268,9 @@
         #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
             #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
         #endif
+    #ifdef max
+    #undef max
+    #endif
     #if KERNEL_VERSION_NUMBER >= 0x30100
         #include <zephyr/kernel.h>
         #include <zephyr/posix/posix_types.h>
@@ -277,6 +280,7 @@
         #include <posix/posix_types.h>
         #include <posix/pthread.h>
     #endif
+    #define max MAX
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
 
