@@ -109,21 +109,20 @@ ifeq ($(HAVE_WOLFSSL_ASSEMBLY), 1)
                $(WOLFSSL_ROOT)/wolfcrypt/src/sp_x86_64_asm.S\
                $(WOLFSSL_ROOT)/wolfcrypt/src/aes_xts_asm.S\
                $(WOLFSSL_ROOT)/wolfcrypt/src/sha3_asm.S\
-               $(WOLFSSL_ROOT)/wolfcrypt/src/wc_kyber_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/wc_mlkem_asm.S\
                $(WOLFSSL_ROOT)/wolfcrypt/src/chacha_asm.S\
                $(WOLFSSL_ROOT)/wolfcrypt/src/sha512_asm.S
 
 
 	Wolfssl_C_Extra_Flags += -DWOLFSSL_X86_64_BUILD\
                -DWOLFSSL_AESNI\
-               -maes -masm=intel
+               -maes -mavx -mavx2 -msse4.2
 
-#SP assembly needs investigated for use with PIE
-#ifeq ($(HAVE_WOLFSSL_SP), 1)
-#    Wolfssl_C_Extra_Flags += -DWOLFSSL_SP_X86_64_ASM\
-#			     -DWOLFSSL_SP_X86_64\
-#			     -DWOLFSSL_SP_ASM
-#endif
+ifeq ($(HAVE_WOLFSSL_SP), 1)
+    Wolfssl_C_Extra_Flags += -DWOLFSSL_SP_X86_64_ASM\
+			   -DWOLFSSL_SP_X86_64\
+			   -DWOLFSSL_SP_ASM
+endif
 endif
 
 Wolfssl_Include_Paths := -I$(WOLFSSL_ROOT)/ \
