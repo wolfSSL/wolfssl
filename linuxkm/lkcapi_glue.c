@@ -80,21 +80,12 @@
 
 #define WOLFKM_DRIVER_SUFFIX_BASE "-wolfcrypt" WOLFKM_DRIVER_FIPS
 
-#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
-    enum linux_errcodes {
-        my_EINVAL = EINVAL,
-        my_ENOMEM = ENOMEM,
-        my_EBADMSG = EBADMSG
-    };
-
-    #undef EINVAL
-    #undef ENOMEM
-    #undef EBADMSG
-
-    #define EINVAL WC_ERR_TRACE(my_EINVAL)
-    #define ENOMEM WC_ERR_TRACE(my_ENOMEM)
-    #define EBADMSG WC_ERR_TRACE(my_EBADMSG)
-#endif
+#define WOLFKM_INSTALL_NOTICE(alg)                                      \
+    pr_info("%s self-test OK -- "                                       \
+            "registered for %s with priority %d.\n",                    \
+            (alg).base.cra_driver_name,                                 \
+            (alg).base.cra_name,                                        \
+            (alg).base.cra_priority);                                   \
 
 #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
     defined(USE_INTEL_SPEEDUP_FOR_AES)
@@ -249,10 +240,10 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
         defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
-        /**
+        /*
          * note: ecdsa was not recognized as fips_allowed before linux v6.3
          * in kernel crypto/testmgr.c, and will not pass the tests.
-         * */
+         */
         #undef LINUXKM_LKCAPI_REGISTER_ECDSA
     #endif /* linux < 6.3.0 && CONFIG_CRYPTO_FIPS && CONFIG_CRYPTO_MANAGER */
 
@@ -271,7 +262,7 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
-    /**
+    /*
      * notes:
      *   - ecdsa supported with linux 6.12 and earlier for now, only.
      *   - pkcs1pad rsa supported both before and after linux 6.13, but
@@ -283,7 +274,7 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
      *
      * pkcs1pad rsa remained a struct akcipher_alg, but without sign/verify
      * functionality.
-     * */
+     */
     #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
         #undef LINUXKM_LKCAPI_REGISTER_ECDSA
     #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
@@ -307,10 +298,10 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 
 #if defined (LINUXKM_LKCAPI_REGISTER_DH) && defined(CONFIG_CRYPTO_FIPS) && \
     defined(CONFIG_CRYPTO_MANAGER)
-        /**
-         * note: normal dh not fips_allowed in in kernel crypto/testmgr.c,
+        /*
+         * note: normal dh not fips_allowed in kernel crypto/testmgr.c,
          * and will not pass the tests.
-         * */
+         */
         #undef LINUXKM_DH
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
@@ -330,13 +321,100 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
     #include "linuxkm/lkcapi_dh_glue.c"
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
+static int linuxkm_lkcapi_register(void);
+static int linuxkm_lkcapi_unregister(void);
+
+static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                              const char *buf, size_t count)
+{
+    int arg;
+    int ret;
+
+    (void)kobj;
+    (void)attr;
+
+    if (kstrtoint(buf, 10, &arg) || arg != 1)
+        return -EINVAL;
+
+    pr_info("wolfCrypt: Installing algorithms");
+
+    ret = linuxkm_lkcapi_register();
+    if (ret != 0)
+        return ret;
+
+    return count;
+}
+
+static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                              const char *buf, size_t count)
+{
+    int arg;
+    int ret;
+
+    (void)kobj;
+    (void)attr;
+
+    if (kstrtoint(buf, 10, &arg) || arg != 1)
+        return -EINVAL;
+
+    pr_info("wolfCrypt: Deinstalling algorithms");
+
+    ret = linuxkm_lkcapi_unregister();
+    if (ret != 0)
+        return ret;
+
+    return count;
+}
+
+/* create control channels at /sys/module/libwolfssl/{install_algs,deinstall_algs} */
+
+static struct kobj_attribute install_algs_attr = __ATTR(install_algs, 0220, NULL, install_algs_handler);
+static struct kobj_attribute deinstall_algs_attr = __ATTR(deinstall_algs, 0220, NULL, deinstall_algs_handler);
+
+static int installed_sysfs_LKCAPI_files = 0;
+
+static int linuxkm_lkcapi_sysfs_install(void) {
+    int ret;
+    if (! installed_sysfs_LKCAPI_files) {
+        ret = linuxkm_lkcapi_sysfs_install_node(&install_algs_attr, NULL);
+        if (ret)
+            return ret;
+        ret = linuxkm_lkcapi_sysfs_install_node(&deinstall_algs_attr, NULL);
+        if (ret)
+            return ret;
+        installed_sysfs_LKCAPI_files = 1;
+    }
+    return 0;
+}
+
+static int linuxkm_lkcapi_sysfs_deinstall(void) {
+    if (installed_sysfs_LKCAPI_files) {
+        int ret = linuxkm_lkcapi_sysfs_deinstall_node(&install_algs_attr, NULL);
+        if (ret)
+            return ret;
+        ret = linuxkm_lkcapi_sysfs_deinstall_node(&deinstall_algs_attr, NULL);
+        if (ret)
+            return ret;
+        installed_sysfs_LKCAPI_files = 0;
+    }
+    return 0;
+}
+
+static int linuxkm_lkcapi_registered = 0;
+static int linuxkm_lkcapi_n_registered = 0;
+
 static int linuxkm_lkcapi_register(void)
 {
-    int ret = 0;
+    int ret = -1;
+    int seen_err = 0;
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
     int enabled_fips = 0;
 #endif
+
+    ret = linuxkm_lkcapi_sysfs_install();
+    if (ret)
+        return ret;
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
     /* temporarily disable warnings around setkey failures, which are expected
@@ -355,195 +433,205 @@ static int linuxkm_lkcapi_register(void)
     }
 #endif
 
-#define REGISTER_ALG(alg, installer, tester) do {                       \
-        if (alg ## _loaded) {                                           \
-            pr_err("ERROR: %s is already registered.\n",                \
-                   (alg).base.cra_driver_name);                         \
-            ret = -EEXIST;                                              \
-            goto out;                                                   \
-        }                                                               \
-                                                                        \
-        ret =  (installer)(&(alg));                                     \
-                                                                        \
-        if (ret) {                                                      \
-            pr_err("ERROR: " #installer " for %s failed "               \
-                   "with return code %d.\n",                            \
-                   (alg).base.cra_driver_name, ret);                    \
-            goto out;                                                   \
-        }                                                               \
-                                                                        \
-        alg ## _loaded = 1;                                             \
-                                                                        \
-        ret = (tester());                                               \
-                                                                        \
-        if (ret) {                                                      \
-            pr_err("ERROR: self-test for %s failed "                    \
-                   "with return code %d.\n",                            \
-                   (alg).base.cra_driver_name, ret);                    \
-            goto out;                                                   \
-        }                                                               \
-        pr_info("%s self-test OK -- "                                   \
-                "registered for %s with priority %d.\n",                \
-                (alg).base.cra_driver_name,                             \
-                (alg).base.cra_name,                                    \
-                (alg).base.cra_priority);                               \
+#define REGISTER_ALG(alg, alg_class, tester) do {                            \
+        if (! alg ## _loaded) {                                              \
+            ret =  (crypto_register_ ## alg_class)(&(alg));                  \
+            if (ret) {                                                       \
+                seen_err = ret;                                              \
+                pr_err("ERROR: crypto_register_" #alg_class " for %s failed "\
+                       "with return code %d.\n",                             \
+                       (alg).base.cra_driver_name, ret);                     \
+            } else {                                                         \
+                ret = (tester());                                            \
+                if (ret) {                                                   \
+                    seen_err = -EINVAL;                                      \
+                    pr_err("ERROR: wolfCrypt self-test for %s failed "       \
+                           "with return code %d.\n",                         \
+                           (alg).base.cra_driver_name, ret);                 \
+                    (crypto_unregister_ ## alg_class)(&(alg));               \
+                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                        pr_err("ERROR: alg %s not _DEAD "                    \
+                               "after crypto_unregister_%s -- "              \
+                               "marking as loaded despite test failure.",    \
+                               (alg).base.cra_driver_name,                   \
+                               #alg_class);                                  \
+                        alg ## _loaded = 1;                                  \
+                        ++linuxkm_lkcapi_n_registered;                       \
+                    }                                                        \
+                } else {                                                     \
+                    alg ## _loaded = 1;                                      \
+                    ++linuxkm_lkcapi_n_registered;                           \
+                    WOLFKM_INSTALL_NOTICE(alg)                               \
+                }                                                            \
+            }                                                                \
+        }                                                                    \
     } while (0)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
-    REGISTER_ALG(cbcAesAlg, crypto_register_skcipher, linuxkm_test_aescbc);
+    REGISTER_ALG(cbcAesAlg, skcipher, linuxkm_test_aescbc);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCFB
-    REGISTER_ALG(cfbAesAlg, crypto_register_skcipher, linuxkm_test_aescfb);
+    REGISTER_ALG(cfbAesAlg, skcipher, linuxkm_test_aescfb);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
-    REGISTER_ALG(gcmAesAead, crypto_register_aead, linuxkm_test_aesgcm);
+    REGISTER_ALG(gcmAesAead, aead, linuxkm_test_aesgcm);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
-    REGISTER_ALG(gcmAesAead_rfc4106, crypto_register_aead, linuxkm_test_aesgcm_rfc4106);
+    REGISTER_ALG(gcmAesAead_rfc4106, aead, linuxkm_test_aesgcm_rfc4106);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
-    REGISTER_ALG(xtsAesAlg, crypto_register_skcipher, linuxkm_test_aesxts);
+    REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCTR
-    REGISTER_ALG(ctrAesAlg, crypto_register_skcipher, linuxkm_test_aesctr);
+    REGISTER_ALG(ctrAesAlg, skcipher, linuxkm_test_aesctr);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESOFB
-    REGISTER_ALG(ofbAesAlg, crypto_register_skcipher, linuxkm_test_aesofb);
+    REGISTER_ALG(ofbAesAlg, skcipher, linuxkm_test_aesofb);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
-    REGISTER_ALG(ecbAesAlg, crypto_register_skcipher, linuxkm_test_aesecb);
+    REGISTER_ALG(ecbAesAlg, skcipher, linuxkm_test_aesecb);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    REGISTER_ALG(sha1_alg, crypto_register_shash, linuxkm_test_sha1);
+    REGISTER_ALG(sha1_alg, shash, linuxkm_test_sha1);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-    REGISTER_ALG(sha2_224_alg, crypto_register_shash, linuxkm_test_sha2_224);
+    REGISTER_ALG(sha2_224_alg, shash, linuxkm_test_sha2_224);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-    REGISTER_ALG(sha2_256_alg, crypto_register_shash, linuxkm_test_sha2_256);
+    REGISTER_ALG(sha2_256_alg, shash, linuxkm_test_sha2_256);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-    REGISTER_ALG(sha2_384_alg, crypto_register_shash, linuxkm_test_sha2_384);
+    REGISTER_ALG(sha2_384_alg, shash, linuxkm_test_sha2_384);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-    REGISTER_ALG(sha2_512_alg, crypto_register_shash, linuxkm_test_sha2_512);
+    REGISTER_ALG(sha2_512_alg, shash, linuxkm_test_sha2_512);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
-    REGISTER_ALG(sha3_224_alg, crypto_register_shash, linuxkm_test_sha3_224);
+    REGISTER_ALG(sha3_224_alg, shash, linuxkm_test_sha3_224);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
-    REGISTER_ALG(sha3_256_alg, crypto_register_shash, linuxkm_test_sha3_256);
+    REGISTER_ALG(sha3_256_alg, shash, linuxkm_test_sha3_256);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
-    REGISTER_ALG(sha3_384_alg, crypto_register_shash, linuxkm_test_sha3_384);
+    REGISTER_ALG(sha3_384_alg, shash, linuxkm_test_sha3_384);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
-    REGISTER_ALG(sha3_512_alg, crypto_register_shash, linuxkm_test_sha3_512);
+    REGISTER_ALG(sha3_512_alg, shash, linuxkm_test_sha3_512);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
-    REGISTER_ALG(sha1_hmac_alg, crypto_register_shash, linuxkm_test_sha1_hmac);
+    REGISTER_ALG(sha1_hmac_alg, shash, linuxkm_test_sha1_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
-    REGISTER_ALG(sha2_224_hmac_alg, crypto_register_shash, linuxkm_test_sha2_224_hmac);
+    REGISTER_ALG(sha2_224_hmac_alg, shash, linuxkm_test_sha2_224_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
-    REGISTER_ALG(sha2_256_hmac_alg, crypto_register_shash, linuxkm_test_sha2_256_hmac);
+    REGISTER_ALG(sha2_256_hmac_alg, shash, linuxkm_test_sha2_256_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
-    REGISTER_ALG(sha2_384_hmac_alg, crypto_register_shash, linuxkm_test_sha2_384_hmac);
+    REGISTER_ALG(sha2_384_hmac_alg, shash, linuxkm_test_sha2_384_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
-    REGISTER_ALG(sha2_512_hmac_alg, crypto_register_shash, linuxkm_test_sha2_512_hmac);
+    REGISTER_ALG(sha2_512_hmac_alg, shash, linuxkm_test_sha2_512_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
-    REGISTER_ALG(sha3_224_hmac_alg, crypto_register_shash, linuxkm_test_sha3_224_hmac);
+    REGISTER_ALG(sha3_224_hmac_alg, shash, linuxkm_test_sha3_224_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
-    REGISTER_ALG(sha3_256_hmac_alg, crypto_register_shash, linuxkm_test_sha3_256_hmac);
+    REGISTER_ALG(sha3_256_hmac_alg, shash, linuxkm_test_sha3_256_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
-    REGISTER_ALG(sha3_384_hmac_alg, crypto_register_shash, linuxkm_test_sha3_384_hmac);
+    REGISTER_ALG(sha3_384_hmac_alg, shash, linuxkm_test_sha3_384_hmac);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
-    REGISTER_ALG(sha3_512_hmac_alg, crypto_register_shash, linuxkm_test_sha3_512_hmac);
+    REGISTER_ALG(sha3_512_hmac_alg, shash, linuxkm_test_sha3_512_hmac);
 #endif
 
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    /* special installation handler for wc_linuxkm_drbg, to conditionally
+     * install it as the system-wide default rng.
+     */
+    if (! wc_linuxkm_drbg_loaded) {
+        ret = wc_linuxkm_drbg_startup();
+        if (ret == 0)
+            ++linuxkm_lkcapi_n_registered;
+        else
+            seen_err = ret;
+    }
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECC192)
-    REGISTER_ALG(ecdsa_nist_p192, crypto_register_akcipher,
+    REGISTER_ALG(ecdsa_nist_p192, akcipher,
                  linuxkm_test_ecdsa_nist_p192);
     #endif /* LINUXKM_ECC192 */
 
-    REGISTER_ALG(ecdsa_nist_p256, crypto_register_akcipher,
+    REGISTER_ALG(ecdsa_nist_p256, akcipher,
                  linuxkm_test_ecdsa_nist_p256);
 
-    REGISTER_ALG(ecdsa_nist_p384, crypto_register_akcipher,
+    REGISTER_ALG(ecdsa_nist_p384, akcipher,
                  linuxkm_test_ecdsa_nist_p384);
 
     #if defined(HAVE_ECC521)
-    REGISTER_ALG(ecdsa_nist_p521, crypto_register_akcipher,
+    REGISTER_ALG(ecdsa_nist_p521, akcipher,
                  linuxkm_test_ecdsa_nist_p521);
     #endif /* HAVE_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
     #if defined(LINUXKM_ECC192)
-    REGISTER_ALG(ecdh_nist_p192, crypto_register_kpp,
+    REGISTER_ALG(ecdh_nist_p192, kpp,
                  linuxkm_test_ecdh_nist_p192);
     #endif /* LINUXKM_ECC192 */
 
-    REGISTER_ALG(ecdh_nist_p256, crypto_register_kpp,
+    REGISTER_ALG(ecdh_nist_p256, kpp,
                  linuxkm_test_ecdh_nist_p256);
 
-    REGISTER_ALG(ecdh_nist_p384, crypto_register_kpp,
+    REGISTER_ALG(ecdh_nist_p384, kpp,
                  linuxkm_test_ecdh_nist_p384);
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
     #if defined(LINUXKM_DIRECT_RSA)
-    REGISTER_ALG(direct_rsa, crypto_register_akcipher, linuxkm_test_rsa);
+    REGISTER_ALG(direct_rsa, akcipher, linuxkm_test_rsa);
     #endif /* LINUXKM_DIRECT_RSA */
     #ifndef NO_SHA256
-    REGISTER_ALG(pkcs1_sha256, crypto_register_akcipher,
+    REGISTER_ALG(pkcs1_sha256, akcipher,
                  linuxkm_test_pkcs1_sha256);
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA512
-    REGISTER_ALG(pkcs1_sha512, crypto_register_akcipher,
+    REGISTER_ALG(pkcs1_sha512, akcipher,
                  linuxkm_test_pkcs1_sha512);
     #endif /* WOLFSSL_SHA512 */
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
     #ifdef LINUXKM_DH
-    REGISTER_ALG(dh, crypto_register_kpp, linuxkm_test_dh);
+    REGISTER_ALG(dh, kpp, linuxkm_test_dh);
     #endif /* LINUXKM_DH */
     #ifdef HAVE_FFDHE_2048
-    REGISTER_ALG(ffdhe2048, crypto_register_kpp, linuxkm_test_ffdhe2048);
+    REGISTER_ALG(ffdhe2048, kpp, linuxkm_test_ffdhe2048);
     #endif /* HAVE_FFDHE_2048 */
 
     #ifdef HAVE_FFDHE_3072
-    REGISTER_ALG(ffdhe3072, crypto_register_kpp, linuxkm_test_ffdhe3072);
+    REGISTER_ALG(ffdhe3072, kpp, linuxkm_test_ffdhe3072);
     #endif /* HAVE_FFDHE_3072 */
 
     #ifdef HAVE_FFDHE_4096
-    REGISTER_ALG(ffdhe4096, crypto_register_kpp, linuxkm_test_ffdhe4096);
+    REGISTER_ALG(ffdhe4096, kpp, linuxkm_test_ffdhe4096);
     #endif /* HAVE_FFDHE_4096 */
 
     #ifdef HAVE_FFDHE_6144
-    REGISTER_ALG(ffdhe6144, crypto_register_kpp, linuxkm_test_ffdhe6144);
+    REGISTER_ALG(ffdhe6144, kpp, linuxkm_test_ffdhe6144);
     #endif /* HAVE_FFDHE_6144 */
 
     #ifdef HAVE_FFDHE_8192
-    REGISTER_ALG(ffdhe8192, crypto_register_kpp, linuxkm_test_ffdhe8192);
+    REGISTER_ALG(ffdhe8192, kpp, linuxkm_test_ffdhe8192);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef REGISTER_ALG
-
-    out:
 
 #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
@@ -554,155 +642,232 @@ static int linuxkm_lkcapi_register(void)
     disable_setkey_warnings = 0;
 #endif
 
-    return ret;
+    pr_info("wolfCrypt: %d algorithm%s registered.", linuxkm_lkcapi_n_registered,
+            linuxkm_lkcapi_n_registered == 1 ? "" : "s");
+
+    if (ret == -1) {
+        /* no installations occurred */
+        if (linuxkm_lkcapi_registered)
+            return -EEXIST;
+        else {
+            linuxkm_lkcapi_registered = 1;
+            return 0;
+        }
+    }
+    else {
+        /* flag that linuxkm_lkcapi_register has been called, even if an error
+         * occurred.
+         */
+        linuxkm_lkcapi_registered = 1;
+        return seen_err;
+    }
 }
 
-static void linuxkm_lkcapi_unregister(void)
+static int linuxkm_lkcapi_unregister(void)
 {
-#define UNREGISTER_ALG(alg, uninstaller) do {                           \
-        if (alg ## _loaded) {                                           \
-            (uninstaller)(&(alg));                                      \
-            alg ## _loaded = 0;                                         \
-        }                                                               \
+    int seen_err = 0;
+    int n_deregistered = 0;
+
+    if (linuxkm_lkcapi_n_registered == 0)
+        return -ENOENT;
+
+#define UNREGISTER_ALG(alg, alg_class)                                   \
+    do {                                                                 \
+        if (alg ## _loaded) {                                            \
+            if (alg.base.cra_flags & CRYPTO_ALG_DEAD) {                  \
+                pr_err("alg %s already CRYPTO_ALG_DEAD.",                \
+                       alg.base.cra_driver_name);                        \
+                alg ## _loaded = 0;                                      \
+                ++n_deregistered;                                        \
+            }                                                            \
+            else {                                                       \
+                int cur_refcnt =                                         \
+                    WC_LKM_REFCOUNT_TO_INT(alg.base.cra_refcnt);         \
+                if (cur_refcnt == 1) {                                   \
+                    (crypto_unregister_ ## alg_class)(&(alg));           \
+                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {      \
+                        pr_err("ERROR: alg %s not _DEAD after "          \
+                               "crypto_unregister_%s -- "                \
+                               "leaving marked as loaded.",              \
+                               (alg).base.cra_driver_name,               \
+                               #alg_class);                              \
+                        seen_err = -EBUSY;                               \
+                    } else {                                             \
+                        alg ## _loaded = 0;                              \
+                        ++n_deregistered;                                \
+                    }                                                    \
+                }                                                        \
+                else {                                                   \
+                    pr_err("alg %s cannot be uninstalled (refcnt = %d)", \
+                           alg.base.cra_driver_name, cur_refcnt);        \
+                    if (cur_refcnt > 0) { seen_err = -EBUSY; }           \
+                }                                                        \
+            }                                                            \
+        }                                                                \
     } while (0)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
-    UNREGISTER_ALG(cbcAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(cbcAesAlg, skcipher);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCFB
-    UNREGISTER_ALG(cfbAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(cfbAesAlg, skcipher);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
-    UNREGISTER_ALG(gcmAesAead, crypto_unregister_aead);
+    UNREGISTER_ALG(gcmAesAead, aead);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
-    UNREGISTER_ALG(gcmAesAead_rfc4106, crypto_unregister_aead);
+    UNREGISTER_ALG(gcmAesAead_rfc4106, aead);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
-    UNREGISTER_ALG(xtsAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(xtsAesAlg, skcipher);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESCTR
-    UNREGISTER_ALG(ctrAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(ctrAesAlg, skcipher);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESOFB
-    UNREGISTER_ALG(ofbAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(ofbAesAlg, skcipher);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
-    UNREGISTER_ALG(ecbAesAlg, crypto_unregister_skcipher);
+    UNREGISTER_ALG(ecbAesAlg, skcipher);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    UNREGISTER_ALG(sha1_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha1_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-    UNREGISTER_ALG(sha2_224_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_224_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-    UNREGISTER_ALG(sha2_256_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_256_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-    UNREGISTER_ALG(sha2_384_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_384_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-    UNREGISTER_ALG(sha2_512_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_512_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
-    UNREGISTER_ALG(sha3_224_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_224_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
-    UNREGISTER_ALG(sha3_256_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_256_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
-    UNREGISTER_ALG(sha3_384_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_384_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
-    UNREGISTER_ALG(sha3_512_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_512_alg, shash);
 #endif
 
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    UNREGISTER_ALG(sha1_hmac_alg, crypto_unregister_shash);
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
+    UNREGISTER_ALG(sha1_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
-    UNREGISTER_ALG(sha2_224_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_224_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
-    UNREGISTER_ALG(sha2_256_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_256_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
-    UNREGISTER_ALG(sha2_384_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_384_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
-    UNREGISTER_ALG(sha2_512_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha2_512_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
-    UNREGISTER_ALG(sha3_224_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_224_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
-    UNREGISTER_ALG(sha3_256_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_256_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
-    UNREGISTER_ALG(sha3_384_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_384_hmac_alg, shash);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
-    UNREGISTER_ALG(sha3_512_hmac_alg, crypto_unregister_shash);
+    UNREGISTER_ALG(sha3_512_hmac_alg, shash);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
+    /* special deinstallation handler for wc_linuxkm_drbg, to deinstall it as
+     * the system-wide default rng.
+     */
+    if (wc_linuxkm_drbg_loaded) {
+        int ret = wc_linuxkm_drbg_cleanup();
+        if (ret == 0)
+            ++n_deregistered;
+        else
+            seen_err = ret;
+    }
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
     #if defined(LINUXKM_ECC192)
-        UNREGISTER_ALG(ecdsa_nist_p192, crypto_unregister_akcipher);
+        UNREGISTER_ALG(ecdsa_nist_p192, akcipher);
     #endif /* LINUXKM_ECC192 */
-    UNREGISTER_ALG(ecdsa_nist_p256, crypto_unregister_akcipher);
-    UNREGISTER_ALG(ecdsa_nist_p384, crypto_unregister_akcipher);
+    UNREGISTER_ALG(ecdsa_nist_p256, akcipher);
+    UNREGISTER_ALG(ecdsa_nist_p384, akcipher);
     #if defined(HAVE_ECC521)
-        UNREGISTER_ALG(ecdsa_nist_p521, crypto_unregister_akcipher);
+        UNREGISTER_ALG(ecdsa_nist_p521, akcipher);
     #endif /* HAVE_ECC521 */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
     #if defined(LINUXKM_ECC192)
-        UNREGISTER_ALG(ecdh_nist_p192, crypto_unregister_kpp);
+        UNREGISTER_ALG(ecdh_nist_p192, kpp);
     #endif /* LINUXKM_ECC192 */
-    UNREGISTER_ALG(ecdh_nist_p256, crypto_unregister_kpp);
-    UNREGISTER_ALG(ecdh_nist_p384, crypto_unregister_kpp);
+    UNREGISTER_ALG(ecdh_nist_p256, kpp);
+    UNREGISTER_ALG(ecdh_nist_p384, kpp);
     /* no ecdh p521 in kernel. */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
     #if defined(LINUXKM_DIRECT_RSA)
-        UNREGISTER_ALG(direct_rsa, crypto_unregister_akcipher);
+        UNREGISTER_ALG(direct_rsa, akcipher);
     #endif /* LINUXKM_DIRECT_RSA */
     #ifndef NO_SHA256
-        UNREGISTER_ALG(pkcs1_sha256, crypto_unregister_akcipher);
+        UNREGISTER_ALG(pkcs1_sha256, akcipher);
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA512
-        UNREGISTER_ALG(pkcs1_sha512, crypto_unregister_akcipher);
+        UNREGISTER_ALG(pkcs1_sha512, akcipher);
     #endif /* WOLFSSL_SHA512 */
 #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
     #ifdef LINUXKM_DH
-    UNREGISTER_ALG(dh, crypto_unregister_kpp);
+    UNREGISTER_ALG(dh, kpp);
     #endif /* LINUXKM_DH */
     #ifdef HAVE_FFDHE_2048
-    UNREGISTER_ALG(ffdhe2048, crypto_unregister_kpp);
+    UNREGISTER_ALG(ffdhe2048, kpp);
     #endif /* HAVE_FFDHE_2048 */
 
     #ifdef HAVE_FFDHE_3072
-    UNREGISTER_ALG(ffdhe3072, crypto_unregister_kpp);
+    UNREGISTER_ALG(ffdhe3072, kpp);
     #endif /* HAVE_FFDHE_3072 */
 
     #ifdef HAVE_FFDHE_4096
-    UNREGISTER_ALG(ffdhe4096, crypto_unregister_kpp);
+    UNREGISTER_ALG(ffdhe4096, kpp);
     #endif /* HAVE_FFDHE_4096 */
 
     #ifdef HAVE_FFDHE_6144
-    UNREGISTER_ALG(ffdhe6144, crypto_unregister_kpp);
+    UNREGISTER_ALG(ffdhe6144, kpp);
     #endif /* HAVE_FFDHE_6144 */
 
     #ifdef HAVE_FFDHE_8192
-    UNREGISTER_ALG(ffdhe8192, crypto_unregister_kpp);
+    UNREGISTER_ALG(ffdhe8192, kpp);
     #endif /* HAVE_FFDHE_8192 */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef UNREGISTER_ALG
+
+    linuxkm_lkcapi_n_registered -= n_deregistered;
+    pr_info("wolfCrypt: %d algorithm%s deregistered, %d remain%s registered.",
+            n_deregistered, n_deregistered == 1 ? "" : "s",
+            linuxkm_lkcapi_n_registered, linuxkm_lkcapi_n_registered == 1 ? "s" : "");
+
+    if (linuxkm_lkcapi_n_registered > 0)
+        return -EBUSY;
+
+    linuxkm_lkcapi_registered = 0;
+
+    return seen_err;
 }

@@ -2254,7 +2254,7 @@ static int linuxkm_test_aescbc(void)
 
     aes = (Aes *)malloc(sizeof(*aes));
     if (aes == NULL)
-        return -ENOMEM;
+        return MEMORY_E;
 
     XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(enc));
@@ -2458,12 +2458,12 @@ static int linuxkm_test_aescfb(void)
 
     aes = (Aes *)malloc(sizeof(*aes));
     if (aes == NULL)
-        return -ENOMEM;
+        return MEMORY_E;
 
     ret = aesofb_test();
     if (ret) {
         wc_test_render_error_message("aesgcm_test failed: ", ret);
-        ret = -EINVAL;
+        ret = WC_TEST_RET_DEC_EC(ret);
         goto test_cfb_end;
     }
 
@@ -2629,7 +2629,7 @@ static int linuxkm_test_aesgcm(void)
         return check_aead_driver_masking(NULL /* tfm */, WOLFKM_AESGCM_NAME, WOLFKM_AESGCM_DRIVER);
     else {
         wc_test_render_error_message("aesgcm_test failed: ", ret);
-        return -EINVAL;
+        return WC_TEST_RET_DEC_EC(ret);
     }
 #else
     int     ret = 0;
@@ -2688,7 +2688,7 @@ static int linuxkm_test_aesgcm(void)
 
     aes = (Aes *)malloc(sizeof(*aes));
     if (aes == NULL)
-        return -ENOMEM;
+        return MEMORY_E;
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret) {
@@ -2927,7 +2927,7 @@ static int linuxkm_test_aesgcm_rfc4106(void)
         return check_aead_driver_masking(NULL /* tfm */, WOLFKM_AESGCM_RFC4106_NAME, WOLFKM_AESGCM_RFC4106_DRIVER);
     else {
         wc_test_render_error_message("aesgcm_test failed: ", ret);
-        return -EINVAL;
+        return WC_TEST_RET_DEC_EC(ret);
     }
 }
 
@@ -4055,7 +4055,7 @@ static int linuxkm_test_aesctr(void) {
         return check_skcipher_driver_masking(NULL /* tfm */, WOLFKM_AESCTR_NAME, WOLFKM_AESCTR_DRIVER);
     else {
         wc_test_render_error_message("aes_ctr_test failed: ", ret);
-        return -EINVAL;
+        return WC_TEST_RET_DEC_EC(ret);
     }
 }
 
@@ -4069,7 +4069,7 @@ static int linuxkm_test_aesofb(void) {
         return check_skcipher_driver_masking(NULL /* tfm */, WOLFKM_AESOFB_NAME, WOLFKM_AESOFB_DRIVER);
     else {
         wc_test_render_error_message("aesofb_test failed: ", ret);
-        return -EINVAL;
+        return WC_TEST_RET_DEC_EC(ret);
     }
 }
 
@@ -4083,7 +4083,7 @@ static int linuxkm_test_aesecb(void) {
         return check_skcipher_driver_masking(NULL /* tfm */, WOLFKM_AESECB_NAME, WOLFKM_AESECB_DRIVER);
     else {
         wc_test_render_error_message("aes_test failed: ", ret);
-        return -EINVAL;
+        return WC_TEST_RET_DEC_EC(ret);
     }
 }
 

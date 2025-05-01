@@ -1411,7 +1411,7 @@ test_rsa_end:
 static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
                                      int hash_oid, word32 hash_len)
 {
-    int                       test_rc = -1;
+    int                       test_rc = WC_NO_ERR_TRACE(WC_FAILURE);
     int                       ret = 0;
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
@@ -1450,6 +1450,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     hash = malloc(WC_SHA512_DIGEST_SIZE);
     if (! hash) {
         pr_err("error: allocating hash buffer failed.\n");
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
 
@@ -1458,12 +1459,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
                   hash, hash_len);
     if (ret) {
         pr_err("error: wc_Hash returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
     key = (RsaKey*)malloc(sizeof(RsaKey));
     if (key == NULL) {
         pr_err("error: allocating key(%zu) failed\n", sizeof(RsaKey));
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
 
@@ -1480,6 +1483,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = wc_InitRsaKey(key, NULL);
     if (ret) {
         pr_err("error: init rsa key returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
     init_key = 1;
@@ -1488,6 +1492,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = wc_RsaSetRNG(key, &rng);
     if (ret) {
         pr_err("error: rsa set rng returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
     #endif /* WC_RSA_BLINDING */
@@ -1495,18 +1500,21 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
     if (ret) {
         pr_err("error: make rsa key returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
     key_len = wc_RsaEncryptSize(key);
     if (key_len <= 0) {
         pr_err("error: rsa encrypt size returned: %d\n", key_len);
+        test_rc = key_len;
         goto test_pkcs1_end;
     }
 
     sig = (byte*)malloc(key_len);
     if (sig == NULL) {
         pr_err("error: allocating sig(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(sig, 0, key_len);
@@ -1514,6 +1522,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     km_sig = (byte*)malloc(key_len);
     if (km_sig == NULL) {
         pr_err("error: allocating km_sig(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(km_sig, 0, key_len);
@@ -1521,6 +1530,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     enc = (byte*)malloc(key_len);
     if (enc == NULL) {
         pr_err("error: allocating enc(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(enc, 0, key_len);
@@ -1528,6 +1538,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     dec = (byte*)malloc(key_len + 1);
     if (dec == NULL) {
         pr_err("error: allocating dec(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(dec, 0, key_len + 1);
@@ -1535,6 +1546,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     enc2 = (byte*)malloc(key_len);
     if (enc2 == NULL) {
         pr_err("error: allocating enc2(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(enc2, 0, key_len);
@@ -1542,6 +1554,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     dec2 = (byte*)malloc(key_len + 1);
     if (dec2 == NULL) {
         pr_err("error: allocating dec2(%d) failed\n", key_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
     memset(dec2, 0, key_len + 1);
@@ -1552,12 +1565,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     priv_len = wc_RsaKeyToDer(key, NULL, 0);
     if (priv_len <= 0) {
         pr_err("error: rsa priv to der returned: %d\n", priv_len);
+        test_rc = priv_len;
         goto test_pkcs1_end;
     }
 
     priv = (byte*)malloc(priv_len);
     if (priv == NULL) {
         pr_err("error: allocating priv(%d) failed\n", priv_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
 
@@ -1566,6 +1581,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     priv_len = wc_RsaKeyToDer(key, priv, priv_len);
     if (priv_len <= 0) {
         pr_err("error: rsa priv to der returned: %d\n", priv_len);
+        test_rc = priv_len;
         goto test_pkcs1_end;
     }
 
@@ -1573,12 +1589,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     pub_len = wc_RsaKeyToPublicDer(key, NULL, 0);
     if (pub_len <= 0) {
         pr_err("error: rsa pub to der returned: %d\n", pub_len);
+        test_rc = pub_len;
         goto test_pkcs1_end;
     }
 
     pub = (byte*)malloc(pub_len);
     if (pub == NULL) {
         pr_err("error: allocating pub(%d) failed\n", pub_len);
+        test_rc = MEMORY_E;
         goto test_pkcs1_end;
     }
 
@@ -1587,6 +1605,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     pub_len = wc_RsaKeyToPublicDer(key, pub, pub_len);
     if (pub_len <= 0) {
         pr_err("error: rsa pub to der returned: %d\n", pub_len);
+        test_rc = pub_len;
         goto test_pkcs1_end;
     }
 
@@ -1598,12 +1617,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     enc_len = wc_EncodeSignature(enc, hash, hash_len, hash_oid);
     if (enc_len <= 0) {
         pr_err("error: wc_EncodeSignature returned: %d\n", enc_len);
+        test_rc = enc_len;
         goto test_pkcs1_end;
     }
 
     sig_len = wc_RsaSSL_Sign(enc, enc_len, sig, key_len, key, &rng);
     if (sig_len <= 0) {
         pr_err("error: wc_RsaSSL_Sign returned: %d\n", sig_len);
+        test_rc = sig_len;
         goto test_pkcs1_end;
     }
 
@@ -1612,6 +1633,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     if (ret <= 0 || ret != (int) enc_len) {
         pr_err("error: wc_RsaSSL_Verify returned %d, expected %d\n" , ret,
                enc_len);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
@@ -1619,6 +1641,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     n_diff = memcmp(dec, enc, enc_len);
     if (n_diff) {
         pr_err("error: decrypt doesn't match plain: %d\n", n_diff);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1631,6 +1654,10 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
         tfm = NULL;
+        if (PTR_ERR(tfm) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1639,6 +1666,10 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
         req = NULL;
+        if (PTR_ERR(req) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1649,6 +1680,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_set_priv_key(tfm, priv, priv_len);
     if (ret) {
         pr_err("error: crypto_akcipher_set_priv_key returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1657,6 +1689,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         if (maxsize != key_len) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
+            test_rc = BAD_FUNC_ARG;
             goto test_pkcs1_end;
         }
     }
@@ -1670,6 +1703,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_sign(req);
     if (ret) {
         pr_err("error: crypto_akcipher_sign returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1677,6 +1711,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
     if (ret) {
         pr_err("error: crypto_akcipher_set_pub_key returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1685,17 +1720,19 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         if (maxsize != key_len) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d, expected %d\n", maxsize, key_len);
+            test_rc = BAD_FUNC_ARG;
             goto test_pkcs1_end;
         }
     }
 
-    /**
+    /*
      * Set sig as src, and null as dst.
      * src_tab is:
      *   src_tab[0]: signature
      *   src_tab[1]: message (digest)
      *
-     * src_len is sig size plus digest size. */
+     * src_len is sig size plus digest size.
+     */
     sg_init_table(src_tab, 2);
     sg_set_buf(&src_tab[0], km_sig, key_len);
     sg_set_buf(&src_tab[1], hash, hash_len);
@@ -1706,6 +1743,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_verify(req);
     if (ret) {
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1713,12 +1751,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = wc_RsaSSL_Verify(km_sig, key_len, dec, key_len, key);
     if (ret <= 0) {
         pr_err("error: wc_RsaSSL_Verify returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
     n_diff = memcmp(km_sig, sig, sig_len);
     if (n_diff) {
         pr_err("error: km-sig doesn't match sig: %d\n", n_diff);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1726,13 +1766,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     n_diff = memcmp(dec, enc, enc_len);
     if (n_diff) {
         pr_err("error: decrypt doesn't match plain: %d\n", n_diff);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
     #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
-    /**
+    /*
      * pkcs1 encrypt and ecrypt test
-     * */
+     */
     memset(enc, 0, key_len);
     memset(enc2, 0, key_len);
     memset(dec, 0, key_len);
@@ -1750,12 +1791,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_set_pub_key(tfm, pub + 24, pub_len - 24);
     if (ret) {
         pr_err("error: crypto_akcipher_set_pub_key returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
     ret = crypto_akcipher_encrypt(req);
     if (ret) {
         pr_err("error: crypto_akcipher_encrypt returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1764,6 +1807,7 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
 
     if (unlikely(ret != (int) key_len)) {
         pr_err("error: wc_RsaPublicEncrypt returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
@@ -1778,12 +1822,14 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     ret = crypto_akcipher_set_priv_key(tfm, priv, priv_len);
     if (ret) {
         pr_err("error: crypto_akcipher_set_priv_key returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
     ret = crypto_akcipher_decrypt(req);
     if (ret) {
         pr_err("error: crypto_akcipher_decrypt returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
@@ -1791,18 +1837,21 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
                                sizeof(p_vector), key);
     if (ret != (int) sizeof(p_vector)) {
         pr_err("error: wc_RsaPrivateDecrypt returned: %d\n", ret);
+        test_rc = ret;
         goto test_pkcs1_end;
     }
 
     n_diff = memcmp(dec, dec2, sizeof(p_vector));
     if (n_diff) {
         pr_err("error: decrypt don't match: %d\n", n_diff);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 
     n_diff = memcmp(dec, p_vector, sizeof(p_vector));
     if (n_diff) {
         pr_err("error: decrypt doesn't match plaintext: %d\n", n_diff);
+        test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
 

@@ -45,6 +45,22 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+    enum linux_errcodes {
+        my_EINVAL = EINVAL,
+        my_ENOMEM = ENOMEM,
+        my_EBADMSG = EBADMSG
+    };
+
+    #undef EINVAL
+    #undef ENOMEM
+    #undef EBADMSG
+
+    #define EINVAL WC_ERR_TRACE(my_EINVAL)
+    #define ENOMEM WC_ERR_TRACE(my_ENOMEM)
+    #define EBADMSG WC_ERR_TRACE(my_EBADMSG)
+#endif
+
 static int libwolfssl_cleanup(void) {
     int ret;
 #ifdef WOLFCRYPT_ONLY
@@ -116,6 +132,37 @@ static int updateFipsHash(void);
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
 extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
+
+WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribute *node, int *installed_flag)
+{
+    if ((installed_flag == NULL) || (! *installed_flag)) {
+        int ret = sysfs_create_file(&THIS_MODULE->mkobj.kobj, &node->attr);
+        if (ret) {
+            pr_err("sysfs_create_file failed for %s: %d\n", node->attr.name, ret);
+            return ret;
+        }
+        if (installed_flag)
+            *installed_flag = 1;
+    }
+    return 0;
+}
+
+WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attribute *node, int *installed_flag)
+{
+    if ((installed_flag == NULL) || *installed_flag) {
+        sysfs_remove_file(&THIS_MODULE->mkobj.kobj, &node->attr);
+        if (installed_flag)
+            *installed_flag = 0;
+    }
+    return 0;
+}
+
+#ifdef HAVE_FIPS
+    static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                       const char *buf, size_t count);
+    static struct kobj_attribute FIPS_rerun_self_test_attr = __ATTR(FIPS_rerun_self_test, 0220, NULL, FIPS_rerun_self_test_handler);
+    static int installed_sysfs_FIPS_files = 0;
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
     #include "linuxkm/lkcapi_glue.c"
@@ -316,6 +363,16 @@ static int wolfssl_init(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
+#ifdef LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND
+    ret = linuxkm_lkcapi_sysfs_install();
+
+    if (ret) {
+        pr_err("linuxkm_lkcapi_sysfs_install() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#else /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
     ret = linuxkm_lkcapi_register();
 
     if (ret) {
@@ -325,6 +382,11 @@ static int wolfssl_init(void)
         msleep(10);
         return -ECANCELED;
     }
+#endif /* !LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND */
+#endif /* LINUXKM_LKCAPI_REGISTER */
+
+#ifdef HAVE_FIPS
+    (void)linuxkm_lkcapi_sysfs_install_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
 #endif
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
@@ -364,8 +426,13 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
+#ifdef HAVE_FIPS
+    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
+#endif
+
 #ifdef LINUXKM_LKCAPI_REGISTER
-    linuxkm_lkcapi_unregister();
+    (void)linuxkm_lkcapi_unregister();
+    (void)linuxkm_lkcapi_sysfs_deinstall();
 #endif
 
     (void)libwolfssl_cleanup();
@@ -840,3 +907,47 @@ static int updateFipsHash(void)
 }
 
 #endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+
+#ifdef HAVE_FIPS
+
+static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, size_t count)
+{
+    int arg;
+    int ret;
+
+    (void)kobj;
+    (void)attr;
+
+    if (kstrtoint(buf, 10, &arg) || arg != 1)
+        return -EINVAL;
+
+    pr_info("wolfCrypt: rerunning FIPS self-test on command.");
+
+    ret = wolfCrypt_IntegrityTest_fips();
+    if (ret != 0) {
+        pr_err("wolfCrypt_IntegrityTest_fips: error %d", ret);
+        return -EINVAL;
+    }
+
+    ret = wolfCrypt_GetStatus_fips();
+    if (ret != 0) {
+        pr_err("wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E))
+            return -ELIBBAD;
+        else
+            return -EINVAL;
+    }
+
+    ret = wc_RunAllCast_fips();
+    if (ret != 0) {
+        pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
+        return -EINVAL;
+    }
+
+    pr_info("wolfCrypt FIPS re-self-test succeeded: all algorithms verified and available.");
+
+    return count;
+}
+
+#endif /* HAVE_FIPS */
