@@ -27,6 +27,7 @@
 
 /* Build Options:
  * WOLFSSL_SNIFFER_NO_RECOVERY: Do not track missed data count.
+ * SNIFFER_SINGLE_SESSION_CACHE: Do not cache more than one session.
  */
 
 
@@ -446,7 +447,6 @@ typedef struct Flags {
     byte           serverCipherOn;  /* indicates whether cipher is active */
     byte           clientCipherOn;  /* indicates whether cipher is active */
     byte           resuming;        /* did this session come from resumption */
-    byte           cached;          /* have we cached this session yet */
     byte           clientHello;     /* processed client hello yet, for SSLv2 */
     byte           finCount;        /* get both FINs before removing */
     byte           fatalError;      /* fatal error state */
@@ -461,6 +461,9 @@ typedef struct Flags {
     byte           secRenegEn;      /* secure renegotiation enabled */
 #ifdef WOLFSSL_ASYNC_CRYPT
     byte           wasPolled;
+#endif
+#ifdef SNIFFER_SINGLE_SESSION_CACHE
+    byte           cached;          /* have we cached this session yet */
 #endif
 } Flags;
 
@@ -3466,6 +3469,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     if (IsAtLeastTLSv1_3(ssl->version)) {
         /* Note: Must use server session for sessions */
     #ifdef HAVE_SESSION_TICKET
+        WOLFSSL_SESSION* sess;
         if (SetTicket(session->sslServer, input, len) != 0) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return WOLFSSL_FATAL_ERROR;
@@ -3474,10 +3478,11 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         /* set haveSessionId to use the wolfSession cache */
         session->sslServer->options.haveSessionId = 1;
 
+    #ifdef SNIFFER_SINGLE_SESSION_CACHE
         /* Use the wolf Session cache to retain resumption secret */
         if (session->flags.cached == 0) {
-            WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer,
-                NULL, 0);
+    #endif /* SNIFFER_SINGLE_SESSION_CACHE */
+            sess = wolfSSL_GetSession(session->sslServer, NULL, 0);
             if (sess == NULL) {
                 SetupSession(session->sslServer);
                 AddSession(session->sslServer); /* don't re add */
@@ -3485,8 +3490,10 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
             }
+    #ifdef SNIFFER_SINGLE_SESSION_CACHE
             session->flags.cached = 1;
         }
+    #endif /* SNIFFER_SINGLE_SESSION_CACHE */
     #endif /* HAVE_SESSION_TICKET */
     }
     else
@@ -4405,7 +4412,11 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
         return ret;
     }
 
-    if (ret == 0 && session->flags.cached == 0) {
+    if (ret == 0
+    #ifdef SNIFFER_SINGLE_SESSION_CACHE
+            && session->flags.cached == 0
+    #endif
+            ) {
         if (session->sslServer->options.haveSessionId) {
         #ifndef NO_SESSION_CACHE
             WOLFSSL_SESSION* sess = wolfSSL_GetSession(session->sslServer, NULL, 0);
@@ -4416,7 +4427,9 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
                 INC_STAT(SnifferStats.sslResumptionInserts);
             #endif
             }
-            session->flags.cached = 1;
+            #ifdef SNIFFER_SINGLE_SESSION_CACHE
+                session->flags.cached = 1;
+            #endif
         #endif
          }
     }
