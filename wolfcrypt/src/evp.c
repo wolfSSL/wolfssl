@@ -3436,7 +3436,7 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
     switch (ctx->pkey->type) {
 #if !defined(NO_RSA)
     case WC_EVP_PKEY_RSA:
-        return wolfSSL_RSA_verify_ex(WC_HASH_TYPE_NONE, tbs,
+        return wolfSSL_RSA_verify_ex(wolfSSL_EVP_MD_type(ctx->md), tbs,
             (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
             ctx->padding);
 #endif /* NO_RSA */
