@@ -9439,9 +9439,9 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA2_HMAC" ;;
         'hmac(sha3)') test "$ENABLED_SHA3" != "no" && test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-3 HMAC implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA3_HMAC" ;;
-        'stdrng') test "$ENABLED_HASHDRBG" != "no" && AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
+        'stdrng') test "$ENABLED_HASHDRBG" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_HASH_DRBG" ;;
-        'stdrng-default') test "$ENABLED_HASHDRBG" != "no" && AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
+        'stdrng-default') test "$ENABLED_HASHDRBG" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_HASH_DRBG -DLINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT" ;;
         'ecdsa')    test "$ENABLED_ECC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: ECDSA implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ECDSA" ;;

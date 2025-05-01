@@ -989,8 +989,8 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
 #endif
 
         if (! ret) {
-            u8 buf1[16], buf2[16];
-            int i;
+            u8 buf1[16], buf2[17];
+            int i, j;
 
             memset(buf1, 0, sizeof buf1);
             memset(buf2, 0, sizeof buf2);
@@ -1004,22 +1004,34 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
             }
 
             if (! ret) {
-                /* There's a 94% chance that 16 random bytes will all be nonzero,
-                 * or a 6% chance that at least one of them will be zero.
-                 * Iterate up to 20 times to push that 6% chance to 5E-25,
-                 * an effective certainty on a functioning PRNG.
+                /*
+                 * Given a correctly functioning PRNG (perfectly rectangular
+                 * PDF), There's a 94% chance that 17 random bytes will all be
+                 * nonzero, or a 6% chance that at least one of them will be
+                 * zero.  Iterate up to 20 times to push that 6% chance to 1.5
+                 * E-24, an effective certainty on a functioning PRNG.  With the
+                 * contributions from iterations on shorter blocks, the overall
+                 * expectation of failure is 2.13 E-24.
                  */
-                for (i = 0; i < 20; ++i) {
-                    if (! memchr(buf1, 0, sizeof buf1)) {
-                        ret = 0;
-                        break;
+                for (i = 1; i <= (int)sizeof buf2; ++i) {
+                    for (j = 0; j < 20; ++j) {
+                        memset(buf2, 0, (size_t)i);
+                        ret = crypto_rng_generate(tfm, NULL, 0, buf2, (unsigned int)i);
+                        if (ret)
+                            break;
+                        ret = -EBADMSG;
+                        if (! memchr(buf2, 0, (size_t)i)) {
+                            ret = 0;
+                            break;
+                        }
                     }
-                    ret = crypto_rng_generate(tfm, buf1, (unsigned int)sizeof buf1, buf2, (unsigned int)sizeof buf2);
                     if (ret)
                         break;
-                    ret = -EBADMSG;
-
                 }
+
+                if (ret)
+                    pr_err("wc_linuxkm_drbg_startup: PRNG quality test failed, block length %d, iters %d, ret %d",
+                           i, j, ret);
             }
         }
 
