@@ -1171,7 +1171,7 @@ static int InitSha256(wc_Sha256* sha256)
         word32 S[8], t0, t1;
         int i;
 
-    #ifdef WOLFSSL_SMALL_STACK_CACHE
+    #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_NO_MALLOC)
         word32* W = sha256->W;
         if (W == NULL) {
             W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
@@ -1180,7 +1180,7 @@ static int InitSha256(wc_Sha256* sha256)
                 return MEMORY_E;
             sha256->W = W;
         }
-    #elif defined(WOLFSSL_SMALL_STACK)
+    #elif defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         word32* W;
         W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -1221,7 +1221,7 @@ static int InitSha256(wc_Sha256* sha256)
             sha256->digest[i] += S[i];
         }
 
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_NO_MALLOC)
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
         XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif

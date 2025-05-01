@@ -17796,6 +17796,46 @@ int ConfirmSignature(SignatureCtx* sigCtx,
     byte* rsaKeyIdx)
 {
     int ret = WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E); /* default to failure */
+
+#ifdef WOLFSSL_NO_MALLOC
+    byte sigCtxDigest[WC_MAX_DIGEST_SIZE];
+    byte sigCpy[sigSz];
+
+#ifndef NO_RSA
+    struct RsaKey rsaKey[1];
+#endif
+
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
+    struct DsaKey dsaKey[1];
+#endif
+#ifdef HAVE_ECC
+    ecc_key eccKey[1];
+#endif
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    ed25519_key ed25519Key[1];
+#endif
+
+#if defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)
+    ed448_key ed448Key[1];
+#endif
+
+#if defined(HAVE_FALCON)
+    falcon_key falconKey[1];
+#endif
+
+#if defined(HAVE_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+    dilithium_key dilithiumKey[1];
+#endif
+
+#if defined(HAVE_SPHINCS)
+    spincs_key spincsKey[1];
+#endif
+
+#endif /* WOLFSSL_NO_MALLOC */
+
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
@@ -17833,11 +17873,15 @@ int ConfirmSignature(SignatureCtx* sigCtx,
         {
             sigCtx->keyOID = keyOID; /* must set early for cleanup */
 
+#ifndef WOLFSSL_NO_MALLOC
             sigCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, sigCtx->heap,
                                                     DYNAMIC_TYPE_DIGEST);
             if (sigCtx->digest == NULL) {
                 ERROR_OUT(MEMORY_E, exit_cs);
             }
+#else
+            sigCtx->digest = sigCtxDigest;
+#endif
 
         #if !defined(NO_RSA) && defined(WC_RSA_PSS)
             /* RSA PSS Defaults */
@@ -17902,20 +17946,28 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
 
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.rsa = (RsaKey*)XMALLOC(sizeof(RsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_RSA);
                     if (sigCtx->key.rsa == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.rsa = rsaKey;
+                #endif
                     if ((ret = wc_InitRsaKey_ex(sigCtx->key.rsa, sigCtx->heap,
                                                         sigCtx->devId)) != 0) {
                         goto exit_cs;
                     }
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->sigCpy = (byte*)XMALLOC(sigSz, sigCtx->heap,
                                                         DYNAMIC_TYPE_SIGNATURE);
                     if (sigCtx->sigCpy == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->sigCpy = sigCpy;
+                #endif
                     if (sigSz > MAX_ENCODED_SIG_SZ) {
                         WOLFSSL_MSG("Verify Signature is too big");
                         ERROR_OUT(BUFFER_E, exit_cs);
@@ -17944,20 +17996,28 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("Verify Signature is too small");
                         ERROR_OUT(BUFFER_E, exit_cs);
                     }
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.dsa = (DsaKey*)XMALLOC(sizeof(DsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_DSA);
                     if (sigCtx->key.dsa == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.dsa = dsaKey;
+                #endif
                     if ((ret = wc_InitDsaKey_h(sigCtx->key.dsa, sigCtx->heap)) != 0) {
                         WOLFSSL_MSG("wc_InitDsaKey_h error");
                         goto exit_cs;
                     }
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->sigCpy = (byte*)XMALLOC(sigSz,
                                          sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
                     if (sigCtx->sigCpy == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->sigCpy = sigCpy;
+                #endif
                     if ((ret = wc_DsaPublicKeyDecode(key, &idx, sigCtx->key.dsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error DSA");
@@ -17967,7 +18027,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigSz != DSA_160_SIG_SIZE &&
                             sigSz != DSA_256_SIG_SIZE) {
                         /* Try to parse it as the contents of a bitstring */
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                         mp_int* r;
                         mp_int* s;
                     #else
@@ -17977,7 +18037,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         int rSz;
                         int sSz;
 
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                         r = (mp_int*)XMALLOC(sizeof(*r), sigCtx->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                         if (r == NULL) {
@@ -18001,7 +18061,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                                         "incorrect format");
                             mp_free(r);
                             mp_free(s);
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                             XFREE(r, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                             XFREE(s, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     #endif
@@ -18014,7 +18074,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                                         "incorrect format");
                             mp_free(r);
                             mp_free(s);
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                             XFREE(r, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                             XFREE(s, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     #endif
@@ -18027,7 +18087,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                                         "incorrect format");
                             mp_free(r);
                             mp_free(s);
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                             XFREE(r, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                             XFREE(s, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     #endif
@@ -18035,7 +18095,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         }
                         mp_free(r);
                         mp_free(s);
-                    #ifdef WOLFSSL_SMALL_STACK
+                    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                         XFREE(r, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                         XFREE(s, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     #endif
@@ -18055,33 +18115,42 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     word32 idx = 0;
             #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
                 defined(WC_ASYNC_ENABLE_ECC)
+                #ifndef WOLFSSL_NO_MALLOC
                     ecc_nb_ctx_t* nbCtx;
+                #else
+                    ecc_nb_ctx_t nbCtx[1];
+                #endif
             #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
                       WC_ASYNC_ENABLE_ECC */
 
                     sigCtx->verify = 0;
+            #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.ecc = (ecc_key*)XMALLOC(sizeof(ecc_key),
                                                 sigCtx->heap, DYNAMIC_TYPE_ECC);
                     if (sigCtx->key.ecc == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+            #else
+                    sigCtx->key.ecc = eccKey;
+            #endif
                     if ((ret = wc_ecc_init_ex(sigCtx->key.ecc, sigCtx->heap,
                                                           sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
             #if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_ASYNC_CRYPT_SW) && \
                 defined(WC_ASYNC_ENABLE_ECC)
+                #ifndef WOLFSSL_NO_MALLOC
                     nbCtx = (ecc_nb_ctx_t*)XMALLOC(sizeof(ecc_nb_ctx_t),
                                 sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     if (nbCtx == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-                    else {
-                        ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
-                        if (ret != 0) {
-                            goto exit_cs;
-                        }
+                #endif
+                    ret = wc_ecc_set_nonblock(sigCtx->key.ecc, nbCtx);
+                    if (ret != 0) {
+                        goto exit_cs;
                     }
+
             #endif /* WC_ECC_NONBLOCK && WOLFSSL_ASYNC_CRYPT_SW &&
                       WC_ASYNC_ENABLE_ECC */
                     ret = wc_EccPublicKeyDecode(key, &idx, sigCtx->key.ecc,
@@ -18101,12 +18170,16 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 case ED25519k:
                 {
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.ed25519 = (ed25519_key*)XMALLOC(
                                               sizeof(ed25519_key), sigCtx->heap,
                                               DYNAMIC_TYPE_ED25519);
                     if (sigCtx->key.ed25519 == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.ed25519 = ed25519Key;
+                #endif
                     if ((ret = wc_ed25519_init_ex(sigCtx->key.ed25519,
                                             sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -18127,12 +18200,16 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 case ED448k:
                 {
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.ed448 = (ed448_key*)XMALLOC(
                                                 sizeof(ed448_key), sigCtx->heap,
                                                 DYNAMIC_TYPE_ED448);
                     if (sigCtx->key.ed448 == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.ed448 = ed448Key;
+                #endif
                     if ((ret = wc_ed448_init(sigCtx->key.ed448)) < 0) {
                         goto exit_cs;
                     }
@@ -18153,6 +18230,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.falcon =
                         (falcon_key*)XMALLOC(sizeof(falcon_key),
                                              sigCtx->heap,
@@ -18160,6 +18238,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.falcon = falconKey;
+                #endif
                     if ((ret = wc_falcon_init_ex(sigCtx->key.falcon,
                                             sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -18180,6 +18261,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.falcon =
                         (falcon_key*)XMALLOC(sizeof(falcon_key),
                                              sigCtx->heap,
@@ -18187,6 +18269,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.falcon == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.falcon = falconKey;
+                #endif
                     if ((ret = wc_falcon_init_ex(sigCtx->key.falcon,
                                             sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -18243,12 +18328,16 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         goto exit_cs;
                     }
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.dilithium = (dilithium_key*)XMALLOC(
                         sizeof(dilithium_key), sigCtx->heap,
                         DYNAMIC_TYPE_DILITHIUM);
                     if (sigCtx->key.dilithium == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.dilithium = dilithiumKey;
+                #endif
                     if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
                             sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -18270,6 +18359,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
@@ -18277,6 +18367,10 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
+
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18296,6 +18390,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
@@ -18303,6 +18398,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18322,6 +18420,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
@@ -18329,6 +18428,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18349,12 +18451,17 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     word32 idx = 0;
                     sigCtx->verify = 0;
                     sigCtx->key.sphincs =
+                #ifndef WOLFSSL_NO_MALLOC
+                    sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
                                              DYNAMIC_TYPE_SPHINCS);
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18374,6 +18481,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
@@ -18381,6 +18489,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18400,6 +18511,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     word32 idx = 0;
                     sigCtx->verify = 0;
+                #ifndef WOLFSSL_NO_MALLOC
                     sigCtx->key.sphincs =
                         (sphincs_key*)XMALLOC(sizeof(sphincs_key),
                                              sigCtx->heap,
@@ -18407,6 +18519,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.sphincs == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+                #else
+                    sigCtx->key.sphincs = spincsKey;
+                #endif
                     if ((ret = wc_sphincs_init(sigCtx->key.sphincs)) < 0) {
                         goto exit_cs;
                     }
@@ -18683,7 +18798,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                                             defined(WOLFSSL_RENESAS_FSPSM_TLS)
                     if (sigCtx->CertAtt.verifyByTSIP_SCE == 1) break;
                 #endif
-                #ifdef WOLFSSL_SMALL_STACK
+                #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                     byte* encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
                                         sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     if (encodedSig == NULL) {
@@ -18710,7 +18825,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_ERROR_VERBOSE(ret);
                     }
 
-                #ifdef WOLFSSL_SMALL_STACK
+                #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                     XFREE(encodedSig, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 #endif
                     break;
@@ -23915,7 +24030,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-#ifndef WOLFSSL_SMALL_STACK
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     SignatureCtx  sigCtx[1];
 #else
     SignatureCtx* sigCtx;
@@ -23947,7 +24062,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap, DYNAMIC_TYPE_SIGNATURE);
     if (sigCtx == NULL)
         return MEMORY_E;
