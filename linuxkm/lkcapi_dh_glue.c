@@ -2804,7 +2804,7 @@ static int linuxkm_test_kpp_driver(const char * driver,
                                    const byte * shared_secret,
                                    word32 shared_s_len)
 {
-    int                  test_rc = -1;
+    int                  test_rc = WC_NO_ERR_TRACE(WC_FAILURE);
     struct crypto_kpp *  tfm = NULL;
     struct kpp_request * req = NULL;
     struct scatterlist   src, dst;
@@ -2822,6 +2822,10 @@ static int linuxkm_test_kpp_driver(const char * driver,
         pr_err("error: allocating kpp algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
         tfm = NULL;
+        if (PTR_ERR(tfm) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
@@ -2830,12 +2834,17 @@ static int linuxkm_test_kpp_driver(const char * driver,
         pr_err("error: allocating kpp request %s failed\n",
                driver);
         req = NULL;
+        if (PTR_ERR(req) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     err = crypto_kpp_set_secret(tfm, a_secret, secret_len);
     if (err) {
         pr_err("error: crypto_kpp_set_secret returned: %d\n", err);
+        test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
@@ -2843,12 +2852,14 @@ static int linuxkm_test_kpp_driver(const char * driver,
     dst_len = crypto_kpp_maxsize(tfm);
     if (dst_len <= 0) {
         pr_err("error: crypto_kpp_maxsize returned: %d\n", dst_len);
+        test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     dst_buf = malloc(dst_len);
     if (dst_buf == NULL) {
         pr_err("error: allocating out buf failed");
+        test_rc = MEMORY_E;
         goto test_kpp_end;
     }
 
@@ -2862,17 +2873,20 @@ static int linuxkm_test_kpp_driver(const char * driver,
     err = crypto_kpp_generate_public_key(req);
     if (err) {
         pr_err("error: crypto_kpp_generate_public_key returned: %d", err);
+        test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     if (memcmp(expected_a_pub, sg_virt(req->dst), pub_len)) {
         pr_err("error: crypto_kpp_generate_public_key: wrong output");
+        test_rc = WC_KEY_MISMATCH_E;
         goto test_kpp_end;
     }
 
     src_buf = malloc(src_len);
     if (src_buf == NULL) {
         pr_err("error: allocating in buf failed");
+        test_rc = MEMORY_E;
         goto test_kpp_end;
     }
 
@@ -2887,11 +2901,13 @@ static int linuxkm_test_kpp_driver(const char * driver,
     err = crypto_kpp_compute_shared_secret(req);
     if (err) {
         pr_err("error: crypto_kpp_compute_shared_secret returned: %d", err);
+        test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 
     if (memcmp(shared_secret, sg_virt(req->dst), shared_s_len)) {
         pr_err("error: shared secret does not match");
+        test_rc = BAD_FUNC_ARG;
         goto test_kpp_end;
     }
 

@@ -420,15 +420,33 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
         }
     }
 
-    if (irq_fpu_usable())
+#if defined(TIF_NEED_FPU_LOAD) && \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 180)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0))) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 39)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)))
+        /* Work around a kernel bug -- see linux commit 59f5ede3bc0f0.
+         * irq_fpu_usable() on these older kernels can incorrectly return true,
+         * leading to an impermissible recursive kernel_fpu_begin() that
+         * corrupts the register state.  What we really want here is
+         * this_cpu_read(in_kernel_fpu), but in_kernel_fpu is an unexported
+         * static array.
+         */
+    if (irq_fpu_usable() && !test_thread_flag(TIF_NEED_FPU_LOAD))
         return 1;
     else if (in_nmi() || (hardirq_count() > 0) || (softirq_count() > 0))
         return 0;
-#ifdef TIF_NEED_FPU_LOAD
     else if (test_thread_flag(TIF_NEED_FPU_LOAD))
         return 1;
+    else
+        return 0;
+#else
+    if (irq_fpu_usable())
+        return 1;
+    else
+        return 0;
 #endif
-    return 0;
 }
 
 WARN_UNUSED_RESULT int save_vector_registers_x86(void)
@@ -463,15 +481,29 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
     }
 
     if (irq_fpu_usable()
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && defined(TIF_NEED_FPU_LOAD)
-        /* work around a kernel bug -- see linux commit 59f5ede3bc0f0.
-         * what we really want here is this_cpu_read(in_kernel_fpu), but
-         * in_kernel_fpu is an unexported static array.
+#if defined(TIF_NEED_FPU_LOAD) && \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 180)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0))) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 39)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)))
+        /* Work around a kernel bug -- see linux commit 59f5ede3bc0f0.
+         * irq_fpu_usable() on these older kernels can incorrectly return true,
+         * leading to an impermissible recursive kernel_fpu_begin() that
+         * corrupts the register state.  What we really want here is
+         * this_cpu_read(in_kernel_fpu), but in_kernel_fpu is an unexported
+         * static array.
          */
         && !test_thread_flag(TIF_NEED_FPU_LOAD)
 #endif
         )
     {
+        /* note there is a bug in kernel <5.17.0 and <5.10.180 -- see linux
+         * commit 59f5ede3bc0f0 -- such that irq_fpu_usable() can incorrectly
+         * return true, leading to an impermissible recursive kernel_fpu_begin()
+         * that corrupts the register state.
+         */
+
 #ifdef WOLFSSL_COMMERCIAL_LICENSE
         struct fpstate *fpstate = wc_linuxkm_fpstate_buf_from_fpu_state(pstate);
         fpregs_lock();
@@ -511,18 +543,14 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         wc_linuxkm_fpu_state_release(pstate);
 #endif
         return BAD_STATE_E;
-#ifdef TIF_NEED_FPU_LOAD
-    } else if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
-        static int warned_fpu_forbidden = 0;
-        if (! warned_fpu_forbidden)
-            pr_err("save_vector_registers_x86 called with !irq_fpu_usable from"
-                   " thread without previous FPU save.\n");
-#ifdef LINUXKM_FPU_STATES_FOLLOW_THREADS
-        wc_linuxkm_fpu_state_release(pstate);
-#endif
-        return BAD_STATE_E;
-#endif
-    } else {
+    }
+#if defined(TIF_NEED_FPU_LOAD) && \
+    (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 180)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0))) && \
+    ! ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 39)) &&    \
+       (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)))
+    else if (test_thread_flag(TIF_NEED_FPU_LOAD)) {
         /* assume already safely in_kernel_fpu from caller, but recursively
          * preempt_disable() to be extra-safe.
          */
@@ -547,6 +575,19 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         /* set msb to 1 to inhibit kernel_fpu_end() at cleanup. */
         pstate->fpu_state =
             WC_FPU_SAVED_MASK + 1U;
+    }
+#endif /* TIF_NEED_FPU_LOAD && <5.17.0 && !5.10.180+ */
+    else {
+        static int warned_fpu_forbidden = 0;
+        if (! warned_fpu_forbidden) {
+            pr_err("save_vector_registers_x86 called with !irq_fpu_usable from"
+                   " thread without previous FPU save.\n");
+            warned_fpu_forbidden = 1;
+        }
+#ifdef LINUXKM_FPU_STATES_FOLLOW_THREADS
+        wc_linuxkm_fpu_state_release(pstate);
+#endif
+        return BAD_STATE_E;
     }
 
     return 0;

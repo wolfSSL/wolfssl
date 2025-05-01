@@ -435,7 +435,7 @@ static int linuxkm_test_ ## name(void) {                                   \
     else {                                                                 \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
                                      ret);                                 \
-        return -EINVAL;                                                    \
+        return WC_TEST_RET_DEC_EC(ret);                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -537,7 +537,7 @@ static int linuxkm_test_ ## name(void) {                                   \
     else {                                                                 \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",    \
                                      ret);                                 \
-        return -EINVAL;                                                    \
+        return WC_TEST_RET_DEC_EC(ret);                                    \
     }                                                                      \
 }                                                                          \
                                                                            \
@@ -620,9 +620,10 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
     struct km_sha_hmac_pstate *p_ctx = (struct km_sha_hmac_pstate *)crypto_shash_ctx(tfm);
     int ret;
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && (FIPS_VERSION3_LT(6, 0, 0) || defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)))
     ret = wc_HmacSetKey(&p_ctx->wc_hmac, type, key, length);
 #else
+    /* kernel 5.10.x crypto manager expects FIPS-undersized keys to succeed. */
     ret = wc_HmacSetKey_ex(&p_ctx->wc_hmac, type, key, length, 1 /* allowFlag */);
 #endif
 
@@ -768,7 +769,7 @@ static int linuxkm_test_ ## name(void) {                                  \
     else {                                                                \
         wc_test_render_error_message("linuxkm_test_" #name " failed: ",   \
                                      ret);                                \
-        return -EINVAL;                                                   \
+        return WC_TEST_RET_DEC_EC(ret);                                   \
     }                                                                     \
 }                                                                         \
                                                                           \
@@ -878,8 +879,6 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
 
-    (void)tfm;
-
     wc_LockMutex(&ctx->lock);
 
     if (slen > 0) {
@@ -906,8 +905,6 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
-
-    (void)tfm;
 
     if (slen == 0)
         return 0;
@@ -944,7 +941,8 @@ static struct rng_alg wc_linuxkm_drbg = {
 static int wc_linuxkm_drbg_loaded = 0;
 static int wc_linuxkm_drbg_default_instance_registered = 0;
 
-WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void) {
+WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
+{
     int ret;
     int cur_refcnt;
 
@@ -965,6 +963,74 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void) {
     if (ret != 0) {
         pr_err("crypto_register_rng: %d", ret);
         return ret;
+    }
+
+    {
+        struct crypto_rng *tfm = crypto_alloc_rng(wc_linuxkm_drbg.base.cra_name, 0, 0);
+        if (IS_ERR(tfm)) {
+            pr_err("error: allocating rng algorithm %s failed: %ld\n",
+                   wc_linuxkm_drbg.base.cra_name, PTR_ERR(tfm));
+            ret = PTR_ERR(tfm);
+            tfm = NULL;
+        }
+        else
+            ret = 0;
+#ifndef LINUXKM_LKCAPI_PRIORITY_ALLOW_MASKING
+        if (! ret) {
+            const char *actual_driver_name = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
+            if (strcmp(actual_driver_name, wc_linuxkm_drbg.base.cra_driver_name)) {
+                pr_err("error: unexpected implementation for %s: %s (expected %s)\n",
+                       wc_linuxkm_drbg.base.cra_name,
+                       actual_driver_name,
+                       wc_linuxkm_drbg.base.cra_driver_name);
+                ret = -ENOENT;
+            }
+        }
+#endif
+
+        if (! ret) {
+            u8 buf1[16], buf2[16];
+            int i;
+
+            memset(buf1, 0, sizeof buf1);
+            memset(buf2, 0, sizeof buf2);
+
+            ret = crypto_rng_generate(tfm, NULL, 0, buf1, (unsigned int)sizeof buf1);
+            if (! ret)
+                ret = crypto_rng_generate(tfm, buf1, (unsigned int)sizeof buf1, buf2, (unsigned int)sizeof buf2);
+            if (! ret) {
+                if (memcmp(buf1, buf2, sizeof buf1) == 0)
+                    ret = -EBADMSG;
+            }
+
+            if (! ret) {
+                /* There's a 94% chance that 16 random bytes will all be nonzero,
+                 * or a 6% chance that at least one of them will be zero.
+                 * Iterate up to 20 times to push that 6% chance to 5E-25,
+                 * an effective certainty on a functioning PRNG.
+                 */
+                for (i = 0; i < 20; ++i) {
+                    if (! memchr(buf1, 0, sizeof buf1)) {
+                        ret = 0;
+                        break;
+                    }
+                    ret = crypto_rng_generate(tfm, buf1, (unsigned int)sizeof buf1, buf2, (unsigned int)sizeof buf2);
+                    if (ret)
+                        break;
+                    ret = -EBADMSG;
+
+                }
+            }
+        }
+
+        if (tfm)
+            crypto_free_rng(tfm);
+
+        if (ret) {
+            crypto_unregister_rng(&wc_linuxkm_drbg);
+            return ret;
+        }
+
     }
 
     wc_linuxkm_drbg_loaded = 1;

@@ -650,7 +650,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
                                           const byte * sig, word32 sig_len,
                                           const byte * hash, word32 hash_len)
 {
-    int                       test_rc = -1;
+    int                       test_rc = WC_NO_ERR_TRACE(WC_FAILURE);
     int                       ret = 0;
     struct crypto_akcipher *  tfm = NULL;
     struct akcipher_request * req = NULL;
@@ -664,6 +664,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     param_copy = (byte *)malloc(sig_len + hash_len);
     if (! param_copy) {
         pr_err("error: allocating param_copy buffer failed.\n");
+        test_rc = MEMORY_E;
         goto test_ecdsa_nist_end;
     }
     memcpy(param_copy, sig, sig_len);
@@ -680,6 +681,10 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
         tfm = NULL;
+        if (PTR_ERR(tfm) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
 
@@ -688,6 +693,10 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         pr_err("error: allocating akcipher request %s failed\n",
                driver);
         req = NULL;
+        if (PTR_ERR(req) == -ENOMEM)
+            test_rc = MEMORY_E;
+        else
+            test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
 
@@ -695,6 +704,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     ret = crypto_akcipher_set_pub_key(tfm, pub, pub_len);
     if (ret) {
         pr_err("error: crypto_akcipher_set_pub_key returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
 
@@ -703,6 +713,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
         if ((int) maxsize <= 0) {
             pr_err("error: crypto_akcipher_maxsize "
                    "returned %d\n", maxsize);
+            test_rc = BAD_FUNC_ARG;
             goto test_ecdsa_nist_end;
         }
     }
@@ -725,6 +736,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     ret = crypto_akcipher_verify(req);
     if (ret) {
         pr_err("error: crypto_akcipher_verify returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
 
@@ -732,6 +744,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     bad_sig = malloc(sig_len);
     if (bad_sig == NULL) {
         pr_err("error: alloc sig failed\n");
+        test_rc = MEMORY_E;
         goto test_ecdsa_nist_end;
     }
 
@@ -749,6 +762,7 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
     if (ret != -EBADMSG) {
         pr_err("error: crypto_akcipher_verify returned %d, expected %d\n",
                ret, -EBADMSG);
+        test_rc = BAD_FUNC_ARG;
         goto test_ecdsa_nist_end;
     }
 
