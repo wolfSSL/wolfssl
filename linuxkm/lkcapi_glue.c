@@ -238,15 +238,6 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
  * extra checks on kernel version, and ecc sizes.
  */
 #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0) && \
-        defined(CONFIG_CRYPTO_FIPS) && defined(CONFIG_CRYPTO_MANAGER)
-        /*
-         * note: ecdsa was not recognized as fips_allowed before linux v6.3
-         * in kernel crypto/testmgr.c, and will not pass the tests.
-         */
-        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #endif /* linux < 6.3.0 && CONFIG_CRYPTO_FIPS && CONFIG_CRYPTO_MANAGER */
-
     #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
         ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
         /* only register p192 if specifically enabled, and if not fips. */
@@ -562,6 +553,18 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
+
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
+        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        /*
+         * ecdsa was not recognized as fips_allowed before linux v6.3
+         * in kernel crypto/testmgr.c.
+         */
+        fips_enabled = 0;
+    #endif
+
     #if defined(LINUXKM_ECC192)
     REGISTER_ALG(ecdsa_nist_p192, akcipher,
                  linuxkm_test_ecdsa_nist_p192);
@@ -577,6 +580,14 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecdsa_nist_p521, akcipher,
                  linuxkm_test_ecdsa_nist_p521);
     #endif /* HAVE_ECC521 */
+
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
+        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        fips_enabled = 1;
+    #endif
+
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
