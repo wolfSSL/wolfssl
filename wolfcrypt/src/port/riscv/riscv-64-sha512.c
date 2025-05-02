@@ -1056,10 +1056,23 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
  */
 static void Sha512FinalRaw(wc_Sha512* sha512, byte* hash, int hashLen)
 {
-    word32 digest[WC_SHA512_DIGEST_SIZE / sizeof(word32)];
+    word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
 
+#ifndef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
     ByteReverseWords64((word64*)digest, (word64*)sha512->digest,
         WC_SHA512_DIGEST_SIZE);
+#else
+    /* f, e, b, a, h, g, d, c */
+    digest[0] = ByteReverseWord64(sha512->digest[3]);
+    digest[1] = ByteReverseWord64(sha512->digest[2]);
+    digest[2] = ByteReverseWord64(sha512->digest[7]);
+    digest[3] = ByteReverseWord64(sha512->digest[6]);
+    digest[4] = ByteReverseWord64(sha512->digest[1]);
+    digest[5] = ByteReverseWord64(sha512->digest[0]);
+    digest[6] = ByteReverseWord64(sha512->digest[5]);
+    digest[7] = ByteReverseWord64(sha512->digest[4]);
+#endif
+
     XMEMCPY(hash, digest, hashLen);
 }
 
@@ -1588,8 +1601,19 @@ int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
         return BAD_FUNC_ARG;
     }
 
+#ifndef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
     ByteReverseWords64((word64*)digest, (word64*)sha384->digest,
         WC_SHA384_DIGEST_SIZE);
+#else
+    /* f, e, b, a, h, g, d, c */
+    digest[0] = ByteReverseWord64(sha384->digest[3]);
+    digest[1] = ByteReverseWord64(sha384->digest[2]);
+    digest[2] = ByteReverseWord64(sha384->digest[7]);
+    digest[3] = ByteReverseWord64(sha384->digest[6]);
+    digest[4] = ByteReverseWord64(sha384->digest[1]);
+    digest[5] = ByteReverseWord64(sha384->digest[0]);
+#endif
+
     XMEMCPY(hash, digest, WC_SHA384_DIGEST_SIZE);
 
     return 0;
