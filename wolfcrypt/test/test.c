@@ -620,7 +620,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls13_kdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  x963kdf_test(void);
-#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM)
+#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_256)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 #endif
 #ifdef WC_SRTP_KDF
@@ -1934,7 +1935,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("X963-KDF    test passed!\n");
 #endif
 
-#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM)
+#if defined(HAVE_HPKE) && defined(HAVE_ECC) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_256)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = hpke_test()) != 0)
         TEST_FAIL("HPKE     test failed!\n", ret);
@@ -10135,6 +10137,7 @@ EVP_TEST_END:
         if (XMEMCMP(plain + 6, plain1 + 6, WC_AES_BLOCK_SIZE))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_256 */
 
     out:
 
@@ -10151,7 +10154,6 @@ EVP_TEST_END:
         wc_AesFree(dec);
     #endif
     #endif
-#endif /* WOLFSSL_AES_256 */
 
         return ret;
     }
@@ -14158,10 +14160,14 @@ static wc_test_ret_t aes_ecb_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
     /* keys padded to block size (16 bytes) */
     WOLFSSL_SMALL_STACK_STATIC const byte key_128[] =
         "0123456789abcdef   ";
+#ifdef WOLFSSL_AES_192
     WOLFSSL_SMALL_STACK_STATIC const byte key_192[] =
         "0123456789abcdef01234567   ";
+#endif
+#ifdef WOLFSSL_AES_256
     WOLFSSL_SMALL_STACK_STATIC const byte key_256[] =
         "0123456789abcdef0123456789abcdef   ";
+#endif
     WOLFSSL_SMALL_STACK_STATIC const byte iv[]  = "1234567890abcdef   ";
     WOLFSSL_SMALL_STACK_STATIC const byte msg[] = {
         0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
@@ -14171,15 +14177,17 @@ static wc_test_ret_t aes_ecb_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
         0xd0, 0xc9, 0xd9, 0xc9, 0x40, 0xe8, 0x97, 0xb6,
         0xc8, 0x8c, 0x33, 0x3b, 0xb5, 0x8f, 0x85, 0xd1
     };
+#ifdef WOLFSSL_AES_192
     WOLFSSL_SMALL_STACK_STATIC const byte verify_ecb_192[WC_AES_BLOCK_SIZE] = {
         0x06, 0x57, 0xee, 0x78, 0x3f, 0x96, 0x00, 0xb1,
         0xec, 0x76, 0x94, 0x30, 0x29, 0xbe, 0x15, 0xab
     };
+#endif
+#ifdef WOLFSSL_AES_256
     WOLFSSL_SMALL_STACK_STATIC const byte verify_ecb_256[WC_AES_BLOCK_SIZE] = {
         0xcd, 0xf2, 0x81, 0x3e, 0x73, 0x3e, 0xf7, 0x33,
         0x3d, 0x18, 0xfd, 0x41, 0x85, 0x37, 0x04, 0x82
     };
-
     WOLFSSL_SMALL_STACK_STATIC const byte niKey[] = {
         0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
         0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
@@ -14194,6 +14202,7 @@ static wc_test_ret_t aes_ecb_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
         0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
         0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
     };
+#endif
 
     int i;
     struct {
@@ -14204,9 +14213,13 @@ static wc_test_ret_t aes_ecb_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
         const byte* verify;
     } testVec[] = {
         { key_128, 16, iv,   msg,     verify_ecb_128 },
+#ifdef WOLFSSL_AES_192
         { key_192, 24, iv,   msg,     verify_ecb_192 },
+#endif
+#ifdef WOLFSSL_AES_256
         { key_256, 32, iv,   msg,     verify_ecb_256 },
         { niKey,   32, NULL, niPlain, niCipher }
+#endif
     };
     #define AES_ECB_TEST_LEN (int)(sizeof(testVec) / sizeof(*testVec))
 
@@ -14440,7 +14453,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
     }
 #endif /* WOLFSSL_AES_128 */
 
-#if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT)
+#if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT) && \
+    defined(WOLFSSL_AES_256)
     {
         WOLFSSL_SMALL_STACK_STATIC const byte bigMsg[] = {
             /* "All work and no play makes Jack a dull boy. " */
@@ -14621,7 +14635,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
         if (ret != 0)
             goto out;
     }
-#endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT && WOLFSSL_AES_256 */
 
     /* Test of AES IV state with encrypt/decrypt */
 #if defined(WOLFSSL_AES_128) && !defined(HAVE_RENESAS_SYNC)
@@ -28776,7 +28790,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 
 #if defined(HAVE_HPKE) && \
     (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
-    defined(HAVE_AESGCM)
+    defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
 
 static wc_test_ret_t hpke_test_single(Hpke* hpke)
 {
@@ -29091,7 +29105,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 
     return ret;
 }
-#endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
+#endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM && WOLFSSL_AES_256 */
 
 #if defined(WC_SRTP_KDF)
 typedef struct Srtp_Kdf_Tv {
@@ -52174,7 +52188,7 @@ static wc_test_ret_t pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         #endif
 #endif
 
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
         /* ori (OtherRecipientInfo) recipient types */
         ADD_PKCS7ENVELOPEDVECTOR(
          data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
@@ -53249,7 +53263,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7authenveloped_test(void)
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
 static const byte p7DefKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -53681,7 +53695,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7callback_test(byte* cert, word32 cert
 
     return ret;
 }
-#endif /* !NO_AES && HAVE_AES_CBC */
+#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 */
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -55284,7 +55298,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs7signed_test(void)
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
-#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_RSA) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_256)
     if (ret >= 0)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,

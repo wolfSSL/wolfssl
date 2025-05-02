@@ -532,12 +532,13 @@
     #endif
 
     #if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
-        !defined(NO_AES) && !defined(NO_SHA) && defined(WOLFSSL_AES_128)
-        #ifdef HAVE_AES_CBC
+        !defined(NO_AES)
+        #if !defined(NO_SHA) && defined(HAVE_AES_CBC) && \
+                defined(WOLFSSL_AES_128)
             #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
         #endif
-
-        #if defined(WOLFSSL_SHA384) && defined(HAVE_AESGCM)
+        #if defined(WOLFSSL_SHA384) && defined(HAVE_AESGCM) && \
+                defined(WOLFSSL_AES_256)
             #define BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
         #endif
     #endif

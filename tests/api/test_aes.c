@@ -756,7 +756,8 @@ int test_wc_AesGcmMixedEncDecLongIV(void)
     EXPECT_DECLS;
 #if  (!defined(HAVE_FIPS) || \
       (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-     !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+     !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+     defined(WOLFSSL_AESGCM_STREAM)
     const byte key[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
@@ -1419,7 +1420,7 @@ int test_wc_AesCcmEncryptDecrypt(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesCcmEncryptDecrypt */
 
-#if defined(WOLFSSL_AES_EAX) && \
+#if defined(WOLFSSL_AES_EAX) && defined(WOLFSSL_AES_256) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
 /*******************************************************************************

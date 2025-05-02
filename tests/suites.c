@@ -1208,7 +1208,7 @@ int SuiteTest(int argc, char** argv)
     }
     XSTRLCPY(argv0[2], "", sizeof(argv0[2]));
 #endif
-#ifdef WOLFSSL_EXTRA_ALERTS
+#if defined(WOLFSSL_EXTRA_ALERTS) && defined(WOLFSSL_AES_256)
     /* failure tests */
     args.argc = 3;
     XSTRLCPY(argv0[1], "tests/test-dtls-fails-cipher.conf", sizeof(argv0[1]));
