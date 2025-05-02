@@ -258,14 +258,14 @@ static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
     (void)stmCtx;
 
     /* wait until not busy and hash digest / input block are complete */
-    while ((HASH->SR & HASH_SR_BUSY) &&
+    while (((HASH->SR & HASH_SR_BUSY)
         #ifdef HASH_IMR_DCIE
-            (HASH->SR & HASH_SR_DCIS) == 0 &&
+            || (HASH->SR & HASH_SR_DCIS) == 0
         #endif
         #ifdef HASH_IMR_DINIE
-            (HASH->SR & HASH_SR_DINIS) == 0 &&
+            || (HASH->SR & HASH_SR_DINIS) == 0
         #endif
-        ++timeout < STM32_HASH_TIMEOUT) {
+        ) && ++timeout < STM32_HASH_TIMEOUT) {
     };
 
 #ifdef DEBUG_STM32_HASH
