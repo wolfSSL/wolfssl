@@ -2821,11 +2821,11 @@ static int linuxkm_test_kpp_driver(const char * driver,
     if (IS_ERR(tfm)) {
         pr_err("error: allocating kpp algorithm %s failed: %ld\n",
                driver, PTR_ERR(tfm));
-        tfm = NULL;
         if (PTR_ERR(tfm) == -ENOMEM)
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
+        tfm = NULL;
         goto test_kpp_end;
     }
 
@@ -2833,11 +2833,11 @@ static int linuxkm_test_kpp_driver(const char * driver,
     if (IS_ERR(req)) {
         pr_err("error: allocating kpp request %s failed\n",
                driver);
-        req = NULL;
         if (PTR_ERR(req) == -ENOMEM)
             test_rc = MEMORY_E;
         else
             test_rc = BAD_FUNC_ARG;
+        req = NULL;
         goto test_kpp_end;
     }
 
