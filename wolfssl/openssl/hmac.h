@@ -42,6 +42,7 @@
     extern "C" {
 #endif
 
+#define HMAC_MAX_MD_CBLOCK 128
 
 WOLFSSL_API unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
                                const void* key, int key_len,
