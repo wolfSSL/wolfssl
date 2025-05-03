@@ -1693,6 +1693,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     }
 #endif
 
+#ifndef USE_WINDOWS_API
+    rng->seed.fd = 0;
+#endif
+
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     ret = 0; /* success */
 #else
@@ -2070,6 +2074,13 @@ int wc_FreeRng(WC_RNG* rng)
     /* don't overwrite previously set error */
     if (wc_VersalTrngReset() && !ret)
         ret = WC_HW_E;
+#endif
+
+#ifdef XCLOSE
+    if(rng->seed.fd != 0 && rng->seed.fd != -1) {
+        XCLOSE(rng->seed.fd);
+        rng->seed.fd = -1;
+    }
 #endif
 
     return ret;
@@ -4075,20 +4086,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
-        os->fd = open("/dev/urandom", O_RDONLY);
-        #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG("opened /dev/urandom.");
-        #endif
-        if (os->fd == -1)
-    #endif
-        {
-            /* may still have /dev/random */
-            os->fd = open("/dev/random", O_RDONLY);
-    #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG("opened /dev/random.");
-    #endif
+        if (os->fd == 0 || os->fd == -1) {
+            os->fd = open("/dev/urandom", O_RDONLY);
+            #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("opened /dev/urandom.");
+            #endif
             if (os->fd == -1)
-                return OPEN_RAN_E;
+        #endif
+            {
+                /* may still have /dev/random */
+                os->fd = open("/dev/random", O_RDONLY);
+        #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("opened /dev/random.");
+        #endif
+                if (os->fd == -1)
+                    return OPEN_RAN_E;
+            }
         }
     #if defined(DEBUG_WOLFSSL)
         WOLFSSL_MSG("rnd read...");
@@ -4112,7 +4125,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
             }
         }
-        close(os->fd);
 
         return ret;
     }
