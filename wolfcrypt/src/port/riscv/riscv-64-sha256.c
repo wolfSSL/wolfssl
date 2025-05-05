@@ -965,15 +965,24 @@ int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
         ret = BAD_FUNC_ARG;
     }
     else {
-    #ifdef LITTLE_ENDIAN_ORDER
         word32 digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
 
+    #ifndef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
         ByteReverseWords((word32*)digest, (word32*)sha256->digest,
             WC_SHA256_DIGEST_SIZE);
-        XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
     #else
-        XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+        /* f, e, b, a, h, g, d, c */
+        digest[0] = ByteReverseWord32(sha256->digest[3]);
+        digest[1] = ByteReverseWord32(sha256->digest[2]);
+        digest[2] = ByteReverseWord32(sha256->digest[7]);
+        digest[3] = ByteReverseWord32(sha256->digest[6]);
+        digest[4] = ByteReverseWord32(sha256->digest[1]);
+        digest[5] = ByteReverseWord32(sha256->digest[0]);
+        digest[6] = ByteReverseWord32(sha256->digest[5]);
+        digest[7] = ByteReverseWord32(sha256->digest[4]);
     #endif
+
+        XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
     }
 
     return ret;
