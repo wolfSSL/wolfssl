@@ -3792,6 +3792,14 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_ALERT_COUNT_MAX 5
 #endif
 
+/* Enable blinding by default for C-only, non-small curve25519 implementation */
+#if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
+    !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_ARMASM) && \
+    !defined(USE_INTEL_SPEEDUP) && \
+    !defined(WOLFSSL_CURVE25519_BLINDING) && !defined(NO_CURVE25519_BLINDING)
+    #define WOLFSSL_CURVE25519_BLINDING
+#endif
+
 /* warning for not using harden build options (default with ./configure) */
 /* do not warn if big integer support is disabled */
 #if !defined(WC_NO_HARDEN) && !defined(NO_BIG_INT)
