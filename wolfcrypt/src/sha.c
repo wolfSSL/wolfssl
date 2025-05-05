@@ -780,6 +780,7 @@ int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 {
 #ifdef LITTLE_ENDIAN_ORDER
     word32 digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
+    XMEMSET(digest, 0, sizeof(digest));
 #endif
 
     if (sha == NULL || hash == NULL) {

@@ -1683,6 +1683,7 @@ static int InitSha256(wc_Sha256* sha256)
     {
     #ifdef LITTLE_ENDIAN_ORDER
         word32 digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+        XMEMSET(digest, 0, sizeof(digest));
     #endif
 
         if (sha256 == NULL || hash == NULL) {

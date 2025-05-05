@@ -7743,8 +7743,11 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     if (ret != 0) {
         /* Cleanup on error, otherwise data owned by key share entry */
-        XFREE(kse->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        kse->privKey = NULL;
+        if (kse->privKey) {
+            ForceZero(kse->privKey, pvtSz);
+            XFREE(kse->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+            kse->privKey = NULL;
+        }
         XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         kse->pubKey = NULL;
     }
@@ -8335,7 +8338,11 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
         XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         kse->pubKey = NULL;
     #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
-        XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (privKey) {
+            ForceZero(privKey, privSz);
+            XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+            privKey = NULL;
+        }
     #else
         XFREE(kem, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         kse->key = NULL;
@@ -8804,8 +8811,11 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         wc_FreeDhKey(dhKey);
     XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_DH);
     keyShareEntry->key = NULL;
-    XFREE(keyShareEntry->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    keyShareEntry->privKey = NULL;
+    if (keyShareEntry->privKey) {
+        ForceZero(keyShareEntry->privKey, keyShareEntry->keyLen);
+        XFREE(keyShareEntry->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        keyShareEntry->privKey = NULL;
+    }
     XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     keyShareEntry->pubKey = NULL;
     XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);

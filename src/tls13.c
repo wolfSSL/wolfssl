@@ -5964,6 +5964,8 @@ static int FindPsk(WOLFSSL* ssl, PreSharedKey* psk, const byte* suite, int* err)
 
     WOLFSSL_ENTER("FindPsk");
 
+    XMEMSET(foundSuite, 0, sizeof(foundSuite));
+
     ret = FindPskSuite(ssl, psk, ssl->arrays->psk_key, &ssl->arrays->psk_keySz,
                        suite, &found, foundSuite);
     if (ret == 0 && found) {

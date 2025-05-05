@@ -20968,6 +20968,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     byte good;
     int  ret = 0;
 
+    XMEMSET(verify, 0, WC_MAX_DIGEST_SIZE);
     good = MaskPadding(input, pLen, macSz);
     /* 4th argument has potential to underflow, ssl->hmac function should
      * either increment the size by (macSz + padLen + 1) before use or check on
@@ -21601,6 +21602,7 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
     byte   verify[WC_MAX_DIGEST_SIZE];
 
     XMEMSET(verify, 0, WC_MAX_DIGEST_SIZE);
+
     if (ssl->specs.cipher_type == block) {
         pad = input[msgSz - 1];
         padByte = 1;
