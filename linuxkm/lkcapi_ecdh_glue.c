@@ -133,6 +133,61 @@ static struct kpp_alg ecdh_nist_p384 = {
     .exit                  = km_ecdh_exit,
 };
 
+/* The ecdh secret is passed in this format:
+ *    __________________________________________________________
+ *   | secret hdr          | key_size |  key                    |
+ *   | (struct kpp_secret) | (int)    | (curve_len, if present) |
+ *    ----------------------------------------------------------
+ *
+ *   - the key_size field is mandatory, but may be 0 value.
+ *   - the key is optional.
+ *
+ * If key_size is 0, then key pair should be generated.
+ * */
+#define ECDH_KPP_SECRET_MIN_SIZE (sizeof(struct kpp_secret) + sizeof(short))
+
+static int km_ecdh_decode_secret(const u8 * buf, unsigned int len,
+                                 struct ecdh * params)
+{
+    struct kpp_secret secret;
+    const u8 *        ptr = NULL;
+    size_t            expected_len = 0;
+
+    if (unlikely(!buf || len < ECDH_KPP_SECRET_MIN_SIZE || !params)) {
+        return -EINVAL;
+    }
+
+    /* the type of secret should be the first byte. */
+    ptr = buf;
+    memcpy(&secret, ptr, sizeof(secret));
+    ptr += sizeof(secret);
+    if (secret.type != CRYPTO_KPP_SECRET_TYPE_ECDH) {
+        return -EINVAL;
+    }
+
+    /* the key_size field will be present */
+    memcpy(&params->key_size, ptr, sizeof(params->key_size));
+    ptr += sizeof(params->key_size);
+
+    /* Calculate expected len. Verify we got expected data. */
+    expected_len = ECDH_KPP_SECRET_MIN_SIZE + params->key_size;
+
+    if (secret.len != expected_len) {
+        #ifdef WOLFKM_DEBUG_ECDH
+        pr_err("%s: km_ecdh_decode_secret: got %d, expected %zu",
+               WOLFKM_ECDH_DRIVER, secret.len, expected_len);
+        #endif /* WOLFKM_DEBUG_ECDH */
+        return -EINVAL;
+    }
+
+    /* Only set the key if it was provided.  */
+    if (params->key_size) {
+        params->key = (void *)ptr;
+    }
+
+    return 0;
+}
+
 /*
  * Set the secret. Kernel crypto expects secret is passed with
  * struct kpp_secret as header, followed by secret data as payload.
@@ -150,6 +205,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
     struct ecdh          params;
 
     ctx = kpp_tfm_ctx(tfm);
+    memset(&params, 0, sizeof(params));
 
     switch (ctx->curve_len) {
     #if defined(LINUXKM_ECC192)
@@ -166,8 +222,7 @@ static int km_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
         return -EINVAL;
     }
 
-    /* use decode key helper so we observe the same format. */
-    if (crypto_ecdh_decode_key(buf, len, &params) < 0) {
+    if (km_ecdh_decode_secret(buf, len, &params) < 0) {
         #ifdef WOLFKM_DEBUG_ECDH
         pr_err("%s: ecdh_set_secret: decode secret failed: %d",
                WOLFKM_ECDH_DRIVER, params.key_size);
