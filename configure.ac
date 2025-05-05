@@ -9406,9 +9406,10 @@ then
     do
         case "$lkcapi_alg" in
         all) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL -DWC_RSA_NO_PADDING -DWOLFSSL_DH_EXTRA"
-             ENABLED_LINUXKM_LKCAPI_REGISTER_DH=yes
              ;;
-        sysfs-nodes-only) ENABLED_LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND=yes ;;
+        all-kconfig) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ALL -DLINUXKM_LKCAPI_REGISTER_ALL_KCONFIG -DWC_RSA_NO_PADDING -DWOLFSSL_DH_EXTRA"
+             ;;
+        sysfs-nodes-only) AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND" ;;
         'cbc(aes)') test "$ENABLED_AESCBC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CBC implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESCBC" ;;
         'cfb(aes)') test "$ENABLED_AESCFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-CFB implementation not enabled.])
@@ -9449,7 +9450,6 @@ then
         'rsa')      test "$ENABLED_RSA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: RSA implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_RSA -DWC_RSA_NO_PADDING" ;;
         'dh')       AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_DH -DWOLFSSL_DH_EXTRA"
-                    ENABLED_LINUXKM_LKCAPI_REGISTER_DH=yes
                     ;;
         # disable options
         '-cbc(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCBC" ;;
@@ -9476,17 +9476,6 @@ then
         *) AC_MSG_ERROR([Unsupported LKCAPI algorithm "$lkcapi_alg".])      ;;
         esac
     done
-
-    if test "$ENABLED_LINUXKM_LKCAPI_REGISTER_DH" = "yes" &&
-       (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -ge 7)
-    then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_GEN_PUB"
-    fi
-
-    if test "$ENABLED_LINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_ONLY_ON_COMMAND"
-    fi
 fi
 AC_SUBST([ENABLED_LINUXKM_LKCAPI_REGISTER])
 

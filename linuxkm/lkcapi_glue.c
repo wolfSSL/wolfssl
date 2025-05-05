@@ -30,11 +30,13 @@
     #error LINUXKM_LKCAPI_REGISTER is supported only on Linux kernel versions >= 5.4.0.
 #endif
 
-/* kernel crypto self-test includes test setups that have different expected
- * results FIPS vs non-FIPS.
- */
 #if defined(CONFIG_CRYPTO_MANAGER) && \
     !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+    /* kernel crypto self-test includes test setups that have different expected
+     * results FIPS vs non-FIPS, and the required kernel exported symbol
+     * "fips_enabled" is only available in CONFIG_CRYPTO_FIPS kernels (otherwise
+     * it's a macro hardcoding it to literal 0).
+     */
     #if defined(CONFIG_CRYPTO_FIPS) != defined(HAVE_FIPS)
         #error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS.
     #endif
@@ -55,7 +57,7 @@
     /* Larger number means higher priority.  The highest in-tree priority is
      * 4001, in the Cavium driver.
      */
-    #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 10000
+    #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY INT_MAX
 #endif
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
@@ -204,113 +206,12 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 #endif
 }
 
-#ifndef NO_AES
-    #include "lkcapi_aes_glue.c"
-#endif
-
+#include "lkcapi_aes_glue.c"
 #include "lkcapi_sha_glue.c"
-
-#ifdef HAVE_ECC
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
-        #define LINUXKM_LKCAPI_REGISTER_ECDSA
-    #endif
-
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDH)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_ECDH)
-        #define LINUXKM_LKCAPI_REGISTER_ECDH
-    #endif
-#else
-    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #undef LINUXKM_LKCAPI_REGISTER_ECDH
-#endif /* HAVE_ECC */
-
-#if !defined(NO_RSA)
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_RSA)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_RSA)
-        #define LINUXKM_LKCAPI_REGISTER_RSA
-    #endif
-#else
-    #undef LINUXKM_LKCAPI_REGISTER_RSA
-#endif /* !NO_RSA */
-
-/*
- * extra checks on kernel version, and ecc sizes.
- */
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
-        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
-        /* only register p192 if specifically enabled, and if not fips. */
-        #define LINUXKM_ECC192
-    #endif
-#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
-
-#ifdef LINUXKM_LKCAPI_REGISTER_ECDH
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
-        /* currently incompatible with kernel 5.12 or earlier. */
-        #undef LINUXKM_LKCAPI_REGISTER_ECDH
-    #endif
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
-    /*
-     * notes:
-     *   - ecdsa supported with linux 6.12 and earlier for now, only.
-     *   - pkcs1pad rsa supported both before and after linux 6.13, but
-     *     without sign/verify after linux 6.13.
-     *
-     * In linux 6.13 the sign/verify callbacks were removed from
-     * akcipher_alg, and ecdsa changed from a struct akcipher_alg type to
-     * struct sig_alg type.
-     *
-     * pkcs1pad rsa remained a struct akcipher_alg, but without sign/verify
-     * functionality.
-     */
-    #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
-    #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
-
-    #if defined (LINUXKM_LKCAPI_REGISTER_RSA)
-        #define LINUXKM_AKCIPHER_NO_SIGNVERIFY
-    #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
-#endif /* linux >= 6.13.0 */
-
-#if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_DH)) && \
-    !defined(LINUXKM_LKCAPI_REGISTER_DH)
-    #define LINUXKM_LKCAPI_REGISTER_DH
-    #define LINUXKM_DH
-#endif
-
-#if defined (LINUXKM_LKCAPI_REGISTER_DH) && !defined(WOLFSSL_DH_EXTRA) || \
-   !defined(WOLFSSL_DH_GEN_PUB)
-     /* not supported without WOLFSSL_DH_EXTRA && WOLFSSL_DH_GEN_PUB */
-    #undef LINUXKM_LKCAPI_REGISTER_DH
-#endif /* LINUXKM_LKCAPI_REGISTER_DH */
-
-#if defined (LINUXKM_LKCAPI_REGISTER_DH) && defined(CONFIG_CRYPTO_FIPS) && \
-    defined(CONFIG_CRYPTO_MANAGER)
-        /*
-         * note: normal dh not fips_allowed in kernel crypto/testmgr.c,
-         * and will not pass the tests.
-         */
-        #undef LINUXKM_DH
-#endif /* LINUXKM_LKCAPI_REGISTER_DH */
-
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
-    #include "linuxkm/lkcapi_ecdsa_glue.c"
-#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
-
-#if defined (LINUXKM_LKCAPI_REGISTER_ECDH)
-    #include "linuxkm/lkcapi_ecdh_glue.c"
-#endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
-
-#if defined(LINUXKM_LKCAPI_REGISTER_RSA)
-    #include "linuxkm/lkcapi_rsa_glue.c"
-#endif /* LINUXKM_LKCAPI_REGISTER_RSA */
-
-#if defined (LINUXKM_LKCAPI_REGISTER_DH)
-    #include "linuxkm/lkcapi_dh_glue.c"
-#endif /* LINUXKM_LKCAPI_REGISTER_DH */
+#include "lkcapi_ecdsa_glue.c"
+#include "lkcapi_ecdh_glue.c"
+#include "lkcapi_rsa_glue.c"
+#include "lkcapi_dh_glue.c"
 
 static int linuxkm_lkcapi_register(void);
 static int linuxkm_lkcapi_unregister(void);
