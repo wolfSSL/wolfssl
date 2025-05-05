@@ -35668,10 +35668,12 @@ static int test_wolfSSL_OBJ(void)
         int boolRet;
         EVP_PKEY *pkey = NULL;
         const char *p12_f[] = {
-            #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && !defined(NO_RSA)
+            /* bundle uses AES-CBC 256 and PKCS7 key uses DES3 */
+        #if !defined(NO_DES3) && defined(WOLFSSL_AES_256) && !defined(NO_RSA)
             "./certs/test-servercert.p12",
-            #endif
-            NULL};
+        #endif
+            NULL
+        };
 
         for (i = 0; p12_f[i] != NULL; i++)
         {
