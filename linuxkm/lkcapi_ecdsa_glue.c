@@ -20,11 +20,59 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
-
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_ecdsa_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
+
+#ifdef HAVE_ECC
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDSA) &&              \
+        !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+        #define LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+#endif
+
+#if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && \
+        ECC_MIN_KEY_SZ <= 192 && !defined(CONFIG_CRYPTO_FIPS)
+        /* only register p192 if specifically enabled, and if not fips. */
+        #define LINUXKM_ECC192
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    /*
+     * notes:
+     *   - ecdsa supported with linux 6.12 and earlier for now, only.
+     *   - pkcs1pad rsa supported both before and after linux 6.13, but
+     *     without sign/verify after linux 6.13.
+     *
+     * In linux 6.13 the sign/verify callbacks were removed from
+     * akcipher_alg, and ecdsa changed from a struct akcipher_alg type to
+     * struct sig_alg type.
+     *
+     * pkcs1pad rsa remained a struct akcipher_alg, but without sign/verify
+     * functionality.
+     */
+    #if defined (LINUXKM_LKCAPI_REGISTER_ECDSA)
+        #undef LINUXKM_LKCAPI_REGISTER_ECDSA
+    #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDSA)
+        #error Config conflict: missing implementation forces off LINUXKM_LKCAPI_REGISTER_ECDSA.
+    #endif
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
+    defined(CONFIG_CRYPTO_ECDSA) && \
+    !defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
+    #error Config conflict: target kernel has CONFIG_CRYPTO_ECDSA, but module is missing LINUXKM_LKCAPI_REGISTER_ECDSA.
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ECDSA)
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>

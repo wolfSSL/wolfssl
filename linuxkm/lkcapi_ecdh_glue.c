@@ -20,11 +20,39 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(LINUXKM_LKCAPI_REGISTER_ECDH)
-
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_ecdh_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
+
+#ifdef HAVE_ECC
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDH))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_ECDH) &&     \
+        !defined(LINUXKM_LKCAPI_REGISTER_ECDH)
+        #define LINUXKM_LKCAPI_REGISTER_ECDH
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_ECDH
+#endif /* HAVE_ECC */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_ECDH
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+        /* currently incompatible with kernel 5.12 or earlier. */
+        #undef LINUXKM_LKCAPI_REGISTER_ECDH
+
+        #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_ECDH)
+            #error Config conflict: missing implementation forces off LINUXKM_LKCAPI_REGISTER_ECDH.
+        #endif
+    #endif
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
+    defined(CONFIG_CRYPTO_ECDH) && \
+    !defined(LINUXKM_LKCAPI_REGISTER_ECDH)
+    #error Config conflict: target kernel has CONFIG_CRYPTO_ECDH, but module is missing LINUXKM_LKCAPI_REGISTER_ECDH.
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ECDH)
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>

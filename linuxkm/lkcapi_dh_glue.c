@@ -20,11 +20,49 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(LINUXKM_LKCAPI_REGISTER_DH)
-
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_dh_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
+
+#if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+     (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DH))) && \
+    !defined(LINUXKM_LKCAPI_DONT_REGISTER_DH) &&  \
+    !defined(LINUXKM_LKCAPI_REGISTER_DH)
+    #define LINUXKM_LKCAPI_REGISTER_DH
+    #define LINUXKM_DH
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_DH) && \
+    (!defined(WOLFSSL_DH_EXTRA) ||         \
+     !defined(WOLFSSL_DH_GEN_PUB))
+     /* not supported without WOLFSSL_DH_EXTRA && WOLFSSL_DH_GEN_PUB */
+    #undef LINUXKM_LKCAPI_REGISTER_DH
+
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DH)
+        #error Config conflict: missing features force off LINUXKM_LKCAPI_REGISTER_DH.
+    #endif
+#endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#if defined (LINUXKM_LKCAPI_REGISTER_DH) && defined(CONFIG_CRYPTO_FIPS) && \
+    defined(CONFIG_CRYPTO_MANAGER)
+        /*
+         * note: normal dh not fips_allowed in kernel crypto/testmgr.c,
+         * and will not pass the tests.
+         */
+        #undef LINUXKM_DH
+#endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#ifdef NO_DH
+    #undef LINUXKM_LKCAPI_REGISTER_DH
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
+    defined(CONFIG_CRYPTO_DH) && \
+    !defined(LINUXKM_LKCAPI_REGISTER_DH)
+    #error Config conflict: target kernel has CONFIG_CRYPTO_DH, but module is missing LINUXKM_LKCAPI_REGISTER_DH.
+#endif
+
+#if defined(LINUXKM_LKCAPI_REGISTER_DH)
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/dh.h>

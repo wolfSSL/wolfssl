@@ -19,7 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* included by linuxkm/lkcapi_glue.c */
+#ifndef LINUXKM_LKCAPI_REGISTER
+    #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
+#endif
+
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && defined(USE_INTEL_SPEEDUP)
+    #error SHA* WC_LINUXKM_C_FALLBACK_IN_SHIMS is not currently supported.
+#endif
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/hmac.h>
@@ -47,7 +53,11 @@
 #define WOLFKM_STDRNG_NAME "stdrng"
 
 #if defined(USE_INTEL_SPEEDUP)
-    #define WOLFKM_SHA_DRIVER_ISA_EXT "-avx"
+    #ifndef NO_AVX2_SUPPORT
+        #define WOLFKM_SHA_DRIVER_ISA_EXT "-avx2"
+    #else
+        #define WOLFKM_SHA_DRIVER_ISA_EXT "-avx"
+    #endif
 #else
     #define WOLFKM_SHA_DRIVER_ISA_EXT ""
 #endif
@@ -75,7 +85,13 @@
 #define WOLFKM_SHA3_384_HMAC_DRIVER ("hmac-sha3-384" WOLFKM_SHA_DRIVER_SUFFIX)
 #define WOLFKM_SHA3_512_HMAC_DRIVER ("hmac-sha3-512" WOLFKM_SHA_DRIVER_SUFFIX)
 
-#define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg" WOLFKM_SHA_DRIVER_SUFFIX)
+/* "nopr" signifies no "prediction resistance".  Prediction resistance entails
+ * implicit reseeding of the DRBG each time its generator method is called,
+ * which reduces performance and can rapidly lead to temporary entropy
+ * exhaustion.  A caller that really needs PR can pass in seed data in its call
+ * to our rng_alg.generate() implementation.
+ */
+#define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" WOLFKM_SHA_DRIVER_SUFFIX)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2
     #define LINUXKM_LKCAPI_REGISTER_SHA2_224
@@ -133,88 +149,133 @@
     #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3_512_HMAC
 #endif
 
+#if defined(NO_HMAC) && defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_HMAC)
+    #error Config conflict: target kernel has CONFIG_CRYPTO_HMAC, but module has NO_HMAC
+#endif
+
 #ifndef NO_SHA
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA1)) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA1))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA1) && \
         !defined(LINUXKM_LKCAPI_REGISTER_SHA1)
         #define LINUXKM_LKCAPI_REGISTER_SHA1
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
-    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA1_HMAC)
+    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+           (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA1))) && \
+          !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC) && \
+          !defined(LINUXKM_LKCAPI_REGISTER_SHA1_HMAC)
         #define LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA1)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA1, but module has NO_SHA
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA1
     #undef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
 #endif
 
 #ifdef WOLFSSL_SHA224
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_224)) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_224) &&            \
         !defined(LINUXKM_LKCAPI_REGISTER_SHA2_224)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_224
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
-    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_224_HMAC)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC)
+    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+           (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256))) && \
+          !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_224_HMAC) &&        \
+          !defined(LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA256, but module is missing WOLFSSL_SHA224
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_224
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_224_HMAC
 #endif
 
 #ifndef NO_SHA256
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_256)) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_256) && \
         !defined(LINUXKM_LKCAPI_REGISTER_SHA2_256)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_256
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
-    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_256_HMAC)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC)
+    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+           (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256))) && \
+          !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_256_HMAC) &&  \
+          !defined(LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA256)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA256, but module has NO_SHA256
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_256
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_256_HMAC
 #endif
 
 #ifdef WOLFSSL_SHA384
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_384)) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_384) && \
         !defined(LINUXKM_LKCAPI_REGISTER_SHA2_384)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_384
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
-    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_384_HMAC)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC)
+    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+           (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512))) && \
+          !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_384_HMAC) &&  \
+          !defined(LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA512, but module is missing WOLFSSL_SHA384
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_384
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_384_HMAC
 #endif
 
 #ifdef WOLFSSL_SHA512
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_512)) && \
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_512) && \
         !defined(LINUXKM_LKCAPI_REGISTER_SHA2_512)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_512
     #endif
     #ifdef NO_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
-    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_512_HMAC)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC)
+    #elif (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+           (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512))) && \
+          !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA2_512_HMAC) &&  \
+          !defined(LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC)
         #define LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA512)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA512, but module is missing WOLFSSL_SHA512
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_512
     #undef LINUXKM_LKCAPI_REGISTER_SHA2_512_HMAC
 #endif
 
 #ifdef WOLFSSL_SHA3
-    #ifdef LINUXKM_LKCAPI_REGISTER_ALL
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA3))
         #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_224)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_224
@@ -237,7 +298,8 @@
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_256_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_384_HMAC
         #undef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
-    #elif defined(LINUXKM_LKCAPI_REGISTER_ALL)
+    #elif defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+        (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA3))
         #if !defined(LINUXKM_LKCAPI_DONT_REGISTER_SHA3_224_HMAC) && \
             !defined(LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC)
             #define LINUXKM_LKCAPI_REGISTER_SHA3_224_HMAC
@@ -256,6 +318,10 @@
         #endif
     #endif
 #else
+    #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_SHA3)
+        #error Config conflict: target kernel has CONFIG_CRYPTO_SHA3, but module is missing WOLFSSL_SHA3
+    #endif
+
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_224
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_256
     #undef LINUXKM_LKCAPI_REGISTER_SHA3_384
@@ -944,7 +1010,9 @@ static int wc_linuxkm_drbg_default_instance_registered = 0;
 WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
 {
     int ret;
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     int cur_refcnt;
+#endif
 
     if (wc_linuxkm_drbg_loaded) {
         pr_err("wc_linuxkm_drbg_set_default called with wc_linuxkm_drbg_loaded.");
@@ -1093,7 +1161,6 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
 
 WC_MAYBE_UNUSED static int wc_linuxkm_drbg_cleanup(void) {
     int cur_refcnt = WC_LKM_REFCOUNT_TO_INT(wc_linuxkm_drbg.base.cra_refcnt);
-    int ret;
 
     if (! wc_linuxkm_drbg_loaded) {
         pr_err("wc_linuxkm_drbg_cleanup called with ! wc_linuxkm_drbg_loaded");
@@ -1112,7 +1179,7 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_cleanup(void) {
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
     if (wc_linuxkm_drbg_default_instance_registered) {
-        ret = crypto_del_default_rng();
+        int ret = crypto_del_default_rng();
         if (ret) {
             pr_err("crypto_del_default_rng failed: %d", ret);
             return ret;

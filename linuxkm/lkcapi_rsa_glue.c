@@ -24,9 +24,43 @@
     #error lkcapi_rsa_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
-#if !defined(NO_RSA) && \
-    (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
-     defined(LINUXKM_LKCAPI_REGISTER_RSA))
+#if !defined(NO_RSA)
+    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
+         (defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_RSA))) && \
+        !defined(LINUXKM_LKCAPI_DONT_REGISTER_RSA) &&                  \
+        !defined(LINUXKM_LKCAPI_REGISTER_RSA)
+        #define LINUXKM_LKCAPI_REGISTER_RSA
+    #endif
+#else
+    #undef LINUXKM_LKCAPI_REGISTER_RSA
+#endif /* !NO_RSA */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    /*
+     * notes:
+     *   - ecdsa supported with linux 6.12 and earlier for now, only.
+     *   - pkcs1pad rsa supported both before and after linux 6.13, but
+     *     without sign/verify after linux 6.13.
+     *
+     * In linux 6.13 the sign/verify callbacks were removed from
+     * akcipher_alg, and ecdsa changed from a struct akcipher_alg type to
+     * struct sig_alg type.
+     *
+     * pkcs1pad rsa remained a struct akcipher_alg, but without sign/verify
+     * functionality.
+     */
+    #if defined (LINUXKM_LKCAPI_REGISTER_RSA)
+        #define LINUXKM_AKCIPHER_NO_SIGNVERIFY
+    #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
+#endif /* linux >= 6.13.0 */
+
+#if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && \
+    defined(CONFIG_CRYPTO_RSA) && \
+    !defined(LINUXKM_LKCAPI_REGISTER_RSA)
+    #error Config conflict: target kernel has CONFIG_CRYPTO_RSA, but module is missing LINUXKM_LKCAPI_REGISTER_RSA.
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_RSA
 
 #if defined(WOLFSSL_RSA_VERIFY_ONLY) || \
     defined(WOLFSSL_RSA_PUBLIC_ONLY)
@@ -1907,6 +1941,4 @@ static int get_hash_enc_len(int hash_oid)
     return enc_len;
 }
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
-#endif /* !NO_RSA &&
-        * (LINUXKM_LKCAPI_REGISTER_ALL || LINUXKM_LKCAPI_REGISTER_RSA)
-        */
+#endif /* LINUXKM_LKCAPI_REGISTER_RSA */
