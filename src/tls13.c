@@ -5053,7 +5053,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     byte tls12minor;
 #ifdef WOLFSSL_ASYNC_CRYPT
     Dsh13Args* args = NULL;
-    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async->args, *args);
 #else
     Dsh13Args  args[1];
 #endif
@@ -5061,16 +5060,19 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_DO);
     WOLFSSL_ENTER("DoTls13ServerHello");
 
+    if (ssl == NULL || ssl->arrays == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_ASSERT_SIZEOF_GE(ssl->async->args, *args);
+#endif
+
     tls12minor = TLSv1_2_MINOR;
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
         tls12minor = DTLSv1_2_MINOR;
 #endif /*  WOLFSSL_DTLS13 */
-
-
-    if (ssl == NULL || ssl->arrays == NULL)
-        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->async == NULL) {

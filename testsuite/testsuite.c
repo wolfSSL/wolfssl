@@ -309,6 +309,8 @@ static int test_crl_monitor(void)
     int ret = -1;
     int i = -1, j;
 
+    XMEMSET(tmpDir, '\0', sizeof(tmpDir));
+
     printf("\nRunning CRL monitor test\n");
 
     (void)XSNPRINTF(rounds, sizeof(rounds), "%d", CRL_MONITOR_TEST_ROUNDS);
@@ -499,7 +501,11 @@ static void show_ciphers(void)
 /* Cleanup temporary output file. */
 static void cleanup_output(void)
 {
-    remove(outputName);
+    int ret = 0;
+    ret = remove(outputName);
+    if (ret < 0) {
+        fprintf(stderr, "remove(%s) failed: %d\n", outputName, ret);
+    }
 }
 
 /* Validate output equals input using a hash. Remove temporary output file.
