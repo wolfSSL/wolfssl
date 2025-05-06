@@ -2711,6 +2711,34 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(USE_WINDOWS_API)
 
+#ifdef WIN_REUSE_CRYPT_HANDLE
+/* shared crypt handle for RNG use */
+static ProviderHandle gHandle = 0;
+
+int wc_WinCryptHandleInit(void)
+{
+    int ret = 0;
+    if (gHandle == 0) {
+        if(!CryptAcquireContext(&gHandle, 0, 0, PROV_RSA_FULL,
+                                        CRYPT_VERIFYCONTEXT)) {
+            DWORD dw = GetLastError();
+            WOLFSSL_MSG("CryptAcquireContext failed!");
+            WOLFSSL_ERROR((int)dw);
+            ret = WINCRYPT_E;
+        }
+    }
+    return ret;
+}
+
+void wc_WinCryptHandleCleanup(void)
+{
+    if (gHandle != 0) {
+        CryptReleaseContext(gHandle, 0);
+        gHandle = 0;
+    }
+}
+#endif /* WIN_REUSE_CRYPT_HANDLE */
+
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
 #ifdef WOLF_CRYPTO_CB
@@ -2741,14 +2769,27 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* HAVE_INTEL_RDSEED */
 
-    if(!CryptAcquireContext(&os->handle, 0, 0, PROV_RSA_FULL,
-                            CRYPT_VERIFYCONTEXT))
+#ifdef WIN_REUSE_CRYPT_HANDLE
+    /* Check that handle was initialized.
+     * Note: initialization should be done through:
+     * wolfSSL_Init -> wolfCrypt_Init -> wc_WinCryptHandleInit
+     */
+    if (wc_WinCryptHandleInit() != 0) {
         return WINCRYPT_E;
-
-    if (!CryptGenRandom(os->handle, sz, output))
+    }
+    if (!CryptGenRandom(gHandle, sz, output))
         return CRYPTGEN_E;
-
+#else
+    if (!CryptAcquireContext(&os->handle, 0, 0, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT)) {
+        return WINCRYPT_E;
+    }
+    if (!CryptGenRandom(os->handle, sz, output)) {
+        return CRYPTGEN_E;
+    }
     CryptReleaseContext(os->handle, 0);
+    os->handle = 0;
+#endif
 
     return 0;
 }

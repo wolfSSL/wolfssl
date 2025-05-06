@@ -339,13 +339,20 @@ int wolfCrypt_Init(void)
             return ret;
     #endif
 
-#ifdef HAVE_ENTROPY_MEMUSE
-    ret = Entropy_Init();
-    if (ret != 0) {
-        WOLFSSL_MSG("Error initializing entropy");
-        return ret;
-    }
-#endif
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+        /* A failure here should not happen, but if it does the actual RNG seed
+         * call will fail. This init is for a shared crypt provider handle for
+         * RNG */
+        (void)wc_WinCryptHandleInit();
+    #endif
+
+    #ifdef HAVE_ENTROPY_MEMUSE
+        ret = Entropy_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("Error initializing entropy");
+            return ret;
+        }
+    #endif
 
 #ifdef HAVE_ECC
     #ifdef FP_ECC
@@ -514,6 +521,10 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef HAVE_ENTROPY_MEMUSE
         Entropy_Final();
+    #endif
+
+    #if defined(USE_WINDOWS_API) && defined(WIN_REUSE_CRYPT_HANDLE)
+        wc_WinCryptHandleCleanup();
     #endif
 
     #ifdef WOLF_CRYPTO_CB
