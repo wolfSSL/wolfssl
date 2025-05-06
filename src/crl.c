@@ -135,8 +135,10 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 #endif
     dcrl->certs = NULL;
     crle->totalCerts = dcrl->totalCerts;
-    XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
     crle->crlNumberSet = dcrl->crlNumberSet;
+    if (crle->crlNumberSet) {
+        XMEMCPY(crle->crlNumber, dcrl->crlNumber, CRL_MAX_NUM_SZ);
+    }
     crle->verified = verified;
     if (!verified) {
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
