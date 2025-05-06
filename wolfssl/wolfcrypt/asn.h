@@ -44,11 +44,36 @@ that can be serialized and deserialized in a cross-platform way.
 
 #include <wolfssl/wolfcrypt/wolfmath.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 #ifndef NO_DSA
     #include <wolfssl/wolfcrypt/dsa.h>
+#endif
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+#ifdef HAVE_ED448
+    #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+#ifdef HAVE_SPHINCS
+    #include <wolfssl/wolfcrypt/sphincs.h>
+#endif
+#ifdef HAVE_FALCON
+    #include <wolfssl/wolfcrypt/falcon.h>
+#endif
+#ifdef HAVE_DILITHIUM
+    #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #ifndef NO_SHA
     #include <wolfssl/wolfcrypt/sha.h>
@@ -1407,12 +1432,20 @@ typedef struct tagCertAttribute {
 
 struct SignatureCtx {
     void* heap;
+    #ifdef WOLFSSL_NO_MALLOC
+    byte  digest[WC_MAX_DIGEST_SIZE];
+    #else
     byte* digest;
+    #endif
 #ifndef NO_RSA
     byte* out;
 #endif
-#if !(defined(NO_RSA) && defined(NO_DSA))
+#if !defined(NO_RSA) || !defined(NO_DSA)
+    #ifdef WOLFSSL_NO_MALLOC
+    byte  sigCpy[MAX_SIG_SZ];
+    #else
     byte* sigCpy;
+    #endif
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
     !defined(NO_DSA) || defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
@@ -1421,30 +1454,64 @@ struct SignatureCtx {
 #endif
     union {
     #ifndef NO_RSA
+        #ifdef WOLFSSL_NO_MALLOC
+        struct RsaKey       rsa[1];
+        #else
         struct RsaKey*      rsa;
+        #endif
     #endif
     #ifndef NO_DSA
+        #ifdef WOLFSSL_NO_MALLOC
+        struct DsaKey       dsa[1];
+        #else
         struct DsaKey*      dsa;
+        #endif
     #endif
     #ifdef HAVE_ECC
+        #ifdef WOLFSSL_NO_MALLOC
+        struct ecc_key      ecc[1];
+        #else
         struct ecc_key*     ecc;
+        #endif
     #endif
     #ifdef HAVE_ED25519
+        #ifdef WOLFSSL_NO_MALLOC
+        struct ed25519_key  ed25519[1];
+        #else
         struct ed25519_key* ed25519;
+        #endif
     #endif
     #ifdef HAVE_ED448
+        #ifdef WOLFSSL_NO_MALLOC
+        struct ed448_key  ed448[1];
+        #else
         struct ed448_key* ed448;
+        #endif
     #endif
-    #if defined(HAVE_FALCON)
+    #ifdef HAVE_FALCON
+        #ifdef WOLFSSL_NO_MALLOC
+        struct falcon_key  falcon[1];
+        #else
         struct falcon_key* falcon;
+        #endif
     #endif
-    #if defined(HAVE_DILITHIUM)
+    #ifdef HAVE_DILITHIUM
+        #ifdef WOLFSSL_NO_MALLOC
+        struct dilithium_key  dilithium[1];
+        #else
         struct dilithium_key* dilithium;
+        #endif
     #endif
-    #if defined(HAVE_SPHINCS)
+    #ifdef HAVE_SPHINCS
+        #ifdef WOLFSSL_NO_MALLOC
+        struct sphincs_key  sphincs[1];
+        #else
         struct sphincs_key* sphincs;
+        #endif
     #endif
+    #ifndef WOLFSSL_NO_MALLOC
         void* ptr;
+    #endif
     } key;
     int devId;
     int state;
@@ -1477,23 +1544,6 @@ struct SignatureCtx {
     int saltLen;
 #endif
 #endif
-};
-
-enum CertSignState {
-    CERTSIGN_STATE_BEGIN,
-    CERTSIGN_STATE_DIGEST,
-    CERTSIGN_STATE_ENCODE,
-    CERTSIGN_STATE_DO
-};
-
-struct CertSignCtx {
-    byte* sig;
-    byte* digest;
-    #ifndef NO_RSA
-        byte* encSig;
-        int encSigSz;
-    #endif
-    int state; /* enum CertSignState */
 };
 
 #define DOMAIN_COMPONENT_MAX 10
@@ -1577,7 +1627,6 @@ typedef struct Signer      Signer;
 typedef struct TrustedPeerCert TrustedPeerCert;
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 typedef struct SignatureCtx SignatureCtx;
-typedef struct CertSignCtx  CertSignCtx;
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
