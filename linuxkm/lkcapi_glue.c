@@ -56,8 +56,14 @@
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY
     /* Larger number means higher priority.  The highest in-tree priority is
      * 4001, in the Cavium driver.
+     *
+     * Note bene, when the kernel dynamically constructs compound algorithms, it
+     * computes their priorities by multiplying the priority of the base
+     * algorithm by up to 10, and/or adding to it the priority of a second base
+     * algorithm, or a constant up to 200, so it's not safe to use a value near
+     * INT_MAX here.
      */
-    #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY INT_MAX
+    #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 100000
 #endif
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
