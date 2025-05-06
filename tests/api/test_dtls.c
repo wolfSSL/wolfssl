@@ -67,7 +67,7 @@ int test_dtls12_basic_connection_id(void)
 #endif
 #ifndef NO_PSK
         "DHE-PSK-AES128-CBC-SHA256",
-    #ifdef WOQLFSSL_AES_256
+    #ifdef WOLFSSL_AES_256
         "DHE-PSK-AES256-GCM-SHA384",
     #endif
 #ifdef HAVE_NULL_CIPHER
