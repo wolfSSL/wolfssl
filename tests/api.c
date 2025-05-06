@@ -10080,14 +10080,17 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
         sess = &test_wolfSSL_CTX_add_session_client_sess;
     if (*sess == NULL) {
 #ifdef NO_SESSION_CACHE_REF
-        AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+        *sess = wolfSSL_get1_session(ssl);
+        AssertNotNull(*sess);
 #else
         /* Test for backwards compatibility */
         if (wolfSSL_is_server(ssl)) {
-            AssertNotNull(*sess = wolfSSL_get1_session(ssl));
+            *sess = wolfSSL_get1_session(ssl);
+            AssertNotNull(*sess);
         }
         else {
-            AssertNotNull(*sess = wolfSSL_get_session(ssl));
+            *sess = wolfSSL_get_session(ssl);
+            AssertNotNull(*sess);
         }
 #endif
         /* Now save the session in the internal store to make it available
@@ -10114,8 +10117,8 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
     /* Save CTX to be able to decrypt tickets */
     if (wolfSSL_is_server(ssl) &&
             test_wolfSSL_CTX_add_session_server_ctx == NULL) {
-        AssertNotNull(test_wolfSSL_CTX_add_session_server_ctx
-                = wolfSSL_get_SSL_CTX(ssl));
+        test_wolfSSL_CTX_add_session_server_ctx = wolfSSL_get_SSL_CTX(ssl);
+        AssertNotNull(test_wolfSSL_CTX_add_session_server_ctx);
         AssertIntEQ(wolfSSL_CTX_up_ref(wolfSSL_get_SSL_CTX(ssl)),
                 WOLFSSL_SUCCESS);
     }
@@ -37389,10 +37392,13 @@ static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
     (void)args;
 
     AssertIntGT(snprintf(connectAddr, sizeof(connectAddr), "%s:%d", wolfSSLIP, wolfSSLPort), 0);
-    AssertNotNull(clientBio = BIO_new_connect(connectAddr));
+    clientBio = BIO_new_connect(connectAddr);
+    AssertNotNull(clientBio);
     AssertIntEQ(BIO_do_connect(clientBio), 1);
-    AssertNotNull(ctx = SSL_CTX_new(SSLv23_method()));
-    AssertNotNull(sslClient = SSL_new(ctx));
+    ctx = SSL_CTX_new(SSLv23_method());
+    AssertNotNull(ctx);
+    sslClient = SSL_new(ctx);
+    AssertNotNull(sslClient);
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), WOLFSSL_SUCCESS);
     SSL_set_bio(sslClient, clientBio, clientBio);
     AssertIntEQ(SSL_connect(sslClient), 1);

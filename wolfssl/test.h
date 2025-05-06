@@ -2084,6 +2084,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     numCiphers = sk_num(supportedCiphers);
 
     for (i = 0; i < numCiphers; ++i) {
+        XMEMSET(buf, 0, sizeof(buf));
 
         if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
             SSL_CIPHER_description(cipher, buf, sizeof(buf));

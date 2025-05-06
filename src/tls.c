@@ -477,20 +477,23 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
+
+    XMEMSET(key_dig, 0, MAX_PRF_DIG);
+
 #if !defined(NO_CERTS) && defined(HAVE_PK_CALLBACKS)
-        ret = PROTOCOLCB_UNAVAILABLE;
-        if (ssl->ctx->GenSessionKeyCb) {
-            void* ctx = wolfSSL_GetGenSessionKeyCtx(ssl);
-            ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
-        }
-        if (!ssl->ctx->GenSessionKeyCb ||
-            ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
+    ret = PROTOCOLCB_UNAVAILABLE;
+    if (ssl->ctx->GenSessionKeyCb) {
+        void* ctx = wolfSSL_GetGenSessionKeyCtx(ssl);
+        ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
+    }
+    if (!ssl->ctx->GenSessionKeyCb ||
+        ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
-        ret = _DeriveTlsKeys(key_dig, (word32)key_dig_len,
-                         ssl->arrays->masterSecret, SECRET_LEN,
-                         ssl->arrays->serverRandom, ssl->arrays->clientRandom,
-                         IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
-                         ssl->heap, ssl->devId);
+    ret = _DeriveTlsKeys(key_dig, (word32)key_dig_len,
+                     ssl->arrays->masterSecret, SECRET_LEN,
+                     ssl->arrays->serverRandom, ssl->arrays->clientRandom,
+                     IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
+                     ssl->heap, ssl->devId);
     if (ret == 0)
         ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
 
@@ -13100,7 +13103,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
 static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech, byte msgType)
 {
     int ret;
-    word32 size;
+    word32 size = 0;
 
     if (ech->state == ECH_WRITE_GREASE) {
         size = sizeof(ech->type) + sizeof(ech->cipherSuite) +
