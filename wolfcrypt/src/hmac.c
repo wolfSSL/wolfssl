@@ -1581,7 +1581,7 @@ int wolfSSL_GetHmacMaxSize(void)
             left = min(left, hashSz);
             XMEMCPY(out+outIdx, tmp, left);
 
-            outIdx += hashSz;
+            outIdx += left;
             n++;
         }
 
