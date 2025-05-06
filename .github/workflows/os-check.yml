@@ -52,7 +52,7 @@ jobs:
       - name: Build and test wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
-          configure: ${{ matrix.config }}
+          configure: CFLAGS="-pedantic -Wno-overlength-strings -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" ${{ matrix.config }}
           check: true
 
   make_user_settings:
