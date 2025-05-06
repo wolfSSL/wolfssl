@@ -9026,7 +9026,7 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     ENABLED_SP_X86_64_ASM=yes
     ;;
   *)
-    AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
+    AC_MSG_ERROR([SP ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
     ;;
   esac
 

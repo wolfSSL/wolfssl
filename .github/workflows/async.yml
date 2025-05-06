@@ -18,9 +18,9 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-asynccrypt --enable-all --enable-dtls13',
-          '--enable-asynccrypt-sw --enable-ocspstapling --enable-ocspstapling2',
-          '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS"',
+          '--enable-asynccrypt --enable-all --enable-dtls13 CFLAGS="-pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT"',
+          '--enable-asynccrypt-sw --enable-ocspstapling --enable-ocspstapling2 CFLAGS="-pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

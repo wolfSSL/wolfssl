@@ -18,8 +18,8 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic"',
-          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic -DTEST_OPENSSL_COEXIST"'
+          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic -DTEST_OPENSSL_COEXIST -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"'
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

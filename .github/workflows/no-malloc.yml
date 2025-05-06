@@ -18,7 +18,7 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024 -pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
