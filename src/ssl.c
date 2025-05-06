@@ -20538,6 +20538,8 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         unsigned int sum = 0;
         unsigned int outSz = MAX_OID_SZ;
         unsigned char out[MAX_OID_SZ];
+
+        XMEMSET(out, 0, sizeof(out));
     #endif
 
         WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");

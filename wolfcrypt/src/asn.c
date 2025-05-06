@@ -33849,6 +33849,8 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
     byte oid[CTC_MAX_EKU_OID_SZ];
     word32 oidSz = CTC_MAX_EKU_OID_SZ;
 
+    XMEMSET(oid, 0, sizeof(oid));
+
     if (idx >= CTC_MAX_EKU_NB || sz >= CTC_MAX_EKU_OID_SZ) {
         WOLFSSL_MSG("Either idx or sz was too large");
         return BAD_FUNC_ARG;
@@ -33875,6 +33877,8 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     byte encodedOid[MAX_OID_SZ];
     word32 encodedOidSz = MAX_OID_SZ;
     int ret;
+
+    XMEMSET(encodedOid, 0, sizeof(encodedOid));
 
     if (cert == NULL || oid == NULL || der == NULL || derSz == 0) {
         return BAD_FUNC_ARG;
