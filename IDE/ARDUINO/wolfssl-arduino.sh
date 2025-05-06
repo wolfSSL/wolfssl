@@ -262,6 +262,11 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     # Copy examples
     mkdir -p ".${ROOT_SRC_DIR}"/examples
 
+    EXAMPLES_DIR_REAL_PATH=$(realpath ".${EXAMPLES_DIR}")
+    echo "Source WOLFSSL_EXAMPLES_ROOT=$WOLFSSL_EXAMPLES_ROOT"
+    echo "Destination EXAMPLES_DIR=.${EXAMPLES_DIR}"
+    echo "EXAMPLES_DIR_REAL_PATH=${EXAMPLES_DIR_REAL_PATH}"
+
     if [ -n "$WOLFSSL_EXAMPLES_ROOT" ]; then
         echo "Copy template example...."
         mkdir -p ".${EXAMPLES_DIR}"/template/wolfssl_library/src
@@ -294,6 +299,9 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     else
         NO_ARDUINO_EXAMPLES=1
     fi
+    echo "Examples copied to .${EXAMPLES_DIR}"
+    echo "ls ${EXAMPLES_DIR_REAL_PATH}"
+    ls "${EXAMPLES_DIR_REAL_PATH}"
 else
     echo "ERROR: You must be in the IDE/ARDUINO directory to run this script"
     exit 1
