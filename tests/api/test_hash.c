@@ -653,10 +653,18 @@ int test_wc_Hash_Algs(void)
 #endif
 #endif /* WOLFSSL_SHA512 */
 #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
     DIGEST_COUNT_HASH_TEST(Sha3_224, SHA3_224);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
     DIGEST_COUNT_HASH_TEST(Sha3_256, SHA3_256);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
     DIGEST_COUNT_HASH_TEST(Sha3_384, SHA3_384);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
     DIGEST_COUNT_HASH_TEST(Sha3_512, SHA3_512);
+    #endif
 #endif
 #ifdef WOLFSSL_SM3
     DIGEST_HASH_TEST(Sm3, SM3);

@@ -95,10 +95,18 @@ int test_wc_InitSha3(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
     DIGEST_INIT_TEST(wc_Sha3, Sha3_224);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
     DIGEST_INIT_TEST(wc_Sha3, Sha3_256);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
     DIGEST_INIT_TEST(wc_Sha3, Sha3_384);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
     DIGEST_INIT_TEST(wc_Sha3, Sha3_512);
+    #endif
 #endif
     return EXPECT_RESULT();
 }
@@ -107,10 +115,18 @@ int test_wc_Sha3_Update(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
     DIGEST_ALT_UPDATE_TEST(wc_Sha3, Sha3_224);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
     DIGEST_ALT_UPDATE_TEST(wc_Sha3, Sha3_256);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
     DIGEST_ALT_UPDATE_TEST(wc_Sha3, Sha3_384);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
     DIGEST_ALT_UPDATE_TEST(wc_Sha3, Sha3_512);
+    #endif
 #endif
     return EXPECT_RESULT();
 }
@@ -119,10 +135,18 @@ int test_wc_Sha3_Final(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
     DIGEST_ALT_FINAL_TEST(wc_Sha3, Sha3_224, SHA3_224);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
     DIGEST_ALT_FINAL_TEST(wc_Sha3, Sha3_256, SHA3_256);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
     DIGEST_ALT_FINAL_TEST(wc_Sha3, Sha3_384, SHA3_384);
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
     DIGEST_ALT_FINAL_TEST(wc_Sha3, Sha3_512, SHA3_512);
+    #endif
 #endif
     return EXPECT_RESULT();
 }
@@ -131,7 +155,7 @@ int test_wc_Sha3_Final(void)
 int test_wc_Sha3_224_KATs(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
     DIGEST_KATS_TEST_VARS(wc_Sha3, SHA3_224);
 
     DIGEST_KATS_ADD("", 0,
@@ -181,7 +205,7 @@ int test_wc_Sha3_224_KATs(void)
 int test_wc_Sha3_256_KATs(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
     DIGEST_KATS_TEST_VARS(wc_Sha3, SHA3_256);
 
     DIGEST_KATS_ADD("", 0,
@@ -231,7 +255,7 @@ int test_wc_Sha3_256_KATs(void)
 int test_wc_Sha3_384_KATs(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
     DIGEST_KATS_TEST_VARS(wc_Sha3, SHA3_384);
 
     DIGEST_KATS_ADD("", 0,
@@ -295,7 +319,7 @@ int test_wc_Sha3_384_KATs(void)
 int test_wc_Sha3_512_KATs(void)
 {
     EXPECT_DECLS;
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
     DIGEST_KATS_TEST_VARS(wc_Sha3, SHA3_512);
 
     DIGEST_KATS_ADD("", 0,
@@ -373,16 +397,21 @@ int test_wc_Sha3_other(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
     DIGEST_ALT_OTHER_TEST(wc_Sha3, Sha3_224, SHA3_224,
         "\xbb\x4e\xb3\xf7\xfb\x7b\x50\xff"
         "\x3b\xf8\xb0\x53\x8c\x13\x40\xce"
         "\x0c\x43\x5f\xff\x6a\x08\x43\x87"
         "\x34\x9f\x7a\x4c");
+#endif
+#ifndef WOLFSSL_NOSHA3_256
     DIGEST_ALT_OTHER_TEST(wc_Sha3, Sha3_256, SHA3_256,
         "\x78\xc4\x14\xa4\x5d\x85\x07\xf4"
         "\x48\x64\xe0\x5f\x73\x2c\x3b\x78"
         "\xce\x5a\x78\x45\x97\x0b\x29\xa8"
         "\xb4\x53\xed\x38\x19\xd2\x4e\xa9");
+#endif
+#ifndef WOLFSSL_NOSHA3_384
     DIGEST_ALT_OTHER_TEST(wc_Sha3, Sha3_384, SHA3_384,
         "\x22\x29\x8c\x46\xa7\xf0\xf9\xc7"
         "\xa7\xaf\x66\x5d\x58\x88\xb3\x6c"
@@ -390,6 +419,8 @@ int test_wc_Sha3_other(void)
         "\x65\x1b\x11\xba\x1c\xde\x52\xdc"
         "\x6f\xde\x26\x43\xf1\x9f\xbe\xea"
         "\x5f\xd6\x25\x06\x7c\xad\x16\xed");
+#endif
+#ifndef WOLFSSL_NOSHA3_512
     DIGEST_ALT_OTHER_TEST(wc_Sha3, Sha3_512, SHA3_512,
         "\xc3\xaf\x62\x06\x69\x92\xa1\x2f"
         "\xa5\x66\xcc\xcd\xec\x80\xdd\x27"
@@ -400,6 +431,7 @@ int test_wc_Sha3_other(void)
         "\x04\x68\x84\xc4\x56\x24\x14\x65"
         "\x84\x28\xa9\x2f\x10\x35\x7b\x6d");
 #endif
+#endif
     return EXPECT_RESULT();
 }
 
@@ -407,6 +439,7 @@ int test_wc_Sha3_Copy(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
     DIGEST_ALT_COPY_TEST(wc_Sha3, Sha3_224, SHA3_224,
         "\x6b\x4e\x03\x42\x36\x67\xdb\xb7"
         "\x3b\x6e\x15\x45\x4f\x0e\xb1\xab"
@@ -416,6 +449,8 @@ int test_wc_Sha3_Copy(void)
         "\xd0\x92\x34\xee\x7d\x3c\x76\x6f"
         "\xc9\xa3\xa5\x16\x8d\x0c\x94\xad"
         "\x73\xb4\x6f\xdf");
+#endif
+#ifndef WOLFSSL_NOSHA3_256
     DIGEST_ALT_COPY_TEST(wc_Sha3, Sha3_256, SHA3_256,
         "\xa7\xff\xc6\xf8\xbf\x1e\xd7\x66"
         "\x51\xc1\x47\x56\xa0\x61\xd6\x62"
@@ -425,6 +460,8 @@ int test_wc_Sha3_Copy(void)
         "\x04\x5c\x17\x2d\x6b\xd3\x90\xbd"
         "\x85\x5f\x08\x6e\x3e\x9d\x52\x5b"
         "\x46\xbf\xe2\x45\x11\x43\x15\x32");
+#endif
+#ifndef WOLFSSL_NOSHA3_384
     DIGEST_ALT_COPY_TEST(wc_Sha3, Sha3_384, SHA3_384,
         "\x0c\x63\xa7\x5b\x84\x5e\x4f\x7d"
         "\x01\x10\x7d\x85\x2e\x4c\x24\x85"
@@ -438,6 +475,8 @@ int test_wc_Sha3_Copy(void)
         "\x96\xda\x7c\xf0\xe4\x9b\xe4\xb2"
         "\x98\xd8\x8c\xea\x92\x7a\xc7\xf5"
         "\x39\xf1\xed\xf2\x28\x37\x6d\x25");
+#endif
+#ifndef WOLFSSL_NOSHA3_512
     DIGEST_ALT_COPY_TEST(wc_Sha3, Sha3_512, SHA3_512,
         "\xa6\x9f\x73\xcc\xa2\x3a\x9a\xc5"
         "\xc8\xb5\x67\xdc\x18\x5a\x75\x6e"
@@ -456,6 +495,7 @@ int test_wc_Sha3_Copy(void)
         "\x57\x34\x0b\x4c\xf4\x08\xd5\xa5"
         "\x65\x92\xf8\x27\x4e\xec\x53\xf0");
 #endif
+#endif
     return EXPECT_RESULT();
 }
 
@@ -463,6 +503,7 @@ int test_wc_Sha3_GetHash(void)
 {
     EXPECT_DECLS;
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
     SHA3_GET_HASH_TEST(Sha3_224, SHA3_224,
         "\x6b\x4e\x03\x42\x36\x67\xdb\xb7"
         "\x3b\x6e\x15\x45\x4f\x0e\xb1\xab"
@@ -472,6 +513,8 @@ int test_wc_Sha3_GetHash(void)
         "\xd0\x92\x34\xee\x7d\x3c\x76\x6f"
         "\xc9\xa3\xa5\x16\x8d\x0c\x94\xad"
         "\x73\xb4\x6f\xdf");
+#endif
+#ifndef WOLFSSL_NOSHA3_256
     SHA3_GET_HASH_TEST(Sha3_256, SHA3_256,
         "\xa7\xff\xc6\xf8\xbf\x1e\xd7\x66"
         "\x51\xc1\x47\x56\xa0\x61\xd6\x62"
@@ -481,6 +524,8 @@ int test_wc_Sha3_GetHash(void)
         "\x04\x5c\x17\x2d\x6b\xd3\x90\xbd"
         "\x85\x5f\x08\x6e\x3e\x9d\x52\x5b"
         "\x46\xbf\xe2\x45\x11\x43\x15\x32");
+#endif
+#ifndef WOLFSSL_NOSHA3_384
     SHA3_GET_HASH_TEST(Sha3_384, SHA3_384,
         "\x0c\x63\xa7\x5b\x84\x5e\x4f\x7d"
         "\x01\x10\x7d\x85\x2e\x4c\x24\x85"
@@ -494,6 +539,8 @@ int test_wc_Sha3_GetHash(void)
         "\x96\xda\x7c\xf0\xe4\x9b\xe4\xb2"
         "\x98\xd8\x8c\xea\x92\x7a\xc7\xf5"
         "\x39\xf1\xed\xf2\x28\x37\x6d\x25");
+#endif
+#ifndef WOLFSSL_NOSHA3_512
     SHA3_GET_HASH_TEST(Sha3_512, SHA3_512,
         "\xa6\x9f\x73\xcc\xa2\x3a\x9a\xc5"
         "\xc8\xb5\x67\xdc\x18\x5a\x75\x6e"
@@ -512,13 +559,15 @@ int test_wc_Sha3_GetHash(void)
         "\x57\x34\x0b\x4c\xf4\x08\xd5\xa5"
         "\x65\x92\xf8\x27\x4e\xec\x53\xf0");
 #endif
+#endif
     return EXPECT_RESULT();
 }
 
 int test_wc_Sha3_Flags(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_HASH_FLAGS)
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_HASH_FLAGS) && \
+    !defined(WOLFSSL_NOSHA3_256)
     DIGEST_ALT_FLAGS_TEST(wc_Sha3, Sha3, Sha3_256);
 #endif
     return EXPECT_RESULT();
