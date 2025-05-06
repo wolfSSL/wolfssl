@@ -5627,16 +5627,14 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_ED25519" != "xyes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
-        AS_IF([test "$ENABLED_CURVE25519" = "no" &&
-               (test "$FIPS_VERSION" != "dev" || test "$enable_curve25519" != "no")],
-            [ENABLED_CURVE25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"])
+        AS_IF([test "$ENABLED_CURVE25519" = "yes"],
+            [ENABLED_CURVE25519="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed448" != "no")],
             [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
-        AS_IF([test "x$ENABLED_CURVE448" != "xyes" &&
-               (test "$FIPS_VERSION" != "dev" || test "$enable_curve448" != "no")],
-            [ENABLED_CURVE448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"])
+        AS_IF([test "x$ENABLED_CURVE448" = "xyes"],
+            [ENABLED_CURVE448="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED25519_STREAM" != "xyes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519_stream" != "no")],
