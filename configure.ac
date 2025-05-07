@@ -1044,7 +1044,6 @@ then
     test "$enable_trustedca" = "" && enable_trustedca=yes
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
-    test "$enable_ech" = "" && enable_ech=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -1066,6 +1065,7 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_ech" = "" && enable_ech=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_mcast" = "" && enable_mcast=yes
     fi
@@ -1272,8 +1272,6 @@ then
     test "$enable_certext" = "" && enable_certext=yes
     test "$enable_sep" = "" && enable_sep=yes
     test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_curve25519" = "" && enable_curve25519=yes
-    test "$enable_curve448" = "" && enable_curve448=yes
     test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
@@ -1322,6 +1320,8 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_curve25519" = "" && enable_curve25519=yes
+        test "$enable_curve448" = "" && enable_curve448=yes
         test "$enable_cryptocb" = "" && enable_cryptocb=yes
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
@@ -4442,7 +4442,7 @@ AC_ARG_ENABLE([curve25519],
     [ ENABLED_CURVE25519=no ]
     )
 
-if test "$ENABLED_QUIC" = "yes" && test "$ENABLED_CURVE25519" = "no"
+if test "$ENABLED_QUIC" = "yes" && test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_FIPS" = "no"
 then
     ENABLED_CURVE25519=yes
 fi
@@ -5627,13 +5627,17 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_ED25519" != "xyes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
-        AS_IF([test "$ENABLED_CURVE25519" = "yes"],
+
+        AS_IF([test "$ENABLED_CURVE25519" != "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_curve25519" = "")],
             [ENABLED_CURVE25519="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED448" != "xyes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed448" != "no")],
             [ENABLED_ED448="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448 -DHAVE_ED448_KEY_IMPORT"])
-        AS_IF([test "x$ENABLED_CURVE448" = "xyes"],
+
+        AS_IF([test "$ENABLED_CURVE448" != "no" &&
+               (test "$FIPS_VERSION" != "dev" || test "$enable_curve448" = "")],
             [ENABLED_CURVE448="no"; AM_CFLAGS="$AM_CFLAGS"])
 
         AS_IF([test "x$ENABLED_ED25519_STREAM" != "xyes" &&
