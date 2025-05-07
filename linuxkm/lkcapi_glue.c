@@ -498,6 +498,19 @@ static int linuxkm_lkcapi_register(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
+
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) &&    \
+        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        /*
+         * In kernel crypto/testmgr.c, ecdh-nist-p256 was not recognized as
+         * fips_allowed before 5.13, and ecdh-nist-p384 was completely
+         * missing before 5.14 and not fips_allowed before 5.15.
+         */
+        fips_enabled = 0;
+    #endif
+
     #if defined(LINUXKM_ECC192)
     REGISTER_ALG(ecdh_nist_p192, kpp,
                  linuxkm_test_ecdh_nist_p192);
@@ -508,6 +521,14 @@ static int linuxkm_lkcapi_register(void)
 
     REGISTER_ALG(ecdh_nist_p384, kpp,
                  linuxkm_test_ecdh_nist_p384);
+
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) &&    \
+        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
+        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        fips_enabled = 1;
+    #endif
+
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
