@@ -987,7 +987,7 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
     word16 pubKeySz, byte* sharedSecret)
 {
     int ret;
-#ifdef ECC_TIMING_RESISTANT
+#if defined(ECC_TIMING_RESISTANT) || defined(WOLFSSL_CURVE25519_BLINDING)
     WC_RNG* rng;
 #endif
     word32 dh_len;
@@ -1052,9 +1052,22 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
 #endif
 #if defined(HAVE_CURVE25519)
             case DHKEM_X25519_HKDF_SHA256:
+            #ifdef WOLFSSL_CURVE25519_BLINDING
+                rng = wc_rng_new(NULL, 0, hpke->heap);
+
+                if (rng == NULL) {
+                    ret = RNG_FAILURE_E;
+                    break;
+                }
+
+                wc_curve25519_set_rng((curve25519_key*)receiverKey, rng);
+            #endif
                 ret = wc_curve25519_shared_secret_ex(
                     (curve25519_key*)receiverKey, (curve25519_key*)ephemeralKey,
                     dh, &dh_len, EC25519_LITTLE_ENDIAN);
+            #ifdef WOLFSSL_CURVE25519_BLINDING
+                wc_rng_free(rng);
+            #endif
                 break;
 #endif
             case DHKEM_X448_HKDF_SHA512:
