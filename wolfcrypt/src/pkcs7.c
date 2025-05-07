@@ -13106,11 +13106,9 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
 #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
         case AES128GCMb:
-            FALL_THROUGH;
     #endif
     #ifdef WOLFSSL_AES_192
         case AES192GCMb:
-            FALL_THROUGH;
     #endif
     #ifdef WOLFSSL_AES_256
         case AES256GCMb:
@@ -13125,11 +13123,9 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
 #ifdef HAVE_AESCCM
     #ifdef WOLFSSL_AES_128
         case AES128CCMb:
-            FALL_THROUGH;
     #endif
     #ifdef WOLFSSL_AES_192
         case AES192CCMb:
-            FALL_THROUGH;
     #endif
     #ifdef WOLFSSL_AES_256
         case AES256CCMb:

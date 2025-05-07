@@ -2149,8 +2149,17 @@ int wolfSSL_CMAC_Init(WOLFSSL_CMAC_CTX* ctx, const void *key, size_t keySz,
         ret = 0;
     }
     /* Only AES-CBC ciphers are supported. */
-    if ((ret == 1) && (cipher != EVP_AES_128_CBC) &&
-            (cipher != EVP_AES_192_CBC) && (cipher != EVP_AES_256_CBC)) {
+    if ((ret == 1)
+    #ifdef WOLFSSL_AES_128
+        && (cipher != EVP_AES_128_CBC)
+    #endif
+    #ifdef WOLFSSL_AES_192
+        && (cipher != EVP_AES_192_CBC)
+    #endif
+    #ifdef WOLFSSL_AES_256
+        && (cipher != EVP_AES_256_CBC)
+    #endif
+    ) {
         WOLFSSL_MSG("wolfSSL_CMAC_Init: requested cipher is unsupported");
         ret = 0;
     }

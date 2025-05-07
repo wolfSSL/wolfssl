@@ -252,24 +252,45 @@ static void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 #endif
 }
 
-static int wc_Stm32_Hash_WaitDone(STM32_HASH_Context* stmCtx)
+static int wc_Stm32_Hash_WaitDataReady(STM32_HASH_Context* stmCtx)
 {
     int timeout = 0;
     (void)stmCtx;
 
-    /* wait until not busy and hash digest / input block are complete */
-    while ((HASH->SR & HASH_SR_BUSY) &&
+    /* wait until not busy and data input buffer ready */
+    while ((HASH->SR & HASH_SR_BUSY)
         #ifdef HASH_IMR_DCIE
-            (HASH->SR & HASH_SR_DCIS) == 0 &&
+            && (HASH->SR & HASH_SR_DCIS) == 0
         #endif
-        #ifdef HASH_IMR_DINIE
-            (HASH->SR & HASH_SR_DINIS) == 0 &&
-        #endif
-        ++timeout < STM32_HASH_TIMEOUT) {
+        && ++timeout < STM32_HASH_TIMEOUT) {
     };
 
 #ifdef DEBUG_STM32_HASH
-    printf("STM Wait done %d, HASH->SR %lx\n", timeout, HASH->SR);
+    printf("STM Wait Data %d, HASH->SR %lx\n", timeout, HASH->SR);
+#endif
+
+    /* verify timeout did not occur */
+    if (timeout >= STM32_HASH_TIMEOUT) {
+        return WC_TIMEOUT_E;
+    }
+    return 0;
+}
+
+static int wc_Stm32_Hash_WaitCalcComp(STM32_HASH_Context* stmCtx)
+{
+    int timeout = 0;
+    (void)stmCtx;
+
+    /* wait until not busy and hash digest calculation complete */
+    while (((HASH->SR & HASH_SR_BUSY)
+        #ifdef HASH_IMR_DINIE
+            || (HASH->SR & HASH_SR_DINIS) == 0
+        #endif
+        ) && ++timeout < STM32_HASH_TIMEOUT) {
+    };
+
+#ifdef DEBUG_STM32_HASH
+    printf("STM Wait Calc %d, HASH->SR %lx\n", timeout, HASH->SR);
 #endif
 
     /* verify timeout did not occur */
@@ -364,7 +385,7 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
 
     if (wroteToFifo) {
         /* make sure hash operation is done */
-        ret = wc_Stm32_Hash_WaitDone(stmCtx);
+        ret = wc_Stm32_Hash_WaitDataReady(stmCtx);
 
         /* save hash state for next operation */
         wc_Stm32_Hash_SaveContext(stmCtx);
@@ -405,7 +426,7 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     HASH->STR |= HASH_STR_DCAL;
 
     /* wait for hash done */
-    ret = wc_Stm32_Hash_WaitDone(stmCtx);
+    ret = wc_Stm32_Hash_WaitCalcComp(stmCtx);
     if (ret == 0) {
         /* read message digest */
         wc_Stm32_Hash_GetDigest(hash, digestSize);
