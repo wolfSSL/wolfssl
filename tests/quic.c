@@ -1509,10 +1509,19 @@ static int test_quic_key_share(int verbose) {
     /*If that is supported by the server, expect a smooth handshake.*/
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+
+#ifdef HAVE_CURVE25519
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "X25519:P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "X25519")
                == WOLFSSL_SUCCESS);
+#else
+    ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "P-256:P-384")
+               == WOLFSSL_SUCCESS);
+    ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "P-256")
+               == WOLFSSL_SUCCESS);
+#endif
+
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     ExpectStrEQ(conv.rec_log,
@@ -1525,10 +1534,19 @@ static int test_quic_key_share(int verbose) {
     /* If group is not supported by server, expect HelloRetry */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+
+#ifdef HAVE_CURVE25519
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "X25519:P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "P-256")
                == WOLFSSL_SUCCESS);
+#else
+    ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "P-384:P-256")
+               == WOLFSSL_SUCCESS);
+    ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "P-256")
+               == WOLFSSL_SUCCESS);
+#endif
+
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_do(&conv);
     ExpectStrEQ(conv.rec_log,
@@ -1541,10 +1559,19 @@ static int test_quic_key_share(int verbose) {
     /* If no group overlap, expect failure */
     QuicTestContext_init(&tclient, ctx_c, "client", verbose);
     QuicTestContext_init(&tserver, ctx_s, "server", verbose);
+
+#ifdef HAVE_CURVE25519
     ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "P-256")
                == WOLFSSL_SUCCESS);
     ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "X25519")
                == WOLFSSL_SUCCESS);
+#else
+    ExpectTrue(wolfSSL_set1_curves_list(tclient.ssl, "P-256")
+               == WOLFSSL_SUCCESS);
+    ExpectTrue(wolfSSL_set1_curves_list(tserver.ssl, "P-384")
+               == WOLFSSL_SUCCESS);
+#endif
+
     QuicConversation_init(&conv, &tclient, &tserver);
     QuicConversation_fail(&conv);
     ExpectIntEQ(wolfSSL_get_error(tserver.ssl, 0),
