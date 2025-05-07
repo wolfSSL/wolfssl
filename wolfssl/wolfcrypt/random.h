@@ -133,6 +133,12 @@
     #else
         typedef unsigned long ProviderHandle;
     #endif
+
+    #ifdef WIN_REUSE_CRYPT_HANDLE
+        /* called from wolfCrypt_Init() and wolfCrypt_Cleanup() */
+        WOLFSSL_LOCAL int  wc_WinCryptHandleInit(void);
+        WOLFSSL_LOCAL void wc_WinCryptHandleCleanup(void);
+    #endif
 #endif
 
 #ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */

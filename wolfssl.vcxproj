@@ -437,6 +437,7 @@
     <ClCompile Include="wolfcrypt\src\ge_operations.c" />
     <ClCompile Include="wolfcrypt\src\hash.c" />
     <ClCompile Include="wolfcrypt\src\hmac.c" />
+    <ClCompile Include="wolfcrypt\src\hpke.c" />
     <ClCompile Include="wolfcrypt\src\integer.c" />
     <ClCompile Include="wolfcrypt\src\kdf.c" />
     <ClCompile Include="wolfcrypt\src\wc_mlkem.c" />

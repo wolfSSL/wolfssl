@@ -19059,7 +19059,7 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, int additionalSz,
 
     /* length of additional input plus padding */
     XMEMSET(padding, 0, sizeof(padding));
-    padding[0] = additionalSz;
+    padding[0] = (byte)additionalSz;
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding,
                     sizeof(padding))) != 0)
         return ret;
@@ -19141,7 +19141,8 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     }
 #endif
 
-    addSz = writeAeadAuthData(ssl, msgLen, type, add, 0, &seq, verifyOrder);
+    addSz = writeAeadAuthData(ssl, (word16)msgLen, type, add, 0, &seq,
+        verifyOrder);
     if (addSz < 0)
         return addSz;
 
@@ -19336,7 +19337,8 @@ int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif
 
 
-    addSz = writeAeadAuthData(ssl, msgLen, no_type, add, 1, &seq, PEER_ORDER);
+    addSz = writeAeadAuthData(ssl, (word16)msgLen, no_type, add, 1, &seq,
+        PEER_ORDER);
     if (addSz < 0)
         return addSz;
 
