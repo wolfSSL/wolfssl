@@ -67888,6 +67888,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls12_short_read),
     TEST_DECL(test_dtls13_longer_length),
     TEST_DECL(test_dtls13_short_read),
+    TEST_DECL(test_records_span_network_boundaries),
+    TEST_DECL(test_dtls_record_cross_boundaries),
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
     TEST_DECL(test_dtls_no_extensions),
     TEST_DECL(test_tls_alert_no_server_hello),
