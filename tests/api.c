@@ -43854,7 +43854,7 @@ static int test_wolfSSL_X509_EXTENSION_get_object(void)
     ExpectNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
     ExpectNull(wolfSSL_X509_EXTENSION_get_object(NULL));
     ExpectNotNull(o = wolfSSL_X509_EXTENSION_get_object(ext));
-    ExpectIntEQ(o->nid, 128);
+    ExpectIntEQ(o->nid, SUBJ_KEY_OID);
     ExpectNotNull(dup = wolfSSL_X509_EXTENSION_dup(ext));
     wolfSSL_X509_EXTENSION_free(dup);
 

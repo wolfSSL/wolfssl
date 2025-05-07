@@ -37,27 +37,6 @@
 #endif
 
 
-#ifdef NO_ASN
-enum Hash_Sum  {
-    MD2h      = 646,
-    MD5h      = 649,
-    SHAh      =  88,
-    SHA224h   = 417,
-    SHA256h   = 414,
-    SHA384h   = 415,
-    SHA512h   = 416,
-    SHA512_224h = 418,
-    SHA512_256h = 419,
-    SHA3_224h = 420,
-    SHA3_256h = 421,
-    SHA3_384h = 422,
-    SHA3_512h = 423,
-    SHAKE128h = 424,
-    SHAKE256h = 425,
-    SM3h      = 640     /* 0x2A,0x81,0x1C,0xCF,0x55,0x01,0x83,0x11 */
-};
-#endif /* !NO_ASN */
-
 #if !defined(NO_PWDBASED) || !defined(NO_ASN)
 /* function converts int hash type to enum */
 enum wc_HashType wc_HashTypeConvert(int hashType)

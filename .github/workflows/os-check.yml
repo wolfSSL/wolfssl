@@ -23,6 +23,8 @@ jobs:
           '',
           '--enable-all --enable-asn=template',
           '--enable-all --enable-asn=original',
+          '--enable-all --enable-asn=template CPPFLAGS=-DWOLFSSL_OLD_OID_SUM',
+          '--enable-all --enable-asn=original CPPFLAGS=-DWOLFSSL_OLD_OID_SUM',
           '--enable-harden-tls',
           '--enable-tls13 --enable-session-ticket --enable-dtls --enable-dtls13
              --enable-opensslextra --enable-sessioncerts

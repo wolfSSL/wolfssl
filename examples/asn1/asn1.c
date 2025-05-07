@@ -34,6 +34,8 @@
 
 #if defined(WOLFSSL_ASN_PRINT) && !defined(NO_FILESYSTEM)
 
+#include "oid_names.h"
+
 /* Increment allocated data by this much. */
 #define DATA_INC_LEN    256
 
@@ -50,6 +52,20 @@ static Asn1PrintOptions opts;
 /* ASN.1 parsing state. */
 static Asn1 asn1;
 
+static const char* asn1App_OidToName(unsigned char* oid, word32 len)
+{
+    int i;
+
+    for (i = 0; i < asn1App_oid_names_len; i++) {
+        if ((len == asn1App_oid_name[i].len) &&
+                (XMEMCMP(oid, asn1App_oid_name[i].oid, len) == 0)) {
+            return asn1App_oid_name[i].name;
+        }
+    }
+
+    return NULL;
+}
+
 /* Read the contents of a file into a dynamically allocated buffer.
  *
  * Uses realloc as input may be stdin.
@@ -65,9 +81,10 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
     int ret = 0;
     word32 len = 0;
     size_t read_len;
-    /* Allocate a minimum amount. */
-    unsigned char* data = (unsigned char*)XMALLOC(DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    unsigned char* data;
 
+    /* Allocate a minimum amount. */
+    data = (unsigned char*)XMALLOC(DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (data != NULL) {
         /* Read more data. */
         while ((read_len = fread(data + len, 1, DATA_INC_LEN, fp)) != 0) {
@@ -87,7 +104,8 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
                 XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -299,6 +317,7 @@ const char* usage[] = {
     "  -B, --base64         file contents are Base64 encoded",
 #endif
     "  -d, --dump           show all ASN.1 item data as a hex dump",
+    "  -D, --der            file format is DER",
     "  -h, --headers        show all ASN.1 item headers as a hex dump",
     "  -i, --indent         indent tag name with depth",
     "  -l, --length LEN     display length bytes of data",
@@ -340,6 +359,7 @@ int main(int argc, char* argv[])
     int file_format = FORMAT_DER;
     word32 indent = 0;
     int pem_skip = 0;
+    int format_set = 0;
 
     /* Reset options. */
     (void)wc_Asn1PrintOptions_Init(&opts);
@@ -364,6 +384,11 @@ int main(int argc, char* argv[])
         else if ((strcmp(argv[0], "-d") == 0) ||
                  (strcmp(argv[0], "--dump") == 0)) {
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_SHOW_DATA, 1);
+        }
+        else if ((strcmp(argv[0], "-D") == 0) ||
+                 (strcmp(argv[0], "--der") == 0)) {
+            file_format = FORMAT_DER;
+            format_set = 1;
         }
         /* Dump ASN.1 item headers. */
         else if ((strcmp(argv[0], "-h") == 0) ||
@@ -421,6 +446,7 @@ int main(int argc, char* argv[])
         else if ((strcmp(argv[0], "-p") == 0) ||
                  (strcmp(argv[0], "--pem") == 0)) {
             file_format = FORMAT_PEM;
+            format_set = 1;
         }
 #endif
         /* Skip a number of PEM blocks. */
@@ -451,10 +477,25 @@ int main(int argc, char* argv[])
             return 1;
         }
         else {
+            int nameLen;
+
             if (fp != stdin) {
                 fprintf(stderr, "At most one input file can be supplied.\n");
                 return 1;
             }
+
+            if (!format_set) {
+                nameLen = (int)XSTRLEN(argv[0]);
+                if (nameLen > 3) {
+                    if (XMEMCMP(argv[0] + nameLen - 4, ".pem", 4) == 0) {
+                        file_format = FORMAT_PEM;
+                    }
+                    else if (XMEMCMP(argv[0] + nameLen - 4, ".der", 4) == 0) {
+                        file_format = FORMAT_DER;
+                    }
+                }
+            }
+
             /* Name of file to read. */
             fp = fopen(argv[0], "r");
             if (fp == NULL) {
@@ -472,6 +513,7 @@ int main(int argc, char* argv[])
 
     (void)wc_Asn1_Init(&asn1);
     (void)wc_Asn1_SetFile(&asn1, stdout);
+    (void)wc_Asn1_SetOidToNameCb(&asn1, asn1App_OidToName);
 
     /* Process file based on type. */
     if (file_format == FORMAT_DER) {

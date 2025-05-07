@@ -6443,7 +6443,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
     if (ret != WC_NO_ERR_TRACE(HASH_TYPE_E))
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
+#ifdef WOLFSSL_OLD_OID_SUM
     hashType = wc_OidGetHash(646); /* Md2h */
+#else
+    hashType = wc_OidGetHash(0x044a8bdd); /* Md2h */
+#endif
 #ifdef WOLFSSL_MD2
     if (hashType != WC_HASH_TYPE_MD2)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
