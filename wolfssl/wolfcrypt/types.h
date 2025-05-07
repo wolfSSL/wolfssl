@@ -479,9 +479,12 @@ enum {
         #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
         #undef USE_WOLFSSL_MEMORY
         #ifdef WOLFSSL_DEBUG_MEMORY
-            #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
-            #define XFREE(p, h, t)       IntelQaFree((p), (h), (t), __func__, __LINE__)
-            #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
+            #define XMALLOC(s, h, t)     \
+                IntelQaMalloc((s), (h), (t), __func__, __LINE__)
+            #define XFREE(p, h, t)       \
+                IntelQaFree((p), (h), (t), __func__, __LINE__)
+            #define XREALLOC(p, n, h, t) \
+                IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
         #else
             #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t))
             #define XFREE(p, h, t)       IntelQaFree((p), (h), (t))
@@ -491,13 +494,20 @@ enum {
         #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
         #undef USE_WOLFSSL_MEMORY
         #ifdef WOLFSSL_DEBUG_MEMORY
-            #define XMALLOC(s, h, t)     wc_CryptoCb_IntelQaMalloc((s), (h), (t), __func__, __LINE__)
-            #define XFREE(p, h, t)       wc_CryptoCb_IntelQaFree((p), (h), (t), __func__, __LINE__)
-            #define XREALLOC(p, n, h, t) wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
+            #define XMALLOC(s, h, t)     \
+                wc_CryptoCb_IntelQaMalloc((s), (h), (t), __func__, __LINE__)
+            #define XFREE(p, h, t)       \
+                wc_CryptoCb_IntelQaFree((p), (h), (t), __func__, __LINE__)
+            #define XREALLOC(p, n, h, t) \
+                wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t), __func__, \
+                    __LINE__)
         #else
-            #define XMALLOC(s, h, t)     wc_CryptoCb_IntelQaMalloc((s), (h), (t))
-            #define XFREE(p, h, t)       wc_CryptoCb_IntelQaFree((p), (h), (t))
-            #define XREALLOC(p, n, h, t) wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t))
+            #define XMALLOC(s, h, t)     \
+                wc_CryptoCb_IntelQaMalloc((s), (h), (t))
+            #define XFREE(p, h, t)       \
+                wc_CryptoCb_IntelQaFree((p), (h), (t))
+            #define XREALLOC(p, n, h, t) \
+                wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t))
         #endif /* WOLFSSL_DEBUG_MEMORY */
     #endif
 #elif defined(XMALLOC_USER)
@@ -508,7 +518,8 @@ enum {
     extern void XFREE(void *p, void* heap, int type);
 #elif defined(WOLFSSL_MEMORY_LOG)
     #define XMALLOC(n, h, t)     xmalloc(n, h, t, __func__, __FILE__, __LINE__)
-    #define XREALLOC(p, n, h, t) xrealloc(p, n, h, t, __func__,  __FILE__, __LINE__)
+    #define XREALLOC(p, n, h, t) \
+        xrealloc(p, n, h, t, __func__,  __FILE__, __LINE__)
     #define XFREE(p, h, t)       xfree(p, h, t, __func__, __FILE__, __LINE__)
 
     /* prototypes for user heap override functions */
@@ -741,11 +752,9 @@ enum {
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] \
-        /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] \
-        /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
     #define WC_ALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DO_NOTHING
     #define WC_CALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
