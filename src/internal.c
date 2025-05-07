@@ -11633,16 +11633,21 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 static int DtlsRecordsCanSpanDatagrams(WOLFSSL *ssl)
 {
 #ifdef WOLFSSL_DTLS
-    if (!ssl->options.dtls || !IsDtlsNotSctpMode(ssl))
+    if (!ssl->options.dtls || !IsDtlsNotSctpMode(ssl)) {
+        return 1;
+    }
+    else {
+#ifdef WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS
         return 1;
 #else
-    (void)ssl;
+        return 0;
 #endif
-#ifdef WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS
-    return 1;
+    }
+
 #else
-    return 0;
-#endif
+    (void)ssl;
+    return 1;
+#endif /* WOLFSSL_DTLS */
 }
 
 #ifdef WOLFSSL_DTLS13
@@ -22092,6 +22097,16 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < readSz) {
+                    if (used > 0 && !DtlsRecordsCanSpanDatagrams(ssl)) {
+                        WOLFSSL_MSG("DTLS: Partial record received in tail of other datagram, dropping");
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.length = 0;
+                        ssl->buffers.inputBuffer.idx = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+                        ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+                        continue;
+                    }
                     if ((ret = GetInputData(ssl, (word32)readSz)) < 0)
                         return ret;
                 }
