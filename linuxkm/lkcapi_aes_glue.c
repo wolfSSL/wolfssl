@@ -361,6 +361,10 @@ out:
     if (err != 0)
         km_AesExitCommon(ctx);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesInitCommon: %s: %d\n", name, err);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -445,6 +449,10 @@ static void km_AesExitCommon(struct km_AesCtx * ctx)
         km_AesFree(&ctx->aes_decrypt_C);
     }
 #endif
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesExitCommon\n");
+    #endif /* WOLFKM_DEBUG_AES */
 }
 
 #ifdef LINUXKM_LKCAPI_NEED_AES_SKCIPHER_COMMON_FUNCS
@@ -511,6 +519,9 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
 
 #endif /* WC_LINUXKM_C_FALLBACK_IN_SHIMS */
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesSetKeyCommon: %s: %d\n", name, key_len);
+    #endif /* WOLFKM_DEBUG_AES */
     return 0;
 }
 
@@ -592,6 +603,10 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCbcEncrypt: %d\n", err);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -649,6 +664,10 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
 out:
 
     km_AesFree(&aes_copy);
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCbcDecrypt: %d\n", err);
+    #endif /* WOLFKM_DEBUG_AES */
 
     return err;
 }
@@ -748,6 +767,10 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCfbEncrypt: %d\n", err);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -811,6 +834,10 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
 out:
 
     km_AesFree(&aes_copy);
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCfbDecrypt: %d\n", err);
+    #endif /* WOLFKM_DEBUG_AES */
 
     return err;
 }
@@ -885,6 +912,9 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
     }
 #endif
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesGcmSetKey: %d\n", key_len);
+    #endif /* WOLFKM_DEBUG_AES */
     return 0;
 }
 
@@ -930,6 +960,9 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
     }
 #endif
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesGcmSetKey_Rfc4106: %d\n", key_len);
+    #endif /* WOLFKM_DEBUG_AES */
     return 0;
 }
 
@@ -1190,6 +1223,12 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d,"
+            "assoclen %d\n", err, decrypt_p,
+            req->cryptlen, req->assoclen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -1385,6 +1424,12 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d,"
+            "assoclen %d\n", err, decrypt_p,
+            req->cryptlen, req->assoclen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -1527,6 +1572,10 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
      * unconditionally because there's no AES-XTS in Cert 4718.
      */
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesXtsSetKey: %d\n", key_len);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return 0;
 }
 
@@ -1661,6 +1710,11 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         }
     }
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesXtsEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -1792,6 +1846,12 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             err = wc_AesXtsDecryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
         }
     }
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesXtsDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -1893,6 +1953,11 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCtrEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -1961,6 +2026,11 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
 out:
 
     km_AesFree(&aes_copy);
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesCtrDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
 
     return err;
 }
@@ -2061,6 +2131,11 @@ out:
 
     km_AesFree(&aes_copy);
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesOfbEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -2128,6 +2203,11 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
 out:
 
     km_AesFree(&aes_copy);
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesOfbDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
 
     return err;
 }
@@ -2207,6 +2287,11 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
 
 out:
 
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesEcbEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
+
     return err;
 }
 
@@ -2249,6 +2334,11 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
     }
 
 out:
+
+    #ifdef WOLFKM_DEBUG_AES
+    pr_info("info: exiting km_AesEcbDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
+    #endif /* WOLFKM_DEBUG_AES */
 
     return err;
 }
