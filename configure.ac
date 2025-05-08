@@ -4442,12 +4442,12 @@ AC_ARG_ENABLE([curve25519],
     [ ENABLED_CURVE25519=no ]
     )
 
-if test "$ENABLED_QUIC" = "yes" && test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_FIPS" = "no"
+if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_QUIC" = "yes" && test "$ENABLED_FIPS" = "no"
 then
     ENABLED_CURVE25519=yes
 fi
 
-if test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno"
+if test "$ENABLED_CURVE25519" = "no" && test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno"
 then
     ENABLED_CURVE25519="yes"
 fi
@@ -4464,18 +4464,6 @@ then
     if test "$ENABLED_CURVE25519" = "no128bit" || test "$ENABLED_32BIT" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
-        ENABLED_CURVE25519=yes
-    fi
-
-    if test "$ENABLED_CURVE25519" = "noasm"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
-    fi
-
-    if test "$ENABLED_CURVE25519" = "yes" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-    then
-        ENABLED_CURVE25519=noasm
-        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
@@ -4496,9 +4484,9 @@ AC_ARG_ENABLE([ed25519-stream],
     [ ENABLED_ED25519_STREAM=no ]
     )
 
-
-if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
-   test "$ENABLED_CHRONY" = "yes"
+if test "$ENABLED_ED25519" = "no" && \
+   ( (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
+    test "$ENABLED_CHRONY" = "yes")
 then
     ENABLED_ED25519="yes"
 fi
@@ -5624,7 +5612,7 @@ AS_CASE([$FIPS_VERSION],
              AS_IF([test "$ENABLED_ECC_SHAMIR" = "yes"],
                  [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
 
-        AS_IF([test "x$ENABLED_ED25519" != "xyes" &&
+        AS_IF([test "$ENABLED_ED25519" = "no" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_ed25519" != "no")],
             [ENABLED_ED25519="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519 -DHAVE_ED25519_KEY_IMPORT"])
 
@@ -9811,6 +9799,21 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
+if test "$ENABLED_CURVE25519" != "no" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    ENABLED_CURVE25519=noasm
+fi
+
+if test "$ENABLED_ED25519" != "no" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    ENABLED_ED25519=noasm
+fi
+
+if test "$ENABLED_CURVE25519" = "noasm" || test "$ENABLED_ED25519" = "noasm"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
+fi
+
 if test "$ENABLED_ED25519" != "no"
 then
     if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
@@ -9919,7 +9922,7 @@ AS_IF([test "x$ENABLED_CERT_REQ" = "xyes" && \
       [AC_MSG_ERROR([cannot use certreq without certgen.])])
 
 # ed25519 requires sha512
-AS_IF([test "x$ENABLED_ED25519" = "xyes" && \
+AS_IF([test "$ENABLED_ED25519" != "no" && \
        test "x$ENABLED_SHA512" = "xno" && \
        test "x$ENABLED_32BIT" = "xno"],
       [AC_MSG_ERROR([cannot enable ed25519 without enabling sha512.])])
@@ -9985,10 +9988,9 @@ AS_IF([test "x$ENABLED_CERTGEN" = "xyes"],
 AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"])
 
-AS_IF([test "x$ENABLED_ED25519" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"])
-AS_IF([test "x$ENABLED_ED25519" = "xyes"],
-      [AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
+AS_IF([test "$ENABLED_ED25519" != "no"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
+       AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
 
 AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
@@ -10522,12 +10524,12 @@ AM_CONDITIONAL([BUILD_BLAKE2S],[test "x$ENABLED_BLAKE2S" = "xyes" || test "x$ENA
 AM_CONDITIONAL([BUILD_SHA512],[test "x$ENABLED_SHA512" = "xyes" || test "x$ENABLED_SHA384" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DSA],[test "x$ENABLED_DSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECC],[test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_ED25519],[test "x$ENABLED_ED25519" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ED25519],[test "$ENABLED_ED25519" != "no" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED25519_SMALL],[test "x$ENABLED_ED25519_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FEMATH], [test "x$ENABLED_FEMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_GEMATH], [test "x$ENABLED_GEMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE25519],[test "$ENABLED_CURVE25519" != "no" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CURVE25519_INTELASM],[test "$ENABLED_CURVE25519" != "noasm" && test "$ENABLED_INTELASM" = "yes"])
+AM_CONDITIONAL([BUILD_CURVE25519_INTELASM],[test "$ENABLED_CURVE25519" != "noasm" && test "$ENABLED_ED25519" != "noasm" && test "$ENABLED_INTELASM" = "yes"])
 AM_CONDITIONAL([BUILD_CURVE25519_SMALL],[test "x$ENABLED_CURVE25519_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED448],[test "x$ENABLED_ED448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED448_SMALL],[test "x$ENABLED_ED448_SMALL" = "xyes"])
