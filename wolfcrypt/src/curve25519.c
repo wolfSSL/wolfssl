@@ -194,11 +194,11 @@ static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
         if (ret < 0) {
             return ret;
         }
-        for (i = CURVE25519_KEYSIZE; i > 0; i--) {
+        for (i = CURVE25519_KEYSIZE - 1; i >= 0; i--) {
             if (rz[i] != 0xff)
                 break;
         }
-        if ((i != 0) || (rz[0] <= 0xec)) {
+        if ((i >= 0) || (rz[0] <= 0xec)) {
             break;
         }
     }
