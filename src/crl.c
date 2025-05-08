@@ -258,6 +258,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
             WOLFSSL_MSG("Couldn't lock x509 mutex");
         if (!doFree)
             return;
+        wolfSSL_RefFree(&crl->ref);
     }
 #endif
 
