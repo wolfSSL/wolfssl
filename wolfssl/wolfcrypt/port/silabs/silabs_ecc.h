@@ -33,7 +33,6 @@
 #include <sl_se_manager_key_derivation.h>
 #include <sl_se_manager_signature.h>
 
-typedef enum ecc_curve_id ecc_curve_id;
 typedef struct ecc_key ecc_key;
 
 int silabs_ecc_sign_hash (const byte* in, word32 inlen,
