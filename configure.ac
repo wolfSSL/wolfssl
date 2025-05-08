@@ -4452,25 +4452,6 @@ then
     ENABLED_CURVE25519="yes"
 fi
 
-if test "$ENABLED_CURVE25519" != "no"
-then
-    if test "$ENABLED_CURVE25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DCURVE25519_SMALL"
-        ENABLED_CURVE25519_SMALL=yes
-        ENABLED_CURVE25519=yes
-    fi
-
-    if test "$ENABLED_CURVE25519" = "no128bit" || test "$ENABLED_32BIT" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
-    fi
-
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CURVE25519"
-    ENABLED_FEMATH=yes
-fi
-
 
 # ED25519
 AC_ARG_ENABLE([ed25519],
@@ -9799,12 +9780,12 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_CURVE25519" != "no" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_CURVE25519" != "no" && test "$ENABLED_CURVE25519" != "asm" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     ENABLED_CURVE25519=noasm
 fi
 
-if test "$ENABLED_ED25519" != "no" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_ED25519" != "no" && test "$ENABLED_ED25519" != "asm" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     ENABLED_ED25519=noasm
 fi
@@ -9814,18 +9795,37 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_X64"
 fi
 
+if test "$ENABLED_CURVE25519" != "no"
+then
+    if test "$ENABLED_CURVE25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DCURVE25519_SMALL"
+        ENABLED_CURVE25519_SMALL=yes
+    fi
+
+    if test "$ENABLED_CURVE25519" = "no128bit" || test "$ENABLED_32BIT" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CURVE25519"
+    ENABLED_FEMATH=yes
+fi
+
 if test "$ENABLED_ED25519" != "no"
 then
     if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
     then
+        AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"
         ENABLED_ED25519_SMALL=yes
         ENABLED_CURVE25519_SMALL=yes
-        ENABLED_ED25519=yes
     fi
 
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"
     ENABLED_FEMATH=yes
     ENABLED_GEMATH=yes
-    ENABLED_CERTS=yes
 fi
 
 if test "$ENABLED_ED25519" != "no" || test "$ENABLED_ED448" != "no"
@@ -9987,13 +9987,6 @@ AS_IF([test "x$ENABLED_CERTGEN" = "xyes"],
 
 AS_IF([test "x$ENABLED_CERTEXT" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"])
-
-AS_IF([test "$ENABLED_ED25519" != "no"],
-      [AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
-       AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"])
-
-AS_IF([test "x$ENABLED_ED25519_SMALL" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"])
 
 AS_IF([test "x$ENABLED_OCSP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
