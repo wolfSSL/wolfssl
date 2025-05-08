@@ -604,7 +604,8 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting km_AesCbcEncrypt: %d\n", err);
+    pr_info("info: exiting km_AesCbcEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
 
     return err;
@@ -666,7 +667,8 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting km_AesCbcDecrypt: %d\n", err);
+    pr_info("info: exiting km_AesCbcDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
 
     return err;
@@ -768,7 +770,8 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting km_AesCfbEncrypt: %d\n", err);
+    pr_info("info: exiting km_AesCfbEncrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
 
     return err;
@@ -836,7 +839,8 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting km_AesCfbDecrypt: %d\n", err);
+    pr_info("info: exiting km_AesCfbDecrypt: err %d, cryptlen %d\n", err,
+            req->cryptlen);
     #endif /* WOLFKM_DEBUG_AES */
 
     return err;
@@ -1224,7 +1228,7 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d,"
+    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d, "
             "assoclen %d\n", err, decrypt_p,
             req->cryptlen, req->assoclen);
     #endif /* WOLFKM_DEBUG_AES */
@@ -1425,7 +1429,7 @@ out:
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
-    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d,"
+    pr_info("info: exiting AesGcmCrypt_1: err %d, dec %d, cryptlen %d, "
             "assoclen %d\n", err, decrypt_p,
             req->cryptlen, req->assoclen);
     #endif /* WOLFKM_DEBUG_AES */
