@@ -4780,6 +4780,10 @@ static const byte extCertPolicyIsrgDomainValid[] =
             NL_MOD_POLICY_TYPE_OID_BASE(2);
     static const byte extCertPolicyNlModConfidentialityOid[] =
             NL_MOD_POLICY_TYPE_OID_BASE(3);
+
+    #define QUOVADIS_POLICY_TYPE_OID_BASE(num) {43, 6, 1, 4, 1, 190, 88, 0, num}
+    static const byte extCertPolicyQuoVadisRootCA3OID[] =
+            QUOVADIS_POLICY_TYPE_OID_BASE(3);
 #endif /* WOLFSSL_FPKI */
 
 /* certAltNameType */
@@ -6054,6 +6058,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extCertPolicyComodoLtdOid;
                     *oidSz = sizeof(extCertPolicyComodoLtdOid);
                     break;
+                case CP_QUOVADIS_ROOT_CA3_OID:
+                    oid = extCertPolicyQuoVadisRootCA3OID;
+                    *oidSz = sizeof(extCertPolicyQuoVadisRootCA3OID);
+                    break;
                 /* FPKI OIDs */
                 #endif /* WOLFSSL_FPKI */
                 default:
@@ -6681,6 +6689,12 @@ static int DumpOID(const byte* oidData, word32 oidSz, word32 oid,
 static word32 fpkiCertPolOid(const byte* oid, word32 oidSz, word32 oidSum) {
 
     switch (oidSum) {
+        case CP_WIDEPOINT_MEDDEVHW_OID:
+            if ((word32)sizeof(extCertPolicyQuoVadisRootCA3OID) == (word32)oidSz &&
+            XMEMCMP(oid, extCertPolicyQuoVadisRootCA3OID,
+            sizeof(extCertPolicyQuoVadisRootCA3OID)) == 0)
+                return CP_QUOVADIS_ROOT_CA3_OID;
+            break;
         case CP_ADO_MEDIUM_OID:
             if ((word32)sizeof(extCertPolicyComodoLtdOid) == (word32)oidSz &&
             XMEMCMP(oid, extCertPolicyComodoLtdOid,

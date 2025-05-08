@@ -1583,6 +1583,9 @@ enum CertificatePolicy_Sum {
     CP_NL_MOD_AUTH_OID              = 496, /* 2.16.528.1.1003.1.2.5.1 */
     CP_NL_MOD_IRREFUT_OID           = 100497, /* 2.16.528.1.1003.1.2.5.2 */
     CP_NL_MOD_CONFID_OID            = 498, /* 2.16.528.1.1003.1.2.5.3 */
+
+    /* QuoVadis Root CA OID */
+    CP_QUOVADIS_ROOT_CA3_OID        = 100336, /* 1.3.6.1.4.1.8024.0.3 */
 #endif /* WOLFSSL_FPKI */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(CertificatePolicy_Sum)
 };
