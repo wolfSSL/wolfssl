@@ -11643,7 +11643,6 @@ static int DtlsRecordsCanSpanDatagrams(WOLFSSL *ssl)
         return 0;
 #endif
     }
-
 #else
     (void)ssl;
     return 1;
@@ -21988,6 +21987,17 @@ static int DoDecrypt(WOLFSSL *ssl)
     }
     return ret;
 }
+
+static void DropAndRestartProcessReply(WOLFSSL* ssl)
+{
+    ssl->options.processReply = doProcessInit;
+    ssl->buffers.inputBuffer.length = 0;
+    ssl->buffers.inputBuffer.idx = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    if (ssl->options.dtls)
+        ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+}
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
@@ -22099,12 +22109,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 if (used < readSz) {
                     if (used > 0 && !DtlsRecordsCanSpanDatagrams(ssl)) {
                         WOLFSSL_MSG("DTLS: Partial record in buffer, dropping");
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.length = 0;
-                        ssl->buffers.inputBuffer.idx = 0;
-#ifdef WOLFSSL_DTLS_DROP_STATS
-                        ssl->replayDropCount++;
-#endif /* WOLFSSL_DTLS_DROP_STATS */
+                        DropAndRestartProcessReply(ssl);
                         continue;
                     }
                     if ((ret = GetInputData(ssl, (word32)readSz)) < 0)
@@ -22206,13 +22211,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 dtlsProcessPendingPeer(ssl, 0);
 #endif
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
-                    ssl->options.processReply = doProcessInit;
-                    ssl->buffers.inputBuffer.length = 0;
-                    ssl->buffers.inputBuffer.idx = 0;
-#ifdef WOLFSSL_DTLS_DROP_STATS
-                    ssl->replayDropCount++;
-#endif /* WOLFSSL_DTLS_DROP_STATS */
-
+                DropAndRestartProcessReply(ssl);
 #ifdef WOLFSSL_DTLS13
                     /* return to send ACKS and shortcut rtx timer */
                     if (IsAtLeastTLSv1_3(ssl->version)
@@ -22277,12 +22276,7 @@ default:
                 if (used < ssl->curSize) {
                     if (!DtlsRecordsCanSpanDatagrams(ssl)) {
                         WOLFSSL_MSG("Partial record received, dropping");
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.length = 0;
-                        ssl->buffers.inputBuffer.idx = 0;
-    #ifdef WOLFSSL_DTLS_DROP_STATS
-                        ssl->replayDropCount++;
-    #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        DropAndRestartProcessReply(ssl);
                         continue;
                     }
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
@@ -22338,9 +22332,7 @@ default:
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx =
-                                ssl->buffers.inputBuffer.length;
+                        DropAndRestartProcessReply(ssl);
                         return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
@@ -22393,9 +22385,7 @@ default:
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx =
-                                ssl->buffers.inputBuffer.length;
+                        DropAndRestartProcessReply(ssl);
                         return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
@@ -22463,9 +22453,7 @@ default:
                         /* If in DTLS mode, if the decrypt fails for any
                          * reason, pretend the datagram never happened. */
                         if (ssl->options.dtls) {
-                            ssl->options.processReply = doProcessInit;
-                            ssl->buffers.inputBuffer.idx =
-                                    ssl->buffers.inputBuffer.length;
+                            DropAndRestartProcessReply(ssl);
                             return HandleDTLSDecryptFailed(ssl);
                         }
                     #endif /* WOLFSSL_DTLS */
