@@ -499,15 +499,24 @@ static int linuxkm_lkcapi_register(void)
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDH
 
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) &&    \
-        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
-        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+   /* In kernels before 5.13.0, ecdh-nist-p256 was not recognized as
+    * fips_allowed, and ecdh-nist-p384 was completely
+    * missing before 5.14 and not fips_allowed before 5.15.
+    *
+    * RedHat also recently patched their crypto manager to mark ECDH
+    * !fips_allowed due the vagaries of their own certificate.  (See 5074fb61f6,
+    * 2025-Mar-13.)
+    *
+    * Given the above, and given we're not actually relying on the crypto
+    * manager for FIPS self tests, and given the FIPS ECDH implementation passes
+    * the non-FIPS ECDH crypto manager tests, the pragmatic solution we settle
+    * on here for ECDH is to always clear fips_enabled in target kernels that
+    * have it.
+    */
+
+    #if defined(CONFIG_CRYPTO_FIPS) &&                \
+        defined(CONFIG_CRYPTO_MANAGER) &&             \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-        /*
-         * In kernel crypto/testmgr.c, ecdh-nist-p256 was not recognized as
-         * fips_allowed before 5.13, and ecdh-nist-p384 was completely
-         * missing before 5.14 and not fips_allowed before 5.15.
-         */
         fips_enabled = 0;
     #endif
 
@@ -522,9 +531,8 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(ecdh_nist_p384, kpp,
                  linuxkm_test_ecdh_nist_p384);
 
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) &&    \
-        defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
-        defined(CONFIG_CRYPTO_MANAGER) &&                    \
+    #if defined(CONFIG_CRYPTO_FIPS) &&                \
+        defined(CONFIG_CRYPTO_MANAGER) &&             \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
         fips_enabled = 1;
     #endif
