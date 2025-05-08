@@ -22098,7 +22098,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                        ssl->buffers.inputBuffer.idx;
                 if (used < readSz) {
                     if (used > 0 && !DtlsRecordsCanSpanDatagrams(ssl)) {
-                        WOLFSSL_MSG("DTLS: Partial record received in tail of other datagram, dropping");
+                        WOLFSSL_MSG("DTLS: Partial record in buffer, dropping");
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.length = 0;
                         ssl->buffers.inputBuffer.idx = 0;
