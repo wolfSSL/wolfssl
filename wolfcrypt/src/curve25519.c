@@ -194,11 +194,11 @@ static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
         if (ret < 0) {
             return ret;
         }
-        for (i = CURVE25519_KEYSIZE; i > 0; i--) {
+        for (i = CURVE25519_KEYSIZE - 1; i >= 0; i--) {
             if (rz[i] != 0xff)
                 break;
         }
-        if ((i != 0) || (rz[0] <= 0xec)) {
+        if ((i >= 0) || (rz[0] <= 0xec)) {
             break;
         }
     }
@@ -212,11 +212,11 @@ static int curve25519_smul_blind(byte* rp, const byte* n, const byte* p,
         return ret;
     a[CURVE25519_KEYSIZE-1] &= 0x7f;
     /* k' = k ^ 2k ^ a */
-    n_a[0] = n[0] ^ (n[0] << 1) ^ a[0];
+    n_a[0] = n[0] ^ (byte)(n[0] << 1) ^ a[0];
     for (i = 1; i < CURVE25519_KEYSIZE; i++) {
         byte b1, b2, b3;
         b1 = n[i] ^ a[i];
-        b2 = (n[i] << 1) ^ a[i];
+        b2 = (byte)(n[i] << 1) ^ a[i];
         b3 = (n[i-1] >> 7) ^ a[i];
         n_a[i] = b1 ^ b2 ^ b3;
     }
@@ -422,6 +422,9 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         ret = wc_curve25519_make_pub_blind((int)sizeof(key->p.point),
                                            key->p.point, (int)sizeof(key->k),
                                            key->k, rng);
+        if (ret == 0) {
+            ret = wc_curve25519_set_rng(key, rng);
+        }
 #else
         ret = wc_curve25519_make_pub((int)sizeof(key->p.point), key->p.point,
                                      (int)sizeof(key->k), key->k);

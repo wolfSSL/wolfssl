@@ -60,6 +60,9 @@
 #define HAVE_ED25519
 #define HAVE_CURVE25519
 
+/* C# wrapper has ephemeral RNG when creating curve25519 key */
+#define NO_CURVE25519_BLINDING
+
 #define HAVE_AESGCM
 #define WOLFSSL_AESGCM_STREAM
 #define WOLFSSL_SHA384
