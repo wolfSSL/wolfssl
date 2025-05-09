@@ -21982,6 +21982,7 @@ static int DoDecrypt(WOLFSSL *ssl)
     return ret;
 }
 
+#ifdef WOLFSSL_DTLS
 static void DropAndRestartProcessReply(WOLFSSL* ssl)
 {
     ssl->options.processReply = doProcessInit;
@@ -21992,6 +21993,7 @@ static void DropAndRestartProcessReply(WOLFSSL* ssl)
         ssl->replayDropCount++;
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 }
+#endif /* WOLFSSL_DTLS */
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
