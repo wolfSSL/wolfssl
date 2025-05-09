@@ -540,9 +540,6 @@ static int linuxkm_lkcapi_register(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
-    #if defined(LINUXKM_DIRECT_RSA)
-    REGISTER_ALG(direct_rsa, akcipher, linuxkm_test_rsa);
-    #endif /* LINUXKM_DIRECT_RSA */
     #ifdef WOLFSSL_SHA224
     REGISTER_ALG(pkcs1_sha224, akcipher, linuxkm_test_pkcs1_sha224);
     #endif /* WOLFSSL_SHA224 */
@@ -560,12 +557,17 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(pkcs1_sha3_384, akcipher, linuxkm_test_pkcs1_sha3_384);
     REGISTER_ALG(pkcs1_sha3_512, akcipher, linuxkm_test_pkcs1_sha3_512);
     #endif /* WOLFSSL_SHA3 */
+
+    #if defined(LINUXKM_DIRECT_RSA)
+    /* Note, direct RSA must be registered after all PKCS1 algs have been
+     * registered, to assure that the kernel doesn't dynamically synthesize any
+     * PKCS1 implementations using the raw primitive.
+     */
+    REGISTER_ALG(direct_rsa, akcipher, linuxkm_test_rsa);
+    #endif /* LINUXKM_DIRECT_RSA */
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
-    #ifdef LINUXKM_DH
-    REGISTER_ALG(dh, kpp, linuxkm_test_dh);
-    #endif /* LINUXKM_DH */
     #ifdef HAVE_FFDHE_2048
     REGISTER_ALG(ffdhe2048, kpp, linuxkm_test_ffdhe2048);
     #endif /* HAVE_FFDHE_2048 */
@@ -585,6 +587,10 @@ static int linuxkm_lkcapi_register(void)
     #ifdef HAVE_FFDHE_8192
     REGISTER_ALG(ffdhe8192, kpp, linuxkm_test_ffdhe8192);
     #endif /* HAVE_FFDHE_8192 */
+
+    #ifdef LINUXKM_DH
+    REGISTER_ALG(dh, kpp, linuxkm_test_dh);
+    #endif /* LINUXKM_DH */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef REGISTER_ALG
