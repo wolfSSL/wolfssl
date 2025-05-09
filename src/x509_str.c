@@ -405,7 +405,7 @@ exit:
 }
 
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
- * returns 0 on success or < 0 on failure.
+ * returns 1 on success or <= 0 on failure.
  */
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {

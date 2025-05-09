@@ -772,6 +772,8 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     int contTypeLen;
     WOLFSSL_X509* signer = NULL;
     WOLFSSL_STACK* signers = NULL;
+    X509_STORE_CTX* ctx = NULL;
+
 
     WOLFSSL_ENTER("wolfSSL_PKCS7_verify");
 
@@ -804,24 +806,37 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
             return WOLFSSL_FAILURE;
         }
 
+        ctx = X509_STORE_CTX_new();
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Error allocating X509 Store Context");
+            return WOLFSSL_FAILURE;
+        }
+
         signers = wolfSSL_PKCS7_get0_signers(pkcs7, certs, flags);
         if (signers == NULL) {
             WOLFSSL_MSG("No signers found to verify");
+            wolfSSL_X509_STORE_CTX_free(ctx);
             return WOLFSSL_FAILURE;
         }
+
         for (i = 0; i < wolfSSL_sk_X509_num(signers); i++) {
             signer = wolfSSL_sk_X509_value(signers, i);
-
-            if (wolfSSL_CertManagerVerifyBuffer(store->cm,
-                        signer->derCert->buffer,
-                        signer->derCert->length,
-                        WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_X509_STORE_CTX_init(ctx, store, signer, NULL)
+                        != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Failed to initialize X509 STORE CTX");
+                wolfSSL_sk_X509_pop_free(signers, NULL);
+                wolfSSL_X509_STORE_CTX_free(ctx);
+                return WOLFSSL_FAILURE;
+            }
+            if (wolfSSL_X509_verify_cert(ctx) != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Failed to verify signer certificate");
                 wolfSSL_sk_X509_pop_free(signers, NULL);
+                wolfSSL_X509_STORE_CTX_free(ctx);
                 return WOLFSSL_FAILURE;
             }
         }
         wolfSSL_sk_X509_pop_free(signers, NULL);
+        wolfSSL_X509_STORE_CTX_free(ctx);
     }
 
     if (flags & PKCS7_TEXT) {
