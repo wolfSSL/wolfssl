@@ -146,9 +146,6 @@ struct MlKemKey {
     extern "C" {
 #endif
 
-/* For backward compatibility */
-typedef struct MlKemKey KyberKey;
-
 WOLFSSL_LOCAL
 void mlkem_init(void);
 
