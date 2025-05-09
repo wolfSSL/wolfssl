@@ -3275,19 +3275,19 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
         XMEMSET(info, 0, sizeof(KeyShareInfo));
 
         /* Named group and public key */
-        info->named_group = (word16)((input[index] << 8) | input[index+1]);
-        index += OPAQUE16_LEN;
+        info->named_group = (word16)((input[idx] << 8) | input[idx+1]);
+        idx += OPAQUE16_LEN;
         info->key_len = 0;
         info->key = NULL;
         /* If key was provided... (a hello_retry_request will not send a key) */
-        if (index + 2 <= len) {
-            info->key_len = (word16)((input[index] << 8) | input[index+1]);
-            index += OPAQUE16_LEN;
-            if (info->key_len == 0 || info->key_len > len - index) {
+        if (idx + 2 <= len) {
+            info->key_len = (word16)((input[idx] << 8) | input[idx+1]);
+            idx += OPAQUE16_LEN;
+            if (info->key_len == 0 || info->key_len > len - idx) {
                 return WOLFSSL_FATAL_ERROR;
             }
-            info->key = &input[index];
-            index += info->key_len;
+            info->key = &input[idx];
+            idx += info->key_len;
         }
 
         switch (info->named_group) {
