@@ -45,6 +45,8 @@ jobs:
           '--enable-ascon --enable-experimental',
           '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
           '--enable-all CPPFLAGS=''-DNO_AES_192 -DNO_AES_256'' ',
+          '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
+            --enable-dtls-mtu CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
