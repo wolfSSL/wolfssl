@@ -65088,6 +65088,7 @@ static int test_dtls_frag_ch(void)
     WOLFSSL *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     static unsigned int DUMMY_MTU = 256;
+    unsigned int len;
     unsigned char four_frag_CH[] = {
       0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0xda, 0x01, 0x00, 0x02, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -65194,8 +65195,16 @@ static int test_dtls_frag_ch(void)
     /* Reject fragmented first CH */
     ExpectIntEQ(test_dtls_frag_ch_count_records(four_frag_CH,
             sizeof(four_frag_CH)), 4);
+    len = sizeof(four_frag_CH);
     test_memio_clear_buffer(&test_ctx, 0);
-    test_memio_inject_message(&test_ctx, 0, (const char *)four_frag_CH, sizeof(four_frag_CH));
+    while (len > 0 && EXPECT_SUCCESS()) {
+        unsigned int inj_len = len > DUMMY_MTU ? DUMMY_MTU : len;
+        unsigned char *idx = four_frag_CH + sizeof(four_frag_CH) - len;
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, (const char *)idx,
+            inj_len), 0);
+        len -= inj_len;
+    }
+    ExpectIntEQ(test_ctx.s_len, sizeof(four_frag_CH));
     while (test_ctx.s_len > 0 && EXPECT_SUCCESS()) {
         int s_len = test_ctx.s_len;
         ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
