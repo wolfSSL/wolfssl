@@ -365,57 +365,33 @@ static int linuxkm_lkcapi_register(void)
         }                                                                    \
     } while (0)
 
-#ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
-    REGISTER_ALG(cbcAesAlg, skcipher, linuxkm_test_aescbc);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AESCFB
-    REGISTER_ALG(cfbAesAlg, skcipher, linuxkm_test_aescfb);
+    /* We always register the derivative/composite algs first, to assure that
+     * the kernel doesn't synthesize them dynamically from our primitives.
+     */
+
+#ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
+    REGISTER_ALG(gcmAesAead_rfc4106, aead, linuxkm_test_aesgcm_rfc4106);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM
     REGISTER_ALG(gcmAesAead, aead, linuxkm_test_aesgcm);
 #endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
-    REGISTER_ALG(gcmAesAead_rfc4106, aead, linuxkm_test_aesgcm_rfc4106);
-#endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESXTS
     REGISTER_ALG(xtsAesAlg, skcipher, linuxkm_test_aesxts);
 #endif
-#ifdef LINUXKM_LKCAPI_REGISTER_AESCTR
-    REGISTER_ALG(ctrAesAlg, skcipher, linuxkm_test_aesctr);
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCFB
+    REGISTER_ALG(cfbAesAlg, skcipher, linuxkm_test_aescfb);
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESOFB
     REGISTER_ALG(ofbAesAlg, skcipher, linuxkm_test_aesofb);
 #endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCBC
+    REGISTER_ALG(cbcAesAlg, skcipher, linuxkm_test_aescbc);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_AESCTR
+    REGISTER_ALG(ctrAesAlg, skcipher, linuxkm_test_aesctr);
+#endif
 #ifdef LINUXKM_LKCAPI_REGISTER_AESECB
     REGISTER_ALG(ecbAesAlg, skcipher, linuxkm_test_aesecb);
-#endif
-
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
-    REGISTER_ALG(sha1_alg, shash, linuxkm_test_sha1);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
-    REGISTER_ALG(sha2_224_alg, shash, linuxkm_test_sha2_224);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
-    REGISTER_ALG(sha2_256_alg, shash, linuxkm_test_sha2_256);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
-    REGISTER_ALG(sha2_384_alg, shash, linuxkm_test_sha2_384);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
-    REGISTER_ALG(sha2_512_alg, shash, linuxkm_test_sha2_512);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
-    REGISTER_ALG(sha3_224_alg, shash, linuxkm_test_sha3_224);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
-    REGISTER_ALG(sha3_256_alg, shash, linuxkm_test_sha3_256);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
-    REGISTER_ALG(sha3_384_alg, shash, linuxkm_test_sha3_384);
-#endif
-#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
-    REGISTER_ALG(sha3_512_alg, shash, linuxkm_test_sha3_512);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
@@ -444,6 +420,34 @@ static int linuxkm_lkcapi_register(void)
 #endif
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512_HMAC
     REGISTER_ALG(sha3_512_hmac_alg, shash, linuxkm_test_sha3_512_hmac);
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA1
+    REGISTER_ALG(sha1_alg, shash, linuxkm_test_sha1);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
+    REGISTER_ALG(sha2_224_alg, shash, linuxkm_test_sha2_224);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
+    REGISTER_ALG(sha2_256_alg, shash, linuxkm_test_sha2_256);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
+    REGISTER_ALG(sha2_384_alg, shash, linuxkm_test_sha2_384);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
+    REGISTER_ALG(sha2_512_alg, shash, linuxkm_test_sha2_512);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
+    REGISTER_ALG(sha3_224_alg, shash, linuxkm_test_sha3_224);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
+    REGISTER_ALG(sha3_256_alg, shash, linuxkm_test_sha3_256);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
+    REGISTER_ALG(sha3_384_alg, shash, linuxkm_test_sha3_384);
+#endif
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
+    REGISTER_ALG(sha3_512_alg, shash, linuxkm_test_sha3_512);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
@@ -540,9 +544,6 @@ static int linuxkm_lkcapi_register(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
-    #if defined(LINUXKM_DIRECT_RSA)
-    REGISTER_ALG(direct_rsa, akcipher, linuxkm_test_rsa);
-    #endif /* LINUXKM_DIRECT_RSA */
     #ifdef WOLFSSL_SHA224
     REGISTER_ALG(pkcs1_sha224, akcipher, linuxkm_test_pkcs1_sha224);
     #endif /* WOLFSSL_SHA224 */
@@ -560,12 +561,17 @@ static int linuxkm_lkcapi_register(void)
     REGISTER_ALG(pkcs1_sha3_384, akcipher, linuxkm_test_pkcs1_sha3_384);
     REGISTER_ALG(pkcs1_sha3_512, akcipher, linuxkm_test_pkcs1_sha3_512);
     #endif /* WOLFSSL_SHA3 */
+
+    #if defined(LINUXKM_DIRECT_RSA)
+    /* Note, direct RSA must be registered after all PKCS1 algs have been
+     * registered, to assure that the kernel doesn't dynamically synthesize any
+     * PKCS1 implementations using the raw primitive.
+     */
+    REGISTER_ALG(direct_rsa, akcipher, linuxkm_test_rsa);
+    #endif /* LINUXKM_DIRECT_RSA */
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
-    #ifdef LINUXKM_DH
-    REGISTER_ALG(dh, kpp, linuxkm_test_dh);
-    #endif /* LINUXKM_DH */
     #ifdef HAVE_FFDHE_2048
     REGISTER_ALG(ffdhe2048, kpp, linuxkm_test_ffdhe2048);
     #endif /* HAVE_FFDHE_2048 */
@@ -585,6 +591,10 @@ static int linuxkm_lkcapi_register(void)
     #ifdef HAVE_FFDHE_8192
     REGISTER_ALG(ffdhe8192, kpp, linuxkm_test_ffdhe8192);
     #endif /* HAVE_FFDHE_8192 */
+
+    #ifdef LINUXKM_DH
+    REGISTER_ALG(dh, kpp, linuxkm_test_dh);
+    #endif /* LINUXKM_DH */
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef REGISTER_ALG
