@@ -33965,6 +33965,7 @@ static wc_test_ret_t ecc_test_nonblock_dhe(int curveId, word32 curveSz,
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
     fprintf(stderr, "ECC non-block key gen: %d times\n", count);
 #endif
+    (void)count;
     if (ret == 0) {
         ret = wc_ecc_check_key(&keyA);
         if (ret < 0)

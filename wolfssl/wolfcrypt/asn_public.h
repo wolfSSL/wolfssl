@@ -32,7 +32,9 @@ This library defines the interface APIs for X509 certificates.
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/dsa.h>
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus
@@ -716,25 +718,6 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
                                          word32 inLen, int with_AlgCurve,
                                          int comp);
     WOLFSSL_API int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
-#endif
-
-/* RFC 5958 (Asymmetric Key Packages) */
-#if !defined(WC_ENABLE_ASYM_KEY_EXPORT) && \
-    ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_EXPORT)) || \
-     (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
-     (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
-     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
-    #define WC_ENABLE_ASYM_KEY_EXPORT
-#endif
-
-#if !defined(WC_ENABLE_ASYM_KEY_IMPORT) && \
-    ((defined(HAVE_ED25519)    && defined(HAVE_ED25519_KEY_IMPORT)) || \
-     (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
-     (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
-     (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
-    #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
 #ifdef HAVE_ED25519

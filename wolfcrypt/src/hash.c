@@ -1477,13 +1477,13 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         wc_Sha256* sha256;
     #else
         wc_Sha256 sha256[1];
     #endif
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         sha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (sha256 == NULL)
@@ -1504,7 +1504,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         }
 
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
