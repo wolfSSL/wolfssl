@@ -312,19 +312,21 @@ void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client)
     }
 }
 
-int test_memio_inject_message(struct test_memio_ctx *ctx, int client, const char *data, int sz)
+int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
+    const char* data, int sz)
 {
-    int *len;
-    int *msg_count;
-    int *msg_sizes;
-    byte *buff;
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
+    byte* buff;
 
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
         msg_count = &ctx->c_msg_count;
         msg_sizes = ctx->c_msg_sizes;
-    } else {
+    }
+    else {
         buff = ctx->s_buff;
         len = &ctx->s_len;
         msg_count = &ctx->s_msg_count;
@@ -382,21 +384,23 @@ int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
     return 0;
 }
 
-int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz)
+int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
+    int off, int sz)
 {
-    int *len;
-    int *msg_count;
-    int *msg_sizes;
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
     int msg_off;
     int i;
-    byte *buff;
+    byte* buff;
 
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
         msg_count = &ctx->c_msg_count;
         msg_sizes = ctx->c_msg_sizes;
-    } else {
+    }
+    else {
         buff = ctx->s_buff;
         len = &ctx->s_len;
         msg_count = &ctx->s_msg_count;
@@ -435,20 +439,22 @@ int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int of
     return 0;
 }
 
-int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len)
+int test_memio_modify_message_len(struct test_memio_ctx* ctx, int client,
+    int msg_pos, int new_len)
 {
-    int *len;
-    int *msg_count;
-    int *msg_sizes;
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
     int msg_off, msg_sz;
     int i;
-    byte *buff;
+    byte* buff;
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
         msg_count = &ctx->c_msg_count;
         msg_sizes = ctx->c_msg_sizes;
-    } else {
+    }
+    else {
         buff = ctx->s_buff;
         len = &ctx->s_len;
         msg_count = &ctx->s_msg_count;
@@ -470,8 +476,8 @@ int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int ms
             return -1;
         }
     }
-    XMEMMOVE(buff + msg_off + new_len,
-        buff + msg_off + msg_sz, *len - msg_off - msg_sz);
+    XMEMMOVE(buff + msg_off + new_len, buff + msg_off + msg_sz,
+        *len - msg_off - msg_sz);
     msg_sizes[msg_pos] = new_len;
     *len = *len - msg_sz + new_len;
     return 0;
@@ -486,4 +492,3 @@ int test_memio_setup(struct test_memio_ctx *ctx,
 }
 
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
-
