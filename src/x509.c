@@ -6554,8 +6554,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
         return WOLFSSL_FAILURE;
     }
 
-    buf = (char*)XMALLOC(MAX_WIDTH-4-indent, x509->heap,
-                         DYNAMIC_TYPE_TMP_BUFFER);
+    buf = (char*)XMALLOC(MAX_WIDTH, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
         return WOLFSSL_FAILURE;
     }

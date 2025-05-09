@@ -1004,16 +1004,23 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
     WOLFSSL_EchConfig* workingConfig = NULL;
     byte* outputStart = output;
     word32 totalLen = 2;
-    word32 workingOutputLen;
+    word32 workingOutputLen = 0;
 
-    if (configs == NULL || outputLen == NULL || *outputLen < totalLen)
+    if (configs == NULL || outputLen == NULL ||
+            (output != NULL && *outputLen < totalLen)) {
         return BAD_FUNC_ARG;
+    }
 
-    workingOutputLen = *outputLen - totalLen;
 
     /* skip over total length which we fill in later */
-    if (output != NULL)
+    if (output != NULL) {
+        workingOutputLen = *outputLen - totalLen;
         output += 2;
+    }
+    else {
+        /* caller getting the size only, set current 2 byte length size */
+        *outputLen = totalLen;
+    }
 
     workingConfig = configs;
 
