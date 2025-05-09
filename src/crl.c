@@ -856,13 +856,18 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
 static WOLFSSL_X509_CRL* wolfSSL_X509_crl_new(WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_X509_CRL* ret;
+    void* heap = NULL;
 
-    ret = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL),
-            cm != NULL ? cm->heap : NULL, DYNAMIC_TYPE_CRL);
+    if (cm != NULL) {
+        heap = cm->heap;
+    }
+
+    ret = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), heap,
+        DYNAMIC_TYPE_CRL);
     if (ret != NULL) {
         if (InitCRL(ret, cm) < 0) {
             WOLFSSL_MSG("Unable to initialize new CRL structure");
-            XFREE(ret, cm->heap, DYNAMIC_TYPE_CRL);
+            XFREE(ret, heap, DYNAMIC_TYPE_CRL);
             ret = NULL;
         }
     }
