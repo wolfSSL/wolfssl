@@ -38,6 +38,8 @@ static int X509StorePopCert(WOLFSSL_STACK *certs_stack, WOLFSSL_STACK *dest_stac
                             WOLFSSL_X509 *cert);
 static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
                                           WOLFSSL_X509* x509, int type);
+static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
+                                            WOLFSSL_X509* x509, int type);
 #endif
 
 /* Based on OpenSSL default max depth */
@@ -568,7 +570,9 @@ retry:
          * cert with the same subject key which will work.  Retry until all
          * possible candidate certs are exhausted. */
          WOLFSSL_MSG("X509_verify_cert current cert failed, retrying with other certs.");
-         RemoveCA(ctx->store->cm, ctx->current_cert->subjKeyId, WOLFSSL_TEMP_CA);
+         ret = X509StoreRemoveCa(ctx->store, ctx->current_cert, WOLFSSL_TEMP_CA);
+         if (ret != WOLFSSL_SUCCESS)
+            goto exit;
          X509StorePopCert(certs, failedCerts, ctx->current_cert);
          ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
          depth++;
@@ -1435,6 +1439,33 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
             result = AddCA(store->cm, &derCert, type, VERIFY);
         }
     }
+
+    return result;
+}
+
+static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
+                                            WOLFSSL_X509* x509, int type) {
+    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    DecodedCert* dCert = NULL;
+
+    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                DYNAMIC_TYPE_DCERT);
+
+        if (dCert == NULL) {
+            return result;
+        }
+        XMEMSET(dCert, 0, sizeof(DecodedCert));
+        wc_InitDecodedCert(dCert, x509->derCert->buffer, x509->derCert->length, NULL);
+        result = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, store->cm);
+        if (result)
+            return WOLFSSL_FATAL_ERROR;
+
+        result = RemoveCA(store->cm, dCert->extSubjKeyId, type);
+    }
+
+    if (dCert)
+        wc_FreeDecodedCert(dCert);
 
     return result;
 }

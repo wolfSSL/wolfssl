@@ -6097,7 +6097,7 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, byte type)
 {
     Signer* current;
     Signer* prev;
-    int     ret = 0;
+    int     ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  row;
 
     WOLFSSL_MSG("Removing a CA");
@@ -6131,7 +6131,7 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, byte type)
                 prev->next = current->next;
             }
             FreeSigner(current, cm->heap);
-            ret = 1;
+            ret = WOLFSSL_SUCCESS;
             break;
         }
         prev = current;
