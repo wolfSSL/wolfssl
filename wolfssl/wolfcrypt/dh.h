@@ -112,10 +112,8 @@ WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
 WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
 WOLFSSL_API int wc_FreeDhKey(DhKey* key);
-#if defined(WOLFSSL_DH_GEN_PUB)
 WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
                                     byte* pub, word32* pubSz);
-#endif /* WOLFSSL_DH_GEN_PUB */
 
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
