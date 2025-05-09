@@ -6922,13 +6922,33 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* If we are setting the ctx on an already initialized SSL object
      * then we possibly already have a side defined. Don't overwrite unless
      * the context has a well defined role. */
-    if (newSSL || ctx->method->side != WOLFSSL_NEITHER_END)
-        ssl->options.side      = (word16)(ctx->method->side);
-    ssl->options.downgrade    = (word16)(ctx->method->downgrade);
-    ssl->options.minDowngrade = ctx->minDowngrade;
-
+    if (newSSL || ctx->method->side != WOLFSSL_NEITHER_END) {
+        ssl->options.side  = (word16)(ctx->method->side);
+    }
+    ssl->options.downgrade        = (word16)(ctx->method->downgrade);
+    ssl->options.minDowngrade     = ctx->minDowngrade;
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
+    /* Its possible that algorithm parameters were set in the ctx (ie: DH),
+     * recalculate cipher suites. */
+    if (ssl->options.haveDH) {
+        if (ssl->suites == NULL) {
+            if (AllocateSuites(ssl) != 0) {
+                return MEMORY_E;
+            }
+        }
+        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz,
+                   ssl->options.haveRSA,
+#ifdef NO_PSK
+                   0,
+#else
+                   ctx->havePSK,
+#endif
+                   ssl->options.haveDH,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
+                   ssl->options.haveStaticECC, ssl->options.useAnon,
+                   TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+    }
     ssl->options.haveECDSAsig     = ctx->haveECDSAsig;
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
