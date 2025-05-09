@@ -217,12 +217,6 @@ static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
                                             int totalCerts);
 #endif /* #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
-#ifdef WOLFSSL_DTLS
-#ifndef DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT
-#define DTLS_RECORDS_CAN_SPAN_DATAGRAMS_DEFAULT 1
-#endif
-#endif
-
 #ifdef WOLFSSL_DTLS13
 #ifndef WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT
 #define WOLFSSL_DTLS13_SEND_MOREACK_DEFAULT 0
