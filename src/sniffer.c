@@ -3269,25 +3269,25 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
 static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
     word16 filter_group)
 {
-    int index = 0;
-    while (index < len) {
+    int idx = 0;
+    while (idx < len) {
         /* clear info (reset dh_key_bits and curve_id) */
         XMEMSET(info, 0, sizeof(KeyShareInfo));
 
         /* Named group and public key */
-        info->named_group = (word16)((input[index] << 8) | input[index+1]);
-        index += OPAQUE16_LEN;
+        info->named_group = (word16)((input[idx] << 8) | input[idx+1]);
+        idx += OPAQUE16_LEN;
         info->key_len = 0;
         info->key = NULL;
         /* If key was provided... (a hello_retry_request will not send a key) */
-        if (index + 2 <= len) {
-            info->key_len = (word16)((input[index] << 8) | input[index+1]);
-            index += OPAQUE16_LEN;
-            if (info->key_len == 0 || info->key_len > len - index) {
+        if (idx + 2 <= len) {
+            info->key_len = (word16)((input[idx] << 8) | input[idx+1]);
+            idx += OPAQUE16_LEN;
+            if (info->key_len == 0 || info->key_len > len - idx) {
                 return WOLFSSL_FATAL_ERROR;
             }
-            info->key = &input[index];
-            index += info->key_len;
+            info->key = &input[idx];
+            idx += info->key_len;
         }
 
         switch (info->named_group) {
@@ -7289,7 +7289,7 @@ static int addSecretNode(unsigned char* clientRandom,
                          unsigned char* secret,
                          char* error)
 {
-    int index = 0;
+    int idx = 0;
     int ret = 0;
     SecretNode* node = NULL;
 
@@ -7299,8 +7299,8 @@ static int addSecretNode(unsigned char* clientRandom,
 
     LOCK_SECRET_LIST();
 
-    index = secretHashFunction(clientRandom);
-    node = secretHashTable[index];
+    idx = secretHashFunction(clientRandom);
+    node = secretHashTable[idx];
 
     while(node) {
         /* Node already exists, so just add the requested secret */
@@ -7343,12 +7343,12 @@ static unsigned char* findSecret(unsigned char* clientRandom, int type)
 {
     unsigned char* secret = NULL;
     SecretNode* node = NULL;
-    unsigned int index = 0;
+    unsigned int idx = 0;
 
     LOCK_SECRET_LIST();
 
-    index = secretHashFunction(clientRandom);
-    node  = secretHashTable[index];
+    idx = secretHashFunction(clientRandom);
+    node  = secretHashTable[idx];
 
     while (node != NULL) {
         if (XMEMCMP(node->clientRandom,

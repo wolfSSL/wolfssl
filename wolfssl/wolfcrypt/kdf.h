@@ -147,19 +147,19 @@ enum {
 #define WC_SRTP_MAX_SALT    14
 
 WOLFSSL_API int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt,
-    word32 saltSz, int kdrIdx, const byte* index, byte* key1, word32 key1Sz,
+    word32 saltSz, int kdrIdx, const byte* idx, byte* key1, word32 key1Sz,
     byte* key2, word32 key2Sz, byte* key3, word32 key3Sz);
 WOLFSSL_API int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt,
-    word32 saltSz, int kdrIdx, const byte* index, byte* key1, word32 key1Sz,
+    word32 saltSz, int kdrIdx, const byte* idx, byte* key1, word32 key1Sz,
     byte* key2, word32 key2Sz, byte* key3, word32 key3Sz);
 WOLFSSL_API int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt,
-    word32 saltSz, int kdrIdx, const byte* index, byte* key1, word32 key1Sz,
+    word32 saltSz, int kdrIdx, const byte* idx, byte* key1, word32 key1Sz,
     byte* key2, word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator);
 WOLFSSL_API int wc_SRTP_KDF_label(const byte* key, word32 keySz,
-    const byte* salt, word32 saltSz, int kdrIdx, const byte* index, byte label,
+    const byte* salt, word32 saltSz, int kdrIdx, const byte* idx, byte label,
     byte* outKey, word32 outKeySz);
 WOLFSSL_API int wc_SRTCP_KDF_label(const byte* key, word32 keySz,
-    const byte* salt, word32 saltSz, int kdrIdx, const byte* index, byte label,
+    const byte* salt, word32 saltSz, int kdrIdx, const byte* idx, byte label,
     byte* outKey, word32 outKeySz);
 
 WOLFSSL_API int wc_SRTP_KDF_kdr_to_idx(word32 kdr);
