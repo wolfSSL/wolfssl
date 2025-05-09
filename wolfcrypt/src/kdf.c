@@ -902,12 +902,12 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
  * @param [in]  saltSz   Size of random value in bytes.
  * @param [in]  kdrIdx   Key derivation rate. kdr = 0 when -1, otherwise
  *                       kdr = 2^kdrIdx.
- * @param [in]  index    Index value to XOR in.
- * @param [in]  indexSz  Size of index value in bytes.
+ * @param [in]  idx      Index value to XOR in.
+ * @param [in]  idxSz    Size of index value in bytes.
  * @param [out] block    First block to encrypt.
  */
 static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
-        const byte* index, int indexSz, unsigned char* block)
+        const byte* idx, int idxSz, unsigned char* block)
 {
     int i;
 
@@ -924,21 +924,21 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
         /* Get the number of bits to shift index by. */
         word32 bits = kdrIdx & 0x7;
         /* Reduce index size by number of bytes to remove. */
-        indexSz -= kdrIdx >> 3;
+        idxSz -= kdrIdx >> 3;
 
         if ((kdrIdx & 0x7) == 0) {
             /* Just XOR in as no bit shifting. */
-            for (i = 0; i < indexSz; i++) {
-                block[i + WC_SRTP_MAX_SALT - indexSz] ^= index[i];
+            for (i = 0; i < idxSz; i++) {
+                block[i + WC_SRTP_MAX_SALT - idxSz] ^= idx[i];
             }
         }
         else {
             /* XOR in as bit shifted index. */
-            block[WC_SRTP_MAX_SALT - indexSz] ^= (byte)(index[0] >> bits);
-            for (i = 1; i < indexSz; i++) {
-                block[i + WC_SRTP_MAX_SALT - indexSz] ^=
-                    (byte)((index[i-1] << (8 - bits)) |
-                           (index[i+0] >>      bits ));
+            block[WC_SRTP_MAX_SALT - idxSz] ^= (byte)(idx[0] >> bits);
+            for (i = 1; i < idxSz; i++) {
+                block[i + WC_SRTP_MAX_SALT - idxSz] ^=
+                    (byte)((idx[i-1] << (8 - bits)) |
+                           (idx[i+0] >>      bits ));
             }
         }
     }
@@ -955,7 +955,7 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * @param [in]      aes      AES object to encrypt with.
  * @return  0 on success.
  */
-static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
+static int wc_srtp_kdf_derive_key(byte* block, int idxSz, byte label,
         byte* key, word32 keySz, Aes* aes)
 {
     int i;
@@ -964,7 +964,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
     int blocks = (int)(keySz / WC_AES_BLOCK_SIZE);
 
     /* XOR in label. */
-    block[WC_SRTP_MAX_SALT - indexSz - 1] ^= label;
+    block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
     for (i = 0; (ret == 0) && (i < blocks); i++) {
         /* Set counter. */
         block[15] = (byte)i;
@@ -988,7 +988,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
         }
     }
     /* XOR out label. */
-    block[WC_SRTP_MAX_SALT - indexSz - 1] ^= label;
+    block[WC_SRTP_MAX_SALT - idxSz - 1] ^= label;
 
     return ret;
 }
@@ -1018,7 +1018,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
  * @return  0 on success.
  */
 int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
-        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        int kdrIdx, const byte* idx, byte* key1, word32 key1Sz, byte* key2,
         word32 key2Sz, byte* key3, word32 key3Sz)
 {
     int ret = 0;
@@ -1056,7 +1056,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, WC_SRTP_INDEX_LEN,
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, idx, WC_SRTP_INDEX_LEN,
             block);
     }
 
@@ -1109,7 +1109,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @return  0 on success.
  */
 int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
-        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        int kdrIdx, const byte* idx, byte* key1, word32 key1Sz, byte* key2,
         word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator)
 {
     int ret = 0;
@@ -1156,7 +1156,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, idxLen, block);
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, idx, idxLen, block);
     }
 
     /* Calculate first key if required. */
@@ -1184,11 +1184,11 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 }
 
 int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
-        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        int kdrIdx, const byte* idx, byte* key1, word32 key1Sz, byte* key2,
         word32 key2Sz, byte* key3, word32 key3Sz)
 {
     /* The default 32-bit IDX expected by many implementations */
-    return wc_SRTCP_KDF_ex(key, keySz, salt, saltSz, kdrIdx, index,
+    return wc_SRTCP_KDF_ex(key, keySz, salt, saltSz, kdrIdx, idx,
                            key1, key1Sz, key2, key2Sz, key3, key3Sz,
                            WC_SRTCP_32BIT_IDX);
 }
@@ -1214,7 +1214,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @return  0 on success.
  */
 int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
-        word32 saltSz, int kdrIdx, const byte* index, byte label, byte* outKey,
+        word32 saltSz, int kdrIdx, const byte* idx, byte label, byte* outKey,
         word32 outKeySz)
 {
     int ret = 0;
@@ -1253,7 +1253,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, WC_SRTP_INDEX_LEN,
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, idx, WC_SRTP_INDEX_LEN,
             block);
     }
     if (ret == 0) {
@@ -1293,7 +1293,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
  * @return  0 on success.
  */
 int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
-        word32 saltSz, int kdrIdx, const byte* index, byte label, byte* outKey,
+        word32 saltSz, int kdrIdx, const byte* idx, byte label, byte* outKey,
         word32 outKeySz)
 {
     int ret = 0;
@@ -1332,7 +1332,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, WC_SRTCP_INDEX_LEN,
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, idx, WC_SRTCP_INDEX_LEN,
             block);
     }
     if (ret == 0) {

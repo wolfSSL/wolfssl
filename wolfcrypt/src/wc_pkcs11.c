@@ -535,7 +535,7 @@ static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
     CK_RV         rv;
     CK_ULONG      slotCnt = 0;
     CK_TOKEN_INFO tinfo;
-    int           index = -1;
+    int           idx = -1;
     CK_SLOT_ID*   slot = NULL;
 
     rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
