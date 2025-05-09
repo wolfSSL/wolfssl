@@ -628,8 +628,13 @@ static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
     mp_int curr_num[1];
 #endif
 
-    mp_init(prev_num);
-    mp_init(curr_num);
+    if (mp_init_multi(prev_num, curr_num, NULL, NULL, NULL, NULL) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(prev_num, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(curr_num, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+        return BAD_FUNC_ARG;
+    }
 
     if (mp_read_radix(prev_num, (char*)prev->crlNumber, MP_RADIX_HEX)
             != MP_OKAY || mp_read_radix(curr_num, (char*)curr->crlNumber,

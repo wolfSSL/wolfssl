@@ -8884,6 +8884,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
     if (ret == 0 && crl->crlList->crlNumberSet) {
         char dec_string[49]; /* 20 octets can express numbers up to approx
                                 49 decimal digits */
+        int freeMp = 0;
     #ifdef WOLFSSL_SMALL_STACK
         mp_int* dec_num = (mp_int*)XMALLOC(sizeof(*dec_num), NULL,
                             DYNAMIC_TYPE_BIGINT);
@@ -8894,8 +8895,11 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         mp_int dec_num[1];
     #endif
 
-        if (mp_init(dec_num) != MP_OKAY) {
+        if (ret == 0 & mp_init(dec_num) != MP_OKAY) {
              ret = MP_INIT_E;
+        }
+        else if (ret == 0) {
+            freeMp = 1;
         }
 
         if (ret == 0 && mp_read_radix(dec_num, (char *)crl->crlList->crlNumber,
@@ -8925,13 +8929,15 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         if (ret == 0 && wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
             ret = WOLFSSL_FAILURE;
         }
+
         XMEMSET(tmp, 0, sizeof(tmp));
 
-        mp_free(dec_num);
-    #ifdef WOLFSSL_SMALL_STACK
-        if (dec_num) {
-            XFREE(dec_num, NULL, DYNAMIC_TYPE_BIGINT);
+        if (freeMP) {
+            mp_free(dec_num);
         }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(dec_num, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
     }
 
