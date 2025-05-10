@@ -930,6 +930,9 @@ typedef struct sp_int_minimal {
     sp_int_digit dp[1];
 } sp_int_minimal;
 
+wc_static_assert(sizeof(struct sp_int_minimal) % sizeof(sp_int_digit) == 0);
+#define MP_INT_SIZEOF_DIGITS(cnt) (MP_INT_SIZEOF(cnt) / sizeof(sp_int_digit))
+
 /* Multi-precision integer type is SP integer type. */
 typedef sp_int       mp_int;
 /* Multi-precision integer digit type is SP integer digit type.

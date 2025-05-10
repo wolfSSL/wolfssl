@@ -130,8 +130,8 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
         !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Declare a variable on the stack with the required data size. */
-        #define DECL_SP_INT(n, s)               \
-            byte    n##d[MP_INT_SIZEOF(s)];     \
+        #define DECL_SP_INT(n, s)                       \
+            sp_int_digit n##d[MP_INT_SIZEOF_DIGITS(s)]; \
             sp_int* (n) = (sp_int*)n##d
     #else
         /* Declare a variable on the stack. */
@@ -221,8 +221,8 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
         !defined(WOLFSSL_SP_NO_DYN_STACK)
     /* Declare a variable on the stack with the required data size. */
-    #define DECL_SP_INT_ARRAY(n, s, c)          \
-        byte    n##d[MP_INT_SIZEOF(s) * (c)];   \
+    #define DECL_SP_INT_ARRAY(n, s, c)                    \
+        sp_int_digit n##d[MP_INT_SIZEOF_DIGITS(s) * (c)]; \
         sp_int* (n)[c] = { NULL, }
 #else
     /* Declare a variable on the stack. */
@@ -7909,28 +7909,30 @@ static int _sp_submod(const sp_int* a, const sp_int* b, const sp_int* m,
     unsigned int used = ((a->used >= m->used) ?
         ((a->used >= b->used) ? (a->used + 1U) : (b->used + 1U)) :
         ((b->used >= m->used)) ? (b->used + 1U) : (m->used + 1U));
-    DECL_SP_INT_ARRAY(t, used, 2);
+    DECL_SP_INT(t0, used);
+    DECL_SP_INT(t1, used);
 
-    ALLOC_SP_INT_ARRAY(t, used, 2, err, NULL);
+    ALLOC_SP_INT_SIZE(t0, used, err, NULL);
+    ALLOC_SP_INT_SIZE(t1, used, err, NULL);
     if (err == MP_OKAY) {
         /* Reduce a to less than m. */
         if (_sp_cmp(a, m) != MP_LT) {
-            err = sp_mod(a, m, t[0]);
-            a = t[0];
+            err = sp_mod(a, m, t0);
+            a = t0;
         }
     }
     if (err == MP_OKAY) {
         /* Reduce b to less than m. */
         if (_sp_cmp(b, m) != MP_LT) {
-            err = sp_mod(b, m, t[1]);
-            b = t[1];
+            err = sp_mod(b, m, t1);
+            b = t1;
         }
     }
     if (err == MP_OKAY) {
         /* Add m to a if a smaller than b. */
         if (_sp_cmp(a, b) == MP_LT) {
-            err = sp_add(a, m, t[0]);
-            a = t[0];
+            err = sp_add(a, m, t0);
+            a = t0;
         }
     }
     if (err == MP_OKAY) {
@@ -7938,7 +7940,8 @@ static int _sp_submod(const sp_int* a, const sp_int* b, const sp_int* m,
         err = sp_sub(a, b, r);
     }
 
-    FREE_SP_INT_ARRAY(t, NULL);
+    FREE_SP_INT(t0, NULL);
+    FREE_SP_INT(t1, NULL);
 #else /* WOLFSSL_SP_INT_NEGATIVE */
     sp_size_t used = ((a->used >= b->used) ? a->used + 1 : b->used + 1);
     DECL_SP_INT(t, used);
