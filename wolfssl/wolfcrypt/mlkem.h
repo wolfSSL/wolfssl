@@ -343,9 +343,6 @@ WOLFSSL_API int wc_MlKemKey_EncodePrivateKey(MlKemKey* key, unsigned char* out,
 WOLFSSL_API int wc_MlKemKey_EncodePublicKey(MlKemKey* key, unsigned char* out,
     word32 len);
 
-
-#define KyberKey            MlKemKey
-
 #define wc_KyberKey_Init(type, key, heap, devId) \
         wc_MlKemKey_Init(key, type, heap, devId)
 #define wc_KyberKey_Free                    wc_MlKemKey_Free
