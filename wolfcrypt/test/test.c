@@ -2595,7 +2595,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #ifndef NO_MAIN_FUNCTION
     int main(int argc, char** argv)
     {
-        return (int)wolfcrypt_test_main(argc, argv);
+        if (wolfcrypt_test_main(argc, argv) >= 0)
+            return 0;
+        else
+            return 1;
     }
 #endif
 
