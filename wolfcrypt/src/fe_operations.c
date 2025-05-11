@@ -192,7 +192,7 @@ int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
   fe z3 = {0};
   fe tmp0 = {0};
   fe tmp1 = {0};
-  int pos = 0;
+  unsigned int pos;
   unsigned int b;
 
   fe_frombytes(x1,p);
@@ -208,7 +208,7 @@ int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
   fe_cswap(x2,x3,(int)b);
   fe_cswap(z2,z3,(int)b);
   for (pos = 255;pos >= 1;--pos) {
-    b = n[pos / 8] >> (pos & 7);
+    b = (unsigned int)n[pos / 8] >> (pos & 7);
     b &= 1;
     fe_cswap(x2,x3,(int)b);
     fe_cswap(z2,z3,(int)b);
@@ -233,7 +233,7 @@ int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
     fe_mul(z3,x1,z2);
     fe_mul(z2,tmp1,tmp0);
 
-    b = mask[(pos-1) / 8] >> ((pos-1) & 7);
+    b = (unsigned int)mask[(pos-1) / 8] >> ((pos-1) & 7);
     b &= 1;
     fe_cswap(x2,x3,(int)b);
     fe_cswap(z2,z3,(int)b);
