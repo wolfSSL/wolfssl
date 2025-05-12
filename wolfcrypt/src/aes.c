@@ -8345,19 +8345,22 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     }
     XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
-    /* Authentication buffer - must be 4-byte multiple zero padded */
-    authPadSz = authInSz % sizeof(word32);
+    /* Authentication buffer */
+#if STM_CRYPT_HEADER_WIDTH == 1
+    authPadSz = 0; /* CubeHAL supports byte mode */
+#else
+    authPadSz = authInSz % STM_CRYPT_HEADER_WIDTH;
+#endif
 #ifdef WOLFSSL_STM32MP13
     /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
-     * minimum of 16 bytes for the auth
-     */
+     * minimum of 16 bytes for the auth */
     if ((authInSz > 0) && (authInSz < 16)) {
         authPadSz = 16 - authInSz;
     }
 #endif
     if (authPadSz != 0) {
-        if (authPadSz < authInSz + sizeof(word32)) {
-            authPadSz = authInSz + sizeof(word32) - authPadSz;
+        if (authPadSz < authInSz + STM_CRYPT_HEADER_WIDTH) {
+            authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
         }
         if (authPadSz <= sizeof(authhdr)) {
             authInPadded = (byte*)authhdr;
@@ -8385,7 +8388,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
+    #if STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8444,7 +8447,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     /* Set the CRYP parameters */
     hcryp.Init.HeaderSize = authPadSz;
     if (authPadSz == 0)
-        hcryp.Init.Header = NULL; /* cannot pass pointer here when authIn == 0 */
+        hcryp.Init.Header = NULL; /* cannot pass pointer when authIn == 0 */
     hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_GCM_GMAC;
     hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
     hcryp.Init.GCMCMACPhase  = CRYP_INIT_PHASE;
@@ -8884,23 +8887,25 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
      * For TLS blocks the authTag is after the output buffer, so save it */
     XMEMCPY(tagExpected, authTag, authTagSz);
 
-    /* Authentication buffer - must be 4-byte multiple zero padded */
-    authPadSz = authInSz % sizeof(word32);
-    if (authPadSz != 0) {
-        authPadSz = authInSz + sizeof(word32) - authPadSz;
-    }
-    else {
-        authPadSz = authInSz;
-    }
-
+    /* Authentication buffer */
+#if STM_CRYPT_HEADER_WIDTH == 1
+    authPadSz = 0; /* CubeHAL supports byte mode */
+#else
+    authPadSz = authInSz % STM_CRYPT_HEADER_WIDTH;
+#endif
 #ifdef WOLFSSL_STM32MP13
     /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
-     * minimum of 16 bytes for the auth
-     */
+     * minimum of 16 bytes for the auth */
     if ((authInSz > 0) && (authInSz < 16)) {
         authPadSz = 16 - authInSz;
     }
 #endif
+    if (authPadSz != 0) {
+        authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
+    }
+    else {
+        authPadSz = authInSz;
+    }
 
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
@@ -8909,7 +8914,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if !defined(STM_CRYPT_HEADER_WIDTH) || STM_CRYPT_HEADER_WIDTH == 4
+    #if STM_CRYPT_HEADER_WIDTH == 4
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8949,6 +8954,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     if (ret != 0) {
         return ret;
     }
+
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
@@ -8956,7 +8962,6 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
     hcryp.Init.HeaderSize = authPadSz / STM_CRYPT_HEADER_WIDTH;
-
     #ifdef CRYP_KEYIVCONFIG_ONCE
     /* allows repeated calls to HAL_CRYP_Decrypt */
     hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
@@ -8966,6 +8971,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     HAL_CRYP_Init(&hcryp);
 
     #ifndef CRYP_KEYIVCONFIG_ONCE
+    /* GCM payload phase - can handle partial blocks */
     status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
         (blocks * WC_AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
     #else

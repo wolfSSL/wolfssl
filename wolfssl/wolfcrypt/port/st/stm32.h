@@ -188,12 +188,15 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM_CRYPT_TYPE uint8_t
     #endif
 
-    /* newer crypt HAL requires auth header size as 4 bytes (word) */
-    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && \
-        !defined(WOLFSSL_STM32MP13) && !defined(WOLFSSL_STM32H7S)
-        #define STM_CRYPT_HEADER_WIDTH 1
-    #else
-        #define STM_CRYPT_HEADER_WIDTH 4
+    /* Determine minimum AES GCM alignment supported */
+    #ifndef STM_CRYPT_HEADER_WIDTH
+        /* newer crypt HAL requires auth header size as 4 bytes (word) */
+        #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && \
+            !defined(WOLFSSL_STM32MP13) && !defined(WOLFSSL_STM32H7S)
+            #define STM_CRYPT_HEADER_WIDTH 1
+        #else
+            #define STM_CRYPT_HEADER_WIDTH 4
+        #endif
     #endif
 
     /* CRYPT_AES_GCM starts the IV with 2 */
