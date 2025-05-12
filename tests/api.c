@@ -27608,11 +27608,18 @@ static int test_sk_X509_CRL(void)
 #ifndef NO_ASN_TIME
     /* Test CRL with invalid GeneralizedTime */
     ExpectNotNull(bio = BIO_new_file("./certs/crl/bad_time_fmt.pem", "rb"));
-    ExpectNull(crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL));
+    ExpectNotNull(crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL));
     BIO_free(bio);
     bio = NULL;
- #endif /* NO_ASN_TIME */
-#endif
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(wolfSSL_X509_CRL_print(bio, crl), WOLFSSL_FAILURE);
+
+    BIO_free(bio);
+    bio = NULL;
+    wolfSSL_X509_CRL_free(crl);
+    crl = NULL;
+#endif /* !NO_ASN_TIME */
+#endif /* !NO_BIO */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     ExpectTrue((fp = XFOPEN("./certs/crl/crl.der", "rb")) != XBADFILE);
