@@ -24620,8 +24620,13 @@ int wolfSSL_StaticEphemeralKeyLoad(WOLFSSL* ssl, int keyAlgo, void* keyPtr)
             if (der != NULL) {
                 curve25519_key* key = (curve25519_key*)keyPtr;
                 WOLFSSL_MSG("Using static X25519 key");
-                ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx, key,
-                    der->length);
+
+            #ifdef WOLFSSL_CURVE25519_BLINDING
+                ret = wc_curve25519_set_rng(key, ssl->rng);
+                if (ret == 0)
+            #endif
+                    ret = wc_Curve25519PrivateKeyDecode(der->buffer, &idx, key,
+                        der->length);
             }
             break;
     #endif
