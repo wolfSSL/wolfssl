@@ -24628,59 +24628,60 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
  * @return BAD_FUNC_ARG if certDer is NULL, certSz is 0, or pubKeyDerSz is NULL
  * @return BUFFER_E if the provided buffer is too small
  */
-WOLFSSL_API int wc_ExportX509PubKeyWithSpki(const byte* certDer, word32 certSz,
-                                            byte*   pubKeyDer,
-                                            word32* pubKeyDerSz)
+WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
+                                                   word32 certSz,
+                                                   byte* pubKeyDer,
+                                                   word32* pubKeyDerSz)
 {
     DecodedCert cert;
     int         ret;
     word32      startIdx;
     word32      idx;
     word32      length;
-    int         badDate = 0;
+    int         badDate;
 
     if (certDer == NULL || certSz == 0 || pubKeyDerSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    /* Initialize decoded cert structure */
+    length = 0;
+    badDate = 0;
+
     wc_InitDecodedCert(&cert, certDer, certSz, NULL);
 
     /* Parse up to the SubjectPublicKeyInfo */
     ret = wc_GetPubX509(&cert, 0, &badDate);
-    if (ret < 0) {
-        wc_FreeDecodedCert(&cert);
-        return ret;
-    }
+    if (ret >= 0) {
+        /* Save the starting index of SubjectPublicKeyInfo */
+        startIdx = cert.srcIdx;
 
-    /* Save the starting index of SubjectPublicKeyInfo */
-    startIdx = cert.srcIdx;
+        /* Get the length of the SubjectPublicKeyInfo sequence */
+        idx = startIdx;
+        ret = GetSequence(certDer, &idx, (int*)&length, certSz);
+        if (ret >= 0) {
+            /* Calculate total length including sequence header */
+            length += (idx - startIdx);
 
-    /* Get the length of the SubjectPublicKeyInfo sequence */
-    idx = startIdx;
-    ret = GetSequence(certDer, &idx, (int*)&length, certSz);
-    if (ret < 0) {
-        wc_FreeDecodedCert(&cert);
-        return ret;
-    }
-
-    /* Calculate total length including sequence header */
-    length += (idx - startIdx);
-
-    /* Copy the SubjectPublicKeyInfo if buffer provided */
-    if (pubKeyDer != NULL) {
-        if (*pubKeyDerSz < (word32)length) {
-            wc_FreeDecodedCert(&cert);
-            return BUFFER_E;
+            /* Copy the SubjectPublicKeyInfo if buffer provided */
+            if (pubKeyDer != NULL) {
+                if (*pubKeyDerSz < (word32)length) {
+                    ret = BUFFER_E;
+                }
+                else {
+                    XMEMCPY(pubKeyDer, &certDer[startIdx], length);
+                }
+            }
         }
-        XMEMCPY(pubKeyDer, &certDer[startIdx], length);
     }
 
-    /* Return the size */
-    *pubKeyDerSz = length;
+    if (ret >= 0) {
+        ret = 0;
+    }
 
+    *pubKeyDerSz = length;
     wc_FreeDecodedCert(&cert);
-    return 0;
+
+    return ret;
 }
 
 

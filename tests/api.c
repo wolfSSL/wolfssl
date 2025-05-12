@@ -22755,7 +22755,7 @@ static int test_wc_GetPubKeyDerFromCert(void)
     return EXPECT_RESULT();
 }
 
-static int test_wc_ExportX509PubKeyWithSpki(void)
+static int test_wc_GetSubjectPubKeyInfoDerFromCert(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -22809,8 +22809,8 @@ static int test_wc_ExportX509PubKeyWithSpki(void)
 #endif
 
     /* good test case - RSA DER cert */
-    ExpectIntEQ(wc_ExportX509PubKeyWithSpki(rsaCertDer, rsaCertDerSz, keyDer,
-                                            &keyDerSz), 0);
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer, rsaCertDerSz,
+                                                   keyDer, &keyDerSz), 0);
     ExpectIntGT(keyDerSz, 0);
 
     /* sanity check, verify we can import DER public key */
@@ -22823,18 +22823,20 @@ static int test_wc_ExportX509PubKeyWithSpki(void)
 
     /* bad args: certDer */
     keyDerSz = (word32)sizeof(keyDer);
-    ExpectIntEQ(wc_ExportX509PubKeyWithSpki(NULL, rsaCertDerSz, keyDer,
-                                            &keyDerSz),
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(NULL, rsaCertDerSz, keyDer,
+                                                   &keyDerSz),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* bad args: 0 sized certSz */
     keyDerSz = (word32)sizeof(keyDer);
-    ExpectIntEQ(wc_ExportX509PubKeyWithSpki(rsaCertDer, 0, keyDer, &keyDerSz),
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer, 0, keyDer,
+                                                   &keyDerSz),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* bad args: NULL inout size */
-    ExpectIntEQ(ret = wc_ExportX509PubKeyWithSpki(rsaCertDer, rsaCertDerSz,
-                                                  keyDer, NULL),
+    ExpectIntEQ(ret = wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer,
+                                                         rsaCertDerSz, keyDer,
+                                                         NULL),
                 WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     /* Certificate Request Tests */
@@ -22849,8 +22851,10 @@ static int test_wc_ExportX509PubKeyWithSpki(void)
 
         /* good test case - RSA DER certificate request */
         keyDerSz = sizeof(keyDer);
-        ExpectIntEQ(ret = wc_ExportX509PubKeyWithSpki(rsaCertDer, rsaCertDerSz,
-                                                      keyDer, &keyDerSz), 0);
+        ExpectIntEQ(ret = wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer,
+                                                             rsaCertDerSz,
+                                                             keyDer,
+                                                             &keyDerSz), 0);
         ExpectIntGT(keyDerSz, 0);
 
         /* sanity check, verify we can import DER public key */
@@ -22878,8 +22882,8 @@ static int test_wc_ExportX509PubKeyWithSpki(void)
     /* good test case - ECC */
     XMEMSET(keyDer, 0, sizeof(keyDer));
     keyDerSz = sizeof(keyDer);
-    ExpectIntEQ(wc_ExportX509PubKeyWithSpki(eccCert, eccCertSz, keyDer,
-                                            &keyDerSz), 0);
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(eccCert, eccCertSz, keyDer,
+                                                   &keyDerSz), 0);
     ExpectIntGT(keyDerSz, 0);
 
     /* sanity check, verify we can import DER public key */
@@ -66987,7 +66991,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PubKeyPemToDer),
     TEST_DECL(test_wc_PemPubKeyToDer),
     TEST_DECL(test_wc_GetPubKeyDerFromCert),
-    TEST_DECL(test_wc_ExportX509PubKeyWithSpki),
+    TEST_DECL(test_wc_GetSubjectPubKeyInfoDerFromCert),
     TEST_DECL(test_wc_CheckCertSigPubKey),
 
     /* wolfCrypt ASN tests */
