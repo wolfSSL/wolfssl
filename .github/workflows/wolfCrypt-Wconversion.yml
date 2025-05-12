@@ -22,7 +22,8 @@ jobs:
           '--enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
           '--enable-smallstack --disable-asm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
           '--enable-smallstack --enable-intelasm --enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion"',
-          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"'
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion -DNO_INT128"',
+          '--enable-cryptonly --enable-all-crypto --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-Wdeclaration-after-statement -Wconversion -Warith-conversion -Wenum-conversion -Wfloat-conversion -Wsign-conversion" --enable-32bit CFLAGS=-m32'
         ]
     name: build library
     if: github.repository_owner == 'wolfssl'
@@ -32,6 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
+
+      - name: install_multilib
+        run: sudo apt-get install -y gcc-multilib
 
       - name: Build wolfCrypt with extra type conversion warnings
         run: |

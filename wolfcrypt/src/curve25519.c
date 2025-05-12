@@ -24,6 +24,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef NO_CURVED25519_X64
+    #undef USE_INTEL_SPEEDUP
+#endif
+
 #ifdef HAVE_CURVE25519
 
 #include <wolfssl/wolfcrypt/curve25519.h>

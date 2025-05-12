@@ -3826,7 +3826,7 @@ extern void uITRON4_free(void *p) ;
 /* Enable blinding by default for C-only, non-small curve25519 implementation */
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
     !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_ARMASM) && \
-    !defined(USE_INTEL_SPEEDUP) && \
+    (!defined(USE_INTEL_SPEEDUP) || defined(NO_CURVED25519_X64)) && \
     !defined(WOLFSSL_CURVE25519_BLINDING) && !defined(NO_CURVE25519_BLINDING)
     #define WOLFSSL_CURVE25519_BLINDING
 #endif
