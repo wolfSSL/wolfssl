@@ -6929,6 +6929,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.minDowngrade     = ctx->minDowngrade;
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
+#ifndef NO_CERTS
     /* Its possible that algorithm parameters were set in the ctx (ie: DH),
      * recalculate cipher suites. */
     if (ssl->options.haveDH) {
@@ -6949,6 +6950,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                    ssl->options.haveStaticECC, ssl->options.useAnon,
                    TRUE, TRUE, TRUE, TRUE, ssl->options.side);
     }
+#endif /* ! NO_CERTS */
     ssl->options.haveECDSAsig     = ctx->haveECDSAsig;
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
