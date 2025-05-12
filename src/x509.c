@@ -8895,7 +8895,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
         mp_int dec_num[1];
     #endif
 
-        if (ret == 0 & mp_init(dec_num) != MP_OKAY) {
+        if (ret == 0 && (mp_init(dec_num) != MP_OKAY)) {
              ret = MP_INIT_E;
         }
         else if (ret == 0) {
@@ -8932,7 +8932,7 @@ static int X509CRLPrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
 
         XMEMSET(tmp, 0, sizeof(tmp));
 
-        if (freeMP) {
+        if (freeMp) {
             mp_free(dec_num);
         }
 
