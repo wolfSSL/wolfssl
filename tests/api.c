@@ -68040,6 +68040,13 @@ TEST_CASE testCases[] = {
     /* Can't memory test as client/server hangs. */
     TEST_DECL(test_dtls_msg_from_other_peer),
     TEST_DECL(test_dtls_ipv6_check),
+    TEST_DECL(test_dtls_short_ciphertext),
+    TEST_DECL(test_dtls12_record_length_mismatch),
+    TEST_DECL(test_dtls12_short_read),
+    TEST_DECL(test_dtls13_longer_length),
+    TEST_DECL(test_dtls13_short_read),
+    TEST_DECL(test_records_span_network_boundaries),
+    TEST_DECL(test_dtls_record_cross_boundaries),
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
     TEST_DECL(test_dtls_no_extensions),
     TEST_DECL(test_tls_alert_no_server_hello),
