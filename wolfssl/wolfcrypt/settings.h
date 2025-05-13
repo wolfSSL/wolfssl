@@ -1270,11 +1270,11 @@
         #define TIME_OVERRIDES
         #ifndef XTIME
             #error "Must define XTIME externally see porting guide"
-            #error "https://www.wolfssl.com/docs/porting-guide/"
+            /* https://www.wolfssl.com/docs/porting-guide/ */
         #endif
         #ifndef XGMTIME
             #error "Must define XGMTIME externally see porting guide"
-            #error "https://www.wolfssl.com/docs/porting-guide/"
+            /* https://www.wolfssl.com/docs/porting-guide/ */
         #endif
     #endif
 
@@ -4377,14 +4377,17 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_HARDEN_TLS
     #if defined(HAVE_TRUNCATED_HMAC) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_TRUNCATED_HMAC)
-        #error "Truncated HMAC Extension not allowed https://www.rfc-editor.org/rfc/rfc9325#section-4.6"
+        #error "Truncated HMAC Extension not allowed"
+        /* https://www.rfc-editor.org/rfc/rfc9325#section-4.6 */
     #endif
     #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_HARDEN_TLS_ALLOW_OLD_TLS)
-        #error "TLS < 1.2 protocol versions not allowed https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1"
+        #error "TLS < 1.2 protocol versions not allowed"
+        /* https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1 */
     #endif
     #if !defined(WOLFSSL_NO_TLS12) && !defined(HAVE_SECURE_RENEGOTIATION) && \
         !defined(HAVE_SERVER_RENEGOTIATION_INFO) && !defined(WOLFSSL_HARDEN_TLS_NO_SCR_CHECK)
-        #error "TLS 1.2 requires at least HAVE_SERVER_RENEGOTIATION_INFO to send the secure renegotiation extension https://www.rfc-editor.org/rfc/rfc9325#section-3.5"
+        #error "TLS 1.2 requires at least HAVE_SERVER_RENEGOTIATION_INFO to send the secure renegotiation extension"
+        /* https://www.rfc-editor.org/rfc/rfc9325#section-3.5 */
     #endif
     #if !defined(WOLFSSL_EXTRA_ALERTS) || !defined(WOLFSSL_CHECK_ALERT_ON_ERR)
         #error "RFC9325 requires some additional alerts to be sent"
