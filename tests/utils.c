@@ -43,19 +43,28 @@ int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     struct test_memio_ctx *test_ctx;
     byte *buf;
     int *len;
+    int *msg_sizes;
+    int *msg_count;
 
     test_ctx = (struct test_memio_ctx*)ctx;
 
     if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
         buf = test_ctx->c_buff;
         len = &test_ctx->c_len;
+        msg_sizes = test_ctx->c_msg_sizes;
+        msg_count = &test_ctx->c_msg_count;
     }
     else {
         buf = test_ctx->s_buff;
         len = &test_ctx->s_len;
+        msg_sizes = test_ctx->s_msg_sizes;
+        msg_count = &test_ctx->s_msg_count;
     }
 
     if ((unsigned)(*len + sz) > TEST_MEMIO_BUF_SZ)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+
+    if (*msg_count >= TEST_MEMIO_MAX_MSGS)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
 #ifdef WOLFSSL_DUMP_MEMIO_STREAM
@@ -71,6 +80,8 @@ int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     }
 #endif
     XMEMCPY(buf + *len, data, (size_t)sz);
+    msg_sizes[*msg_count] = sz;
+    (*msg_count)++;
     *len += sz;
 
     return sz;
@@ -82,27 +93,64 @@ int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     int read_sz;
     byte *buf;
     int *len;
+    int *msg_sizes;
+    int *msg_count;
+    int *msg_pos;
+    int is_dtls;
 
     test_ctx = (struct test_memio_ctx*)ctx;
+    is_dtls = wolfSSL_dtls(ssl);
 
     if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
         buf = test_ctx->s_buff;
         len = &test_ctx->s_len;
+        msg_sizes = test_ctx->s_msg_sizes;
+        msg_count = &test_ctx->s_msg_count;
+        msg_pos = &test_ctx->s_msg_pos;
     }
     else {
         buf = test_ctx->c_buff;
         len = &test_ctx->c_len;
+        msg_sizes = test_ctx->c_msg_sizes;
+        msg_count = &test_ctx->c_msg_count;
+        msg_pos = &test_ctx->c_msg_pos;
     }
 
-    if (*len == 0)
+    if (*len == 0 || *msg_pos >= *msg_count)
         return WOLFSSL_CBIO_ERR_WANT_READ;
 
-    read_sz = sz < *len ? sz : *len;
+    /* Calculate how much we can read from current message */
+    read_sz = msg_sizes[*msg_pos];
+    if (read_sz > sz)
+        read_sz = sz;
 
+    if (read_sz > *len) {
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    /* Copy data from current message */
     XMEMCPY(data, buf, (size_t)read_sz);
-    XMEMMOVE(buf, buf + read_sz,(size_t) (*len - read_sz));
-
+    /* remove the read data from the buffer */
+    XMEMMOVE(buf, buf + read_sz, (size_t)(*len - read_sz));
     *len -= read_sz;
+    msg_sizes[*msg_pos] -= read_sz;
+
+    /* if we are on dtls, discard the rest of the message */
+    if (is_dtls && msg_sizes[*msg_pos] > 0) {
+        XMEMMOVE(buf, buf + msg_sizes[*msg_pos], (size_t)(*len - msg_sizes[*msg_pos]));
+        *len -= msg_sizes[*msg_pos];
+        msg_sizes[*msg_pos] = 0;
+    }
+
+    /* If we've read the entire message */
+    if (msg_sizes[*msg_pos] == 0) {
+        /* Move to next message */
+        (*msg_pos)++;
+        if (*msg_pos >= *msg_count) {
+            *msg_pos = 0;
+            *msg_count = 0;
+        }
+    }
 
     return read_sz;
 }
@@ -251,6 +299,190 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
     return 0;
 }
 
+void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client)
+{
+    if (is_client) {
+        ctx->c_len = 0;
+        ctx->c_msg_pos = 0;
+        ctx->c_msg_count = 0;
+    } else {
+        ctx->s_len = 0;
+        ctx->s_msg_pos = 0;
+        ctx->s_msg_count = 0;
+    }
+}
+
+int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
+    const char* data, int sz)
+{
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
+    byte* buff;
+
+    if (client) {
+        buff = ctx->c_buff;
+        len = &ctx->c_len;
+        msg_count = &ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    }
+    else {
+        buff = ctx->s_buff;
+        len = &ctx->s_len;
+        msg_count = &ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (*len + sz > TEST_MEMIO_BUF_SZ) {
+        return -1;
+    }
+    if (*msg_count >= TEST_MEMIO_MAX_MSGS) {
+        return -1;
+    }
+    XMEMCPY(buff + *len, data, (size_t)sz);
+    msg_sizes[*msg_count] = sz;
+    (*msg_count)++;
+    *len += sz;
+    return 0;
+}
+
+int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
+{
+    int *len;
+    int *msg_count;
+    int *msg_sizes;
+    int msg_off, msg_sz;
+    int i;
+    byte *buff;
+    if (client) {
+        buff = ctx->c_buff;
+        len = &ctx->c_len;
+        msg_count = &ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    } else {
+        buff = ctx->s_buff;
+        len = &ctx->s_len;
+        msg_count = &ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (*msg_count == 0) {
+        return -1;
+    }
+    msg_off = 0;
+    if (msg_pos >= *msg_count) {
+        return -1;
+    }
+    msg_sz = msg_sizes[msg_pos];
+    for (i = 0; i < msg_pos; i++) {
+        msg_off += msg_sizes[i];
+    }
+    XMEMMOVE(buff + msg_off, buff + msg_off + msg_sz, *len - msg_off - msg_sz);
+    for (i = msg_pos; i < *msg_count - 1; i++) {
+        msg_sizes[i] = msg_sizes[i + 1];
+    }
+    *len -= msg_sz;
+    (*msg_count)--;
+    return 0;
+}
+
+int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
+    int off, int sz)
+{
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
+    int msg_off;
+    int i;
+    byte* buff;
+
+    if (client) {
+        buff = ctx->c_buff;
+        len = &ctx->c_len;
+        msg_count = &ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    }
+    else {
+        buff = ctx->s_buff;
+        len = &ctx->s_len;
+        msg_count = &ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (*len == 0) {
+        return -1;
+    }
+    if (off >= *len) {
+        return -1;
+    }
+    if (off + sz > *len) {
+        return -1;
+    }
+    /* find which message the offset is in */
+    msg_off = 0;
+    for (i = 0; i < *msg_count; i++) {
+        if (off >= msg_off && off < msg_off + msg_sizes[i]) {
+            break;
+        }
+        msg_off += msg_sizes[i];
+    }
+    /* don't support records that are split across messages */
+    if (off + sz > msg_off + msg_sizes[i]) {
+        return -1;
+    }
+    if (i == *msg_count) {
+        return -1;
+    }
+    if (sz == msg_sizes[i]) {
+        return test_memio_drop_message(ctx, client, i);
+    }
+    XMEMMOVE(buff + off, buff + off + sz, *len - off - sz);
+    msg_sizes[i] -= sz;
+    *len -= sz;
+    return 0;
+}
+
+int test_memio_modify_message_len(struct test_memio_ctx* ctx, int client,
+    int msg_pos, int new_len)
+{
+    int* len;
+    int* msg_count;
+    int* msg_sizes;
+    int msg_off, msg_sz;
+    int i;
+    byte* buff;
+    if (client) {
+        buff = ctx->c_buff;
+        len = &ctx->c_len;
+        msg_count = &ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    }
+    else {
+        buff = ctx->s_buff;
+        len = &ctx->s_len;
+        msg_count = &ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (*msg_count == 0) {
+        return -1;
+    }
+    if (msg_pos >= *msg_count) {
+        return -1;
+    }
+    msg_off = 0;
+    for (i = 0; i < msg_pos; i++) {
+        msg_off += msg_sizes[i];
+    }
+    msg_sz = msg_sizes[msg_pos];
+    if (new_len > msg_sz) {
+        if (*len + (new_len - msg_sz) > TEST_MEMIO_BUF_SZ) {
+            return -1;
+        }
+    }
+    XMEMMOVE(buff + msg_off + new_len, buff + msg_off + msg_sz,
+        *len - msg_off - msg_sz);
+    msg_sizes[msg_pos] = new_len;
+    *len = *len - msg_sz + new_len;
+    return 0;
+}
+
 int test_memio_setup(struct test_memio_ctx *ctx,
     WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
     method_provider method_c, method_provider method_s)
@@ -260,4 +492,3 @@ int test_memio_setup(struct test_memio_ctx *ctx,
 }
 
 #endif /* HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES */
-
