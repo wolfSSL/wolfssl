@@ -140,7 +140,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNull(CLIENT_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNull(CLIENT_CID());
             }
@@ -156,7 +157,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNull(CLIENT_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNull(CLIENT_CID());
             }
@@ -166,7 +168,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNull(SERVER_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
                 ExpectNull(SERVER_CID());
             }
@@ -176,7 +179,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNotNull(CLIENT_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNotNull(CLIENT_CID());
             }
@@ -185,7 +189,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
             ExpectNotNull(SERVER_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
                 ExpectNotNull(SERVER_CID());
             }
@@ -296,7 +301,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectNotNull(SERVER_CID());
             ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_s), 1);
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
                 ExpectNotNull(SERVER_CID());
             }
@@ -309,7 +315,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectNotNull(CLIENT_CID());
             ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_c), 1);
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNotNull(CLIENT_CID());
             }
@@ -319,7 +326,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNotNull(SERVER_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
                 ExpectNotNull(SERVER_CID());
             }
@@ -329,7 +337,8 @@ int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
             ExpectNotNull(CLIENT_CID());
             if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
+                test_memio_clear_buffer(&test_ctx, 0);
+                test_memio_clear_buffer(&test_ctx, 1);
                 ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
                 ExpectNotNull(CLIENT_CID());
             }
@@ -337,8 +346,7 @@ int test_dtls12_basic_connection_id(void)
                     (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             /* Server second flight */
             wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), APP_DATA_READY);
+            ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
             XMEMSET(readBuf, 0, sizeof(readBuf));
             ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
                     XSTRLEN(params[i]));
@@ -347,19 +355,11 @@ int test_dtls12_basic_connection_id(void)
                 ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
                         (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
             }
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-            ExpectNotNull(SERVER_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNotNull(SERVER_CID());
-            }
             /* Test loading old epoch */
             /* Client complete connection */
             wolfSSL_SetLoggingPrefix("client");
             if (!run_params[j].drop) {
-                ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
+                ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
                 XMEMSET(readBuf, 0, sizeof(readBuf));
                 ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
                         XSTRLEN(params[i]));
