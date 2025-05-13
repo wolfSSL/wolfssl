@@ -21827,6 +21827,125 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
     }
 }
 #endif
+static int DoDecrypt(WOLFSSL *ssl)
+{
+    int ret;
+    int atomicUser = 0;
+    bufferStatic* in = &ssl->buffers.inputBuffer;
+
+#ifdef ATOMIC_USER
+    if (ssl->ctx->DecryptVerifyCb)
+        atomicUser = 1;
+#endif
+
+    ret = SanityCheckCipherText(ssl, ssl->curSize);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (atomicUser) {
+#ifdef ATOMIC_USER
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead) {
+            ret = ssl->ctx->VerifyDecryptCb(ssl,
+                            in->buffer + in->idx, in->buffer + in->idx,
+                            ssl->curSize - MacSize(ssl),
+                            ssl->curRL.type, 1, &ssl->keys.padSz,
+                            ssl->DecryptVerifyCtx);
+        }
+        else
+#endif
+        {
+            ret = ssl->ctx->DecryptVerifyCb(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize, ssl->curRL.type, 1,
+                            &ssl->keys.padSz, ssl->DecryptVerifyCtx);
+        }
+#endif /* ATOMIC_USER */
+    }
+    else {
+        if (!ssl->options.tls1_3) {
+#ifndef WOLFSSL_NO_TLS12
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead) {
+            word32 digestSz = MacSize(ssl);
+            ret = DecryptTls(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize - (word16)digestSz);
+            if (ret == 0) {
+                byte invalid = 0;
+                byte padding = (byte)-1;
+                word32 i;
+                word32 off = in->idx + ssl->curSize - digestSz - 1;
+
+                /* Last of padding bytes - indicates length. */
+                ssl->keys.padSz = in->buffer[off];
+                /* Constant time checking of padding - don't leak
+                    * the length of the data.
+                    */
+                /* Compare max pad bytes or at most data + pad. */
+                for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
+                    /* Mask on indicates this is expected to be a
+                        * padding byte.
+                        */
+                    padding &= ctMaskLTE((int)i,
+                                            (int)ssl->keys.padSz);
+                    /* When this is a padding byte and not equal
+                        * to length then mask is set.
+                        */
+                    invalid |= padding &
+                                ctMaskNotEq(in->buffer[off - i],
+                                            (int)ssl->keys.padSz);
+                }
+                /* If mask is set then there was an error. */
+                if (invalid) {
+                    ret = DECRYPT_ERROR;
+                }
+                ssl->keys.padSz += 1;
+                ssl->keys.decryptedCur = 1;
+            }
+        }
+        else
+#endif
+        {
+            ret = DecryptTls(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize);
+        }
+#else
+            ret = DECRYPT_ERROR;
+#endif
+        }
+        else
+        {
+    #ifdef WOLFSSL_TLS13
+            byte *aad = (byte*)&ssl->curRL;
+            word16 aad_size = RECORD_HEADER_SZ;
+        #ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                /* aad now points to the record header */
+                aad = ssl->dtls13CurRL;
+                aad_size = ssl->dtls13CurRlLength;
+            }
+        #endif /* WOLFSSL_DTLS13 */
+            /* Don't send an alert for DTLS. We will just drop it
+                * silently later. */
+            ret = DecryptTls13(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize,
+                            aad, aad_size);
+    #else
+            ret = DECRYPT_ERROR;
+    #endif /* WOLFSSL_TLS13 */
+        }
+        (void)in;
+    }
+    return ret;
+}
 
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
@@ -22183,118 +22302,7 @@ default:
                                         (!IsAtLeastTLSv1_3(ssl->version) ||
                                          ssl->curRL.type != change_cipher_spec))
             {
-                bufferStatic* in = &ssl->buffers.inputBuffer;
-
-                ret = SanityCheckCipherText(ssl, ssl->curSize);
-                if (ret < 0) {
-                #ifdef WOLFSSL_EXTRA_ALERTS
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                #endif
-                    return ret;
-                }
-
-                if (atomicUser) {
-        #ifdef ATOMIC_USER
-            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead) {
-                        ret = ssl->ctx->VerifyDecryptCb(ssl,
-                                     in->buffer + in->idx, in->buffer + in->idx,
-                                     ssl->curSize - MacSize(ssl),
-                                     ssl->curRL.type, 1, &ssl->keys.padSz,
-                                     ssl->DecryptVerifyCtx);
-                    }
-                    else
-            #endif
-                    {
-                        ret = ssl->ctx->DecryptVerifyCb(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize, ssl->curRL.type, 1,
-                                      &ssl->keys.padSz, ssl->DecryptVerifyCtx);
-                    }
-        #endif /* ATOMIC_USER */
-                }
-                else {
-                    if (!ssl->options.tls1_3) {
-        #ifndef WOLFSSL_NO_TLS12
-            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead) {
-                        word32 digestSz = MacSize(ssl);
-                        ret = DecryptTls(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize - (word16)digestSz);
-                        if (ret == 0) {
-                            byte invalid = 0;
-                            byte padding = (byte)-1;
-                            word32 i;
-                            word32 off = in->idx + ssl->curSize - digestSz - 1;
-
-                            /* Last of padding bytes - indicates length. */
-                            ssl->keys.padSz = in->buffer[off];
-                            /* Constant time checking of padding - don't leak
-                             * the length of the data.
-                             */
-                            /* Compare max pad bytes or at most data + pad. */
-                            for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
-                                /* Mask on indicates this is expected to be a
-                                 * padding byte.
-                                 */
-                                padding &= ctMaskLTE((int)i,
-                                                       (int)ssl->keys.padSz);
-                                /* When this is a padding byte and not equal
-                                 * to length then mask is set.
-                                 */
-                                invalid |= padding &
-                                           ctMaskNotEq(in->buffer[off - i],
-                                                       (int)ssl->keys.padSz);
-                            }
-                            /* If mask is set then there was an error. */
-                            if (invalid) {
-                                ret = DECRYPT_ERROR;
-                            }
-                            ssl->keys.padSz += 1;
-                            ssl->keys.decryptedCur = 1;
-                        }
-                    }
-                    else
-            #endif
-                    {
-                        ret = DecryptTls(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize);
-                    }
-        #else
-                        ret = DECRYPT_ERROR;
-        #endif
-                    }
-                    else
-                    {
-                #ifdef WOLFSSL_TLS13
-                        byte *aad = (byte*)&ssl->curRL;
-                        word16 aad_size = RECORD_HEADER_SZ;
-                    #ifdef WOLFSSL_DTLS13
-                        if (ssl->options.dtls) {
-                            /* aad now points to the record header */
-                            aad = ssl->dtls13CurRL;
-                            aad_size = ssl->dtls13CurRlLength;
-                        }
-                    #endif /* WOLFSSL_DTLS13 */
-                        /* Don't send an alert for DTLS. We will just drop it
-                         * silently later. */
-                        ret = DecryptTls13(ssl,
-                                        in->buffer + in->idx,
-                                        in->buffer + in->idx,
-                                        ssl->curSize,
-                                        aad, aad_size);
-                #else
-                        ret = DECRYPT_ERROR;
-                #endif /* WOLFSSL_TLS13 */
-                    }
-                    (void)in;
-                }
-
+                ret = DoDecrypt(ssl);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
