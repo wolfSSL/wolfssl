@@ -8899,13 +8899,14 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
     if ((authInSz > 0) && (authInSz < 16)) {
         authPadSz = 16 - authInSz;
     }
-#endif
+#else
     if (authPadSz != 0) {
         authPadSz = authInSz + STM_CRYPT_HEADER_WIDTH - authPadSz;
     }
     else {
         authPadSz = authInSz;
     }
+#endif
 
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
