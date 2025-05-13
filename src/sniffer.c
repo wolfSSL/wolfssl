@@ -5129,6 +5129,12 @@ static void RemoveStaleSessions(void)
     }
 }
 
+void ssl_RemoveStaleSessions(void)
+{
+    LOCK_SESSION();
+    RemoveStaleSessions();
+    UNLOCK_SESSION();
+}
 
 /* Create a new Sniffer Session */
 static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,

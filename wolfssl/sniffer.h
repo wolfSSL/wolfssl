@@ -150,6 +150,8 @@ SSL_SNIFFER_API void ssl_InitSniffer_ex2(int threadNum);
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_FreeSniffer(void);
 
+WOLFSSL_API
+SSL_SNIFFER_API void ssl_RemoveStaleSessions(void);
 
 /* ssl_SetPrivateKey typeKs */
 enum {
