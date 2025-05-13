@@ -220,6 +220,7 @@ enum wolfSSL_ErrorCodes {
     POST_HAND_AUTH_ERROR         = -504,   /* client won't do post-hand auth */
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
     UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
+    DTLS_PARTIAL_RECORD_READ     = -455,   /* received a partial record in a datagram */
 
     /* PEM and EVP errors */
     WOLFSSL_PEM_R_NO_START_LINE_E = -507,
