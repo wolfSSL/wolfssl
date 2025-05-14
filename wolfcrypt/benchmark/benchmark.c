@@ -1124,6 +1124,7 @@ static const bench_pq_hash_sig_alg bench_pq_hash_sig_opt[] = {
 };
 #endif /* BENCH_PQ_STATEFUL_HBS */
 
+#ifndef WOLFSSL_BENCHMARK_ALL
 #if defined(WOLFSSL_HAVE_MLKEM) || defined(HAVE_FALCON) || \
     defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)
 /* The post-quantum-specific mapping of command line option to bit values and
@@ -1179,6 +1180,8 @@ static const bench_pq_alg bench_pq_asym_opt2[] = {
     { NULL, 0, }
 };
 #endif /* HAVE_SPHINCS */
+#endif
+
 #endif
 
 #ifdef HAVE_WNR
