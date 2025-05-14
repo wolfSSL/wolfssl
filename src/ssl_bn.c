@@ -1161,7 +1161,7 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
 /* Same as above, but compare absolute value. */
 int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
 {
-    int ret;
+    int ret = 0;
     int bIsNull;
 
     WOLFSSL_ENTER("wolfSSL_BN_ucmp");
@@ -1183,31 +1183,27 @@ int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
         ret = 1;
     }
     else {
-        /* Neither are NULL; switch to positive if required, compare, and then
-         * swtich back if required. wolfssl_bn_set_neg() only returns -1 if the
-         * bn is NULL, but we already check that so we can ignore the return
-         * code. */
-        int aIsNeg = 0;
-        int bIsNeg = 0;
-        if (wolfSSL_BN_is_negative(a)) {
-            aIsNeg = 1;
-            wolfssl_bn_set_neg(a, 0);
-        }
+        /* Neither are NULL; copy to new instances and switch to positive if
+         * required, compare, and then free.  Must copy because there is
+         * possibility of switch to positive but they are declared const. 
+         * wolfssl_bn_set_neg() only returns -1 if the bn is NULL, but we
+         * already check that so we can ignore the return code. Note for
+         * wolfSSL_BN_is_negative if n=1 then set to positive. */
+        WOLFSSL_BIGNUM* abs_a = wolfSSL_BN_dup(a);
+        WOLFSSL_BIGNUM* abs_b = wolfSSL_BN_dup(b);
+        if ((abs_a != NULL) && (abs_b != NULL)) {
+            if (wolfSSL_BN_is_negative(abs_a)) {
+                wolfssl_bn_set_neg(abs_a, 1);
+            }
 
-        if (wolfSSL_BN_is_negative(b)) {
-            bIsNeg = 1;
-            wolfssl_bn_set_neg(b, 0);
-        }
+            if (wolfSSL_BN_is_negative(abs_b)) {
+                wolfssl_bn_set_neg(abs_b, 1);
+            }
 
-        ret = wolfSSL_BN_cmp(a, b);
-
-        if (aIsNeg) {
-            wolfssl_bn_set_neg(a, 1);
+            ret = wolfSSL_BN_cmp(abs_a, abs_b);
         }
-
-        if (bIsNeg) {
-            wolfssl_bn_set_neg(b, 1);
-        }
+        wolfSSL_BN_free(abs_a);
+        wolfSSL_BN_free(abs_b);
     }
     return ret;
 }

@@ -2541,7 +2541,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA)
     ctx->padding = WC_RSA_PKCS1_PADDING;
     ctx->md = NULL;
-    ctx->mfg1_md = NULL;
+    ctx->mgf1_md = NULL;
     ctx->saltlen = 0;
 #endif
 #ifdef HAVE_ECC
@@ -2615,7 +2615,7 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md");
 #ifndef NO_RSA
-    ctx->mfg1_md = md;
+    ctx->mgf1_md = md;
 #else
     void(saltlen);
 #endif
@@ -3334,7 +3334,6 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             int ret;
             unsigned char *encodedSig = NULL;
             int emLen = wolfSSL_RSA_size(ctx->pkey->rsa);
-            int hashLen = wolfSSL_EVP_MD_size(ctx->md);
             int saltLen = ctx->saltlen;
             const WOLFSSL_EVP_MD *mgf1Hash = ctx->mgf1_md;
 

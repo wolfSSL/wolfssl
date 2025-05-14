@@ -31915,7 +31915,6 @@ static int test_wolfSSL_X509_stack_extensions(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA)
-    int ret = 0;
     WOLFSSL_X509* x509 = NULL;
     const WOLFSSL_STACK* ext_stack = NULL;
     WOLFSSL_X509_EXTENSION* ext = NULL;

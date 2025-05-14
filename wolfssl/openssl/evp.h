@@ -752,7 +752,7 @@ struct WOLFSSL_EVP_PKEY_CTX {
 #endif
 #ifndef NO_RSA
     const WOLFSSL_EVP_MD* md;
-    const WOLFSSL_EVP_MD* mfg1_md;
+    const WOLFSSL_EVP_MD* mgf1_md;
     int saltlen;
 #endif
 };
