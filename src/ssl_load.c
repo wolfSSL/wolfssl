@@ -2352,11 +2352,13 @@ static int ProcessBufferResetSuites(WOLFSSL_CTX* ctx, WOLFSSL* ssl, int type)
  * @param [out]     used       Number of bytes consumed.
  * @param [in[      userChain  Whether this certificate is for user's chain.
  * @param [in]      verify     How to verify certificate.
+ * @param [in]      source_name Associated filename or other source ID.
  * @return  1 on success.
  * @return  Less than 1 on failure.
  */
 int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
-    int format, int type, WOLFSSL* ssl, long* used, int userChain, int verify)
+    int format, int type, WOLFSSL* ssl, long* used, int userChain, int verify,
+    const char *source_name)
 {
     DerBuffer*    der = NULL;
     int           ret = 0;
@@ -2367,6 +2369,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     EncryptedInfo  info[1];
 #endif
     int           algId = 0;
+#ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
+    long usedAtStart = used ? *used : 0L;
+#else
+    (void)source_name;
+#endif
 
     WOLFSSL_ENTER("ProcessBuffer");
 
@@ -2444,6 +2451,22 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
                 CLEAR_ASN_NO_PEM_HEADER_ERROR(pemErr);
                 ret = 0;
             }
+#ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
+            if (ret < 0) {
+#ifdef NO_ERROR_STRINGS
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: ProcessUserChain: certificate from %s at offset %ld"
+                    " rejected with code %d\n",
+                    source_name, usedAtStart, ret);
+#else
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: ProcessUserChain: certificate from %s at offset %ld"
+                    " rejected with code %d: %s\n",
+                    source_name, usedAtStart, ret,
+                    wolfSSL_ERR_reason_error_string(ret));
+#endif
+            }
+#endif /* WOLFSSL_DEBUG_CERTIFICATE_LOADS */
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -2455,6 +2478,22 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
             /* Process the different types of certificates. */
             ret = ProcessBufferCertTypes(ctx, ssl, buff, sz, der, format, type,
                 verify);
+#ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
+            if (ret < 0) {
+#ifdef NO_ERROR_STRINGS
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: ProcessBufferCertTypes: certificate from %s at"
+                    " offset %ld rejected with code %d\n",
+                    source_name, usedAtStart, ret);
+#else
+                WOLFSSL_DEBUG_PRINTF(
+                    "ERROR: ProcessBufferCertTypes: certificate from %s at"
+                    " offset %ld rejected with code %d: %s\n",
+                    source_name, usedAtStart, ret,
+                    wolfSSL_ERR_reason_error_string(ret));
+#endif
+            }
+#endif /* WOLFSSL_DEBUG_CERTIFICATE_LOADS */
         }
         else {
             FreeDer(&der);
@@ -2515,12 +2554,14 @@ static int ProcessChainBufferCRL(WOLFSSL_CTX* ctx, const unsigned char* buff,
  * @param [in]      sz      Size of data in buffer.
  * @param [in]      type    Type of data.
  * @param [in]      verify  How to verify certificate.
+ * @param [in]      source_name   Associated filename or other source ID.
  * @return  1 on success.
  * @return  0 on failure.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 static int ProcessChainBuffer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
-    const unsigned char* buff, long sz, int type, int verify)
+    const unsigned char* buff, long sz, int type, int verify,
+    const char *source_name)
 {
     int  ret    = 0;
     long used   = 0;
@@ -2529,11 +2570,11 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     WOLFSSL_MSG("Processing CA PEM file");
     /* Keep processing file while no errors and data to parse. */
     while ((ret >= 0) && (used < sz)) {
-        long consumed = 0;
+        long consumed = used;
 
         /* Process the buffer. */
         ret = ProcessBuffer(ctx, buff + used, sz - used, WOLFSSL_FILETYPE_PEM,
-            type, ssl, &consumed, 0, verify);
+            type, ssl, &consumed, 0, verify, source_name);
         /* Memory allocation failure is fatal. */
         if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
             gotOne = 0;
@@ -2665,6 +2706,12 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         {
             /* Not a header that we support. */
             WOLFSSL_MSG("Failed to detect certificate type");
+#ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
+            WOLFSSL_DEBUG_PRINTF(
+                "ERROR: ProcessFile: Failed to detect certificate type"
+                " of \"%s\"\n",
+                fname);
+#endif
             ret = WOLFSSL_BAD_CERTTYPE;
         }
     }
@@ -2673,7 +2720,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         if (((type == CA_TYPE) || (type == TRUSTED_PEER_TYPE)) &&
                 (format == WOLFSSL_FILETYPE_PEM)) {
             ret = ProcessChainBuffer(ctx, ssl, content.buffer, sz, type,
-                verify);
+                verify, fname);
         }
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE) {
@@ -2690,18 +2737,18 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
             long consumed = 0;
 
             ret = ProcessBuffer(ctx, content.buffer, sz, format, type, ssl,
-                &consumed, userChain, verify);
+                &consumed, userChain, verify, fname);
             if ((ret == 1) && (consumed < sz)) {
                 ret = ProcessBuffer(ctx, content.buffer + consumed,
                     sz - consumed, format, ALT_PRIVATEKEY_TYPE, ssl, NULL, 0,
-                    verify);
+                    verify, fname);
             }
         }
 #endif
         else {
             /* Load all other certificate types. */
             ret = ProcessBuffer(ctx, content.buffer, sz, format, type, ssl,
-                NULL, userChain, verify);
+                NULL, userChain, verify, fname);
         }
     }
 
@@ -3030,7 +3077,8 @@ static int LoadSystemCaCertsWindows(WOLFSSL_CTX* ctx, byte* loaded)
                     if (ProcessBuffer(ctx, certCtx->pbCertEncoded,
                           certCtx->cbCertEncoded, WOLFSSL_FILETYPE_ASN1,
                           CA_TYPE, NULL, NULL, 0,
-                          GET_VERIFY_SETTING_CTX(ctx)) == 1) {
+                          GET_VERIFY_SETTING_CTX(ctx),
+                          storeNames[i]) == 1) {
                         /*
                          * Set "loaded" as long as we've loaded one CA
                          * cert.
@@ -3105,7 +3153,8 @@ static int LoadSystemCaCertsMac(WOLFSSL_CTX* ctx, byte* loaded)
                     if (ProcessBuffer(ctx, CFDataGetBytePtr(der),
                           CFDataGetLength(der), WOLFSSL_FILETYPE_ASN1,
                           CA_TYPE, NULL, NULL, 0,
-                          GET_VERIFY_SETTING_CTX(ctx)) == 1) {
+                          GET_VERIFY_SETTING_CTX(ctx),
+                          "MacOSX trustDomains") == 1) {
                         /*
                          * Set "loaded" as long as we've loaded one CA
                          * cert.
@@ -3644,7 +3693,8 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
         /* Get DER encoded certificate data from X509 object. */
         ret = ProcessBuffer(NULL, x509->derCert->buffer, x509->derCert->length,
             WOLFSSL_FILETYPE_ASN1, CERT_TYPE, ssl, &idx, 0,
-            GET_VERIFY_SETTING_SSL(ssl));
+            GET_VERIFY_SETTING_SSL(ssl),
+            "x509 buffer");
     }
 
     /* Return 1 on success or 0 on failure. */
@@ -3676,7 +3726,8 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
         long idx = 0;
 
         ret = ProcessBuffer(NULL, der, derSz, WOLFSSL_FILETYPE_ASN1, CERT_TYPE,
-            ssl, &idx, 0, GET_VERIFY_SETTING_SSL(ssl));
+            ssl, &idx, 0, GET_VERIFY_SETTING_SSL(ssl),
+            "asn1 buffer");
     }
 
     /* Return 1 on success or 0 on failure. */
@@ -3884,12 +3935,13 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
 
     /* When PEM, treat as certificate chain of CA certificates. */
     if (format == WOLFSSL_FILETYPE_PEM) {
-        ret = ProcessChainBuffer(ctx, NULL, in, sz, CA_TYPE, verify);
+        ret = ProcessChainBuffer(ctx, NULL, in, sz, CA_TYPE, verify,
+                                 "PEM buffer");
     }
     /* When DER, load the CA certificate. */
     else {
         ret = ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL, NULL,
-            userChain, verify);
+            userChain, verify, "buffer");
     }
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
     if (ret == 1) {
@@ -3973,12 +4025,12 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
         /* When PEM, treat as certificate chain of trusted peer certificates. */
         if (format == WOLFSSL_FILETYPE_PEM) {
             ret = ProcessChainBuffer(ctx, NULL, in, sz, TRUSTED_PEER_TYPE,
-                verify);
+                verify, "peer");
         }
         /* When DER, load the trusted peer certificate. */
         else {
             ret = ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
-                NULL, 0, verify);
+                NULL, 0, verify, "peer");
         }
     }
 
@@ -4004,7 +4056,7 @@ int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_buffer");
     ret = ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 0,
-        GET_VERIFY_SETTING_CTX(ctx));
+        GET_VERIFY_SETTING_CTX(ctx), "buffer");
     WOLFSSL_LEAVE("wolfSSL_CTX_use_certificate_buffer", ret);
 
     return ret;
@@ -4030,7 +4082,7 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_buffer");
 
     ret = ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL, &consumed,
-        0, GET_VERIFY_SETTING_CTX(ctx));
+        0, GET_VERIFY_SETTING_CTX(ctx), "key buffer");
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if ((ret == 1) && (consumed < sz)) {
         /* When support for dual algorithm certificates is enabled, the
@@ -4038,7 +4090,8 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
          * private key. Hence, we have to parse both of them.
          */
         ret = ProcessBuffer(ctx, in + consumed, sz - consumed, format,
-            ALT_PRIVATEKEY_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
+            ALT_PRIVATEKEY_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx),
+            "key buffer");
     }
 #endif
 
@@ -4056,7 +4109,7 @@ int wolfSSL_CTX_use_AltPrivateKey_buffer(WOLFSSL_CTX* ctx,
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_AltPrivateKey_buffer");
     ret = ProcessBuffer(ctx, in, sz, format, ALT_PRIVATEKEY_TYPE, NULL,
-        NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
+        NULL, 0, GET_VERIFY_SETTING_CTX(ctx), "alt key buffer");
     WOLFSSL_LEAVE("wolfSSL_CTX_use_AltPrivateKey_buffer", ret);
 
     return ret;
@@ -4271,7 +4324,8 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
     }
 
     ret = ProcessBuffer(ctx, certData, certDataLen, certFormat,
-        CERT_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
+        CERT_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx),
+        label ? label : "cert buffer");
 
 exit:
     XFREE(certData, ctx->heap, DYNAMIC_TYPE_CERT);
@@ -4333,7 +4387,7 @@ int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
 {
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer_format");
     return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 1,
-        GET_VERIFY_SETTING_CTX(ctx));
+        GET_VERIFY_SETTING_CTX(ctx), "cert chain buffer");
 }
 
 /* Load a PEM encoded certificate chain in a buffer into SSL context.
@@ -4376,7 +4430,7 @@ int wolfSSL_use_certificate_buffer(WOLFSSL* ssl, const unsigned char* in,
     }
     else {
         ret = ProcessBuffer(ssl->ctx, in, sz, format, CERT_TYPE, ssl, NULL, 0,
-            GET_VERIFY_SETTING_SSL(ssl));
+            GET_VERIFY_SETTING_SSL(ssl), "cert buffer");
     }
 
     return ret;
@@ -4407,7 +4461,7 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
     }
     else {
         ret = ProcessBuffer(ssl->ctx, in, sz, format, PRIVATEKEY_TYPE, ssl,
-            &consumed, 0, GET_VERIFY_SETTING_SSL(ssl));
+            &consumed, 0, GET_VERIFY_SETTING_SSL(ssl), "key buffer");
     #ifdef WOLFSSL_DUAL_ALG_CERTS
         if ((ret == 1) && (consumed < sz)) {
             /* When support for dual algorithm certificates is enabled, the
@@ -4415,7 +4469,8 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
              * private key. Hence, we have to parse both of them.
              */
             ret = ProcessBuffer(ssl->ctx, in + consumed, sz - consumed, format,
-                ALT_PRIVATEKEY_TYPE, ssl, NULL, 0, GET_VERIFY_SETTING_SSL(ssl));
+                ALT_PRIVATEKEY_TYPE, ssl, NULL, 0, GET_VERIFY_SETTING_SSL(ssl),
+                "key buffer");
         }
     #endif
     }
@@ -4431,7 +4486,7 @@ int wolfSSL_use_AltPrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     WOLFSSL_ENTER("wolfSSL_use_AltPrivateKey_buffer");
     ret = ProcessBuffer(ssl->ctx, in, sz, format, ALT_PRIVATEKEY_TYPE, ssl,
-        NULL, 0, GET_VERIFY_SETTING_SSL(ssl));
+        NULL, 0, GET_VERIFY_SETTING_SSL(ssl), "alt key buffer");
     WOLFSSL_LEAVE("wolfSSL_use_AltPrivateKey_buffer", ret);
 
     return ret;
@@ -4669,7 +4724,7 @@ int wolfSSL_use_certificate_chain_buffer_format(WOLFSSL* ssl,
     }
     else {
         ret = ProcessBuffer(ssl->ctx, in, sz, format, CERT_TYPE, ssl, NULL, 1,
-            GET_VERIFY_SETTING_SSL(ssl));
+            GET_VERIFY_SETTING_SSL(ssl), "cert chain buffer");
     }
 
     return ret;
@@ -4826,7 +4881,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
 
         /* Process buffer makes first certificate the leaf. */
         ret = ProcessBuffer(ctx, der, derSz, WOLFSSL_FILETYPE_ASN1, CERT_TYPE,
-            NULL, NULL, 1, GET_VERIFY_SETTING_CTX(ctx));
+            NULL, NULL, 1, GET_VERIFY_SETTING_CTX(ctx), "extra chain buffer");
         if (ret != 1) {
             ret = 0;
         }

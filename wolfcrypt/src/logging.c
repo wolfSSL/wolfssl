@@ -230,42 +230,6 @@ void WOLFSSL_TIME(int count)
 
 #ifdef DEBUG_WOLFSSL
 
-#if defined(ARDUINO)
-    /* see Arduino wolfssl.h for wolfSSL_Arduino_Serial_Print */
-#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    /* see wc_port.h for fio.h and nio.h includes */
-#elif defined(WOLFSSL_SGX)
-    /* Declare sprintf for ocall */
-    int sprintf(char* buf, const char *fmt, ...);
-#elif defined(WOLFSSL_DEOS)
-#elif defined(MICRIUM)
-    #if (BSP_SER_COMM_EN  == DEF_ENABLED)
-        #include <bsp_ser.h>
-    #endif
-#elif defined(WOLFSSL_USER_LOG)
-    /* user includes their own headers */
-#elif defined(WOLFSSL_ESPIDF)
-    #include "esp_types.h"
-    #include "esp_log.h"
-#elif defined(WOLFSSL_TELIT_M2MB)
-    #include <stdio.h>
-    #include "m2m_log.h"
-#elif defined(WOLFSSL_ANDROID_DEBUG)
-    #include <android/log.h>
-#elif defined(WOLFSSL_XILINX)
-    #include "xil_printf.h"
-#elif defined(WOLFSSL_LINUXKM)
-    /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
-#elif defined(FUSION_RTOS)
-    #include <fclstdio.h>
-    #define fprintf FCL_FPRINTF
-#else
-    #include <stdio.h>  /* for default printf stuff */
-#endif
-
-#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
-    int dc_log_printf(char*, ...);
-#endif
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
 #include <wolfssl/wolfcrypt/mem_track.h>
@@ -281,106 +245,30 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     else {
 #if defined(WOLFSSL_USER_LOG)
         WOLFSSL_USER_LOG(logMessage);
+#elif defined(WOLFSSL_DEBUG_PRINTF)
+        if (log_prefix != NULL) {
+            if (file_name != NULL)
+                WOLFSSL_DEBUG_PRINTF("[%s]: [%s L %d] %s\n",
+                        log_prefix, file_name, line_number, logMessage);
+            else
+                WOLFSSL_DEBUG_PRINTF("[%s]: %s\n", log_prefix, logMessage);
+        } else {
+            if (file_name != NULL)
+                WOLFSSL_DEBUG_PRINTF("[%s L %d] %s\n",
+                        file_name, line_number, logMessage);
+            else
+                WOLFSSL_DEBUG_PRINTF("%s\n", logMessage);
+        }
 #elif defined(ARDUINO)
         wolfSSL_Arduino_Serial_Print(logMessage);
-#elif defined(WOLFSSL_LOG_PRINTF)
-        if (file_name != NULL)
-            printf("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            printf("%s\n", logMessage);
-#elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
-        if (file_name != NULL)
-            dc_log_printf("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            dc_log_printf("%s\n", logMessage);
-#elif defined(WOLFSSL_DEOS)
-        if (file_name != NULL)
-            printf("[%s L %d] %s\r\n", file_name, line_number, logMessage);
-        else
-            printf("%s\r\n", logMessage);
-#elif defined(MICRIUM)
-        if (file_name != NULL)
-            BSP_Ser_Printf("[%s L %d] %s\r\n",
-                           file_name, line_number, logMessage);
-        else
-            BSP_Ser_Printf("%s\r\n", logMessage);
-#elif defined(WOLFSSL_MDK_ARM)
-        fflush(stdout) ;
-        if (file_name != NULL)
-            printf("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            printf("%s\n", logMessage);
-        fflush(stdout) ;
 #elif defined(WOLFSSL_UTASKER)
         fnDebugMsg((char*)logMessage);
         fnDebugMsg("\r\n");
-#elif defined(MQX_USE_IO_OLD)
-        if (file_name != NULL)
-            fprintf(_mqxio_stderr, "[%s L %d] %s\n",
-                    file_name, line_number, logMessage);
-        else
-            fprintf(_mqxio_stderr, "%s\n", logMessage);
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-        if (file_name != NULL)
-            LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "[%s L %d] %s\n",
-                      file_name, line_number, logMessage);
-        else
-            LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
-#elif defined(WOLFSSL_ESPIDF)
-        if (file_name != NULL)
-            ESP_LOGI("wolfssl", "[%s L %d] %s",
-                     file_name, line_number, logMessage);
-        else
-            ESP_LOGI("wolfssl", "%s", logMessage);
-#elif defined(WOLFSSL_ZEPHYR)
-        if (file_name != NULL)
-            printk("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            printk("%s\n", logMessage);
-#elif defined(WOLFSSL_TELIT_M2MB)
-        if (file_name != NULL)
-            M2M_LOG_INFO("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            M2M_LOG_INFO("%s\n", logMessage);
-#elif defined(WOLFSSL_ANDROID_DEBUG)
-        if (file_name != NULL)
-            __android_log_print(ANDROID_LOG_VERBOSE, "[wolfSSL]", "[%s L %d] %s",
-                                file_name, line_number, logMessage);
-        else
-            __android_log_print(ANDROID_LOG_VERBOSE, "[wolfSSL]", "%s",
-                                logMessage);
-#elif defined(WOLFSSL_XILINX)
-        if (file_name != NULL)
-            xil_printf("[%s L %d] %s\r\n", file_name, line_number, logMessage);
-        else
-            xil_printf("%s\r\n", logMessage);
-#elif defined(WOLFSSL_LINUXKM)
-        if (file_name != NULL)
-            printk("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            printk("%s\n", logMessage);
-#elif defined(WOLFSSL_RENESAS_RA6M4)
-        if (file_name != NULL)
-            myprintf("[%s L %d] %s\n", file_name, line_number, logMessage);
-        else
-            myprintf("%s\n", logMessage);
 #elif defined(STACK_SIZE_CHECKPOINT_MSG) && \
       defined(HAVE_STACK_SIZE_VERBOSE) && defined(HAVE_STACK_SIZE_VERBOSE_LOG)
         STACK_SIZE_CHECKPOINT_MSG(logMessage);
 #else
-        if (log_prefix != NULL) {
-            if (file_name != NULL)
-                fprintf(stderr, "[%s]: [%s L %d] %s\n",
-                        log_prefix, file_name, line_number, logMessage);
-            else
-                fprintf(stderr, "[%s]: %s\n", log_prefix, logMessage);
-        } else {
-            if (file_name != NULL)
-                fprintf(stderr, "[%s L %d] %s\n",
-                        file_name, line_number, logMessage);
-            else
-                fprintf(stderr, "%s\n", logMessage);
-        }
+    #error No log method defined.
 #endif
     }
 }
