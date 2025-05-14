@@ -245,20 +245,30 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     else {
 #if defined(WOLFSSL_USER_LOG)
         WOLFSSL_USER_LOG(logMessage);
-#elif defined(WOLFSSL_DEBUG_PRINTF)
+#elif defined(WOLFSSL_DEBUG_PRINTF_FN)
+    #ifdef WOLFSSL_MDK_ARM
+        fflush(stdout);
+    #endif
         if (log_prefix != NULL) {
             if (file_name != NULL)
-                WOLFSSL_DEBUG_PRINTF("[%s]: [%s L %d] %s\n",
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+                        "[%s]: [%s L %d] %s\n",
                         log_prefix, file_name, line_number, logMessage);
             else
-                WOLFSSL_DEBUG_PRINTF("[%s]: %s\n", log_prefix, logMessage);
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+                        "[%s]: %s\n", log_prefix, logMessage);
         } else {
             if (file_name != NULL)
-                WOLFSSL_DEBUG_PRINTF("[%s L %d] %s\n",
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+                        "[%s L %d] %s\n",
                         file_name, line_number, logMessage);
             else
-                WOLFSSL_DEBUG_PRINTF("%s\n", logMessage);
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+                        "%s\n", logMessage);
         }
+    #ifdef WOLFSSL_MDK_ARM
+        fflush(stdout);
+    #endif
 #elif defined(ARDUINO)
         wolfSSL_Arduino_Serial_Print(logMessage);
 #elif defined(WOLFSSL_UTASKER)
