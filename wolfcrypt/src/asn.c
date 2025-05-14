@@ -23030,7 +23030,8 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
  * @param [out] badDateRet       Bad date return code.
  * @param [in]  stopAtPubKey     Stop parsing before subjectPublicKeyInfo.
  * @param [in]  stopAfterPubKey  Stop parsing after subjectPublicKeyInfo.
- * @return  0 on success.
+ * @return  0 on success if of the stop arguments is not set, otherwise set to
+ *          the corresponding byte offset at which the parsing stopped.
  * @return  ASN_CRIT_EXT_E when a critical extension was not recognized.
  * @return  ASN_TIME_E when date BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
@@ -24657,6 +24658,82 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
     return ret;
 }
 #endif
+
+/*
+ * @brief Export the SubjectPublicKeyInfo from an X.509 certificate
+ *
+ * This function extracts the SubjectPublicKeyInfo (SPKI) section from an X.509
+ * certificate in DER format. The SPKI contains the public key algorithm and
+ * the public key itself.
+ *
+ * @param certDer      [in]  Pointer to the DER encoded certificate
+ * @param certSz       [in]  Size of the DER encoded certificate
+ * @param pubKeyDer    [out] Buffer to hold the extracted SPKI (can be NULL to
+ *                           get size)
+ * @param pubKeyDerSz  [in,out] On input, size of pubKeyDer buffer
+ *                              On output, actual size of the SPKI
+ *
+ * @return 0 on success, negative on error
+ * @return BAD_FUNC_ARG if certDer is NULL, certSz is 0, or pubKeyDerSz is NULL
+ * @return BUFFER_E if the provided buffer is too small
+ */
+WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
+                                                   word32 certDerSz,
+                                                   byte* pubKeyDer,
+                                                   word32* pubKeyDerSz)
+{
+    DecodedCert cert;
+    int         ret;
+    word32      startIdx;
+    word32      idx;
+    word32      length;
+    int         badDate;
+
+    if (certDer == NULL || certDerSz == 0 || pubKeyDerSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    length = 0;
+    badDate = 0;
+
+    wc_InitDecodedCert(&cert, certDer, certDerSz, NULL);
+
+    /* Parse up to the SubjectPublicKeyInfo */
+    ret = wc_GetPubX509(&cert, 0, &badDate);
+    if (ret >= 0) {
+        /* Save the starting index of SubjectPublicKeyInfo */
+        startIdx = cert.srcIdx;
+
+        /* Get the length of the SubjectPublicKeyInfo sequence */
+        idx = startIdx;
+        ret = GetSequence(certDer, &idx, (int*)&length, certDerSz);
+        if (ret >= 0) {
+            /* Calculate total length including sequence header */
+            length += (idx - startIdx);
+
+            /* Copy the SubjectPublicKeyInfo if buffer provided */
+            if (pubKeyDer != NULL) {
+                if (*pubKeyDerSz < (word32)length) {
+                    ret = BUFFER_E;
+                }
+                else {
+                    XMEMCPY(pubKeyDer, &certDer[startIdx], length);
+                }
+            }
+        }
+    }
+
+    if (ret >= 0) {
+        ret = 0;
+    }
+
+    *pubKeyDerSz = length;
+    wc_FreeDecodedCert(&cert);
+
+    return ret;
+}
+
+
 #ifdef HAVE_OCSP
 Signer* findSignerByKeyHash(Signer *list, byte *hash)
 {

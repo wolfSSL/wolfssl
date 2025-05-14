@@ -22755,6 +22755,151 @@ static int test_wc_GetPubKeyDerFromCert(void)
     return EXPECT_RESULT();
 }
 
+static int test_wc_GetSubjectPubKeyInfoDerFromCert(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+    int ret;
+    word32 idx = 0;
+    byte keyDer[TWOK_BUF];  /* large enough for up to RSA 2048 */
+    word32 keyDerSz = (word32)sizeof(keyDer);
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_REQ) && !defined(NO_FILESYSTEM)
+    byte certBuf[6000]; /* for PEM and CSR, client-cert.pem is 5-6kB */
+    word32 certBufSz = sizeof(certBuf);
+#endif
+#if ((!defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_1024)) || \
+     defined(WOLFSSL_CERT_REQ)) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    XFILE fp = XBADFILE;
+#endif
+#ifndef NO_RSA
+    RsaKey rsaKey;
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte* rsaCertDer = (byte*)client_cert_der_2048;
+        word32 rsaCertDerSz = sizeof_client_cert_der_2048;
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte* rsaCertDer = (byte*)client_cert_der_1024;
+        word32 rsaCertDerSz = sizeof_client_cert_der_1024;
+    #else
+        unsigned char rsaCertDer[TWOK_BUF];
+        word32 rsaCertDerSz;
+    #endif
+#endif
+#ifdef HAVE_ECC
+    ecc_key eccKey;
+    #if defined(USE_CERT_BUFFERS_256)
+        byte* eccCert = (byte*)cliecc_cert_der_256;
+        word32 eccCertSz = sizeof_cliecc_cert_der_256;
+    #else
+        unsigned char eccCert[ONEK_BUF];
+        word32 eccCertSz;
+        XFILE fp2 = XBADFILE;
+    #endif
+#endif
+
+#ifndef NO_RSA
+
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) != XBADFILE);
+    ExpectIntGT(rsaCertDerSz = (word32)XFREAD(rsaCertDer, 1, sizeof(rsaCertDer),
+        fp), 0);
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+#endif
+
+    /* good test case - RSA DER cert */
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer, rsaCertDerSz,
+                                                   keyDer, &keyDerSz), 0);
+    ExpectIntGT(keyDerSz, 0);
+
+    /* sanity check, verify we can import DER public key */
+    ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
+    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(wc_RsaPublicKeyDecode(keyDer, &idx, &rsaKey, keyDerSz), 0);
+    if (ret == 0) {
+        wc_FreeRsaKey(&rsaKey);
+    }
+
+    /* bad args: certDer */
+    keyDerSz = (word32)sizeof(keyDer);
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(NULL, rsaCertDerSz, keyDer,
+                                                   &keyDerSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* bad args: 0 sized certSz */
+    keyDerSz = (word32)sizeof(keyDer);
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer, 0, keyDer,
+                                                   &keyDerSz),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* bad args: NULL inout size */
+    ExpectIntEQ(ret = wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer,
+                                                         rsaCertDerSz, keyDer,
+                                                         NULL),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    /* Certificate Request Tests */
+    #if defined(WOLFSSL_CERT_REQ) && !defined(NO_FILESYSTEM)
+    {
+        XMEMSET(certBuf, 0, sizeof(certBuf));
+        ExpectTrue((fp = XFOPEN("./certs/csr.signed.der", "rb")) != XBADFILE);
+        ExpectIntGT(certBufSz = (word32)XFREAD(certBuf, 1, certBufSz, fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+        }
+
+        /* good test case - RSA DER certificate request */
+        keyDerSz = sizeof(keyDer);
+        ExpectIntEQ(ret = wc_GetSubjectPubKeyInfoDerFromCert(rsaCertDer,
+                                                             rsaCertDerSz,
+                                                             keyDer,
+                                                             &keyDerSz), 0);
+        ExpectIntGT(keyDerSz, 0);
+
+        /* sanity check, verify we can import DER public key */
+        ret = wc_InitRsaKey(&rsaKey, HEAP_HINT);
+        ExpectIntEQ(ret, 0);
+        idx = 0;
+        ExpectIntEQ(wc_RsaPublicKeyDecode(keyDer, &idx, &rsaKey, keyDerSz), 0);
+        if (ret == 0) {
+            wc_FreeRsaKey(&rsaKey);
+        }
+    }
+    #endif /* WOLFSSL_CERT_REQ */
+#endif /* NO_RSA */
+
+#ifdef HAVE_ECC
+    #ifndef USE_CERT_BUFFERS_256
+        ExpectTrue((fp2 = XFOPEN("./certs/client-ecc-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(eccCertSz = (word32)XFREAD(eccCert, 1, ONEK_BUF, fp2), 0);
+        if (fp2 != XBADFILE) {
+            XFCLOSE(fp2);
+        }
+    #endif
+
+    /* good test case - ECC */
+    XMEMSET(keyDer, 0, sizeof(keyDer));
+    keyDerSz = sizeof(keyDer);
+    ExpectIntEQ(wc_GetSubjectPubKeyInfoDerFromCert(eccCert, eccCertSz, keyDer,
+                                                   &keyDerSz), 0);
+    ExpectIntGT(keyDerSz, 0);
+
+    /* sanity check, verify we can import DER public key */
+    ret = wc_ecc_init(&eccKey);
+    ExpectIntEQ(ret, 0);
+    idx = 0; /* reset idx to 0, used above in RSA case */
+    ExpectIntEQ(wc_EccPublicKeyDecode(keyDer, &idx, &eccKey, keyDerSz), 0);
+    if (ret == 0) {
+        wc_ecc_free(&eccKey);
+    }
+
+#endif
+#endif /* !NO_RSA || HAVE_ECC */
+    return EXPECT_RESULT();
+}
+
 static int test_wc_CheckCertSigPubKey(void)
 {
     EXPECT_DECLS;
@@ -66846,6 +66991,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PubKeyPemToDer),
     TEST_DECL(test_wc_PemPubKeyToDer),
     TEST_DECL(test_wc_GetPubKeyDerFromCert),
+    TEST_DECL(test_wc_GetSubjectPubKeyInfoDerFromCert),
     TEST_DECL(test_wc_CheckCertSigPubKey),
 
     /* wolfCrypt ASN tests */
