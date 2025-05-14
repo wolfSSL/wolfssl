@@ -182,10 +182,10 @@ const char* wc_GetErrorString(int error)
         return "ASN date error, bad size";
 
     case ASN_BEFORE_DATE_E :
-        return "ASN date error, current date before";
+        return "ASN date error, current date is before start of validity";
 
     case ASN_AFTER_DATE_E :
-        return "ASN date error, current date after";
+        return "ASN date error, current date is after expiration";
 
     case ASN_SIG_OID_E :
         return "ASN signature error, mismatched oid";

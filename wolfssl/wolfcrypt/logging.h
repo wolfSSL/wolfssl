@@ -89,11 +89,6 @@ enum wc_FuncNum {
 };
 #endif
 
-#if defined(ARDUINO)
-/* implemented in Arduino wolfssl.h */
-extern WOLFSSL_API int wolfSSL_Arduino_Serial_Print(const char* const s);
-#endif /* ARDUINO */
-
 typedef void (*wolfSSL_Logging_cb)(const int logLevel,
                                    const char *const logMessage);
 
@@ -155,6 +150,10 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_START(n) WC_DO_NOTHING
     #define WOLFSSL_END(n)   WC_DO_NOTHING
     #define WOLFSSL_TIME(n)  WC_DO_NOTHING
+#endif
+
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_CERTIFICATE_LOADS)
+    #define WOLFSSL_DEBUG_CERTIFICATE_LOADS
 #endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
@@ -266,6 +265,90 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
     extern WOLFSSL_API THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
     extern WOLFSSL_API THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
+#endif
+
+/* Port-specific includes and printf methods: */
+
+#if defined(ARDUINO)
+    /* implemented in Arduino wolfssl.h */
+    extern WOLFSSL_API int wolfSSL_Arduino_Serial_Print(const char* const s);
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    /* see wc_port.h for fio.h and nio.h includes */
+#elif defined(WOLFSSL_SGX)
+    /* Declare sprintf for ocall */
+    int sprintf(char* buf, const char *fmt, ...);
+#elif defined(WOLFSSL_DEOS)
+#elif defined(MICRIUM)
+    #if (BSP_SER_COMM_EN  == DEF_ENABLED)
+        #include <bsp_ser.h>
+    #endif
+#elif defined(WOLFSSL_USER_LOG)
+    /* user includes their own headers */
+#elif defined(WOLFSSL_ESPIDF)
+    #include "esp_types.h"
+    #include "esp_log.h"
+#elif defined(WOLFSSL_TELIT_M2MB)
+    #include <stdio.h>
+    #include "m2m_log.h"
+#elif defined(WOLFSSL_ANDROID_DEBUG)
+    #include <android/log.h>
+#elif defined(WOLFSSL_XILINX)
+    #include "xil_printf.h"
+#elif defined(WOLFSSL_LINUXKM)
+    /* the requisite linux/kernel.h is included in linuxkm_wc_port.h, with
+     * incompatible warnings masked out.
+     */
+#elif defined(FUSION_RTOS)
+    #include <fclstdio.h>
+    #define fprintf FCL_FPRINTF
+#else
+    #include <stdio.h>  /* for default printf stuff */
+#endif
+
+#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
+    int dc_log_printf(char*, ...);
+#endif
+
+#ifdef WOLFSSL_DEBUG_PRINTF
+    /* user-supplied definition */
+#elif defined(ARDUINO)
+    /* ARDUINO only has print and sprintf, no printf. */
+#elif defined(WOLFSSL_LOG_PRINTF) || defined(WOLFSSL_DEOS)
+    #define WOLFSSL_DEBUG_PRINTF(...) printf(__VA_ARGS__)
+#elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
+    #define WOLFSSL_DEBUG_PRINTF(...) dc_log_printf(__VA_ARGS__)
+#elif defined(MICRIUM)
+    #define WOLFSSL_DEBUG_PRINTF(...) BSP_Ser_Printf(__VA_ARGS__)
+#elif defined(WOLFSSL_MDK_ARM)
+    #define WOLFSSL_DEBUG_PRINTF(...) do { \
+            fflush(stdout);                \
+            printf(__VA_ARGS__);           \
+            fflush(stdout);                \
+        } while (0)
+#elif defined(WOLFSSL_UTASKER)
+    /* WOLFSSL_UTASKER only has fnDebugMsg and related primitives, no printf. */
+#elif defined(MQX_USE_IO_OLD)
+    #define WOLFSSL_DEBUG_PRINTF(...) fprintf(_mqxio_stderr, __VAR_ARGS)
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    #define WOLFSSL_DEBUG_PRINTF(...) LOG_DEBUG(&mynewt_log, \
+        LOG_MODULE_DEFAULT, __VA_ARGS__)
+#elif defined(WOLFSSL_ESPIDF)
+    #define WOLFSSL_DEBUG_PRINTF(...) ESP_LOGI("wolfssl", __VA_ARGS__)
+#elif defined(WOLFSSL_ZEPHYR)
+    #define WOLFSSL_DEBUG_PRINTF(...) printk(__VA_ARGS__)
+#elif defined(WOLFSSL_TELIT_M2MB)
+    #define WOLFSSL_DEBUG_PRINTF(...) M2M_LOG_INFO(__VA_ARGS__)
+#elif defined(WOLFSSL_ANDROID_DEBUG)
+    #define WOLFSSL_DEBUG_PRINTF(...) __android_log_print(ANDROID_LOG_VERBOSE, \
+                                                    "[wolfSSL]", __VA_ARGS__)
+#elif defined(WOLFSSL_XILINX)
+    #define WOLFSSL_DEBUG_PRINTF(...) xil_printf(__VA_ARGS__)
+#elif defined(WOLFSSL_LINUXKM)
+    #define WOLFSSL_DEBUG_PRINTF(...) printk(__VA_ARGS__)
+#elif defined(WOLFSSL_RENESAS_RA6M4)
+    #define WOLFSSL_DEBUG_PRINTF(...) myprintf(__VA_ARGS__)
+#else
+    #define WOLFSSL_DEBUG_PRINTF(...) fprintf(stderr, __VA_ARGS__)
 #endif
 
 #ifdef __cplusplus

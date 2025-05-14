@@ -6390,7 +6390,8 @@ WOLFSSL_TEST_VIS   void wolfSSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
     WOLFSSL_LOCAL int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                     long sz, int format, int type, WOLFSSL* ssl,
-                                    long* used, int userChain, int verify);
+                                    long* used, int userChain, int verify,
+                                    const char *source_name);
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl, int verify);
