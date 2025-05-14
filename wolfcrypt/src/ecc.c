@@ -3250,10 +3250,8 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 #else
         /* Swap R[0] and R[1] if other index is needed. */
         swap ^= (int)b;
-        if (err == MP_OKAY) {
-            err = mp_cond_swap_ct_ex(R[0]->x, R[1]->x, (int)modulus->used, swap,
-                tmp);
-        }
+        err = mp_cond_swap_ct_ex(R[0]->x, R[1]->x, (int)modulus->used, swap,
+            tmp);
         if (err == MP_OKAY) {
             err = mp_cond_swap_ct_ex(R[0]->y, R[1]->y, (int)modulus->used, swap,
                 tmp);
