@@ -16,6 +16,7 @@ config.*
 !cmake/config.in
 *Debug/
 *Release/
+*Release (options.h)/
 *.ncb
 *.suo
 *.sdf
