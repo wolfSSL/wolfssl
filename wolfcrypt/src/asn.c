@@ -24629,7 +24629,7 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
  * @return BUFFER_E if the provided buffer is too small
  */
 WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
-                                                   word32 certSz,
+                                                   word32 certDerSz,
                                                    byte* pubKeyDer,
                                                    word32* pubKeyDerSz)
 {
@@ -24640,14 +24640,14 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     word32      length;
     int         badDate;
 
-    if (certDer == NULL || certSz == 0 || pubKeyDerSz == NULL) {
+    if (certDer == NULL || certDerSz == 0 || pubKeyDerSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
     length = 0;
     badDate = 0;
 
-    wc_InitDecodedCert(&cert, certDer, certSz, NULL);
+    wc_InitDecodedCert(&cert, certDer, certDerSz, NULL);
 
     /* Parse up to the SubjectPublicKeyInfo */
     ret = wc_GetPubX509(&cert, 0, &badDate);
@@ -24657,7 +24657,7 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
 
         /* Get the length of the SubjectPublicKeyInfo sequence */
         idx = startIdx;
-        ret = GetSequence(certDer, &idx, (int*)&length, certSz);
+        ret = GetSequence(certDer, &idx, (int*)&length, certDerSz);
         if (ret >= 0) {
             /* Calculate total length including sequence header */
             length += (idx - startIdx);
