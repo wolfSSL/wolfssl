@@ -260,9 +260,6 @@ extern "C" {
     #endif
 #endif
 
-/* Number of bytes in each word. */
-#define SP_WORD_SIZEOF  (SP_WORD_SIZE / 8)
-
 /* Define the types used. */
 #if defined(HAVE___UINT128_T) && !defined(NO_INT128)
     #ifdef __SIZEOF_INT128__
@@ -285,6 +282,8 @@ extern "C" {
 #endif
 
 #if SP_WORD_SIZE == 8
+    #define SP_WORD_SIZEOF 1
+
     typedef   sp_uint8 sp_int_digit;
     typedef    sp_int8 sp_int_sdigit;
     typedef  sp_uint16 sp_int_word;
@@ -292,6 +291,8 @@ extern "C" {
 
     #define SP_MASK         0xffU
 #elif SP_WORD_SIZE == 16
+    #define SP_WORD_SIZEOF 2
+
     typedef  sp_uint16 sp_int_digit;
     typedef   sp_int16 sp_int_sdigit;
     typedef  sp_uint32 sp_int_word;
@@ -299,6 +300,8 @@ extern "C" {
 
     #define SP_MASK         0xffffU
 #elif SP_WORD_SIZE == 32
+    #define SP_WORD_SIZEOF 4
+
     typedef  sp_uint32 sp_int_digit;
     typedef   sp_int32 sp_int_sdigit;
     typedef  sp_uint64 sp_int_word;
@@ -306,6 +309,8 @@ extern "C" {
 
     #define SP_MASK         0xffffffffU
 #elif SP_WORD_SIZE == 64
+    #define SP_WORD_SIZEOF 8
+
     typedef  sp_uint64 sp_int_digit;
     typedef   sp_int64 sp_int_sdigit;
 #if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
@@ -917,7 +922,7 @@ typedef struct sp_int {
     struct WC_BIGINT raw;
 #endif
     /** Data of number.  */
-    XALIGNED(SP_WORD_SIZE / 8) sp_int_digit dp[SP_INT_DIGITS];
+    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
 typedef struct sp_int_minimal {
@@ -934,7 +939,7 @@ typedef struct sp_int_minimal {
     struct WC_BIGINT raw;
 #endif
     /** First digit of number.  */
-    XALIGNED(SP_WORD_SIZE / 8) sp_int_digit dp[1];
+    XALIGNED(SP_WORD_SIZEOF) sp_int_digit dp[1];
 } sp_int_minimal;
 
 /* MP_INT_SIZEOF_DIGITS() requires that sizeof(sp_int) is a multiple of
