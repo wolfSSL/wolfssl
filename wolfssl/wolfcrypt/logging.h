@@ -309,46 +309,55 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     int dc_log_printf(char*, ...);
 #endif
 
-#ifdef WOLFSSL_DEBUG_PRINTF
+#ifdef WOLFSSL_DEBUG_PRINTF_FN
     /* user-supplied definition */
 #elif defined(ARDUINO)
     /* ARDUINO only has print and sprintf, no printf. */
 #elif defined(WOLFSSL_LOG_PRINTF) || defined(WOLFSSL_DEOS)
-    #define WOLFSSL_DEBUG_PRINTF(...) printf(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN printf
 #elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
-    #define WOLFSSL_DEBUG_PRINTF(...) dc_log_printf(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN dc_log_printf
 #elif defined(MICRIUM)
-    #define WOLFSSL_DEBUG_PRINTF(...) BSP_Ser_Printf(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN BSP_Ser_Printf
 #elif defined(WOLFSSL_MDK_ARM)
-    #define WOLFSSL_DEBUG_PRINTF(...) do { \
-            fflush(stdout);                \
-            printf(__VA_ARGS__);           \
-            fflush(stdout);                \
-        } while (0)
+    #define WOLFSSL_DEBUG_PRINTF_FN printf
 #elif defined(WOLFSSL_UTASKER)
     /* WOLFSSL_UTASKER only has fnDebugMsg and related primitives, no printf. */
 #elif defined(MQX_USE_IO_OLD)
-    #define WOLFSSL_DEBUG_PRINTF(...) fprintf(_mqxio_stderr, __VAR_ARGS)
+    #define WOLFSSL_DEBUG_PRINTF_FN fprintf
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS _mqxio_stderr,
 #elif defined(WOLFSSL_APACHE_MYNEWT)
-    #define WOLFSSL_DEBUG_PRINTF(...) LOG_DEBUG(&mynewt_log, \
-        LOG_MODULE_DEFAULT, __VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN LOG_DEBUG
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS &mynewt_log, LOG_MODULE_DEFAULT,
 #elif defined(WOLFSSL_ESPIDF)
-    #define WOLFSSL_DEBUG_PRINTF(...) ESP_LOGI("wolfssl", __VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN ESP_LOGI
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS "wolfssl",
 #elif defined(WOLFSSL_ZEPHYR)
-    #define WOLFSSL_DEBUG_PRINTF(...) printk(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN printk
 #elif defined(WOLFSSL_TELIT_M2MB)
-    #define WOLFSSL_DEBUG_PRINTF(...) M2M_LOG_INFO(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN M2M_LOG_INFO
 #elif defined(WOLFSSL_ANDROID_DEBUG)
-    #define WOLFSSL_DEBUG_PRINTF(...) __android_log_print(ANDROID_LOG_VERBOSE, \
-                                                    "[wolfSSL]", __VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN __android_log_print
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS ANDROID_LOG_VERBOSE, "[wolfSSL]"
 #elif defined(WOLFSSL_XILINX)
-    #define WOLFSSL_DEBUG_PRINTF(...) xil_printf(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN xil_printf
 #elif defined(WOLFSSL_LINUXKM)
-    #define WOLFSSL_DEBUG_PRINTF(...) printk(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN printk
 #elif defined(WOLFSSL_RENESAS_RA6M4)
-    #define WOLFSSL_DEBUG_PRINTF(...) myprintf(__VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN myprintf
 #else
-    #define WOLFSSL_DEBUG_PRINTF(...) fprintf(stderr, __VA_ARGS__)
+    #define WOLFSSL_DEBUG_PRINTF_FN fprintf
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS stderr,
+#endif
+
+#ifndef WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+#endif
+
+#if defined(WOLFSSL_DEBUG_PRINTF_FN) && !defined(WOLFSSL_DEBUG_PRINTF) && \
+    !defined(WOLF_NO_VARIADIC_MACROS)
+    #define WOLFSSL_DEBUG_PRINTF(...) \
+        WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS __VA_ARGS__)
 #endif
 
 #ifdef __cplusplus
