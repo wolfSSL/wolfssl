@@ -788,10 +788,18 @@ typedef struct sp_ecc_ctx {
 #define MP_INT_NEXT(t, cnt) \
     (sp_int*)(((byte*)(t)) + MP_INT_SIZEOF(cnt))
 
+#define MP_INT_SIZEOF_DIGITS(cnt) (MP_INT_SIZEOF(cnt) / sizeof(sp_int_digit))
 
 /* Calculate the number of words required to support a number of bits. */
 #define MP_BITS_CNT(bits)                                       \
         ((unsigned int)(((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)))
+
+#if !defined(WOLFSSL_SP_NO_DYN_STACK) && defined(__STDC_VERSION__) && \
+             (__STDC_VERSION__ >= 199901L) &&                         \
+    (defined(WOLFSSL_SP_NO_MALLOC) ||                                 \
+     !(defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)))
+    #define WOLFSSL_SP_DYN_STACK
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
 /*
@@ -823,26 +831,25 @@ while (0)
 /*
  * Static allocation of mp_int.
  */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-    !defined(WOLFSSL_SP_NO_DYN_STACK)
+#ifdef WOLFSSL_SP_DYN_STACK
 /* Declare a dynamically allocated mp_int. */
-#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
-    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                      \
+    sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(bits))]; \
     sp_int* (name) = (sp_int*)name##d
 #elif defined(__cplusplus)
 /* C++ doesn't tolerate parentheses around "name" (-Wparentheses) */
-#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
-    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                      \
+    sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(max))];  \
     sp_int* name = (sp_int*)name##d
 #else
 /* Declare a dynamically allocated mp_int. */
-#define DECL_MP_INT_SIZE_DYN(name, bits, max)                   \
-    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(max))];     \
+#define DECL_MP_INT_SIZE_DYN(name, bits, max)                      \
+    sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(max))];  \
     sp_int* (name) = (sp_int*)name##d
 #endif
 /* Declare a statically allocated mp_int. */
-#define DECL_MP_INT_SIZE(name, bits)                            \
-    unsigned char name##d[MP_INT_SIZEOF(MP_BITS_CNT(bits))];    \
+#define DECL_MP_INT_SIZE(name, bits)                               \
+    sp_int_digit name##d[MP_INT_SIZEOF_DIGITS(MP_BITS_CNT(bits))]; \
     sp_int* (name) = (sp_int*)name##d
 /* Zero out mp_int of minimal size. */
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
@@ -910,7 +917,7 @@ typedef struct sp_int {
     struct WC_BIGINT raw;
 #endif
     /** Data of number.  */
-    sp_int_digit dp[SP_INT_DIGITS];
+    XALIGNED(SP_WORD_SIZE / 8) sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
 typedef struct sp_int_minimal {
@@ -927,11 +934,14 @@ typedef struct sp_int_minimal {
     struct WC_BIGINT raw;
 #endif
     /** First digit of number.  */
-    sp_int_digit dp[1];
+    XALIGNED(SP_WORD_SIZE / 8) sp_int_digit dp[1];
 } sp_int_minimal;
 
+/* MP_INT_SIZEOF_DIGITS() requires that sizeof(sp_int) is a multiple of
+ * sizeof(sp_int_digit).
+ */
+wc_static_assert(sizeof(struct sp_int) % sizeof(sp_int_digit) == 0);
 wc_static_assert(sizeof(struct sp_int_minimal) % sizeof(sp_int_digit) == 0);
-#define MP_INT_SIZEOF_DIGITS(cnt) (MP_INT_SIZEOF(cnt) / sizeof(sp_int_digit))
 
 /* Multi-precision integer type is SP integer type. */
 typedef sp_int       mp_int;
