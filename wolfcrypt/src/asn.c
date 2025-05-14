@@ -9536,10 +9536,10 @@ static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
     return ret;
 }
 
-int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
+int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int pbeOid,
-        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
-        void* heap)
+        int encAlgId, byte* salt, word32 saltSz, int itt, int hmacOid,
+        WC_RNG* rng, void* heap)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte* saltTmp = NULL;
@@ -9563,10 +9563,12 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     byte cbcIv[MAX_IV_SIZE];
     word32 idx = 0;
     word32 encIdx = 0;
+    const byte* hmacOidBuf = NULL;
+    word32 hmacOidBufSz = 0;
 
     (void)heap;
 
-    WOLFSSL_ENTER("wc_EncryptPKCS8Key");
+    WOLFSSL_ENTER("wc_EncryptPKCS8Key_ex");
 
     if (key == NULL || outSz == NULL || password == NULL) {
         ret = BAD_FUNC_ARG;
@@ -9594,6 +9596,11 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             pbeLen = 2 + pbeOidBufSz + 2 + innerLen;
         }
         else {
+            if (hmacOid > 0) {
+                hmacOidBuf = OidFromId((word32)hmacOid, oidHmacType,
+                                &hmacOidBufSz);
+                innerLen += 2 + 2 + hmacOidBufSz;
+            }
             pbeOidBuf = pbes2;
             pbeOidBufSz = sizeof(pbes2);
             /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
@@ -9650,7 +9657,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     }
     if (ret == 0) {
         ret = wc_CryptKey(password, passwordSz, salt, (int)saltSz, itt, pbeId,
-                  out + encIdx, (int)keySz, version, cbcIv, 1, 0);
+                  out + encIdx, (int)keySz, version, cbcIv, 1, hmacOid);
     }
     if (ret == 0) {
         if (version != PKCS5v2) {
@@ -9680,6 +9687,14 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         ret = SetShortInt(out, &idx, (word32)itt, *outSz);
         if (ret > 0)
             ret = 0;
+        if (version == PKCS5v2) {
+            if (hmacOid > 0) {
+                idx += SetSequence(2+hmacOidBufSz, out + idx);
+                idx += (word32)SetObjectId((int)hmacOidBufSz, out + idx);
+                XMEMCPY(out + idx, hmacOidBuf, hmacOidBufSz);
+                idx += (word32)hmacOidBufSz;
+            }
+        }
     }
     if (ret == 0) {
         if (version == PKCS5v2) {
@@ -9704,9 +9719,18 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    WOLFSSL_LEAVE("wc_EncryptPKCS8Key", ret);
+    WOLFSSL_LEAVE("wc_EncryptPKCS8Key_ex", ret);
 
     return ret;
+}
+
+int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int pbeOid,
+        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
+        void* heap)
+{
+    return wc_EncryptPKCS8Key_ex(key, keySz, out, outSz, password, passwordSz,
+                vPKCS, pbeOid, encAlgId, salt, saltSz, itt, 0, rng, heap);
 }
 
 int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
@@ -9751,10 +9775,10 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
  * encrypted key. If out is not NULL, it will hold the encrypted key. If it's
  * NULL, LENGTH_ONLY_E will be returned and outSz will have the required out
  * buffer size. */
-int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
+int TraditionalEnc_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
-        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
-        void* heap)
+        int encAlgId, byte* salt, word32 saltSz, int itt, int hmacOid,
+        WC_RNG* rng, void* heap)
 {
     int ret = 0;
     byte *pkcs8Key = NULL;
@@ -9794,8 +9818,9 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     }
 #endif
     if (ret == 0) {
-        ret = wc_EncryptPKCS8Key(pkcs8Key, pkcs8KeySz, out, outSz, password,
-            passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, rng, heap);
+        ret = wc_EncryptPKCS8Key_ex(pkcs8Key, pkcs8KeySz, out, outSz, password,
+            passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, hmacOid, rng,
+            heap);
     }
 
     if (pkcs8Key != NULL) {
@@ -9806,6 +9831,20 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     (void)rng;
 
     return ret;
+}
+
+/* Takes an unencrypted, traditional DER-encoded key and converts it to a PKCS#8
+ * encrypted key. If out is not NULL, it will hold the encrypted key. If it's
+ * NULL, LENGTH_ONLY_E will be returned and outSz will have the required out
+ * buffer size. */
+int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int vAlgo,
+        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
+        void* heap)
+{
+    return TraditionalEnc_ex(key, keySz, out, outSz, password, passwordSz,
+                vPKCS, vAlgo, encAlgId, salt, saltSz, itt, 0, rng, heap);
+
 }
 
 /* Same as TraditionalEnc, but in the public API. */

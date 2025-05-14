@@ -798,6 +798,10 @@ WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
 WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
         byte* key, word32 keySz, int algoID, const byte* curveOID,
         word32 oidSz);
+WOLFSSL_API int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
+        int hmacOid, WC_RNG* rng, void* heap);
 WOLFSSL_API int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int pbeOid,
         int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
