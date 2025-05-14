@@ -31906,6 +31906,60 @@ static int test_wolfSSL_X509_get_ext_count(void)
     return EXPECT_RESULT();
 }
 
+
+/* Tests X509v3_get_ext_count, X509v3_get_ext_by_NID, and X509v3_get_ext
+ * working with a stack retrieved from wolfSSL_X509_get0_extensions().
+ */
+static int test_wolfSSL_X509_stack_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    int ret = 0;
+    WOLFSSL_X509* x509 = NULL;
+    const WOLFSSL_STACK* ext_stack = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    int idx = -1;
+    int count = 0;
+    XFILE f = XBADFILE;
+
+    /* Load a certificate */
+    ExpectTrue((f = XFOPEN("./certs/server-cert.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Get the stack of extensions */
+    ExpectNotNull(ext_stack = wolfSSL_X509_get0_extensions(x509));
+
+    /* Test X509v3_get_ext_count */
+    ExpectIntGT((count = X509v3_get_ext_count(ext_stack)), 0);
+    printf("Extension count: %d\\n", count);
+
+    /* Test X509v3_get_ext_by_NID - find Basic Constraints extension */
+    ExpectIntGE((idx = X509v3_get_ext_by_NID(ext_stack, NID_basic_constraints,
+                -1)), 0);
+    printf("Basic Constraints extension found at index: %d\\n", idx);
+
+    /* Test X509v3_get_ext - get extension by index */
+    ExpectNotNull(ext = X509v3_get_ext(ext_stack, idx));
+
+    /* Verify that the extension is the correct one */
+    ExpectIntEQ(wolfSSL_OBJ_obj2nid(wolfSSL_X509_EXTENSION_get_object(ext)), 
+               NID_basic_constraints);
+
+    /* Test negative cases */
+    ExpectIntEQ(X509v3_get_ext_by_NID(NULL, NID_basic_constraints, -1), 
+               WOLFSSL_FATAL_ERROR);
+    ExpectNull(X509v3_get_ext(NULL, 0));
+    ExpectNull(X509v3_get_ext(ext_stack, -1));
+    ExpectNull(X509v3_get_ext(ext_stack, count));
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509_sign2(void)
 {
     EXPECT_DECLS;
@@ -67536,6 +67590,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_get_ext_by_NID),
     TEST_DECL(test_wolfSSL_X509_get_ext_subj_alt_name),
     TEST_DECL(test_wolfSSL_X509_get_ext_count),
+    TEST_DECL(test_wolfSSL_X509_stack_extensions),
     TEST_DECL(test_wolfSSL_X509_set_ext),
     TEST_DECL(test_wolfSSL_X509_add_ext),
     TEST_DECL(test_wolfSSL_X509_EXTENSION_new),
