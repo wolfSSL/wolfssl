@@ -1787,6 +1787,10 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     int ret;
     byte* pkcs8Key = NULL;
 
+     /* The blkOid and hmacOid are only valid for PKCS#5v2 (PBES2) */
+    int blkOid = 0;
+    int hmacOid = 0; /* If 0, use the default HMAC algorithm */
+
     if (outSz == NULL || pkcs12 == NULL || rng == NULL || key == NULL ||
             pass == NULL) {
         return BAD_FUNC_ARG;
@@ -1822,13 +1826,25 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     else {
         WOLFSSL_MSG("creating PKCS12 Shrouded Key Bag");
 
+        /* Need to handle PKCS#5v1/v2 (=non-PKCS#12v1) encryptions */
         if (vAlgo == PBE_SHA1_DES) {
             vPKCS = PKCS5;
             vAlgo = 10;
         }
-
-        ret = UnTraditionalEnc(key, keySz, pkcs8Key, &sz, pass, passSz,
-                vPKCS, vAlgo, NULL, 0, itt, rng, heap);
+        else if (vAlgo == PBE_AES256_CBC) {
+            vPKCS = PKCS5;
+            vAlgo = PBES2;
+            blkOid = AES256CBCb;
+            hmacOid = HMAC_SHA256_OID;
+        }
+        else if (vAlgo == PBE_AES128_CBC) {
+            vPKCS = PKCS5;
+            vAlgo = PBES2;
+            blkOid = AES128CBCb;
+            hmacOid = HMAC_SHA256_OID;
+        }
+        ret = TraditionalEnc_ex(key, keySz, pkcs8Key, &sz, pass, passSz,
+                vPKCS, vAlgo, blkOid, NULL, 0, itt, hmacOid, rng, heap);
     }
     if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         *outSz =  sz + MAX_LENGTH_SZ + 1;
@@ -2261,6 +2277,7 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     heap = wc_PKCS12_GetHeap(pkcs12);
     *keyCiSz = 0;
     switch (nidKey) {
+        /* supported key encryptions */
         case PBE_SHA1_RC4_128:
             algo = 1;
             break;
@@ -2273,8 +2290,15 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
             algo = 3;
             break;
 
-        /* no encryption */
-        case -1:
+        case PBE_AES256_CBC:
+            algo = PBE_AES256_CBC;
+            break;
+
+        case PBE_AES128_CBC:
+            algo = PBE_AES128_CBC;
+            break;
+
+        case -1: /* no encryption */
             algo = -1;
             break;
 
