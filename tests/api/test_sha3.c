@@ -71,6 +71,8 @@ do {                                                                           \
     const char* emptyHash = emptyHashStr;                                      \
     const char* abcHash = abcHashStr;                                          \
                                                                                \
+    XMEMSET(&dgst, 0, sizeof(dgst));                                           \
+                                                                               \
     ExpectIntEQ(wc_Init##name(&dgst, HEAP_HINT, INVALID_DEVID), 0);            \
                                                                                \
     ExpectIntEQ(wc_##name##_GetHash(NULL, NULL),                               \
