@@ -300,7 +300,7 @@ sleep 0.1
 
 # client test against the server
 server=login.live.com
-#ca=certs/external/baltimore-cybertrust-root.pem
+#ca=certs/external/DigiCertGlobalRootCA.pem
 ca=./certs/external/ca_collection.pem
 
 if [[ "$V4V6" == "4" ]]; then

@@ -170,7 +170,7 @@ cleanup()
 trap cleanup EXIT INT TERM HUP
 
 server=login.live.com
-ca=certs/external/baltimore-cybertrust-root.pem
+ca=certs/external/DigiCertGlobalRootCA.pem
 
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" && exit 1
 
