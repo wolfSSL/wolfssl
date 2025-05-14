@@ -31,15 +31,6 @@ This library provides single precision (SP) integer math functions.
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
 
-#ifdef WOLFSSL_SP_DYN_STACK
-/* We are statically declaring a variable smaller than sp_int.
- * We track available memory in the 'size' field.
- * Disable warnings of sp_int being partly outside array bounds of variable.
- */
-    PRAGMA_GCC_DIAG_PUSH
-    PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
-#endif
-
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -94,7 +85,7 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_INT_NEGATIVE      Enables negative values to be used.
  * WOLFSSL_SP_INT_DIGIT_ALIGN   Enable when unaligned access of sp_int_digit
  *                              pointer is not allowed.
- * WOLFSSL_SP_DYN_STACK         Enable use of dynamic stack items.
+ * WOLFSSL_SP_NO_DYN_STACK      Disable use of dynamic stack items.
  *                              Dynamic arrays used when not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  * WOLFSSL_SP_LOW_MEM           Use algorithms that use less memory.
@@ -107,6 +98,15 @@ This library provides single precision (SP) integer math functions.
 #endif
 
 #include <wolfssl/wolfcrypt/sp_int.h>
+
+#ifdef WOLFSSL_SP_DYN_STACK
+/* We are statically declaring a variable smaller than sp_int.
+ * We track available memory in the 'size' field.
+ * Disable warnings of sp_int being partly outside array bounds of variable.
+ */
+    PRAGMA_GCC_DIAG_PUSH
+    PRAGMA_GCC("GCC diagnostic ignored \"-Warray-bounds\"")
+#endif
 
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
