@@ -345,6 +345,11 @@ typedef int (*SSLSnifferSecretCb)(unsigned char* client_random,
 
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_RemoveSession(const char* clientIp, int clientPort,
+                                      const char* serverIp, int serverPort,
+                                      char* error);
+
 
 #ifdef __cplusplus
     }  /* extern "C" */
