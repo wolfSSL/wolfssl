@@ -150,6 +150,8 @@ SSL_SNIFFER_API void ssl_InitSniffer_ex2(int threadNum);
 WOLFSSL_API
 SSL_SNIFFER_API void ssl_FreeSniffer(void);
 
+WOLFSSL_API
+SSL_SNIFFER_API void ssl_RemoveStaleSessions(void);
 
 /* ssl_SetPrivateKey typeKs */
 enum {
@@ -342,6 +344,11 @@ typedef int (*SSLSnifferSecretCb)(unsigned char* client_random,
                                   unsigned char* output_secret);
 
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_RemoveSession(const char* clientIp, int clientPort,
+                                      const char* serverIp, int serverPort,
+                                      char* error);
 
 
 #ifdef __cplusplus

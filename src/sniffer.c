@@ -5129,6 +5129,12 @@ static void RemoveStaleSessions(void)
     }
 }
 
+void ssl_RemoveStaleSessions(void)
+{
+    LOCK_SESSION();
+    RemoveStaleSessions();
+    UNLOCK_SESSION();
+}
 
 /* Create a new Sniffer Session */
 static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
@@ -7618,6 +7624,106 @@ int ssl_LoadSecretsFromKeyLogFile(const char* keylogfile, char* error)
 }
 
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+
+
+/*
+ * Removes a session from the SessionTable based on client/server IP & ports
+ * Returns 0 if a session was found and freed, -1 otherwise
+ */
+int ssl_RemoveSession(const char* clientIp, int clientPort,
+                      const char* serverIp, int serverPort,
+                      char* error)
+{
+    IpAddrInfo clientAddr;
+    IpAddrInfo serverAddr;
+    IpInfo ipInfo;
+    TcpInfo tcpInfo;
+    SnifferSession* session;
+    int ret = -1;  /* Default to not found */
+    word32 row;
+
+    if (clientIp == NULL || serverIp == NULL) {
+        SetError(BAD_IPVER_STR, error, NULL, 0);
+        return ret;
+    }
+
+    /* Set up client IP address */
+    clientAddr.version = IPV4;
+    clientAddr.ip4 = XINET_ADDR(clientIp);
+    if (clientAddr.ip4 == XINADDR_NONE) {
+    #ifdef FUSION_RTOS
+        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6,
+                       sizeof(clientAddr.ip4)) == 1)
+    #else
+        if (XINET_PTON(AF_INET6, clientIp, clientAddr.ip6) == 1)
+    #endif
+        {
+            clientAddr.version = IPV6;
+        }
+        else {
+            SetError(BAD_IPVER_STR, error, NULL, 0);
+            return ret;
+        }
+    }
+
+    /* Set up server IP address */
+    serverAddr.version = IPV4;
+    serverAddr.ip4 = XINET_ADDR(serverIp);
+    if (serverAddr.ip4 == XINADDR_NONE) {
+    #ifdef FUSION_RTOS
+        if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6,
+                       sizeof(serverAddr.ip4)) == 1)
+    #else
+        if (XINET_PTON(AF_INET6, serverIp, serverAddr.ip6) == 1)
+    #endif
+        {
+            serverAddr.version = IPV6;
+        }
+        else {
+            SetError(BAD_IPVER_STR, error, NULL, 0);
+            return ret;
+        }
+    }
+
+    XMEMSET(&ipInfo, 0, sizeof(ipInfo));
+    XMEMSET(&tcpInfo, 0, sizeof(tcpInfo));
+
+    /* Set up client->server direction */
+    ipInfo.src = clientAddr;
+    ipInfo.dst = serverAddr;
+    tcpInfo.srcPort = clientPort;
+    tcpInfo.dstPort = serverPort;
+
+    /* Calculate the hash row for this session */
+    row = SessionHash(&ipInfo, &tcpInfo);
+
+    LOCK_SESSION();
+
+    /* Search only the specific row in the session table */
+    session = SessionTable[row];
+
+    while (session) {
+        SnifferSession* next = session->next;
+
+        /* Check if this session matches the specified client/server IP/port */
+        if (MatchAddr(session->client, clientAddr) &&
+            MatchAddr(session->server, serverAddr) &&
+            session->cliPort == clientPort &&
+            session->srvPort == serverPort) {
+
+            /* Use RemoveSession to remove and free the session */
+            RemoveSession(session, NULL, NULL, row);
+            ret = 0;  /* Session found and freed */
+            break;
+        }
+
+        session = next;
+    }
+
+    UNLOCK_SESSION();
+
+    return ret;
+}
 
 
 #undef ERROR_OUT
