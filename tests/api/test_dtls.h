@@ -27,5 +27,6 @@ int test_dtls13_basic_connection_id(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_dtls13_epochs(void);
 int test_dtls13_ack_order(void);
+int test_dtls_version_checking(void);
 
 #endif /* TESTS_API_DTLS_H */
