@@ -3330,6 +3330,7 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
 
         /* Handle PSS padding using RSA_padding_add_PKCS1_PSS_mgf1 if saltlen
          * or mgf1 hash were set.  Use generic signing otherwise. */
+#ifdef OPENSSL_ALL
         if (ctx->mgf1_md || ctx->saltlen) {
             int ret;
             unsigned char *encodedSig = NULL;
@@ -3365,8 +3366,9 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             usiglen = (unsigned int)ret;
             *siglen = (size_t)usiglen;
             return WOLFSSL_SUCCESS;
-        }
-        else {
+        } else
+#endif /* OPENSSL_ALL */
+        {
             /* Use existing method for other padding types */
             if (wolfSSL_RSA_sign_generic_padding(wolfSSL_EVP_MD_type(ctx->md), tbs,
                     (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1,
@@ -3510,8 +3512,9 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         return WOLFSSL_FAILURE;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA)
+#ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
+#ifdef OPENSSL_ALL
         /* Verify PSS padding using wolfSSL_RSA_verify_PKCS1_PSS_mgf1 if saltlen
          * or mgf1 hash were set. Do generic verification otherwise. */
         if (ctx->mgf1_md || ctx->saltlen) {
@@ -3545,14 +3548,15 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
                 return WOLFSSL_FAILURE;
 
             return WOLFSSL_SUCCESS;
-        }
-        else {
+        } else
+#endif /* OPENSSL_ALL */
+        {
             /* Use existing method for other padding types */
             return wolfSSL_RSA_verify_ex(wolfSSL_EVP_MD_type(ctx->md), tbs,
                 (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
                 ctx->padding);
         }
-#endif /* NO_RSA */
+#endif /* !NO_RSA */
 
 #ifndef NO_DSA
      case WC_EVP_PKEY_DSA: {
