@@ -3761,6 +3761,9 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -3782,6 +3785,9 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -3802,6 +3808,9 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -3823,6 +3832,9 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -3843,6 +3855,9 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -3951,6 +3966,9 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -4006,6 +4024,9 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
     WC_RNG* rng;
     int ret;
 #ifdef WC_RSA_BLINDING
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     rng = key->rng;
 #else
     rng = NULL;
@@ -4192,6 +4213,9 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
 
     saltLen = hLen;
     #ifdef WOLFSSL_SHA512
+        if (key == NULL) {
+            return BAD_FUNC_ARG;
+        }
         /* See FIPS 186-4 section 5.5 item (e). */
         bits = mp_count_bits(&key->n);
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
@@ -4238,6 +4262,9 @@ int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
 
     saltLen = hLen;
     #ifdef WOLFSSL_SHA512
+        if (key == NULL) {
+            return BAD_FUNC_ARG;
+        }
         /* See FIPS 186-4 section 5.5 item (e). */
         bits = mp_count_bits(&key->n);
         if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
