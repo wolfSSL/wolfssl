@@ -16,7 +16,7 @@
     \param [in] salt Random non-secret value.
     \param [in] saltSz Size of random in bytes.
     \param [in] kdrIdx Key derivation rate. kdr = 0 when -1, otherwise kdr = 2^kdrIdx.
-    \param [in] index Index value to XOR in.
+    \param [in] idx Index value to XOR in.
     \param [out] key1 First key. Label value of 0x00.
     \param [in] key1Sz Size of first key in bytes.
     \param [out] key2 Second key. Label value of 0x01.
@@ -29,14 +29,14 @@
     \code
     unsigned char key[16] = { ... };
     unsigned char salt[14] = { ... };
-    unsigned char index[6] = { ... };
+    unsigned char idx[6] = { ... };
     unsigned char keyE[16];
     unsigned char keyA[20];
     unsigned char keyS[14];
     int kdrIdx = 0; // Use all of index
     int ret;
 
-    ret = wc_SRTP_KDF(key, sizeof(key), salt, sizeof(salt), kdrIdx, index,
+    ret = wc_SRTP_KDF(key, sizeof(key), salt, sizeof(salt), kdrIdx, idx,
         keyE, sizeof(keyE), keyA, sizeof(keyA), keyS, sizeof(keyS));
     if (ret != 0) {
         WOLFSSL_MSG("wc_SRTP_KDF failed");
@@ -49,7 +49,7 @@
     \sa wc_SRTP_KDF_kdr_to_idx
 */
 int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
-        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        int kdrIdx, const byte* idx, byte* key1, word32 key1Sz, byte* key2,
         word32 key2Sz, byte* key3, word32 key3Sz);
 
 /*!
@@ -69,7 +69,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \param [in] salt Random non-secret value.
     \param [in] saltSz Size of random in bytes.
     \param [in] kdrIdx Key derivation rate. kdr = 0 when -1, otherwise kdr = 2^kdrIdx.
-    \param [in] index Index value to XOR in.
+    \param [in] idx Index value to XOR in.
     \param [out] key1 First key. Label value of 0x00.
     \param [in] key1Sz Size of first key in bytes.
     \param [out] key2 Second key. Label value of 0x01.
@@ -82,14 +82,14 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \code
     unsigned char key[16] = { ... };
     unsigned char salt[14] = { ... };
-    unsigned char index[4] = { ... };
+    unsigned char idx[4] = { ... };
     unsigned char keyE[16];
     unsigned char keyA[20];
     unsigned char keyS[14];
     int kdrIdx = 0; // Use all of index
     int ret;
 
-    ret = wc_SRTCP_KDF(key, sizeof(key), salt, sizeof(salt), kdrIdx, index,
+    ret = wc_SRTCP_KDF(key, sizeof(key), salt, sizeof(salt), kdrIdx, idx,
         keyE, sizeof(keyE), keyA, sizeof(keyA), keyS, sizeof(keyS));
     if (ret != 0) {
         WOLFSSL_MSG("wc_SRTP_KDF failed");
@@ -102,7 +102,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \sa wc_SRTP_KDF_kdr_to_idx
 */
 int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
-        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        int kdrIdx, const byte* idx, byte* key1, word32 key1Sz, byte* key2,
         word32 key2Sz, byte* key3, word32 key3Sz);
 /*!
     \ingroup SrtpKdf
@@ -121,7 +121,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \param [in] salt Random non-secret value.
     \param [in] saltSz Size of random in bytes.
     \param [in] kdrIdx Key derivation rate. kdr = 0 when -1, otherwise kdr = 2^kdrIdx.
-    \param [in] index Index value to XOR in.
+    \param [in] idx Index value to XOR in.
     \param [in] label Label to use when deriving key.
     \param [out] outKey Derived key.
     \param [in] outKeySz Size of derived key in bytes.
@@ -131,12 +131,12 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \code
     unsigned char key[16] = { ... };
     unsigned char salt[14] = { ... };
-    unsigned char index[6] = { ... };
+    unsigned char idx[6] = { ... };
     unsigned char keyE[16];
     int kdrIdx = 0; // Use all of index
     int ret;
 
-    ret = wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt), kdrIdx, index,
+    ret = wc_SRTP_KDF_label(key, sizeof(key), salt, sizeof(salt), kdrIdx, idx,
         WC_SRTP_LABEL_ENCRYPTION, keyE, sizeof(keyE));
     if (ret != 0) {
         WOLFSSL_MSG("wc_SRTP_KDF failed");
@@ -149,7 +149,7 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     \sa wc_SRTP_KDF_kdr_to_idx
 */
 int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
-        word32 saltSz, int kdrIdx, const byte* index, byte label, byte* outKey,
+        word32 saltSz, int kdrIdx, const byte* idx, byte label, byte* outKey,
         word32 outKeySz);
 /*!
     \ingroup SrtpKdf
@@ -168,7 +168,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     \param [in] salt Random non-secret value.
     \param [in] saltSz Size of random in bytes.
     \param [in] kdrIdx Key derivation rate. kdr = 0 when -1, otherwise kdr = 2^kdrIdx.
-    \param [in] index Index value to XOR in.
+    \param [in] idx Index value to XOR in.
     \param [in] label Label to use when deriving key.
     \param [out] outKey Derived key.
     \param [in] outKeySz Size of derived key in bytes.
@@ -178,13 +178,13 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     \code
     unsigned char key[16] = { ... };
     unsigned char salt[14] = { ... };
-    unsigned char index[4] = { ... };
+    unsigned char idx[4] = { ... };
     unsigned char keyE[16];
     int kdrIdx = 0; // Use all of index
     int ret;
 
     ret = wc_SRTCP_KDF_label(key, sizeof(key), salt, sizeof(salt), kdrIdx,
-        index, WC_SRTCP_LABEL_ENCRYPTION, keyE, sizeof(keyE));
+        idx, WC_SRTCP_LABEL_ENCRYPTION, keyE, sizeof(keyE));
     if (ret != 0) {
         WOLFSSL_MSG("wc_SRTP_KDF failed");
     }
@@ -196,7 +196,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     \sa wc_SRTP_KDF_kdr_to_idx
 */
 int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
-        word32 saltSz, int kdrIdx, const byte* index, byte label, byte* outKey,
+        word32 saltSz, int kdrIdx, const byte* idx, byte label, byte* outKey,
         word32 outKeySz);
 /*!
     \ingroup SrtpKdf

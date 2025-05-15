@@ -2847,7 +2847,7 @@ int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
     \sa LockMutex
     \sa wolfSSL_GetSessionIndex
 */
-int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
+int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session);
 
 /*!
     \ingroup IO

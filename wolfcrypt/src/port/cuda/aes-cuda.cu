@@ -664,7 +664,7 @@ __global__ void AesEncrypt_C_CUDA(word32* rkBase, const byte* inBlockBase, byte*
     word32 s0, s1, s2, s3;
     word32 t0, t1, t2, t3;
     word32 sBox;
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     const byte* inBlock = inBlockBase;
     byte* outBlock = outBlockBase;
