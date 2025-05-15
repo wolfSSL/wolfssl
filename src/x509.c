@@ -4173,6 +4173,16 @@ byte* wolfSSL_X509_get_hw_serial_number(WOLFSSL_X509* x509,byte* in,
 #endif /* WOLFSSL_SEP */
 #endif /* OPENSSL_EXTRA */
 
+
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+/* Return and remove the last x509 pushed on stack */
+WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
+    return (WOLFSSL_X509*)wolfSSL_sk_pop(sk);
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
 /* require OPENSSL_EXTRA since wolfSSL_X509_free is wrapped by OPENSSL_EXTRA */
 #if defined(OPENSSL_EXTRA)
 
@@ -4209,13 +4219,6 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     }
 
     return wolfSSL_sk_push(sk, x509);
-}
-
-
-/* Return and remove the last x509 pushed on stack */
-WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
-{
-    return (WOLFSSL_X509*)wolfSSL_sk_pop(sk);
 }
 
 /* Getter function for WOLFSSL_X509 pointer
@@ -14059,7 +14062,7 @@ WOLFSSL_X509_CRL *wolfSSL_X509_OBJECT_get0_X509_CRL(WOLFSSL_X509_OBJECT *obj)
         * HAVE_SBLIM_SFCB)) */
 
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
 {
@@ -14070,7 +14073,7 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
     return (int)s->num;
 }
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef HAVE_EX_DATA_CRYPTO
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
