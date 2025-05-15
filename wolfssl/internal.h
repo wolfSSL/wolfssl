@@ -249,8 +249,8 @@
     #endif
 #endif
 
-#if !defined(CHAR_BIT) || (defined(OPENSSL_EXTRA) && !defined(INT_MAX))
-    /* Needed for DTLS without big math and INT_MAX */
+#if !defined(WOLFCRYPT_ONLY) && !defined(INT_MAX)
+    /* Needed for TLS/DTLS limit checking (Added in 91aad90c59 Jan 24, 2025) */
     #include <limits.h>
 #endif
 
