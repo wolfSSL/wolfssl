@@ -1469,15 +1469,23 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
     }
 #endif
 
+#ifdef TEST_ALWAYS_RUN_TO_END
+    #define TEST_PASS_stack_size_fail_clause last_failed_test_ret = \
+        WC_TEST_RET_ENC_EC(MEMORY_E)
+#else
+    #define TEST_PASS_stack_size_fail_clause \
+        return err_sys("post-test check failed", WC_TEST_RET_ENC_NC)
+#endif
+
 /* set test pass output to printf if not overridden */
 #ifndef TEST_PASS
     /* redirect to printf */
     #define TEST_PASS(...) {                                    \
         if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK                \
             (max_relative_stack, printf(__VA_ARGS__)) < 0) {    \
-            return err_sys("post-test check failed", WC_TEST_RET_ENC_NC);\
+            TEST_PASS_stack_size_fail_clause;                   \
         }                                                       \
-        PRINT_HEAP_CHECKPOINT("TEST_PASS", 0)                            \
+        PRINT_HEAP_CHECKPOINT("TEST_PASS", 0)                   \
         ASSERT_RESTORED_VECTOR_REGISTERS(exit(1););             \
     }
 #endif

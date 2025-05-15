@@ -24682,7 +24682,11 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
                                                    byte* pubKeyDer,
                                                    word32* pubKeyDerSz)
 {
-    DecodedCert cert;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert* cert;
+#else
+    DecodedCert cert[1];
+#endif
     int         ret;
     word32      startIdx;
     word32      idx;
@@ -24693,16 +24697,22 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(*cert), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL)
+        return MEMORY_E;
+#endif
+
     length = 0;
     badDate = 0;
 
-    wc_InitDecodedCert(&cert, certDer, certDerSz, NULL);
+    wc_InitDecodedCert(cert, certDer, certDerSz, NULL);
 
     /* Parse up to the SubjectPublicKeyInfo */
-    ret = wc_GetPubX509(&cert, 0, &badDate);
+    ret = wc_GetPubX509(cert, 0, &badDate);
     if (ret >= 0) {
         /* Save the starting index of SubjectPublicKeyInfo */
-        startIdx = cert.srcIdx;
+        startIdx = cert->srcIdx;
 
         /* Get the length of the SubjectPublicKeyInfo sequence */
         idx = startIdx;
@@ -24728,7 +24738,11 @@ WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
     }
 
     *pubKeyDerSz = length;
-    wc_FreeDecodedCert(&cert);
+    wc_FreeDecodedCert(cert);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
