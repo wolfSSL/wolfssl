@@ -1144,7 +1144,8 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
     sword16* w;
     unsigned int k = 0;
     unsigned int compVecSz;
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     sword16* u = NULL;
 #else
     sword16 u[(WC_ML_KEM_MAX_K + 1) * MLKEM_N];
@@ -1198,7 +1199,8 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
         break;
     }
 
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     if (ret == 0) {
         /* Allocate dynamic memory for a vector and a polynomial. */
         u = (sword16*)XMALLOC((k + 1) * MLKEM_N * sizeof(sword16), key->heap,
@@ -1254,7 +1256,8 @@ static MLKEM_NOINLINE int mlkemkey_decapsulate(MlKemKey* key, byte* m,
         /* Step 8: return m */
     }
 
-#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) || \
+    (!defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC))
     /* Dispose of dynamically memory allocated in function. */
     XFREE(u, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
