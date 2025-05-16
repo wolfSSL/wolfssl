@@ -26328,7 +26328,7 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, const char** pBuffer,
             newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
             /* get cipher name */
-            if (NAME_SZ < (finish - start)) /* buffer size of info->name */
+            if (NAME_SZ <= (finish - start)) /* buffer size of info->name */
                 return BUFFER_E;
             if (XMEMCPY(info->name, start, (size_t)(finish - start)) == NULL)
                 return BUFFER_E;
