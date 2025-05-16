@@ -788,6 +788,7 @@ do {                                                                           \
     type dgst_copy;                                                            \
     word32 flags;                                                              \
                                                                                \
+    XMEMSET(&dgst, 0, sizeof(dgst));                                           \
     XMEMSET(&dgst_copy, 0, sizeof(dgst_copy));                                 \
     ExpectIntEQ(wc_Init##inst(&dgst, HEAP_HINT, INVALID_DEVID), 0);            \
                                                                                \
