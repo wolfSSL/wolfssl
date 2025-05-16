@@ -34336,6 +34336,7 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
     unsigned int digestSz2 = 64;
 
     HMAC_CTX_init(&ctx1);
+    HMAC_CTX_init(&ctx2);
 
     ExpectIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
     ExpectIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
@@ -34814,13 +34815,13 @@ static int test_wolfSSL_DES(void)
         { 0xFE, 0xE0, 0xFE, 0xE0, 0xFE, 0xF1, 0xFE, 0xF1 }
     };
 
-    DES_check_key(1);
-    DES_set_key(&myDes, &key);
-
     /* check, check of odd parity */
     XMEMSET(myDes, 4, sizeof(const_DES_cblock));
-    myDes[0] = 6; /* set even parity */
     XMEMSET(key, 5, sizeof(DES_key_schedule));
+
+    DES_set_key(&myDes, &key);
+
+    myDes[0] = 6; /* set even parity */
     ExpectIntEQ(DES_set_key_checked(&myDes, &key), -1);
     ExpectIntNE(key[0], myDes[0]); /* should not have copied over key */
     ExpectIntEQ(DES_set_key_checked(NULL, NULL), -2);
