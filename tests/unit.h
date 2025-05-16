@@ -385,6 +385,8 @@ typedef struct test_ssl_cbf {
 } test_ssl_cbf;
 
 #define TEST_SSL_MEMIO_BUF_SZ   (64 * 1024)
+#define TEST_MEMIO_MAX_MSGS 32
+
 typedef struct test_ssl_memio_ctx {
     WOLFSSL_CTX* s_ctx;
     WOLFSSL_CTX* c_ctx;
@@ -406,6 +408,16 @@ typedef struct test_ssl_memio_ctx {
     int c_len;
     byte s_buff[TEST_SSL_MEMIO_BUF_SZ];
     int s_len;
+
+    int c_msg_sizes[TEST_MEMIO_MAX_MSGS];
+    int c_msg_count;
+    int c_msg_pos;
+    int c_msg_offset;
+
+    int s_msg_sizes[TEST_MEMIO_MAX_MSGS];
+    int s_msg_count;
+    int s_msg_pos;
+    int s_msg_offset;
 } test_ssl_memio_ctx;
 
 int test_ssl_memio_setup(test_ssl_memio_ctx *ctx);
