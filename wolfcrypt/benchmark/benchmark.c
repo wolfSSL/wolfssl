@@ -1824,10 +1824,12 @@ static const char* bench_result_words2[][5] = {
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
     #endif
-    #ifndef HAVE_RENESAS_SYNC
-        #define BENCH_DEVID_GET_NAME(useDeviceID) (useDeviceID) ? "HW" : "SW"
-    #else
-        #define BENCH_DEVID_GET_NAME(useDeviceID) ""
+    #if !defined(BENCH_DEVID_GET_NAME)
+        #ifndef HAVE_RENESAS_SYNC
+            #define BENCH_DEVID_GET_NAME(useDeviceID) (useDeviceID) ? "HW" : "SW"
+        #else
+            #define BENCH_DEVID_GET_NAME(useDeviceID) ""
+        #endif
     #endif
 #else
     #define BENCH_DEVID_GET_NAME(useDeviceID) ""
@@ -3263,7 +3265,8 @@ static void* benchmarks_do(void* args)
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
-         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) || \
+         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM) || \
+         defined(BENCH_DEVID)) || \
          ((defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
          defined(WOLF_CRYPTO_CB)) && !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
@@ -3300,7 +3303,9 @@ static void* benchmarks_do(void* args)
 #endif
 #ifdef WOLFSSL_AES_COUNTER
     if (bench_all || (bench_cipher_algs & BENCH_AES_CTR)) {
+    #ifndef NO_SW_BENCH
         bench_aesctr(0);
+    #endif
     #ifdef BENCH_DEVID
         bench_aesctr(1);
     #endif
@@ -3836,7 +3841,9 @@ static void* benchmarks_do(void* args)
 
 #ifdef HAVE_CURVE25519
     if (bench_all || (bench_asym_algs & BENCH_CURVE25519_KEYGEN)) {
+    #ifndef NO_SW_BENCH
         bench_curve25519KeyGen(0);
+    #endif
     #ifdef BENCH_DEVID
         bench_curve25519KeyGen(1);
     #endif
