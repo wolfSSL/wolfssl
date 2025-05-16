@@ -1174,6 +1174,15 @@ else
     DEFAULT_ENABLED_ALL_ASM=no
 fi
 
+if test "$ENABLED_FIPS" = "yes" && test "$HAVE_FIPS_VERSION" -lt 6
+then
+    case "$host_cpu" in
+        *x86_64*|*amd64*) ;;
+        *) DEFAULT_ENABLED_ALL_ASM=no
+           ;;
+    esac
+fi
+
 AC_ARG_ENABLE([all-asm],
     [AS_HELP_STRING([--enable-all-asm],[Enable all applicable assembly accelerations (default: disabled)])],
     [ ENABLED_ALL_ASM=$enableval ],
