@@ -152,10 +152,6 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_TIME(n)  WC_DO_NOTHING
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_CERTIFICATE_LOADS)
-    #define WOLFSSL_DEBUG_CERTIFICATE_LOADS
-#endif
-
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
     #if defined(_WIN32)
         #if defined(INTIME_RTOS)
