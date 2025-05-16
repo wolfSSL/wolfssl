@@ -11788,6 +11788,10 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     *inOutIdx += ENUM_LEN + VERSION_SZ;
     ato16(ssl->buffers.inputBuffer.buffer + *inOutIdx, &ssl->keys.curEpoch);
 
+    if (rh->pvMajor == DTLS_MAJOR && rh->pvMinor == DTLS_BOGUS_MINOR) {
+        return SEQUENCE_ERROR;
+    }
+
 #ifdef WOLFSSL_DTLS_CID
     if (rh->type == dtls12_cid && (cidSz = DtlsGetCidRxSize(ssl)) == 0)
         return DTLS_CID_ERROR;
