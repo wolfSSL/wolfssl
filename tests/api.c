@@ -27635,8 +27635,8 @@ static int test_wolfSSL_X509_STORE_CTX_get0_store(void)
 }
 
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_ECC) && !defined(NO_TLS) && \
-    defined(HAVE_AESGCM)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
 static int test_wolfSSL_get_client_ciphers_ctx_ready(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
@@ -27678,8 +27678,8 @@ static int test_wolfSSL_get_client_ciphers(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_ECC) && !defined(NO_TLS) && \
-    defined(HAVE_AESGCM)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_ECC) && !defined(NO_TLS) && defined(HAVE_AESGCM)
     test_ssl_cbf server_cb;
     test_ssl_cbf client_cb;
 
@@ -27703,7 +27703,8 @@ static int test_wolfSSL_CTX_set_client_CA_list(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_BIO) && !defined(NO_TLS)
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_BIO) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     X509_NAME* name = NULL;
@@ -41034,7 +41035,7 @@ static int test_wolfSSL_CTX_ctrl(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_TLS) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER)
     char caFile[] = "./certs/client-ca.pem";
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx = NULL;
@@ -58150,7 +58151,7 @@ static int test_wolfSSL_set_SSL_CTX(void)
     EXPECT_DECLS;
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) \
     && !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA)  && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx1 = NULL;
     WOLFSSL_CTX *ctx2 = NULL;
     WOLFSSL *ssl = NULL;
@@ -59078,7 +59079,7 @@ static int test_wolfSSL_OpenSSL_version(void)
 static int test_CONF_CTX_CMDLINE(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_TLS)
+#if defined(OPENSSL_ALL) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)
     SSL_CTX* ctx = NULL;
     SSL_CONF_CTX* cctx = NULL;
 
@@ -59154,7 +59155,7 @@ static int test_CONF_CTX_CMDLINE(void)
 static int test_CONF_CTX_FILE(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_TLS)
+#if defined(OPENSSL_ALL) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER)
     SSL_CTX* ctx = NULL;
     SSL_CONF_CTX* cctx = NULL;
 
