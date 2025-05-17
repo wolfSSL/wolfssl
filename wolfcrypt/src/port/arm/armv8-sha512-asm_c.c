@@ -629,7 +629,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x8, x8, x4\n\t"
         "add	x4, x4, x14\n\t"
         "subs	x27, x27, #1\n\t"
-        "bne	L_sha512_len_neon_start_%=\n\t"
+        "b.ne	L_sha512_len_neon_start_%=\n\t"
         /* Round 0 */
         "mov	x13, v0.d[0]\n\t"
         "ldr	x15, [x3], #8\n\t"
@@ -998,7 +998,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add  x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
         "subs	%w[len], %w[len], #0x80\n\t"
-        "bne	L_sha512_len_neon_begin_%=\n\t"
+        "b.ne	L_sha512_len_neon_begin_%=\n\t"
         "stp	x4, x5, [%x[sha512]]\n\t"
         "stp	x6, x7, [%x[sha512], #16]\n\t"
         "stp	x8, x9, [%x[sha512], #32]\n\t"
@@ -1576,7 +1576,7 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
         "add	v25.2d, v25.2d, v29.2d\n\t"
         "add	v24.2d, v24.2d, v28.2d\n\t"
         "subs	%w[len], %w[len], #0x80\n\t"
-        "bne	L_sha512_len_crypto_begin_%=\n\t"
+        "b.ne	L_sha512_len_crypto_begin_%=\n\t"
         /* Store digest back */
         "st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [%x[sha512]]\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)

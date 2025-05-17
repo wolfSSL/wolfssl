@@ -978,9 +978,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v13.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -1129,9 +1129,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v15.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -1295,9 +1295,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v17.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -22274,7 +22274,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R]    \n"
                 "CMP r12, #10 \n"
-                "BEQ 1f    \n"
+                "B.EQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22283,7 +22283,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESE.8 q0, q2\n"
 
                 "CMP r12, #12 \n"
-                "BEQ 1f    \n"
+                "B.EQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22350,7 +22350,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R] \n"
                 "CMP r12, #10  \n"
-                "BEQ 1f \n"
+                "B.EQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22359,7 +22359,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESD.8 q0, q2\n"
 
                 "CMP r12, #12  \n"
-                "BEQ 1f \n"
+                "B.EQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22462,7 +22462,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22529,7 +22529,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22603,7 +22603,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "SUB %[Key], %[Key], #16   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22701,7 +22701,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q13, q12        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b      \n"
 
@@ -22770,7 +22770,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 
@@ -22846,7 +22846,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 
@@ -22902,9 +22902,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP r11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP r11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -23066,9 +23066,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:   \n"
         "CMP r11, #1 \n"
-        "BEQ 2f \n"
+        "B.EQ 2f \n"
         "CMP r11, #0 \n"
-        "BEQ 3f   \n"
+        "B.EQ 3f   \n"
 
         "VMOV.32 q0, q13\n"
         "AESE.8 q0, q1\n"
@@ -23252,9 +23252,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP r11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP r11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -25017,11 +25017,11 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "# Put last 2 blocks of keys based on rounds into v14, v15\n"
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "40: \n"
@@ -25041,17 +25041,17 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "# Put last 2 blocks of keys based on rounds into v14, v15\n"
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "SUBS WZR, %w[rounds], #10 \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
         "41: \n"
 
         "SUBS WZR, %w[blocks], #4 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "AND %w[sz], %w[sz], 0x3f \n"
 
@@ -25174,7 +25174,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #10 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESE v16.16b, v10.16b  \n"
         "AESMC v16.16b, v16.16b \n"
         "AESE v17.16b, v10.16b  \n"
@@ -25193,7 +25193,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #12 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESE v16.16b, v12.16b  \n"
         "AESMC v16.16b, v16.16b \n"
         "AESE v17.16b, v12.16b  \n"
@@ -25231,7 +25231,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "ST1 {v16.16b-v19.16b}, [%[out]], #64 \n"
 
         "SUBS %w[blocks], %w[blocks], #4 \n"
-        "BGE 20b \n"
+        "B.GE 20b \n"
         "ADD %w[blocks], %w[blocks], #4 \n"
 
         "CBZ %w[sz], 3f \n"
@@ -25340,11 +25340,11 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "LD1 {v13.2d-v15.2d}, [x10]  \n"
 
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "40: \n"
@@ -25362,11 +25362,11 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "LD1 {v13.2d-v15.2d}, [x11]  \n"
 
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "41: \n"
@@ -25374,7 +25374,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "CBZ %w[blocks], 3f \n"
 
         "SUBS WZR, %w[blocks], #4 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "AND x17, x19, x10, ASR #63\n"
         "EXTR x12, x10, x9, #63 \n"
@@ -25495,7 +25495,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESIMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #10 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESD v16.16b, v10.16b  \n"
         "AESIMC v16.16b, v16.16b \n"
         "AESD v17.16b, v10.16b  \n"
@@ -25514,7 +25514,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESIMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #12 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESD v16.16b, v12.16b  \n"
         "AESIMC v16.16b, v16.16b \n"
         "AESD v17.16b, v12.16b  \n"
@@ -25553,7 +25553,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #4 \n"
         "SUB %w[sz], %w[sz], #64 \n"
-        "BGE 20b \n"
+        "B.GE 20b \n"
         "ADD %w[blocks], %w[blocks], #4 \n"
 
         "CBZ %w[sz], 4f \n"
@@ -25914,7 +25914,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "BGT 1b \n"
 
         "CMP %[sz], #0 \n"
-        "BEQ 3f \n"
+        "B.EQ 3f \n"
 
         "30: \n"
         "#Partial block \n"
@@ -26026,7 +26026,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d18, d19}, [%[key2]]!  \n"
 
         "CMP %[blocks], #0 \n"
-        "BEQ 3f \n"
+        "B.EQ 3f \n"
 
         "1: \n"
         "VLD1.32 {q0}, [%[in]]! \n"
@@ -26050,7 +26050,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "BGT 1b \n"
 
         "CMP %[sz], #0 \n"
-        "BEQ 4f \n"
+        "B.EQ 4f \n"
 
         "3: \n"
 
