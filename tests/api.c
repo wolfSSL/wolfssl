@@ -45303,7 +45303,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     WC_RNG rng;
     byte* encKey = NULL;
     word32 encKeySz = 0;
-    word32 decKeySz = 0;
+    int decKeySz = 0;
     const char password[] = "Lorem ipsum dolor sit amet";
     word32 passwordSz = (word32)XSTRLEN(password);
     word32 tradIdx = 0;
@@ -45324,7 +45324,7 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
         PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
         0);
     /* Decrypt the encrypted PKCS8 key we just made. */
-    ExpectIntGT((decKeySz = (word32)wc_DecryptPKCS8Key(encKey, encKeySz, password,
+    ExpectIntGT((decKeySz = wc_DecryptPKCS8Key(encKey, encKeySz, password,
         (int)passwordSz)), 0);
     /* encKey now holds the decrypted key (decrypted in place). */
     ExpectIntGT(wc_GetPkcs8TraditionalOffset(encKey, &tradIdx, decKeySz), 0);

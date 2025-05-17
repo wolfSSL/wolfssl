@@ -27474,7 +27474,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
         defined(HAVE_PKCS12) && \
             !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
             !defined(NO_CERTS) && !defined(NO_DES3)
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
+static wc_test_ret_t pkcs12_test_once(int key_enc_type, int cert_enc_type)
 {
     wc_test_ret_t ret = 0;
     WC_PKCS12* pkcs12 = NULL;
@@ -27492,13 +27492,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
     word32 keySz;
     word32 certSz;
 
-    WOLFSSL_ENTER("pkcs12_test");
-
     pkcs12 = wc_PKCS12_create(pass, (word32)XSTRLEN(pass),
         (char*)"friendlyName" /* not used currently */,
         (byte*)server_key_der_2048, sizeof_server_key_der_2048,
         (byte*)server_cert_der_2048, sizeof_server_cert_der_2048,
-        &derCaList, PBE_SHA1_DES3, PBE_SHA1_DES3, 100, 100,
+        &derCaList, key_enc_type, cert_enc_type, 100, 100,
         0 /* not used currently */, HEAP_HINT);
     if (pkcs12 == NULL) {
         ret = WC_TEST_RET_ENC_EC(MEMORY_E);
@@ -27570,6 +27568,28 @@ out:
     XFREE(pkcs12der, HEAP_HINT, DYNAMIC_TYPE_PKCS);
 
     return ret;
+}
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
+{
+    wc_test_ret_t ret = 0;
+    WOLFSSL_ENTER("pkcs12_test");
+
+    ret = pkcs12_test_once(PBE_SHA1_DES3, PBE_SHA1_DES3);
+    if (ret != 0)
+        return ret;
+
+#if !defined(BENCH_EMBEDDED)
+    ret = pkcs12_test_once(PBE_AES256_CBC, PBE_SHA1_DES3);
+    if (ret != 0)
+        return ret;
+
+    ret = pkcs12_test_once(PBE_AES128_CBC, PBE_SHA1_DES3);
+    if (ret != 0)
+        return ret;
+#endif
+
+return ret;
 }
 #endif
 

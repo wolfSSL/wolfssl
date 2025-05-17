@@ -2224,6 +2224,10 @@ WOLFSSL_LOCAL int ToTraditionalEnc(byte* input, word32 sz, const char* password,
 WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
+WOLFSSL_ASN_API int TraditionalEnc_ex(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int vAlgo, int encAlgId, byte* salt, word32 saltSz, int itt,
+        int hmacOid, WC_RNG* rng, void* heap);
 WOLFSSL_ASN_API int TraditionalEnc(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int vAlgo, int encAlgId, byte* salt, word32 saltSz, int itt,
