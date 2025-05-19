@@ -2849,6 +2849,51 @@ AC_ARG_WITH([cryptoauthlib],
     ]
 )
 
+
+# TropicSquare TROPIC01
+# Example: "./configure --with-tropic01=/home/pi/libtropic"
+ENABLED_TROPIC01="no"
+trylibtropicdir=""
+AC_ARG_WITH([tropic01],
+    [AS_HELP_STRING([--with-tropic01=PATH],[PATH to  install (default /usr/)])],
+    [
+        AC_MSG_CHECKING([for tropic01])
+        CPPFLAGS="$CPPFLAGS -DWOLFSSL_TROPIC01"
+        LIBS="$LIBS -llibtropic"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libtropic.h>]], [[ lt_init(0); ]])],[ libtropic_linked=yes ],[ libtropic_linked=no ])
+
+        if test "x$libtropic_linked" = "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trylibtropicdir=$withval
+            fi
+            if test "x$withval" = "xyes" ; then
+                trylibtropicdir="/usr"
+            fi
+
+            LDFLAGS="$LDFLAGS -L$trylibtropicdir/lib"
+            CPPFLAGS="$CPPFLAGS -I$trylibtropicdir/lib"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libtropic.h>]], [[ lt_init(0); ]])],[ libtropic_linked=yes ],[ libtropic_linked=no ])
+
+            if test "x$libtropic_linked" = "xno" ; then
+                AC_MSG_ERROR([libtropic isn't found.
+                If it's already installed, specify its path using --with-tropic01=/dir/])
+            fi
+
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibtropicdir/lib"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibtropicdir/lib"
+            AC_MSG_RESULT([yes])
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        ENABLED_TROPIC01="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
+    ]
+)
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -10702,6 +10747,7 @@ AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
+AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
@@ -11230,6 +11276,7 @@ echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
+echo "   * TROPIC01:                   $ENABLED_TROPIC01"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"
