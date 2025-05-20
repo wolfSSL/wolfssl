@@ -324,6 +324,7 @@
 #include <tests/api/test_ocsp.h>
 #include <tests/api/test_evp.h>
 #include <tests/api/test_tls_ext.h>
+#include <tests/api/test_tls.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -68182,6 +68183,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_basic_verify),
     TEST_DECL(test_ocsp_response_parsing),
     TEST_DECL(test_ocsp_certid_enc_dec),
+    TEST_DECL(test_tls12_unexpected_ccs),
+    TEST_DECL(test_tls13_unexpected_ccs),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
