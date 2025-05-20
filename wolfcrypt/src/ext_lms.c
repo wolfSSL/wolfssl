@@ -1043,6 +1043,15 @@ int wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
     return 0;
 }
 
+int wc_LmsKey_GetKid(LmsKey * key, const byte ** kid, word32* kidSz)
+{
+    if ((key == NULL) || (kid == NULL) || (kidSz == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    return NOT_COMPILED_IN;
+}
+
 const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
 {
     if ((priv == NULL) || (privSz < 16)) {
