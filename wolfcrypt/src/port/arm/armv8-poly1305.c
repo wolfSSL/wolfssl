@@ -146,8 +146,7 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
         ".align 2 \n\t"
     "L_poly1305_aarch64_16_done_%=: \n\t"
         : [bytes] "+r" (bytes), [m] "+r" (m)
-        : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
-          [ctx_r64] "m" (ctx->r64[0]), [ctx_h] "r" (ctx->h),
+        : [ctx_r64] "m" (ctx->r64[0]), [ctx_h] "r" (ctx->h),
           [finished] "r" ((word64)ctx->finished)
         : "memory", "cc",
           "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14",
@@ -821,8 +820,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         : [bytes] "+r" (bytes),
           [m] "+r" (m),
           [ctx] "+m" (ctx)
-        : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
-          [h] "r" (ctx->h),
+        : [h] "r" (ctx->h),
           [r] "r" (ctx->r),
           [r_2] "r" (ctx->r_2),
           [r_4] "r" (ctx->r_4),
