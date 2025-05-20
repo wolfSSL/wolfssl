@@ -715,7 +715,7 @@ AC_ARG_WITH([linux-arch],
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM"
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
