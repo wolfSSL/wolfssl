@@ -31,21 +31,6 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef __APPLE__
 	.text
-	.type	L_mlkem_aarch64_q, %object
-	.section	.rodata
-	.size	L_mlkem_aarch64_q, 16
-#else
-	.section	__DATA,__data
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-	.align	2
-#else
-	.p2align	2
-#endif /* __APPLE__ */
-L_mlkem_aarch64_q:
-	.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
-#ifndef __APPLE__
-	.text
 	.type	L_mlkem_aarch64_consts, %object
 	.section	.rodata
 	.size	L_mlkem_aarch64_consts, 16
@@ -59,44 +44,6 @@ L_mlkem_aarch64_q:
 #endif /* __APPLE__ */
 L_mlkem_aarch64_consts:
 	.short	0x0d01,0xf301,0x4ebf,0x0549,0x5049,0x0000,0x0000,0x0000
-#ifndef __APPLE__
-	.text
-	.type	L_sha3_aarch64_r, %object
-	.section	.rodata
-	.size	L_sha3_aarch64_r, 192
-#else
-	.section	__DATA,__data
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-	.align	3
-#else
-	.p2align	3
-#endif /* __APPLE__ */
-L_sha3_aarch64_r:
-	.xword	0x0000000000000001
-	.xword	0x0000000000008082
-	.xword	0x800000000000808a
-	.xword	0x8000000080008000
-	.xword	0x000000000000808b
-	.xword	0x0000000080000001
-	.xword	0x8000000080008081
-	.xword	0x8000000000008009
-	.xword	0x000000000000008a
-	.xword	0x0000000000000088
-	.xword	0x0000000080008009
-	.xword	0x000000008000000a
-	.xword	0x000000008000808b
-	.xword	0x800000000000008b
-	.xword	0x8000000000008089
-	.xword	0x8000000000008003
-	.xword	0x8000000000008002
-	.xword	0x8000000000000080
-	.xword	0x000000000000800a
-	.xword	0x800000008000000a
-	.xword	0x8000000080008081
-	.xword	0x8000000000008080
-	.xword	0x0000000080000001
-	.xword	0x8000000080008008
 #ifdef WOLFSSL_WC_MLKEM
 #ifndef __APPLE__
 	.text
@@ -7007,6 +6954,21 @@ _mlkem_basemul_mont_add:
 	.size	mlkem_basemul_mont_add,.-mlkem_basemul_mont_add
 #endif /* __APPLE__ */
 #ifndef __APPLE__
+	.text
+	.type	L_mlkem_aarch64_q, %object
+	.section	.rodata
+	.size	L_mlkem_aarch64_q, 16
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	.align	2
+#else
+	.p2align	2
+#endif /* __APPLE__ */
+L_mlkem_aarch64_q:
+	.short	0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01,0x0d01
+#ifndef __APPLE__
 .text
 .globl	mlkem_csubq_neon
 .type	mlkem_csubq_neon,@function
@@ -9724,6 +9686,44 @@ L_mlkem_rej_uniform_done:
 #ifndef __APPLE__
 	.size	mlkem_rej_uniform_neon,.-mlkem_rej_uniform_neon
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+	.text
+	.type	L_sha3_aarch64_r, %object
+	.section	.rodata
+	.size	L_sha3_aarch64_r, 192
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
+L_sha3_aarch64_r:
+	.xword	0x0000000000000001
+	.xword	0x0000000000008082
+	.xword	0x800000000000808a
+	.xword	0x8000000080008000
+	.xword	0x000000000000808b
+	.xword	0x0000000080000001
+	.xword	0x8000000080008081
+	.xword	0x8000000000008009
+	.xword	0x000000000000008a
+	.xword	0x0000000000000088
+	.xword	0x0000000080008009
+	.xword	0x000000008000000a
+	.xword	0x000000008000808b
+	.xword	0x800000000000008b
+	.xword	0x8000000000008089
+	.xword	0x8000000000008003
+	.xword	0x8000000000008002
+	.xword	0x8000000000000080
+	.xword	0x000000000000800a
+	.xword	0x800000008000000a
+	.xword	0x8000000080008081
+	.xword	0x8000000000008080
+	.xword	0x0000000080000001
+	.xword	0x8000000080008008
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 #ifndef __APPLE__
 .text

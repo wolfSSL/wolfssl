@@ -30,27 +30,8 @@
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
-static const word16 L_mlkem_aarch64_q[] = {
-    0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01,
-};
-
 static const word16 L_mlkem_aarch64_consts[] = {
     0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
-};
-
-static const word64 L_sha3_aarch64_r[] = {
-    0x0000000000000001, 0x0000000000008082,
-    0x800000000000808a, 0x8000000080008000,
-    0x000000000000808b, 0x0000000080000001,
-    0x8000000080008081, 0x8000000000008009,
-    0x000000000000008a, 0x0000000000000088,
-    0x0000000080008009, 0x000000008000000a,
-    0x000000008000808b, 0x800000000000008b,
-    0x8000000000008089, 0x8000000000008003,
-    0x8000000000008002, 0x8000000000000080,
-    0x000000000000800a, 0x800000008000000a,
-    0x8000000080008081, 0x8000000000008080,
-    0x0000000080000001, 0x8000000080008008,
 };
 
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
@@ -1405,11 +1386,9 @@ void mlkem_ntt(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
+          [L_mlkem_aarch64_zetas] "i" (L_mlkem_aarch64_zetas),
+          [L_mlkem_aarch64_zetas_qinv] "i" (L_mlkem_aarch64_zetas_qinv)
         : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
             "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
             "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -2922,13 +2901,9 @@ void mlkem_invntt(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
+          [L_mlkem_aarch64_zetas_inv] "i" (L_mlkem_aarch64_zetas_inv),
+          [L_mlkem_aarch64_zetas_inv_qinv] "i" (L_mlkem_aarch64_zetas_inv_qinv)
         : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
             "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
             "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -4096,13 +4071,7 @@ void mlkem_ntt_sqrdmlsh(sword16* r)
         "stp	q17, q18, [x1, #192]\n\t"
         "stp	q19, q20, [x1, #224]\n\t"
         : [r] "+r" (r)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
             "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
             "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -5393,13 +5362,7 @@ void mlkem_invntt_sqrdmlsh(sword16* r)
         "str	q23, [x1, #208]\n\t"
         "str	q24, [x1, #240]\n\t"
         : [r] "+r" (r)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4",
             "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14",
             "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
@@ -6102,14 +6065,8 @@ void mlkem_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         "zip2	v25.8h, v22.8h, v23.8h\n\t"
         "stp	q24, q25, [%x[r], #480]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
+          [L_mlkem_aarch64_zetas_mul] "i" (L_mlkem_aarch64_zetas_mul)
         : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
             "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
@@ -6840,20 +6797,18 @@ void mlkem_basemul_mont_add(sword16* r, const sword16* a, const sword16* b)
         "add	v29.8h, v29.8h, v25.8h\n\t"
         "stp	q28, q29, [%x[r], #480]\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts]),
+          [L_mlkem_aarch64_zetas_mul] "i" (L_mlkem_aarch64_zetas_mul)
         : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
             "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
             "v26", "v27", "v28", "v29"
     );
 }
+
+static const word16 L_mlkem_aarch64_q[] = {
+    0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01,
+};
 
 void mlkem_csubq_neon(sword16* p)
 {
@@ -7013,14 +6968,7 @@ void mlkem_csubq_neon(sword16* p)
         "st4	{v8.8h, v9.8h, v10.8h, v11.8h}, [%x[p]], #0x40\n\t"
         "st4	{v12.8h, v13.8h, v14.8h, v15.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [L_mlkem_aarch64_q] "i" (L_mlkem_aarch64_q)
         : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18", "v19", "v20"
@@ -7195,14 +7143,7 @@ void mlkem_add_reduce(sword16* r, const sword16* a)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18"
@@ -7417,14 +7358,7 @@ void mlkem_add3_reduce(sword16* r, const sword16* a, const sword16* b)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26"
@@ -7599,14 +7533,7 @@ void mlkem_rsub_reduce(sword16* r, const sword16* a)
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[r]], #0x40\n\t"
         "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[r]], #0x40\n\t"
         : [r] "+r" (r), [a] "+r" (a)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18"
@@ -7803,14 +7730,7 @@ void mlkem_to_mont(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18"
@@ -7976,14 +7896,7 @@ void mlkem_to_mont_sqrdmlsh(sword16* p)
         "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
         "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul)
+        : [%[L_mlkem_aarch64_consts]] "i" (%[L_mlkem_aarch64_consts])
         : "memory", "cc", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
             "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
             "v18"
@@ -8231,17 +8144,9 @@ void mlkem_to_msg_neon(byte* msg, sword16* p)
         "ins	v18.b[7], v25.b[0]\n\t"
         "st1	{v18.8b}, [%x[msg]], #8\n\t"
         : [msg] "+r" (msg), [p] "+r" (p)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits)
+        : [L_mlkem_to_msg_low] "i" (L_mlkem_to_msg_low),
+          [L_mlkem_to_msg_high] "i" (L_mlkem_to_msg_high),
+          [L_mlkem_to_msg_bits] "i" (L_mlkem_to_msg_bits)
         : "memory", "cc", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5",
             "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
             "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
@@ -8415,19 +8320,8 @@ void mlkem_from_msg_neon(sword16* p, const byte* msg)
         "and	v7.16b, v7.16b, v1.16b\n\t"
         "st1	{v4.8h, v5.8h, v6.8h, v7.8h}, [%x[p]], #0x40\n\t"
         : [p] "+r" (p), [msg] "+r" (msg)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits)
+        : [L_mlkem_from_msg_q1half] "i" (L_mlkem_from_msg_q1half),
+          [L_mlkem_from_msg_bits] "i" (L_mlkem_from_msg_bits)
         : "memory", "cc", "x2", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11"
     );
@@ -8693,19 +8587,7 @@ int mlkem_cmp_neon(const byte* a, const byte* b, int sz)
         "subs	x0, x0, xzr\n\t"
         "csetm	w0, ne\n\t"
         : [a] "+r" (a), [b] "+r" (b), [sz] "+r" (sz)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits)
+        :
         : "memory", "cc", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
             "v9", "v10", "v11"
     );
@@ -9410,28 +9292,31 @@ unsigned int mlkem_rej_uniform_neon(sword16* p, unsigned int len, const byte* r,
     "L_mlkem_rej_uniform_done_%=: \n\t"
         "mov	x0, x12\n\t"
         : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [%[L_mlkem_aarch64_q]] "i" (%[L_mlkem_aarch64_q]),
+          [L_mlkem_rej_uniform_mask] "i" (L_mlkem_rej_uniform_mask),
+          [L_mlkem_rej_uniform_bits] "i" (L_mlkem_rej_uniform_bits),
+          [L_mlkem_rej_uniform_indices] "i" (L_mlkem_rej_uniform_indices)
         : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
             "x12", "x13", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8",
             "v9", "v10", "v11", "v12", "v13"
     );
     return (word32)(size_t)p;
 }
+
+static const word64 L_sha3_aarch64_r[] = {
+    0x0000000000000001, 0x0000000000008082,
+    0x800000000000808a, 0x8000000080008000,
+    0x000000000000808b, 0x0000000080000001,
+    0x8000000080008081, 0x8000000000008009,
+    0x000000000000008a, 0x0000000000000088,
+    0x0000000080008009, 0x000000008000000a,
+    0x000000008000808b, 0x800000000000008b,
+    0x8000000000008089, 0x8000000000008003,
+    0x8000000000008002, 0x8000000000000080,
+    0x000000000000800a, 0x800000008000000a,
+    0x8000000080008081, 0x8000000000008080,
+    0x0000000080000001, 0x8000000080008008,
+};
 
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
 void mlkem_sha3_blocksx3_neon(word64* state)
@@ -9728,22 +9613,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
             "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
@@ -10070,22 +9940,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
@@ -10412,22 +10267,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
@@ -10818,22 +10658,7 @@ void mlkem_sha3_blocksx3_neon(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
             "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0",
@@ -11245,22 +11070,7 @@ void mlkem_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
@@ -11672,22 +11482,7 @@ void mlkem_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "str	x27, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state), [seed] "+r" (seed)
-        : [L_mlkem_aarch64_q] "S" (L_mlkem_aarch64_q),
-          [L_mlkem_aarch64_consts] "S" (L_mlkem_aarch64_consts),
-          [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r),
-          [L_mlkem_aarch64_zetas] "S" (L_mlkem_aarch64_zetas),
-          [L_mlkem_aarch64_zetas_qinv] "S" (L_mlkem_aarch64_zetas_qinv),
-          [L_mlkem_aarch64_zetas_inv] "S" (L_mlkem_aarch64_zetas_inv),
-          [L_mlkem_aarch64_zetas_inv_qinv] "S" (L_mlkem_aarch64_zetas_inv_qinv),
-          [L_mlkem_aarch64_zetas_mul] "S" (L_mlkem_aarch64_zetas_mul),
-          [L_mlkem_to_msg_low] "S" (L_mlkem_to_msg_low),
-          [L_mlkem_to_msg_high] "S" (L_mlkem_to_msg_high),
-          [L_mlkem_to_msg_bits] "S" (L_mlkem_to_msg_bits),
-          [L_mlkem_from_msg_q1half] "S" (L_mlkem_from_msg_q1half),
-          [L_mlkem_from_msg_bits] "S" (L_mlkem_from_msg_bits),
-          [L_mlkem_rej_uniform_mask] "S" (L_mlkem_rej_uniform_mask),
-          [L_mlkem_rej_uniform_bits] "S" (L_mlkem_rej_uniform_bits),
-          [L_mlkem_rej_uniform_indices] "S" (L_mlkem_rej_uniform_indices)
+        : [L_sha3_aarch64_r] "i" (L_sha3_aarch64_r)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v0", "v1",
