@@ -49,7 +49,7 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
     __asm__ __volatile__ (
         /* Check for zero bytes to do. */
         "CMP        %[bytes], #16 \n\t"
-        "BLO        L_poly1305_aarch64_16_done_%= \n\t"
+        "B.LO       L_poly1305_aarch64_16_done_%= \n\t"
 
         "MOV        x12, #1               \n\t"
         /* Load h */
@@ -129,7 +129,7 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
 
         "SUBS       %[bytes], %[bytes], #16\n\t"
         "ADD        %[m], %[m], #16\n\t"
-        "BGT        L_poly1305_aarch64_16_loop_%=\n\t"
+        "B.GT       L_poly1305_aarch64_16_loop_%=\n\t"
 
         /* Base 64 -> Base 26 */
         "MOV        x10, #0x3ffffff\n\t"
@@ -146,8 +146,7 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
         ".align 2 \n\t"
     "L_poly1305_aarch64_16_done_%=: \n\t"
         : [bytes] "+r" (bytes), [m] "+r" (m)
-        : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
-          [ctx_r64] "m" (ctx->r64[0]), [ctx_h] "r" (ctx->h),
+        : [ctx_r64] "m" (ctx->r64[0]), [ctx_h] "r" (ctx->h),
           [finished] "r" ((word64)ctx->finished)
         : "memory", "cc",
           "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14",
@@ -161,7 +160,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
     __asm__ __volatile__ (
         /* If less than 4 blocks to process then use regular method */
         "CMP        %[bytes], #64 \n\t"
-        "BLO        L_poly1305_aarch64_64_done_%= \n\t"
+        "B.LO       L_poly1305_aarch64_64_done_%= \n\t"
         "MOV        x9, #0x3ffffff       \n\t"
         /* Load h */
         "LDP        x20, x22, [%[h]]     \n\t"
@@ -189,7 +188,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         "MOV        v26.D[1], x9         \n\t"
         "DUP        v30.4S, v26.S[0]     \n\t"
         "CMP        %[bytes], #96 \n\t"
-        "BLO        L_poly1305_aarch64_64_start_block_size_64_%= \n\t"
+        "B.LO       L_poly1305_aarch64_64_start_block_size_64_%= \n\t"
         /* Load r^2 to NEON v0, v1, v2, v3, v4 */
         "LD4        { v0.S-v3.S }[2], [%[r_2]], #16 \n\t"
         "LD1        { v4.S }[2], [%[r_2]] \n\t"
@@ -363,7 +362,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         "UMLAL2     v25.2D, v14.4S, v0.4S \n\t"
         /* If less than six message blocks left then leave loop */
         "CMP        %[bytes], #96 \n\t"
-        "BLS        L_poly1305_aarch64_64_loop_128_final_%= \n\t"
+        "B.LS       L_poly1305_aarch64_64_loop_128_final_%= \n\t"
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
         "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
@@ -493,7 +492,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         "MOV        v19.S[1], v19.S[2]   \n\t"
         /* If less than 2 blocks left go straight to final multiplication. */
         "CMP        %[bytes], #32 \n\t"
-        "BLO        L_poly1305_aarch64_64_last_mult_%= \n\t"
+        "B.LO       L_poly1305_aarch64_64_last_mult_%= \n\t"
         /* Else go to one loop of L_poly1305_aarch64_64_loop_64 */
         "B          L_poly1305_aarch64_64_loop_64_%= \n\t"
         "\n"
@@ -677,7 +676,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         "MOV        v19.S[1], v19.S[2]   \n\t"
         /* If at least two message blocks left then loop_64 */
         "CMP        %[bytes], #32 \n\t"
-        "BHS        L_poly1305_aarch64_64_loop_64_%= \n\t"
+        "B.HS       L_poly1305_aarch64_64_loop_64_%= \n\t"
         "\n"
         ".align 2 \n\t"
     "L_poly1305_aarch64_64_last_mult_%=: \n\t"
@@ -821,8 +820,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
         : [bytes] "+r" (bytes),
           [m] "+r" (m),
           [ctx] "+m" (ctx)
-        : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
-          [h] "r" (ctx->h),
+        : [h] "r" (ctx->h),
           [r] "r" (ctx->r),
           [r_2] "r" (ctx->r_2),
           [r_4] "r" (ctx->r_4),
