@@ -24846,14 +24846,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v10.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v11.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v12.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v13.16b \n"                                   \
@@ -24886,14 +24886,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v10.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v11.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v12.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v13.16b \n"                                   \
@@ -24929,14 +24929,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v10.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v11.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v12.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v13.16b  \n"                                  \
@@ -24969,14 +24969,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v10.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v11.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v12.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v13.16b  \n"                                  \
@@ -25257,7 +25257,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #1 \n"
         "SUB %w[sz], %w[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CBZ %w[sz], 3f \n"
 
@@ -25274,7 +25274,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB w13, [%[out]], #1 \n"
         "STRB w14, [%[tmp]], #1 \n"
         "SUBS w12, w12, #1 \n"
-        "BGT 4b \n"
+        "B.GT 4b \n"
 
         "SUB %[out], %[out], %x[sz] \n"
         "SUB %[tmp], %[tmp], %x[sz] \n"
@@ -25576,7 +25576,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #1 \n"
         "SUB %w[sz], %w[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CBZ %w[sz], 4f \n"
 
@@ -25607,7 +25607,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB w13, [%[out]], #1 \n"
         "STRB w14, [%[tmp]], #1 \n"
         "SUBS w12, w12, #1 \n"
-        "BGT 6b \n"
+        "B.GT 6b \n"
         "SUB %[out], %[out], %x[sz] \n"
         "SUB %[tmp], %[tmp], %x[sz] \n"
         "SUB %[out], %[out], #16 \n"
@@ -25671,7 +25671,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25679,7 +25679,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25714,7 +25714,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25722,7 +25722,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25765,7 +25765,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25773,7 +25773,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25808,7 +25808,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25816,7 +25816,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25911,7 +25911,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %[blocks], %[blocks], #1 \n"
         "SUB %[sz], %[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CMP %[sz], #0 \n"
         "B.EQ 3f \n"
@@ -25929,7 +25929,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB r10, [%[out]], #1 \n"
         "STRB r11, [%[tmp]], #1 \n"
         "SUBS r9, r9, #1 \n"
-        "BGT 4b \n"
+        "B.GT 4b \n"
 
         "SUB %[out], %[out], %[sz] \n"
         "SUB %[tmp], %[tmp], %[sz] \n"
@@ -26047,7 +26047,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %[blocks], %[blocks], #1 \n"
         "SUB %[sz], %[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CMP %[sz], #0 \n"
         "B.EQ 4f \n"
@@ -26087,7 +26087,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB r10, [%[out]], #1 \n"
         "STRB r11, [%[tmp]], #1 \n"
         "SUBS r9, r9, #1 \n"
-        "BGT 6b \n"
+        "B.GT 6b \n"
         "SUB %[out], %[out], %[sz] \n"
         "SUB %[tmp], %[tmp], %[sz] \n"
         "SUB %[out], %[out], #16 \n"

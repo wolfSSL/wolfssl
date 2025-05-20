@@ -162,7 +162,7 @@ void BlockSha3_crypto(word64* state)
         "st4	{v20.d, v21.d, v22.d, v23.d}[0], [%x[state]], #32\n\t"
         "st1	{v24.1d}, [%x[state]]\n\t"
         : [state] "+r" (state)
-        : [L_SHA3_transform_crypto_r] "S" (L_SHA3_transform_crypto_r)
+        : [L_SHA3_transform_crypto_r] "i" (L_SHA3_transform_crypto_r)
         : "memory", "cc", "x1", "x2", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
             "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
             "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
@@ -369,7 +369,7 @@ void BlockSha3_base(word64* state)
         "str	x26, [%x[state], #192]\n\t"
         "ldp	x29, x30, [sp], #0x40\n\t"
         : [state] "+r" (state)
-        : [L_SHA3_transform_base_r] "S" (L_SHA3_transform_base_r)
+        : [L_SHA3_transform_base_r] "i" (L_SHA3_transform_base_r)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19",
             "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
