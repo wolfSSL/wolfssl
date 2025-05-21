@@ -1464,8 +1464,10 @@ static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
         result = RemoveCA(store->cm, dCert->extSubjKeyId, type);
     }
 
-    if (dCert)
+    if (dCert) {
         wc_FreeDecodedCert(dCert);
+        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+    }
 
     return result;
 }
