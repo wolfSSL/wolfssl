@@ -860,8 +860,9 @@ static int linuxkm_lkcapi_unregister(void)
             UNREGISTER_ALG(pkcs1_sha3_384, sig);
             UNREGISTER_ALG(pkcs1_sha3_512, sig);
         #endif /* WOLFSSL_SHA3 */
-    #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
+        UNREGISTER_ALG(pkcs1pad, akcipher);
+    #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
