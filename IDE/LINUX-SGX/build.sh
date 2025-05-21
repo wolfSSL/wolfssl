@@ -5,7 +5,8 @@ CFLAGS_NEW="-DDEBUG_WOLFSSL -I/usr/lib/gcc/x86_64-linux-gnu/$(gcc -dumpversion)/
 export CFLAGS="${CFLAGS} ${CFLAGS_NEW}"
 echo ${CFLAGS}
 
-export C_INCLUDE_PATH="$C_INCLUDE_PATH:/usr/lib/gcc/x86_64-linux-gnu/$(gcc -dumpversion)/include"
+NEW_INCLUDE_PATH="$C_INCLUDE_PATH:/usr/lib/gcc/x86_64-linux-gnu/$(gcc -dumpversion)/include"
+export C_INCLUDE_PATH="$NEW_INCLUDE_PATH"
 
 
 # Build without assembly optimizations
