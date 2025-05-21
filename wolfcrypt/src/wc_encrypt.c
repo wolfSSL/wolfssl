@@ -636,10 +636,14 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 break;
             }
     #endif
-    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+        (defined(WOLFSSL_AES_256) || defined(WOLFSSL_AES_128))
         #ifdef WOLFSSL_AES_256
             case PBE_AES256_CBC:
+        #endif /* WOLFSSL_AES_256 */
+        #ifdef WOLFSSL_AES_128
             case PBE_AES128_CBC:
+        #endif /* WOLFSSL_AES_128 */
             {
                 int free_aes;
 
@@ -686,8 +690,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             #endif
                 break;
             }
-        #endif /* WOLFSSL_AES_256 */
-    #endif /* !NO_AES && HAVE_AES_CBC */
+    #endif /* !NO_AES && HAVE_AES_CBC && (WOLFSSL_AES_256 || WOLFSSL_AES_128) */
     #ifdef WC_RC2
             case PBE_SHA1_40RC2_CBC:
             {
