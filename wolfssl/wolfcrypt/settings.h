@@ -4128,6 +4128,32 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_DH_EXTRA
 #endif
 
+/* FIPS 140-3 does not have this definition in wolfCrypt dh.h, but OpenSSL dh.h depends on it.
+ * Define it here as well if needed, as we want to avoid modifying dh.h in FIPS. */
+#ifndef DH_MAX_SIZE
+    #ifdef USE_FAST_MATH
+        /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
+        #define DH_MAX_SIZE    (FP_MAX_BITS / 2)
+        #if defined(WOLFSSL_MYSQL_COMPATIBLE) && DH_MAX_SIZE < 8192
+            #error "MySQL needs FP_MAX_BITS at least at 16384"
+        #endif
+    #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+        /* SP implementation supports numbers of SP_INT_BITS bits. */
+        #define DH_MAX_SIZE    (((SP_INT_BITS + 7) / 8) * 8)
+        #if defined(WOLFSSL_MYSQL_COMPATIBLE) && DH_MAX_SIZE < 8192
+            #error "MySQL needs SP_INT_BITS at least at 8192"
+        #endif
+    #else
+        #ifdef WOLFSSL_MYSQL_COMPATIBLE
+            /* Integer maths is dynamic but we only go up to 8192 bits. */
+            #define DH_MAX_SIZE 8192
+        #else
+            /* Integer maths is dynamic but we only go up to 4096 bits. */
+            #define DH_MAX_SIZE 4096
+        #endif
+    #endif
+#endif
+
 /* wc_Sha512.devId isn't available before FIPS 5.1 */
 #if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,1)
     #define NO_SHA2_CRYPTO_CB
