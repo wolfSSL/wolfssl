@@ -38948,12 +38948,14 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     {
         XFILE file = XBADFILE;
         const char* fname = "./certs/ecc-key.der";
+        long lsz = 0;
         size_t sz = 0;
         byte* buf = NULL;
 
         ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
         ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectTrue((sz = XFTELL(file)) != 0);
+        ExpectTrue((lsz = XFTELL(file)) > 0);
+        sz = (size_t)lsz;
         ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         ExpectNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);
@@ -52361,6 +52363,7 @@ static int test_wolfSSL_RSA_verify(void)
     SHA256_CTX c;
     EVP_PKEY *evpPkey = NULL;
     EVP_PKEY *evpPubkey = NULL;
+    long lsz = 0;
     size_t sz;
 
     /* generate hash */
@@ -52372,10 +52375,11 @@ static int test_wolfSSL_RSA_verify(void)
     wc_Sha256Free((wc_Sha256*)&c);
 #endif
 
-    /* read privete key file */
+    /* read private key file */
     ExpectTrue((fp = XFOPEN(svrKeyFile, "rb")) != XBADFILE);
     ExpectIntEQ(XFSEEK(fp, 0, XSEEK_END), 0);
-    ExpectTrue((sz = XFTELL(fp)) > 0);
+    ExpectTrue((lsz = XFTELL(fp)) > 0);
+    sz = (size_t)lsz;
     ExpectIntEQ(XFSEEK(fp, 0, XSEEK_SET), 0);
     ExpectNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
     ExpectIntEQ(XFREAD(buf, 1, sz, fp), sz);
@@ -54544,7 +54548,7 @@ static int test_wolfSSL_PEM_read_bio_ECPKParameters(void)
     ExpectNotNull(bio = BIO_new_mem_buf((unsigned char*)ec_nc_p384,
         sizeof(ec_nc_p384)));
     ExpectNotNull(ret = PEM_read_bio_ECPKParameters(bio, &group, NULL, NULL));
-    ExpectIntEQ(group == ret, 1);
+    ExpectIntEQ(ret == group, 1);
     ExpectIntEQ(EC_GROUP_get_curve_name(group), NID_secp384r1);
     BIO_free(bio);
     bio = NULL;
