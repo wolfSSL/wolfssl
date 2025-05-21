@@ -41582,11 +41582,11 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     int nid;
 #endif
     const char* ln = NULL;
-    word32 i = 0;
+    word32 idx = 0;
     int known = 1;
 
     /* Get the OID value for the OBJECT_ID. */
-    if (GetObjectId(asn1->data + asn1->offset, &i, &oid, oidIgnoreType,
+    if (GetObjectId(asn1->data + asn1->offset, &idx, &oid, oidIgnoreType,
             asn1->item.len + 2) == WC_NO_ERR_TRACE(ASN_PARSE_E)) {
         known = 0;
     }
@@ -41602,9 +41602,9 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     /* Lookup long name for extra known OID values. */
     if (Oid2LongName(oid, &ln) != 0) {
     }
-    else if ((asn1->nameCb != NULL) &&
+    else if ((asn1->nameCb != NULL) && (idx >= 2) &&
              ((ln = asn1->nameCb(asn1->data + asn1->offset + 2,
-                                 i - 2))) != NULL) {
+                                 idx - 2))) != NULL) {
     }
     else {
         /* Unknown OID value. */
