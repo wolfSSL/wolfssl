@@ -194,45 +194,34 @@ static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm);
     static int          km_direct_rsa_dec(struct akcipher_request *req);
 #endif /* LINUXKM_DIRECT_RSA */
 
-/* pkcs1 callbacks */
 #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
-    #ifdef WOLFSSL_SHA224
-        static int          km_pkcs1_sha224_init(struct crypto_akcipher *tfm);
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-        static int          km_pkcs1_sha256_init(struct crypto_akcipher *tfm);
-    #endif /* !NO_SHA256 */
-    #ifdef WOLFSSL_SHA384
-        static int          km_pkcs1_sha384_init(struct crypto_akcipher *tfm);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        static int          km_pkcs1_sha512_init(struct crypto_akcipher *tfm);
-    #endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-        static int          km_pkcs1_sha3_256_init(struct crypto_akcipher *tfm);
-        static int          km_pkcs1_sha3_384_init(struct crypto_akcipher *tfm);
-        static int          km_pkcs1_sha3_512_init(struct crypto_akcipher *tfm);
-    #endif /* WOLFSSL_SHA3 */
+    #define tfm_type   crypto_akcipher
+    #define tfm_ctx_cb akcipher_tfm_ctx
 #else
-    static int km_pkcs1pad_init(struct crypto_akcipher * tfm);
-    #ifdef WOLFSSL_SHA224
-        static int          km_pkcs1_sha224_init(struct crypto_sig *tfm);
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-        static int          km_pkcs1_sha256_init(struct crypto_sig *tfm);
-    #endif /* !NO_SHA256 */
-    #ifdef WOLFSSL_SHA384
-        static int          km_pkcs1_sha384_init(struct crypto_sig *tfm);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        static int          km_pkcs1_sha512_init(struct crypto_sig *tfm);
-    #endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-        static int          km_pkcs1_sha3_256_init(struct crypto_sig *tfm);
-        static int          km_pkcs1_sha3_384_init(struct crypto_sig *tfm);
-        static int          km_pkcs1_sha3_512_init(struct crypto_sig *tfm);
-    #endif /* WOLFSSL_SHA3 */
+    #define tfm_type   crypto_sig
+    #define tfm_ctx_cb crypto_sig_ctx
+
+    static int          km_pkcs1pad_init(struct crypto_akcipher * tfm);
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
+
+/* pkcs1 callbacks */
+#ifdef WOLFSSL_SHA224
+    static int          km_pkcs1_sha224_init(struct tfm_type *tfm);
+#endif /* WOLFSSL_SHA224 */
+#ifndef NO_SHA256
+    static int          km_pkcs1_sha256_init(struct tfm_type *tfm);
+#endif /* !NO_SHA256 */
+#ifdef WOLFSSL_SHA384
+    static int          km_pkcs1_sha384_init(struct tfm_type *tfm);
+#endif /* WOLFSSL_SHA384 */
+#ifdef WOLFSSL_SHA512
+    static int          km_pkcs1_sha512_init(struct tfm_type *tfm);
+#endif /* WOLFSSL_SHA512 */
+#ifdef WOLFSSL_SHA3
+    static int          km_pkcs1_sha3_256_init(struct tfm_type *tfm);
+    static int          km_pkcs1_sha3_384_init(struct tfm_type *tfm);
+    static int          km_pkcs1_sha3_512_init(struct tfm_type *tfm);
+#endif /* WOLFSSL_SHA3 */
 
     /* akcipher callbacks */
     static int          km_pkcs1pad_enc(struct akcipher_request *req);
@@ -539,6 +528,19 @@ static struct akcipher_alg direct_rsa = {
     #endif /* WOLFSSL_SHA3 */
 #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
+static inline void km_rsa_ctx_clear(struct km_rsa_ctx * ctx)
+{
+    if (ctx) {
+        if (ctx->key) {
+            wc_FreeRsaKey(ctx->key);
+            free(ctx->key);
+            ctx->key = NULL;
+        }
+
+        wc_FreeRng(&ctx->rng);
+    }
+}
+
 static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
 {
     int ret = 0;
@@ -626,11 +628,7 @@ static int km_rsa_ctx_init(struct km_rsa_ctx * ctx, int hash_oid)
 
 out:
     if (ret != 0) {
-        if (ctx->key) {
-            free(ctx->key);
-            ctx->key = NULL;
-        }
-        wc_FreeRng(&ctx->rng);
+        km_rsa_ctx_clear(ctx);
     }
 
     return ret;
@@ -954,47 +952,25 @@ static int km_direct_rsa_init(struct crypto_akcipher *tfm)
 }
 #endif /* LINUXKM_DIRECT_RSA */
 
-static inline void km_rsa_ctx_clear(struct km_rsa_ctx * ctx)
-{
-    if (ctx) {
-        if (ctx->key) {
-            wc_FreeRsaKey(ctx->key);
-            free(ctx->key);
-            ctx->key = NULL;
-        }
-
-        wc_FreeRng(&ctx->rng);
-    }
-}
-
 static void km_rsa_exit(struct crypto_akcipher *tfm)
 {
     struct km_rsa_ctx * ctx = NULL;
-
     ctx = akcipher_tfm_ctx(tfm);
-
     km_rsa_ctx_clear(ctx);
-
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_rsa_exit\n");
     #endif /* WOLFKM_DEBUG_RSA */
     return;
 }
 
-#if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
-    #define tfm_type   crypto_akcipher
-    #define tfm_ctx_cb akcipher_tfm_ctx
-#else
-    #define tfm_type   crypto_sig
-    #define tfm_ctx_cb crypto_sig_ctx
-
+#if defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
     static int km_pkcs1pad_init(struct crypto_akcipher * tfm)
     {
         struct km_rsa_ctx * ctx = NULL;
         ctx = akcipher_tfm_ctx(tfm);
         return km_rsa_ctx_init(ctx, 0);
     }
-#endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
+#endif /* LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
 #ifdef WOLFSSL_SHA224
 static int km_pkcs1_sha224_init(struct tfm_type *tfm)
