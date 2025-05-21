@@ -544,23 +544,50 @@ static int linuxkm_lkcapi_register(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
-    #ifdef WOLFSSL_SHA224
-    REGISTER_ALG(pkcs1_sha224, akcipher, linuxkm_test_pkcs1_sha224);
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-    REGISTER_ALG(pkcs1_sha256, akcipher, linuxkm_test_pkcs1_sha256);
-    #endif /* !NO_SHA256 */
-    #ifdef WOLFSSL_SHA384
-    REGISTER_ALG(pkcs1_sha384, akcipher, linuxkm_test_pkcs1_sha384);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-    REGISTER_ALG(pkcs1_sha512, akcipher, linuxkm_test_pkcs1_sha512);
-    #endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-    REGISTER_ALG(pkcs1_sha3_256, akcipher, linuxkm_test_pkcs1_sha3_256);
-    REGISTER_ALG(pkcs1_sha3_384, akcipher, linuxkm_test_pkcs1_sha3_384);
-    REGISTER_ALG(pkcs1_sha3_512, akcipher, linuxkm_test_pkcs1_sha3_512);
-    #endif /* WOLFSSL_SHA3 */
+    #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
+        /* linux kernel < 6.13 consists of:
+         *   akcipher: "pkcs1pad(<rsa>, <hash>)" */
+        #ifdef WOLFSSL_SHA224
+        REGISTER_ALG(pkcs1_sha224, akcipher, linuxkm_test_pkcs1_sha224);
+        #endif /* WOLFSSL_SHA224 */
+        #ifndef NO_SHA256
+        REGISTER_ALG(pkcs1_sha256, akcipher, linuxkm_test_pkcs1_sha256);
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SHA384
+        REGISTER_ALG(pkcs1_sha384, akcipher, linuxkm_test_pkcs1_sha384);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA512
+        REGISTER_ALG(pkcs1_sha512, akcipher, linuxkm_test_pkcs1_sha512);
+        #endif /* WOLFSSL_SHA512 */
+        #ifdef WOLFSSL_SHA3
+        REGISTER_ALG(pkcs1_sha3_256, akcipher, linuxkm_test_pkcs1_sha3_256);
+        REGISTER_ALG(pkcs1_sha3_384, akcipher, linuxkm_test_pkcs1_sha3_384);
+        REGISTER_ALG(pkcs1_sha3_512, akcipher, linuxkm_test_pkcs1_sha3_512);
+        #endif /* WOLFSSL_SHA3 */
+    #else
+        /* linux kernel >= 6.13 consists of:
+         *   akcipher: "pkcs1pad(<rsa>)"
+         *   sig:      "pkcs1(<rsa>, <hash>)" */
+        #ifdef WOLFSSL_SHA224
+        REGISTER_ALG(pkcs1_sha224, sig, linuxkm_test_pkcs1_sha224);
+        #endif /* WOLFSSL_SHA224 */
+        #ifndef NO_SHA256
+        REGISTER_ALG(pkcs1_sha256, sig, linuxkm_test_pkcs1_sha256);
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SHA384
+        REGISTER_ALG(pkcs1_sha384, sig, linuxkm_test_pkcs1_sha384);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA512
+        REGISTER_ALG(pkcs1_sha512, sig, linuxkm_test_pkcs1_sha512);
+        #endif /* WOLFSSL_SHA512 */
+        #ifdef WOLFSSL_SHA3
+        REGISTER_ALG(pkcs1_sha3_256, sig, linuxkm_test_pkcs1_sha3_256);
+        REGISTER_ALG(pkcs1_sha3_384, sig, linuxkm_test_pkcs1_sha3_384);
+        REGISTER_ALG(pkcs1_sha3_512, sig, linuxkm_test_pkcs1_sha3_512);
+        #endif /* WOLFSSL_SHA3 */
+
+        REGISTER_ALG(pkcs1pad, akcipher, linuxkm_test_pkcs1pad);
+    #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
 
     #if defined(LINUXKM_DIRECT_RSA)
     /* Note, direct RSA must be registered after all PKCS1 algs have been
@@ -790,26 +817,51 @@ static int linuxkm_lkcapi_unregister(void)
     #if defined(LINUXKM_DIRECT_RSA)
         UNREGISTER_ALG(direct_rsa, akcipher);
     #endif /* LINUXKM_DIRECT_RSA */
-    #ifdef WOLFSSL_SHA224
-        UNREGISTER_ALG(pkcs1_sha224, akcipher);
-    #endif /* WOLFSSL_SHA224 */
-    #ifndef NO_SHA256
-        UNREGISTER_ALG(pkcs1_sha256, akcipher);
-    #endif /* !NO_SHA256 */
-    #ifdef WOLFSSL_SHA384
-        UNREGISTER_ALG(pkcs1_sha384, akcipher);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA384
-        UNREGISTER_ALG(pkcs1_sha384, akcipher);
-    #endif /* WOLFSSL_SHA384 */
-    #ifdef WOLFSSL_SHA512
-        UNREGISTER_ALG(pkcs1_sha512, akcipher);
-    #endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-        UNREGISTER_ALG(pkcs1_sha3_256, akcipher);
-        UNREGISTER_ALG(pkcs1_sha3_384, akcipher);
-        UNREGISTER_ALG(pkcs1_sha3_512, akcipher);
-    #endif /* WOLFSSL_SHA3 */
+
+    #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
+        #ifdef WOLFSSL_SHA224
+            UNREGISTER_ALG(pkcs1_sha224, akcipher);
+        #endif /* WOLFSSL_SHA224 */
+        #ifndef NO_SHA256
+            UNREGISTER_ALG(pkcs1_sha256, akcipher);
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SHA384
+            UNREGISTER_ALG(pkcs1_sha384, akcipher);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA384
+            UNREGISTER_ALG(pkcs1_sha384, akcipher);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA512
+            UNREGISTER_ALG(pkcs1_sha512, akcipher);
+        #endif /* WOLFSSL_SHA512 */
+        #ifdef WOLFSSL_SHA3
+            UNREGISTER_ALG(pkcs1_sha3_256, akcipher);
+            UNREGISTER_ALG(pkcs1_sha3_384, akcipher);
+            UNREGISTER_ALG(pkcs1_sha3_512, akcipher);
+        #endif /* WOLFSSL_SHA3 */
+    #else
+        #ifdef WOLFSSL_SHA224
+            UNREGISTER_ALG(pkcs1_sha224, sig);
+        #endif /* WOLFSSL_SHA224 */
+        #ifndef NO_SHA256
+            UNREGISTER_ALG(pkcs1_sha256, sig);
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SHA384
+            UNREGISTER_ALG(pkcs1_sha384, sig);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA384
+            UNREGISTER_ALG(pkcs1_sha384, sig);
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA512
+            UNREGISTER_ALG(pkcs1_sha512, sig);
+        #endif /* WOLFSSL_SHA512 */
+        #ifdef WOLFSSL_SHA3
+            UNREGISTER_ALG(pkcs1_sha3_256, sig);
+            UNREGISTER_ALG(pkcs1_sha3_384, sig);
+            UNREGISTER_ALG(pkcs1_sha3_512, sig);
+        #endif /* WOLFSSL_SHA3 */
+    #endif /* !LINUXKM_AKCIPHER_NO_SIGNVERIFY */
+
 #endif /* LINUXKM_LKCAPI_REGISTER_RSA */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_DH
