@@ -571,8 +571,6 @@ retry:
          * possible candidate certs are exhausted. */
          WOLFSSL_MSG("X509_verify_cert current cert failed, retrying with other certs.");
          ret = X509StoreRemoveCa(ctx->store, ctx->current_cert, WOLFSSL_TEMP_CA);
-         if (ret != WOLFSSL_SUCCESS)
-            goto exit;
          X509StorePopCert(certs, failedCerts, ctx->current_cert);
          ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
          depth++;
