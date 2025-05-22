@@ -2854,38 +2854,29 @@ AC_ARG_WITH([tropic01],
     [AS_HELP_STRING([--with-tropic01=PATH],[PATH to  install (default /usr/)])],
     [
         AC_MSG_CHECKING([for tropic01])
-        CPPFLAGS="$CPPFLAGS -DWOLFSSL_TROPIC01"
-        LIBS="$LIBS -llibtropic"
-
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libtropic.h>]], [[ lt_init(0); ]])],[ libtropic_linked=yes ],[ libtropic_linked=no ])
-
-        if test "x$libtropic_linked" = "xno" ; then
-            if test "x$withval" != "xno" ; then
-                trylibtropicdir=$withval
-            fi
-            if test "x$withval" = "xyes" ; then
-                trylibtropicdir="/usr"
-            fi
-
-            LDFLAGS="$LDFLAGS -L$trylibtropicdir/lib"
-            CPPFLAGS="$CPPFLAGS -I$trylibtropicdir/lib"
-
-            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libtropic.h>]], [[ lt_init(0); ]])],[ libtropic_linked=yes ],[ libtropic_linked=no ])
-
-            if test "x$libtropic_linked" = "xno" ; then
-                AC_MSG_ERROR([libtropic isn't found.
-                If it's already installed, specify its path using --with-tropic01=/dir/])
-            fi
-
-            AM_LDFLAGS="$AM_LDFLAGS -L$trylibtropicdir/lib"
-            AM_CFLAGS="$AM_CFLAGS -I$trylibtropicdir/lib"
-            AC_MSG_RESULT([yes])
-        else
-            AC_MSG_RESULT([yes])
+        if test "x$withval" != "xno" ; then
+            trylibtropicdir=$withval
+			AC_MSG_NOTICE([Use provided PATH])
         fi
-
+        if test "x$withval" = "xyes" ; then
+		    trylibtropicdir="libtropic"
+			AC_MSG_NOTICE([Use default PATH])
+        fi
+        if test -e $trylibtropicdir/build/libtropic.a
+        then
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/libtropic.a"
+			LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/trezor_crypto/libtrezor_crypto.a"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibtropicdir/include"
+			AC_MSG_NOTICE([TropicSquare library is available])
+        else
+            ENABLED_TROPIC01="no"
+			AC_MSG_ERROR([Could not find TropicSquare library])
+        fi
+		enable_shared=no
+        enable_static=yes
         ENABLED_TROPIC01="yes"
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
+		AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
+		AC_MSG_RESULT([yes])        
     ]
 )
 
