@@ -12930,6 +12930,7 @@ cleanup:
 
     void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
     {
+        WOLFSSL_X509 *x = NULL;
         WOLFSSL_ENTER("wolfSSL_CTX_set_cert_store");
         if (ctx == NULL || str == NULL || ctx->cm == str->cm) {
             return;
@@ -12945,6 +12946,20 @@ cleanup:
         }
         ctx->cm               = str->cm;
         ctx->x509_store.cm    = str->cm;
+
+        /* wolfSSL_CTX_set_cert_store() (this function) associates str with the
+         * wolfSSL_CTX. It is clear that this is a TLS use case which means we
+         * should move all the certs, if any, into the CertMgr and set
+         * str->certs to NULL as that will allow the certs to be properly
+         * processed. */
+        if (str->certs != NULL) {
+            while (wolfSSL_sk_X509_num(str->certs) > 0) {
+                x = wolfSSL_sk_X509_pop(str->certs);
+                X509StoreAddCa(str, x, WOLFSSL_USER_CA);
+            }
+            wolfSSL_sk_X509_pop_free(str->certs, NULL);
+            str->certs = NULL;
+        }
 
         /* free existing store if it exists */
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
