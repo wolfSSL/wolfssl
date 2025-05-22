@@ -978,9 +978,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v13.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -1129,9 +1129,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v15.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -1295,9 +1295,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP w11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP w11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "MOV v0.16b, v17.16b  \n"
         "AESE v0.16b, v1.16b  \n"
@@ -1549,7 +1549,7 @@ static void GHASH_AARCH64_EOR(Gcm* gcm, const byte* a, word32 aSz,
         "MOV w12, %w[aSz] \n"
 
         "CMP x12, #64 \n"
-        "BLT 15f \n"
+        "B.LT 15f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v11.1q, v3.2d, v3.2d \n"
@@ -1643,7 +1643,7 @@ static void GHASH_AARCH64_EOR(Gcm* gcm, const byte* a, word32 aSz,
         "CBZ x12, 20f \n"
         "15: \n"
         "CMP x12, #16 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
         "11: \n"
         "LD1 {v14.2d}, [%[a]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -1702,7 +1702,7 @@ static void GHASH_AARCH64_EOR(Gcm* gcm, const byte* a, word32 aSz,
         "MOV w12, %w[cSz] \n"
 
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v11.1q, v3.2d, v3.2d \n"
@@ -1796,7 +1796,7 @@ static void GHASH_AARCH64_EOR(Gcm* gcm, const byte* a, word32 aSz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v14.2d}, [%[c]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -1884,7 +1884,7 @@ static void GHASH_AARCH64_EOR3(Gcm* gcm, const byte* a, word32 aSz,
         "MOV w12, %w[aSz] \n"
 
         "CMP x12, #64 \n"
-        "BLT 15f \n"
+        "B.LT 15f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v11.1q, v3.2d, v3.2d \n"
@@ -1974,7 +1974,7 @@ static void GHASH_AARCH64_EOR3(Gcm* gcm, const byte* a, word32 aSz,
         "CBZ x12, 20f \n"
         "15: \n"
         "CMP x12, #16 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
         "11: \n"
         "LD1 {v14.2d}, [%[a]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -2033,7 +2033,7 @@ static void GHASH_AARCH64_EOR3(Gcm* gcm, const byte* a, word32 aSz,
         "MOV w12, %w[cSz] \n"
 
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v11.1q, v3.2d, v3.2d \n"
@@ -2123,7 +2123,7 @@ static void GHASH_AARCH64_EOR3(Gcm* gcm, const byte* a, word32 aSz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v14.2d}, [%[c]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -2531,7 +2531,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -2625,7 +2625,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -2683,7 +2683,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -2724,7 +2724,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -3423,7 +3423,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "LD1 {v9.2d-v11.2d}, [%[Key]], #48 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -3537,7 +3537,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -3760,7 +3760,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -3793,7 +3793,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -3843,7 +3843,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -3988,7 +3988,7 @@ static void Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -4053,7 +4053,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -4143,7 +4143,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -4201,7 +4201,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -4242,7 +4242,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -4925,7 +4925,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "LD1 {v9.2d-v11.2d}, [%[Key]], #48 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -5039,7 +5039,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -5254,7 +5254,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -5287,7 +5287,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -5337,7 +5337,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -5482,7 +5482,7 @@ static void Aes128GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -5547,7 +5547,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -5641,7 +5641,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -5699,7 +5699,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -5740,7 +5740,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -6508,7 +6508,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -6638,7 +6638,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -6877,7 +6877,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -6914,7 +6914,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -6968,7 +6968,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -7121,7 +7121,7 @@ static void Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -7186,7 +7186,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -7276,7 +7276,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -7334,7 +7334,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -7375,7 +7375,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -8127,7 +8127,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -8257,7 +8257,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -8488,7 +8488,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -8525,7 +8525,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -8579,7 +8579,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -8732,7 +8732,7 @@ static void Aes192GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -8797,7 +8797,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -8891,7 +8891,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -8949,7 +8949,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -8990,7 +8990,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -9826,7 +9826,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -9973,7 +9973,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -10230,7 +10230,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "SUB %[Key], %[Key], #32 \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -10274,7 +10274,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -10335,7 +10335,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -10502,7 +10502,7 @@ static void Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -10567,7 +10567,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -10657,7 +10657,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -10715,7 +10715,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -10756,7 +10756,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -11576,7 +11576,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First encrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -11723,7 +11723,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "# Store cipher text \n"
         "ST1 {v18.2d-v21.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -11972,7 +11972,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "SUB %[Key], %[Key], #32 \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Encrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -12016,7 +12016,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
 
         "# When only one full block to encrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
 
@@ -12077,7 +12077,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "EOR v15.16b, v0.16b, v31.16b \n \n"
         "ST1 {v15.2d}, [%[out]], #16 \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "LD1 {v31.2d}, [%[input]], #16 \n"
         "B 2b \n"
@@ -12244,7 +12244,7 @@ static void Aes256GcmEncrypt_EOR3(Aes* aes, byte* out, const byte* in,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "ST1 {v0.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -12381,7 +12381,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -12475,7 +12475,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -12533,7 +12533,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -12574,7 +12574,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -13273,7 +13273,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v9.2d-v11.2d}, [%[Key]], #48 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -13387,7 +13387,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -13610,7 +13610,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -13643,7 +13643,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -13827,7 +13827,7 @@ static int Aes128GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -13911,7 +13911,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -14001,7 +14001,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -14059,7 +14059,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -14100,7 +14100,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -14783,7 +14783,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v9.2d-v11.2d}, [%[Key]], #48 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -14897,7 +14897,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -15112,7 +15112,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -15145,7 +15145,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -15329,7 +15329,7 @@ static int Aes128GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -15413,7 +15413,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -15507,7 +15507,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -15565,7 +15565,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -15606,7 +15606,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -16374,7 +16374,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -16504,7 +16504,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -16743,7 +16743,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -16780,7 +16780,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -16976,7 +16976,7 @@ static int Aes192GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -17060,7 +17060,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -17150,7 +17150,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -17208,7 +17208,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -17249,7 +17249,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -18001,7 +18001,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v12.2d-v13.2d}, [%[Key]], #32 \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -18131,7 +18131,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -18362,7 +18362,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
         "MOV v0.16b, v22.16b \n"
@@ -18399,7 +18399,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -18595,7 +18595,7 @@ static int Aes192GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -18679,7 +18679,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -18773,7 +18773,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -18831,7 +18831,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -18872,7 +18872,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -19709,7 +19709,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v14.2d-v15.2d}, [%[Key]] \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -19856,7 +19856,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -20113,7 +20113,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "LD1 {v14.2d, v15.2d}, [%[Key]] \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
@@ -20155,7 +20155,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -20363,7 +20363,7 @@ static int Aes256GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -20447,7 +20447,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# GHASH AAD \n"
         "CMP x12, #64 \n"
-        "BLT 115f \n"
+        "B.LT 115f \n"
         "# Calculate H^[1-4] - GMULT partials \n"
         "# Square H => H^2 \n"
         "PMULL2 v19.1q, v16.2d, v16.2d \n"
@@ -20537,7 +20537,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "CBZ x12, 120f \n"
         "115: \n"
         "CMP x12, #16 \n"
-        "BLT 112f \n"
+        "B.LT 112f \n"
         "111: \n"
         "LD1 {v15.2d}, [%[aad]], #16 \n"
         "SUB x12, x12, #16 \n"
@@ -20595,7 +20595,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "MOV w11, %w[sz] \n"
         "REV w12, w12 \n"
         "CMP w11, #64 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
         "CMP %w[aSz], #64 \n"
         "BGE 82f \n"
 
@@ -20636,7 +20636,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "82: \n"
         "# Should we do 8 blocks at a time? \n"
         "CMP w11, #512 \n"
-        "BLT 80f \n"
+        "B.LT 80f \n"
 
         "# Calculate H^[5-8] - GMULT partials \n"
         "# Multiply H and H^4 => H^5 \n"
@@ -21457,7 +21457,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "LD1 {v14.2d-v15.2d}, [%[Key]] \n"
         "# Can we do 4 blocks at a time? \n"
         "CMP w11, #64 \n"
-        "BLT 10f \n"
+        "B.LT 10f \n"
 
         "# First decrypt - no GHASH \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -21604,7 +21604,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "# Store cipher text \n"
         "ST1 {v27.2d-v30.2d}, [%[out]], #64 \n \n"
         "CMP w11, #64 \n"
-        "BLT 12f \n"
+        "B.LT 12f \n"
 
         "11: \n"
         "# Calculate next 4 counters (+1-4) \n"
@@ -21853,7 +21853,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "10: \n"
         "CBZ w11, 30f \n"
         "CMP w11, #16 \n"
-        "BLT 20f \n"
+        "B.LT 20f \n"
         "LD1 {v14.2d, v15.2d}, [%[Key]] \n"
         "# Decrypt first block for GHASH \n"
         "ADD w12, w12, #1 \n"
@@ -21895,7 +21895,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
 
         "# When only one full block to decrypt go straight to GHASH \n"
         "CMP w11, 16 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "# Interweave GHASH and decrypt if more then 1 block \n"
         "2: \n"
@@ -22103,7 +22103,7 @@ static int Aes256GcmDecrypt_EOR3(Aes* aes, byte* out, const byte* in, word32 sz,
         "RBIT v17.16b, v17.16b \n"
         "EOR v0.16b, v0.16b, v17.16b \n \n"
         "CMP %w[tagSz], #16 \n"
-        "BNE 40f \n"
+        "B.NE 40f \n"
         "LD1 {v1.2d}, [%[tag]] \n"
         "B 41f \n"
         "40: \n"
@@ -22274,7 +22274,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R]    \n"
                 "CMP r12, #10 \n"
-                "BEQ 1f    \n"
+                "B.EQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22283,7 +22283,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESE.8 q0, q2\n"
 
                 "CMP r12, #12 \n"
-                "BEQ 1f    \n"
+                "B.EQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22350,7 +22350,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R] \n"
                 "CMP r12, #10  \n"
-                "BEQ 1f \n"
+                "B.EQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22359,7 +22359,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESD.8 q0, q2\n"
 
                 "CMP r12, #12  \n"
-                "BEQ 1f \n"
+                "B.EQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22462,7 +22462,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22529,7 +22529,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22603,7 +22603,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "SUB %[Key], %[Key], #16   \n"
 
                 "CMP r11, #0   \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22701,7 +22701,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q13, q12        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b      \n"
 
@@ -22770,7 +22770,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 
@@ -22846,7 +22846,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "BEQ 2f \n"
+                "B.EQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 
@@ -22902,9 +22902,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP r11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP r11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -23066,9 +23066,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:   \n"
         "CMP r11, #1 \n"
-        "BEQ 2f \n"
+        "B.EQ 2f \n"
         "CMP r11, #0 \n"
-        "BEQ 3f   \n"
+        "B.EQ 3f   \n"
 
         "VMOV.32 q0, q13\n"
         "AESE.8 q0, q1\n"
@@ -23252,9 +23252,9 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
         /* double block */
         "1:      \n"
         "CMP r11, #1 \n"
-        "BEQ 2f    \n"
+        "B.EQ 2f    \n"
         "CMP r11, #0 \n"
-        "BEQ 3f    \n"
+        "B.EQ 3f    \n"
 
         "VMOV.32 q0, q13  \n"
         "AESE.8 q0, q1\n"
@@ -24846,14 +24846,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v10.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v11.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v12.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v13.16b \n"                                   \
@@ -24886,14 +24886,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v10.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v11.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE v0.16b, v12.16b \n"                                   \
         "AESMC v0.16b, v0.16b \n"                                   \
         "AESE v0.16b, v13.16b \n"                                   \
@@ -24929,14 +24929,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v10.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v11.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v12.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v13.16b  \n"                                  \
@@ -24969,14 +24969,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #10 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v10.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v11.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
                                                                     \
         "SUBS WZR, %w[rounds], #12 \n"                              \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD v0.16b, v12.16b  \n"                                  \
         "AESIMC v0.16b, v0.16b \n"                                  \
         "AESD v0.16b, v13.16b  \n"                                  \
@@ -25017,11 +25017,11 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "# Put last 2 blocks of keys based on rounds into v14, v15\n"
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "40: \n"
@@ -25041,17 +25041,17 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "# Put last 2 blocks of keys based on rounds into v14, v15\n"
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "SUBS WZR, %w[rounds], #10 \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
         "41: \n"
 
         "SUBS WZR, %w[blocks], #4 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "AND %w[sz], %w[sz], 0x3f \n"
 
@@ -25174,7 +25174,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #10 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESE v16.16b, v10.16b  \n"
         "AESMC v16.16b, v16.16b \n"
         "AESE v17.16b, v10.16b  \n"
@@ -25193,7 +25193,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #12 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESE v16.16b, v12.16b  \n"
         "AESMC v16.16b, v16.16b \n"
         "AESE v17.16b, v12.16b  \n"
@@ -25231,7 +25231,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "ST1 {v16.16b-v19.16b}, [%[out]], #64 \n"
 
         "SUBS %w[blocks], %w[blocks], #4 \n"
-        "BGE 20b \n"
+        "B.GE 20b \n"
         "ADD %w[blocks], %w[blocks], #4 \n"
 
         "CBZ %w[sz], 3f \n"
@@ -25257,7 +25257,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #1 \n"
         "SUB %w[sz], %w[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CBZ %w[sz], 3f \n"
 
@@ -25274,7 +25274,7 @@ void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB w13, [%[out]], #1 \n"
         "STRB w14, [%[tmp]], #1 \n"
         "SUBS w12, w12, #1 \n"
-        "BGT 4b \n"
+        "B.GT 4b \n"
 
         "SUB %[out], %[out], %x[sz] \n"
         "SUB %[tmp], %[tmp], %x[sz] \n"
@@ -25340,11 +25340,11 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "LD1 {v13.2d-v15.2d}, [x10]  \n"
 
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 40f \n"
+        "B.EQ 40f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "40: \n"
@@ -25362,11 +25362,11 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "LD1 {v13.2d-v15.2d}, [x11]  \n"
 
         "SUBS WZR, %w[rounds], #14 \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "SUBS WZR, %w[rounds], #12 \n"
         "MOV v14.16b, v12.16b \n"
         "MOV v15.16b, v13.16b \n"
-        "BEQ 41f \n"
+        "B.EQ 41f \n"
         "MOV v14.16b, v10.16b \n"
         "MOV v15.16b, v11.16b \n"
         "41: \n"
@@ -25374,7 +25374,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "CBZ %w[blocks], 3f \n"
 
         "SUBS WZR, %w[blocks], #4 \n"
-        "BLT 1f \n"
+        "B.LT 1f \n"
 
         "AND x17, x19, x10, ASR #63\n"
         "EXTR x12, x10, x9, #63 \n"
@@ -25495,7 +25495,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESIMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #10 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESD v16.16b, v10.16b  \n"
         "AESIMC v16.16b, v16.16b \n"
         "AESD v17.16b, v10.16b  \n"
@@ -25514,7 +25514,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "AESIMC v19.16b, v19.16b \n"
 
         "SUBS WZR, %w[rounds], #12 \n"
-        "BEQ 21f \n"
+        "B.EQ 21f \n"
         "AESD v16.16b, v12.16b  \n"
         "AESIMC v16.16b, v16.16b \n"
         "AESD v17.16b, v12.16b  \n"
@@ -25553,7 +25553,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #4 \n"
         "SUB %w[sz], %w[sz], #64 \n"
-        "BGE 20b \n"
+        "B.GE 20b \n"
         "ADD %w[blocks], %w[blocks], #4 \n"
 
         "CBZ %w[sz], 4f \n"
@@ -25576,7 +25576,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %w[blocks], %w[blocks], #1 \n"
         "SUB %w[sz], %w[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CBZ %w[sz], 4f \n"
 
@@ -25607,7 +25607,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB w13, [%[out]], #1 \n"
         "STRB w14, [%[tmp]], #1 \n"
         "SUBS w12, w12, #1 \n"
-        "BGT 6b \n"
+        "B.GT 6b \n"
         "SUB %[out], %[out], %x[sz] \n"
         "SUB %[tmp], %[tmp], %x[sz] \n"
         "SUB %[out], %[out], #16 \n"
@@ -25671,7 +25671,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25679,7 +25679,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25714,7 +25714,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25722,7 +25722,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f      \n"                                   \
+        "B.LE " #label "f      \n"                                   \
         "AESE.8 q0, q10 \n"                                         \
         "AESMC.8 q0, q0 \n"                                         \
         "AESE.8 q0, q11 \n"                                         \
@@ -25765,7 +25765,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25773,7 +25773,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25808,7 +25808,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #10 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25816,7 +25816,7 @@ void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d20, d21, d22, d23}, [%[key2]]! \n"               \
                                                                     \
         "CMP %[rounds], #12 \n"                                     \
-        "BLE " #label "f       \n"                                  \
+        "B.LE " #label "f       \n"                                  \
         "AESD.8 q0, q10  \n"                                        \
         "AESIMC.8 q0, q0 \n"                                        \
         "AESD.8 q0, q11  \n"                                        \
@@ -25911,10 +25911,10 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %[blocks], %[blocks], #1 \n"
         "SUB %[sz], %[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CMP %[sz], #0 \n"
-        "BEQ 3f \n"
+        "B.EQ 3f \n"
 
         "30: \n"
         "#Partial block \n"
@@ -25929,7 +25929,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB r10, [%[out]], #1 \n"
         "STRB r11, [%[tmp]], #1 \n"
         "SUBS r9, r9, #1 \n"
-        "BGT 4b \n"
+        "B.GT 4b \n"
 
         "SUB %[out], %[out], %[sz] \n"
         "SUB %[tmp], %[tmp], %[sz] \n"
@@ -26026,7 +26026,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "VLD1.32 {d18, d19}, [%[key2]]!  \n"
 
         "CMP %[blocks], #0 \n"
-        "BEQ 3f \n"
+        "B.EQ 3f \n"
 
         "1: \n"
         "VLD1.32 {q0}, [%[in]]! \n"
@@ -26047,10 +26047,10 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         "SUBS %[blocks], %[blocks], #1 \n"
         "SUB %[sz], %[sz], #16 \n"
-        "BGT 1b \n"
+        "B.GT 1b \n"
 
         "CMP %[sz], #0 \n"
-        "BEQ 4f \n"
+        "B.EQ 4f \n"
 
         "3: \n"
 
@@ -26087,7 +26087,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         "STRB r10, [%[out]], #1 \n"
         "STRB r11, [%[tmp]], #1 \n"
         "SUBS r9, r9, #1 \n"
-        "BGT 6b \n"
+        "B.GT 6b \n"
         "SUB %[out], %[out], %[sz] \n"
         "SUB %[tmp], %[tmp], %[sz] \n"
         "SUB %[out], %[out], #16 \n"

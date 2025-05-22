@@ -647,9 +647,7 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash,
 {
     int ret;
     int digestSz;
-    int (*initfp)(wc_Sha512*);
-
-    (void)initfp;
+    int (*initfp)(wc_Sha512*) = NULL;
 
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
