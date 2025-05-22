@@ -13545,10 +13545,12 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     }
 
     switch (ver) {
+#ifndef NO_TLS
+#ifndef NO_OLD_TLS
     case SSL2_VERSION:
         WOLFSSL_MSG("wolfSSL does not support SSLv2");
         return WOLFSSL_FAILURE;
-#ifndef NO_TLS
+#endif
     case SSL3_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1);
         FALL_THROUGH;
@@ -13603,9 +13605,6 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         }
         /* Update the method */
         switch (ver) {
-        case SSL2_VERSION:
-            WOLFSSL_MSG("wolfSSL does not support SSLv2");
-            return WOLFSSL_FAILURE;
     #ifndef NO_TLS
         case SSL3_VERSION:
             ctx->method->version.minor = SSLv3_MINOR;
