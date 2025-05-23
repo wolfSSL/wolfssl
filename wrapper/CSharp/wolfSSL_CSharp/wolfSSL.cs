@@ -51,7 +51,9 @@ namespace wolfSSL.CSharp
             /* Convert Unicode to Bytes */
             byte[] bytes = Encoding.Unicode.GetBytes((string)msg.ToString());
             /* Convert to ASCII */
-            return Encoding.ASCII.GetString(bytes, 0, bytes.Length);
+            string ret = Encoding.ASCII.GetString(bytes, 0, bytes.Length);
+            /* odd length unicode might have extra null terminator, so remove */
+            return ret.Replace("\0", "");
         }
 
         /// <summary>
@@ -61,14 +63,20 @@ namespace wolfSSL.CSharp
         {
             if (msg == null)
                 return null;
-            /* Convert ASCII to Bytes */
-            byte[] bytes = Encoding.ASCII.GetBytes((string)msg.ToString());
+            /* Get length and round up to even unicode */
+            int msgLen = msg.Length;
+            msgLen = ((msgLen + 1) & ~1);
+            byte[] bytes = new byte[msgLen];
+            /* Convert Ascii to Bytes */
+            byte[] msgBytes = Encoding.ASCII.GetBytes((string)msg.ToString());
+            msgBytes.CopyTo(bytes, 0);
             /* Convert to Unicode */
             return Encoding.Unicode.GetString(bytes, 0, bytes.Length);
         }
 
         /// <summary>
-        /// WinCE version of Marshal for Unicode or Multi-byte pointer to ASCII string
+        /// WinCE version of Marshal for Unicode or Multi-byte pointer to
+        /// ASCII string
         /// </summary>
         public static string PtrToStringAnsi(IntPtr ptr)
         {
