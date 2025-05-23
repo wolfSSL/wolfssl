@@ -6709,6 +6709,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 WOLFSSL_LOCAL  int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted);
 WOLFSSL_LOCAL  int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type,
         word32 msgSz);
+WOLFSSL_LOCAL int GetHandshakeHeader(WOLFSSL* ssl, const byte* input,
+        word32* inOutIdx, byte* type, word32* size, word32 totalSz);
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
 #endif

@@ -19,8 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_TEST_TLS_EMS_H
-#define TESTS_API_TEST_TLS_EMS_H
+#ifndef TESTS_API_TEST_TLS_EXT_H
+#define TESTS_API_TEST_TLS_EXT_H
 
 int test_tls_ems_downgrade(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);

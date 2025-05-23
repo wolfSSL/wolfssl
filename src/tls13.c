@@ -2236,34 +2236,6 @@ end:
 #endif /* WOLFSSL_32BIT_MILLI_TIME */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
-
-/* Extract the handshake header information.
- *
- * ssl       The SSL/TLS object.
- * input     The buffer holding the message data.
- * inOutIdx  On entry, the index into the buffer of the handshake data.
- *           On exit, the start of the handshake data.
- * type      Type of handshake message.
- * size      The length of the handshake message data.
- * totalSz   The total size of data in the buffer.
- * returns BUFFER_E if there is not enough input data and 0 on success.
- */
-static int GetHandshakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
-                              byte* type, word32* size, word32 totalSz)
-{
-    const byte* ptr = input + *inOutIdx;
-    (void)ssl;
-
-    *inOutIdx += HANDSHAKE_HEADER_SZ;
-    if (*inOutIdx > totalSz)
-        return BUFFER_E;
-
-    *type = ptr[0];
-    c24to32(&ptr[1], size);
-
-    return 0;
-}
-
 /* Add record layer header to message.
  *
  * output  The buffer to write the record layer header into.
