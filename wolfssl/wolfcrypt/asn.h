@@ -1107,8 +1107,6 @@ enum ECC_TYPES
 #endif
 
 enum Misc_ASN {
-    MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
-    MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
@@ -1129,60 +1127,10 @@ enum Misc_ASN {
                             ,
     DSA_PARAM_INTS      =   3,     /* DSA parameter ints */
     RSA_PUB_INTS        =   2,     /* RSA ints in public key */
-    DSA_PUB_INTS        =   4,     /* DSA ints in public key */
-    DSA_INTS            =   5,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  12,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
-#ifdef HAVE_SPHINCS
-    MAX_ENCODED_SIG_SZ  = 51200,
-#elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    MAX_ENCODED_SIG_SZ  = 5120,
-#elif !defined(NO_RSA)
-#ifdef WOLFSSL_HAPROXY
-    MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
-#else
-    MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */
-#endif
-#elif defined(HAVE_ECC)
-    MAX_ENCODED_SIG_SZ  = 140,
-#elif defined(HAVE_CURVE448)
-    MAX_ENCODED_SIG_SZ  = 114,
-#else
-    MAX_ENCODED_SIG_SZ  =  64,
-#endif
-    MAX_SIG_SZ          = 256,
-    MAX_ALGO_SZ         =  20,
-    MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
-    MAX_SHORT_SZ        = (1 + MAX_LENGTH_SZ),     /* asn int + byte len + 4 byte length */
-    MAX_SEQ_SZ          = (1 + MAX_LENGTH_SZ), /* enum(seq | con) + length(5) */
-    MAX_SET_SZ          = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
-    MAX_OCTET_STR_SZ    = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
-    MAX_EXP_SZ          = (1 + MAX_LENGTH_SZ), /* enum(contextspec|con|exp) + length(5) */
-    MAX_PRSTR_SZ        = (1 + MAX_LENGTH_SZ), /* enum(prstr) + length(5) */
-    MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
-    MAX_ENCODED_DIG_ASN_SZ = (5 + MAX_LENGTH_SZ),   /* enum(bit or octet) + length(5) */
-    MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
-    MAX_RSA_INT_SZ      = (512 + 1 + MAX_LENGTH_SZ), /* RSA raw sz 4096 for bits + tag + len(5) */
-    MAX_DSA_INT_SZ      = (384 + 1 + MAX_LENGTH_SZ), /* DSA raw sz 3072 for bits + tag + len(5) */
-    MAX_DSA_PUBKEY_SZ   = (DSA_PUB_INTS * MAX_DSA_INT_SZ) + (2 * MAX_SEQ_SZ) +
-                          2 + MAX_LENGTH_SZ, /* Maximum size of a DSA public
-                                      key taken from wc_SetDsaPublicKey. */
-    MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
-                          MAX_VERSION_SZ, /* Maximum size of a DSA Private
-                                      key taken from DsaKeyIntsToDer. */
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of a Dilithium public key. */
-#endif
-    MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
-    MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
-    MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
-    MAX_DER_DIGEST_SZ     = MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
-                            /* Maximum DER digest size */
-    MAX_DER_DIGEST_ASN_SZ = MAX_ENCODED_DIG_ASN_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
-                            /* Maximum DER digest ASN header size */
-                            /* Max X509 header length indicates the max length + 2 ('\n', '\0') */
-    MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */
+
 #ifdef WOLFSSL_CERT_GEN
     #ifdef WOLFSSL_CERT_REQ
                           /* Max encoded cert req attributes length */
@@ -1195,7 +1143,7 @@ enum Misc_ASN {
     #else
         MAX_EXTENSIONS_SZ   = 1 + MAX_LENGTH_SZ + MAX_CA_SZ,
     #endif
-                                   /* Max total extensions, id + len + others */
+                          /* Max total extensions, id + len + others */
 #endif
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
         defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -1220,16 +1168,6 @@ enum Misc_ASN {
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
-#else
-    MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
-#endif
-#ifdef WOLFSSL_ENCRYPTED_KEYS
-    HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
-#else
-    HEADER_ENCRYPTED_KEY_SIZE = 0,
-#endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     ASN_TAG_SZ          = 1,       /* single byte ASN.1 tag */
     ASN_INDEF_END_SZ    = 2,       /* 0x00 0x00 at end of indef */

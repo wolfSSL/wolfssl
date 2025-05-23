@@ -27751,13 +27751,13 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     int ret = 0, i;
     int mpSz;
     word32 seqSz = 0, verSz = 0, intTotalLen = 0, outLen = 0;
-    word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     mp_int* keyInt;
 #ifndef WOLFSSL_NO_MALLOC
     word32 rawLen;
     byte* tmps[RSA_INTS];
+    word32 sizes[RSA_INTS];
 #endif
 
     if (key == NULL)
@@ -27797,7 +27797,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             ret = mpSz;
             break;
         }
+    #ifndef WOLFSSL_NO_MALLOC
         sizes[i] = (word32)mpSz;
+    #endif
         intTotalLen += (word32)mpSz;
     }
 
@@ -31430,11 +31432,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     case CERTSIGN_STATE_DIGEST:
 
         certSignCtx->state = CERTSIGN_STATE_DIGEST;
+    #ifndef WOLFSSL_NO_MALLOC
         certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->digest == NULL) {
             ret = MEMORY_E; goto exit_ms;
         }
+    #endif
 
         ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
                                &typeH, &digestSz, 0);
@@ -31448,11 +31452,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     case CERTSIGN_STATE_ENCODE:
     #ifndef NO_RSA
         if (rsaKey) {
+        #ifndef WOLFSSL_NO_MALLOC
             certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (certSignCtx->encSig == NULL) {
                 ret = MEMORY_E; goto exit_ms;
             }
+        #endif
 
             /* signature */
             certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
@@ -31560,14 +31566,17 @@ exit_ms:
     }
 #endif
 
+#ifndef WOLFSSL_NO_MALLOC
 #ifndef NO_RSA
     if (rsaKey) {
         XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->encSig = NULL;
     }
 #endif /* !NO_RSA */
 
     XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->digest = NULL;
+#endif /* !WOLFSSL_NO_MALLOC */
 
     /* reset state */
     certSignCtx->state = CERTSIGN_STATE_BEGIN;
@@ -33334,12 +33343,14 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     #endif /* HAVE_ECC */
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->sig == NULL)
             return MEMORY_E;
     }
+#endif
 
     sigSz = MakeSignature(certSignCtx, buf, (word32)requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
@@ -33360,8 +33371,10 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                                  sType);
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->sig = NULL;
+#endif
 
     return sigSz;
 }
@@ -33468,12 +33481,14 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     #endif /* HAVE_ECC */
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->sig == NULL)
             return MEMORY_E;
     }
+#endif
 
     ret = MakeSignature(certSignCtx, buf, (word32)bufSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
@@ -33487,8 +33502,10 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 #endif
 
     if (ret <= 0) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
         certSignCtx->sig = NULL;
+    #endif
         return ret;
     }
 
@@ -33503,8 +33520,10 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
        ret += headerSz;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->sig = NULL;
+#endif
     return ret;
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
