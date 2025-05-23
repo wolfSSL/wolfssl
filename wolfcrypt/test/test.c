@@ -43643,29 +43643,38 @@ out:
 static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
     word32 pubKeyLen, const byte* sig, word32 sigLen)
 {
-    byte msg[512];
-    dilithium_key* key;
-    byte * pubExported = NULL;
+    #ifndef DILITHIUM_TEST_MSG_SZ
+    #define DILITHIUM_TEST_MSG_SZ 512
+    #endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* msg = NULL;
+    dilithium_key* key = NULL;
+    byte* pubExported = NULL;
+#else
+    byte msg[DILITHIUM_TEST_MSG_SZ];
+    dilithium_key key[1];
+    byte pubExported[DILITHIUM_MAX_PUB_KEY_SIZE];
+#endif
     wc_test_ret_t ret;
     int i;
     int res = 0;
     word32 lenExported = pubKeyLen;
     int n_diff = 0;
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    msg = (byte*)XMALLOC(DILITHIUM_TEST_MSG_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
     key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
-    }
-
     pubExported = (byte*)XMALLOC(pubKeyLen, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (pubExported == NULL) {
+    if (msg == NULL || key == NULL || pubExported == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
+#endif
 
     /* make dummy msg */
-    for (i = 0; i < (int)sizeof(msg); i++) {
+    for (i = 0; i < DILITHIUM_TEST_MSG_SZ; i++) {
         msg[i] = (byte)i;
     }
 
@@ -43684,14 +43693,14 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
 
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     if (param >= WC_ML_DSA_DRAFT) {
-        ret = wc_dilithium_verify_msg(sig, sigLen, msg, (word32)sizeof(msg),
+        ret = wc_dilithium_verify_msg(sig, sigLen, msg, DILITHIUM_TEST_MSG_SZ,
             &res, key);
     }
     else
 #endif
     {
         ret = wc_dilithium_verify_ctx_msg(sig, sigLen, NULL, 0, msg,
-            (word32)sizeof(msg), &res, key);
+            DILITHIUM_TEST_MSG_SZ, &res, key);
     }
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -43716,8 +43725,11 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
 
 out:
     wc_dilithium_free(key);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pubExported, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 
@@ -46799,8 +46811,13 @@ static wc_test_ret_t dilithium_param_87_vfy_test(void)
 static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
-    dilithium_key* key;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    dilithium_key* key = NULL;
     byte* sig = NULL;
+#else
+    dilithium_key  key[1];
+    byte sig[DILITHIUM_MAX_SIG_SIZE];
+#endif
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
     word32 sigLen;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
@@ -46809,16 +46826,15 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 #endif
 #endif
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
-    }
     sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (sig == NULL) {
+    if (key == NULL || sig == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
+#endif
 
     ret = wc_dilithium_init(key);
     if (ret != 0) {
@@ -46855,8 +46871,10 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 
 out:
     wc_dilithium_free(key);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 #endif
@@ -46873,30 +46891,31 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
                                                  int         isPublicOnlyKey)
 {
     int           ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    dilithium_key *key = NULL;
-#else
-    dilithium_key key[1];
-#endif
-    byte*         der;
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
+    /* Size the buffer to accommodate the largest encoded key size */
+    const word32  maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
     word32        derSz;
     word32        idx;
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte*         der = NULL;
+    #else
+    byte          der[DILITHIUM_MAX_PRV_KEY_DER_SIZE];
+    #endif
+#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    dilithium_key *key = NULL;
+#else
+    dilithium_key  key[1];
 #endif
 
-    /* Size the buffer to accommodate the largest encoded key size */
-    const word32 maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
-
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate DER buffer */
     der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (der == NULL) {
+    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL || key == NULL) {
         return MEMORY_E;
     }
-
-#ifdef WOLFSSL_SMALL_STACK
-    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL)
-        ret = MEMORY_E;
 #endif
 
     /* Initialize key */
@@ -46999,9 +47018,9 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 
     /* Cleanup */
-    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_dilithium_free(key);
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;

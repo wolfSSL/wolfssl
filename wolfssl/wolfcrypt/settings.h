@@ -4251,6 +4251,12 @@ extern void uITRON4_free(void *p) ;
 #error Please do not define HAVE_PQC yourself.
 #endif
 
+/* If no malloc then make sure the valid Dilithium settings are used */
+#if defined(HAVE_DILITHIUM) && defined(WOLFSSL_NO_MALLOC)
+    #undef  WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+    #define WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+#endif
+
 #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13) && \
     !defined(WOLFSSL_DTLS_CH_FRAG)
 #warning "Using DTLS 1.3 + pqc without WOLFSSL_DTLS_CH_FRAG will probably" \

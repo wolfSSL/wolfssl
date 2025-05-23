@@ -10108,6 +10108,8 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 /* This is the raw point data compressed or uncompressed. */
                 pubKeyLen = (word32)length;
                 pubKey = input + idx;
+
+                *inOutIdx += idx;
             }
     #endif
             if (ret == 0) {
