@@ -512,6 +512,7 @@ do {                                                                           \
     XMEMSET(data, 0xa5, sizeof(data));                                         \
                                                                                \
     ExpectIntEQ(wc_Init##name(&src, HEAP_HINT, INVALID_DEVID), 0);             \
+    XMEMSET(&src, 0, sizeof(src));                                             \
     XMEMSET(&dst, 0, sizeof(dst));                                             \
                                                                                \
     ExpectIntEQ(wc_##name##_Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));  \
