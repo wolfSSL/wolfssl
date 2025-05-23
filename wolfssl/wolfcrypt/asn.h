@@ -901,7 +901,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_SN_sm3        "SM3"
 
 /* NIDs */
-#define WC_NID_netscape_cert_type WC_NID_undef
+#define WC_NID_netscape_cert_type 71
 #define WC_NID_des 66
 #define WC_NID_des3 67
 #define WC_NID_sha256 672
