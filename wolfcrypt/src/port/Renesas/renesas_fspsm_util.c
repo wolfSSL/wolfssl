@@ -834,15 +834,13 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             if (enc) {
                 enc->aes->ctx.keySize = ssl->specs.key_size;
                 enc->aes->ctx.setup = 1;
-                /* ready for use */
-                enc->setup = 1;
+                /* ready-for-use flag will be set when SetKeySide() is called */
             }
             /* set up key size and marked ready */
             if (dec) {
                 dec->aes->ctx.keySize = ssl->specs.key_size;
                 dec->aes->ctx.setup = 1;
-                /* ready for use */
-                dec->setup = 1;
+                /* ready-for-use flag will be set when SetKeySide() is called */
             }
 
             if (cbInfo->cipher == SCE_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
