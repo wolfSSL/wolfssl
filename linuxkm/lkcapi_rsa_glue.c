@@ -1281,6 +1281,9 @@ static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm)
  *   - dst is destination signature buffer.
  *   - dlen must be >= key_len size.
  *
+ * Returns signature length on success.
+ * Returns < 0 on error.
+ *
  * See kernel (6.13 or later):
  *   - include/crypto/sig.h
  */
@@ -1361,7 +1364,7 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         goto pkcs1_sign_out;
     }
 
-    err = 0;
+    err = sig_len;
 pkcs1_sign_out:
     if (msg != NULL) { free(msg); msg = NULL; }
 
@@ -3098,8 +3101,15 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     }
 
     ret = crypto_sig_sign(tfm, hash, hash_len, km_sig, key_len);
-    if (ret) {
+    if (ret < 0) {
         pr_err("error: crypto_sig_sign returned: %d\n", ret);
+        test_rc = BAD_FUNC_ARG;
+        goto test_pkcs1_end;
+    }
+
+    if ((word32) ret != sig_len) {
+        pr_err("error: crypto_sig_sign returned %d, expected %d\n", ret,
+               sig_len);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
@@ -3117,7 +3127,6 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
-
 
     test_rc = 0;
 test_pkcs1_end:
