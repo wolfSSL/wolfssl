@@ -290,7 +290,7 @@ int wolfCrypt_Init(void)
         stsafe_interface_init();
     #endif
     #if defined(WOLFSSL_TROPIC01)
-        ret = Tropic01_Init(NULL);
+        ret = Tropic01_Init();
         if (ret != 0) {
             WOLFSSL_MSG("Tropic01 init failed");
             return ret;
