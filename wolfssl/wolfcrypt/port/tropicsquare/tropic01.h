@@ -39,18 +39,18 @@
 #define LT_USE_TREZOR_CRYPTO 1
 #define LT_HELPERS
 
-#include "libtropic.h"
-#include "libtropic_common.h"
+#include <libtropic.h>
+#include <libtropic_common.h>
 
 
 #ifdef WOLF_CRYPTO_CB
 
 /* Device ID that's unique and valid (not INVALID_DEVID -2) */
-#define WOLF_TROPIC01_DEVID 0x75757; /* TROPIC01 ID*/
+#define WOLF_TROPIC01_DEVID 0x75757 /* TROPIC01 ID*/
 
 
 #define TROPIC01_AES_MAX_KEY_SIZE 32
-#define TROPIC01_AES_KEY_SLOT_DEFAULT 8
+#define TROPIC01_AES_KEY_SLOT_DEFAULT 1
 #define PAIRING_KEY_SLOT_INDEX_0 0
 
 
@@ -69,7 +69,8 @@ typedef struct {
 } Tropic01CryptoDevCtx;
 
 
-int Tropic01_Init(Tropic01CryptoDevCtx* ctx);
+int Tropic01_Init(void);
+int Tropic01_Deinit(void);
 int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx);
 
 //static int Tropic01_GetRandom(byte* out, word32 sz, Tropic01CryptoDevCtx* ctx);
