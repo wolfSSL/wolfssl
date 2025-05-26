@@ -18924,8 +18924,9 @@ static int test_wc_i2d_PKCS12(void)
 static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
 {
     EXPECT_DECLS;
-#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) \
-    && !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
+#if !defined(NO_ASN) && defined(HAVE_PKCS12) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(NO_ASN_CRYPT) && \
+    !defined(NO_HMAC) && !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048)
 
     byte* inKey = (byte*) server_key_der_2048;
     const word32 inKeySz= sizeof_server_key_der_2048;
@@ -18989,18 +18990,17 @@ static int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_DES3) && !defined(NO_SHA)
-    ExpectIntEQ(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3),
-        TEST_SUCCESS);
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
-#if defined(HAVE_AES_CBC) && !defined(NO_AES_256) && !defined(NO_DES3) && \
-    !defined(NO_SHA)
-    ExpectIntEQ(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_SHA1_DES3),
-        TEST_SUCCESS);
+#if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    /* Encoding certificate with PBE_AES256_CBC needs WOLFSSL_ASN_TEMPLATE */
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_AES256_CBC));
 #endif
-#if defined(HAVE_AES_CBC) && !defined(NO_AES_128) && !defined(NO_DES3) && \
-    !defined(NO_SHA)
-    ExpectIntEQ(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_SHA1_DES3),
-        TEST_SUCCESS);
+#if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_128) && \
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE)
+    /* Encoding certificate with PBE_AES128_CBC needs WOLFSSL_ASN_TEMPLATE */
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_AES128_CBC));
 #endif
     (void) test_wc_PKCS12_create_once;
 

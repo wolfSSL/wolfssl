@@ -2092,6 +2092,8 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
     word32 length = 0;
     word32 tmpSz;
     word32 encSz;
+    int blkOid = 0;
+    int hmacOid = 0;
 
     byte seq[MAX_SEQ_SZ];
 
@@ -2109,9 +2111,24 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
     if (type == WC_PKCS12_ENCRYPTED_DATA) {
         word32 outerSz = 0;
 
+        /* Need to handle PKCS#5v1/v2 (=non-PKCS#12v1) encryptions */
+        if (vAlgo == PBE_AES256_CBC) {
+            vPKCS = PKCS5;
+            vAlgo = PBES2;
+            blkOid = AES256CBCb;
+            hmacOid = HMAC_SHA256_OID;
+        }
+        else if (vAlgo == PBE_AES128_CBC) {
+            vPKCS = PKCS5;
+            vAlgo = PBES2;
+            blkOid = AES128CBCb;
+            hmacOid = HMAC_SHA256_OID;
+        }
+
         encSz = contentSz;
         if ((ret = EncryptContent(NULL, contentSz, NULL, &encSz,
-                   pass, passSz, vPKCS, vAlgo, NULL, 0, iter, rng, heap)) < 0) {
+                   pass, passSz, vPKCS, vAlgo, blkOid, NULL, 0, iter, hmacOid,
+                   rng, heap)) < 0) {
             if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                 return ret;
             }
@@ -2163,7 +2180,8 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         }
 
         if ((ret = EncryptContent(content, contentSz, tmp, &encSz,
-                   pass, passSz, vPKCS, vAlgo, NULL, 0, iter, rng, heap)) < 0) {
+                   pass, passSz, vPKCS, vAlgo, blkOid, NULL, 0, iter, hmacOid,
+                   rng, heap)) < 0) {
             XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
@@ -2405,6 +2423,7 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
 
     heap = wc_PKCS12_GetHeap(pkcs12);
     switch (nidCert) {
+        /* supported certificate encryptions */
         case PBE_SHA1_RC4_128:
             type = WC_PKCS12_ENCRYPTED_DATA;
             algo = 1;
@@ -2420,7 +2439,17 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
             algo = 3;
             break;
 
-        case -1:
+        case PBE_AES256_CBC:
+            type = WC_PKCS12_ENCRYPTED_DATA;
+            algo = PBE_AES256_CBC;
+            break;
+
+        case PBE_AES128_CBC:
+            type = WC_PKCS12_ENCRYPTED_DATA;
+            algo = PBE_AES128_CBC;
+            break;
+
+        case -1: /* no encryption */
             type = WC_PKCS12_DATA;
             algo = -1;
             break;

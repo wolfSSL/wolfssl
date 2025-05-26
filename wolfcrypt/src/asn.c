@@ -10206,6 +10206,214 @@ int ToTraditionalEnc(byte* input, word32 sz, const char* password,
 #ifdef HAVE_PKCS12
 
 #ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for PKCS #8 encrypted key with PBES2 parameters.
+ * PKCS #8: RFC 5958, 3 - EncryptedPrivateKeyInfo
+ * PKCS #5: RFC 8018, A.4 - PBES2
+ */
+static const ASNItem p8EncPbes2ASN[] = {
+/* SEQ */           { 0, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGO_SEQ */          { 1, ASN_SEQUENCE, 1, 1, 0 },
+                    /* PBE algorithm */
+/* ALGO_OID */              { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/* ALGO_PARAMS_SEQ */       { 2, ASN_SEQUENCE, 1, 1, 0 },
+/* ALGO_PARAMS_KDF_SEQ */       { 3, ASN_SEQUENCE, 1, 1, 0 },
+               /* PBKDF2 */
+/* ALGO_PARAMS_KDF_OID */           { 4, ASN_OBJECT_ID, 0, 0, 0 },
+/* ALGO_PARAMS_PBKDF2_SEQ */        { 4, ASN_SEQUENCE, 1, 1, 0 },
+                   /* Salt */
+/* ALGO_PARAMS_PBKDF2_SALT */           { 5, ASN_OCTET_STRING, 0, 0, 0 },
+                   /* Iteration count */
+/* ALGO_PARAMS_PBKDF2_ITER */           { 5, ASN_INTEGER, 0, 0, 0 },
+                   /* Key length */
+/* ALGO_PARAMS_PBKDF2_KEYLEN */         { 5, ASN_INTEGER, 0, 0, 1 },
+                   /* PRF - default is HMAC-SHA1 */
+/* ALGO_PARAMS_PBKDF2_PRF */            { 5, ASN_SEQUENCE, 1, 1, 1 },
+/* ALGO_PARAMS_PBKDF2_PRF_OID */            { 6, ASN_OBJECT_ID, 0, 0, 0 },
+/* ALGO_PARAMS_PBKDF2_PRF_NULL */           { 6, ASN_TAG_NULL, 0, 0, 1 },
+/* ALGO_ENCS_SEQ */             { 3, ASN_SEQUENCE, 1, 1, 0 },
+                   /* Encryption algorithm */
+/* ALGO_ENCS_OID */                 { 4, ASN_OBJECT_ID, 0, 0, 0 },
+                   /* IV for CBC */
+/* ALGO_ENCS_PARAMS */              { 4, ASN_OCTET_STRING, 0, 0, 0 },
+/* ENCDATA */           { 1, (ASN_CONTEXT_SPECIFIC | 0), 0, 0, 0 },
+};
+enum {
+    P8ENCPBES2ASN_IDX_SEQ = 0,
+    P8ENCPBES2ASN_IDX_ALGO_SEQ,
+    P8ENCPBES2ASN_IDX_ALGO_OID,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_SEQ,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_KDF_SEQ,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_KDF_OID,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SEQ,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SALT,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_ITER,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_KEYLEN,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF_OID,
+    P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF_NULL,
+    P8ENCPBES2ASN_IDX_ALGO_ENCS_SEQ,
+    P8ENCPBES2ASN_IDX_ALGO_ENCS_OID,
+    P8ENCPBES2ASN_IDX_ALGO_ENCS_PARAMS,
+    P8ENCPBES2ASN_IDX_ENCDATA
+};
+
+#define p8EncPbes2ASN_Length (sizeof(p8EncPbes2ASN) / sizeof(ASNItem))
+#endif /* WOLFSSL_ASN_TEMPLATE */
+
+static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int encAlgId,
+        byte* salt, word32 saltSz, int itt, int hmacOid, WC_RNG* rng,
+        void* heap)
+{
+    int ret = 0;
+#ifndef WOLFSSL_ASN_TEMPLATE
+    (void)input;
+    (void)inputSz;
+    (void)out;
+    (void)outSz;
+    (void)password;
+    (void)passwordSz;
+    (void)encAlgId;
+    (void)salt;
+    (void)saltSz;
+    (void)itt;
+    (void)hmacOid;
+    (void)rng;
+    (void)heap;
+    ret = ASN_VERSION_E;
+#else /* WOLFSSL_ASN_TEMPLATE */
+    /* PBES2 is only supported when enabling the ASN template */
+
+    DECL_ASNSETDATA(dataASN, p8EncPbes2ASN_Length);
+    const byte* blkOidBuf = NULL;
+    int blkOidSz = 0;
+    int pbesId = -1;
+    int blockSz = 0;
+    int asnSz = 0;
+    word32 pkcs8Sz = 0;
+    byte* cbcIv = NULL;
+    byte* saltEnc = NULL;
+    int genSalt = (salt == NULL || saltSz == 0);
+
+    WOLFSSL_ENTER("EncryptContentPBES2");
+
+    /* Must have a output size to return or check. */
+    if (outSz == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && genSalt) {
+        salt = NULL;
+        saltSz = PKCS5V2_SALT_SZ;
+        /* Salt generated into encoding below. */
+    }
+    /* Check salt size is valid. */
+    if ((ret == 0) && (saltSz > MAX_SALT_SIZE)) {
+        ret = ASN_PARSE_E;
+    }
+    if ((ret == 0) && GetAlgoV2(encAlgId, &blkOidBuf, &blkOidSz, &pbesId,
+        &blockSz) < 0) {
+        ret = ASN_INPUT_E;
+    }
+    CALLOC_ASNSETDATA(dataASN, p8EncPbes2ASN_Length, ret, heap);
+
+    if (ret == 0) {
+        /* Setup data to go into encoding including PBE algorithm, salt,
+         * iteration count, and padded key length. */
+        SetASN_OID(&dataASN[P8ENCPBES2ASN_IDX_ALGO_OID], (word32)PBES2,
+                   oidPBEType);
+        SetASN_Buffer(&dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_KDF_OID],
+            pbkdf2Oid, sizeof(pbkdf2Oid));
+        SetASN_Buffer(&dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SALT], NULL,
+            saltSz);
+        SetASN_Int16Bit(&dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_ITER],
+            (word16)itt);
+        dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_KEYLEN].noOut = 1;
+        if (hmacOid > 0) {
+            const byte* hmacOidBuf = NULL;
+            word32 hmacOidSz = 0;
+            hmacOidBuf = OidFromId((word32)hmacOid, oidHmacType, &hmacOidSz);
+            if (hmacOidBuf == NULL) {
+                ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                SetASN_Buffer(
+                    &dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF_OID],
+                    hmacOidBuf, hmacOidSz);
+            }
+        }
+        else {
+            /* SHA1 will be used as default without PRF parameters */
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF].noOut = 1;
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF_OID].noOut = 1;
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_PRF_NULL].noOut = 1;
+        }
+        SetASN_Buffer(&dataASN[P8ENCPBES2ASN_IDX_ALGO_ENCS_OID], blkOidBuf,
+            blkOidSz);
+        SetASN_Buffer(&dataASN[P8ENCPBES2ASN_IDX_ALGO_ENCS_PARAMS], NULL,
+            blockSz);
+        pkcs8Sz = wc_PkcsPad(NULL, inputSz, (word32)blockSz);
+        SetASN_Buffer(&dataASN[P8ENCPBES2ASN_IDX_ENCDATA], NULL, pkcs8Sz);
+
+        /* Calculate size of encoding. */
+        ret = SizeASN_Items(p8EncPbes2ASN + P8ENCPBES2ASN_IDX_ALGO_SEQ,
+                dataASN + P8ENCPBES2ASN_IDX_ALGO_SEQ,
+                (int)(p8EncPbes2ASN_Length - P8ENCPBES2ASN_IDX_ALGO_SEQ),
+                &asnSz);
+    }
+    /* Return size when no output buffer. */
+    if ((ret == 0) && (out == NULL)) {
+        *outSz = (word32)asnSz;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
+    }
+    /* Check output buffer is big enough for encoded data. */
+    if ((ret == 0) && (asnSz > (int)*outSz)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        /* Encode PKCS#8 key. */
+        SetASN_Items(p8EncPbes2ASN + P8ENCPBES2ASN_IDX_ALGO_SEQ,
+                 dataASN + P8ENCPBES2ASN_IDX_ALGO_SEQ,
+                 (int)(p8EncPbes2ASN_Length - P8ENCPBES2ASN_IDX_ALGO_SEQ),
+                 out);
+
+        saltEnc = (byte*)
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_PARAMS_PBKDF2_SALT].data.buffer.data;
+        if (genSalt) {
+            /* Generate salt into encoding. */
+            ret = wc_RNG_GenerateBlock(rng, saltEnc, saltSz);
+        }
+        else {
+            XMEMCPY(saltEnc, salt, saltSz);
+        }
+    }
+    if (ret == 0) {
+        cbcIv = (byte*)
+            dataASN[P8ENCPBES2ASN_IDX_ALGO_ENCS_PARAMS].data.buffer.data;
+        ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
+    }
+    if (ret == 0) {
+        /* Store PKCS#8 key in output buffer. */
+        byte* pkcs8 = (byte*)
+            dataASN[P8ENCPBES2ASN_IDX_ENCDATA].data.buffer.data;
+        XMEMCPY(pkcs8, input, inputSz);
+        (void)wc_PkcsPad(pkcs8, inputSz, (word32)blockSz);
+
+        /* Encrypt PKCS#8 key inline. */
+        ret = wc_CryptKey(password, passwordSz, saltEnc, (int)saltSz, itt,
+            pbesId, pkcs8, (int)pkcs8Sz, PKCS5v2, cbcIv, 1, hmacOid);
+    }
+    if (ret == 0) {
+        /* Returning size on success. */
+        ret = asnSz;
+    }
+
+    FREE_ASNSETDATA(dataASN, heap);
+    (void)heap;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+    return ret;
+}
+
+#ifdef WOLFSSL_ASN_TEMPLATE
 /* ASN.1 template for PKCS #8 encrypted key with PBES1 parameters.
  * PKCS #8: RFC 5958, 3 - EncryptedPrivateKeyInfo
  * PKCS #5: RFC 8018, A.3 - PBEParameter
@@ -10233,7 +10441,7 @@ enum {
 };
 
 #define p8EncPbes1ASN_Length (sizeof(p8EncPbes1ASN) / sizeof(ASNItem))
-#endif
+#endif /* WOLFSSL_ASN_TEMPLATE */
 
 /* Wrap a private key in PKCS#8 and encrypt.
  *
@@ -10254,9 +10462,11 @@ enum {
  * @param [in]  passwordSz  Length of password in bytes.
  * @param [in]  vPKCS       First byte used to determine PBE algorithm.
  * @param [in]  vAlgo       Second byte used to determine PBE algorithm.
+ * @param [in]  encAlgId    Encryption Algorithm for PBES2.
  * @param [in]  salt        Salt to use with KDF.
  * @param [in]  saltSz      Length of salt in bytes.
  * @param [in]  itt         Number of iterations to use in KDF.
+ * @param [in]  hmacOid     HMAC Algorithm for PBES2.
  * @param [in]  rng         Random number generator to use to generate salt.
  * @param [in]  heap        Dynamic memory allocator hint.
  * @return  The size of encrypted data on success
@@ -10269,7 +10479,8 @@ enum {
  */
 int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
-        byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap)
+        int encAlgId, byte* salt, word32 saltSz, int itt, int hmacOid,
+        WC_RNG* rng, void* heap)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 sz;
@@ -10293,7 +10504,11 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     word32 algoSz;
     const  byte* algoName;
 
+    (void)encAlgId;
+    (void)hmacOid;
     (void)heap;
+
+    (void)EncryptContentPBES2;
 
     WOLFSSL_ENTER("EncryptContent");
 
@@ -10449,7 +10664,9 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     (void)rng;
 
     return (int)(inOutIdx + sz);
-#else
+#else /* WOLFSSL_ASN_TEMPLATE */
+    /* PBES2 is only supported when enabling the ASN template */
+
     DECL_ASNSETDATA(dataASN, p8EncPbes1ASN_Length);
     int ret = 0;
     int sz = 0;
@@ -10476,7 +10693,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     }
     /* Check PKCS #5 version - only PBSE1 parameters supported. */
     if ((ret == 0) && (version == PKCS5v2)) {
-        ret = BAD_FUNC_ARG;
+        return EncryptContentPBES2(input, inputSz, out, outSz, password,
+            passwordSz, encAlgId, salt, saltSz, itt, hmacOid, rng, heap);
     }
 
     CALLOC_ASNSETDATA(dataASN, p8EncPbes1ASN_Length, ret, heap);
