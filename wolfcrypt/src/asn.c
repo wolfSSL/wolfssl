@@ -40314,6 +40314,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
 {
     DECL_ASNGETDATA(dataASN, certExtASN_Length);
     int ret = 0;
+    /* Track if we've seen these extensions already */
+    word32 seenAuthKey = 0;
+    word32 seenCrlNum = 0;
 
     ALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, dcrl->heap);
 
@@ -40335,47 +40338,64 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             /* Length of extension data. */
             int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
-            if (oid == AUTH_KEY_OID) {
-            #ifndef NO_SKID
-                /* Parse Authority Key Id extension.
-                 * idx is at start of OCTET_STRING data. */
-                ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
-                if (ret != 0) {
-                    WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
-                }
-            #endif
+            /* Check for duplicate extension */
+            if ((oid == AUTH_KEY_OID && seenAuthKey) ||
+                (oid == CRL_NUMBER_OID && seenCrlNum)) {
+                WOLFSSL_MSG("Duplicate CRL extension found");
+                ret = ASN_PARSE_E;
             }
-            else if (oid == CRL_NUMBER_OID) {
-            #ifdef WOLFSSL_SMALL_STACK
-                mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
-                        DYNAMIC_TYPE_BIGINT);
-                if (m == NULL) {
-                    ret = MEMORY_E;
-                }
-            #else
-                mp_int m[1];
-            #endif
 
-                if (ret == 0) {
-                    if (mp_init(m) != MP_OKAY) {
-                        ret = MP_INIT_E;
+            /* Track this extension if no duplicate found */
+            if (ret == 0) {
+                if (oid == AUTH_KEY_OID)
+                    seenAuthKey = 1;
+                else if (oid == CRL_NUMBER_OID)
+                    seenCrlNum = 1;
+            }
+
+            if (ret == 0) {
+                if (oid == AUTH_KEY_OID) {
+                #ifndef NO_SKID
+                    /* Parse Authority Key Id extension.
+                     * idx is at start of OCTET_STRING data. */
+                    ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
+                    if (ret != 0) {
+                        WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
                     }
+                #endif
                 }
-                if (ret == 0) {
-                    ret = GetInt(m, buf, &idx, maxIdx);
-                }
-                if (ret == 0) {
-                    dcrl->crlNumber = (int)m->dp[0];
-                }
+                else if (oid == CRL_NUMBER_OID) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                            DYNAMIC_TYPE_BIGINT);
+                    if (m == NULL) {
+                        ret = MEMORY_E;
+                    }
+                #else
+                    mp_int m[1];
+                #endif
 
-                mp_free(m);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
-            #endif
+                    if (ret == 0) {
+                       if (mp_init(m) != MP_OKAY) {
+                           ret = MP_INIT_E;
+                        }
+                    }
+                    if (ret == 0) {
+                        ret = GetInt(m, buf, &idx, maxIdx);
+                    }
+                    if (ret == 0) {
+                        dcrl->crlNumber = (int)m->dp[0];
+                    }
+
+                    mp_free(m);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
+                #endif
+                }
+                /* TODO: check criticality */
+                /* Move index on to next extension. */
+                idx += (word32)length;
             }
-            /* TODO: check criticality */
-            /* Move index on to next extension. */
-            idx += (word32)length;
         }
     }
 
