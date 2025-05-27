@@ -98,8 +98,8 @@ static int Tropic01_GenerateKeyED25519(byte* pubkey, int keySlot, word32 sz)
         Tropic01_Deinit();
         return WC_HW_E;
     }
-    lt_ecc_curve_type_t curve = 2;
-    ecc_key_origin_t origin = 2;
+    lt_ecc_curve_type_t curve = CURVE_ED25519;
+    ecc_key_origin_t origin = CURVE_GENERATED;
     ret = lt_ecc_key_read(&g_h, keySlot, pubkey, sz, &curve, &origin);
     if(ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to read pub key, ret=%d", ret);
@@ -114,14 +114,14 @@ static int Tropic01_GenerateKeyED25519(byte* pubkey, int keySlot, word32 sz)
 #endif
 
 /*
- * Retrive the AES key from the secure memory of TROPIC01 
+ * Retrive the AES key from the secure R memory of TROPIC01 
  */
 
-static int Tropic01_GetKey(Aes* aes, int keySlot, word32 keySz)
+static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
 {
 
     lt_ret_t rett;
-    WOLFSSL_MSG_EX("TROPIC01: GetKey: Retrieving key from slot %d", keySlot);
+    WOLFSSL_MSG_EX("TROPIC01: Get AES Key: Retrieving key from slot %d", keySlot);
     
     if (aes == NULL || keySlot < 0 || keySlot >= 511)
         return BAD_FUNC_ARG;
@@ -129,7 +129,7 @@ static int Tropic01_GetKey(Aes* aes, int keySlot, word32 keySz)
     
     /* Check key size */
     if (keySz != 16 && keySz != 24 && keySz != 32) {
-        WOLFSSL_MSG_EX("TROPIC01: GetKey: Unsupported key size %u", keySz);
+        WOLFSSL_MSG_EX("TROPIC01: Get AES Key: Unsupported key size %u", keySz);
         return BAD_FUNC_ARG;
     }
     
@@ -137,16 +137,45 @@ static int Tropic01_GetKey(Aes* aes, int keySlot, word32 keySz)
     
     rett = lt_r_mem_data_read(&g_h, keySlot, (byte*)aes->key, keySz);
     if(rett != LT_OK) {
-        WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to retrieve key, ret=%d", rett);
+        WOLFSSL_MSG_EX("TROPIC01: Get AES Key: Failed to retrieve key, ret=%d", rett);
         Tropic01_Deinit();
         return WC_HW_E;
     }
     
     
-    WOLFSSL_MSG_EX("TROPIC01: GetKey: Key retrieved successfully");
+    WOLFSSL_MSG_EX("TROPIC01: Get AES Key: Key retrieved successfully");
     return 0;
 }
 
+static int Tropic01_GetKeyECC(byte* ecckey, int keySlot, word32 keySz)
+{
+
+    lt_ret_t rett;
+    WOLFSSL_MSG_EX("TROPIC01: Get ECC Key: Retrieving key from slot %d", keySlot);
+    
+    if (ecckey == NULL || keySlot < 0 || keySlot >= 511)
+        return BAD_FUNC_ARG;
+  
+    
+    /* Check key size */
+    if (keySz != 16 && keySz != 24 && keySz != 32) {
+        WOLFSSL_MSG_EX("TROPIC01: Get ECC Key: Unsupported key size %u", keySz);
+        return BAD_FUNC_ARG;
+    }
+    
+    /* Retrieve key from TROPIC01 */
+    
+    rett = lt_r_mem_data_read(&g_h, keySlot, (byte*)ecckey, keySz);
+    if(rett != LT_OK) {
+        WOLFSSL_MSG_EX("TROPIC01: Get ECC Key: Failed to retrieve key, ret=%d", rett);
+        Tropic01_Deinit();
+        return WC_HW_E;
+    }
+    
+    
+    WOLFSSL_MSG_EX("TROPIC01: Get ECC Key: Key retrieved successfully");
+    return 0;
+}
 
 /**
  * Crypto Callback function for TROPIC01
@@ -178,20 +207,22 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
         if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 key generation request");
-            ret = Tropic01_GenerateKeyED25519(info->pk.ed25519kg.key, TROPIC01_ED25519_KEY_SLOT_DEFAULT, info->pk.ed25519kg.size);            
+            ret = Tropic01_GenerateKeyED25519(info->pk.ed25519kg.key->p, TROPIC01_ED25519_ECC_SLOT_DEFAULT, info->pk.ed25519kg.size);            
            
         }
         #ifdef HAVE_ED25519_SIGN
         else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
 
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 signing request");
-            ret = Tropic01_GetKey(info->pk.ed25519sign.key, TROPIC01_ED25519_RMEM_SLOT_DEFAULT, TROPIC01_ED25519_MAX_KEY_SIZE);
-                    if (ret != 0) {
-                        WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get key for AES-GCM encryption, ret=%d", ret);
-                        return ret;
-                    }
+            // retrieve private key from TROPIC01 secure R memory
+            ret = Tropic01_GetKeyECC(info->pk.ed25519sign.key->k, TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT, TROPIC01_ED25519_PRIV_KEY_SIZE);
+            if (ret != 0) {
+                WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get ECC key for ED25519 sign, ret=%d", ret);
+                return ret;
+            }
             /* set devId to invalid, so software is used */
             info->pk.ed25519sign.key->devId = INVALID_DEVID;
+            info->pk.ed25519sign.key->pubKeySet = 1;
 
             ret = wc_ed25519_sign_msg_ex(
                 info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
@@ -205,6 +236,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
         #endif
         #ifdef HAVE_ED25519_VERIFY
         else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
+            WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 verification request");
+            // retrieve public key from TROPIC01 secure R memory
+            ret = Tropic01_GetKeyECC(info->pk.ed25519sign.key->p, TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT, TROPIC01_ED25519_PUB_KEY_SIZE);
+            if (ret != 0) {
+                WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get ECC key for ED25519 verification, ret=%d", ret);
+                return ret;
+            }
+
             /* set devId to invalid, so software is used */
             info->pk.ed25519verify.key->devId = INVALID_DEVID;
 
@@ -212,11 +251,10 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 info->pk.ed25519verify.sig, info->pk.ed25519verify.sigLen,
                 info->pk.ed25519verify.msg, info->pk.ed25519verify.msgLen,
                 info->pk.ed25519verify.res, info->pk.ed25519verify.key,
-                info->pk.ed25519verify.type, info->pk.ed25519verify.context,
-                info->pk.ed25519verify.contextLen);
+                info->pk.ed25519verify.type, NULL, 0);
 
             /* reset devId */
-            info->pk.ed25519verify.key->devId = devIdArg;
+            info->pk.ed25519verify.key->devId = devId;
         }
         #endif // HAVE_ ED25519_VERIFY
 #endif /* HAVE_ED25519 */
@@ -229,13 +267,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_AESGCM
             if (info->cipher.type == WC_CIPHER_AES_GCM) {
                 if (info->cipher.enc) {
-                    /* set devId to invalid, so software is used */
-                    info->cipher.aesgcm_enc.aes->devId = INVALID_DEVID;
-                    ret = Tropic01_GetKey(info->cipher.aesgcm_enc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
+                    
+                    ret = Tropic01_GetKeyAES(info->cipher.aesgcm_enc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
                     if (ret != 0) {
                         WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get key for AES-GCM encryption, ret=%d", ret);
                         return ret;
                     }
+                    /* set devId to invalid, so software is used */
+                    info->cipher.aesgcm_enc.aes->devId = INVALID_DEVID;
                     ret = wc_AesGcmEncrypt(
                         info->cipher.aesgcm_enc.aes,
                         info->cipher.aesgcm_enc.out,
@@ -252,13 +291,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                     info->cipher.aesgcm_enc.aes->devId = devId;
                 }
                 else {
-                    /* set devId to invalid, so software is used */
-                    info->cipher.aesgcm_dec.aes->devId = INVALID_DEVID;
-                    ret = Tropic01_GetKey(info->cipher.aesgcm_dec.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
+                    
+                    ret = Tropic01_GetKeyAES(info->cipher.aesgcm_dec.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
                     if (ret != 0) {
                         WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get key for AES-GCM decryption, ret=%d", ret);
                         return ret;
                     }
+                    /* set devId to invalid, so software is used */
+                    info->cipher.aesgcm_dec.aes->devId = INVALID_DEVID;
                     ret = wc_AesGcmDecrypt(
                         info->cipher.aesgcm_dec.aes,
                         info->cipher.aesgcm_dec.out,
@@ -279,13 +319,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC) {
             if (info->cipher.enc) {
-                /* set devId to invalid, so software is used */
-                info->cipher.aescbc.aes->devId = INVALID_DEVID;
-                ret = Tropic01_GetKey(info->cipher.aescbc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
+                
+                ret = Tropic01_GetKeyAES(info->cipher.aescbc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
                 if (ret != 0) {
                     WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get key for AES-CBC encryption, ret=%d", ret);
                     return ret;
                 }
+                /* set devId to invalid, so software is used */
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;
                 ret = wc_AesCbcEncrypt(
                     info->cipher.aescbc.aes,
                     info->cipher.aescbc.out,
@@ -296,13 +337,14 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 info->cipher.aescbc.aes->devId = devId;
             }
             else {
-                /* set devId to invalid, so software is used */
-                info->cipher.aescbc.aes->devId = INVALID_DEVID;
-                ret = Tropic01_GetKey(info->cipher.aescbc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
+                
+                ret = Tropic01_GetKeyAES(info->cipher.aescbc.aes, TROPIC01_AES_RMEM_SLOT_DEFAULT, TROPIC01_AES_MAX_KEY_SIZE);
                 if (ret != 0) {
                     WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get key for AES-CBC decryption, ret=%d", ret);
                     return ret;
-                }      
+                }
+                /* set devId to invalid, so software is used */
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;      
                 ret = wc_AesCbcDecrypt(
                     info->cipher.aescbc.aes,
                     info->cipher.aescbc.out,
@@ -324,7 +366,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             break;
             
         default:
-            //WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Unsupported algorithm type %d", info->algo_type);
+            WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Unsupported algorithm type %d", info->algo_type);
             break;
     }
 
