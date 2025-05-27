@@ -4834,17 +4834,45 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     }
 #endif
 
+    TLSX* existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+    TLSX* newExt = NULL;
+
     for (; offset < length; offset += OPAQUE16_LEN) {
         ato16(input + offset, &name);
-
-        ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+        if (existingExt != NULL) {
+            /* Check if this curve exists in our current list */
+            SupportedCurve* curve = (SupportedCurve*)existingExt->data;
+            while (curve != NULL) {
+                if (curve->name == name) {
+                    ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
+                    break;
+                }
+                curve = curve->next;
+            }
+        }
+        else {
+            /* Use incoming curves instead */
+            ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+            if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                return ret;
+        }
         /* If it is BAD_FUNC_ARG then it is a group we do not support, but
          * that is fine. */
-        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG) &&
+            newExt != NULL) {
             return ret;
         }
     }
 
+    if (existingExt != NULL) {
+        if (newExt == NULL){
+            return ECC_CURVE_ERROR; /* no common group found */
+        }
+        /* Replace existing extension data with intersection */
+        SupportedCurve* curve = (SupportedCurve*)existingExt->data;
+        TLSX_SupportedCurve_FreeAll(curve, ssl->heap);
+        existingExt->data = newExt->data;
+    }
     return 0;
 }
 
