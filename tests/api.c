@@ -19448,6 +19448,7 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
     ExpectIntLT(wolfSSL_i2d_ASN1_INTEGER(a, &p2), 0);
     if (a != NULL) {
         /* Reset a->data. */
+        a->isDynamic = 0;
         a->data = a->intData;
     }
     /* Set a to valid value. */
@@ -39051,12 +39052,14 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
     {
         XFILE file = XBADFILE;
         const char* fname = "./certs/server-key.der";
+        long lsz = 0;
         size_t sz = 0;
         byte* buf = NULL;
 
         ExpectTrue((file = XFOPEN(fname, "rb")) != XBADFILE);
         ExpectTrue(XFSEEK(file, 0, XSEEK_END) == 0);
-        ExpectTrue((sz = XFTELL(file)) != 0);
+        ExpectTrue((lsz = XFTELL(file)) > 0);
+        sz = (size_t)lsz;
         ExpectTrue(XFSEEK(file, 0, XSEEK_SET) == 0);
         ExpectNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         ExpectIntEQ(XFREAD(buf, 1, sz, file), sz);

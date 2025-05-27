@@ -510,6 +510,7 @@ do {                                                                           \
     byte data[WC_##upper##_BLOCK_SIZE];                                        \
                                                                                \
     XMEMSET(data, 0xa5, sizeof(data));                                         \
+    XMEMSET(&src, 0, sizeof(src));                                             \
                                                                                \
     ExpectIntEQ(wc_Init##name(&src, HEAP_HINT, INVALID_DEVID), 0);             \
     XMEMSET(&dst, 0, sizeof(dst));                                             \
