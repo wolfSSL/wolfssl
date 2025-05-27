@@ -53,6 +53,7 @@ tests_unit_test_SOURCES += tests/api/test_dtls.c
 tests_unit_test_SOURCES += tests/api/test_ocsp.c
 tests_unit_test_SOURCES += tests/api/test_evp.c
 tests_unit_test_SOURCES += tests/api/test_tls_ext.c
+tests_unit_test_SOURCES += tests/api/test_tls.c
 endif
 
 EXTRA_DIST += tests/api/api.h
@@ -103,4 +104,5 @@ EXTRA_DIST += tests/api/test_ocsp_test_blobs.h
 EXTRA_DIST += tests/api/create_ocsp_test_blobs.py
 EXTRA_DIST += tests/api/test_evp.h
 EXTRA_DIST += tests/api/test_tls_ext.h
+EXTRA_DIST += tests/api/test_tls.h
 
