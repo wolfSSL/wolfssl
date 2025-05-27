@@ -31513,7 +31513,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                 ret = outSz;
         }
     #endif /* HAVE_FALCON */
-    #if defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             dilithiumKey) {
             word32 outSz = sigSz;
@@ -31535,7 +31535,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                     ret = outSz;
             }
         }
-    #endif /* HAVE_DILITHIUM */
+    #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
     #if defined(HAVE_SPHINCS)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             !dilithiumKey && sphincsKey) {
