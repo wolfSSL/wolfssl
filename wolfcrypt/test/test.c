@@ -46914,7 +46914,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL || key == NULL) {
-        return MEMORY_E;
+        ret = MEMORY_E;
     }
 #endif
 
