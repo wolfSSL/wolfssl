@@ -40217,7 +40217,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         dcrl->crlNumberSet = 1;
                     }
 
-                    if (ret != MP_INIT_E) {
+                    if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
                         mp_free(m);
                     }
 
@@ -40313,7 +40313,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     dcrl->crlNumberSet = 1;
                 }
 
-                if (ret != MP_INIT_E) {
+                if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
                     mp_free(m);
                 }
 

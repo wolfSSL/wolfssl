@@ -590,8 +590,9 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
     info->nextDate = (byte *)entry->nextDate;
     info->nextDateMaxLen = MAX_DATE_SIZE;
     info->nextDateFormat = entry->nextDateFormat;
-    XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
     info->crlNumberSet = entry->crlNumberSet;
+    if (info->crlNumberSet)
+        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
 }
 
 static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
@@ -604,8 +605,9 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
     info->nextDate = (byte *)entry->nextDate;
     info->nextDateMaxLen = MAX_DATE_SIZE;
     info->nextDateFormat = entry->nextDateFormat;
-    XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
     info->crlNumberSet = entry->crlNumberSet;
+    if (info->crlNumberSet)
+        XMEMCPY(info->crlNumber, entry->crlNumber, CRL_MAX_NUM_SZ);
 }
 #endif
 
