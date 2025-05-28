@@ -91,6 +91,12 @@ that can be serialized and deserialized in a cross-platform way.
     #define WC_SHA256_DIGEST_SIZE 32
 #endif
 
+#ifdef WOLFSSL_NO_MALLOC
+/* need access to WC_MAX_DIGEST_SIZE for the fixed size digest buffer in the
+ * definition of the SignatureCtx struct when building with WOLFSSL_NO_MALLOC */
+#include <wolfssl/wolfcrypt/hash.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
