@@ -127,15 +127,37 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     SEGGER_RTT_Conf.h\
     SEGGER_RTT_printf.c
 
-+ To connect RTT block, you can configure RTT viewer configuration based on where RTT block is in map file\
-  e.g.\
++ To connect RTT block, you can configure RTT viewer configuration based on where RTT block is in a map file.
++ To place RTT block specific area, you can add the following line to `fsp.ld`:
+
+```
+    .bss :
+    {
+        . = ALIGN(4);
+        __bss_start__ = .;
+        *(.bss*)
+        *(COMMON)
+        KEEP(*(.rtt_block)) /* <-- for SEGGER_RTT control block */
+        . = ALIGN(4);
+        __bss_end__ = .;
+    } > RAM
+```
+  Also, adding the following line to `SEGGER_RTT.c`:
+
+```
+SEGGER_RTT_CB _SEGGER_RTT __attribute__((section(".rtt_block")));
+```
+
+  As the result, you can find the following similar line in the map file.
+  e.g.
     [test_RA6M4.map]
    ```
-    COMMON         0x200232a8       0xa8 ./src/SEGGER_RTT/SEGGER_RTT.o\
+     .rtt_block     0x20023648       0xa8 ./src/SEGGER_RTT/SEGGER_RTT.o
+                    0x20023648                _SEGGER_RTT
    ````
-    you can specify "RTT control block" to 0x200232a8 by Address\
-    OR\
-    you can specify "RTT control block" to 0x20020000 0x10000 by Search Range
+    you can specify "RTT control block" to 0x20023648 by Address
+    OR
+    you can specify "RTT control block" to 0x20023000 0x1000 by Search Range
 
 ## Run Client
 1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 project
