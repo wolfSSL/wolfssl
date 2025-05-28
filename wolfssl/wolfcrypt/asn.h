@@ -2701,10 +2701,10 @@ struct DecodedCRL {
     int          version;            /* version of cert    */
     void*   heap;
 #ifndef NO_SKID
-    byte    extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID        */
-    byte    extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
+    byte        extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID */
+    WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
-    byte    crlNumberSet:1;          /* CRL number set indicator */
+    WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);

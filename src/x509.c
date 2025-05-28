@@ -6414,8 +6414,7 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
                      scratch + scratchLen, scratchSz - scratchLen,
                      "%02x%s", serial[i], (i < sz - 1) ?
                      (delimiter ? ":" : "") : "\n"))
-                >= scratchSz - scratchLen)
-            {
+                >= scratchSz - scratchLen) {
                 WOLFSSL_MSG("buffer overrun");
                 return WOLFSSL_FAILURE;
             }
@@ -6428,10 +6427,8 @@ static int X509PrintSerial_ex(WOLFSSL_BIO* bio, byte* serial, int sz,
 
     /* if serial can fit into byte then print on the same line */
     else  {
-        if ((scratchLen = XSNPRINTF(
-                 scratch, MAX_WIDTH, " %d (0x%x)\n", (char)serial[0], serial[0]))
-            >= MAX_WIDTH)
-        {
+        if ((scratchLen = XSNPRINTF(scratch, MAX_WIDTH, " %d (0x%x)\n",
+                (char)serial[0], serial[0])) >= MAX_WIDTH) {
             WOLFSSL_MSG("buffer overrun");
             return WOLFSSL_FAILURE;
         }

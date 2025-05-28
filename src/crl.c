@@ -609,56 +609,47 @@ static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
 }
 #endif
 
-/* Returns 1 if prev crlNumber is smaller
- *         0 if equal
- *        -1 if prev crlNumber is larger */
+/* Returns MP_GT if prev crlNumber is smaller
+ *         MP_EQ if equal
+ *         MP_LT if prev crlNumber is larger */
 static int CompareCRLnumber(CRL_Entry* prev, CRL_Entry* curr)
 {
-    int result = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* prev_num = (mp_int*)XMALLOC(sizeof(*prev_num), NULL,
-                        DYNAMIC_TYPE_BIGINT);
-    mp_int* curr_num = (mp_int*)XMALLOC(sizeof(*curr_num), NULL,
-                        DYNAMIC_TYPE_BIGINT);
-    if (prev_num == NULL || curr_num == NULL) {
-        return MEMORY_E;
+    int ret = 0;
+    DECL_MP_INT_SIZE_DYN(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT,
+                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+    DECL_MP_INT_SIZE_DYN(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT,
+                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+
+    NEW_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+    NEW_MP_INT_SIZE(curr_num, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef MP_INT_SIZE_CHECK_NULL
+    if ((prev_num == NULL) || (curr_num == NULL)) {
+        ret = MEMORY_E;
     }
-#else
-    mp_int prev_num[1];
-    mp_int curr_num[1];
 #endif
 
-    if (mp_init_multi(prev_num, curr_num, NULL, NULL, NULL, NULL) != MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(prev_num, NULL, DYNAMIC_TYPE_BIGINT);
-        XFREE(curr_num, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
-        return BAD_FUNC_ARG;
-    }
-
-    if (mp_read_radix(prev_num, (char*)prev->crlNumber, MP_RADIX_HEX)
-            != MP_OKAY || mp_read_radix(curr_num, (char*)curr->crlNumber,
-            MP_RADIX_HEX) != MP_OKAY) {
-        mp_free(prev_num);
-        mp_free(curr_num);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(prev_num, NULL, DYNAMIC_TYPE_BIGINT);
-        XFREE(curr_num, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
-        return BAD_FUNC_ARG;
+    if (ret == 0 && ((INIT_MP_INT_SIZE(prev_num, CRL_MAX_NUM_SZ * CHAR_BIT)
+                != MP_OKAY) || (INIT_MP_INT_SIZE(curr_num,
+                CRL_MAX_NUM_SZ * CHAR_BIT)) != MP_OKAY)) {
+        ret = MP_INIT_E;
     }
 
-    result = mp_cmp(prev_num, curr_num);
+    if (ret == 0 && (mp_read_radix(prev_num, (char*)prev->crlNumber,
+                MP_RADIX_HEX) != MP_OKAY ||
+                mp_read_radix(curr_num, (char*)curr->crlNumber,
+                MP_RADIX_HEX) != MP_OKAY)) {
+        ret = BAD_FUNC_ARG;
+    }
 
-    mp_free(prev_num);
-    mp_free(curr_num);
+    if (ret == 0)
+        ret = mp_cmp(prev_num, curr_num);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(prev_num, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(curr_num, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    FREE_MP_INT_SIZE(prev_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    FREE_MP_INT_SIZE(curr_num, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return result;
+    return ret;
 }
 
 /* Add Decoded CRL, 0 on success */
@@ -704,7 +695,9 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     for (curr = crl->crlList; curr != NULL; curr = curr->next) {
         if (XMEMCMP(curr->issuerHash, crle->issuerHash, CRL_DIGEST_SIZE) == 0) {
             ret = CompareCRLnumber(crle, curr);
-            if (ret == -1 || ret == 0) {
+            /* Error out if the CRL we're attempting to add isn't more
+             * authoritative than the existing entry */
+            if (ret == MP_LT || ret == MP_EQ) {
                 WOLFSSL_MSG("Same or newer CRL entry already exists");
                 CRL_Entry_free(crle, crl->heap);
                 wc_UnLockRwLock(&crl->crlLock);

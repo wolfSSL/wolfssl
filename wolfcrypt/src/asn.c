@@ -40201,22 +40201,26 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     mp_int m[1];
                 #endif
 
-                    if (mp_init(m) != MP_OKAY) {
-                        ret = MP_INIT_E;
-                    }
+                    ret = mp_init(m);
 
-                    if (ret == 0)
+                    if (ret == MP_OKAY)
                         ret = mp_read_unsigned_bin(m, buf + idx, length);
+
                     if (ret != MP_OKAY)
                         ret = BUFFER_E;
 
-                    if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
+                    if (ret == MP_OKAY && mp_toradix(m, (char*)dcrl->crlNumber,
                                 MP_RADIX_HEX) != MP_OKAY)
                         ret = BUFFER_E;
 
-                    dcrl->crlNumberSet = 1;
+                    if (ret == MP_OKAY) {
+                        dcrl->crlNumberSet = 1;
+                    }
 
-                    mp_free(m);
+                    if (ret != MP_INIT_E) {
+                        mp_free(m);
+                    }
+
                 #ifdef WOLFSSL_SMALL_STACK
                     XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
                 #endif
@@ -40305,9 +40309,14 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                             MP_RADIX_HEX) != MP_OKAY)
                     ret = BUFFER_E;
 
-                dcrl->crlNumberSet = 1;
+                if (ret == 0) {
+                    dcrl->crlNumberSet = 1;
+                }
 
-                mp_free(m);
+                if (ret != MP_INIT_E) {
+                    mp_free(m);
+                }
+
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
             #endif
