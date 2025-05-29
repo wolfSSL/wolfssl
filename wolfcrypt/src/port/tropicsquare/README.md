@@ -33,7 +33,7 @@ The TROPIC01 datasheet is available via [this link](https://www.nxp.com/docs/en/
   - Ed25519 EdDSA signing
   - P-256 ECDSA signing
   - Diffie-Hellman X25519 key exchange
-  - Keccak based PIN authentication engine
+  - Keccak-based PIN authentication engine
 - **Tamper Resistance**:
   - Voltage glitch detector
   - Temperature detector
@@ -58,13 +58,14 @@ To get samples and DevKits, please fill in [this form](https://tropicsquare.com/
 ## Build Configuration
 
 ### Pre-requirements
-1. Install toolchain (incl. compiler or cross-compiler). For example,  GNU Toolchain (gcc) or ARM cross compiling toolchain (armv8-rpi3-linux-gnueabihf) 
-2. Install CMake and Autotools 
-3. Install Git client
+1. Get one of the targeted hardware platforms. For example, Linux PC + TROPIC01 USB stick or Raspberry PI 3/4/5 + TROPIC01 RPI shield
+2. Install toolchain (incl. compiler or cross-compiler). For example,  GNU Toolchain (gcc) or ARM cross-compiling toolchain (armv8-rpi3-linux-gnueabihf) 
+3. Install CMake and Autotools 
+4. Install Git 
 
-  Some guideline for RPi is [here](https://earthly.dev/blog/cross-compiling-raspberry-pi/)
+  Some guidelines for RPi are available [here](https://earthly.dev/blog/cross-compiling-raspberry-pi/)
 
-Also, for Raspberry PI there are a few more steps:
+Also, for Raspberry PI, there are a few more steps:
 
 1.  In raspi-config go to "Interface Options" and enable SPI
 2.  Install wiringPI:
@@ -76,7 +77,7 @@ $ sudo apt install wiringpi
 
 ### Keys installation
 
-For the integration with wolfSSL there are a few pre-defined slots for the secure keys storage (the slots mapping might be changed in tropic01.h):
+For the integration with wolfSSL, there are a few pre-defined slots for the secure keys storage (the slots mapping might be changed in tropic01.h):
 ```sh
 TROPIC01_AES_RMEM_SLOT_DEFAULT 1 // slot in R-memory for AES key 
 TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2 // slot in R-memory for ED25519 Public key  
@@ -84,15 +85,15 @@ TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT 3 //slot in R-memory for ED25519 Private
 TROPIC01_ED25519_ECC_SLOT_DEFAULT 1 // slot in ECC keys storage for both public and private keys
 PAIRING_KEY_SLOT_INDEX_0 0 //pairing keys slot
 ```
-All R-memory based keys must be pre-provisioned in the TROPIC01 Secure Element separately. For example, it might be done with libtropic-util tool available [here] (https://github.com/tropicsquare/libtropic-util)
+All R-memory based keys must be pre-provisioned in the TROPIC01 Secure Element separately. For example, it might be done with the libtropic-util tool available [here] (https://github.com/tropicsquare/libtropic-util)
 
 ### Build TROPIC01 SDK (libtropic)
 
 wolfSSL uses the "TROPIC01 SDK" (aka libtropic) to interface with TROPIC01. This SDK can be cloned from the TropicSquare GitHub https://github.com/tropicsquare/libtropic
 
-Once the repo was downloade, please follow [this guidline](https://github.com/tropicsquare/libtropic/blob/master/docs/index.md#integration-examples) on how to configure and build TROPIC01 SDK
+Once the repo was downloaded, please follow [this guideline](https://github.com/tropicsquare/libtropic/blob/master/docs/index.md#integration-examples) on how to configure and build TROPIC01 SDK
 
-or simply run the following commands:
+Or run the following commands:
 ```sh
   $ git clone https://github.com/tropicsquare/libtropic.git
   $ cd libtropic
@@ -102,7 +103,12 @@ or simply run the following commands:
 ```
 
 ### Build wolfSSL
-To compile wolfSSL with TROPIC01 support using Autoconf/configure:
+1. Clone wolfSSL from the wolfSSL GitHub (https://github.com/wolfSSL/wolfssl)
+
+2. Make sure that the version of wolfSSL supports TROPIC01 - check if the folder wolfssl/wolfcrypt/src/port/tropicsquare exists 
+
+3. To compile wolfSSL with TROPIC01 support using Autoconf/configure:
+   
 ```sh
 $ cd wolfssl
 $ ./autogen.sh
@@ -114,7 +120,7 @@ where PATH is an absolute path to the libtropic folder, for example
 
     --with-tropic01=/home/pi/git/libtropic
  
-for the debugging output, add 
+For the debugging output, add 
 
     --enable-debug
 
@@ -122,27 +128,27 @@ for the debugging output, add
 
 The test application for Raspberry Shield and USB stick can be cloned from the TropicSquare GitHub https://github.com/tropicsquare/tropic01-wolfssl-test
 
-To build and run the test application, please run the next commands
+To build and run the test application, please run the following commands
 
 ```sh
 $ git clone git@github.com:tropicsquare/tropic01-wolfssl-test.git
 $ cd tropic01-wolfssl-test
 ```
-if necesary open and edit Makefile in this folder
+If necessary, open and edit the Makefile in this folder
 
-set correct values for CC and LIBTROPIC_DIR variables, for example:
+Set correct values for CC and LIBTROPIC_DIR variables, for example:
 
     CC = gcc  
 
     LIBTROPIC_DIR = /home/pi/git/libtropic
 
-then run the following commands to build and run test application for USB stick:
+Then run the following commands to build and run the test application for the USB stick:
 
 ```sh
 $ make
 $ ./lt-wolfssl-test
 ```
-or for Raspberry PI shield (make sure you fulfield all prerequirements first):
+or for Raspberry PI shield (make sure you fulfill all prerequisites first):
 
 
 ```sh
@@ -150,7 +156,7 @@ $ make RPI_SPI =1
 $ ./lt-wolfssl-test
 ```
 
-In case of success the output of the test application should look like this:
+In case of success, the output of the test application should look like this:
 
 ```sh
 wolfSSL Crypto Callback Test Application

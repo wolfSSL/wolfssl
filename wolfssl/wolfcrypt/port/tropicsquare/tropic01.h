@@ -79,10 +79,9 @@ typedef struct {
 
 int Tropic01_Init(void);
 int Tropic01_Deinit(void);
+int Tropic01_SetPairingKeys(int keyIndex, const byte* keyPub, const byte* keyPriv);
 int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx);
 
-//static int Tropic01_GetRandom(byte* out, word32 sz, Tropic01CryptoDevCtx* ctx);
-//static int Tropic01_GetKey(Aes* aes, int keySlot, word32 keySz, Tropic01CryptoDevCtx* ctx);
 
 #endif /* WOLF_CRYPTO_CB */
 
