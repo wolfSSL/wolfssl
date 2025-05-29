@@ -557,7 +557,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -569,7 +569,7 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -601,6 +601,9 @@ static int km_AesCbcEncrypt(struct skcipher_request *req)
 
 out:
 
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
+
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
@@ -618,7 +621,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
     struct skcipher_walk     walk;
     unsigned int             nbytes = 0;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -631,7 +634,7 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 1 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -663,6 +666,9 @@ static int km_AesCbcDecrypt(struct skcipher_request *req)
     XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     km_AesFree(&aes_copy);
 
@@ -715,7 +721,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -730,7 +736,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 0 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -758,7 +764,7 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
         if (unlikely(err)) {
             pr_err("%s: skcipher_walk_done failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            goto out;
         }
     }
 
@@ -766,6 +772,9 @@ static int km_AesCfbEncrypt(struct skcipher_request *req)
     XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     km_AesFree(&aes_copy);
 
@@ -783,7 +792,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -798,7 +807,7 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 1 /* decrypt_p */, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -835,6 +844,9 @@ static int km_AesCfbDecrypt(struct skcipher_request *req)
     XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     km_AesFree(&aes_copy);
 
@@ -1043,7 +1055,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     unsigned int         assoclen = req->assoclen;
     u8 *                 assoc = NULL;
     u8 *                 assocmem = NULL;
-    Aes                  *aes_copy;
+    Aes                  *aes_copy = NULL;
 
     tfm = crypto_aead_reqtfm(req);
     ctx = crypto_aead_ctx(tfm);
@@ -1069,15 +1081,17 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     if (rfc4106_p) {
         byte rfc4106_iv[12];
 
-        if (unlikely(assoclen != 16 && assoclen != 20))
-            return -EINVAL;
+        if (unlikely(assoclen != 16 && assoclen != 20)) {
+            err = -EINVAL;
+            goto out;
+        }
         assoclen -= 8;
 
         memcpy(rfc4106_iv, ctx->rfc4106_nonce, 4);
@@ -1112,6 +1126,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+            scatterwalk_unmap(&assocSgWalk);
+#endif
             goto out;
         }
     }
@@ -1225,6 +1242,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
 out:
 
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
+
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
@@ -1250,7 +1270,7 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     unsigned int         assoclen = req->assoclen;
     u8 *                 assoc = NULL;
     u8 *                 sg_buf = NULL;
-    Aes                  *aes_copy;
+    Aes                  *aes_copy = NULL;
     u8 *                 in_text = NULL;
     u8 *                 out_text = NULL;
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
@@ -1281,13 +1301,15 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
     err = km_AesGet(ctx, decrypt_p, 1 /* copy_p */, &aes_copy);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
 #ifdef LINUXKM_LKCAPI_REGISTER_AESGCM_RFC4106
     if (rfc4106_p) {
-        if (unlikely(assoclen != 16 && assoclen != 20))
-            return -EINVAL;
+        if (unlikely(assoclen != 16 && assoclen != 20)) {
+            err = -EINVAL;
+            goto out;
+        }
         assoclen -= 8;
 
         memcpy(rfc4106_iv, ctx->rfc4106_nonce, 4);
@@ -1311,7 +1333,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
             in_map = NULL;
+#endif
             goto out;
         }
         assoc = in_map;
@@ -1328,7 +1352,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
             pr_err("%s: scatterwalk_map failed: %ld\n",
                    crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)),
                    PTR_ERR(assoc));
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 15, 0)
             out_map = NULL;
+#endif
             goto out;
         }
         out_text = out_map + req->assoclen;
@@ -1405,6 +1431,9 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
     }
 
 out:
+
+    if (sk_walk.nbytes)
+        (void)skcipher_walk_done(&sk_walk, -EINVAL); /* force summary cleanup */
 
     if (sg_buf) {
         free(sg_buf);
@@ -1902,7 +1931,7 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -1917,8 +1946,10 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
 
     /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
     aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
+    if (aes_copy == NULL) {
+        err = -ENOMEM;
+        goto out;
+    }
     XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -1955,6 +1986,9 @@ static int km_AesCtrEncrypt(struct skcipher_request *req)
 
 out:
 
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
+
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
@@ -1971,7 +2005,7 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -1986,8 +2020,10 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
 
     /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
     aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
+    if (aes_copy == NULL) {
+        err = -ENOMEM;
+        goto out;
+    }
     XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* CTR uses the same
                                                        * schedule for encrypt
                                                        * and decrypt.
@@ -2028,6 +2064,9 @@ static int km_AesCtrDecrypt(struct skcipher_request *req)
     XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     km_AesFree(&aes_copy);
 
@@ -2080,7 +2119,7 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -2095,8 +2134,10 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
 
     /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
     aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
+    if (aes_copy == NULL) {
+        err = -ENOMEM;
+        goto out;
+    }
     XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes));
 
     err = wc_AesSetIV(aes_copy, walk.iv);
@@ -2133,6 +2174,9 @@ static int km_AesOfbEncrypt(struct skcipher_request *req)
 
 out:
 
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
+
     km_AesFree(&aes_copy);
 
     #ifdef WOLFKM_DEBUG_AES
@@ -2149,7 +2193,7 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
     struct km_AesCtx *       ctx = NULL;
     struct skcipher_walk     walk;
     int                      err;
-    Aes                      *aes_copy;
+    Aes                      *aes_copy = NULL;
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
@@ -2164,8 +2208,10 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
 
     /* Copy the cipher state to mitigate races on Aes.reg and Aes.tmp. */
     aes_copy = (struct Aes *)malloc(sizeof(Aes));
-    if (aes_copy == NULL)
-        return -ENOMEM;
+    if (aes_copy == NULL) {
+        err = -ENOMEM;
+        goto out;
+    }
     XMEMCPY(aes_copy, ctx->aes_encrypt, sizeof(Aes)); /* OFB uses the same
                                                        * schedule for encrypt
                                                        * and decrypt.
@@ -2205,6 +2251,9 @@ static int km_AesOfbDecrypt(struct skcipher_request *req)
     XMEMCPY(walk.iv, aes_copy->reg, WC_AES_BLOCK_SIZE);
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     km_AesFree(&aes_copy);
 
@@ -2271,7 +2320,7 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 0 /* decrypt_p */, 0 /* copy_p */, &aes);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
@@ -2290,6 +2339,9 @@ static int km_AesEcbEncrypt(struct skcipher_request *req)
     }
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     #ifdef WOLFKM_DEBUG_AES
     pr_info("info: exiting km_AesEcbEncrypt: err %d, cryptlen %d\n", err,
@@ -2319,7 +2371,7 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
 
     err = km_AesGet(ctx, 1 /* decrypt_p */, 0 /* copy_p */, &aes);
     if (unlikely(err)) {
-        return err;
+        goto out;
     }
 
     while ((nbytes = walk.nbytes) != 0) {
@@ -2338,6 +2390,9 @@ static int km_AesEcbDecrypt(struct skcipher_request *req)
     }
 
 out:
+
+    if (err && walk.nbytes)
+        (void)skcipher_walk_done(&walk, err);
 
     #ifdef WOLFKM_DEBUG_AES
     pr_info("info: exiting km_AesEcbDecrypt: err %d, cryptlen %d\n", err,
