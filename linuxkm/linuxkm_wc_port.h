@@ -298,6 +298,9 @@
         #include <crypto/internal/skcipher.h>
         #include <crypto/internal/akcipher.h>
         #include <crypto/internal/kpp.h>
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+            #include <crypto/internal/sig.h>
+        #endif /* linux ver >= 6.13 */
 
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
