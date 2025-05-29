@@ -302,7 +302,9 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     /* make a random string that will be multiplied against q */
     err = wc_RNG_GenerateBlock(rng, buf, (word32)(msize - qsize));
     if (err != MP_OKAY) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return err;
     }
 
