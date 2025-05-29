@@ -130,6 +130,7 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
     int                connd;
     int                shutdown = 0;
     int                ret;
+    int                ret_i; /* interim return values */
     socklen_t          size = sizeof(clientAddr);
     size_t             len;
 #if 0
@@ -329,20 +330,40 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");
         }
-#if defined(WOLFSSL_HAVE_MLKEM)
         else {
-            /* If success creating CTX and Kyber enabled, set key share: */
-            ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_P521_KYBER_LEVEL5);
-            if (ret == SSL_SUCCESS) {
-                ESP_LOGI(TAG, "UseKeyShare WOLFSSL_P521_KYBER_LEVEL5 success");
-            }
-            else {
-                ESP_LOGE(TAG, "UseKeyShare WOLFSSL_P521_KYBER_LEVEL5 failed");
-            }
+#ifdef DEBUG_WOLFSSL
+        ESP_LOGI(TAG, "\nCreated WOLFSSL object:");
+        ShowCiphers(ssl);
+        this_heap = esp_get_free_heap_size();
+        ESP_LOGI(TAG, "tls_smp_client_task heap @ %p = %d",
+                      &this_heap, this_heap);
+#endif
+#if defined(WOLFSSL_HAVE_MLKEM)
+        /* Client sets the keyshare; we at the server only need to enable it. */
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is enabled");
+        ret_i = WOLFSSL_SUCCESS;
+
+    #if defined(WOLFSSL_KYBER1024)
+        ESP_LOGI(TAG, "WOLFSSL_KYBER1024 is enabled");
+    #elif defined(WOLFSSL_KYBER768)
+        ESP_LOGI(TAG, "WOLFSSL_KYBER768 is enabled");
+    #elif defined(WOLFSSL_KYBER512)
+        ESP_LOGI(TAG, "WOLFSSL_KYBER512 is enabled");
+    #else
+        ESP_LOGW(TAG, "WOLFSSL_HAVE_MLKEM enabled but no key size available.");
+        ret_i = ESP_FAIL;
+    #endif
+
+        if (ret_i == WOLFSSL_SUCCESS) {
+            ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM success");
+        }
+        else {
+            ESP_LOGE(TAG, "WOLFSSL_HAVE_MLKEM failed");
         }
 #else
         ESP_LOGI(TAG, "WOLFSSL_HAVE_MLKEM is not enabled, not using PQ.");
 #endif
+        }
         /* show what cipher connected for this WOLFSSL* object */
         ShowCiphers(ssl);
 
@@ -353,6 +374,8 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         ret = wolfSSL_accept(ssl);
         if (ret == SSL_SUCCESS) {
             ShowCiphers(ssl);
+            const char* curve = wolfSSL_get_curve_name(ssl);
+            ESP_LOGI(TAG, "Server negotiated key share group: %s", curve);
         }
         else {
             ESP_LOGE(TAG, "wolfSSL_accept error %d",
