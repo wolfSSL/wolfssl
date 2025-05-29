@@ -2392,13 +2392,28 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_new_connect");
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            const char* port = XSTRSTR(str, ":");
+            const char* port;
+#ifdef WOLFSSL_IPV6
+            const char* ipv6Start = XSTRSTR(str, "[");
+            const char* ipv6End = XSTRSTR(str, "]");
+
+            if (ipv6End)
+                port = XSTRSTR(ipv6End, ":");
+            else
+#endif
+                port = XSTRSTR(str, ":");
 
             if (port != NULL)
                 bio->port = (word16)XATOI(port + 1);
             else
                 port = str + XSTRLEN(str); /* point to null terminator */
 
+#ifdef WOLFSSL_IPV6
+            if (ipv6Start && ipv6End) {
+                str = ipv6Start + 1;
+                port = ipv6End;
+            }
+#endif
             bio->ip = (char*)XMALLOC(
                     (size_t)(port - str) + 1, /* +1 for null char */
                     bio->heap, DYNAMIC_TYPE_OPENSSL);
