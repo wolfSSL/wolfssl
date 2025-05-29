@@ -1225,6 +1225,7 @@ static int Entropy_HealthTest_Repetition(byte noise)
     if (!rep_have_prev) {
         rep_prev_noise = noise;
         rep_have_prev = 1;
+        rep_cnt = 1;
     }
     /* Check whether this sample matches last. */
     else if (noise == rep_prev_noise) {
@@ -1309,9 +1310,10 @@ static int Entropy_HealthTest_Proportion(byte noise)
     int ret = 0;
 
     /* Need at least 512-1 samples to test with. */
-    if (prop_total < PROP_WINDOW_SIZE - 1) {
+    if (prop_total <= PROP_WINDOW_SIZE - 1) {
         /* Store sample at last position in circular queue. */
-        prop_samples[prop_last++] = noise;
+        prop_samples[prop_last] = noise;
+        prop_last = (prop_last + 1) % PROP_WINDOW_SIZE;
         /* Update count of seen value based on new sample. */
         prop_cnt[noise]++;
         /* Update count of store values. */
