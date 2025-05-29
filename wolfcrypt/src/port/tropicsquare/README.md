@@ -152,7 +152,7 @@ or for Raspberry PI shield (make sure you fulfill all prerequisites first):
 
 
 ```sh
-$ make RPI_SPI =1
+$ make RPI_SPI=1
 $ ./lt-wolfssl-test
 ```
 
