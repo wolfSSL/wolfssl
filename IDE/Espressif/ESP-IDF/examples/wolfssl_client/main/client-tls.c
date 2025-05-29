@@ -398,8 +398,9 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
                       &this_heap, this_heap);
 #endif
 
-#if defined(ESP_WOLFSSL_ENABLE_MLKEM)
-    ESP_LOGI(TAG, "Espressif ESP_WOLFSSL_ENABLE_MLKEM is defined");
+#if defined(CONFIG_ESP_WOLFSSL_ENABLE_MLKEM)
+    /* Kconfig ESP_WOLFSSL_ENABLE_MLKEM triggers settings in user_setting.h */
+    ESP_LOGI(TAG, "Espressif CONFIG_ESP_WOLFSSL_ENABLE_MLKEM is defined");
 #endif
 #if defined(WOLFSSL_HAVE_MLKEM)
     ESP_LOGI(TAG, "WOLFSSL_MLKEM_KYBER is defined");
