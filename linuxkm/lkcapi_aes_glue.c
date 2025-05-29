@@ -1432,9 +1432,6 @@ static int AesGcmCrypt_1(struct aead_request *req, int decrypt_p, int rfc4106_p)
 
 out:
 
-    if (sk_walk.nbytes)
-        (void)skcipher_walk_done(&sk_walk, -EINVAL); /* force summary cleanup */
-
     if (sg_buf) {
         free(sg_buf);
     }
