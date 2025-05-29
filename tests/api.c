@@ -701,6 +701,92 @@ static int test_fileAccess(void)
     return EXPECT_RESULT();
 }
 
+
+static int test_wc_FreeCertList(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS12) && !defined(NO_ASN)
+
+    WC_DerCertList* list = NULL;
+    WC_DerCertList* node1 = NULL;
+    WC_DerCertList* node2 = NULL;
+    void* heap = NULL; /* Using default heap */
+
+    /* Test case 1: Freeing a NULL list */
+    wc_FreeCertList(NULL, heap);
+
+    /* Test case 2: Freeing a list with a single node */
+    list = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList), heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(list);
+    if (list == NULL) {
+        goto end_test;
+    }
+
+    list->buffer = (byte*)XMALLOC(10, heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(list->buffer);
+    if (list->buffer == NULL) {
+        XFREE(list, heap, DYNAMIC_TYPE_PKCS);
+        list = NULL;
+        goto end_test;
+    }
+    list->bufferSz = 10;
+    list->next = NULL;
+
+    wc_FreeCertList(list, heap);
+    list = NULL;
+
+    node1 = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList), heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(node1);
+    if (node1 == NULL) {
+        goto end_test;
+    }
+    node1->buffer = (byte*)XMALLOC(20, heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(node1->buffer);
+    if (node1->buffer == NULL) {
+        XFREE(node1, heap, DYNAMIC_TYPE_PKCS);
+        node1 = NULL;
+        goto end_test;
+    }
+    node1->bufferSz = 20;
+    node1->next = NULL;
+
+    node2 = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList), heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(node2);
+    if (node2 == NULL) {
+        XFREE(node1->buffer, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(node1, heap, DYNAMIC_TYPE_PKCS);
+        node1 = NULL;
+        goto end_test;
+    }
+    node2->buffer = (byte*)XMALLOC(30, heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(node2->buffer);
+    if (node2->buffer == NULL) {
+        XFREE(node2, heap, DYNAMIC_TYPE_PKCS);
+        node2 = NULL;
+        XFREE(node1->buffer, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(node1, heap, DYNAMIC_TYPE_PKCS);
+        node1 = NULL;
+        goto end_test;
+    }
+    node2->bufferSz = 30;
+    node2->next = NULL;
+
+    /* Link nodes to form the list */
+    node1->next = node2;
+    list = node1;
+
+    wc_FreeCertList(list, heap);
+    list = NULL;
+    node1 = NULL;
+    node2 = NULL;
+
+end_test:
+
+    ;
+#endif
+    return EXPECT_RESULT();
+}
+
 /*----------------------------------------------------------------------------*
  | Method Allocators
  *----------------------------------------------------------------------------*/
@@ -67029,6 +67115,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
 
+	TEST_DECL(test_wc_FreeCertList),
     /* Locking with Compat Mutex */
     TEST_DECL(test_wc_SetMutexCb),
     TEST_DECL(test_wc_LockMutex_ex),
