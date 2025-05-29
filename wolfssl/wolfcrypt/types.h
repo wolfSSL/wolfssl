@@ -2057,9 +2057,9 @@ enum Max_ASN {
     MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #endif
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
+    HEADER_ENCRYPTED_KEY_SIZE = 88 /* Extra header size for encrypted key */
 #else
-    HEADER_ENCRYPTED_KEY_SIZE = 0,
+    HEADER_ENCRYPTED_KEY_SIZE = 0
 #endif
 };
 
