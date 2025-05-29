@@ -45925,7 +45925,8 @@ static int test_MakeCertWith0Ser(void)
 
     wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
 
-#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON)
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
     ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
 #else
