@@ -36,11 +36,11 @@
 static Tropic01CryptoDevCtx g_ctx = {0};
 static lt_handle_t g_h;
 
-// Default factory pairing keys
+// Pairing keys for TROPIC01 (use Tropic01_SetPairingKeys() to set them)
 byte pkey_index_0 =  PAIRING_KEY_SLOT_INDEX_0;
-    // Engineering samples 01 keys:
-byte sh0priv[] = {0xd0,0x99,0x92,0xb1,0xf1,0x7a,0xbc,0x4d,0xb9,0x37,0x17,0x68,0xa2,0x7d,0xa0,0x5b,0x18,0xfa,0xb8,0x56,0x13,0xa7,0x84,0x2c,0xa6,0x4c,0x79,0x10,0xf2,0x2e,0x71,0x6b};
-byte sh0pub[]  = {0xe7,0xf7,0x35,0xba,0x19,0xa3,0x3f,0xd6,0x73,0x23,0xab,0x37,0x26,0x2d,0xe5,0x36,0x08,0xca,0x57,0x85,0x76,0x53,0x43,0x52,0xe1,0x8f,0x64,0xe6,0x13,0xd3,0x8d,0x54};
+byte sh0priv[32] = {0};
+byte sh0pub[32]  = {0};
+
 /*
  * TROPIC01 hardware RNG implementation
  */
@@ -57,7 +57,6 @@ static int Tropic01_GetRandom(byte* out, word32 sz)
     
     /* Call TROPIC01 TRNG API to get random data */
     
-    
     ret = lt_random_get(&g_h, out, sz);
     if(ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to retrieve key, ret=%d", ret);
@@ -66,16 +65,13 @@ static int Tropic01_GetRandom(byte* out, word32 sz)
     }
     
     WOLFSSL_MSG_EX("TROPIC01: GetRandom: Completed with ret=%d", ret);
-    /*
-    for (word32 i = 0; i < sz; i++) {
-        WOLFSSL_MSG_EX("TROPIC01: GetRandom: out[%d] = 0x%02x", i, out[i]);
-    }
-    */
     return 0;
 }
 
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
-
+/*
+ * TROPIC01 ECC keys generation implementation
+ */
 static int Tropic01_GenerateKeyED25519(byte* pubkey, int keySlot, word32 sz)
 {
     lt_ret_t ret = 0;
@@ -147,6 +143,9 @@ static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
     return 0;
 }
 
+/*
+ * Retrive the ECC key from the secure R memory of TROPIC01 
+ */
 static int Tropic01_GetKeyECC(byte* ecckey, int keySlot, word32 keySz)
 {
 
@@ -261,8 +260,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             break;
         case WC_ALGO_TYPE_CIPHER:
             WOLFSSL_MSG("TROPIC01: CryptoCB: AES request ");
-            //ret = Tropic01_StoreKey(NULL, NULL, 32);
-            //ret = Tropic01_GetKey(NULL, NULL, TROPIC01_AES_MAX_KEY_SIZE, tropicCtx);
+           
 #if !defined(NO_AES) || !defined(NO_DES3)
     #ifdef HAVE_AESGCM
             if (info->cipher.type == WC_CIPHER_AES_GCM) {
@@ -354,23 +352,47 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 /* reset devId */
                 info->cipher.aescbc.aes->devId = devId;
             }
+            /*
             for (int i = 0; i < info->cipher.aescbc.aes->keylen; i++) {
                 WOLFSSL_MSG_EX("TROPIC01: CryptoCB: aes->key[%d] = 0x%02x", i, info->cipher.aescbc.aes->key[i]);
             }    
             for (word32 i = 0; i < info->cipher.aescbc.sz; i++) {
                 WOLFSSL_MSG_EX("TROPIC01: CryptoCB: out[%d] = 0x%02x", i, info->cipher.aescbc.out[i]);
             }
+            */
         }
     #endif /* HAVE_AES_CBC */
 #endif /* !NO_AES || !NO_DES3 */        
             break;
             
         default:
-            WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Unsupported algorithm type %d", info->algo_type);
+            // WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Unsupported algorithm type %d", info->algo_type);
             break;
     }
 
     return ret;
+}
+/* Set TROPIC01 pairing keys */
+int Tropic01_SetPairingKeys(int keyIndex, const byte* keyPub, const byte* keyPriv)
+{
+    
+    if (keyPub == NULL || keyPriv == NULL || keyIndex < 0 || keyIndex > 3) {
+        WOLFSSL_MSG_EX("TROPIC01: SetPairingKeys: Invalid arguments");
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_MSG_EX("TROPIC01: SetPairingKeys: Setting pairing key in slot %d", keyIndex);
+
+    for (int i = 0; i < 32; i++) {
+        
+        sh0priv[i] = keyPriv[i];
+        sh0pub[i] = keyPub[i];
+    }
+
+    WOLFSSL_MSG("TROPIC01: SetPairingKeys: Pairing key set successfully");
+    WOLFSSL_MSG_EX("TROPIC01: sh0priv: %02X %02X %02X %02X ...", keyPriv[0], keyPriv[1], keyPriv[2], keyPriv[3]);
+    WOLFSSL_MSG_EX("TROPIC01: sh0pub: %02X %02X %02X %02X ...", keyPub[0], keyPub[1], keyPub[2], keyPub[3]);
+    return 0;
 }
 
 int Tropic01_Init()
