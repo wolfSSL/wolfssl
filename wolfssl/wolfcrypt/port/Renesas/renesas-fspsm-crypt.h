@@ -66,7 +66,7 @@ typedef struct FSPSM_tag_ST {
     uint8_t     clientRandom[FSPSM_TLS_CLIENTRANDOM_SZ];
     uint8_t     serverRandom[FSPSM_TLS_SERVERRANDOM_SZ];
     uint8_t     cipher;
-
+    uint8_t     side; /* for key set side */
    #endif
 
     /* installed key handling */

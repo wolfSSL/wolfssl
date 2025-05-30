@@ -171,10 +171,6 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     if (info == NULL || ctx == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(DEBUG_WOLFSSL)
-    printf("CryptoDevCb: Algo Type %d session key set: %d\n",
-                                    info->algo_type, cbInfo->session_key_set);
-#endif
 #if defined(DEBUG_CRYPTOCB)
     wc_CryptoCb_InfoString(info);
 #endif
@@ -830,12 +826,23 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
     if (cbInfo->session_key_set == 1) {
  #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
-
-
+    
     if (cbInfo->keyflgs_tls.bits.session_key_set == 1) {
+        switch(cbInfo->side) {
+            case 1:/* ENCRYPT_SIDE_ONLY */
+                ssl->encrypt.setup = 1;
+                break;
+            case 2:/* DECRYPT_SIDE_ONLY */
+                ssl->decrypt.setup = 1;
+                break;
+            case 3:/* ENCRYPT AND DECRYPT */
+                ssl->decrypt.setup = 1;
+                ssl->encrypt.setup = 1;
+                break;
+            default:break;
+        }
  #endif
         ret = 0;
-
         wolfSSL_CTX_SetTlsFinishedCb(ssl->ctx, Renesas_cmn_TlsFinished);
         wolfSSL_SetTlsFinishedCtx(ssl, cbInfo);
     }
