@@ -220,8 +220,14 @@ WOLFSSL_API int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);
     WOLFSSL_API int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
 #endif
 
+WOLFSSL_LOCAL void BlockSha3(word64 *s);
+
 #ifdef WC_SHA3_NO_ASM
 /* asm speedups disabled */
+#if defined(USE_INTEL_SPEEDUP) && !defined(WC_MLKEM_NO_ASM)
+    /* native ML-KEM uses this directly. */
+    WOLFSSL_LOCAL void sha3_blocksx4_avx2(word64* s);
+#endif
 #elif defined(USE_INTEL_SPEEDUP)
 WOLFSSL_LOCAL void sha3_block_n_bmi2(word64* s, const byte* data, word32 n,
     word64 c);

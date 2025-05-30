@@ -1502,6 +1502,9 @@ do
   ml-kem)
     ENABLED_ML_KEM=yes
     ;;
+  noasm)
+    AM_CFLAGS="$AM_CFLAGS -DWC_MLKEM_NO_ASM"
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for MLKEM []: $ENABLED_MLKEM.])
     break;;
