@@ -5042,14 +5042,12 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 
 #if !defined(NO_WOLFSSL_SERVER) || (defined(WOLFSSL_TLS13) && \
                                          !defined(WOLFSSL_NO_SERVER_GROUPS_EXT))
-
 int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                               word16 length, byte isRequest, TLSX** extensions)
 {
     word16 offset;
     word16 name;
     int ret;
-
     if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_ALLOW_SERVER_SC_EXT
         return 0;
@@ -5057,35 +5055,27 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR; /* servers doesn't send this extension. */
 #endif
     }
-
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
         return BUFFER_ERROR;
-
     ato16(input, &offset);
-
     /* validating curve list length */
     if (length != OPAQUE16_LEN + offset)
         return BUFFER_ERROR;
-
     offset = OPAQUE16_LEN;
     if (offset == length)
         return 0;
-
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
     if (!isRequest) {
         TLSX* extension;
         SupportedCurve* curve;
-
         extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
         if (extension != NULL) {
             /* Replace client list with server list of supported groups. */
             curve = (SupportedCurve*)extension->data;
             extension->data = NULL;
             TLSX_SupportedCurve_FreeAll(curve, ssl->heap);
-
             ato16(input + offset, &name);
             offset += OPAQUE16_LEN;
-
             ret = TLSX_SupportedCurve_New(&curve, name, ssl->heap);
             if (ret != 0)
                 return ret; /* throw error */
@@ -5094,15 +5084,47 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     }
 #endif
 
+    TLSX* existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+    TLSX* newExt = NULL;
+
     for (; offset < length; offset += OPAQUE16_LEN) {
         ato16(input + offset, &name);
-
-        ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+        if (existingExt != NULL) {
+            /* Check if this curve exists in our current list */
+            SupportedCurve* curve = (SupportedCurve*)existingExt->data;
+            while (curve != NULL) {
+                printf("%d\n", curve->name);
+                if (curve->name == name) {
+                    ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
+                    printf("Common group found");
+                    break;
+                }
+                curve = curve->next;
+            }
+        }
+        else {
+            ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+            if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                return ret;
+        }
         /* If it is BAD_FUNC_ARG then it is a group we do not support, but
          * that is fine. */
-        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG) &&
+            newExt != NULL) {
             return ret;
         }
+    }
+
+    if (existingExt != NULL) {
+        if (newExt == NULL){
+            printf("No commong group found\n");
+            return ECC_CURVE_ERROR;
+        }
+        /* Replace existing extension data with intersection */
+        SupportedCurve* curve = (SupportedCurve*)existingExt->data;
+        TLSX_SupportedCurve_FreeAll(curve, ssl->heap);
+        existingExt->data = newExt->data;
+        newExt->data = NULL;
     }
 
     return 0;
