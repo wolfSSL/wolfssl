@@ -248,9 +248,6 @@ while (0)
  *
  * s  The state.
  */
-#ifndef USE_INTEL_SPEEDUP
-static
-#endif
 void BlockSha3(word64* s)
 {
     byte i, x, y;
@@ -541,9 +538,6 @@ while (0)
  *
  * s  The state.
  */
-#ifndef USE_INTEL_SPEEDUP
-static
-#endif
 void BlockSha3(word64* s)
 {
     word64 n[25];

@@ -69,6 +69,12 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WC_MLKEM_NO_ASM
+    #undef USE_INTEL_SPEEDUP
+    #undef WOLFSSL_ARMASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
@@ -2481,6 +2487,7 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
     state[20] = W64LIT(0x8000000000000000);
     for (i = 0; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
+#ifndef WC_SHA3_NO_ASM
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
@@ -2489,13 +2496,16 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else {
+        else
+#endif /* !WC_SHA3_NO_ASM */
+        {
             BlockSha3(state);
         }
         XMEMCPY(rand + i, state, SHA3_128_BYTES);
     }
     ctr0 = mlkem_rej_uniform_n_avx2(a, MLKEM_N, rand, GEN_MATRIX_SIZE);
     while (ctr0 < MLKEM_N) {
+#ifndef WC_SHA3_NO_ASM
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
@@ -2504,7 +2514,9 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else {
+        else
+#endif /* !WC_SHA3_NO_ASM */
+        {
             BlockSha3(state);
         }
         XMEMCPY(rand, state, SHA3_128_BYTES);
@@ -3054,6 +3066,7 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         unsigned int len = min(outLen, WC_SHA3_256_BLOCK_SIZE);
 
         /* Perform a block operation on the state for next block of output. */
+#ifndef WC_SHA3_NO_ASM
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
@@ -3062,7 +3075,9 @@ static int mlkem_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
             sha3_block_avx2(state);
             RESTORE_VECTOR_REGISTERS();
         }
-        else {
+        else
+#endif /* !WC_SHA3_NO_ASM */
+        {
             BlockSha3(state);
         }
 
@@ -3109,6 +3124,7 @@ int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
+#ifndef WC_SHA3_NO_ASM
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
     }
@@ -3116,7 +3132,9 @@ int mlkem_kdf(byte* seed, int seedLen, byte* out, int outLen)
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
-    else {
+    else
+#endif
+    {
         BlockSha3(state);
     }
     XMEMCPY(out, state, outLen);
@@ -4121,6 +4139,7 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     /* Perform a block operation on the state for next block of output. */
+#ifndef WC_SHA3_NO_ASM
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
     }
@@ -4128,7 +4147,9 @@ static int mlkem_get_noise_eta2_avx2(MLKEM_PRF_T* prf, sword16* p,
         sha3_block_avx2(state);
         RESTORE_VECTOR_REGISTERS();
     }
-    else {
+    else
+#endif /* !WC_SHA3_NO_ASM */
+    {
         BlockSha3(state);
     }
     mlkem_cbd_eta2_avx2(p, (byte*)state);
