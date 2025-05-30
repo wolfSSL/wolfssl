@@ -5048,9 +5048,6 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     word16 offset;
     word16 name;
     int ret;
-    TLSX* existingExt;
-    TLSX* newExt = NULL;
-    SupportedCurve* intersectionCurve;
 
     if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_ALLOW_SERVER_SC_EXT
@@ -5088,43 +5085,57 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
         }
     }
 #endif
+    if(!IsAtLeastTLSv1_3(ssl->version)) {
+        TLSX* existingExt;
+        TLSX* newExt = NULL;
+        SupportedCurve* intersectionCurve;
 
-    existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
-
-    for (; offset < length; offset += OPAQUE16_LEN) {
-        ato16(input + offset, &name);
-        if (existingExt != NULL) {
-            /* Check if this curve exists in our current list */
-            intersectionCurve = (SupportedCurve*)existingExt->data;
-            while (intersectionCurve != NULL) {
-                if (intersectionCurve->name == name) {
-                    ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
-                    if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-                        return ret;
-                    break;
+        existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+        for (; offset < length; offset += OPAQUE16_LEN) {
+            ato16(input + offset, &name);
+            if (existingExt != NULL) {
+                /* Check if this curve exists in our current list */
+                intersectionCurve = (SupportedCurve*)existingExt->data;
+                while (intersectionCurve != NULL) {
+                    if (intersectionCurve->name == name) {
+                        ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
+                        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                            return ret;
+                        break;
+                    }
+                    intersectionCurve = intersectionCurve->next;
                 }
-                intersectionCurve = intersectionCurve->next;
+            }
+            else {
+                ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                    return ret;
+            }
+            /* If it is BAD_FUNC_ARG then it is a group we do not support, but
+             * that is fine. */
+        }
+        if (existingExt != NULL) {
+            if (newExt == NULL){
+                return ECC_CURVE_ERROR;
+            }
+            /* Replace existing extension data with intersection */
+            intersectionCurve = (SupportedCurve*)existingExt->data;
+            TLSX_SupportedCurve_FreeAll(intersectionCurve, ssl->heap);
+            existingExt->data = newExt->data;
+        }
+    }else{
+        for (; offset < length; offset += OPAQUE16_LEN) {
+            ato16(input + offset, &name);
+
+            ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
+            /* If it is BAD_FUNC_ARG then it is a group we do not support, but
+             * that is fine. */
+            if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+                return ret;
             }
         }
-        else {
-            ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-                return ret;
-        }
-        /* If it is BAD_FUNC_ARG then it is a group we do not support, but
-         * that is fine. */
     }
 
-    if (existingExt != NULL) {
-        if (newExt == NULL){
-            printf("No commong group found\n");
-            return ECC_CURVE_ERROR;
-        }
-        /* Replace existing extension data with intersection */
-        intersectionCurve = (SupportedCurve*)existingExt->data;
-        TLSX_SupportedCurve_FreeAll(intersectionCurve, ssl->heap);
-        existingExt->data = newExt->data;
-    }
     return 0;
 }
 #endif
