@@ -18992,11 +18992,15 @@ static int test_wc_PKCS12_create(void)
     ExpectIntEQ(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3),
         TEST_SUCCESS);
 #endif
-#if defined(HAVE_AES_CBC) && !defined(NO_AES_256) && !defined(NO_SHA)
+#if defined(HAVE_AES_CBC) && !defined(NO_AES_256) && !defined(NO_SHA) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+    /* Encoding certificate with PBE_AES256_CBC needs WOLFSSL_ASN_TEMPLATE */
     ExpectIntEQ(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_AES256_CBC),
         TEST_SUCCESS);
 #endif
-#if defined(HAVE_AES_CBC) && !defined(NO_AES_128) && !defined(NO_SHA)
+#if defined(HAVE_AES_CBC) && !defined(NO_AES_128) && !defined(NO_SHA) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+    /* Encoding certificate with PBE_AES128_CBC needs WOLFSSL_ASN_TEMPLATE */
     ExpectIntEQ(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_AES128_CBC),
         TEST_SUCCESS);
 #endif
