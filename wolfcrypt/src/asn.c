@@ -40191,17 +40191,20 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                     return ret;
                 }
                 else {
-                #ifdef WOLFSSL_SMALL_STACK
-                    mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
-                            DYNAMIC_TYPE_BIGINT);
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
+                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+                #ifdef MP_INT_SIZE_CHECK_NULL
                     if (m == NULL) {
-                        return MEMORY_E;
+                        ret = MEMORY_E;
                     }
-                #else
-                    mp_int m[1];
                 #endif
 
-                    ret = mp_init(m);
+                    if (ret == 0 && ((ret = INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ
+                                    * CHAR_BIT)) != MP_OKAY)) {
+                        ret = MP_INIT_E;
+                    }
 
                     if (ret == MP_OKAY)
                         ret = mp_read_unsigned_bin(m, buf + idx, length);
@@ -40217,15 +40220,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
                         dcrl->crlNumberSet = 1;
                     }
 
-                    if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
-                        mp_free(m);
-                    }
+                    FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
-                #endif
-
-                    if (ret != 0)
+                    if (ret != MP_OKAY)
                         return ret;
                 }
             }
@@ -40286,40 +40283,35 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             #endif
             }
             else if (oid == CRL_NUMBER_OID) {
-            #ifdef WOLFSSL_SMALL_STACK
-                mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
-                        DYNAMIC_TYPE_BIGINT);
+                DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
+                               CRL_MAX_NUM_SZ * CHAR_BIT);
+                NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+
+            #ifdef MP_INT_SIZE_CHECK_NULL
                 if (m == NULL) {
                     ret = MEMORY_E;
                 }
-            #else
-                mp_int m[1];
             #endif
 
-                if (ret == 0) {
-                    if (mp_init(m) != MP_OKAY) {
+                if (ret == 0 && (INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT)
+                             != MP_OKAY)) {
                         ret = MP_INIT_E;
-                    }
                 }
+
                 if (ret == 0) {
                     ret = GetInt(m, buf, &localIdx, maxIdx);
                 }
 
                 if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
-                            MP_RADIX_HEX) != MP_OKAY)
+                             MP_RADIX_HEX) != MP_OKAY)
                     ret = BUFFER_E;
 
                 if (ret == 0) {
                     dcrl->crlNumberSet = 1;
                 }
 
-                if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
-                    mp_free(m);
-                }
-
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
-            #endif
+                FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             }
             /* TODO: check criticality */
             /* Move index on to next extension. */
