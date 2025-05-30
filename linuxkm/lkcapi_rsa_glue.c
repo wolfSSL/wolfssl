@@ -1364,7 +1364,13 @@ static int km_pkcs1_sign(struct crypto_sig *tfm,
         goto pkcs1_sign_out;
     }
 
+    /* in 6.15 crypto_sig_sign switched from returning 0 on success to
+     * returning sig_len. */
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
     err = sig_len;
+    #else
+    err = 0;
+    #endif /* linux >= 6.15.0 */
 pkcs1_sign_out:
     if (msg != NULL) { free(msg); msg = NULL; }
 
@@ -3107,12 +3113,16 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
         goto test_pkcs1_end;
     }
 
+    /* in 6.15 crypto_sig_sign switched from returning 0 on success to
+     * returning sig_len. */
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
     if ((word32) ret != sig_len) {
         pr_err("error: crypto_sig_sign returned %d, expected %d\n", ret,
                sig_len);
         test_rc = BAD_FUNC_ARG;
         goto test_pkcs1_end;
     }
+    #endif /* linux >= 6.15.0 */
 
     n_diff = memcmp(km_sig, sig, sig_len);
     if (n_diff) {
