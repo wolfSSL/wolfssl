@@ -151,12 +151,15 @@ int test_tls12_curve_intersection(void) {
     struct test_memio_ctx test_ctx;
     int ret;
     const char* curve_name;
-
+	int test1[] = {WOLFSSL_ECC_SECP256R1};
+	int test2[] = {WOLFSSL_ECC_SECP384R1};
+	int test3[] = {WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1};
+	int test4[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c,
-                    (int[]){WOLFSSL_ECC_SECP256R1}, 1), WOLFSSL_SUCCESS);
+                    test1, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     // Fix: Get curve name and compare with string comparison or use curve ID function
@@ -178,9 +181,9 @@ int test_tls12_curve_intersection(void) {
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c,
-                    (int[]){WOLFSSL_ECC_SECP384R1}, 1), WOLFSSL_SUCCESS);
+                   test2, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(ssl_s,
-                    (int[]){WOLFSSL_ECC_SECP256R1}, 1), WOLFSSL_SUCCESS);
+                    test1, 1), WOLFSSL_SUCCESS);
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ret = wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR);
 
@@ -200,10 +203,10 @@ int test_tls12_curve_intersection(void) {
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c,
-                    (int[]){WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1}, 2),
+                    test3, 2),
                     WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_set_groups(ssl_s,
-                    (int[]){WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1}, 2),
+                    test4, 2),
                     WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
@@ -228,12 +231,13 @@ int test_tls13_curve_intersection(void) {
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     const char* curve_name;
+	int test1[] ={WOLFSSL_ECC_SECP256R1};
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_3_client_method, wolfTLSv1_3_server_method), 0);
     ExpectIntEQ(wolfSSL_set_groups(ssl_c,
-                    (int[]){WOLFSSL_ECC_SECP256R1}, 1), WOLFSSL_SUCCESS);
+                    test1, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     curve_name = wolfSSL_get_curve_name(ssl_s);
