@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  *
 */
+#ifdef WOLFSSL_TROPIC01
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -36,10 +37,10 @@
 static Tropic01CryptoDevCtx g_ctx = {0};
 static lt_handle_t g_h;
 
-// Pairing keys for TROPIC01 (use Tropic01_SetPairingKeys() to set them)
-byte pkey_index_0 =  PAIRING_KEY_SLOT_INDEX_0;
-byte sh0priv[32] = {0};
-byte sh0pub[32]  = {0};
+/* Pairing keys for TROPIC01 (use Tropic01_SetPairingKeys() to set them)*/
+static byte pkey_index_0 =  PAIRING_KEY_SLOT_INDEX_0;
+static byte sh0priv[32] = {0};
+static byte sh0pub[32]  = {0};
 
 /*
  * TROPIC01 hardware RNG implementation
@@ -187,7 +188,6 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (info == NULL)
         return BAD_FUNC_ARG;
     (void)ctx;
-   // (void)devId;
 
     if (g_ctx.initialized == 0) {
         WOLFSSL_MSG("TROPIC01: CryptoCB: Device not initialized");
@@ -213,7 +213,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
         else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
 
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 signing request");
-            // retrieve private key from TROPIC01 secure R memory
+            /* retrieve private key from TROPIC01 secure R memory */
             ret = Tropic01_GetKeyECC(info->pk.ed25519sign.key->k, TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT, TROPIC01_ED25519_PRIV_KEY_SIZE);
             if (ret != 0) {
                 WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get ECC key for ED25519 sign, ret=%d", ret);
@@ -236,7 +236,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
         #ifdef HAVE_ED25519_VERIFY
         else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 verification request");
-            // retrieve public key from TROPIC01 secure R memory
+            /* retrieve public key from TROPIC01 secure R memory */
             ret = Tropic01_GetKeyECC(info->pk.ed25519sign.key->p, TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT, TROPIC01_ED25519_PUB_KEY_SIZE);
             if (ret != 0) {
                 WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Failed to get ECC key for ED25519 verification, ret=%d", ret);
@@ -255,7 +255,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519verify.key->devId = devId;
         }
-        #endif // HAVE_ ED25519_VERIFY
+        #endif /* HAVE_ ED25519_VERIFY */
 #endif /* HAVE_ED25519 */
             break;
         case WC_ALGO_TYPE_CIPHER:
@@ -366,7 +366,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             break;
             
         default:
-            // WOLFSSL_MSG_EX("TROPIC01: CryptoCB: Unsupported algorithm type %d", info->algo_type);
+            
             break;
     }
 
@@ -383,7 +383,7 @@ int Tropic01_SetPairingKeys(int keyIndex, const byte* keyPub, const byte* keyPri
 
     WOLFSSL_MSG_EX("TROPIC01: SetPairingKeys: Setting pairing key in slot %d", keyIndex);
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < TROPIC01_PAIRING_KEY_SIZE; i++) {
         
         sh0priv[i] = keyPriv[i];
         sh0pub[i] = keyPub[i];
@@ -433,3 +433,5 @@ int Tropic01_Deinit()
 
     return 0;
 }
+
+#endif /* WOLFSSL_TROPIC01 */
