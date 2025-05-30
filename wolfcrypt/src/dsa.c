@@ -141,12 +141,13 @@ static int CheckDsaLN(int modLen, int divLen)
  * return 0 on success, negative on error */
 int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 {
-    byte* cBuf;
     int qSz, pSz, cSz, err;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *tmpQ = NULL;
+    byte* cBuf = NULL;
 #else
     mp_int tmpQ[1];
+    byte cBuf[(3072+64)/WOLFSSL_BIT_SIZE ];
 #endif
 
     if (rng == NULL || dsa == NULL)
@@ -161,15 +162,22 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     /* generate extra 64 bits so that bias from mod function is negligible */
     cSz = qSz + (64 / WOLFSSL_BIT_SIZE);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     cBuf = (byte*)XMALLOC((size_t)cSz, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cBuf == NULL) {
         return MEMORY_E;
     }
+#else
+    if (sizeof(cBuf) < (size_t)cSz) {
+        return BUFFER_E;
+    }
+#endif
 
     SAVE_VECTOR_REGISTERS(;);
 
-#ifdef WOLFSSL_SMALL_STACK
-    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if ((tmpQ = (mp_int *)XMALLOC(sizeof(*tmpQ), NULL,
+            DYNAMIC_TYPE_WOLF_BIGINT)) == NULL)
         err = MEMORY_E;
     else
         err = MP_OKAY;
@@ -223,9 +231,8 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
         mp_clear(&dsa->y);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-#ifdef WOLFSSL_SMALL_STACK
     if (tmpQ != NULL) {
         mp_clear(tmpQ);
         XFREE(tmpQ, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -239,19 +246,20 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     return err;
 }
 
-
 /* modulus_size in bits */
 int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     mp_int *tmp = NULL, *tmp2 = NULL;
+    unsigned char *buf = NULL;
 #else
     mp_int tmp[1], tmp2[1];
+    unsigned char buf[(3072/WOLFSSL_BIT_SIZE)-32];
 #endif
     int     err, msize, qsize,
             loop_check_prime = 0,
             check_prime = MP_NO;
-    unsigned char   *buf;
+
 
     if (rng == NULL || dsa == NULL)
         return BAD_FUNC_ARG;
@@ -278,17 +286,25 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     /* modulus size in bytes */
     msize = modulus_size / WOLFSSL_BIT_SIZE;
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* allocate ram */
     buf = (unsigned char *)XMALLOC((size_t)(msize - qsize),
                                    dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
         return MEMORY_E;
     }
+#else
+    if (sizeof(buf) < (size_t)(msize - qsize)) {
+        return BUFFER_E;
+    }
+#endif
 
     /* make a random string that will be multiplied against q */
     err = wc_RNG_GenerateBlock(rng, buf, (word32)(msize - qsize));
     if (err != MP_OKAY) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return err;
     }
 
@@ -298,7 +314,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     /* force even */
     buf[msize - qsize - 1] &= (unsigned char)~1;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (((tmp = (mp_int *)XMALLOC(sizeof(*tmp), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL) ||
         ((tmp2 = (mp_int *)XMALLOC(sizeof(*tmp2), NULL, DYNAMIC_TYPE_WOLF_BIGINT)) == NULL))
         err = MEMORY_E;
@@ -380,9 +396,8 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 #endif
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-
-#ifdef WOLFSSL_SMALL_STACK
     if (tmp != NULL) {
         mp_clear(tmp);
         XFREE(tmp, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
