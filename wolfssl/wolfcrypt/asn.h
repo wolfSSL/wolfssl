@@ -1184,6 +1184,7 @@ enum Misc_ASN {
 #endif
 
     PKCS5_SALT_SZ       = 8,
+    PKCS5V2_SALT_SZ     = 16,
 
     PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
     PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
@@ -2172,8 +2173,9 @@ WOLFSSL_ASN_API int TraditionalEnc(byte* key, word32 keySz, byte* out,
         WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 WOLFSSL_LOCAL int EncryptContent(byte* input, word32 sz, byte* out, word32* outSz,
-        const char* password,int passwordSz, int vPKCS, int vAlgo,
-        byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
+        const char* password,int passwordSz, int vPKCS, int vAlgo, int encAlgId,
+        byte* salt, word32 saltSz, int itt, int hmacOid, WC_RNG* rng,
+        void* heap);
 WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
