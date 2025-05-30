@@ -5048,6 +5048,10 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     word16 offset;
     word16 name;
     int ret;
+    TLSX* existingExt;
+    TLSX* newExt = NULL;
+    SupportedCurve* intersectionCurve;
+
     if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_ALLOW_SERVER_SC_EXT
         return 0;
@@ -5064,6 +5068,7 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     offset = OPAQUE16_LEN;
     if (offset == length)
         return 0;
+
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
     if (!isRequest) {
         TLSX* extension;
@@ -5084,22 +5089,21 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     }
 #endif
 
-	TLSX* existingExt;
     existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
-    TLSX* newExt = NULL;
 
     for (; offset < length; offset += OPAQUE16_LEN) {
         ato16(input + offset, &name);
         if (existingExt != NULL) {
             /* Check if this curve exists in our current list */
-			SupportedCurve* curve;
-            curve = (SupportedCurve*)existingExt->data;
-            while (curve != NULL) {
-                if (curve->name == name) {
+           intersectionCurve = (SupportedCurve*)existingExt->data;
+            while (intersectionCurve != NULL) {
+                if (intersectionCurve->name == name) {
                     ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
+                    if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                        return ret;
                     break;
                 }
-                curve = curve->next;
+                intersectionCurve = intersectionCurve->next;
             }
         }
         else {
@@ -5109,10 +5113,6 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
         }
         /* If it is BAD_FUNC_ARG then it is a group we do not support, but
          * that is fine. */
-        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG) &&
-            newExt != NULL) {
-            return ret;
-        }
     }
 
     if (existingExt != NULL) {
@@ -5121,12 +5121,10 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
             return ECC_CURVE_ERROR;
         }
         /* Replace existing extension data with intersection */
-        SupportedCurve* curve = (SupportedCurve*)existingExt->data;
-        TLSX_SupportedCurve_FreeAll(curve, ssl->heap);
+        intersectionCurve = (SupportedCurve*)existingExt->data;
+        TLSX_SupportedCurve_FreeAll(intersectionCurve, ssl->heap);
         existingExt->data = newExt->data;
-        newExt->data = NULL;
     }
-
     return 0;
 }
 #endif
