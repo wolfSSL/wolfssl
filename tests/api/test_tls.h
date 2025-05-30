@@ -24,5 +24,7 @@
 
 int test_tls12_unexpected_ccs(void);
 int test_tls13_unexpected_ccs(void);
+int test_tls12_curve_intersection(void);
+int test_tls13_curve_intersection(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */
