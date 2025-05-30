@@ -10267,6 +10267,19 @@ static int EncryptContentPBES2(byte* input, word32 inputSz, byte* out,
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
+    (void)input;
+    (void)inputSz;
+    (void)out;
+    (void)outSz;
+    (void)password;
+    (void)passwordSz;
+    (void)encAlgId;
+    (void)salt;
+    (void)saltSz;
+    (void)itt;
+    (void)hmacOid;
+    (void)rng;
+    (void)heap;
     ret = ASN_VERSION_E;
 #else /* WOLFSSL_ASN_TEMPLATE */
     /* PBES2 is only supported when enabling the ASN template */
@@ -10489,7 +10502,11 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     word32 algoSz;
     const  byte* algoName;
 
+    (void)encAlgId;
+    (void)hmacOid;
     (void)heap;
+
+    (void) EncryptContentPBES2;
 
     WOLFSSL_ENTER("EncryptContent");
 
