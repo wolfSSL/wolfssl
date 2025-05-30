@@ -5084,14 +5084,16 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     }
 #endif
 
-    TLSX* existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+	TLSX* existingExt;
+    existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     TLSX* newExt = NULL;
 
     for (; offset < length; offset += OPAQUE16_LEN) {
         ato16(input + offset, &name);
         if (existingExt != NULL) {
             /* Check if this curve exists in our current list */
-            SupportedCurve* curve = (SupportedCurve*)existingExt->data;
+			SupportedCurve* curve;
+            curve = (SupportedCurve*)existingExt->data;
             while (curve != NULL) {
                 if (curve->name == name) {
                     ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
