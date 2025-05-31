@@ -175,9 +175,13 @@ void free_wolfcrypt_linuxkm_fpu_states(void) {
 /* legacy thread-local storage facility for tracking recursive fpu
  * pushing/popping
  */
-static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) {
+static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
+    int create_p, int assume_fpu_began)
+{
     struct wc_thread_fpu_count_ent *i, *i_endptr, *i_empty;
     pid_t my_pid = task_pid_nr(current), i_pid;
+
+    (void)assume_fpu_began;
 
     {
         static int _warned_on_null = 0;
@@ -330,7 +334,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
 }
 
 static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
-    int create_p)
+    int create_p, int assume_fpu_began)
 {
     int my_cpu = raw_smp_processor_id(); /* my_cpu is only trustworthy if we're
                                           * already nonpreemptible -- we'll
@@ -351,6 +355,12 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
             return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
         else
             return slot;
+    }
+    if (! assume_fpu_began) {
+        /* this was just a quick check for whether we're in a recursive
+         * save_vector_registers_x86().  we're not.
+         */
+        return NULL;
     }
     if (likely(create_p)) {
         if (likely(slot_pid == 0)) {
@@ -407,7 +417,7 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
      * checking wc_linuxkm_fpu_states.
      */
 
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0);
+    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 0);
 
     if ((pstate != NULL) && (pstate->fpu_state != 0U)) {
         if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
@@ -452,9 +462,9 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
 WARN_UNUSED_RESULT int save_vector_registers_x86(void)
 {
 #ifdef LINUXKM_FPU_STATES_FOLLOW_THREADS
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(1);
+    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(1, 0);
 #else
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0);
+    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 0);
 #endif
 
     /* allow for nested calls */
@@ -520,7 +530,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         kernel_fpu_begin();
 
 #ifndef LINUXKM_FPU_STATES_FOLLOW_THREADS
-        pstate = wc_linuxkm_fpu_state_assoc(1);
+        pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
             kernel_fpu_end();
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
@@ -561,7 +571,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         migrate_disable();
 #endif
 #ifndef LINUXKM_FPU_STATES_FOLLOW_THREADS
-        pstate = wc_linuxkm_fpu_state_assoc(1);
+        pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
         #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
             (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
@@ -595,7 +605,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
 
 void restore_vector_registers_x86(void)
 {
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0);
+    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 1);
     if (unlikely(pstate == NULL)) {
         pr_err("restore_vector_registers_x86 called by pid %d on CPU %d "
                "with no saved state.\n", task_pid_nr(current),
