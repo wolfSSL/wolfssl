@@ -401,24 +401,25 @@ menu "wolfSSL"
                 when performance is critical. See also metrics for counting instances.
 
     endmenu # wolfSSL Hardware Acceleration
-    # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    menu "wolfSSL Experimental Options"
 
-        config ESP_WOLFSSL_EXPERIMENTAL_SETTINGS
-            bool "Enable wolfSSL Experimental Settings"
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "wolfSSL Post Quantum Kyber KEM PQ"
+
+        config ESP_WOLFSSL_ENABLE_MLKEM
+            bool "Enable ML-KEM (Kyber Post Quantum)"
             default n
             help
-                Enables experimental settings for wolfSSL. See documentation.
+                bool "Enable wolfSSL ML-KEM"
 
-        config ESP_WOLFSSL_ENABLE_KYBER
-            bool "Enable wolfSSL Kyber"
+        config WOLFSSL_ENABLE_KYBER
+            bool "Enable Kyber (Round 3)"
             default n
             help
-                Enable debugging messages for wolfSSL. See user_settings.h for additional debug options.
+                Enable old compatibility with Kyber Round 3 (enables experimental settings)
 
-    endmenu # wolfSSL Experimental Options
+    endmenu # wolfSSL Post Quantum Kyber KEM PQ
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -435,6 +436,11 @@ menu "wolfSSL"
             help
                 Enable a loop wrapper for benchmark, http_client, and wolfssl test apps.
 
+        config ESP_WOLFSSL_EXPERIMENTAL_SETTINGS
+            bool "Enable wolfSSL Experimental Settings"
+            default n
+            help
+                Enables experimental settings for wolfSSL. See documentation.
     endmenu # wolfSSL Debug Options
     # -----------------------------------------------------------------------------------------------------------------
 
