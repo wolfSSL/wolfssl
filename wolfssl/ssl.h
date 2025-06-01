@@ -4617,6 +4617,11 @@ enum {
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
      *      oqs-kem-info.md
      */
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+    WOLFSSL_P256_ML_KEM_512_OLD   = 12103,
+    WOLFSSL_P384_ML_KEM_768_OLD   = 12104,
+    WOLFSSL_P521_ML_KEM_1024_OLD  = 12105,
+#endif
     WOLFSSL_P256_ML_KEM_512       = 12107,
     WOLFSSL_P384_ML_KEM_768       = 12108,
     WOLFSSL_P521_ML_KEM_1024      = 12109,
