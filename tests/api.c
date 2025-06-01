@@ -20862,8 +20862,8 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
     XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
     asn_time = NULL;
 
-    ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day,
-        offset_sec));
+    asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day, offset_sec);
+    ExpectNotNull(asn_time);
     ExpectTrue(asn_time->type == asn_utc_time);
     ExpectNotNull(XSTRNCPY(date_str, (const char*)&asn_time->data,
         CTC_DATE_SIZE));
@@ -42377,7 +42377,7 @@ static int test_wolfSSL_EVP_DigestFinal_ex(void)
 #if !defined(NO_SHA256)
     WOLFSSL_EVP_MD_CTX mdCtx;
     unsigned int       s = 0;
-    unsigned char      md[WC_SHA256_DIGEST_SIZE];
+    unsigned char      md[WC_MAX_DIGEST_SIZE];
     unsigned char      md2[WC_SHA256_DIGEST_SIZE];
 
     /* Bad Case */
