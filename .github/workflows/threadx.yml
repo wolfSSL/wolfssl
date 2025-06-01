@@ -10,7 +10,7 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
-    timeout-minutes: 10:
+    timeout-minutes: 10
 
     steps:
     - name: Cache NetXDuo bundle
@@ -35,28 +35,23 @@ jobs:
       run: |
         ./scripts/install.sh
 
-    - name: Build NetXDuo
+    - name: Configure NetX with DNS Client Support
+      working-directory: ./netxduo_src
+      run: |
+        cp addons/dns/nxd_dns.h ./common/inc/
+        cp addons/dns/nxd_dns.c ./common/src/
+
+    - name: Build NetXDuo with DNS Support
       working-directory: ./netxduo_src
       run: |
         rm -rf test/cmake/threadx
         rm -rf test/cmake/filex
         ./scripts/build_nxd64.sh
 
-    - uses: actions/checkout@v4
+    - name: Build wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
       with:
-        repository: wolfssl/wolfssl
         path: wolfssl
+        configure: --enable-enckeys --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-DTHREADX -DHAVE_NETX -DWOLFSSL_USER_IO -I${{ github.workspace }}/netxduo_src/common/inc -I${{ github.workspace }}/netxduo_src/ports/linux/gnu/inc -I${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/inc" LDFLAGS="-L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/default_build_coverage/netxduo -L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/threadx"  LIBS="-lnetxduo -lthreadx"
+        install: false
 
-    - name: wolfssl autogen
-      working-directory: ./wolfssl
-      run: ./autogen.sh
-
-    - name: wolfssl configure
-      working-directory: ./wolfssl
-      run: ./configure --enable-static --disable-shared --enable-enckeys --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-DTHREADX -DHAVE_NETX -I${{ github.workspace }}/netxduo_src/common/inc -I${{ github.workspace }}/netxduo_src/ports/linux/gnu/inc -I${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/inc" LDFLAGS="-L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/default_build_coverage/netxduo -lnetxduo -L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/threadx -lthreadx"
-
-    - name: wolfssl make
-      working-directory: ./wolfssl
-      run: |
-        sed -i 's/ -Werror//' Makefile
-        make
