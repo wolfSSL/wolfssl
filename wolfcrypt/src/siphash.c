@@ -21,6 +21,10 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#if defined(WC_SIPHASH_NO_ASM) && !defined(WOLFSSL_NO_ASM)
+    #define WOLFSSL_NO_ASM
+#endif
+
 #include <wolfssl/wolfcrypt/siphash.h>
 
 #ifdef NO_INLINE

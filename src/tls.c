@@ -60,7 +60,6 @@
 #ifndef NO_TLS
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-static int TLSX_KeyShare_IsSupported(int namedGroup);
 static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap);
 #endif
 
@@ -4457,6 +4456,267 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
+#if defined(HAVE_SUPPORTED_CURVES) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
+
+/* Functions needed by TLSX_IsGroupSupported */
+#ifdef HAVE_LIBOQS
+static int mlkem_id2type(int id, int *type);
+static void findEccPqc(int *ecc, int *pqc, int *pqc_first, int group);
+#endif
+
+/* Returns whether this group is supported.
+ *
+ * namedGroup  The named group to check.
+ * returns 1 when supported or 0 otherwise.
+ */
+static int TLSX_IsGroupSupported(int namedGroup)
+{
+    switch (namedGroup) {
+    #ifdef HAVE_FFDHE_2048
+        case WOLFSSL_FFDHE_2048:
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_3072
+        case WOLFSSL_FFDHE_3072:
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_4096
+        case WOLFSSL_FFDHE_4096:
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_6144
+        case WOLFSSL_FFDHE_6144:
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_8192
+        case WOLFSSL_FFDHE_8192:
+            break;
+    #endif
+    #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP256K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP256R1:
+            break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP256R1:
+            break;
+        #endif
+        #ifdef WOLFSSL_SM2
+        case WOLFSSL_ECC_SM2P256V1:
+            break;
+        #endif /* WOLFSSL_SM2 */
+    #endif
+    #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+        case WOLFSSL_ECC_X25519:
+            break;
+    #endif
+    #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
+        case WOLFSSL_ECC_X448:
+            break;
+    #endif
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP384R1:
+            break;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP384R1:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP521R1:
+            break;
+        #endif /* !NO_ECC_SECP */
+    #endif
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP160K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP160R1:
+            break;
+        #endif
+        #ifdef HAVE_ECC_SECPR2
+        case WOLFSSL_ECC_SECP160R2:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP192K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP192R1:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
+        #ifdef HAVE_ECC_KOBLITZ
+        case WOLFSSL_ECC_SECP224K1:
+            break;
+        #endif
+        #ifndef NO_ECC_SECP
+        case WOLFSSL_ECC_SECP224R1:
+            break;
+        #endif
+    #endif
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
+        #ifdef HAVE_ECC_BRAINPOOL
+        case WOLFSSL_ECC_BRAINPOOLP512R1:
+            break;
+        #endif
+    #endif
+#ifdef WOLFSSL_HAVE_MLKEM
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_WC_MLKEM
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            case WOLFSSL_ML_KEM_512:
+            case WOLFSSL_P256_ML_KEM_512:
+        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+            case WOLFSSL_X25519_ML_KEM_512:
+        #endif
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            case WOLFSSL_ML_KEM_768:
+            case WOLFSSL_P384_ML_KEM_768:
+            case WOLFSSL_P256_ML_KEM_768:
+        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+            case WOLFSSL_X25519_ML_KEM_768:
+        #endif
+        #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
+            case WOLFSSL_X448_ML_KEM_768:
+        #endif
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            case WOLFSSL_ML_KEM_1024:
+            case WOLFSSL_P521_ML_KEM_1024:
+            case WOLFSSL_P384_ML_KEM_1024:
+        #endif
+                break;
+    #elif defined(HAVE_LIBOQS)
+        case WOLFSSL_ML_KEM_512:
+        case WOLFSSL_ML_KEM_768:
+        case WOLFSSL_ML_KEM_1024:
+        {
+            int ret;
+            int id;
+            ret = mlkem_id2type(namedGroup, &id);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                return 0;
+            }
+
+            if (! ext_mlkem_enabled(id)) {
+                return 0;
+            }
+            break;
+        }
+        case WOLFSSL_P256_ML_KEM_512:
+        case WOLFSSL_P384_ML_KEM_768:
+        case WOLFSSL_P256_ML_KEM_768:
+        case WOLFSSL_P521_ML_KEM_1024:
+        case WOLFSSL_P384_ML_KEM_1024:
+        case WOLFSSL_X25519_ML_KEM_512:
+        case WOLFSSL_X448_ML_KEM_768:
+        case WOLFSSL_X25519_ML_KEM_768:
+        {
+            int ret;
+            int id;
+            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
+            ret = mlkem_id2type(namedGroup, &id);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                return 0;
+            }
+
+            if (! ext_mlkem_enabled(id)) {
+                return 0;
+            }
+            break;
+        }
+    #endif
+#endif /* WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_MLKEM_KYBER
+    #ifdef WOLFSSL_WC_MLKEM
+        #ifdef WOLFSSL_KYBER512
+            case WOLFSSL_KYBER_LEVEL1:
+            case WOLFSSL_P256_KYBER_LEVEL1:
+        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+            case WOLFSSL_X25519_KYBER_LEVEL1:
+        #endif
+        #endif
+        #ifdef WOLFSSL_KYBER768
+            case WOLFSSL_KYBER_LEVEL3:
+            case WOLFSSL_P384_KYBER_LEVEL3:
+            case WOLFSSL_P256_KYBER_LEVEL3:
+        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+            case WOLFSSL_X25519_KYBER_LEVEL3:
+        #endif
+        #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
+            case WOLFSSL_X448_KYBER_LEVEL3:
+        #endif
+        #endif
+        #ifdef WOLFSSL_KYBER1024
+            case WOLFSSL_KYBER_LEVEL5:
+            case WOLFSSL_P521_KYBER_LEVEL5:
+        #endif
+                break;
+    #elif defined(HAVE_LIBOQS)
+        case WOLFSSL_KYBER_LEVEL1:
+        case WOLFSSL_KYBER_LEVEL3:
+        case WOLFSSL_KYBER_LEVEL5:
+        {
+            int ret;
+            int id;
+            ret = mlkem_id2type(namedGroup, &id);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                return 0;
+            }
+
+            if (! ext_mlkem_enabled(id)) {
+                return 0;
+            }
+            break;
+        }
+        case WOLFSSL_P256_KYBER_LEVEL1:
+        case WOLFSSL_P384_KYBER_LEVEL3:
+        case WOLFSSL_P256_KYBER_LEVEL3:
+        case WOLFSSL_P521_KYBER_LEVEL5:
+        case WOLFSSL_X25519_KYBER_LEVEL1:
+        case WOLFSSL_X448_KYBER_LEVEL3:
+        case WOLFSSL_X25519_KYBER_LEVEL3:
+        {
+            int ret;
+            int id;
+            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
+            ret = mlkem_id2type(namedGroup, &id);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                return 0;
+            }
+
+            if (! ext_mlkem_enabled(id)) {
+                return 0;
+            }
+            break;
+        }
+    #endif
+#endif
+#endif /* WOLFSSL_HAVE_MLKEM */
+        default:
+            return 0;
+    }
+
+    return 1;
+}
+#endif
+
 /******************************************************************************/
 /* Supported Elliptic Curves                                                  */
 /******************************************************************************/
@@ -5162,7 +5422,7 @@ int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl, int checkSupported)
 
     curve = (SupportedCurve*)extension->data;
     while (curve != NULL) {
-        if (!checkSupported || TLSX_KeyShare_IsSupported(curve->name))
+        if (!checkSupported || TLSX_IsGroupSupported(curve->name))
             return curve->name;
         curve = curve->next;
     }
@@ -5584,11 +5844,9 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_TLS13
-    if (! TLSX_KeyShare_IsSupported(name)) {
+    if (! TLSX_IsGroupSupported(name)) {
         return BAD_FUNC_ARG;
     }
-#endif
 
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
 
@@ -10363,258 +10621,6 @@ int TLSX_KeyShare_Empty(WOLFSSL* ssl)
     return ret;
 }
 
-/* Returns whether this group is supported.
- *
- * namedGroup  The named group to check.
- * returns 1 when supported or 0 otherwise.
- */
-static int TLSX_KeyShare_IsSupported(int namedGroup)
-{
-    switch (namedGroup) {
-    #ifdef HAVE_FFDHE_2048
-        case WOLFSSL_FFDHE_2048:
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_3072
-        case WOLFSSL_FFDHE_3072:
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_4096
-        case WOLFSSL_FFDHE_4096:
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_6144
-        case WOLFSSL_FFDHE_6144:
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_8192
-        case WOLFSSL_FFDHE_8192:
-            break;
-    #endif
-    #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
-        #ifdef HAVE_ECC_KOBLITZ
-        case WOLFSSL_ECC_SECP256K1:
-            break;
-        #endif
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP256R1:
-            break;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_BRAINPOOL
-        case WOLFSSL_ECC_BRAINPOOLP256R1:
-            break;
-        #endif
-        #ifdef WOLFSSL_SM2
-        case WOLFSSL_ECC_SM2P256V1:
-            break;
-        #endif /* WOLFSSL_SM2 */
-    #endif
-    #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-        case WOLFSSL_ECC_X25519:
-            break;
-    #endif
-    #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
-        case WOLFSSL_ECC_X448:
-            break;
-    #endif
-    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP384R1:
-            break;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_BRAINPOOL
-        case WOLFSSL_ECC_BRAINPOOLP384R1:
-            break;
-        #endif
-    #endif
-    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP521R1:
-            break;
-        #endif /* !NO_ECC_SECP */
-    #endif
-    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
-        #ifdef HAVE_ECC_KOBLITZ
-        case WOLFSSL_ECC_SECP160K1:
-            break;
-        #endif
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP160R1:
-            break;
-        #endif
-        #ifdef HAVE_ECC_SECPR2
-        case WOLFSSL_ECC_SECP160R2:
-            break;
-        #endif
-    #endif
-    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
-        #ifdef HAVE_ECC_KOBLITZ
-        case WOLFSSL_ECC_SECP192K1:
-            break;
-        #endif
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP192R1:
-            break;
-        #endif
-    #endif
-    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
-        #ifdef HAVE_ECC_KOBLITZ
-        case WOLFSSL_ECC_SECP224K1:
-            break;
-        #endif
-        #ifndef NO_ECC_SECP
-        case WOLFSSL_ECC_SECP224R1:
-            break;
-        #endif
-    #endif
-    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
-        #ifdef HAVE_ECC_BRAINPOOL
-        case WOLFSSL_ECC_BRAINPOOLP512R1:
-            break;
-        #endif
-    #endif
-#ifdef WOLFSSL_HAVE_MLKEM
-#ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_WC_MLKEM
-        #ifndef WOLFSSL_NO_ML_KEM_512
-            case WOLFSSL_ML_KEM_512:
-            case WOLFSSL_P256_ML_KEM_512:
-        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-            case WOLFSSL_X25519_ML_KEM_512:
-        #endif
-        #endif
-        #ifndef WOLFSSL_NO_ML_KEM_768
-            case WOLFSSL_ML_KEM_768:
-            case WOLFSSL_P384_ML_KEM_768:
-            case WOLFSSL_P256_ML_KEM_768:
-        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-            case WOLFSSL_X25519_ML_KEM_768:
-        #endif
-        #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
-            case WOLFSSL_X448_ML_KEM_768:
-        #endif
-        #endif
-        #ifndef WOLFSSL_NO_ML_KEM_1024
-            case WOLFSSL_ML_KEM_1024:
-            case WOLFSSL_P521_ML_KEM_1024:
-            case WOLFSSL_P384_ML_KEM_1024:
-        #endif
-                break;
-    #elif defined(HAVE_LIBOQS)
-        case WOLFSSL_ML_KEM_512:
-        case WOLFSSL_ML_KEM_768:
-        case WOLFSSL_ML_KEM_1024:
-        {
-            int ret;
-            int id;
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-        case WOLFSSL_P256_ML_KEM_512:
-        case WOLFSSL_P384_ML_KEM_768:
-        case WOLFSSL_P256_ML_KEM_768:
-        case WOLFSSL_P521_ML_KEM_1024:
-        case WOLFSSL_P384_ML_KEM_1024:
-        case WOLFSSL_X25519_ML_KEM_512:
-        case WOLFSSL_X448_ML_KEM_768:
-        case WOLFSSL_X25519_ML_KEM_768:
-        {
-            int ret;
-            int id;
-            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-    #endif
-#endif /* WOLFSSL_NO_ML_KEM */
-#ifdef WOLFSSL_MLKEM_KYBER
-    #ifdef WOLFSSL_WC_MLKEM
-        #ifdef WOLFSSL_KYBER512
-            case WOLFSSL_KYBER_LEVEL1:
-            case WOLFSSL_P256_KYBER_LEVEL1:
-        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-            case WOLFSSL_X25519_KYBER_LEVEL1:
-        #endif
-        #endif
-        #ifdef WOLFSSL_KYBER768
-            case WOLFSSL_KYBER_LEVEL3:
-            case WOLFSSL_P384_KYBER_LEVEL3:
-            case WOLFSSL_P256_KYBER_LEVEL3:
-        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-            case WOLFSSL_X25519_KYBER_LEVEL3:
-        #endif
-        #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
-            case WOLFSSL_X448_KYBER_LEVEL3:
-        #endif
-        #endif
-        #ifdef WOLFSSL_KYBER1024
-            case WOLFSSL_KYBER_LEVEL5:
-            case WOLFSSL_P521_KYBER_LEVEL5:
-        #endif
-                break;
-    #elif defined(HAVE_LIBOQS)
-        case WOLFSSL_KYBER_LEVEL1:
-        case WOLFSSL_KYBER_LEVEL3:
-        case WOLFSSL_KYBER_LEVEL5:
-        {
-            int ret;
-            int id;
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-        case WOLFSSL_P256_KYBER_LEVEL1:
-        case WOLFSSL_P384_KYBER_LEVEL3:
-        case WOLFSSL_P256_KYBER_LEVEL3:
-        case WOLFSSL_P521_KYBER_LEVEL5:
-        case WOLFSSL_X25519_KYBER_LEVEL1:
-        case WOLFSSL_X448_KYBER_LEVEL3:
-        case WOLFSSL_X25519_KYBER_LEVEL3:
-        {
-            int ret;
-            int id;
-            findEccPqc(NULL, &namedGroup, NULL, namedGroup);
-            ret = mlkem_id2type(namedGroup, &id);
-            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
-                return 0;
-            }
-
-            if (! ext_mlkem_enabled(id)) {
-                return 0;
-            }
-            break;
-        }
-    #endif
-#endif
-#endif /* WOLFSSL_HAVE_MLKEM */
-        default:
-            return 0;
-    }
-
-    return 1;
-}
-
-
 static const word16 preferredGroup[] = {
 #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
     defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
@@ -10678,7 +10684,7 @@ static const word16 preferredGroup[] = {
     WOLFSSL_P384_ML_KEM_1024,
     #endif
 #elif defined(HAVE_LIBOQS)
-    /* These require a runtime call to TLSX_KeyShare_IsSupported to use */
+    /* These require a runtime call to TLSX_IsGroupSupported to use */
     WOLFSSL_ML_KEM_512,
     WOLFSSL_ML_KEM_768,
     WOLFSSL_ML_KEM_1024,
@@ -10721,7 +10727,7 @@ static const word16 preferredGroup[] = {
     WOLFSSL_P521_KYBER_LEVEL5,
     #endif
 #elif defined(HAVE_LIBOQS)
-    /* These require a runtime call to TLSX_KeyShare_IsSupported to use */
+    /* These require a runtime call to TLSX_IsGroupSupported to use */
     WOLFSSL_KYBER_LEVEL1,
     WOLFSSL_KYBER_LEVEL3,
     WOLFSSL_KYBER_LEVEL5,
@@ -10768,7 +10774,7 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
     }
 
 #ifdef HAVE_LIBOQS
-      if (!TLSX_KeyShare_IsSupported(group))
+      if (!TLSX_IsGroupSupported(group))
           return WOLFSSL_FATAL_ERROR;
 #endif
 
@@ -10801,7 +10807,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
         curve = (SupportedCurve*)extension->data;
     /* Use server's preference order. */
     for (; curve != NULL; curve = curve->next) {
-        if (!TLSX_KeyShare_IsSupported(curve->name))
+        if (!TLSX_IsGroupSupported(curve->name))
             continue;
         if (wolfSSL_curve_is_disabled(ssl, curve->name))
             continue;
@@ -11064,7 +11070,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
             if (wolfSSL_curve_is_disabled(ssl, clientKSE->group))
                 continue;
         }
-        if (!TLSX_KeyShare_IsSupported(clientKSE->group))
+        if (!TLSX_IsGroupSupported(clientKSE->group))
             continue;
 
         rank = TLSX_KeyShare_GroupRank(ssl, clientKSE->group);
@@ -14666,7 +14672,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         for (j = 0; preferredGroup[j] != WOLFSSL_NAMED_GROUP_INVALID; j++) {
                             if (preferredGroup[j] == ssl->group[i]
 #ifdef HAVE_LIBOQS
-                                && TLSX_KeyShare_IsSupported(preferredGroup[j])
+                                && TLSX_IsGroupSupported(preferredGroup[j])
 #endif
                                                                 ) {
                                 namedGroup = ssl->group[i];
@@ -14682,11 +14688,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     /* Choose the most preferred group. */
                     namedGroup = preferredGroup[0];
 #ifdef HAVE_LIBOQS
-                    if (!TLSX_KeyShare_IsSupported(namedGroup)) {
+                    if (!TLSX_IsGroupSupported(namedGroup)) {
                         int i = 1;
                         for (;preferredGroup[i] != WOLFSSL_NAMED_GROUP_INVALID;
                               i++) {
-                            if (TLSX_KeyShare_IsSupported(preferredGroup[i]))
+                            if (TLSX_IsGroupSupported(preferredGroup[i]))
                                 break;
                         }
                         namedGroup = preferredGroup[i];

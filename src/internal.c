@@ -86,6 +86,8 @@
  * WOLFSSL_NO_INIT_CTX_KEY
  *      Allows SSL objects to be created from a CTX without a loaded key/cert
  *      pair
+ * WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS:
+ *     When defined, allows DTLS records to span across multiple datagrams.
  */
 
 #ifndef WOLFCRYPT_ONLY
@@ -11576,6 +11578,33 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
 
 #endif /* WOLFSSL_DISABLE_EARLY_SANITY_CHECKS */
 
+/* Extract the handshake header information.
+ *
+ * ssl       The SSL/TLS object.
+ * input     The buffer holding the message data.
+ * inOutIdx  On entry, the index into the buffer of the handshake data.
+ *           On exit, the start of the handshake data.
+ * type      Type of handshake message.
+ * size      The length of the handshake message data.
+ * totalSz   The total size of data in the buffer.
+ * returns BUFFER_E if there is not enough input data and 0 on success.
+ */
+int GetHandshakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                       byte* type, word32* size, word32 totalSz)
+{
+    const byte* ptr = input + *inOutIdx;
+    (void)ssl;
+
+    *inOutIdx += HANDSHAKE_HEADER_SZ;
+    if (*inOutIdx > totalSz)
+        return BUFFER_E;
+
+    *type = ptr[0];
+    c24to32(&ptr[1], size);
+
+    return 0;
+}
+
 /**
  * This check is performed as soon as the handshake message type becomes known.
  * These checks can not be delayed and need to be performed when the msg is
@@ -11620,6 +11649,18 @@ int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 #endif
 
     return ret;
+}
+
+static int RecordsCanSpanReads(WOLFSSL *ssl)
+{
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS)
+    /* Only case where we return 0: DTLS mode (not SCTP) and can't span datagrams */
+    if (IsDtlsNotSctpMode(ssl)) {
+        return 0;
+    }
+#endif
+    (void)ssl;
+    return 1;
 }
 
 #ifdef WOLFSSL_DTLS13
@@ -11681,6 +11722,10 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     }
 
     if (readSize < ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE) {
+        if (!RecordsCanSpanReads(ssl)) {
+            WOLFSSL_MSG("Partial record received");
+            return DTLS_PARTIAL_RECORD_READ;
+        }
         /* when using DTLS over a medium that does not guarantee that a full
          * message is received in a single read, we may end up without the full
          * header and minimum ciphertext to decrypt record sequence numbers */
@@ -11773,6 +11818,10 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     /* not a unified header, check that we have at least
      * DTLS_RECORD_HEADER_SZ */
     if (ssl->buffers.inputBuffer.length - *inOutIdx < DTLS_RECORD_HEADER_SZ) {
+        if (!RecordsCanSpanReads(ssl)) {
+            WOLFSSL_MSG("Partial record received");
+            return DTLS_PARTIAL_RECORD_READ;
+        }
         ret = GetInputData(ssl, DTLS_RECORD_HEADER_SZ);
         /* Check if Dtls13RtxTimeout(ssl) returned socket error */
         if (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))
@@ -12020,24 +12069,6 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 
     return 0;
 }
-
-#ifndef WOLFSSL_NO_TLS12
-static int GetHandShakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
-                              byte *type, word32 *size, word32 totalSz)
-{
-    const byte *ptr = input + *inOutIdx;
-    (void)ssl;
-
-    *inOutIdx += HANDSHAKE_HEADER_SZ;
-    if (*inOutIdx > totalSz)
-        return BUFFER_E;
-
-    *type = ptr[0];
-    c24to32(&ptr[1], size);
-
-    return 0;
-}
-#endif
 
 #ifdef WOLFSSL_DTLS
 int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
@@ -18100,7 +18131,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         byte   type;
         word32 size;
 
-        if (GetHandShakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0) {
+        if (GetHandshakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0) {
             WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
             return PARSE_ERROR;
         }
@@ -18128,7 +18159,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         byte   type;
         word32 size;
 
-        if (GetHandShakeHeader(ssl, input, inOutIdx, &type, &size,
+        if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
                                totalSz) != 0) {
             WOLFSSL_ERROR_VERBOSE(PARSE_ERROR);
             return PARSE_ERROR;
@@ -21549,9 +21580,18 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
             return RECV_OVERFLOW_E;
         }
 
+        if ((word32)in < size) {
+            if (!RecordsCanSpanReads(ssl)) {
+                WOLFSSL_MSG("DTLS: Received partial record, ignoring");
+#ifdef WOLFSSL_DTLS_DROP_STATS
+                ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+                continue;
+            }
+        }
+
         ssl->buffers.inputBuffer.length += (word32)in;
         inSz -= in;
-
     } while (ssl->buffers.inputBuffer.length < size);
 
 #ifdef WOLFSSL_DEBUG_TLS
@@ -21720,7 +21760,8 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 
     if ((ssl->options.handShakeDone && retcode != 0)
         || retcode == WC_NO_ERR_TRACE(SEQUENCE_ERROR)
-        || retcode == WC_NO_ERR_TRACE(DTLS_CID_ERROR)) {
+        || retcode == WC_NO_ERR_TRACE(DTLS_CID_ERROR)
+        || retcode == WC_NO_ERR_TRACE(DTLS_PARTIAL_RECORD_READ)) {
         WOLFSSL_MSG_EX("Silently dropping DTLS message: %d", retcode);
         return 1;
     }
@@ -21827,7 +21868,138 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
     }
 }
 #endif
+static int DoDecrypt(WOLFSSL *ssl)
+{
+    int ret;
+    int atomicUser = 0;
+    bufferStatic* in = &ssl->buffers.inputBuffer;
 
+#ifdef ATOMIC_USER
+    if (ssl->ctx->DecryptVerifyCb)
+        atomicUser = 1;
+#endif
+
+    ret = SanityCheckCipherText(ssl, ssl->curSize);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (atomicUser) {
+#ifdef ATOMIC_USER
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead) {
+            ret = ssl->ctx->VerifyDecryptCb(ssl,
+                            in->buffer + in->idx, in->buffer + in->idx,
+                            ssl->curSize - MacSize(ssl),
+                            ssl->curRL.type, 1, &ssl->keys.padSz,
+                            ssl->DecryptVerifyCtx);
+        }
+        else
+#endif
+        {
+            ret = ssl->ctx->DecryptVerifyCb(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize, ssl->curRL.type, 1,
+                            &ssl->keys.padSz, ssl->DecryptVerifyCtx);
+        }
+#endif /* ATOMIC_USER */
+    }
+    else {
+        if (!ssl->options.tls1_3) {
+#ifndef WOLFSSL_NO_TLS12
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead) {
+            word32 digestSz = MacSize(ssl);
+            ret = DecryptTls(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize - (word16)digestSz);
+            if (ret == 0) {
+                byte invalid = 0;
+                byte padding = (byte)-1;
+                word32 i;
+                word32 off = in->idx + ssl->curSize - digestSz - 1;
+
+                /* Last of padding bytes - indicates length. */
+                ssl->keys.padSz = in->buffer[off];
+                /* Constant time checking of padding - don't leak
+                    * the length of the data.
+                    */
+                /* Compare max pad bytes or at most data + pad. */
+                for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
+                    /* Mask on indicates this is expected to be a
+                        * padding byte.
+                        */
+                    padding &= ctMaskLTE((int)i,
+                                            (int)ssl->keys.padSz);
+                    /* When this is a padding byte and not equal
+                        * to length then mask is set.
+                        */
+                    invalid |= padding &
+                                ctMaskNotEq(in->buffer[off - i],
+                                            (int)ssl->keys.padSz);
+                }
+                /* If mask is set then there was an error. */
+                if (invalid) {
+                    ret = DECRYPT_ERROR;
+                }
+                ssl->keys.padSz += 1;
+                ssl->keys.decryptedCur = 1;
+            }
+        }
+        else
+#endif
+        {
+            ret = DecryptTls(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize);
+        }
+#else
+            ret = DECRYPT_ERROR;
+#endif
+        }
+        else
+        {
+    #ifdef WOLFSSL_TLS13
+            byte *aad = (byte*)&ssl->curRL;
+            word16 aad_size = RECORD_HEADER_SZ;
+        #ifdef WOLFSSL_DTLS13
+            if (ssl->options.dtls) {
+                /* aad now points to the record header */
+                aad = ssl->dtls13CurRL;
+                aad_size = ssl->dtls13CurRlLength;
+            }
+        #endif /* WOLFSSL_DTLS13 */
+            /* Don't send an alert for DTLS. We will just drop it
+                * silently later. */
+            ret = DecryptTls13(ssl,
+                            in->buffer + in->idx,
+                            in->buffer + in->idx,
+                            ssl->curSize,
+                            aad, aad_size);
+    #else
+            ret = DECRYPT_ERROR;
+    #endif /* WOLFSSL_TLS13 */
+        }
+        (void)in;
+    }
+    return ret;
+}
+
+#ifdef WOLFSSL_DTLS
+static void DropAndRestartProcessReply(WOLFSSL* ssl)
+{
+    ssl->options.processReply = doProcessInit;
+    ssl->buffers.inputBuffer.length = 0;
+    ssl->buffers.inputBuffer.idx = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    if (ssl->options.dtls)
+        ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+}
+#endif /* WOLFSSL_DTLS */
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
@@ -21937,6 +22109,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < readSz) {
+                    if (used > 0 && !RecordsCanSpanReads(ssl)) {
+                        WOLFSSL_MSG("DTLS: Partial record in buffer, dropping");
+                        DropAndRestartProcessReply(ssl);
+                        continue;
+                    }
                     if ((ret = GetInputData(ssl, (word32)readSz)) < 0)
                         return ret;
                 }
@@ -21949,7 +22126,11 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
             if ( ssl->options.side == WOLFSSL_SERVER_END &&
                  ssl->options.clientState == NULL_STATE &&
                  ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
-                         != handshake) {
+                         != handshake &&
+                 /* change_cipher_spec here is an error but we want to handle
+                  * it correctly later */
+                 ssl->buffers.inputBuffer.buffer[ssl->buffers.inputBuffer.idx]
+                         != change_cipher_spec) {
                 byte b0, b1;
 
                 ssl->options.processReply = runProcessOldClientHello;
@@ -22036,13 +22217,7 @@ static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                 dtlsProcessPendingPeer(ssl, 0);
 #endif
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
-                    ssl->options.processReply = doProcessInit;
-                    ssl->buffers.inputBuffer.length = 0;
-                    ssl->buffers.inputBuffer.idx = 0;
-#ifdef WOLFSSL_DTLS_DROP_STATS
-                    ssl->replayDropCount++;
-#endif /* WOLFSSL_DTLS_DROP_STATS */
-
+                DropAndRestartProcessReply(ssl);
 #ifdef WOLFSSL_DTLS13
                     /* return to send ACKS and shortcut rtx timer */
                     if (IsAtLeastTLSv1_3(ssl->version)
@@ -22104,9 +22279,15 @@ default:
                 /* read ahead may already have */
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
-                if (used < ssl->curSize)
+                if (used < ssl->curSize) {
+                    if (!RecordsCanSpanReads(ssl)) {
+                        WOLFSSL_MSG("Partial record received, dropping");
+                        DropAndRestartProcessReply(ssl);
+                        continue;
+                    }
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
                         return ret;
+                }
 #endif
             }
 
@@ -22157,9 +22338,7 @@ default:
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx =
-                                ssl->buffers.inputBuffer.length;
+                        DropAndRestartProcessReply(ssl);
                         return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
@@ -22183,118 +22362,7 @@ default:
                                         (!IsAtLeastTLSv1_3(ssl->version) ||
                                          ssl->curRL.type != change_cipher_spec))
             {
-                bufferStatic* in = &ssl->buffers.inputBuffer;
-
-                ret = SanityCheckCipherText(ssl, ssl->curSize);
-                if (ret < 0) {
-                #ifdef WOLFSSL_EXTRA_ALERTS
-                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                #endif
-                    return ret;
-                }
-
-                if (atomicUser) {
-        #ifdef ATOMIC_USER
-            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead) {
-                        ret = ssl->ctx->VerifyDecryptCb(ssl,
-                                     in->buffer + in->idx, in->buffer + in->idx,
-                                     ssl->curSize - MacSize(ssl),
-                                     ssl->curRL.type, 1, &ssl->keys.padSz,
-                                     ssl->DecryptVerifyCtx);
-                    }
-                    else
-            #endif
-                    {
-                        ret = ssl->ctx->DecryptVerifyCb(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize, ssl->curRL.type, 1,
-                                      &ssl->keys.padSz, ssl->DecryptVerifyCtx);
-                    }
-        #endif /* ATOMIC_USER */
-                }
-                else {
-                    if (!ssl->options.tls1_3) {
-        #ifndef WOLFSSL_NO_TLS12
-            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-                    if (ssl->options.startedETMRead) {
-                        word32 digestSz = MacSize(ssl);
-                        ret = DecryptTls(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize - (word16)digestSz);
-                        if (ret == 0) {
-                            byte invalid = 0;
-                            byte padding = (byte)-1;
-                            word32 i;
-                            word32 off = in->idx + ssl->curSize - digestSz - 1;
-
-                            /* Last of padding bytes - indicates length. */
-                            ssl->keys.padSz = in->buffer[off];
-                            /* Constant time checking of padding - don't leak
-                             * the length of the data.
-                             */
-                            /* Compare max pad bytes or at most data + pad. */
-                            for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
-                                /* Mask on indicates this is expected to be a
-                                 * padding byte.
-                                 */
-                                padding &= ctMaskLTE((int)i,
-                                                       (int)ssl->keys.padSz);
-                                /* When this is a padding byte and not equal
-                                 * to length then mask is set.
-                                 */
-                                invalid |= padding &
-                                           ctMaskNotEq(in->buffer[off - i],
-                                                       (int)ssl->keys.padSz);
-                            }
-                            /* If mask is set then there was an error. */
-                            if (invalid) {
-                                ret = DECRYPT_ERROR;
-                            }
-                            ssl->keys.padSz += 1;
-                            ssl->keys.decryptedCur = 1;
-                        }
-                    }
-                    else
-            #endif
-                    {
-                        ret = DecryptTls(ssl,
-                                      in->buffer + in->idx,
-                                      in->buffer + in->idx,
-                                      ssl->curSize);
-                    }
-        #else
-                        ret = DECRYPT_ERROR;
-        #endif
-                    }
-                    else
-                    {
-                #ifdef WOLFSSL_TLS13
-                        byte *aad = (byte*)&ssl->curRL;
-                        word16 aad_size = RECORD_HEADER_SZ;
-                    #ifdef WOLFSSL_DTLS13
-                        if (ssl->options.dtls) {
-                            /* aad now points to the record header */
-                            aad = ssl->dtls13CurRL;
-                            aad_size = ssl->dtls13CurRlLength;
-                        }
-                    #endif /* WOLFSSL_DTLS13 */
-                        /* Don't send an alert for DTLS. We will just drop it
-                         * silently later. */
-                        ret = DecryptTls13(ssl,
-                                        in->buffer + in->idx,
-                                        in->buffer + in->idx,
-                                        ssl->curSize,
-                                        aad, aad_size);
-                #else
-                        ret = DECRYPT_ERROR;
-                #endif /* WOLFSSL_TLS13 */
-                    }
-                    (void)in;
-                }
-
+                ret = DoDecrypt(ssl);
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
@@ -22323,9 +22391,7 @@ default:
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
                     if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        ssl->buffers.inputBuffer.idx =
-                                ssl->buffers.inputBuffer.length;
+                        DropAndRestartProcessReply(ssl);
                         return HandleDTLSDecryptFailed(ssl);
                     }
                 #endif /* WOLFSSL_DTLS */
@@ -22393,9 +22459,7 @@ default:
                         /* If in DTLS mode, if the decrypt fails for any
                          * reason, pretend the datagram never happened. */
                         if (ssl->options.dtls) {
-                            ssl->options.processReply = doProcessInit;
-                            ssl->buffers.inputBuffer.idx =
-                                    ssl->buffers.inputBuffer.length;
+                            DropAndRestartProcessReply(ssl);
                             return HandleDTLSDecryptFailed(ssl);
                         }
                     #endif /* WOLFSSL_DTLS */
@@ -22682,16 +22746,28 @@ default:
                         }
                         if (ssl->curSize != 1 ||
                                       ssl->buffers.inputBuffer.buffer[i] != 1) {
-                            SendAlert(ssl, alert_fatal, illegal_parameter);
+                            SendAlert(ssl, alert_fatal, unexpected_message);
                             WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
                             return UNKNOWN_RECORD_TYPE;
                         }
                         ssl->buffers.inputBuffer.idx++;
+                        if (ssl->options.side == WOLFSSL_SERVER_END &&
+                                !ssl->msgsReceived.got_client_hello) {
+                            /* Can't appear before CH */
+                            SendAlert(ssl, alert_fatal, unexpected_message);
+                            WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
+                            return UNKNOWN_RECORD_TYPE;
+                        }
                         if (!ssl->msgsReceived.got_change_cipher) {
                             ssl->msgsReceived.got_change_cipher = 1;
                         }
                         else {
                             SendAlert(ssl, alert_fatal, illegal_parameter);
+                            WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
+                            return UNKNOWN_RECORD_TYPE;
+                        }
+                        if (ssl->keys.decryptedCur == 1) {
+                            SendAlert(ssl, alert_fatal, unexpected_message);
                             WOLFSSL_ERROR_VERBOSE(UNKNOWN_RECORD_TYPE);
                             return UNKNOWN_RECORD_TYPE;
                         }

@@ -1,4 +1,4 @@
-/* test_tls_ext.h
+/* test_tls.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,10 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_TEST_TLS_EXT_H
-#define TESTS_API_TEST_TLS_EXT_H
+#ifndef TESTS_API_TEST_TLS_H
+#define TESTS_API_TEST_TLS_H
 
-int test_tls_ems_downgrade(void);
-int test_wolfSSL_DisableExtendedMasterSecret(void);
+int test_tls12_unexpected_ccs(void);
+int test_tls13_unexpected_ccs(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */

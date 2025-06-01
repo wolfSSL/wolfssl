@@ -21,6 +21,12 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WC_SHA3_NO_ASM
+    #undef USE_INTEL_SPEEDUP
+    #undef WOLFSSL_ARMASM
+    #undef WOLFSSL_RISCV_ASM
+#endif
+
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
    !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
@@ -242,9 +248,6 @@ while (0)
  *
  * s  The state.
  */
-#ifndef USE_INTEL_SPEEDUP
-static
-#endif
 void BlockSha3(word64* s)
 {
     byte i, x, y;
@@ -535,9 +538,6 @@ while (0)
  *
  * s  The state.
  */
-#ifndef USE_INTEL_SPEEDUP
-static
-#endif
 void BlockSha3(word64* s)
 {
     word64 n[25];

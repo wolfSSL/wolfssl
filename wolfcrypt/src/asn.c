@@ -9536,10 +9536,10 @@ static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
     return ret;
 }
 
-int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
+int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int pbeOid,
-        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
-        void* heap)
+        int encAlgId, byte* salt, word32 saltSz, int itt, int hmacOid,
+        WC_RNG* rng, void* heap)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte* saltTmp = NULL;
@@ -9563,10 +9563,12 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     byte cbcIv[MAX_IV_SIZE];
     word32 idx = 0;
     word32 encIdx = 0;
+    const byte* hmacOidBuf = NULL;
+    word32 hmacOidBufSz = 0;
 
     (void)heap;
 
-    WOLFSSL_ENTER("wc_EncryptPKCS8Key");
+    WOLFSSL_ENTER("wc_EncryptPKCS8Key_ex");
 
     if (key == NULL || outSz == NULL || password == NULL) {
         ret = BAD_FUNC_ARG;
@@ -9594,6 +9596,11 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             pbeLen = 2 + pbeOidBufSz + 2 + innerLen;
         }
         else {
+            if (hmacOid > 0) {
+                hmacOidBuf = OidFromId((word32)hmacOid, oidHmacType,
+                                &hmacOidBufSz);
+                innerLen += 2 + 2 + hmacOidBufSz;
+            }
             pbeOidBuf = pbes2;
             pbeOidBufSz = sizeof(pbes2);
             /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
@@ -9650,7 +9657,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     }
     if (ret == 0) {
         ret = wc_CryptKey(password, passwordSz, salt, (int)saltSz, itt, pbeId,
-                  out + encIdx, (int)keySz, version, cbcIv, 1, 0);
+                  out + encIdx, (int)keySz, version, cbcIv, 1, hmacOid);
     }
     if (ret == 0) {
         if (version != PKCS5v2) {
@@ -9680,6 +9687,14 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         ret = SetShortInt(out, &idx, (word32)itt, *outSz);
         if (ret > 0)
             ret = 0;
+        if (version == PKCS5v2) {
+            if (hmacOid > 0) {
+                idx += SetSequence(2+hmacOidBufSz, out + idx);
+                idx += (word32)SetObjectId((int)hmacOidBufSz, out + idx);
+                XMEMCPY(out + idx, hmacOidBuf, hmacOidBufSz);
+                idx += (word32)hmacOidBufSz;
+            }
+        }
     }
     if (ret == 0) {
         if (version == PKCS5v2) {
@@ -9704,9 +9719,18 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    WOLFSSL_LEAVE("wc_EncryptPKCS8Key", ret);
+    WOLFSSL_LEAVE("wc_EncryptPKCS8Key_ex", ret);
 
     return ret;
+}
+
+int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int pbeOid,
+        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
+        void* heap)
+{
+    return wc_EncryptPKCS8Key_ex(key, keySz, out, outSz, password, passwordSz,
+                vPKCS, pbeOid, encAlgId, salt, saltSz, itt, 0, rng, heap);
 }
 
 int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
@@ -9751,10 +9775,10 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
  * encrypted key. If out is not NULL, it will hold the encrypted key. If it's
  * NULL, LENGTH_ONLY_E will be returned and outSz will have the required out
  * buffer size. */
-int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
+int TraditionalEnc_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
-        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
-        void* heap)
+        int encAlgId, byte* salt, word32 saltSz, int itt, int hmacOid,
+        WC_RNG* rng, void* heap)
 {
     int ret = 0;
     byte *pkcs8Key = NULL;
@@ -9794,8 +9818,9 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     }
 #endif
     if (ret == 0) {
-        ret = wc_EncryptPKCS8Key(pkcs8Key, pkcs8KeySz, out, outSz, password,
-            passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, rng, heap);
+        ret = wc_EncryptPKCS8Key_ex(pkcs8Key, pkcs8KeySz, out, outSz, password,
+            passwordSz, vPKCS, vAlgo, encAlgId, salt, saltSz, itt, hmacOid, rng,
+            heap);
     }
 
     if (pkcs8Key != NULL) {
@@ -9806,6 +9831,20 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     (void)rng;
 
     return ret;
+}
+
+/* Takes an unencrypted, traditional DER-encoded key and converts it to a PKCS#8
+ * encrypted key. If out is not NULL, it will hold the encrypted key. If it's
+ * NULL, LENGTH_ONLY_E will be returned and outSz will have the required out
+ * buffer size. */
+int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int vAlgo,
+        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
+        void* heap)
+{
+    return TraditionalEnc_ex(key, keySz, out, outSz, password, passwordSz,
+                vPKCS, vAlgo, encAlgId, salt, saltSz, itt, 0, rng, heap);
+
 }
 
 /* Same as TraditionalEnc, but in the public API. */
@@ -27712,13 +27751,13 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     int ret = 0, i;
     int mpSz;
     word32 seqSz = 0, verSz = 0, intTotalLen = 0, outLen = 0;
-    word32 sizes[RSA_INTS];
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
     mp_int* keyInt;
 #ifndef WOLFSSL_NO_MALLOC
     word32 rawLen;
     byte* tmps[RSA_INTS];
+    word32 sizes[RSA_INTS];
 #endif
 
     if (key == NULL)
@@ -27758,7 +27797,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
             ret = mpSz;
             break;
         }
+    #ifndef WOLFSSL_NO_MALLOC
         sizes[i] = (word32)mpSz;
+    #endif
         intTotalLen += (word32)mpSz;
     }
 
@@ -31391,11 +31432,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     case CERTSIGN_STATE_DIGEST:
 
         certSignCtx->state = CERTSIGN_STATE_DIGEST;
+    #ifndef WOLFSSL_NO_MALLOC
         certSignCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->digest == NULL) {
             ret = MEMORY_E; goto exit_ms;
         }
+    #endif
 
         ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
                                &typeH, &digestSz, 0);
@@ -31409,11 +31452,13 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     case CERTSIGN_STATE_ENCODE:
     #ifndef NO_RSA
         if (rsaKey) {
+        #ifndef WOLFSSL_NO_MALLOC
             certSignCtx->encSig = (byte*)XMALLOC(MAX_DER_DIGEST_SZ, heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
             if (certSignCtx->encSig == NULL) {
                 ret = MEMORY_E; goto exit_ms;
             }
+        #endif
 
             /* signature */
             certSignCtx->encSigSz = (int)wc_EncodeSignature(certSignCtx->encSig,
@@ -31474,7 +31519,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                 ret = outSz;
         }
     #endif /* HAVE_FALCON */
-    #if defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             dilithiumKey) {
             word32 outSz = sigSz;
@@ -31496,7 +31541,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                     ret = outSz;
             }
         }
-    #endif /* HAVE_DILITHIUM */
+    #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */
     #if defined(HAVE_SPHINCS)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             !dilithiumKey && sphincsKey) {
@@ -31521,14 +31566,17 @@ exit_ms:
     }
 #endif
 
+#ifndef WOLFSSL_NO_MALLOC
 #ifndef NO_RSA
     if (rsaKey) {
         XFREE(certSignCtx->encSig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        certSignCtx->encSig = NULL;
     }
 #endif /* !NO_RSA */
 
     XFREE(certSignCtx->digest, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->digest = NULL;
+#endif /* !WOLFSSL_NO_MALLOC */
 
     /* reset state */
     certSignCtx->state = CERTSIGN_STATE_BEGIN;
@@ -33295,12 +33343,14 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     #endif /* HAVE_ECC */
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->sig == NULL)
             return MEMORY_E;
     }
+#endif
 
     sigSz = MakeSignature(certSignCtx, buf, (word32)requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
@@ -33321,8 +33371,10 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                                  sType);
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->sig = NULL;
+#endif
 
     return sigSz;
 }
@@ -33429,12 +33481,14 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     #endif /* HAVE_ECC */
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (certSignCtx->sig == NULL)
             return MEMORY_E;
     }
+#endif
 
     ret = MakeSignature(certSignCtx, buf, (word32)bufSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
@@ -33448,8 +33502,10 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 #endif
 
     if (ret <= 0) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
         certSignCtx->sig = NULL;
+    #endif
         return ret;
     }
 
@@ -33464,8 +33520,10 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
        ret += headerSz;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
     certSignCtx->sig = NULL;
+#endif
     return ret;
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -41543,11 +41601,11 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     int nid;
 #endif
     const char* ln = NULL;
-    word32 i = 0;
+    word32 idx = 0;
     int known = 1;
 
     /* Get the OID value for the OBJECT_ID. */
-    if (GetObjectId(asn1->data + asn1->offset, &i, &oid, oidIgnoreType,
+    if (GetObjectId(asn1->data + asn1->offset, &idx, &oid, oidIgnoreType,
             asn1->item.len + 2) == WC_NO_ERR_TRACE(ASN_PARSE_E)) {
         known = 0;
     }
@@ -41563,9 +41621,9 @@ static void PrintObjectIdText(Asn1* asn1, Asn1PrintOptions* opts)
     /* Lookup long name for extra known OID values. */
     if (Oid2LongName(oid, &ln) != 0) {
     }
-    else if ((asn1->nameCb != NULL) &&
+    else if ((asn1->nameCb != NULL) && (idx >= 2) &&
              ((ln = asn1->nameCb(asn1->data + asn1->offset + 2,
-                                 i - 2))) != NULL) {
+                                 idx - 2))) != NULL) {
     }
     else {
         /* Unknown OID value. */

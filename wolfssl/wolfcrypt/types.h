@@ -1991,8 +1991,82 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #endif
 
 
-#ifdef WOLFSSL_CERT_GEN
+/* Maximum ASN sizes */
+#ifndef WOLFSSL_ASN_MAX_LENGTH_SZ
+    #define WOLFSSL_ASN_MAX_LENGTH_SZ 5 /* 1 byte length + 4 bytes of number */
+#endif
 
+enum Max_ASN {
+    DSA_PUB_INTS        =   4,     /* DSA ints in public key */
+    DSA_INTS            =   5,     /* DSA ints in private key */
+    MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
+    MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
+#ifdef HAVE_SPHINCS
+    MAX_ENCODED_SIG_SZ  = 51200,
+#elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    MAX_ENCODED_SIG_SZ  = 5120,
+#elif !defined(NO_RSA)
+#ifdef WOLFSSL_HAPROXY
+    MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
+#else
+    MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */
+#endif
+#elif defined(HAVE_ECC)
+    MAX_ENCODED_SIG_SZ  = 140,
+#elif defined(HAVE_CURVE448)
+    MAX_ENCODED_SIG_SZ  = 114,
+#else
+    MAX_ENCODED_SIG_SZ  =  64,
+#endif
+    MAX_SIG_SZ          = 256,
+    MAX_ALGO_SZ         =  20,
+    MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
+    MAX_SHORT_SZ        = (1 + MAX_LENGTH_SZ),     /* asn int + byte len + 4 byte length */
+    MAX_SEQ_SZ          = (1 + MAX_LENGTH_SZ), /* enum(seq | con) + length(5) */
+    MAX_SET_SZ          = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
+    MAX_OCTET_STR_SZ    = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
+    MAX_EXP_SZ          = (1 + MAX_LENGTH_SZ), /* enum(contextspec|con|exp) + length(5) */
+    MAX_PRSTR_SZ        = (1 + MAX_LENGTH_SZ), /* enum(prstr) + length(5) */
+    MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
+    MAX_ENCODED_DIG_ASN_SZ = (5 + MAX_LENGTH_SZ),   /* enum(bit or octet) + length(5) */
+    MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
+    MAX_RSA_INT_SZ      = (512 + 1 + MAX_LENGTH_SZ), /* RSA raw sz 4096 for bits + tag + len(5) */
+    MAX_DSA_INT_SZ      = (384 + 1 + MAX_LENGTH_SZ), /* DSA raw sz 3072 for bits + tag + len(5) */
+    MAX_DSA_PUBKEY_SZ   = (DSA_PUB_INTS * MAX_DSA_INT_SZ) + (2 * MAX_SEQ_SZ) +
+                          2 + MAX_LENGTH_SZ, /* Maximum size of a DSA public
+                                      key taken from wc_SetDsaPublicKey. */
+    MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
+                          MAX_VERSION_SZ, /* Maximum size of a DSA Private
+                                      key taken from DsaKeyIntsToDer. */
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of a Dilithium public key. */
+#endif
+    MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
+    MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
+    MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */
+    MAX_DER_DIGEST_SZ     = MAX_ENCODED_DIG_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
+                            /* Maximum DER digest size */
+    MAX_DER_DIGEST_ASN_SZ = MAX_ENCODED_DIG_ASN_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
+                            /* Maximum DER digest ASN header size */
+                            /* Max X509 header length indicates the
+                             * max length + 2 ('\n', '\0') */
+    MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
+#else
+    MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
+#endif
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    HEADER_ENCRYPTED_KEY_SIZE = 88 /* Extra header size for encrypted key */
+#else
+    HEADER_ENCRYPTED_KEY_SIZE = 0
+#endif
+};
+
+#ifdef WOLFSSL_CERT_GEN
+    #ifdef WOLFSSL_NO_MALLOC
+    #include "wolfssl/wolfcrypt/hash.h" /* for max sizes */
+    #endif
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */
     enum CertSignState {
         CERTSIGN_STATE_BEGIN,
@@ -2002,11 +2076,22 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     };
 
     typedef struct CertSignCtx {
+    #ifdef WOLFSSL_NO_MALLOC
+        byte sig[MAX_ENCODED_SIG_SZ];
+        byte digest[WC_MAX_DIGEST_SIZE];
+        #ifndef NO_RSA
+        byte encSig[MAX_DER_DIGEST_SZ];
+        #endif
+    #else
         byte* sig;
         byte* digest;
         #ifndef NO_RSA
-            byte* encSig;
-            int encSigSz;
+        byte* encSig;
+        #endif
+    #endif
+
+        #ifndef NO_RSA
+        int encSigSz;
         #endif
         int state; /* enum CertSignState */
     } CertSignCtx;

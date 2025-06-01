@@ -265,7 +265,7 @@ static int km_ecdsa_set_pub(struct crypto_akcipher *tfm, const void *key,
     }
 
     #ifdef WOLFKM_DEBUG_ECDSA
-    pr_info("info: exiting km_ecdsa_set_pub\n");
+    pr_info("info: exiting km_ecdsa_set_pub %d\n", keylen);
     #endif /* WOLFKM_DEBUG_ECDSA */
     return err;
 }
@@ -432,7 +432,7 @@ static int km_ecdsa_verify(struct akcipher_request *req)
 
     if (result != 1) {
         #ifdef WOLFKM_DEBUG_ECDSA
-        pr_err("error: %s: ecdsa verify: verify fail: %d\n",
+        pr_err("info: %s: ecdsa verify: verify fail: %d\n",
                WOLFKM_ECDSA_DRIVER, result);
         #endif /* WOLFKM_DEBUG_ECDSA */
         err = -EBADMSG;
@@ -443,7 +443,8 @@ ecdsa_verify_end:
     if (sig != NULL) { free(sig); sig = NULL; }
 
     #ifdef WOLFKM_DEBUG_ECDSA
-    pr_info("info: exiting km_ecdsa_verify: %d\n", result);
+    pr_info("info: exiting km_ecdsa_verify hash_len %d, sig_len %d, "
+            "err %d, result %d\n", hash_len, sig_len, err, result);
     #endif /* WOLFKM_DEBUG_ECDSA */
     return err;
 }

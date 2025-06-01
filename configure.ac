@@ -692,7 +692,7 @@ AC_SUBST([ENABLED_LINUXKM_BENCHMARKS])
 
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWC_SHA3_NO_ASM"
     if test "$ENABLED_LINUXKM_PIE" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_OCSP_ISSUER_CHECK"
     fi
@@ -715,7 +715,7 @@ AC_ARG_WITH([linux-arch],
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM"
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
@@ -1362,7 +1362,7 @@ then
         test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -lt 5; then
         test "$enable_des3" = "" && enable_des3=yes
         test "$enable_des3" != "no" && AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
     fi
@@ -1501,6 +1501,9 @@ do
     ;;
   ml-kem)
     ENABLED_ML_KEM=yes
+    ;;
+  noasm)
+    AM_CFLAGS="$AM_CFLAGS -DWC_MLKEM_NO_ASM"
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for MLKEM []: $ENABLED_MLKEM.])
@@ -2595,7 +2598,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD"
     AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
     AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_KEYING_MATERIAL"
@@ -4081,6 +4085,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3_SMALL"
 fi
 
+if test "$ENABLED_SHA3" = "noasm"
+then
+    ENABLED_SHA3=yes
+    AM_CFLAGS="$AM_CFLAGS -DWC_SHA3_NO_ASM"
+fi
+
 # SHAKE128
 AC_ARG_ENABLE([shake128],
     [AS_HELP_STRING([--enable-shake128],[Enable wolfSSL SHAKE128 support (default: disabled)])],
@@ -5345,13 +5355,13 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-# Enable 3DES with OpenSSH and FIPS 140-2 but not 140-3
-if (test "$ENABLED_OPENSSH" = "yes" && \
-        (test "x$ENABLED_FIPS" = "xno" || test "$HAVE_FIPS_VERSION" -le 2)) || \
-   test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
-   test "x$ENABLED_WPAS" != "xno"  || test "$ENABLED_NETSNMP" = "yes" || \
-   test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || \
-   test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_STRONGSWAN" = "yes"
+# Enable 3DES for various metafeatures, unless FIPS 140-3
+if (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2) && \
+    (test "$ENABLED_OPENSSH" = "yes" || \
+     test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+     test "$ENABLED_WPAS" != "no"  || test "$ENABLED_NETSNMP" = "yes" || \
+     test "$ENABLED_LIBSSH2" = "yes" || test "$ENABLED_KRB" = "yes" || \
+     test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_STRONGSWAN" = "yes")
 then
     ENABLED_DES3="yes"
 fi
@@ -7579,7 +7589,9 @@ fi
 
 if test "$ENABLED_KRB" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KRB -DWOLFSSL_AES_DIRECT -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KRB -DWOLFSSL_AES_DIRECT"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
 
     # Requires PKCS7
@@ -7608,7 +7620,9 @@ fi
 if test "$ENABLED_BIND" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BIND -DWOLFSSL_DSA_768_MODULUS"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA224 -DWOLFSSL_SHA384 -DWOLFSSL_SHA512"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS"
     ENABLED_SHA224="yes"
@@ -7626,7 +7640,9 @@ if test "$ENABLED_OPENVPN" = "yes"
 then
     ENABLED_SUPPORTED_CURVES="yes"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENVPN -DHAVE_KEYING_MATERIAL"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DHAVE_EX_DATA -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DWOLFSSL_KEY_GEN"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
 fi
 
 if test "$ENABLED_HITCH" = "yes"
@@ -7878,7 +7894,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
     fi
 
-    if test "x$ENABLED_DES3" = "xno"
+    if test "$ENABLED_DES3" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5)
     then
         ENABLED_DES3="yes"
     fi
@@ -7926,7 +7942,9 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_SIGNER_DER_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COMPATIBLE_DEFAULTS -DWOLFSSL_TICKET_HAVE_ID"
 fi
 
@@ -7944,7 +7962,7 @@ then
         ENABLED_MD4="yes"
     fi
 
-    if test "x$ENABLED_DES3" = "xno"
+    if test "$ENABLED_DES3" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5)
     then
         ENABLED_DES3="yes"
     fi
@@ -8014,7 +8032,8 @@ then
     # FTPS server requires pointer to session cache
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE_REF"
 
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+          [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])
 
     # support longer session ticket nonce
     if test "$ENABLED_TICKET_NONCE_MALLOC" = "no_implicit"
@@ -8051,7 +8070,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
 
-    if test "x$ENABLED_DES3" = "xno"
+    if test "$ENABLED_DES3" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5)
     then
         ENABLED_DES3="yes"
     fi
@@ -9782,7 +9801,7 @@ then
     fi
 
     # Has support for DES3 encrypt/decrypt
-    if test "$ENABLED_DES3" = "no"
+    if test "$ENABLED_DES3" = "no" && (test "$ENABLED_FIPS" = "no" || test $HAVE_FIPS_VERSION -lt 5)
     then
         ENABLED_DES3="yes"
     fi
@@ -10037,7 +10056,9 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"])
 
 AS_IF([test "x$ENABLED_STRONGSWAN" = "xyes"],
-      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"])
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LOG_PRINTF -DWOLFSSL_PUBLIC_MP -DHAVE_EX_DATA"
+       AS_IF([test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 2],
+             [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"])])
 
 AS_IF([test "x$ENABLED_OPENLDAP" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"])
 
