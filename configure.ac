@@ -3228,6 +3228,26 @@ then
             ENABLED_ARMASM_CRYPTO_SM4=yes
             ENABLED_ARMASM_PLUS=yes
             ;;
+        barrier-sb)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SB instructions only available on Aarch64 v8.5+ CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_BARRIER_SB=yes
+            ;;
+        barrier-detect)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SB instructions only available on Aarch64 v8.5+ CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_BARRIER_DETECT=yes
+            ;;
         *)
             AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
             break;;
@@ -3369,6 +3389,12 @@ if test "$ENABLED_ARMASM_SM3" = "yes"; then
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
+fi
+if test "$ENABLED_ARMASM_BARRIER_SB" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_BARRIER_SB"
+fi
+if test "$ENABLED_ARMASM_BARRIER_DETECT" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_BARRIER_DETECT"
 fi
 if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
     ENABLED_ARMASM_CRYPTO=no
