@@ -674,8 +674,8 @@ static int mlkemkey_encapsulate(MlKemKey* key, const byte* m, byte* r, byte* c)
     sword16 y[3 * WC_ML_KEM_MAX_K * MLKEM_N];
 #endif
 #endif
-    sword16* u;
-    sword16* v;
+    sword16* u = 0;
+    sword16* v = 0;
 
     /* Establish parameters based on key type. */
     switch (key->type) {
