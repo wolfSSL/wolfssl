@@ -2860,27 +2860,24 @@ AC_ARG_WITH([tropic01],
         AC_MSG_CHECKING([for libtropic])
         if test "x$withval" != "xno" ; then
             trylibtropicdir=$withval
-			# AC_MSG_NOTICE([Use provided PATH])
         fi
         if test "x$withval" = "xyes" ; then
-		    trylibtropicdir="libtropic"
-			# AC_MSG_NOTICE([Use default PATH])
+            trylibtropicdir="libtropic"
         fi
         if test -e $trylibtropicdir/build/libtropic.a
         then
             LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/libtropic.a"
-			LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/trezor_crypto/libtrezor_crypto.a"
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/trezor_crypto/libtrezor_crypto.a"
             AM_CFLAGS="$AM_CFLAGS -I$trylibtropicdir/include"
-			# AC_MSG_NOTICE([TropicSquare library is available])
         else
             ENABLED_TROPIC01="no"
-			AC_MSG_ERROR([Could not find libtropic - TropicSquare library])
+            AC_MSG_ERROR([Could not find libtropic - TropicSquare library])
         fi
-		enable_shared=no
+        enable_shared=no
         enable_static=yes
         ENABLED_TROPIC01="yes"
-		AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
-		AC_MSG_RESULT([yes])        
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
+        AC_MSG_RESULT([yes])
     ]
 )
 
