@@ -55,8 +55,8 @@
 #define TROPIC01_ED25519_PRIV_KEY_SIZE 32
 #define TROPIC01_ED25519_PUB_KEY_SIZE 32
 
-#define TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2    
-#define TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT 3 
+#define TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2
+#define TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT 3
 #define TROPIC01_ED25519_ECC_SLOT_DEFAULT 1
 
 #define PAIRING_KEY_SLOT_INDEX_0 0
@@ -78,10 +78,11 @@ typedef struct {
 } Tropic01CryptoDevCtx;
 
 
-int Tropic01_Init(void);
-int Tropic01_Deinit(void);
-int Tropic01_SetPairingKeys(int keyIndex, const byte* keyPub, const byte* keyPriv);
-int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx);
+WOLFSSL_API int Tropic01_Init(void);
+WOLFSSL_API int Tropic01_Deinit(void);
+WOLFSSL_API int Tropic01_SetPairingKeys(
+    int kIndex, const byte* kPub, const byte* kPriv);
+WOLFSSL_API int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx);
 
 
 #endif /* WOLF_CRYPTO_CB */
