@@ -30634,11 +30634,16 @@ static int test_wolfSSL_curves_mismatch(void)
     } test_params[] = {
 #ifdef WOLFSSL_TLS13
         {wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLS 1.3",
-                WC_NO_ERR_TRACE(FATAL_ERROR), WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA)},
+                /* Client gets error because server will attempt HRR */
+                WC_NO_ERR_TRACE(BAD_KEY_SHARE_DATA),
+                WC_NO_ERR_TRACE(FATAL_ERROR)
+        },
 #endif
 #ifndef WOLFSSL_NO_TLS12
         {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2",
                 WC_NO_ERR_TRACE(FATAL_ERROR),
+                /* Server gets error because <=1.2 doesn't have a mechanism
+                 * to negotiate curves. */
 #ifdef OPENSSL_EXTRA
                 WC_NO_ERR_TRACE(WOLFSSL_ERROR_SYSCALL)
 #else

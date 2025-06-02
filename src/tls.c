@@ -5042,12 +5042,14 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 
 #if !defined(NO_WOLFSSL_SERVER) || (defined(WOLFSSL_TLS13) && \
                                          !defined(WOLFSSL_NO_SERVER_GROUPS_EXT))
+
 int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                               word16 length, byte isRequest, TLSX** extensions)
 {
     word16 offset;
     word16 name;
     int ret;
+    TLSX* extension;
 
     if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
 #ifdef WOLFSSL_ALLOW_SERVER_SC_EXT
@@ -5066,74 +5068,47 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
     if (offset == length)
         return 0;
 
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
-    if (!isRequest) {
-        TLSX* extension;
-        SupportedCurve* curve;
-        extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
-        if (extension != NULL) {
-            /* Replace client list with server list of supported groups. */
-            curve = (SupportedCurve*)extension->data;
-            extension->data = NULL;
-            TLSX_SupportedCurve_FreeAll(curve, ssl->heap);
-            ato16(input + offset, &name);
-            offset += OPAQUE16_LEN;
-            ret = TLSX_SupportedCurve_New(&curve, name, ssl->heap);
-            if (ret != 0)
-                return ret; /* throw error */
-            extension->data = (void*)curve;
-        }
-    }
-#endif
-    if(!IsAtLeastTLSv1_3(ssl->version)) {
-        TLSX* existingExt;
-        TLSX* newExt = NULL;
-        SupportedCurve* intersectionCurve;
-
-        existingExt = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
-        for (; offset < length; offset += OPAQUE16_LEN) {
-            ato16(input + offset, &name);
-            if (existingExt != NULL) {
-                /* Check if this curve exists in our current list */
-                intersectionCurve = (SupportedCurve*)existingExt->data;
-                while (intersectionCurve != NULL) {
-                    if (intersectionCurve->name == name) {
-                        ret = TLSX_UseSupportedCurve(&newExt, name, ssl->heap);
-                        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-                            return ret;
-                        break;
-                    }
-                    intersectionCurve = intersectionCurve->next;
-                }
-            }
-            else {
-                ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
-                    return ret;
-            }
-            /* If it is BAD_FUNC_ARG then it is a group we do not support, but
-             * that is fine. */
-        }
-        if (existingExt != NULL) {
-            if (newExt == NULL){
-                return ECC_CURVE_ERROR;
-            }
-            /* Replace existing extension data with intersection */
-            intersectionCurve = (SupportedCurve*)existingExt->data;
-            TLSX_SupportedCurve_FreeAll(intersectionCurve, ssl->heap);
-            existingExt->data = newExt->data;
-        }
-    }else{
+    extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+    if (extension == NULL) {
+        /* Just accept what the peer wants to use */
         for (; offset < length; offset += OPAQUE16_LEN) {
             ato16(input + offset, &name);
 
             ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
             /* If it is BAD_FUNC_ARG then it is a group we do not support, but
              * that is fine. */
-            if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            if (ret != WOLFSSL_SUCCESS &&
+                    ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
                 return ret;
             }
         }
+    }
+    else {
+        /* Find the intersection with what the user has set */
+        SupportedCurve* commonCurves = NULL;
+        for (; offset < length; offset += OPAQUE16_LEN) {
+            SupportedCurve* foundCurve = (SupportedCurve*)extension->data;
+            ato16(input + offset, &name);
+
+            while (foundCurve != NULL && foundCurve->name != name)
+                foundCurve = foundCurve->next;
+
+            if (foundCurve != NULL) {
+                ret = commonCurves == NULL ?
+                      TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
+                      TLSX_SupportedCurve_Append(commonCurves, name, ssl->heap);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        /* If no common curves return error. In TLS 1.3 we can still try to save
+         * this by using HRR. */
+        if (commonCurves == NULL && !IsAtLeastTLSv1_3(ssl->version))
+            return ECC_CURVE_ERROR;
+        /* Now swap out the curves in the extension */
+        TLSX_SupportedCurve_FreeAll((SupportedCurve*)extension->data,
+                                    ssl->heap);
+        extension->data = commonCurves;
     }
 
     return 0;
@@ -10828,6 +10803,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     TLSX*           extension;
     SupportedCurve* curve = NULL;
     SupportedCurve* preferredCurve = NULL;
+    word16          name = WOLFSSL_NAMED_GROUP_INVALID;
     KeyShareEntry*  kse = NULL;
     int             preferredRank = WOLFSSL_MAX_GROUP_COUNT;
     int             rank;
@@ -10835,8 +10811,9 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     if (extension != NULL)
         curve = (SupportedCurve*)extension->data;
-    /* Use server's preference order. */
     for (; curve != NULL; curve = curve->next) {
+        /* Use server's preference order. Common group was found but key share
+         * was missing */
         if (!TLSX_IsGroupSupported(curve->name))
             continue;
         if (wolfSSL_curve_is_disabled(ssl, curve->name))
@@ -10853,8 +10830,26 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     curve = preferredCurve;
 
     if (curve == NULL) {
-        WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
-        return BAD_KEY_SHARE_DATA;
+        byte i;
+        /* Fallback to user selected group */
+        preferredRank = WOLFSSL_MAX_GROUP_COUNT;
+        for (i = 0; i < ssl->numGroups; i++) {
+            rank = TLSX_KeyShare_GroupRank(ssl, ssl->group[i]);
+            if (rank == -1)
+                continue;
+            if (rank < preferredRank) {
+                name = ssl->group[i];
+                preferredRank = rank;
+            }
+        }
+        if (name == WOLFSSL_NAMED_GROUP_INVALID) {
+            /* No group selected or specified by the server */
+            WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
+            return BAD_KEY_SHARE_DATA;
+        }
+    }
+    else {
+        name = curve->name;
     }
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10878,7 +10873,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
     /* Extension got pushed to head */
     extension = *extensions;
     /* Push the selected curve */
-    ret = TLSX_KeyShare_New((KeyShareEntry**)&extension->data, curve->name,
+    ret = TLSX_KeyShare_New((KeyShareEntry**)&extension->data, name,
                             ssl->heap, &kse);
     if (ret != 0)
         return ret;

@@ -188,7 +188,7 @@ int test_tls12_curve_intersection(void) {
     ret = wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR);
 
     // Fix: Use proper constant or define HANDSHAKE_FAILURE
-    ExpectTrue(ret == ECC_CURVE_ERROR);
+    ExpectTrue(ret == WC_NO_ERR_TRACE(ECC_CURVE_ERROR));
 
     wolfSSL_free(ssl_c);
     wolfSSL_free(ssl_s);
