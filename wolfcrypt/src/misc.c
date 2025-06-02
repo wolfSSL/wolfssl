@@ -633,7 +633,13 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 }
 #endif
 
-#ifndef WOLFSSL_NO_CT_OPS
+
+#if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY))
+/* constant time operations with mask are required for RSA and TLS operations */
+#warning constant time operations required unless using NO_RSA & WOLFCRYPT_ONLY
+#endif
+
+#if !defined(WOLFSSL_NO_CT_OPS) || !defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)
 /* Constant time - mask set when a > b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
 {
