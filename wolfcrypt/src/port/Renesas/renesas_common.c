@@ -826,7 +826,7 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
     if (cbInfo->session_key_set == 1) {
  #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
-    
+
     if (cbInfo->keyflgs_tls.bits.session_key_set == 1) {
         switch(cbInfo->side) {
             case 1:/* ENCRYPT_SIDE_ONLY */
