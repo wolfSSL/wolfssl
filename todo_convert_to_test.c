@@ -18,7 +18,7 @@ int main() {
   EVP_PKEY_CTX *ctx = NULL;
   EVP_PKEY_CTX *sign_ctx = NULL;
   EVP_PKEY_CTX *vrfy_ctx = NULL;
-  EVP_PKEY *pkey = NULL; // Your RSA private key
+  EVP_PKEY *pkey = NULL;
   const unsigned char *data = "This is the data to be signed";
   size_t data_len = strlen((const char *)data);
   unsigned char *signature = NULL;
@@ -73,19 +73,19 @@ int main() {
     return 1;
   }
 
-  // 4. Set the padding scheme to PSS
+  // Set the padding scheme to PSS
   if (EVP_PKEY_CTX_set_rsa_padding(sign_ctx, RSA_PKCS1_PSS_PADDING) <= 0) {
     fprintf(stderr, "Error setting RSA padding\n");
     return 1;
   }
 
-  // 4. Set the digest algo for the signature
+  // Set the digest algo for the signature
   if (EVP_PKEY_CTX_set_signature_md(sign_ctx, EVP_sha256()) <= 0) {
     fprintf(stderr, "Error setting signature digest algo.\n");
     return 1;
   }
 
-  // 3. Set the RSA-MGF1 digest (e.g., SHA-256)
+  // Set the RSA-MGF1 digest (e.g., SHA-256)
   if (EVP_PKEY_CTX_set_rsa_mgf1_md(sign_ctx, EVP_sha256()) <= 0) {
     fprintf(stderr, "Error setting RSA-MGF1 digest\n");
     return 1;
@@ -103,7 +103,7 @@ int main() {
     return 1;
   }
 
-  // 6. Allocate memory for the signature
+  // Allocate memory for the signature
   signature = (unsigned char *)OPENSSL_malloc(signature_len);
   if (signature == NULL) {
     fprintf(stderr, "Memory allocation failed\n");
@@ -114,7 +114,7 @@ int main() {
     fprintf(stderr, "Error signing data (2)\n");
   }
 
-  // 8. Print the signature (for demonstration)
+  // Print the signature (for demonstration)
   printf("Signature length: %zu\n", signature_len);
   printf("Signature:\n");
   for (size_t i = 0; i < signature_len; i++) {
@@ -138,19 +138,19 @@ int main() {
     return 1;
   }
 
-  // 4. Set the padding scheme to PSS
+  // Set the padding scheme to PSS
   if (EVP_PKEY_CTX_set_rsa_padding(vrfy_ctx, RSA_PKCS1_PSS_PADDING) <= 0) {
     fprintf(stderr, "Error setting RSA padding\n");
     return 1;
   }
 
-  // 4. Set the digest algo for the signature
+  // Set the digest algo for the signature
   if (EVP_PKEY_CTX_set_signature_md(vrfy_ctx, EVP_sha256()) <= 0) {
     fprintf(stderr, "Error setting signature digest algo.\n");
     return 1;
   }
 
-  // 3. Set the RSA-MGF1 digest (e.g., SHA-256)
+  // Set the RSA-MGF1 digest (e.g., SHA-256)
   if (EVP_PKEY_CTX_set_rsa_mgf1_md(vrfy_ctx, EVP_sha256()) <= 0) {
     fprintf(stderr, "Error setting RSA-MGF1 digest\n");
     return 1;
@@ -169,13 +169,13 @@ int main() {
 
   fprintf(stderr, "Woo hoo!!\n");
 
-  // 9. Clean up
+  // Clean up
   OPENSSL_free(signature);
   EVP_MD_CTX_free(sign_hash);
   EVP_MD_CTX_free(vrfy_hash);
   EVP_PKEY_CTX_free(ctx);
-  /* sign_ctx and vrfy_ctx owned by their hash context. No free required. */
 
+  /* sign_ctx and vrfy_ctx owned by their hash context. No free required. */
   EVP_PKEY_free(pkey);
   pkey = NULL; //free?
   return 0;
