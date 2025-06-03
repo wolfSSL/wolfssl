@@ -1368,6 +1368,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_CTX_set_signature_md  wolfSSL_EVP_PKEY_CTX_set_signature_md
 #define EVP_PKEY_CTX_new_id            wolfSSL_EVP_PKEY_CTX_new_id
 #define EVP_PKEY_CTX_set_rsa_keygen_bits wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits
+#define EVP_PKEY_CTX_set_rsa_mgf1_md   wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md
 #define EVP_PKEY_derive_init           wolfSSL_EVP_PKEY_derive_init
 #define EVP_PKEY_derive_set_peer       wolfSSL_EVP_PKEY_derive_set_peer
 #define EVP_PKEY_derive                wolfSSL_EVP_PKEY_derive

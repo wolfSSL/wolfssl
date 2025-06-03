@@ -1,3 +1,14 @@
+
+// gcc todo_convert_to_test.c -lcrypto -o test_openssl -I/usr/local/include/  -g
+
+// ./configure --enable-opensslall --enable-keygen
+// gcc todo_convert_to_test.c -L./src/.libs/ -lwolfssl -o test_wolfssl -Iwolfssl  -I./ -g -DWOLF
+
+#ifdef WOLF
+#include <options.h>
+#include <ssl.h>
+#endif 
+
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <string.h>
@@ -13,7 +24,7 @@ int main() {
   unsigned char *signature = NULL;
   size_t signature_len = 0;
 
-  int modulus_bits = 512;
+  int modulus_bits = 2048;
   const uint32_t exponent = 0x10001;
 
   ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
@@ -80,8 +91,14 @@ int main() {
     return 1;
   }
 
-  // 5. Sign the data
-  if (EVP_DigestSign(sign_hash, NULL, &signature_len, data, data_len) <= 0) {
+  // Feed the data in.
+  if (EVP_DigestSignUpdate(sign_hash, data, data_len) != 1) {
+    fprintf(stderr, "Error signing data (1)\n");
+    return 1;
+  }
+
+  // Figure out signature size.
+  if (EVP_DigestSignFinal(sign_hash, NULL, &signature_len) <= 0) {
     fprintf(stderr, "Error signing data\n");
     return 1;
   }
@@ -93,10 +110,8 @@ int main() {
     return 1;
   }
 
-  // 7. Perform the signature again to write the signature
-  if (EVP_DigestSign(sign_hash, signature, &signature_len, data, data_len) <= 0) {
-    fprintf(stderr, "Error signing data (again)\n");
-    return 1;
+  if (EVP_DigestSignFinal(sign_hash, signature, &signature_len) != 1) {
+    fprintf(stderr, "Error signing data (2)\n");
   }
 
   // 8. Print the signature (for demonstration)
@@ -141,10 +156,16 @@ int main() {
     return 1;
   }
 
-  if (EVP_DigestVerify(vrfy_hash, signature, signature_len, data, data_len) != 1) {
-    fprintf(stderr, "Error verifying data\n");
+  if (EVP_DigestVerifyUpdate(vrfy_hash, data, data_len) != 1) {
+    fprintf(stderr, "Error verifying data (1)\n");
     return 1;
   }
+
+  if (EVP_DigestVerifyFinal(vrfy_hash, signature, signature_len) != 1) {
+    fprintf(stderr, "Error verifying data (1)\n");
+    return 1;
+  }
+
 
   fprintf(stderr, "Woo hoo!!\n");
 
