@@ -68271,8 +68271,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_certid_enc_dec),
     TEST_DECL(test_tls12_unexpected_ccs),
     TEST_DECL(test_tls13_unexpected_ccs),
-	TEST_DECL(test_tls12_curve_intersection),
-	TEST_DECL(test_tls13_curve_intersection),
+    TEST_DECL(test_tls12_curve_intersection),
+    TEST_DECL(test_tls13_curve_intersection),
     TEST_DECL(test_wc_DhSetNamedKey),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)

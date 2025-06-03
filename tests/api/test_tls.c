@@ -151,10 +151,10 @@ int test_tls12_curve_intersection(void) {
     struct test_memio_ctx test_ctx;
     int ret;
     const char* curve_name;
-	int test1[] = {WOLFSSL_ECC_SECP256R1};
-	int test2[] = {WOLFSSL_ECC_SECP384R1};
-	int test3[] = {WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1};
-	int test4[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
+    int test1[] = {WOLFSSL_ECC_SECP256R1};
+    int test2[] = {WOLFSSL_ECC_SECP384R1};
+    int test3[] = {WOLFSSL_ECC_SECP256R1, WOLFSSL_ECC_SECP384R1};
+    int test4[] = {WOLFSSL_ECC_SECP384R1, WOLFSSL_ECC_SECP256R1};
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
@@ -162,9 +162,11 @@ int test_tls12_curve_intersection(void) {
                     test1, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    // Fix: Get curve name and compare with string comparison or use curve ID function
+    /* Fix: Get curve name and compare with string comparison or use curve
+     * ID function */
     curve_name = wolfSSL_get_curve_name(ssl_s);
-    ExpectStrEQ(curve_name, "SECP256R1"); // or use appropriate string comparison
+    /* or use appropriate string comparison */
+    ExpectStrEQ(curve_name, "SECP256R1");
     curve_name = wolfSSL_get_curve_name(ssl_c);
     ExpectStrEQ(curve_name, "SECP256R1");
 
@@ -187,7 +189,7 @@ int test_tls12_curve_intersection(void) {
     ExpectIntNE(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
     ret = wolfSSL_get_error(ssl_s, WOLFSSL_FATAL_ERROR);
 
-    // Fix: Use proper constant or define HANDSHAKE_FAILURE
+    /* Fix: Use proper constant or define HANDSHAKE_FAILURE */
     ExpectTrue(ret == WC_NO_ERR_TRACE(ECC_CURVE_ERROR));
 
     wolfSSL_free(ssl_c);
@@ -231,7 +233,7 @@ int test_tls13_curve_intersection(void) {
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
     const char* curve_name;
-	int test1[] ={WOLFSSL_ECC_SECP256R1};
+    int test1[] ={WOLFSSL_ECC_SECP256R1};
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
