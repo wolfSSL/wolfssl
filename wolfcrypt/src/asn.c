@@ -20631,7 +20631,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if (ret == 0) {
         /* Get the CA boolean and path length when present. */
         GetASN_Boolean(&dataASN[BASICCONSASN_IDX_CA], &isCA);
-        GetASN_Int8Bit(&dataASN[BASICCONSASN_IDX_PLEN], &cert->pathLength);
+        GetASN_Int16Bit(&dataASN[BASICCONSASN_IDX_PLEN], &cert->pathLength);
 
         ret = GetASN_Items(basicConsASN, dataASN, basicConsASN_Length, 1, input,
                            &idx, (word32)sz);
@@ -20648,11 +20648,6 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
             ret = ASN_PARSE_E;
         }
 #endif
-        /* Path length must be a 7-bit value. */
-        if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
-            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-            ret = ASN_PARSE_E;
-        }
         if ((ret == 0) && cert->pathLength > WOLFSSL_MAX_PATH_LEN) {
             WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
             ret = ASN_PATHLEN_SIZE_E;
