@@ -16809,7 +16809,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             /* If we can't validate the peer cert chain against the CAs loaded
              * into wolfSSL, try to validate against the system certificates
              * using Apple's native trust APIs */
-            if ((ret == ASN_NO_SIGNER_E) &&
+            if ((ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) &&
                 (ssl->ctx->doAppleNativeCertValidationFlag)) {
                 if (DoAppleNativeCertValidation(ssl, args->certs,
                                                      args->totalCerts)) {
