@@ -700,6 +700,34 @@ static int test_fileAccess(void)
 #endif
     return EXPECT_RESULT();
 }
+static int test_wc_FreeCertList(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS12) && !defined(NO_ASN) && \
+!defined(NO_PWDBASED) && !defined(NO_HMAC) && !defined(NO_CERTS) && \
+defined(USE_CERT_BUFFERS_2048)
+    WC_DerCertList* list = NULL;
+    void* heap = NULL;
+    /* Test freeing a list with a single node */
+    list = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList),
+            heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(list);
+    if (list != NULL) {
+        list->buffer = (byte*)XMALLOC(10, heap, DYNAMIC_TYPE_PKCS);
+        ExpectNotNull(list->buffer);
+        if (list->buffer != NULL) {
+            list->bufferSz = 10;
+            list->next = NULL;
+            wc_FreeCertList(list, heap);
+        }
+        else {
+            XFREE(list, heap, DYNAMIC_TYPE_PKCS);
+            list = NULL;
+        }
+    }
+#endif
+    return EXPECT_RESULT();
+}
 
 /*----------------------------------------------------------------------------*
  | Method Allocators
@@ -67030,6 +67058,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
 
+    TEST_DECL(test_wc_FreeCertList),
     /* Locking with Compat Mutex */
     TEST_DECL(test_wc_SetMutexCb),
     TEST_DECL(test_wc_LockMutex_ex),
