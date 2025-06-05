@@ -4745,6 +4745,15 @@ static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
 #ifdef WOLFSSL_SMALL_STACK
      XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
+#if defined(HAVE_ECC) || !defined(NO_RSA)
+    /* wc_PKCS7_RsaVerify and wc_PKCS7_EcdsaVerify return value > 0 on
+     * success, and it may break the contract in documentation to the current function. */
+    if (ret > 0) {
+        ret = 0; /* success */
+    }
+#endif
+
     return ret;
 }
 
@@ -5392,6 +5401,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 #endif
     int multiPart = 0, keepContent;
     int contentLen = 0;
+    int hasNextSignerInfo = 1;
 
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
@@ -6582,64 +6592,75 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             content   = pkcs7->stream->content;
             contentSz = (int)pkcs7->stream->contentSz;
         #endif
+            do {
+                ret = wc_PKCS7_ParseSignerInfo(pkcs7, pkiMsg2, pkiMsg2Sz, &idx,
+                        degenerate, &signedAttrib, &signedAttribSz);
 
-            ret = wc_PKCS7_ParseSignerInfo(pkcs7, pkiMsg2, pkiMsg2Sz, &idx,
-                    degenerate, &signedAttrib, &signedAttribSz);
+                /* parse out the signature if present and verify it */
+                if (ret == 0 && length > 0 && degenerate == 0) {
+                    WOLFSSL_MSG("Parsing signature and verifying");
+                    if (idx >= pkiMsg2Sz)
+                        ret = BUFFER_E;
 
-            /* parse out the signature if present and verify it */
-            if (ret == 0 && length > 0 && degenerate == 0) {
-                WOLFSSL_MSG("Parsing signature and verifying");
-                if (idx >= pkiMsg2Sz)
-                    ret = BUFFER_E;
+                    /* Get the signature */
+                    localIdx = idx;
+                    if (ret == 0 && GetASNTag(pkiMsg2, &localIdx, &tag,
+                                pkiMsg2Sz) == 0 && tag == ASN_OCTET_STRING) {
+                        idx++;
 
-                /* Get the signature */
-                localIdx = idx;
-                if (ret == 0 && GetASNTag(pkiMsg2, &localIdx, &tag,
-                            pkiMsg2Sz) == 0 && tag == ASN_OCTET_STRING) {
-                    idx++;
-
-                    if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-                        ret = ASN_PARSE_E;
-
-                    /* save pointer and length */
-                    sig = &pkiMsg2[idx];
-                    sigSz = length;
-
-                    idx += (word32)length;
-                }
-
-                pkcs7->content = content;
-                pkcs7->contentSz = (word32)contentSz;
-
-                if (ret == 0) {
-                #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
-                    byte streamHash[WC_MAX_DIGEST_SIZE];
-
-                    /* get final hash if having done hash updates while
-                     * streaming out the content */
-                    if (pkcs7->streamOutCb) {
-                        ret = wc_HashFinal(&pkcs7->stream->hashAlg,
-                            pkcs7->stream->hashType, streamHash);
-                        hashBuf = streamHash;
-                        length  = wc_HashGetDigestSize(pkcs7->stream->hashType);
-                        if (length < 0) {
-                            WOLFSSL_MSG("Error getting digest size");
+                        if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
                             ret = ASN_PARSE_E;
-                        }
-                        else {
-                            hashSz = (word32)length;
-                        }
-                        wc_HashFree(&pkcs7->stream->hashAlg,
-                            pkcs7->stream->hashType);
-                        if (ret != 0)
-                            break;
+
+                        /* save pointer and length */
+                        sig = &pkiMsg2[idx];
+                        sigSz = length;
+
+                        idx += (word32)length;
                     }
-                #endif /* !NO_PKCS7_STREAM && ASN_BER_TO_DER */
-                    ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig,
-                            (word32)sigSz, signedAttrib, (word32)signedAttribSz,
-                                                   hashBuf, hashSz);
+
+                    pkcs7->content = content;
+                    pkcs7->contentSz = (word32)contentSz;
+
+                    if (ret == 0) {
+                    #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
+                        byte streamHash[WC_MAX_DIGEST_SIZE];
+
+                        /* get final hash if having done hash updates while
+                         * streaming out the content */
+                        if (pkcs7->streamOutCb) {
+                            ret = wc_HashFinal(&pkcs7->stream->hashAlg,
+                                pkcs7->stream->hashType, streamHash);
+                            hashBuf = streamHash;
+                            length  = wc_HashGetDigestSize(pkcs7->stream->hashType);
+                            if (length < 0) {
+                                WOLFSSL_MSG("Error getting digest size");
+                                ret = ASN_PARSE_E;
+                            }
+                            else {
+                                hashSz = (word32)length;
+                            }
+                            wc_HashFree(&pkcs7->stream->hashAlg,
+                                pkcs7->stream->hashType);
+                            if (ret != 0)
+                                break;
+                        }
+                    #endif /* !NO_PKCS7_STREAM && ASN_BER_TO_DER */
+                        ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig,
+                                (word32)sigSz, signedAttrib, (word32)signedAttribSz,
+                                                       hashBuf, hashSz);
+                    }
+
+                    if ((ret < 0 && ret != SIG_VERIFY_E) || ret == 0) {
+                        /* Error that is not related to signature verification
+                        occured or the correct signer is found. */
+                        break;
+                    } else if (idx == pkiMsg2Sz) {
+                        hasNextSignerInfo = 0;
+                    }
+                } else {
+                    break;
                 }
-            }
+            } while (hasNextSignerInfo);
 
         #ifndef NO_PKCS7_STREAM
             /* make sure that terminating zero's follow */
