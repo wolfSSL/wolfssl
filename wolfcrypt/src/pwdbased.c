@@ -498,11 +498,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
         P[i] = passwd[i % (word32)passLen];
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (((B1 = (mp_int *)XMALLOC(sizeof(*B1), heap, DYNAMIC_TYPE_TMP_BUFFER))
+    if (((B1 = (mp_int *)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_TMP_BUFFER))
          == NULL) ||
-        ((i1 = (mp_int *)XMALLOC(sizeof(*i1), heap, DYNAMIC_TYPE_TMP_BUFFER))
+        ((i1 = (mp_int *)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_TMP_BUFFER))
          == NULL) ||
-        ((res = (mp_int *)XMALLOC(sizeof(*res), heap, DYNAMIC_TYPE_TMP_BUFFER))
+        ((res = (mp_int *)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_TMP_BUFFER))
          == NULL)) {
         ret = MEMORY_E;
         goto out;
