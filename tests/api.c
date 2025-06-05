@@ -68246,6 +68246,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls12_missing_finished),
     TEST_DECL(test_dtls13_missing_finished_client),
     TEST_DECL(test_dtls13_missing_finished_server),
+    TEST_DECL(test_wolfSSL_dtls_set_pending_peer),
     TEST_DECL(test_tls13_pq_groups),
     TEST_DECL(test_tls13_early_data),
     TEST_DECL(test_tls_multi_handshakes_one_record),
