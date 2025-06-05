@@ -70,14 +70,15 @@
 
 #elif defined(HAVE_CPUID_AARCH64)
 
-    #define CPUID_AES         0x0001
-    #define CPUID_PMULL       0x0002
-    #define CPUID_SHA256      0x0004
-    #define CPUID_SHA512      0x0008
-    #define CPUID_RDM         0x0010
-    #define CPUID_SHA3        0x0020
-    #define CPUID_SM3         0x0040
-    #define CPUID_SM4         0x0080
+    #define CPUID_AES         0x0001    /* AES enc/dec */
+    #define CPUID_PMULL       0x0002    /* Carryless multiplication */
+    #define CPUID_SHA256      0x0004    /* SHA-256 digest */
+    #define CPUID_SHA512      0x0008    /* SHA-512 digest */
+    #define CPUID_RDM         0x0010    /* SQRDMLAH and SQRDMLSH */
+    #define CPUID_SHA3        0x0020    /* SHA-3 digest */
+    #define CPUID_SM3         0x0040    /* SM3 digest */
+    #define CPUID_SM4         0x0080    /* SM4 enc/dec */
+    #define CPUID_SB          0x0100    /* Speculation barrier */
 
     #define IS_AARCH64_AES(f)       ((f) & CPUID_AES)
     #define IS_AARCH64_PMULL(f)     ((f) & CPUID_PMULL)
@@ -87,6 +88,7 @@
     #define IS_AARCH64_SHA3(f)      ((f) & CPUID_SHA3)
     #define IS_AARCH64_SM3(f)       ((f) & CPUID_SM3)
     #define IS_AARCH64_SM4(f)       ((f) & CPUID_SM4)
+    #define IS_AARCH64_SB(f)        ((f) & CPUID_SB)
 
 #endif
 
