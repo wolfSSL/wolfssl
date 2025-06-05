@@ -5048,7 +5048,7 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
 {
     word16 offset;
     word16 name;
-    int ret;
+    int ret = 0;
     TLSX* extension;
 
     if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
@@ -5078,9 +5078,9 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
             /* If it is BAD_FUNC_ARG then it is a group we do not support, but
              * that is fine. */
             if (ret != WOLFSSL_SUCCESS &&
-                    ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-                return ret;
-            }
+                    ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+                break;
+            ret = 0;
         }
     }
     else {
@@ -5098,20 +5098,25 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
                       TLSX_SupportedCurve_New(&commonCurves, name, ssl->heap) :
                       TLSX_SupportedCurve_Append(commonCurves, name, ssl->heap);
                 if (ret != 0)
-                    return ret;
+                    break;
             }
         }
         /* If no common curves return error. In TLS 1.3 we can still try to save
          * this by using HRR. */
-        if (commonCurves == NULL && !IsAtLeastTLSv1_3(ssl->version))
-            return ECC_CURVE_ERROR;
-        /* Now swap out the curves in the extension */
-        TLSX_SupportedCurve_FreeAll((SupportedCurve*)extension->data,
-                                    ssl->heap);
-        extension->data = commonCurves;
+        if (ret == 0 && commonCurves == NULL &&
+                !IsAtLeastTLSv1_3(ssl->version))
+            ret = ECC_CURVE_ERROR;
+        if (ret == 0) {
+            /* Now swap out the curves in the extension */
+            TLSX_SupportedCurve_FreeAll((SupportedCurve*)extension->data,
+                                        ssl->heap);
+            extension->data = commonCurves;
+            commonCurves = NULL;
+        }
+        TLSX_SupportedCurve_FreeAll(commonCurves, ssl->heap);
     }
 
-    return 0;
+    return ret;
 }
 #endif
 
