@@ -19002,6 +19002,12 @@ static int test_wc_PKCS12_create(void)
     /* Encoding certificate with PBE_AES128_CBC needs WOLFSSL_ASN_TEMPLATE */
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES128_CBC, PBE_AES128_CBC));
 #endif
+/* Testing a mixture of 2 algorithms */
+#if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
+    !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_SHA1_DES3));
+#endif
+
     (void) test_wc_PKCS12_create_once;
 
     return EXPECT_RESULT();
