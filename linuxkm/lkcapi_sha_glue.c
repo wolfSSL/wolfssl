@@ -1007,19 +1007,31 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
                         const u8 *seed, unsigned int slen)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
+    u8 *seed_copy = NULL;
     int ret;
     unsigned int i;
 
     if (slen == 0)
         return 0;
 
+    seed_copy = (u8 *)malloc(slen + 2);
+    if (! seed_copy)
+        return -ENOMEM;
+    XMEMCPY(seed_copy + 2, seed, slen);
+
     for (i = 0; i < nr_cpu_ids; ++i) {
         wolfSSL_Mutex *lock = &ctx->rngs[i].lock;
         WC_RNG *rng = &ctx->rngs[i].rng;
 
+        /* perturb the seed with the CPU ID, so that no DRBG has the exact same
+         * seed.
+         */
+        seed_copy[0] = (u8)(i >> 8);
+        seed_copy[1] = (u8)i;
+
         wc_LockMutex(lock);
 
-        ret = wc_RNG_DRBG_Reseed(rng, seed, slen);
+        ret = wc_RNG_DRBG_Reseed(rng, seed_copy, slen + 2);
         if (ret != 0) {
             ret = -EINVAL;
         }
@@ -1029,6 +1041,8 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
         if (ret != 0)
             break;
     }
+
+    free(seed_copy);
 
     return ret;
 }
