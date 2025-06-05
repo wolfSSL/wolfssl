@@ -164,7 +164,8 @@ typedef struct TsipUserCtx {
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     /* 0:working as a TLS client, 1: as a server */
     byte                    side;
-
+    /* ENCRYPT_SIDE_ONLY:1 DECRYPT_SIDE_ONLY:2 ENCRYPT AND DECRYPT:3 */
+    byte                    key_side;
     /* public key index for verification of RootCA cert */
     uint32_t                user_key_id;
 
