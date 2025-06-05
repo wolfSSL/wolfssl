@@ -5530,6 +5530,57 @@ static int test_wolfSSL_CTX_SetTmpDH_buffer(void)
     return EXPECT_RESULT();
 }
 
+static int test_wc_DhSetNamedKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(HAVE_SELFTEST) && !defined(NO_DH) && \
+    !defined(WOLFSSL_NO_MALLOC) && defined(HAVE_FFDHE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    DhKey *key = NULL;
+    key = (DhKey*)XMALLOC(sizeof(DhKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL){
+        #ifdef HAVE_FFDHE_2048
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_2048), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_2048), 29);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_3072
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_3072), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_3072), 34);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_4096
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_4096), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_4096), 39);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_6144
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_6144), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_6144), 46);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_8192
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_8192), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_8192), 52);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 {
     EXPECT_DECLS;
@@ -68215,6 +68266,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_certid_enc_dec),
     TEST_DECL(test_tls12_unexpected_ccs),
     TEST_DECL(test_tls13_unexpected_ccs),
+    TEST_DECL(test_wc_DhSetNamedKey),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
