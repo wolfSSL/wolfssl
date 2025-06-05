@@ -902,38 +902,65 @@ struct wc_swallow_the_semicolon
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
-    wolfSSL_Mutex lock;
-    WC_RNG rng;
+    struct wc_rng_inst {
+        wolfSSL_Mutex lock;
+        WC_RNG rng;
+    } *rngs; /* one per CPU ID */
 };
 
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    unsigned int i;
     int ret;
 
-    ret = wc_InitMutex(&ctx->lock);
-    if (ret != 0)
-        return -EINVAL;
+    ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * nr_cpu_ids);
+    if (! ctx->rngs)
+        return -ENOMEM;
+    XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * nr_cpu_ids);
 
-    /* Note the new DRBG instance is seeded, and later reseeded, from system
-     * get_random_bytes() via wc_GenerateSeed().
-     */
-    ret = wc_InitRng(&ctx->rng);
-    if (ret != 0) {
-        (void)wc_FreeMutex(&ctx->lock);
-        return -EINVAL;
+    for (i = 0; i < nr_cpu_ids; ++i) {
+        ret = wc_InitMutex(&ctx->rngs[i].lock);
+        if (ret != 0) {
+            ret = -EINVAL;
+            break;
+        }
+
+        /* Note the new DRBG instance is seeded, and later reseeded, from system
+         * get_random_bytes() via wc_GenerateSeed().
+         */
+        ret = wc_InitRng(&ctx->rngs[i].rng);
+        if (ret != 0) {
+            ret = -EINVAL;
+            break;
+        }
     }
 
-    return 0;
+    if (ret != 0) {
+        for (i = 0; i < nr_cpu_ids; ++i) {
+            (void)wc_FreeMutex(&ctx->rngs[i].lock);
+            wc_FreeRng(&ctx->rngs[i].rng);
+        }
+        free(ctx->rngs);
+        ctx->rngs = NULL;
+    }
+
+    return ret;
 }
 
 static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    unsigned int i;
 
-    wc_FreeRng(&ctx->rng);
-
-    (void)wc_FreeMutex(&ctx->lock);
+    if (ctx->rngs) {
+        for (i = 0; i < nr_cpu_ids; ++i) {
+            (void)wc_FreeMutex(&ctx->rngs[i].lock);
+            wc_FreeRng(&ctx->rngs[i].rng);
+        }
+        free(ctx->rngs);
+        ctx->rngs = NULL;
+    }
 
     return;
 }
@@ -944,24 +971,34 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
+    int my_cpu =
+        raw_smp_processor_id(); /* Note, core is not locked, so the actual core
+                                 * ID may change while executing, hence the
+                                 * mutex.
+                                 * The mutex is also needed to coordinate with
+                                 * wc_linuxkm_drbg_seed(), which seeds all
+                                 * instances.
+                                 */
+    wolfSSL_Mutex *lock = &ctx->rngs[my_cpu].lock;
+    WC_RNG *rng = &ctx->rngs[my_cpu].rng;
 
-    wc_LockMutex(&ctx->lock);
+    wc_LockMutex(lock);
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(&ctx->rng, src, slen);
+        ret = wc_RNG_DRBG_Reseed(rng, src, slen);
         if (ret != 0) {
             ret = -EINVAL;
             goto out;
         }
     }
 
-    ret = wc_RNG_GenerateBlock(&ctx->rng, dst, dlen);
+    ret = wc_RNG_GenerateBlock(rng, dst, dlen);
     if (ret != 0)
         ret = -EINVAL;
 
 out:
 
-    wc_UnLockMutex(&ctx->lock);
+    wc_UnLockMutex(lock);
 
     return ret;
 }
@@ -971,21 +1008,27 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
+    unsigned int i;
 
     if (slen == 0)
         return 0;
 
-    wc_LockMutex(&ctx->lock);
+    for (i = 0; i < nr_cpu_ids; ++i) {
+        wolfSSL_Mutex *lock = &ctx->rngs[i].lock;
+        WC_RNG *rng = &ctx->rngs[i].rng;
 
-    ret = wc_RNG_DRBG_Reseed(&ctx->rng, seed, slen);
-    if (ret != 0) {
-        ret = -EINVAL;
-        goto out;
+        wc_LockMutex(lock);
+
+        ret = wc_RNG_DRBG_Reseed(rng, seed, slen);
+        if (ret != 0) {
+            ret = -EINVAL;
+        }
+
+        wc_UnLockMutex(lock);
+
+        if (ret != 0)
+            break;
     }
-
-out:
-
-    wc_UnLockMutex(&ctx->lock);
 
     return ret;
 }
