@@ -42789,7 +42789,8 @@ static int DoAppleNativeCertValidation(WOLFSSL* ssl,
             ssl->buffers.domainName.length > 0) {
         /* Create policy with specified value to require host name match */
         hostname = CFStringCreateWithCString(kCFAllocatorDefault,
-        (const char*)ssl->buffers.domainName.buffer, kCFStringEncodingUTF8);
+                                (const char*)ssl->buffers.domainName.buffer,
+                                 kCFStringEncodingUTF8);
     }
     if (hostname != NULL) {
         policy = SecPolicyCreateSSL(true, hostname);
