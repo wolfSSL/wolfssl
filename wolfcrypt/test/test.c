@@ -47891,6 +47891,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
 #endif
+#if !defined(HAVE_LIBLMS)
+    const byte *  kid;
+    word32        kidSz;
+#endif
+
     WOLFSSL_ENTER("lms_test");
 
     XMEMSET(priv, 0, sizeof(priv));
@@ -47938,6 +47943,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
 
     XMEMCPY(old_priv, priv, sizeof(priv));
+
+#if !defined(HAVE_LIBLMS)
+    ret = wc_LmsKey_GetKid(NULL, NULL, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(&signingKey, NULL, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(NULL, &kid, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(NULL, NULL, &kidSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(&signingKey, &kid, NULL);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(&signingKey, NULL, &kidSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(NULL, &kid, &kidSz);
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_LmsKey_GetKid(&signingKey, &kid, &kidSz);
+    if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
+    if (kidSz != WC_LMS_I_LEN) {
+        ERROR_OUT(WC_TEST_RET_ENC_I(kidSz), out);
+    }
+#endif
 
     ret = wc_LmsKey_ExportPub(&verifyKey, &signingKey);
     if (ret != 0) { ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out); }
