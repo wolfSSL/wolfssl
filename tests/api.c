@@ -32755,6 +32755,59 @@ static int test_wolfSSL_check_domain(void)
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_SYS_CA_CERTS)
+static const char* dn = NULL;
+static int test_wolfSSL_check_domain_basic_client_ctx(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_load_system_CA_certs(ctx), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+    return EXPECT_RESULT();
+}
+static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl, dn), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+static int test_wolfSSL_check_domain_basic(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ctx_ready = &test_wolfSSL_check_domain_basic_client_ctx;
+
+    dn = "invalid.com";
+    func_cb_client.ssl_ready = &test_wolfSSL_check_domain_basic_client_ssl;
+
+    /* Expect to fail */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), -1001);
+
+    dn = "example.com";
+
+    /* Expect to succeed */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_wolfSSL_check_domain_basic(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 static int test_wolfSSL_X509_get_X509_PUBKEY(void)
 {
@@ -67810,6 +67863,7 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_check_domain),
+    TEST_DECL(test_wolfSSL_check_domain_basic),
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
