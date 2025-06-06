@@ -26053,11 +26053,25 @@ int wolfSSL_RAND_poll(void)
         return  WOLFSSL_FAILURE;
     }
     ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
-    if (ret != 0){
+    if (ret != 0) {
         WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         ret = WOLFSSL_FAILURE;
-    }else
-        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+#ifdef HAVE_HASHDRBG
+        ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error reseeding DRBG");
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+        }
+#else
+        WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
+        ret = WOLFSSL_FAILURE;
+#endif
+    }
 
     return ret;
 }
