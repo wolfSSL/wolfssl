@@ -21858,7 +21858,7 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
         else {
             /* Pending peer present and record deprotected. Update the peer. */
             (void)wolfSSL_dtls_set_peer(ssl,
-                    &ssl->buffers.dtlsCtx.pendingPeer.sa,
+                    ssl->buffers.dtlsCtx.pendingPeer.sa,
                     ssl->buffers.dtlsCtx.pendingPeer.sz);
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
             dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
