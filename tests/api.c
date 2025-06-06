@@ -4254,7 +4254,7 @@ static int test_wolfSSL_CRL_duplicate_extensions(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_CERTS) && \
-    defined(HAVE_CRL) && !defined(NO_RSA)
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(WOLFSSL_NO_ASN_STRICT)
     const unsigned char crl_duplicate_akd[] =
         "-----BEGIN X509 CRL-----\n"
         "MIICCDCB8QIBATANBgkqhkiG9w0BAQsFADB5MQswCQYDVQQGEwJVUzETMBEGA1UE\n"
