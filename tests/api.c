@@ -20942,22 +20942,24 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
     offset_sec = 45 * mini;
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day,
         offset_sec));
-    ExpectTrue(asn_time->type == asn_utc_time);
-    ExpectNotNull(XSTRNCPY(date_str, (const char*)&asn_time->data,
-        CTC_DATE_SIZE));
-    date_str[CTC_DATE_SIZE] = '\0';
-    ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
-    XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
-    asn_time = NULL;
-
+    if (asn_time != NULL) {
+        ExpectTrue(asn_time->type == asn_utc_time);
+        ExpectNotNull(XSTRNCPY(date_str, (const char*)&asn_time->data,
+            CTC_DATE_SIZE));
+        date_str[CTC_DATE_SIZE] = '\0';
+        ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
+        XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day,
         offset_sec));
-    ExpectTrue(asn_time->type == asn_utc_time);
-    ExpectNotNull(XSTRNCPY(date_str, (const char*)&asn_time->data,
-        CTC_DATE_SIZE));
-    date_str[CTC_DATE_SIZE] = '\0';
-    ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
-    XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (asn_time != NULL) {
+        ExpectTrue(asn_time->type == asn_utc_time);
+        ExpectNotNull(XSTRNCPY(date_str, (const char*)&asn_time->data,
+            CTC_DATE_SIZE));
+        date_str[CTC_DATE_SIZE] = '\0';
+        ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
+        XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
 #endif
     return EXPECT_RESULT();
 }
