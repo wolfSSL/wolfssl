@@ -35358,6 +35358,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_P521_ML_KEM_1024:
             case WOLFSSL_X25519_ML_KEM_512:
             case WOLFSSL_X448_ML_KEM_768:
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            case WOLFSSL_P256_ML_KEM_512_OLD:
+            case WOLFSSL_P384_ML_KEM_768_OLD:
+            case WOLFSSL_P521_ML_KEM_1024_OLD:
+#endif
         #endif
         #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_P256_KYBER_LEVEL3:

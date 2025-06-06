@@ -4600,8 +4600,14 @@ static int TLSX_IsGroupSupported(int namedGroup)
             case WOLFSSL_ML_KEM_1024:
             case WOLFSSL_P521_ML_KEM_1024:
             case WOLFSSL_P384_ML_KEM_1024:
-        #endif
                 break;
+        #endif
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            case WOLFSSL_P256_ML_KEM_512_OLD:
+            case WOLFSSL_P384_ML_KEM_768_OLD:
+            case WOLFSSL_P521_ML_KEM_1024_OLD:
+                break;
+#endif
     #elif defined(HAVE_LIBOQS)
         case WOLFSSL_ML_KEM_512:
         case WOLFSSL_ML_KEM_768:
@@ -4619,6 +4625,7 @@ static int TLSX_IsGroupSupported(int namedGroup)
             }
             break;
         }
+
         case WOLFSSL_P256_ML_KEM_512:
         case WOLFSSL_P384_ML_KEM_768:
         case WOLFSSL_P256_ML_KEM_768:
@@ -5876,6 +5883,23 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
                                                                           heap);
         if (ret != 0)
             return ret;
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        if (name == WOLFSSL_P256_ML_KEM_512) {
+            ret = TLSX_SupportedCurve_Append((SupportedCurve*)extension->data,
+                WOLFSSL_P256_ML_KEM_512_OLD, heap);
+        }
+        else if (name == WOLFSSL_P384_ML_KEM_768) {
+            ret = TLSX_SupportedCurve_Append((SupportedCurve*)extension->data,
+                WOLFSSL_P384_ML_KEM_768_OLD, heap);
+        }
+        else if (name == WOLFSSL_P521_ML_KEM_1024) {
+            ret = TLSX_SupportedCurve_Append((SupportedCurve*)extension->data,
+                WOLFSSL_P521_ML_KEM_1024_OLD, heap);
+        }
+        if (ret != 0) {
+            return ret;
+        }
+#endif
     }
 
     return WOLFSSL_SUCCESS;
@@ -8446,6 +8470,11 @@ static const PqcHybridMapping pqc_hybrid_mapping[] = {
     {WOLFSSL_P256_ML_KEM_768, WOLFSSL_ECC_SECP256R1, WOLFSSL_ML_KEM_768, 0},
     {WOLFSSL_P521_ML_KEM_1024, WOLFSSL_ECC_SECP521R1, WOLFSSL_ML_KEM_1024, 0},
     {WOLFSSL_P384_ML_KEM_1024, WOLFSSL_ECC_SECP384R1, WOLFSSL_ML_KEM_1024, 0},
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+    {WOLFSSL_P256_ML_KEM_512_OLD, WOLFSSL_ECC_SECP256R1, WOLFSSL_ML_KEM_512, 0},
+    {WOLFSSL_P384_ML_KEM_768_OLD, WOLFSSL_ECC_SECP384R1, WOLFSSL_ML_KEM_768, 0},
+    {WOLFSSL_P521_ML_KEM_1024_OLD, WOLFSSL_ECC_SECP521R1, WOLFSSL_ML_KEM_1024, 0},
+#endif
 #ifdef HAVE_CURVE25519
     {WOLFSSL_X25519_ML_KEM_512, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_512, 1},
     {WOLFSSL_X25519_ML_KEM_768, WOLFSSL_ECC_X25519, WOLFSSL_ML_KEM_768, 1},
@@ -10551,6 +10580,18 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     /* Try to find the key share entry with this group. */
     keyShareEntry = (KeyShareEntry*)extension->data;
     while (keyShareEntry != NULL) {
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        if ((group == WOLFSSL_P256_ML_KEM_512_OLD &&
+                keyShareEntry->group == WOLFSSL_P256_ML_KEM_512) ||
+            (group == WOLFSSL_P384_ML_KEM_768_OLD &&
+                keyShareEntry->group == WOLFSSL_P384_ML_KEM_768) ||
+            (group == WOLFSSL_P521_ML_KEM_1024_OLD &&
+                keyShareEntry->group == WOLFSSL_P521_ML_KEM_1024)) {
+            keyShareEntry->group = group;
+            break;
+        }
+        else
+#endif
         if (keyShareEntry->group == group)
             break;
         keyShareEntry = keyShareEntry->next;
@@ -10788,9 +10829,20 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
           return WOLFSSL_FATAL_ERROR;
 #endif
 
-    for (i = 0; i < numGroups; i++)
+    for (i = 0; i < numGroups; i++) {
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        if ((group == WOLFSSL_P256_ML_KEM_512_OLD &&
+             groups[i] == WOLFSSL_P256_ML_KEM_512) ||
+            (group == WOLFSSL_P384_ML_KEM_768_OLD &&
+             groups[i] == WOLFSSL_P384_ML_KEM_768) ||
+            (group == WOLFSSL_P521_ML_KEM_1024_OLD &&
+             groups[i] == WOLFSSL_P521_ML_KEM_1024)) {
+            return i;
+        }
+#endif
         if (groups[i] == (word16)group)
             return i;
+    }
 
     return WOLFSSL_FATAL_ERROR;
 }
