@@ -27090,6 +27090,7 @@ void SetErrorString(int error, char* str)
     #endif
 #endif /* NO_CIPHER_SUITE_ALIASES */
 
+#ifndef NO_TLS
 static const CipherSuiteInfo cipher_names[] =
 {
 
@@ -27569,6 +27570,14 @@ static const CipherSuiteInfo cipher_names[] =
 #endif /* WOLFSSL_NO_TLS12 */
 };
 
+#else /* NO_TLS */
+
+static const CipherSuiteInfo cipher_names[] =
+{
+    SUITE_INFO("NO-TLS","NO-TLS", 0, 0, 0, 0),
+};
+
+#endif /* NO_TLS */
 
 /* returns the cipher_names array */
 const CipherSuiteInfo* GetCipherNames(void)
@@ -27580,7 +27589,11 @@ const CipherSuiteInfo* GetCipherNames(void)
 /* returns the number of elements in the cipher_names array */
 int GetCipherNamesSize(void)
 {
+#ifdef NO_TLS
+    return 0;
+#else
     return (int)(sizeof(cipher_names) / sizeof(CipherSuiteInfo));
+#endif
 }
 
 
