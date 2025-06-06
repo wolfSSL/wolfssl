@@ -572,21 +572,39 @@ WOLFSSL_API int wc_tsip_generateVerifyData(
         const uint8_t*  side,
         const uint8_t*  handshake_hash,
         uint8_t*        hashes);
+
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
 WOLFSSL_API int wc_tsip_AesCbcEncrypt(
-        Aes* aes,
+        struct Aes* aes,
         byte*       out,
         const byte* in,
         word32      sz);
 
 WOLFSSL_API int wc_tsip_AesCbcDecrypt(
-        Aes* aes,
+        struct Aes* aes,
+        byte*       out,
+        const byte* in,
+        word32      sz);
+#endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_COUNTER
+WOLFSSL_API int wc_tsip_AesCtrEncrypt(
+        struct Aes*,
         byte*       out,
         const byte* in,
         word32      sz);
 
+WOLFSSL_API int wc_tsip_AesCtrDecrypt(
+        struct Aes* aes,
+        byte*       out,
+        const byte* in,
+        word32      sz);
+#endif /* WOLFSSL_AES_COUNTER */
+
+#ifdef HAVE_AESGCM
 WOLFSSL_API int wc_tsip_AesGcmEncrypt(
-        Aes* aes, byte* out,
+        struct Aes* aes, byte* out,
         const byte* in, word32 sz,
               byte* iv, word32 ivSz,
               byte* authTag, word32 authTagSz,
@@ -594,13 +612,15 @@ WOLFSSL_API int wc_tsip_AesGcmEncrypt(
         void* ctx);
 
 WOLFSSL_API int wc_tsip_AesGcmDecrypt(
-        Aes* aes, byte* out,
+        struct Aes* aes, byte* out,
         const byte* in, word32 sz,
         const byte* iv, word32 ivSz,
         const byte* authTag, word32 authTagSz,
         const byte* authIn, word32 authInSz,
         void* ctx);
-#endif /* NO_AES */
+#endif /* HAVE_AESGCM */
+#endif /* !NO_AES */
+
 WOLFSSL_API int wc_tsip_ShaXHmacVerify(
         const struct WOLFSSL *ssl,
         const byte* message,
