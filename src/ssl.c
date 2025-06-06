@@ -12955,7 +12955,12 @@ cleanup:
         if (str->certs != NULL) {
             while (wolfSSL_sk_X509_num(str->certs) > 0) {
                 x = wolfSSL_sk_X509_pop(str->certs);
-                X509StoreAddCa(str, x, WOLFSSL_USER_CA);
+                int ret = X509StoreAddCa(str, x, WOLFSSL_USER_CA);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error adding CA certificate to store");
+                    wolfSSL_X509_free(x); /* Free the certificate to avoid memory leaks */
+                    break; /* Exit the loop on failure */
+                }
             }
             wolfSSL_sk_X509_pop_free(str->certs, NULL);
             str->certs = NULL;
