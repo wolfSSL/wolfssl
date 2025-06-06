@@ -7680,9 +7680,8 @@ end:
     XFCLOSE(fp);
     return WS_RETURN_CODE(ret, (int)WOLFSSL_FAILURE);
 #else
-    (void)lookup;
+    (void)store;
     (void)file;
-    (void)type;
     return WS_RETURN_CODE(WOLFSSL_FAILURE,WOLFSSL_FAILURE);
 #endif
 }
