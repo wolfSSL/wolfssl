@@ -90,6 +90,16 @@ extern "C" {
 #define WOLFSSL_X509_VERIFY_CALLBACK (void *, WOLFSSL_X509 *, int, uint32_t *)
 #include <wolfssl/ssl.h>
 
+#if defined(CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE) || \
+    defined(       WOLFSSL_DEBUG_CERT_BUNDLE)
+    /* Default WOLFSSL_MAX_ERROR_SZ assigned in settings.h or user_settings.h */
+    extern char last_esp_crt_bundle_error[WOLFSSL_MAX_ERROR_SZ];
+    #define SHOW_WOLFSSL_BUNDLE_ERROR(THIS_ERR)              \
+    {                                                        \
+        wc_ErrorString(THIS_ERR, last_esp_crt_bundle_error); \
+        ESP_LOGE(TAG,"%s", last_esp_crt_bundle_error);       \
+    }
+#endif
 typedef struct wolfssl_ssl_config wolfssl_ssl_config;
 
 struct wolfssl_ssl_config

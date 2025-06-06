@@ -130,6 +130,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_deprecated.pem \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/esp_crt_bundle.c \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/gen_crt_bundle.py \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/pio_install_cryptography.py \
               wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_local.pem \
               wolfcrypt/src/port/Espressif/README.md \
               wolfcrypt/src/port/arm/cryptoCell.c \
