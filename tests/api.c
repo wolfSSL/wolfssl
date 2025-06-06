@@ -19697,10 +19697,12 @@ static int test_wolfSSL_i2c_ASN1_INTEGER(void)
     ExpectNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
-    ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
-    ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
-    tpp--;
-    ExpectIntEQ(*tpp, 40);
+    if (tpp != NULL) {
+        ExpectNotNull(XMEMSET(tpp, 0, ret + 1));
+        ExpectIntEQ(i2c_ASN1_INTEGER(a, &tpp), 1);
+        tpp--;
+        ExpectIntEQ(*tpp, 40);
+    }
     XFREE(pp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     pp = NULL;
 
@@ -40473,7 +40475,6 @@ static int test_wolfSSL_OPENSSL_hexstr2buf(void)
             ExpectIntEQ(expectedOutputs[i].buffer[j], returnedBuf[j]);
         }
         OPENSSL_free(returnedBuf);
-        returnedBuf = NULL;
     }
 #endif
     return EXPECT_RESULT();
