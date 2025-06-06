@@ -524,6 +524,9 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_SILABS_SE_ACCEL
         ret = sl_se_deinit();
     #endif
+    #if defined(WOLFSSL_TROPIC01)
+        Tropic01_Deinit();
+    #endif
     #if defined(WOLFSSL_RENESAS_TSIP)
         tsip_Close();
     #endif
