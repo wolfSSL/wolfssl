@@ -28989,7 +28989,7 @@ static int test_wolfSSL_X509_STORE_load_multiple_certs(void)
     /* Count X509 certificate objects in store */
     ExpectNotNull(objs = X509_STORE_get0_objects(store));
     for (i = 0; i < sk_X509_OBJECT_num(objs) && EXPECT_SUCCESS(); i++) {
-        X509_OBJECT *obj = sk_X509_OBJECT_value(objs, i);
+        X509_OBJECT *obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
         if (obj && X509_OBJECT_get_type(obj) == X509_LU_X509) {
             cert_count++;
         }
