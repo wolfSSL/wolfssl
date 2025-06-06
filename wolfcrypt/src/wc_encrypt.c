@@ -512,8 +512,10 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         switch (version) {
     #ifndef NO_HMAC
             case PKCS5v2:
+                PRIVATE_KEY_UNLOCK();
                 ret = wc_PBKDF2(key, (byte*)password, passwordSz,
                                 salt, saltSz, iterations, (int)derivedLen, typeH);
+                PRIVATE_KEY_LOCK();
                 break;
     #endif
     #ifndef NO_SHA
