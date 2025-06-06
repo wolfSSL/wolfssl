@@ -853,13 +853,18 @@
     #ifndef NO_RSA
         #define ESP32_USE_RSA_PRIMITIVE
 
-        #if defined(CONFIG_IDF_TARGET_ESP32)
-            #ifdef CONFIG_ESP_MAIN_TASK_STACK_SIZE
+        #ifdef CONFIG_ESP_MAIN_TASK_STACK_SIZE
+            /* See idf.py menuconfig for stack warning settings */
+            #if !defined(CONFIG_ESP_WOLFSSL_NO_STACK_SIZE_BUILD_WARNING)
                 #if CONFIG_ESP_MAIN_TASK_STACK_SIZE < 10500
-                    #warning "RSA may be difficult with less than 10KB Stack "/
+                    #warning "RSA may be difficult with less than 10KB Stack"
                 #endif
+            #else
+                /* Implement your own stack warning here */
             #endif
+        #endif
 
+        #if defined(CONFIG_IDF_TARGET_ESP32)
             /* NOTE HW unreliable for small values! */
             /* threshold for performance adjustment for HW primitive use   */
             /* X bits of G^X mod P greater than                            */

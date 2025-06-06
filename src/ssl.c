@@ -6155,6 +6155,12 @@ int wolfSSL_Init(void)
 
     WOLFSSL_ENTER("wolfSSL_Init");
 
+#if defined(LIBWOLFSSL_CMAKE_OUTPUT)
+    WOLFSSL_MSG(LIBWOLFSSL_CMAKE_OUTPUT);
+#else
+    WOLFSSL_MSG("No extra wolfSSL cmake messages found");
+#endif
+
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     if (inits_count_mutex_valid == 0) {
     #if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
