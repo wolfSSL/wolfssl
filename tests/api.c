@@ -325,6 +325,7 @@
 #include <tests/api/test_evp.h>
 #include <tests/api/test_tls_ext.h>
 #include <tests/api/test_tls.h>
+#include <tests/api/test_x509.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -697,6 +698,34 @@ static int test_fileAccess(void)
     ExpectIntEQ(XMEMCMP(server_cert_der_2048, buff, sz), 0);
     XFREE(buff, NULL, DYNAMIC_TYPE_FILE);
     XFCLOSE(f);
+#endif
+    return EXPECT_RESULT();
+}
+static int test_wc_FreeCertList(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS12) && !defined(NO_ASN) && \
+!defined(NO_PWDBASED) && !defined(NO_HMAC) && !defined(NO_CERTS) && \
+defined(USE_CERT_BUFFERS_2048)
+    WC_DerCertList* list = NULL;
+    void* heap = NULL;
+    /* Test freeing a list with a single node */
+    list = (WC_DerCertList*)XMALLOC(sizeof(WC_DerCertList),
+            heap, DYNAMIC_TYPE_PKCS);
+    ExpectNotNull(list);
+    if (list != NULL) {
+        list->buffer = (byte*)XMALLOC(10, heap, DYNAMIC_TYPE_PKCS);
+        ExpectNotNull(list->buffer);
+        if (list->buffer != NULL) {
+            list->bufferSz = 10;
+            list->next = NULL;
+            wc_FreeCertList(list, heap);
+        }
+        else {
+            XFREE(list, heap, DYNAMIC_TYPE_PKCS);
+            list = NULL;
+        }
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -5498,6 +5527,57 @@ static int test_wolfSSL_CTX_SetTmpDH_buffer(void)
                 WOLFSSL_FILETYPE_ASN1));
 
     wolfSSL_CTX_free(ctx);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wc_DhSetNamedKey(void)
+{
+    EXPECT_DECLS;
+#if !defined(HAVE_SELFTEST) && !defined(NO_DH) && \
+    !defined(WOLFSSL_NO_MALLOC) && defined(HAVE_FFDHE) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+    DhKey *key = NULL;
+    key = (DhKey*)XMALLOC(sizeof(DhKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    if (key != NULL){
+        #ifdef HAVE_FFDHE_2048
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_2048), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_2048), 29);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_3072
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_3072), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_3072), 34);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_4096
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_4096), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_4096), 39);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_6144
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_6144), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_6144), 46);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        #ifdef HAVE_FFDHE_8192
+        if (wc_InitDhKey_ex(key, HEAP_HINT, INVALID_DEVID) == 0){
+            ExpectIntEQ(wc_DhSetNamedKey(key, WC_FFDHE_8192), 0);
+            ExpectIntEQ(wc_DhGetNamedKeyMinSize(WC_FFDHE_8192), 52);
+            wc_FreeDhKey(key);
+        }
+        #endif
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -45925,7 +46005,8 @@ static int test_MakeCertWith0Ser(void)
 
     wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
 
-#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON)
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON) && \
+    !defined(WOLFSSL_ASN_ALLOW_0_SERIAL)
     ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
 #else
@@ -67029,6 +67110,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LoadStaticMemory_ex),
     TEST_DECL(test_wc_LoadStaticMemory_CTX),
 
+    TEST_DECL(test_wc_FreeCertList),
     /* Locking with Compat Mutex */
     TEST_DECL(test_wc_SetMutexCb),
     TEST_DECL(test_wc_LockMutex_ex),
@@ -67129,6 +67211,8 @@ TEST_CASE testCases[] = {
     TEST_MLDSA_DECLS,
     /* Signature API */
     TEST_SIGNATURE_DECLS,
+    /* x509 */
+    TEST_X509_DECLS,
 
     /* PEM and DER APIs. */
     TEST_DECL(test_wc_PemToDer),
@@ -68185,6 +68269,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_certid_enc_dec),
     TEST_DECL(test_tls12_unexpected_ccs),
     TEST_DECL(test_tls13_unexpected_ccs),
+    TEST_DECL(test_wc_DhSetNamedKey),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

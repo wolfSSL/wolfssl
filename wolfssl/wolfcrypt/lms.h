@@ -31,6 +31,9 @@
 
 #ifdef WOLFSSL_HAVE_LMS
 
+/* Length of the Key ID. */
+#define WC_LMS_I_LEN    16
+
 typedef struct LmsKey LmsKey;
 
 /* Private key write and read callbacks. */
@@ -187,6 +190,8 @@ WOLFSSL_API int  wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
 WOLFSSL_API const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm);
 WOLFSSL_API const char * wc_LmsKey_RcToStr(enum wc_LmsRc lmsRc);
 
+WOLFSSL_API int wc_LmsKey_GetKid(LmsKey * key, const byte ** kid,
+    word32* kidSz);
 WOLFSSL_API const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv,
     word32 privSz);
 #ifdef __cplusplus

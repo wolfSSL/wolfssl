@@ -5322,10 +5322,10 @@ static void _sp_copy(const sp_int* a, sp_int* r)
         XMEMCPY(r->dp, a->dp, a->used * (word32)SP_WORD_SIZEOF);
     }
     /* Set number of used words in result. */
-    r->used = a->used;
+    r->used = a->used;/* // NOLINT(clang-analyzer-core.uninitialized.Assign) */
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /* Set sign of result. */
-    r->sign = a->sign;
+    r->sign = a->sign;/* // NOLINT(clang-analyzer-core.uninitialized.Assign) */
 #endif
 }
 

@@ -181,10 +181,15 @@ int set_fixed_default_time(void)
 {
     /* ideally, we'd like to set time from network,
      * but let's set a default time, just in case */
+
+    ESP_LOGV(TAG, "Default Date %s", __DATE__);
+    ESP_LOGV(TAG, "YEAR %d", YEAR);
+    ESP_LOGV(TAG, "MONTH %d", MONTH);
+    ESP_LOGV(TAG, "DAY %d", DAY);
     struct tm timeinfo = {
-        .tm_year = YEAR,
-        .tm_mon  = MONTH, /* Month, where 0 = Jan */
-        .tm_mday = DAY,   /* Numeric decimal day of the month */
+        .tm_year = YEAR  - 1900, /* years since 1900                 */
+        .tm_mon  = MONTH - 1,    /* Month, where 0 = Jan             */
+        .tm_mday = DAY   - 1,    /* Numeric decimal day of the month */
         .tm_hour = 13,
         .tm_min  =  1,
         .tm_sec  =  5

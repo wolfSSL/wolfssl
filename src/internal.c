@@ -213,7 +213,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type, byte* additional,
 #include <Security/SecCertificate.h>
 #include <Security/SecTrust.h>
 #include <Security/SecPolicy.h>
-static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
+static int DoAppleNativeCertValidation(WOLFSSL* ssl, const WOLFSSL_BUFFER_INFO* certs,
                                             int totalCerts);
 #endif /* #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
@@ -16809,8 +16809,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             /* If we can't validate the peer cert chain against the CAs loaded
              * into wolfSSL, try to validate against the system certificates
              * using Apple's native trust APIs */
-            if ((ret != 0) && (ssl->ctx->doAppleNativeCertValidationFlag)) {
-                if (DoAppleNativeCertValidation(args->certs,
+            if ((ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) &&
+                (ssl->ctx->doAppleNativeCertValidationFlag)) {
+                if (DoAppleNativeCertValidation(ssl, args->certs,
                                                      args->totalCerts)) {
                     WOLFSSL_MSG("Apple native cert chain validation SUCCESS");
                     ret = 0;
@@ -27089,6 +27090,7 @@ void SetErrorString(int error, char* str)
     #endif
 #endif /* NO_CIPHER_SUITE_ALIASES */
 
+#ifndef NO_TLS
 static const CipherSuiteInfo cipher_names[] =
 {
 
@@ -27568,6 +27570,14 @@ static const CipherSuiteInfo cipher_names[] =
 #endif /* WOLFSSL_NO_TLS12 */
 };
 
+#else /* NO_TLS */
+
+static const CipherSuiteInfo cipher_names[] =
+{
+    SUITE_INFO("NO-TLS","NO-TLS", 0, 0, 0, 0),
+};
+
+#endif /* NO_TLS */
 
 /* returns the cipher_names array */
 const CipherSuiteInfo* GetCipherNames(void)
@@ -27579,7 +27589,11 @@ const CipherSuiteInfo* GetCipherNames(void)
 /* returns the number of elements in the cipher_names array */
 int GetCipherNamesSize(void)
 {
+#ifdef NO_TLS
+    return 0;
+#else
     return (int)(sizeof(cipher_names) / sizeof(CipherSuiteInfo));
+#endif
 }
 
 
@@ -42744,7 +42758,8 @@ cleanup:
  * wolfSSL's built-in certificate validation mechanisms anymore. We instead
  * must call into the Security Framework APIs to authenticate peer certificates
  */
-static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
+static int DoAppleNativeCertValidation(WOLFSSL* ssl,
+                                            const WOLFSSL_BUFFER_INFO* certs,
                                             int totalCerts)
 {
     int i;
@@ -42753,7 +42768,8 @@ static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
     CFMutableArrayRef certArray = NULL;
     SecCertificateRef secCert   = NULL;
     SecTrustRef       trust     = NULL;
-    SecPolicyRef      policy    = NULL ;
+    SecPolicyRef      policy    = NULL;
+    CFStringRef       hostname  = NULL;
 
     WOLFSSL_ENTER("DoAppleNativeCertValidation");
 
@@ -42782,7 +42798,18 @@ static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
     }
 
     /* Create trust object for SecCertifiate Ref */
-    policy = SecPolicyCreateSSL(true, NULL);
+    if (ssl->buffers.domainName.buffer &&
+            ssl->buffers.domainName.length > 0) {
+        /* Create policy with specified value to require host name match */
+        hostname = CFStringCreateWithCString(kCFAllocatorDefault,
+                                (const char*)ssl->buffers.domainName.buffer,
+                                 kCFStringEncodingUTF8);
+    }
+    if (hostname != NULL) {
+        policy = SecPolicyCreateSSL(true, hostname);
+    } else {
+        policy = SecPolicyCreateSSL(true, NULL);
+    }
     status = SecTrustCreateWithCertificates(certArray, policy, &trust);
     if (status != errSecSuccess) {
         WOLFSSL_MSG_EX("Error creating trust object, "
@@ -42812,6 +42839,9 @@ cleanup:
     }
     if (policy) {
         CFRelease(policy);
+    }
+    if (hostname) {
+        CFRelease(hostname);
     }
 
     WOLFSSL_LEAVE("DoAppleNativeCertValidation", ret);

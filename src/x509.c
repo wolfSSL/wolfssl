@@ -2349,6 +2349,15 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                             }
                             break;
 
+                        case ASN_IP_TYPE:
+                            if (wolfSSL_ASN1_STRING_set(gn->d.iPAddress,
+                                    dns->name, dns->len) != WOLFSSL_SUCCESS) {
+                                WOLFSSL_MSG("ASN1_STRING_set failed");
+                                goto err;
+                            }
+                            gn->d.iPAddress->type = WOLFSSL_V_ASN1_OCTET_STRING;
+                            break;
+
                         default:
                             if (wolfSSL_ASN1_STRING_set(gn->d.dNSName,
                                     dns->name, dns->len) != WOLFSSL_SUCCESS) {
