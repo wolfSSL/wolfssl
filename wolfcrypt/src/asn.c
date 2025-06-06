@@ -40361,7 +40361,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             if ((oid == AUTH_KEY_OID && seenAuthKey) ||
                 (oid == CRL_NUMBER_OID && seenCrlNum)) {
                 WOLFSSL_MSG("Duplicate CRL extension found");
+                /* Gating !WOLFSSL_NO_ASN_STRICT will allow wolfCLU to have same
+                 * behaviour as OpenSSL */
+#ifndef WOLFSSL_NO_ASN_STRICT
                 ret = ASN_PARSE_E;
+#endif
             }
 
             /* Track this extension if no duplicate found */
