@@ -42,9 +42,14 @@
     #endif
 #endif
 
-#if defined(__APPLE__) && defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
+#if defined(__APPLE__)
+#if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
 #include <Security/SecTrustSettings.h>
-#endif
+#endif /* HAVE_SECURITY_SECTRUSTSETTINGS_H */
+#if WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+#include <CoreFoundation/CoreFoundation.h>
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif /* __APPLE__ */
 
 #endif /* WOLFSSL_SYS_CA_CERTS */
 
@@ -2153,8 +2158,40 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     /* CA certificate to verify with. */
     if (type == CA_TYPE) {
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        word32 derLen;
+        byte* derBuf;
+        if (ctx->doAppleNativeCertValidationFlag == 1) {
+            derLen = der->length;
+            derBuf = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (derBuf == NULL) {
+                return MEMORY_E;
+            }
+            XMEMCPY(derBuf, der->buffer, derLen);
+        }
+        else {
+            (void)derLen;
+            (void)derBuf;
+        }
+#endif
         /* verify CA unless user set to no verify */
         ret = AddCA(ctx->cm, &der, WOLFSSL_USER_CA, verify);
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        if (ret == 1 && ctx->doAppleNativeCertValidationFlag == 1) {
+            WOLFSSL_MSG("Appending CA to cert list for native cert validation test");
+            ret = wolfSSL_TestAppleNativeCertValidation_AppendCA(ctx, derBuf, (int)derLen);
+            if (ret == WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Clearing CA table for native cert validation test");
+                /* Clear the CA table so we can ensure they won't be used for
+                 * verification */
+                ret = wolfSSL_CertManagerUnloadCAs(ctx->cm);
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = 0;
+                }
+            }
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
         if (ret == 1) {
             ret = 0;
         }
@@ -2978,6 +3015,12 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         ret = NOT_COMPILED_IN;
         (void)flags;
 #endif
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    if (ret == 1) {
+        wolfSSL_CTX_load_system_CA_certs(ctx);
+    }
+#endif
     }
 
     return ret;
@@ -3421,6 +3464,12 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         ret = ProcessFile(ctx, file, format, CA_TYPE, NULL, 0, NULL,
             GET_VERIFY_SETTING_CTX(ctx));
     }
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    if (ret == 1) {
+        wolfSSL_CTX_load_system_CA_certs(ctx);
+    }
+#endif
 
     /* Return 1 on success or 0 on failure. */
     return WS_RC(ret);
@@ -3947,6 +3996,12 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
     if (ret == 1) {
         /* Load certificate/s as trusted peer certificate. */
         ret = wolfSSL_CTX_trust_peer_buffer(ctx, in, sz, format);
+    }
+#endif
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    if (ret == 1) {
+        wolfSSL_CTX_load_system_CA_certs(ctx);
     }
 #endif
 
