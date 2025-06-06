@@ -24,10 +24,11 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
+
 #ifdef WOLFSSL_TROPIC01
 
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -60,7 +61,6 @@ static int Tropic01_GetRandom(byte* out, word32 sz)
     ret = lt_random_get(&g_h, out, sz);
     if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to retrieve key, ret=%d", ret);
-        Tropic01_Deinit();
         return WC_HW_E;
     }
 
@@ -82,24 +82,21 @@ static int Tropic01_GenerateKeyED25519(byte* pubkey, int keySlot, word32 sz)
         return BAD_FUNC_ARG;
 
     ret = lt_ecc_key_erase(&g_h, keySlot);
-    if(ret != LT_OK) {
+    if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to erase key, ret=%d", ret);
-        Tropic01_Deinit();
         return WC_HW_E;
     }
 
     ret = lt_ecc_key_generate(&g_h, keySlot, CURVE_ED25519);
-    if(ret != LT_OK) {
+    if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to generate key, ret=%d", ret);
-        Tropic01_Deinit();
         return WC_HW_E;
     }
     lt_ecc_curve_type_t curve = CURVE_ED25519;
     ecc_key_origin_t origin = CURVE_GENERATED;
     ret = lt_ecc_key_read(&g_h, keySlot, pubkey, sz, &curve, &origin);
-    if(ret != LT_OK) {
+    if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: GetKey: Failed to read pub key, ret=%d", ret);
-        Tropic01_Deinit();
         return WC_HW_E;
     }
 
@@ -138,12 +135,11 @@ static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
     /* Retrieve key from TROPIC01 */
 
     rett = lt_r_mem_data_read(&g_h, keySlot, (byte*)aes->key, keySz);
-    if(rett != LT_OK) {
+    if (rett != LT_OK) {
         WOLFSSL_MSG_EX(
             "TROPIC01: Get AES Key: Failed to retrieve key, ret=%d",
             rett
         );
-        Tropic01_Deinit();
         return WC_HW_E;
     }
 
@@ -180,12 +176,11 @@ static int Tropic01_GetKeyECC(byte* ecckey, int keySlot, word32 keySz)
     /* Retrieve key from TROPIC01 */
 
     rett = lt_r_mem_data_read(&g_h, keySlot, (byte*)ecckey, keySz);
-    if(rett != LT_OK) {
+    if (rett != LT_OK) {
         WOLFSSL_MSG_EX(
             "TROPIC01: Get ECC Key: Failed to retrieve key, ret=%d",
             rett
         );
-        Tropic01_Deinit();
         return WC_HW_E;
     }
 
@@ -226,17 +221,18 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             ret = Tropic01_GetRandom(info->seed.seed, info->seed.sz);
             break;
         case WC_ALGO_TYPE_PK:
-#if defined(HAVE_ED25519) && defined(HAVE_ED25519_MAKE_KEY)
+#ifdef HAVE_ED25519
+    #ifdef HAVE_ED25519_MAKE_KEY
         if (info->pk.type == WC_PK_TYPE_ED25519_KEYGEN) {
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 key generation request");
             ret = Tropic01_GenerateKeyED25519(
                 info->pk.ed25519kg.key->p,
                 TROPIC01_ED25519_ECC_SLOT_DEFAULT,
                 info->pk.ed25519kg.size);
-
         }
-        #ifdef HAVE_ED25519_SIGN
-        else if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
+    #endif /* HAVE_ED25519_MAKE_KEY */
+    #ifdef HAVE_ED25519_SIGN
+        if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
 
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 signing request");
             /* retrieve private key from TROPIC01 secure R memory */
@@ -263,9 +259,9 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519sign.key->devId = devId;
         }
-        #endif
-        #ifdef HAVE_ED25519_VERIFY
-        else if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
+    #endif /* HAVE_ED25519_SIGN */
+    #ifdef HAVE_ED25519_VERIFY
+        if (info->pk.type == WC_PK_TYPE_ED25519_VERIFY) {
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 verification request");
             /* retrieve public key from TROPIC01 secure R memory */
             ret = Tropic01_GetKeyECC(
@@ -291,13 +287,13 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.ed25519verify.key->devId = devId;
         }
-        #endif /* HAVE_ED25519_VERIFY */
+    #endif /* HAVE_ED25519_VERIFY */
 #endif /* HAVE_ED25519 */
             break;
         case WC_ALGO_TYPE_CIPHER:
             WOLFSSL_MSG("TROPIC01: CryptoCB: AES request ");
 
-#if !defined(NO_AES) || !defined(NO_DES3)
+#if !defined(NO_AES)
     #ifdef HAVE_AESGCM
             if (info->cipher.type == WC_CIPHER_AES_GCM) {
                 if (info->cipher.enc) {
@@ -410,7 +406,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_AES_CBC */
-#endif /* !NO_AES || !NO_DES3 */
+#endif /* !NO_AES */
             break;
 
         default:
@@ -423,6 +419,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 /* Set TROPIC01 pairing keys */
 int Tropic01_SetPairingKeys(int kIndex, const byte* kPub, const byte* kPriv)
 {
+    int i;
 
     if (kPub == NULL || kPriv == NULL || kIndex < 0 || kIndex > 3) {
         WOLFSSL_MSG_EX("TROPIC01: SetPairingKeys: Invalid arguments");
@@ -433,7 +430,7 @@ int Tropic01_SetPairingKeys(int kIndex, const byte* kPub, const byte* kPriv)
         "TROPIC01: SetPairingKeys: Setting pairing key in slot %d",
         kIndex);
 
-    for (int i = 0; i < TROPIC01_PAIRING_KEY_SIZE; i++) {
+    for (i = 0; i < TROPIC01_PAIRING_KEY_SIZE; i++) {
 
         sh0priv[i] = kPriv[i];
         sh0pub[i] = kPub[i];
@@ -455,12 +452,12 @@ int Tropic01_Init(void)
 
     g_ctx.initialized = 0;
     ret = lt_init(&g_h);
-    if(ret != LT_OK) {
+    if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: lt_init failed with a code %d", ret);
         return WC_HW_E;
     }
     ret = verify_chip_and_start_secure_session(&g_h, sh0priv, sh0pub, pk_index);
-    if(ret != LT_OK) {
+    if (ret != LT_OK) {
         WOLFSSL_MSG_EX("TROPIC01: secure session failed with a code %d", ret);
         lt_deinit(&g_h);
         return WC_HW_E;
@@ -477,7 +474,7 @@ int Tropic01_Deinit(void)
 
     if (g_ctx.initialized) {
         ret = lt_deinit(&g_h);
-        if(ret != LT_OK) {
+        if (ret != LT_OK) {
             WOLFSSL_MSG_EX("TROPIC01: lt_deinit failed with a code %d", ret);
             return WC_HW_E;
         }
