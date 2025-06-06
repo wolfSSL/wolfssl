@@ -36,7 +36,8 @@
 #include <wolfssl/openssl/x509.h>
 #include <wolfssl/openssl/x509v3.h>
 
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 #define HAVE_TEST_X509_RFC2818_VERIFICATION_CALLBACK
 /* callback taken and simplified from
  * include/boost/asio/ssl/impl/rfc2818_verification.ipp

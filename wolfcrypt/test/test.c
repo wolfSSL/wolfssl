@@ -47885,9 +47885,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *        sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
-    if (sig == NULL) {
-        return WC_TEST_RET_ENC_ERRNO;
-    }
 #else
     byte          sig[WC_TEST_LMS_SIG_LEN];
 #endif
@@ -47897,6 +47894,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #endif
 
     WOLFSSL_ENTER("lms_test");
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (sig == NULL) {
+        return WC_TEST_RET_ENC_ERRNO;
+    }
+#endif
 
     XMEMSET(priv, 0, sizeof(priv));
     XMEMSET(old_priv, 0, sizeof(old_priv));
