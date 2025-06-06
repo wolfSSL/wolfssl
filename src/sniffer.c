@@ -6384,10 +6384,31 @@ doPart:
             Trace(GOT_APP_DATA_STR);
             {
                 word32 inOutIdx = 0;
+                int    ivExtra  = 0;
 
                 ret = DoApplicationData(ssl, (byte*)sslFrame, &inOutIdx, SNIFF);
                 if (ret == 0) {
                     ret = ssl->buffers.clearOutputBuffer.length;
+                #ifndef WOLFSSL_AEAD_ONLY
+                    if (ssl->specs.cipher_type == block) {
+                        if (ssl->options.tls1_1)
+                            ivExtra = ssl->specs.block_size;
+                    }
+                    else
+                #endif
+                    if (ssl->specs.cipher_type == aead) {
+                        if (!ssl->options.tls1_3 &&
+                            ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
+                            ivExtra = AESGCM_EXP_IV_SZ;
+                    }
+
+                    ret -= ivExtra;;
+
+                #if defined(HAVE_ENCRYPT_THEN_MAC) && \
+                    !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.startedETMRead)
+                        ret -= MacSize(ssl);
+                #endif
                     TraceGotData(ret);
                     if (ret) {  /* may be blank message */
                         if (data != NULL) {
