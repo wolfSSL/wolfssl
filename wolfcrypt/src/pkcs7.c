@@ -6652,7 +6652,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
                     if ((ret < 0 && ret != SIG_VERIFY_E) || ret == 0) {
                         /* Error that is not related to signature verification
-                        occured or the correct signer is found. */
+                        occurred or the correct signer is found. */
                         break;
                     } else if (idx == pkiMsg2Sz) {
                         hasNextSignerInfo = 0;
