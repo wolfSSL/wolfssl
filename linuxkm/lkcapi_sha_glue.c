@@ -971,18 +971,17 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
-    int my_cpu =
-        raw_smp_processor_id(); /* Note, core is not locked, so the actual core
-                                 * ID may change while executing, hence the
-                                 * mutex.
-                                 * The mutex is also needed to coordinate with
-                                 * wc_linuxkm_drbg_seed(), which seeds all
-                                 * instances.
-                                 */
+    /* Note, core is not locked, so the actual core ID may change while
+     * executing, hence the mutex.
+     * The mutex is also needed to coordinate with wc_linuxkm_drbg_seed(), which
+     * seeds all instances.
+     */
+    int my_cpu = raw_smp_processor_id();
     wolfSSL_Mutex *lock = &ctx->rngs[my_cpu].lock;
     WC_RNG *rng = &ctx->rngs[my_cpu].rng;
 
-    wc_LockMutex(lock);
+    if (wc_LockMutex(lock) != 0)
+        return -EINVAL;
 
     if (slen > 0) {
         ret = wc_RNG_DRBG_Reseed(rng, src, slen);
@@ -1029,7 +1028,8 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
         seed_copy[0] = (u8)(i >> 8);
         seed_copy[1] = (u8)i;
 
-        wc_LockMutex(lock);
+        if (wc_LockMutex(lock) != 0)
+            return -EINVAL;
 
         ret = wc_RNG_DRBG_Reseed(rng, seed_copy, slen + 2);
         if (ret != 0) {
