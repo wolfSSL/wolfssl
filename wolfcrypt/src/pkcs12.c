@@ -1829,7 +1829,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
         /* Need to handle PKCS#5v1/v2 (=non-PKCS#12v1) encryptions */
         if (vAlgo == PBE_SHA1_DES) {
             vPKCS = PKCS5;
-            vAlgo = 10;
+            vAlgo = PBES1_SHA1_DES;
         }
         else if (vAlgo == PBE_AES256_CBC) {
             vPKCS = PKCS5;
@@ -2112,6 +2112,10 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         word32 outerSz = 0;
 
         /* Need to handle PKCS#5v1/v2 (=non-PKCS#12v1) encryptions */
+        if (vAlgo == PBE_SHA1_DES) {
+           vPKCS = PKCS5;
+           vAlgo = PBES1_SHA1_DES;
+        }
         if (vAlgo == PBE_AES256_CBC) {
             vPKCS = PKCS5;
             vAlgo = PBES2;
