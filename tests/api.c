@@ -19070,6 +19070,9 @@ static int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_DES3) && !defined(NO_SHA)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES, PBE_SHA1_DES));
+#endif
+#if !defined(NO_DES3) && !defined(NO_SHA)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
