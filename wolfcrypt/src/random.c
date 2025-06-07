@@ -647,7 +647,14 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_NEED_RESEED;
     }
     else {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+        byte* digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
+            DYNAMIC_TYPE_DIGEST);
+        if (digest == NULL)
+            return DRBG_FAILURE;
+    #else
         byte digest[WC_SHA256_DIGEST_SIZE];
+    #endif
 
         type = drbgGenerateH;
         reseedCtr = drbg->reseedCtr;
@@ -685,6 +692,9 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+        XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
+    #endif
     }
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
