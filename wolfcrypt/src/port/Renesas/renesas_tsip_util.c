@@ -3852,8 +3852,8 @@ int tsip_VerifyRsaPkcsCb(
     if (ret == 0) {
         sigData.pdata       = (uint8_t*)sig;
         sigData.data_length = sigSz;
-        /* Since TSIP driver handls ANS.1 internally 
-         * expcted data is raw hash 
+        /* Since TSITP driver handles ASN.1 internally,
+         * the expected data is raw hash.
          */
         hashData.pdata      = (uint8_t*)ssl->buffers.digest.buffer;
         hashData.data_type  = 1;  /* hash value */
