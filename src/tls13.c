@@ -1647,16 +1647,18 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
                     epochNumber = ssl->dtls13PeerEpoch;
                 }
                 else {
-                    return BAD_STATE_E;
+                    ret = BAD_STATE_E;
+                    goto end;
                 }
                 w64Increment(&epochNumber);
                 break;
             default:
-                return BAD_STATE_E;
+                ret = BAD_STATE_E;
+                goto end;
         }
         ret = Dtls13NewEpoch(ssl, epochNumber, side);
         if (ret != 0)
-            return ret;
+            goto end;
     }
 
 #endif /* WOLFSSL_DTLS13 */
