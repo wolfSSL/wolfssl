@@ -15591,6 +15591,10 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "ML_KEM_512";
         case WOLFSSL_P256_ML_KEM_512:
             return "P256_ML_KEM_512";
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        case WOLFSSL_P256_ML_KEM_512_OLD:
+            return "P256_ML_KEM_512_OLD";
+#endif
         #ifdef HAVE_CURVE25519
         case WOLFSSL_X25519_ML_KEM_512:
             return "X25519_ML_KEM_512";
@@ -15601,6 +15605,10 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "ML_KEM_768";
         case WOLFSSL_P384_ML_KEM_768:
             return "P384_ML_KEM_768";
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        case WOLFSSL_P384_ML_KEM_768_OLD:
+            return "P384_ML_KEM_768_OLD";
+#endif
         case WOLFSSL_P256_ML_KEM_768:
             return "P256_ML_KEM_768";
         #ifdef HAVE_CURVE25519
@@ -15617,6 +15625,10 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "ML_KEM_1024";
         case WOLFSSL_P521_ML_KEM_1024:
             return "P521_ML_KEM_1024";
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+        case WOLFSSL_P521_ML_KEM_1024_OLD:
+            return "P521_ML_KEM_1024_OLD";
+#endif
         case WOLFSSL_P384_ML_KEM_1024:
             return "P384_ML_KEM_1024";
     #endif
@@ -26041,11 +26053,25 @@ int wolfSSL_RAND_poll(void)
         return  WOLFSSL_FAILURE;
     }
     ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
-    if (ret != 0){
+    if (ret != 0) {
         WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         ret = WOLFSSL_FAILURE;
-    }else
-        ret = WOLFSSL_SUCCESS;
+    }
+    else {
+#ifdef HAVE_HASHDRBG
+        ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
+        if (ret != 0) {
+            WOLFSSL_MSG("Error reseeding DRBG");
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+        }
+#else
+        WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
+        ret = WOLFSSL_FAILURE;
+#endif
+    }
 
     return ret;
 }

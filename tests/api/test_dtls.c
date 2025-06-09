@@ -598,6 +598,55 @@ int test_wolfSSL_dtls_cid_parse(void)
     return EXPECT_RESULT();
 }
 
+int test_wolfSSL_dtls_set_pending_peer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char peer[10];
+    unsigned int peerSz;
+    unsigned char readBuf[10];
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLS_client_method, wolfDTLS_server_method), 0);
+
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid,
+            sizeof(server_cid)), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+    ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid,
+            sizeof(client_cid)), 1);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    peerSz = sizeof(peer);
+    /* Fail since no peer set */
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_s, peer, &peerSz), 0);
+    ExpectIntEQ(wolfSSL_dtls_set_pending_peer(ssl_s, (void*)"123", 4), 1);
+    ExpectIntEQ(wolfSSL_write(ssl_c, "test", 5), 5);
+    ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 5);
+    ExpectStrEQ(readBuf, "test");
+    peerSz = sizeof(peer);
+    ExpectIntEQ(wolfSSL_dtls_get_peer(ssl_s, peer, &peerSz), 1);
+    ExpectIntEQ(peerSz, 4);
+    ExpectStrEQ(peer, "123");
+
+    wolfSSL_free(ssl_s);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls13_epochs(void) {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS13) && !defined(NO_WOLFSSL_CLIENT)
