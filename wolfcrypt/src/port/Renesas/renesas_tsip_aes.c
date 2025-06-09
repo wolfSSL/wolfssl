@@ -36,7 +36,9 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
 #include <wolfssl/internal.h>
+#endif
 #include <wolfssl/wolfcrypt/aes.h>
 #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #ifdef NO_INLINE
@@ -381,24 +383,25 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
 #if (WOLFSSL_RENESAS_TSIP_VER >= 109)
 #ifdef WOLF_CRYPTO_CB
 
-WOLFSSL_LOCAL int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info,
-                                                                    void* ctx)
+int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
 
     WOLFSSL_ENTER("wc_tsip_AesCipher");
 
-    if (info == NULL || ctx == NULL)
+    if (info == NULL || ctx == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    (void)devIdArg;
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-
-#if !defined(NO_AES) || !defined(NO_DES3)
+#if !defined(NO_AES)
 #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo->session_key_set == 1
+            && cbInfo != NULL && cbInfo->session_key_set == 1
         #endif
             ) {
 
@@ -433,10 +436,26 @@ WOLFSSL_LOCAL int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info,
             }
         }
     #endif /* HAVE_AESGCM */
+
+    #ifdef WOLFSSL_AES_COUNTER
+        if (info->cipher.type == WC_CIPHER_AES_CTR
+        #ifdef WOLFSSL_RENESAS_TSIP_TLS
+            && cbInfo != NULL && cbInfo->session_key_set == 1
+        #endif
+            ) {
+            /* encrypt and decrypt use same routine */
+            ret = wc_tsip_AesCtr(
+                info->cipher.aesctr.aes,
+                (byte*)info->cipher.aesctr.out,
+                (byte*)info->cipher.aesctr.in,
+                info->cipher.aesctr.sz);
+        }
+    #endif /* WOLFSSL_AES_COUNTER */
+
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo->session_key_set == 1
+            && cbInfo != NULL && cbInfo->session_key_set == 1
         #endif
             ) {
 
@@ -457,7 +476,7 @@ WOLFSSL_LOCAL int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info,
             }
         }
     #endif /* HAVE_AES_CBC */
-    #endif /* !NO_AES || !NO_DES3 */
+    #endif /* !NO_AES */
 
     }
     WOLFSSL_LEAVE("wc_tsip_AesCipher", ret);
@@ -466,8 +485,7 @@ WOLFSSL_LOCAL int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info,
 #endif /* WOLF_CRYPTO_CB */
 #endif /* WOLFSSL_RENESAS_TSIP_VER >= 109 */
 
-
-
+#ifdef HAVE_AES_CBC
 int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
 {
     tsip_aes_handle_t _handle;
@@ -584,6 +602,64 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     tsip_hw_unlock();
     return ret;
 }
+#endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_COUNTER
+int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    tsip_aes_handle_t _handle;
+    int ret;
+    byte *iv;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+      return BAD_FUNC_ARG;
+
+    /* while doing TLS handshake, TSIP driver keeps true-key and iv *
+     * on the device. iv is dummy                                   */
+    iv = (uint8_t*)aes->reg;
+
+    if ((ret = tsip_hw_lock()) != 0) {
+        WOLFSSL_MSG("Failed to lock");
+        return ret;
+    }
+
+    if (aes->ctx.keySize == 16) {
+        ret = R_TSIP_Aes128CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
+    }
+    else if (aes->ctx.keySize == 32) {
+        ret = R_TSIP_Aes256CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
+    }
+    else {
+        tsip_hw_unlock();
+        return -1;
+    }
+
+    if (aes->ctx.keySize == 16)
+        ret = R_TSIP_Aes128CtrUpdate(&_handle, (uint8_t*)in,
+                                (uint8_t*)out, sz);
+    else
+        ret = R_TSIP_Aes256CtrUpdate(&_handle, (uint8_t*)in,
+                                (uint8_t*)out, sz);
+
+    if (ret == TSIP_SUCCESS) {
+        if (aes->ctx.keySize == 16) {
+            ret = R_TSIP_Aes128CtrFinal(&_handle);
+        }
+        else {
+            ret = R_TSIP_Aes256CtrFinal(&_handle);
+        }
+    }
+    else {
+        WOLFSSL_MSG("TSIP AES CTR failed");
+        ret = -1;
+    }
+
+    tsip_hw_unlock();
+    return ret;
+}
+#endif /* WOLFSSL_AES_COUNTER */
+
+#ifdef HAVE_AESGCM
 /*
  * Encrypt plain data then output encrypted data and authentication tag data.
  * The session key used for encryption is generated inside this function and
@@ -975,6 +1051,7 @@ int wc_tsip_AesGcmDecrypt(
     WOLFSSL_LEAVE("wc_tsip_AesGcmDecrypt", ret);
     return ret;
 }
+#endif /* HAVE_AESGCM */
 #endif /* WOLFSSL_RENESAS_TSIP_TLS) || WOLFSSL_RENESAS_TSIP_CRYPTONLY
          && NO_WOLFSSL_RENESAS_TSIP_CRYPT_AES */
 #endif /* NO_AES */
