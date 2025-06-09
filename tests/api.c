@@ -19069,6 +19069,14 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
 static int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
+
+    EXPECT_TEST(test_wc_PKCS12_create_once(-1, -1));
+#if !defined(NO_RC4) && !defined(NO_SHA)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_RC4_128, PBE_SHA1_RC4_128));
+#endif
+#if !defined(NO_DES3) && !defined(NO_SHA)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES, PBE_SHA1_DES));
+#endif
 #if !defined(NO_DES3) && !defined(NO_SHA)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
