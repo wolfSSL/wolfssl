@@ -16149,7 +16149,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
                 /* RFC 8446 4.2.4 states trusted_ca_keys is not used
                    in TLS 1.3. */
                 if (IsAtLeastTLSv1_3(ssl->version)) {
-                    return EXT_NOT_ALLOWED;
+                    break;
                 }
                 else
 #endif
