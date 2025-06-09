@@ -639,13 +639,17 @@ WOLFSSL_API int wc_tsip_Sha256HmacGenerate(
         word32      sz,
         byte*       digest);
 
-WOLFSSL_LOCAL int  tsip_Open();
+WOLFSSL_LOCAL int  tsip_Open(void);
 
-WOLFSSL_LOCAL void tsip_Close();
+WOLFSSL_LOCAL void tsip_Close(void);
 
-WOLFSSL_LOCAL int  tsip_hw_lock();
-
-WOLFSSL_LOCAL void tsip_hw_unlock( void );
+#ifdef SINGLE_THREADED
+#define tsip_hw_lock() 0
+#define tsip_hw_unlock()
+#else
+WOLFSSL_LOCAL int  tsip_hw_lock(void);
+WOLFSSL_LOCAL void tsip_hw_unlock(void);
+#endif
 
 WOLFSSL_LOCAL int  tsip_usable(const struct WOLFSSL *ssl,
                                 uint8_t session_key_generated);
