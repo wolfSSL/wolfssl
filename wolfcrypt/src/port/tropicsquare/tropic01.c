@@ -107,10 +107,10 @@ static int Tropic01_GenerateKeyED25519(byte* pubkey, int keySlot, word32 sz)
 #endif
 
 /*
- * Retrive the AES key from the secure R memory of TROPIC01
+ * Retrieve the AES key from the secure R memory of TROPIC01
  */
 
-static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
+static int Tropic01_GetKeyAES(byte* aesKey, int keySlot, word32 keySz)
 {
 
     lt_ret_t rett;
@@ -119,7 +119,7 @@ static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
         keySlot
     );
 
-    if (aes == NULL || keySlot < 0 || keySlot >= 511)
+    if (aesKey == NULL || keySlot < 0 || keySlot >= 511)
         return BAD_FUNC_ARG;
 
 
@@ -134,7 +134,7 @@ static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
 
     /* Retrieve key from TROPIC01 */
 
-    rett = lt_r_mem_data_read(&g_h, keySlot, (byte*)aes->key, keySz);
+    rett = lt_r_mem_data_read(&g_h, keySlot, aesKey, keySz);
     if (rett != LT_OK) {
         WOLFSSL_MSG_EX(
             "TROPIC01: Get AES Key: Failed to retrieve key, ret=%d",
@@ -149,7 +149,7 @@ static int Tropic01_GetKeyAES(Aes* aes, int keySlot, word32 keySz)
 }
 
 /*
- * Retrive the ECC key from the secure R memory of TROPIC01
+ * Retrieve the ECC key from the secure R memory of TROPIC01
  */
 static int Tropic01_GetKeyECC(byte* ecckey, int keySlot, word32 keySz)
 {
@@ -195,7 +195,8 @@ static int Tropic01_GetKeyECC(byte* ecckey, int keySlot, word32 keySz)
 int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 {
     int ret = CRYPTOCB_UNAVAILABLE;
-
+    byte lt_key[TROPIC01_AES_MAX_KEY_SIZE] = {0};
+    byte lt_iv[TROPIC01_AES_MAX_KEY_SIZE] = {0};
 
     if (info == NULL)
         return BAD_FUNC_ARG;
@@ -296,16 +297,33 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 #if !defined(NO_AES)
     #ifdef HAVE_AESGCM
             if (info->cipher.type == WC_CIPHER_AES_GCM) {
-                if (info->cipher.enc) {
-
-                    ret = Tropic01_GetKeyAES(
-                        info->cipher.aesgcm_enc.aes,
-                        TROPIC01_AES_RMEM_SLOT_DEFAULT,
+                ret = Tropic01_GetKeyAES(
+                        lt_key,
+                        TROPIC01_AES_KEY_RMEM_SLOT,
                         TROPIC01_AES_MAX_KEY_SIZE);
-                    if (ret != 0) {
-                        WOLFSSL_MSG_EX(
+                if (ret != 0) {
+                    WOLFSSL_MSG_EX(
                             "TROPIC01: CryptoCB: Failed to get AES key,ret=%d",
                              ret);
+                    return ret;
+                }
+                ret = Tropic01_GetKeyAES(
+                        lt_iv,
+                        TROPIC01_AES_IV_RMEM_SLOT,
+                        TROPIC01_AES_MAX_KEY_SIZE);
+                if (ret != 0) {
+                    WOLFSSL_MSG_EX(
+                            "TROPIC01: CryptoCB: Failed to get AES IV, ret=%d",
+                             ret);
+                    return ret;
+                }
+                if (info->cipher.enc) {
+                    ret = wc_AesSetKey(info->cipher.aesgcm_enc.aes, lt_key,
+                                WC_AES_BLOCK_SIZE, lt_iv, AES_ENCRYPTION);
+                     if (ret != 0) {
+                        WOLFSSL_MSG_EX(
+                            "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
+                            ret);
                         return ret;
                     }
                     /* set devId to invalid, so software is used */
@@ -327,14 +345,12 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 }
                 else {
 
-                    ret = Tropic01_GetKeyAES(
-                        info->cipher.aesgcm_dec.aes,
-                        TROPIC01_AES_RMEM_SLOT_DEFAULT,
-                        TROPIC01_AES_MAX_KEY_SIZE);
+                    ret = wc_AesSetKey(info->cipher.aesgcm_dec.aes, lt_key,
+                                WC_AES_BLOCK_SIZE, lt_iv, AES_DECRYPTION);
                     if (ret != 0) {
                         WOLFSSL_MSG_EX(
-                            "TROPIC01: CryptoCB: Failed to get AES key,ret=%d",
-                             ret);
+                            "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
+                            ret);
                         return ret;
                     }
                     /* set devId to invalid, so software is used */
@@ -358,15 +374,30 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 #endif /* HAVE_AESGCM */
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC) {
+            ret = Tropic01_GetKeyAES(
+                        lt_key,
+                        TROPIC01_AES_KEY_RMEM_SLOT,
+                        TROPIC01_AES_MAX_KEY_SIZE);
+            if (ret != 0) {
+                WOLFSSL_MSG_EX(
+                    "TROPIC01: CryptoCB: Failed to get AES key,ret=%d", ret);
+                return ret;
+            }
+            ret = Tropic01_GetKeyAES(
+                        lt_iv,
+                        TROPIC01_AES_IV_RMEM_SLOT,
+                        TROPIC01_AES_MAX_KEY_SIZE);
+            if (ret != 0) {
+                WOLFSSL_MSG_EX(
+                    "TROPIC01: CryptoCB: Failed to get AES IV, ret=%d", ret);
+                    return ret;
+                }
             if (info->cipher.enc) {
-
-                ret = Tropic01_GetKeyAES(
-                    info->cipher.aescbc.aes,
-                    TROPIC01_AES_RMEM_SLOT_DEFAULT,
-                    TROPIC01_AES_MAX_KEY_SIZE);
+                ret = wc_AesSetKey(info->cipher.aescbc.aes, lt_key,
+                                WC_AES_BLOCK_SIZE, lt_iv, AES_ENCRYPTION);
                 if (ret != 0) {
                     WOLFSSL_MSG_EX(
-                        "TROPIC01: CryptoCB: Failed to get AES key, ret=%d",
+                        "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
                         ret);
                     return ret;
                 }
@@ -383,14 +414,12 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             }
             else {
 
-                ret = Tropic01_GetKeyAES(
-                    info->cipher.aescbc.aes,
-                    TROPIC01_AES_RMEM_SLOT_DEFAULT,
-                    TROPIC01_AES_MAX_KEY_SIZE);
+                ret = wc_AesSetKey(info->cipher.aescbc.aes, lt_key,
+                                WC_AES_BLOCK_SIZE, lt_iv, AES_DECRYPTION);
                 if (ret != 0) {
                     WOLFSSL_MSG_EX(
-                        "TROPIC01: CryptoCB: Failed to get AES key, ret=%d",
-                         ret);
+                        "TROPIC01: CryptoCB: Failed to set AES key, ret=%d",
+                        ret);
                     return ret;
                 }
                 /* set devId to invalid, so software is used */
