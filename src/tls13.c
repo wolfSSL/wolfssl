@@ -5118,6 +5118,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Force client hello version 1.2 to work for static RSA. */
             ssl->chVersion.minor = TLSv1_2_MINOR;
             ssl->version.minor = TLSv1_2_MINOR;
+            ssl->options.tls1_3 = 0;
 
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {
@@ -5218,6 +5219,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             ssl->chVersion.minor = DTLSv1_2_MINOR;
             ssl->version.minor = DTLSv1_2_MINOR;
+            ssl->options.tls1_3 = 0;
             ret = Dtls13ClientDoDowngrade(ssl);
             if (ret != 0)
                 return ret;
@@ -5231,6 +5233,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;
         }
 #ifndef WOLFSSL_NO_TLS12
+        ssl->options.tls1_3 = 0;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
         SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
