@@ -1,6 +1,6 @@
 # wolfSSL TROPIC01 Secure Element Integration Guide
 
-![wolfSSL+TROPIC01](https://img.shields.io/badge/wolfSSL-TROPIC01-blue) 
+![wolfSSL+TROPIC01](https://img.shields.io/badge/wolfSSL-TROPIC01-blue)
 
 
 Integration guide for using Tropic Square's TROPIC01 secure element with wolfSSL/wolfCrypt cryptography library.
@@ -40,16 +40,16 @@ The TROPIC01 datasheet is available via [this link](https://www.nxp.com/docs/en/
   - Electromagnetic pulse detector
   - Laser detector
   - Active shield
-- **Interface to Host MCU/MPU**: 
+- **Interface to Host MCU/MPU**:
   - SPI
-  - Encrypted channel with forward secrecy 
+  - Encrypted channel with forward secrecy
 - **Entropy Source**:
   - Physically Unclonable Function (PUF)
   - True Random Number Generator (TRNG)
 
-### Available Evaluation and Development Kits 
+### Available Evaluation and Development Kits
 - USB Stick with TROPIC01 ([here](https://github.com/tropicsquare/tropic01?tab=readme-ov-file#usb-stick-with-tropic01))
-- Raspberry PI shield ([here](https://github.com/tropicsquare/tropic01?tab=readme-ov-file#rpi-shield-ts1501)) 
+- Raspberry PI shield ([here](https://github.com/tropicsquare/tropic01?tab=readme-ov-file#rpi-shield-ts1501))
 - Arduino shield ([here](https://github.com/tropicsquare/tropic01?tab=readme-ov-file#arduino-shield-ts14))
 
 ### Get samples
@@ -59,9 +59,9 @@ To get samples and DevKits, please fill in [this form](https://tropicsquare.com/
 
 ### Pre-requirements
 1. Get one of the targeted hardware platforms. For example, Linux PC + TROPIC01 USB stick or Raspberry PI 3/4/5 + TROPIC01 RPI shield
-2. Install toolchain (incl. compiler or cross-compiler). For example,  GNU Toolchain (gcc) or ARM cross-compiling toolchain (armv8-rpi3-linux-gnueabihf) 
-3. Install CMake and Autotools 
-4. Install Git 
+2. Install toolchain (incl. compiler or cross-compiler). For example,  GNU Toolchain (gcc) or ARM cross-compiling toolchain (armv8-rpi3-linux-gnueabihf)
+3. Install CMake and Autotools
+4. Install Git
 
   Some guidelines for RPi are available [here](https://earthly.dev/blog/cross-compiling-raspberry-pi/)
 
@@ -79,8 +79,8 @@ $ sudo apt install wiringpi
 
 For the integration with wolfSSL, there are a few pre-defined slots for the secure keys storage (the slots mapping might be changed in tropic01.h):
 ```sh
-TROPIC01_AES_RMEM_SLOT_DEFAULT 1 // slot in R-memory for AES key 
-TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2 // slot in R-memory for ED25519 Public key  
+TROPIC01_AES_RMEM_SLOT_DEFAULT 1 // slot in R-memory for AES key
+TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2 // slot in R-memory for ED25519 Public key
 TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT 3 //slot in R-memory for ED25519 Private key
 TROPIC01_ED25519_ECC_SLOT_DEFAULT 1 // slot in ECC keys storage for both public and private keys
 PAIRING_KEY_SLOT_INDEX_0 0 //pairing keys slot
@@ -105,10 +105,10 @@ Or run the following commands:
 ### Build wolfSSL
 1. Clone wolfSSL from the wolfSSL GitHub (https://github.com/wolfSSL/wolfssl)
 
-2. Make sure that the version of wolfSSL supports TROPIC01 - check if the folder wolfssl/wolfcrypt/src/port/tropicsquare exists 
+2. Make sure that the version of wolfSSL supports TROPIC01 - check if the folder wolfssl/wolfcrypt/src/port/tropicsquare exists
 
 3. To compile wolfSSL with TROPIC01 support using Autoconf/configure:
-   
+
 ```sh
 $ cd wolfssl
 $ ./autogen.sh
@@ -116,11 +116,11 @@ $ ./configure --with-tropic01=PATH --enable-cryptocb --enable-static --disable-c
 $ make
 $ sudo make install
 ```
-where PATH is an absolute path to the libtropic folder, for example 
+where PATH is an absolute path to the libtropic folder, for example
 
     --with-tropic01=/home/pi/git/libtropic
- 
-For the debugging output, add 
+
+For the debugging output, add
 
     --enable-debug
 
@@ -138,7 +138,7 @@ If necessary, open and edit the Makefile in this folder
 
 Set correct values for CC and LIBTROPIC_DIR variables, for example:
 
-    CC = gcc  
+    CC = gcc
 
     LIBTROPIC_DIR = /home/pi/git/libtropic
 
@@ -181,13 +181,13 @@ Generated 32 random bytes:
 RNG test completed successfully
 
 AES test starting:
-TROPIC01: CryptoCB: AES request 
+TROPIC01: CryptoCB: AES request
 TROPIC01: Get AES Key: Retrieving key from slot 1
 TROPIC01: Get AES Key: Key retrieved successfully
 Plain message:
-01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 
+01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10
 Encrypted message:
-89 44 11 3E 2E 07 52 9C CB 5F B1 70 7E 9C 42 D6 
+89 44 11 3E 2E 07 52 9C CB 5F B1 70 7E 9C 42 D6
 AES test completed successfully
 
 ED25519 COMPREHENSIVE TESTING SUITE
@@ -227,5 +227,5 @@ A73A562B 3D03F429 8706309D 63E2120B
 wolfSSL Entering wolfCrypt_Cleanup
 ```
 
- 
- 
+
+
