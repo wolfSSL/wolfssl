@@ -1335,7 +1335,7 @@ int test_dtls_rtx_across_epoch_change(void)
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
 
-    /* SH */
+    /* HRR */
     wolfSSL_SetLoggingPrefix("server:");
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
@@ -1345,6 +1345,7 @@ int test_dtls_rtx_across_epoch_change(void)
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), SSL_ERROR_WANT_READ);
 
+    /* SH ... FINISHED */
     wolfSSL_SetLoggingPrefix("server:");
     ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), SSL_ERROR_WANT_READ);
@@ -1352,7 +1353,7 @@ int test_dtls_rtx_across_epoch_change(void)
     /* we should have now SH ... FINISHED messages in the buffer*/
     ExpectIntGE(test_ctx.c_msg_count, 2);
 
-    /* now let's drop everything but the SH */
+    /* drop everything but the SH */
     while (test_ctx.c_msg_count > 1 && EXPECT_SUCCESS()) {
         ExpectIntEQ(test_memio_drop_message(&test_ctx, 1, test_ctx.c_msg_count - 1), 0);
     }

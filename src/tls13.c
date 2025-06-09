@@ -1471,9 +1471,6 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     byte  key_dig[MAX_PRF_DIG];
 #endif
     int   provision;
-#ifdef WOLFSSL_DTLS13
-    w64wrapper epochNumber;
-#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     ret = tsip_Tls13DeriveKeys(ssl, secret, side);
@@ -1626,6 +1623,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
       goto end;
 
     if (ssl->options.dtls) {
+        w64wrapper epochNumber;
         ret = Dtls13DeriveSnKeys(ssl, provision);
         if (ret != 0)
             return ret;
@@ -1652,7 +1650,9 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
                     return BAD_STATE_E;
                 }
                 w64Increment(&epochNumber);
-            break;
+                break;
+            default:
+                return BAD_STATE_E;
         }
         ret = Dtls13NewEpoch(ssl, epochNumber, side);
         if (ret != 0)
