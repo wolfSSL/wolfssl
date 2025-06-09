@@ -54,6 +54,7 @@
 
 #ifdef __linux__
 #include <unistd.h>
+#include <sys/wait.h>
 #endif
 
 #include <wolfssl/ssl.h>  /* compatibility layer */
@@ -33180,6 +33181,7 @@ static int test_wolfSSL_RAND_poll(void)
     {
         /* Parent process. */
         word64 childrand64 = 0;
+        int waitstatus = 0;
 
         close(pipefds[1]);
         ExpectIntEQ(RAND_poll(), 1);
@@ -33187,6 +33189,7 @@ static int test_wolfSSL_RAND_poll(void)
         ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)), sizeof(childrand64));
         ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
         close(pipefds[0]);
+        waitpid(pid, &waitstatus, 0);
     }
     RAND_cleanup();
 
