@@ -1626,7 +1626,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
         w64wrapper epochNumber;
         ret = Dtls13DeriveSnKeys(ssl, provision);
         if (ret != 0)
-            return ret;
+            goto end;
 
         switch (secret) {
             case early_data_key:
