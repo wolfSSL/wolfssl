@@ -611,50 +611,56 @@ int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     byte *iv;
 
-    if ((in == NULL) || (out == NULL) || (aes == NULL))
-      return BAD_FUNC_ARG;
-
-    /* while doing TLS handshake, TSIP driver keeps true-key and iv *
-     * on the device. iv is dummy                                   */
-    iv = (uint8_t*)aes->reg;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
 
     if ((ret = tsip_hw_lock()) != 0) {
         WOLFSSL_MSG("Failed to lock");
         return ret;
     }
 
+    /* while doing TLS handshake, TSIP driver keeps true-key and iv *
+     * on the device. iv is dummy                                   */
+    iv = (uint8_t*)aes->reg;
+
     if (aes->ctx.keySize == 16) {
+    #if defined(TSIP_AES_128_CTR) && TSIP_AES_128_CTR == 1
         ret = R_TSIP_Aes128CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
+        if (ret == TSIP_SUCCESS) {
+            ret = R_TSIP_Aes128CtrUpdate(&_handle, (uint8_t*)in,
+                (uint8_t*)out, sz);
+            if (ret == TSIP_SUCCESS) {
+                ret = R_TSIP_Aes128CtrFinal(&_handle);
+            }
+        }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
     }
-    else if (aes->ctx.keySize == 32) {
+    if (aes->ctx.keySize == 32) {
+    #if defined(TSIP_AES_256_CTR) && TSIP_AES_256_CTR == 1
         ret = R_TSIP_Aes256CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
-    }
-    else {
-        tsip_hw_unlock();
-        return -1;
+        if (ret == TSIP_SUCCESS) {
+            ret = R_TSIP_Aes256CtrUpdate(&_handle, (uint8_t*)in,
+                (uint8_t*)out, sz);
+            if (ret == TSIP_SUCCESS) {
+                ret = R_TSIP_Aes256CtrFinal(&_handle);
+            }
+        }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
     }
 
-    if (aes->ctx.keySize == 16)
-        ret = R_TSIP_Aes128CtrUpdate(&_handle, (uint8_t*)in,
-                                (uint8_t*)out, sz);
-    else
-        ret = R_TSIP_Aes256CtrUpdate(&_handle, (uint8_t*)in,
-                                (uint8_t*)out, sz);
-
-    if (ret == TSIP_SUCCESS) {
-        if (aes->ctx.keySize == 16) {
-            ret = R_TSIP_Aes128CtrFinal(&_handle);
-        }
-        else {
-            ret = R_TSIP_Aes256CtrFinal(&_handle);
-        }
-    }
-    else {
+    if (ret != TSIP_SUCCESS) {
+        WOLFSSL_ERROR(ret);
         WOLFSSL_MSG("TSIP AES CTR failed");
         ret = -1;
     }
 
     tsip_hw_unlock();
+
     return ret;
 }
 #endif /* WOLFSSL_AES_COUNTER */
@@ -720,7 +726,7 @@ int wc_tsip_AesGcmEncrypt(
     if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
         WOLFSSL_MSG("illegal key size");
         WOLFSSL_LEAVE("wc_tsip_AesGcmEncrypt", BAD_FUNC_ARG);
-        return  BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
     if (aes->ctx.keySize == 16) {

@@ -72,8 +72,10 @@ extern uint32_t     s_flash[];
 extern uint32_t     s_inst1[R_TSIP_SINST_WORD_SIZE];
 #endif
 
+#ifndef SINGLE_THREADED
 wolfSSL_Mutex       tsip_mutex;
 static int          tsip_CryptHwMutexInit_ = 0;
+#endif
 static tsip_key_data g_user_key_info;
 struct WOLFSSL_HEAP_HINT*  tsip_heap_hint = NULL;
 
@@ -2476,6 +2478,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                 tuc->keyflgs_crypt.bits.eccpub_key_set = 0;
             #endif
                 if (keyType == TSIP_KEY_TYPE_ECDSAP256) {
+                #if defined(TSIP_ECDSA_P256) && TSIP_ECDSA_P256 == 1
                     err = R_TSIP_GenerateEccP256PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2484,8 +2487,12 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                                     &tuc->eccpub_keyIdx
                             #endif
                     );
+                #else
+                    err = NOT_COMPILED_IN;
+                #endif
                 }
                 else if (keyType == TSIP_KEY_TYPE_ECDSAP384) {
+                #if defined(TSIP_ECDSA_P384) && TSIP_ECDSA_P384 == 1
                     err = R_TSIP_GenerateEccP384PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2494,6 +2501,9 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                                     &tuc->eccpub_keyIdx
                             #endif
                     );
+                #else
+                    err = NOT_COMPILED_IN;
+                #endif
                 }
                 if (err == TSIP_SUCCESS) {
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2619,6 +2629,7 @@ int tsip_usable(const WOLFSSL *ssl, uint8_t session_key_generated)
 }
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+#ifndef SINGLE_THREADED
 /*
 * lock hw engine.
 * this should be called before using engine.
@@ -2654,6 +2665,7 @@ void tsip_hw_unlock(void)
 {
     tsip_CryptHwMutexUnLock(&tsip_mutex);
 }
+#endif
 
 /* open TSIP driver
  * return 0 on success.
