@@ -25500,6 +25500,12 @@ static int wolfSSL_RAND_InitMutex(void)
 
 #ifdef OPENSSL_EXTRA
 
+#if defined(HAVE_GETPID) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+/* In older FIPS bundles add check for reseed here since it does not exist in
+ * the older random.c certified files. */
+static pid_t currentRandPid = 0;
+#endif
+
 /* Checks if the global RNG has been created. If not then one is created.
  *
  * Returns WOLFSSL_SUCCESS when no error is encountered.
@@ -25513,8 +25519,8 @@ int wolfSSL_RAND_Init(void)
             ret = wc_InitRng(&globalRNG);
             if (ret == 0) {
             #if defined(HAVE_GETPID) && defined(HAVE_FIPS) && \
-                FIPS_VERSION3_LT(6,0,0)))
-                currentPid = getpid();
+                FIPS_VERSION3_LT(6,0,0)
+                currentRandPid = getpid();
             #endif
                 initGlobalRNG = 1;
                 ret = WOLFSSL_SUCCESS;
@@ -25950,28 +25956,6 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     return ret;
 }
 
-#if defined(HAVE_GETPID) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
-/* In older FIPS bundles add check for reseed here since it does not exist in
- * the older random.c certified files. */
-static pid_t currentPid = 0;
-
-/* returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
-static int RandCheckReSeed()
-{
-    int ret = WOLFSSL_SUCCESS;
-    pid_t p;
-
-    p = getpid();
-    if (p != currentPid) {
-        currentPid = p;
-        if (wolfSSL_RAND_poll() != WOLFSSL_SUCCESS) {
-            ret = WOLFSSL_FAILURE;
-        }
-    }
-    return ret;
-}
-#endif
-
 /* returns WOLFSSL_SUCCESS (1) if the bytes generated are valid otherwise 0
  * on failure */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
@@ -26015,17 +25999,27 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
          * have the lock.
          */
         if (initGlobalRNG) {
-            rng = &globalRNG;
-
         #if defined(HAVE_GETPID) && defined(HAVE_FIPS) && \
-                FIPS_VERSION3_LT(6,0,0)))
-            if (RandCheckReSeed() != WOLFSSL_SUCCESS) {
+                FIPS_VERSION3_LT(6,0,0)
+            pid_t p;
+
+            p = getpid();
+            if (p != currentRandPid) {
                 wc_UnLockMutex(&globalRNGMutex);
-                WOLFSSL_MSG("Issue with check pid and reseed");
-                return ret;
+                if (wolfSSL_RAND_poll() != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Issue with check pid and reseed");
+                    ret = WOLFSSL_FAILURE;
+                }
+
+                /* reclaim lock after wolfSSL_RAND_poll */
+                if (wc_LockMutex(&globalRNGMutex) != 0) {
+                    WOLFSSL_MSG("Bad Lock Mutex rng");
+                    return ret;
+                }
+                currentRandPid = p;
             }
         #endif
-
+            rng = &globalRNG;
             used_global = 1;
         }
         else {
@@ -26101,6 +26095,11 @@ int wolfSSL_RAND_poll(void)
     }
     else {
 #ifdef HAVE_HASHDRBG
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
+            return ret;
+        }
+
         ret = wc_RNG_DRBG_Reseed(&globalRNG, entropy, entropy_sz);
         if (ret != 0) {
             WOLFSSL_MSG("Error reseeding DRBG");
@@ -26109,6 +26108,7 @@ int wolfSSL_RAND_poll(void)
         else {
             ret = WOLFSSL_SUCCESS;
         }
+        wc_UnLockMutex(&globalRNGMutex);
 #else
         WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
         ret = WOLFSSL_FAILURE;
