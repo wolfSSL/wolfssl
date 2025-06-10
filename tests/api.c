@@ -51,6 +51,12 @@
 #endif
 
 #include <stdlib.h>
+
+#ifdef __linux__
+#include <unistd.h>
+#include <sys/wait.h>
+#endif
+
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/error-ssl.h>
 
@@ -33146,6 +33152,59 @@ static int test_wolfSSL_RAND(void)
     }
 #endif
 #endif
+    return EXPECT_RESULT();
+}
+
+
+static int test_wolfSSL_RAND_poll(void)
+{
+    EXPECT_DECLS;
+
+#if defined(OPENSSL_EXTRA) && defined(__linux__)
+    byte seed[16] = {0};
+    byte randbuf[8] = {0};
+    int pipefds[2] = {0};
+    pid_t pid = 0;
+
+    XMEMSET(seed, 0, sizeof(seed));
+
+    /* No global methods set. */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+
+    ExpectIntEQ(pipe(pipefds), 0);
+    pid = fork();
+    ExpectIntGE(pid, 0);
+    if (pid == 0)
+    {
+        ssize_t n_written = 0;
+
+        /* Child process. */
+        close(pipefds[0]);
+        RAND_poll();
+        RAND_bytes(randbuf, sizeof(randbuf));
+        n_written = write(pipefds[1], randbuf, sizeof(randbuf));
+        close(pipefds[1]);
+        exit(n_written == sizeof(randbuf) ? 0 : 1);
+    }
+    else
+    {
+        /* Parent process. */
+        word64 childrand64 = 0;
+        int waitstatus = 0;
+
+        close(pipefds[1]);
+        ExpectIntEQ(RAND_poll(), 1);
+        ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
+        ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)), sizeof(childrand64));
+        ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
+        close(pipefds[0]);
+        waitpid(pid, &waitstatus, 0);
+    }
+    RAND_cleanup();
+
+    ExpectIntEQ(RAND_egd(NULL), -1);
+#endif
+
     return EXPECT_RESULT();
 }
 
@@ -67679,6 +67738,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_RAND_set_rand_method),
     TEST_DECL(test_wolfSSL_RAND_bytes),
     TEST_DECL(test_wolfSSL_RAND),
+    TEST_DECL(test_wolfSSL_RAND_poll),
 
     /* BN compatibility API */
     TEST_DECL(test_wolfSSL_BN_CTX),
