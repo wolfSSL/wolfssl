@@ -189,6 +189,9 @@ struct WC_RNG {
 #endif
     byte status;
 #endif
+#ifdef HAVE_GETPID
+    pid_t pid;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif

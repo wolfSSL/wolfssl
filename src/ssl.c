@@ -25512,6 +25512,10 @@ int wolfSSL_RAND_Init(void)
         if (initGlobalRNG == 0) {
             ret = wc_InitRng(&globalRNG);
             if (ret == 0) {
+            #if defined(HAVE_GETPID) && defined(HAVE_FIPS) && \
+                FIPS_VERSION3_LT(6,0,0)))
+                currentPid = getpid();
+            #endif
                 initGlobalRNG = 1;
                 ret = WOLFSSL_SUCCESS;
             }
@@ -25946,8 +25950,30 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
     return ret;
 }
 
-/* returns WOLFSSL_SUCCESS if the bytes generated are valid otherwise
- * WOLFSSL_FAILURE */
+#if defined(HAVE_GETPID) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+/* In older FIPS bundles add check for reseed here since it does not exist in
+ * the older random.c certified files. */
+static pid_t currentPid = 0;
+
+/* returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
+static int RandCheckReSeed()
+{
+    int ret = WOLFSSL_SUCCESS;
+    pid_t p;
+
+    p = getpid();
+    if (p != currentPid) {
+        currentPid = p;
+        if (wolfSSL_RAND_poll() != WOLFSSL_SUCCESS) {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    return ret;
+}
+#endif
+
+/* returns WOLFSSL_SUCCESS (1) if the bytes generated are valid otherwise 0
+ * on failure */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
     int     ret = 0;
@@ -25990,6 +26016,16 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
          */
         if (initGlobalRNG) {
             rng = &globalRNG;
+
+        #if defined(HAVE_GETPID) && defined(HAVE_FIPS) && \
+                FIPS_VERSION3_LT(6,0,0)))
+            if (RandCheckReSeed() != WOLFSSL_SUCCESS) {
+                wc_UnLockMutex(&globalRNGMutex);
+                WOLFSSL_MSG("Issue with check pid and reseed");
+                return ret;
+            }
+        #endif
+
             used_global = 1;
         }
         else {
