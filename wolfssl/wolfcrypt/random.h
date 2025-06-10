@@ -189,7 +189,7 @@ struct WC_RNG {
 #endif
     byte status;
 #endif
-#ifdef HAVE_GETPID
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     pid_t pid;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
