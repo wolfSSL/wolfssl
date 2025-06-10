@@ -225,8 +225,10 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 
 #endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
 
-#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if (defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+     defined(OPENSSL_EXTRA)) && \
+    !defined(FILE_LINE_UNAVAILABLE)
 
     #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         WOLFSSL_API void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
