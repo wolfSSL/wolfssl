@@ -33165,6 +33165,7 @@ static int test_wolfSSL_RAND_poll(void)
 
     ExpectIntEQ(pipe(pipefds), 0);
     pid = fork();
+    ExpectIntGE(pid, 0);
     if (pid == 0)
     {
         ssize_t n_written = 0;
