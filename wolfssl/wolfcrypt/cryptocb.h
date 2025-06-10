@@ -176,6 +176,7 @@ typedef struct wc_CryptoInfo {
             } rsa_get_size;
         #endif
         #ifdef HAVE_ECC
+            #ifdef HAVE_ECC_DHE
             struct {
                 WC_RNG*  rng;
                 int      size;
@@ -188,6 +189,8 @@ typedef struct wc_CryptoInfo {
                 byte*    out;
                 word32*  outlen;
             } ecdh;
+            #endif
+            #ifdef HAVE_ECC_SIGN
             struct {
                 const byte* in;
                 word32      inlen;
@@ -196,6 +199,8 @@ typedef struct wc_CryptoInfo {
                 WC_RNG*     rng;
                 ecc_key*    key;
             } eccsign;
+            #endif
+            #ifdef HAVE_ECC_VERIFY
             struct {
                 const byte* sig;
                 word32      siglen;
@@ -204,12 +209,15 @@ typedef struct wc_CryptoInfo {
                 int*        res;
                 ecc_key*    key;
             } eccverify;
+            #endif
+            #ifdef HAVE_ECC_CHECK_KEY
             struct {
                 ecc_key*    key;
                 const byte* pubKey;
                 word32      pubKeySz;
             } ecc_check;
-        #endif
+            #endif
+        #endif /* HAVE_ECC */
         #ifdef HAVE_CURVE25519
             struct {
                 WC_RNG*  rng;
