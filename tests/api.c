@@ -68282,6 +68282,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_wolfSSL_dtls_cid_parse),
     TEST_DECL(test_dtls13_epochs),
+    TEST_DECL(test_dtls_rtx_across_epoch_change),
     TEST_DECL(test_dtls13_ack_order),
     TEST_DECL(test_dtls_version_checking),
     TEST_DECL(test_ocsp_status_callback),
