@@ -577,6 +577,7 @@ int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
+#ifdef HAVE_ECC_DHE
 int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
@@ -629,7 +630,9 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+#endif
 
+#ifdef HAVE_ECC_SIGN
 int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, WC_RNG* rng, ecc_key* key)
 {
@@ -658,7 +661,9 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+#endif
 
+#ifdef HAVE_ECC_VERIFY
 int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key)
 {
@@ -687,7 +692,9 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+#endif
 
+#ifdef HAVE_ECC_CHECK_KEY
 int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
     word32 pubKeySz)
 {
@@ -713,6 +720,7 @@ int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
+#endif
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_CURVE25519
