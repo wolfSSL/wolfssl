@@ -31,6 +31,13 @@
 /* Reminder: settings.h pulls in user_settings.h                         */
 /*   Do not explicitly include user_settings.h here.                     */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
+#include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+
+#ifndef SHOW_WOLFSSL_BUNDLE_ERROR
+    #define SHOW_WOLFSSL_BUNDLE_ERROR(X) ESP_LOGV(TAG, \
+           "SHOW_WOLFSSL_BUNDLE_ERROR not enabled, details suppressed.");
+#endif
 
 /* Espressif */
 #include <esp_log.h>
@@ -91,6 +98,8 @@ esp_err_t esp_crt_bundle_attach(void *conf)
 /* Bundle debug may come from user_settings.h and/or sdkconfig.h */
 #if defined(CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE) || \
     defined(       WOLFSSL_DEBUG_CERT_BUNDLE)
+    /* someplace to store result of wc_ErrorString(err, string) */
+    char last_esp_crt_bundle_error[WOLFSSL_MAX_ERROR_SZ];
     /* We'll only locally check this one: */
     #undef         WOLFSSL_DEBUG_CERT_BUNDLE
     #define        WOLFSSL_DEBUG_CERT_BUNDLE
@@ -173,12 +182,16 @@ esp_err_t esp_crt_bundle_attach(void *conf)
 
 /* A "Certificate Bundle" is this array of [size] + [x509 CA List]
  * certs that the client trusts: */
-extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
-                     asm("_binary_x509_crt_bundle_wolfssl_start");
+#if !defined(NO_WOLFSSL_USE_ASM_CERT)
+    extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
+                         asm("_binary_x509_crt_bundle_wolfssl_start");
 
-extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
-                     asm("_binary_x509_crt_bundle_wolfssl_end");
-
+    extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
+                         asm("_binary_x509_crt_bundle_wolfssl_end");
+#else
+    extern const unsigned char _binary_x509_crt_bundle_wolfssl_start[];
+    extern const unsigned char _binary_x509_crt_bundle_wolfssl_end[];
+#endif
 /* This crt_bundle_t type must match other providers in esp-tls from ESP-IDF.
  * TODO: Move to common header in ESP-IDF. (requires ESP-IDF modification).
  * For now, it is here: */
@@ -453,7 +466,8 @@ static CB_INLINE int cert_manager_load(int preverify,
         }
     }
     else {
-        ESP_LOGE(TAG, "Failed to load CA");
+        ESP_LOGE(TAG, "Failed to load CA, ret = %d", ret);
+        SHOW_WOLFSSL_BUNDLE_ERROR(ret);
     }
 
     /* We don't free the issue and subject, as they are
@@ -861,6 +875,7 @@ static CB_INLINE int wolfssl_ssl_conf_verify_cb_no_signer(int preverify,
             if (ret == WOLFSSL_FAILURE) {
                 ESP_LOGW(TAG, "Warning: found a matching cert, but not added "
                               "to the Certificate Manager. error: %d", ret);
+                SHOW_WOLFSSL_BUNDLE_ERROR(ret);
             }
             else {
                 ESP_LOGCBI(TAG, "New CA added to the Certificate Manager.");
@@ -1338,15 +1353,15 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
 
     /* If all is ok, proceed with initialization of Certificate Bundle */
     if (ret == ESP_OK) {
-        /* This is the maximum region that is allowed to access */
-        ESP_LOGV(TAG, "Bundle Start 0x%x", (intptr_t)x509_bundle);
-        ESP_LOGV(TAG, "Bundle Size  %d", bundle_size);
         bundle_end = x509_bundle + bundle_size;
-        ESP_LOGV(TAG, "Bundle End   0x%x", (intptr_t)bundle_end);
+        /* This is the maximum region that is allowed to access */
+        ESP_LOGCBI(TAG, "Bundle Start 0x%x", (intptr_t)x509_bundle);
+        ESP_LOGCBI(TAG, "Bundle End   0x%x", (intptr_t)bundle_end);
+        ESP_LOGCBI(TAG, "Bundle Size    %u bytes", bundle_size);
         cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
 
         for (i = 0; i < num_certs; i++) {
-            ESP_LOGV(TAG, "Init Cert %d", i);
+            ESP_LOGCBI(TAG, "Init Cert %d", i);
             if (cur_crt + CRT_HEADER_OFFSET > bundle_end) {
                 ESP_LOGE(TAG, "Invalid certificate bundle current offset");
                 _esp_crt_bundle_is_valid = ESP_FAIL;
@@ -1357,24 +1372,46 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
             crts[i] = cur_crt;
 
 #ifndef IS_WOLFSSL_CERT_BUNDLE_FORMAT
+            ESP_LOGE("err", "Error: not IS_WOLFSSL_CERT_BUNDLE_FORMAT");
             /* For reference only */
             size_t name_len = cur_crt[0] << 8 | cur_crt[1];
             size_t key_len = cur_crt[2] << 8 | cur_crt[3];
             cur_crt = cur_crt + CRT_HEADER_OFFSET + name_len + key_len;
 #else
             cert_len = cur_crt[0] << 8 | cur_crt[1];
-    #if defined(CONFIG_WOLFSSL_ASN_ALLOW_0_SERIAL) || \
+            ESP_LOGCBI(TAG, "- This certificate at 0x%x, length: %u",
+                             (intptr_t)cur_crt, cert_len);
+
+            /* TODO: optional gate out serial check for performance.       */
+            /* Useful only for custom cert bundle, known to have no zeros. */
+            if (wolfssl_is_zero_serial_number(cur_crt + CRT_HEADER_OFFSET,
+                                                 cert_len) > 0) {
+    #if defined(CONFIG_WOLFSSL_ASN_ALLOW_0_SERIAL)     || \
             defined(       WOLFSSL_ASN_ALLOW_0_SERIAL) || \
             defined(CONFIG_WOLFSSL_NO_ASN_STRICT)      || \
             defined(       WOLFSSL_NO_ASN_STRICT)
-            if (wolfssl_is_zero_serial_number(cur_crt + CRT_HEADER_OFFSET,
-                                                 cert_len) > 0) {
                 ESP_LOGW(TAG, "Warning: found zero value for serial number in "
                               "certificate #%d", i);
-                ESP_LOGW(TAG, "Enable WOLFSSL_NO_ASN_STRICT to allow zero in "
-                              "serial number.");
-            }
-    #endif
+        #if defined(CONFIG_WOLFSSL_ASN_ALLOW_0_SERIAL)
+                ESP_LOGCBW(TAG, "Allowing zero serial in certificate config.");
+        #elif defined(       WOLFSSL_ASN_ALLOW_0_SERIAL)
+                ESP_LOGCBW(TAG, "Allowing zero serial in certificate setting.");
+        #elif defined(CONFIG_WOLFSSL_NO_ASN_STRICT)
+                ESP_LOGCBW(TAG, "Allowing zero serial, no ASN Strict config.");
+        #elif defined(       WOLFSSL_NO_ASN_STRICT)
+                ESP_LOGCBW(TAG, "Allowing zero serial, no ASN Strict setting.");
+        #else
+                /* Unless explicitly allowed, wolfSSL will reject zero serial */
+                ESP_LOGW(TAG, "Certificate has zero serial number!");
+        #endif /* zero serial check message, why allowed per setting */
+    #else
+                /* we don't allow zero serial, expect wolfssl error later  */
+                ESP_LOGE(TAG, "ERROR: Strict ASN and found zero value for "
+                              "serial number in certificate #%d", i);
+    #endif /* zero serial check */
+            } /* wolfssl_is_zero_serial_number */
+
+            /* look at next cert */
             cur_crt = cur_crt + (CRT_HEADER_OFFSET + cert_len);
 #endif
         } /* for certs 0 to num_certs - 1 in the order found */
@@ -1427,23 +1464,50 @@ static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
 esp_err_t esp_crt_bundle_attach(void *conf)
 {
     esp_err_t ret = ESP_OK;
+    size_t bundle_size = 0;
     ESP_LOGCBI(TAG, "Enter esp_crt_bundle_attach");
     /* If no bundle has been set by the user,
      * then use the bundle embedded in the binary */
+#ifdef PLATFORMIO
+    ESP_LOGCBW(TAG, "Found PLATFORMIO, beware of alternate cert bundles.");
+#endif
     if (s_crt_bundle.crts == NULL) {
         ESP_LOGCBI(TAG, "No bundle set by user; using the embedded binary.");
         ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_start 0x%x",
                (intptr_t)x509_crt_imported_bundle_wolfssl_bin_start);
-        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_end 0x%x",
+        ESP_LOGCBI(TAG, "x509_crt_imported_bundle_wolfssl_bin_end   0x%x",
                (intptr_t)x509_crt_imported_bundle_wolfssl_bin_end);
-        ret = wolfssl_esp_crt_bundle_init(
-                         x509_crt_imported_bundle_wolfssl_bin_start,
-                        (x509_crt_imported_bundle_wolfssl_bin_end
-                       - x509_crt_imported_bundle_wolfssl_bin_start));
+        if ((intptr_t)x509_crt_imported_bundle_wolfssl_bin_end <
+            (intptr_t)x509_crt_imported_bundle_wolfssl_bin_start) {
+            ESP_LOGE(TAG, "Imported bundle end less than starting address");
+            ret = ESP_FAIL;
+        }
+        else {
+            bundle_size = (x509_crt_imported_bundle_wolfssl_bin_end
+                           - x509_crt_imported_bundle_wolfssl_bin_start);
+            if (bundle_size == 0) {
+                ESP_LOGE(TAG, "Imported bundle size is zero. Empty?");
+                ret = ESP_FAIL;
+            }
+            else {
+                ESP_LOGCBI(TAG, "Importing x509 wolfSSL bundle, %u bytes",
+                                 bundle_size);
+                ret = wolfssl_esp_crt_bundle_init(
+                                 x509_crt_imported_bundle_wolfssl_bin_start,
+                                 bundle_size);
+            }
+        }
     }
     else {
         ESP_LOGCBI(TAG, "Cert bundle set by user at 0x%x.",
                        (intptr_t)s_crt_bundle.crts);
+    }
+
+    if (((uintptr_t)x509_crt_imported_bundle_wolfssl_bin_start % 4) == 0) {
+        ESP_LOGCBI(TAG, "Confirmed alignment x509_crt_imported_bundle_wolfssl");
+    }
+    else {
+        ESP_LOGCBI(TAG, "Not aligned: x509_crt_imported_bundle_wolfssl");
     }
 
     if (ret == ESP_OK) {

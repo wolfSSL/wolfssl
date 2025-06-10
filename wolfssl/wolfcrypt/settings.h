@@ -455,6 +455,10 @@
     #endif
 #endif
 
+/* Important build-time configuration messages may be saved.
+ * Enable DEBUG_WOLFSSL and see wolfSSL_Init() for display. */
+#define LIBWOLFSSL_CMAKE_OUTPUT ""
+
 /* ---------------------------------------------------------------------------
  * Dual Algorithm Certificate Required Features.
  * ---------------------------------------------------------------------------
