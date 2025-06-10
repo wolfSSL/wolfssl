@@ -46814,7 +46814,9 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
     byte* sig = NULL;
 #else
     dilithium_key  key[1];
+#ifndef WOLFSSL_DILITHIUM_NO_SIGN
     byte sig[DILITHIUM_MAX_SIG_SIZE];
+#endif
 #endif
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
     word32 sigLen;
