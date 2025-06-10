@@ -1640,7 +1640,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
     rng->heap = heap;
 #endif
-#ifdef HAVE_GETPID
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     rng->pid = getpid();
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -2014,7 +2014,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
-#ifdef HAVE_GETPID
+#if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID)
     if (rng->pid != getpid()) {
         rng->pid = getpid();
         ret = PollAndReSeed(rng);

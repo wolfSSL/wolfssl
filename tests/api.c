@@ -33159,7 +33159,11 @@ static int test_wolfSSL_RAND_bytes(void)
         ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
         ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)),
             sizeof(childrand64));
+    #ifdef WOLFSSL_NO_GETPID
+        ExpectBufEQ(randbuf, &childrand64, sizeof(randbuf));
+    #else
         ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
+    #endif
         close(pipefds[0]);
         waitpid(pid, &waitstatus, 0);
     }
