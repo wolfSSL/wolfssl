@@ -33255,7 +33255,7 @@ static int test_wolfSSL_RAND(void)
 }
 
 
-#ifdef WC_RNG_SEED_CB
+#if defined(WC_RNG_SEED_CB) && defined(OPENSSL_EXTRA)
 static int wc_DummyGenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     word32 i;
