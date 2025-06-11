@@ -651,7 +651,7 @@ typedef struct wc_dilithium_params {
     byte omega;
     word16 lambda;
     byte gamma1_bits;
-    word32 gamma2;
+    sword32 gamma2;
     word32 w1EncSz;
     word16 aSz;
     word16 s1Sz;
