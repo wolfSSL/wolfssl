@@ -36,4 +36,5 @@ int test_dtls13_longer_length(void);
 int test_dtls13_short_read(void);
 int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
+int test_dtls_rtx_across_epoch_change(void);
 #endif /* TESTS_API_DTLS_H */

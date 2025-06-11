@@ -18,8 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#define WOLFSSL_ESPIDF_COMPONENT_VERSION 0x01
 
 /* This is a sample PlatformIO user_settings.h for wolfSSL
+/* Examples such as test and benchmark are known to cause watchdog timeouts.
+ * Note this is often set in project Makefile:
+ * CFLAGS += -DWOLFSSL_ESP_NO_WATCHDOG=1 */
+#define WOLFSSL_ESP_NO_WATCHDOG 1
+
+/* The Espressif project config file. See also sdkconfig.defaults */
+#include "sdkconfig.h"
  *
  * Do not include any wolfssl headers here
  *
@@ -47,10 +55,9 @@
 /* We don't use WiFi, so don't compile in the esp-sdk-lib WiFi helpers: */
 /* #define USE_WOLFSSL_ESP_SDK_WIFI */
 
-/* Experimental Kyber */
+/* Optional MLKEM (Kyber Post Quantum) */
 #if 0
     /* Kyber typically needs a minimum 10K stack */
-    #define WOLFSSL_EXPERIMENTAL_SETTINGS
     #define WOLFSSL_HAVE_MLKEM
     #define WOLFSSL_WC_MLKEM
     #define WOLFSSL_SHA3
@@ -566,18 +573,33 @@
 /* Debug options:
 See wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h for details on debug options
 
+optionally increase error message size for very long paths.
+#define WOLFSSL_MAX_ERROR_SZ 500
+
+Turn wolfSSL debugging on/off:
+    wolfSSL_Debugging_ON();
+    wolfSSL_Debugging_OFF();
+
 #define ESP_VERIFY_MEMBLOCK
 #define DEBUG_WOLFSSL
 #define DEBUG_WOLFSSL_VERBOSE
 #define DEBUG_WOLFSSL_SHA_MUTEX
+#define WOLFSSL_DEBUG_IGNORE_ASN_TIME
+#define WOLFSSL_DEBUG_CERT_BUNDLE
+#define WOLFSSL_DEBUG_CERT_BUNDLE_NAME
 #define WOLFSSL_ESP32_CRYPT_DEBUG
 #define WOLFSSL_ESP32_CRYPT_HASH_SHA224_DEBUG
 #define NO_RECOVER_SOFTWARE_CALC
 #define WOLFSSL_TEST_STRAY 1
 #define USE_ESP_DPORT_ACCESS_READ_BUFFER
 #define WOLFSSL_ESP32_HW_LOCK_DEBUG
+#define WOLFSSL_DEBUG_MUTEX
 #define WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
+#define WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+#define WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
 #define ESP_DISABLE_HW_TASK_LOCK
+#define ESP_MONITOR_HW_TASK_LOCK
+#define USE_ESP_DPORT_ACCESS_READ_BUFFER
 
 See wolfcrypt/benchmark/benchmark.c for debug and other settings:
 
@@ -594,7 +616,7 @@ Turn on timer debugging (used when CPU cycles not available)
 #define WOLFSSL_HW_METRICS
 #define ALT_ECC_SIZE
 
-/* for test.c: */
+/* for test.c */
 /* #define HASH_SIZE_LIMIT */
 
 /* Optionally turn off HW math checks */
@@ -641,6 +663,12 @@ Turn on timer debugging (used when CPU cycles not available)
  * There are various certificate examples in this header file:
  * https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/certs_test.h
  *
+ * To use the sample certificates in code (not recommended for production!):
+ *
+ *    #if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_1024)
+ *        #include <wolfssl/certs_test.h>
+ *    #endif
+ *
  * To use the sets of macros below, define *one* of these:
  *
  *    USE_CERT_BUFFERS_1024  - ECC 1024 bit encoded ASN1
@@ -655,10 +683,10 @@ Turn on timer debugging (used when CPU cycles not available)
  *                                          CTX_CA_CERT_SIZE,
  *                                          CTX_CA_CERT_TYPE);
  *
- * See www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_load_verify_buffer
+ * See https://www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_load_verify_buffer
  *
  * In this case the CTX_CA_CERT will be defined as `ca_cert_der_2048` as
- * defined here: github.com/wolfSSL/wolfssl/blob/master/wolfssl/certs_test.h
+ * defined here: https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/certs_test.h
  *
  * The CTX_CA_CERT_SIZE and CTX_CA_CERT_TYPE are similarly used to reference
  * array size and cert type respectively.
@@ -670,7 +698,7 @@ Turn on timer debugging (used when CPU cycles not available)
  *                                          CTX_CLIENT_KEY_SIZE,
  *                                          CTX_CLIENT_KEY_TYPE);
  *
- * see www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_use_privatekey_buffer
+ * see https://www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_use_privatekey_buffer
  *
  * Similarly, the other macros are for server certificates and keys:
  *   `CTX_SERVER_CERT` and `CTX_SERVER_KEY` are available.
@@ -680,17 +708,17 @@ Turn on timer debugging (used when CPU cycles not available)
  * are the known wolfSSL encoding type integers (e.g. WOLFSSL_FILETYPE_PEM).
  *
  * See `SSL_FILETYPE_[name]` in
- *   github.com/wolfSSL/wolfssl/blob/master/wolfssl/ssl.h
+ *   https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/ssl.h
  *
  * See Abstract Syntax Notation One (ASN.1) in:
- *   github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/asn.h
+ *   https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/asn.h
  *
  * Optional SM4 Ciphers:
  *
  * Although the SM ciphers are shown here, the `certs_test_sm.h` may not yet
  * be available. See:
- *   github.com/wolfSSL/wolfssl/pull/6825
- *   github.com/wolfSSL/wolfsm
+ *   https://github.com/wolfSSL/wolfssl/pull/6825
+ *   https://github.com/wolfSSL/wolfsm
  *
  * Uncomment these 3 macros to enable the SM Ciphers and use the macros below.
  */
@@ -703,6 +731,7 @@ Turn on timer debugging (used when CPU cycles not available)
 
 /* Conditional macros used in wolfSSL TLS client and server examples */
 #if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
+    #include <wolfssl/certs_test_sm.h>
     #define CTX_CA_CERT          root_sm2
     #define CTX_CA_CERT_SIZE     sizeof_root_sm2
     #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_PEM
@@ -720,7 +749,11 @@ Turn on timer debugging (used when CPU cycles not available)
         #ifdef USE_CERT_BUFFERS_1024
             #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
         #endif
+
+        /* Be sure to include in app when using example certs: */
         #include <wolfssl/certs_test.h>
+
+        #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
@@ -743,6 +776,11 @@ Turn on timer debugging (used when CPU cycles not available)
         #ifdef USE_CERT_BUFFERS_2048
             #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
         #endif
+
+        /* Be sure to include in app when using example certs: */
+        #include <wolfssl/certs_test.h>
+
+        #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
@@ -788,3 +826,11 @@ Turn on timer debugging (used when CPU cycles not available)
 #else
     #warning "CONFIG_ESP_MAIN_TASK_STACK_SIZE not defined!"
 #endif
+/* See settings.h for some of the possible hardening options:
+ *
+ *  #define NO_ESPIDF_DEFAULT
+ *  #define WC_NO_CACHE_RESISTANT
+ *  #define WC_AES_BITSLICED
+ *  #define HAVE_AES_ECB
+ *  #define HAVE_AES_DIRECT
+ */

@@ -244,7 +244,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_private_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_private_key),
-                TSIP_ECCP256);
+                TSIP_KEY_TYPE_ECDSAP256);
         if (ret != 0) {
             printf("ERROR tsip_use_PrivateKey_buffer_TLS\n");
         }
@@ -254,7 +254,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_public_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_public_key),
-                TSIP_ECCP256);
+                TSIP_KEY_TYPE_ECDSAP256);
         if (ret != 0) {
             printf("ERROR tsip_use_PublicKey_buffer_TLS\n");
         }
@@ -289,7 +289,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                (const char*)g_key_block_data.encrypted_user_rsa2048_private_key,
                sizeof(g_key_block_data.encrypted_user_rsa2048_private_key),
-                                                        TSIP_RSA2048);
+                                                        TSIP_KEY_TYPE_RSA2048);
         if (ret != 0) {
             printf("ERROR tsip_use_PrivateKey_buffer_TLS :%d\n", ret);
         }
@@ -298,7 +298,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_rsa2048_public_key,
                 sizeof(g_key_block_data.encrypted_user_rsa2048_public_key),
-                                                        TSIP_RSA2048);
+                                                        TSIP_KEY_TYPE_RSA2048);
         if (ret != 0) {
             printf("ERROR tsip_use_PublicKey_buffer_TLS: %d\n", ret);
         }

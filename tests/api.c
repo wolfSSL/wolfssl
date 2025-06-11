@@ -51,6 +51,12 @@
 #endif
 
 #include <stdlib.h>
+
+#ifdef __linux__
+#include <unistd.h>
+#include <sys/wait.h>
+#endif
+
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/error-ssl.h>
 
@@ -19069,6 +19075,14 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
 static int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
+
+    EXPECT_TEST(test_wc_PKCS12_create_once(-1, -1));
+#if !defined(NO_RC4) && !defined(NO_SHA)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_RC4_128, PBE_SHA1_RC4_128));
+#endif
+#if !defined(NO_DES3) && !defined(NO_SHA)
+    EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES, PBE_SHA1_DES));
+#endif
 #if !defined(NO_DES3) && !defined(NO_SHA)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_DES3, PBE_SHA1_DES3));
 #endif
@@ -32741,6 +32755,59 @@ static int test_wolfSSL_check_domain(void)
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_SYS_CA_CERTS)
+static const char* dn = NULL;
+static int test_wolfSSL_check_domain_basic_client_ctx(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_CTX_load_system_CA_certs(ctx), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+    return EXPECT_RESULT();
+}
+static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
+{
+    EXPECT_DECLS;
+
+    ExpectIntEQ(wolfSSL_check_domain_name(ssl, dn), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+static int test_wolfSSL_check_domain_basic(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ctx_ready = &test_wolfSSL_check_domain_basic_client_ctx;
+
+    dn = "invalid.com";
+    func_cb_client.ssl_ready = &test_wolfSSL_check_domain_basic_client_ssl;
+
+    /* Expect to fail */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), -1001);
+
+    dn = "example.com";
+
+    /* Expect to succeed */
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_wolfSSL_check_domain_basic(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 static int test_wolfSSL_X509_get_X509_PUBKEY(void)
 {
@@ -33138,6 +33205,59 @@ static int test_wolfSSL_RAND(void)
     }
 #endif
 #endif
+    return EXPECT_RESULT();
+}
+
+
+static int test_wolfSSL_RAND_poll(void)
+{
+    EXPECT_DECLS;
+
+#if defined(OPENSSL_EXTRA) && defined(__linux__)
+    byte seed[16] = {0};
+    byte randbuf[8] = {0};
+    int pipefds[2] = {0};
+    pid_t pid = 0;
+
+    XMEMSET(seed, 0, sizeof(seed));
+
+    /* No global methods set. */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+
+    ExpectIntEQ(pipe(pipefds), 0);
+    pid = fork();
+    ExpectIntGE(pid, 0);
+    if (pid == 0)
+    {
+        ssize_t n_written = 0;
+
+        /* Child process. */
+        close(pipefds[0]);
+        RAND_poll();
+        RAND_bytes(randbuf, sizeof(randbuf));
+        n_written = write(pipefds[1], randbuf, sizeof(randbuf));
+        close(pipefds[1]);
+        exit(n_written == sizeof(randbuf) ? 0 : 1);
+    }
+    else
+    {
+        /* Parent process. */
+        word64 childrand64 = 0;
+        int waitstatus = 0;
+
+        close(pipefds[1]);
+        ExpectIntEQ(RAND_poll(), 1);
+        ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
+        ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)), sizeof(childrand64));
+        ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
+        close(pipefds[0]);
+        waitpid(pid, &waitstatus, 0);
+    }
+    RAND_cleanup();
+
+    ExpectIntEQ(RAND_egd(NULL), -1);
+#endif
+
     return EXPECT_RESULT();
 }
 
@@ -67671,6 +67791,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_RAND_set_rand_method),
     TEST_DECL(test_wolfSSL_RAND_bytes),
     TEST_DECL(test_wolfSSL_RAND),
+    TEST_DECL(test_wolfSSL_RAND_poll),
 
     /* BN compatibility API */
     TEST_DECL(test_wolfSSL_BN_CTX),
@@ -67742,6 +67863,7 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_wolfSSL_check_domain),
+    TEST_DECL(test_wolfSSL_check_domain_basic),
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
@@ -68274,6 +68396,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_wolfSSL_dtls_cid_parse),
     TEST_DECL(test_dtls13_epochs),
+    TEST_DECL(test_dtls_rtx_across_epoch_change),
     TEST_DECL(test_dtls13_ack_order),
     TEST_DECL(test_dtls_version_checking),
     TEST_DECL(test_ocsp_status_callback),
