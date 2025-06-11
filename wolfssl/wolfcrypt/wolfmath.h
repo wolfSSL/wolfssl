@@ -83,9 +83,9 @@ This library provides big integer math functions.
 
 #if !defined(NO_BIG_INT)
 /* common math functions */
-MP_API int get_digit_count(const mp_int* a);
-MP_API mp_digit get_digit(const mp_int* a, int n);
-MP_API int get_rand_digit(WC_RNG* rng, mp_digit* d);
+MP_API int mp_get_digit_count(const mp_int* a);
+MP_API mp_digit mp_get_digit(const mp_int* a, int n);
+MP_API int mp_get_rand_digit(WC_RNG* rng, mp_digit* d);
 WOLFSSL_LOCAL void mp_reverse(unsigned char *s, int len);
 
 WOLFSSL_API int mp_cond_copy(mp_int* a, int copy, mp_int* b);
