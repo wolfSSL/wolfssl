@@ -2159,9 +2159,14 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* CA certificate to verify with. */
     if (type == CA_TYPE) {
 #ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        /* TEST ONLY CODE:
+         * Store the DER encoding of the CA certificate so we can append it to
+         * the list of trusted CA certificates if the subsequent call to AddCA
+         * is successful */
         word32 derLen;
         byte* derBuf;
         if (ctx->doAppleNativeCertValidationFlag == 1) {
+            WOLFSSL_MSG("ANCV Test: copy DER CA cert");
             derLen = der->length;
             derBuf = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (derBuf == NULL) {
@@ -2176,12 +2181,16 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif
         /* verify CA unless user set to no verify */
         ret = AddCA(ctx->cm, &der, WOLFSSL_USER_CA, verify);
+
 #ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        /* TEST ONLY CODE:
+         * Append the DER encoded CA certificate to the list of trusted CA
+         * certificates so we can inject them at verification time */
         if (ret == 1 && ctx->doAppleNativeCertValidationFlag == 1) {
-            WOLFSSL_MSG("Appending CA to cert list for native cert validation test");
+            WOLFSSL_MSG("ANCV Test: Appending CA to cert list");
             ret = wolfSSL_TestAppleNativeCertValidation_AppendCA(ctx, derBuf, (int)derLen);
             if (ret == WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Clearing CA table for native cert validation test");
+                WOLFSSL_MSG("ANCV Test: Clearing CA table");
                 /* Clear the CA table so we can ensure they won't be used for
                  * verification */
                 ret = wolfSSL_CertManagerUnloadCAs(ctx->cm);
@@ -2192,6 +2201,7 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 #endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+
         if (ret == 1) {
             ret = 0;
         }
@@ -2978,6 +2988,14 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         ret = 0;
     }
 
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    if (ret == 1) {
+    /* TEST ONLY CODE: force native cert validation on */
+        WOLFSSL_MSG("ANCV Test: Loading system CA certs");
+        wolfSSL_CTX_load_system_CA_certs(ctx);
+    }
+#endif
+
     if (ret == 1) {
         /* Get setting on how to verify certificates. */
         verify = GET_VERIFY_SETTING_CTX(ctx);
@@ -2990,19 +3008,19 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
             /* Load the PEM formatted CA file */
             ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0,
                 NULL, verify);
-    #ifndef NO_WOLFSSL_DIR
+#ifndef NO_WOLFSSL_DIR
             if (ret == 1) {
                 /* Include success in overall count. */
                 successCount++;
             }
-    #endif
-    #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
+#endif
+#if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
             /* Load CA as a trusted peer certificate. */
             ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_PEM);
             if (ret != 1) {
                 WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
             }
-    #endif
+#endif
         }
     }
 
@@ -3014,12 +3032,6 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         /* Loading a path not supported. */
         ret = NOT_COMPILED_IN;
         (void)flags;
-#endif
-
-#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
-    if (ret == 1) {
-        wolfSSL_CTX_load_system_CA_certs(ctx);
-    }
 #endif
     }
 
@@ -3461,15 +3473,14 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         ret = 0;
     }
     else {
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        /* TEST ONLY CODE: force native cert validation on */
+        WOLFSSL_MSG("ANCV Test: loading system CA certs");
+        wolfSSL_CTX_load_system_CA_certs(ctx);
+#endif
         ret = ProcessFile(ctx, file, format, CA_TYPE, NULL, 0, NULL,
             GET_VERIFY_SETTING_CTX(ctx));
     }
-
-#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
-    if (ret == 1) {
-        wolfSSL_CTX_load_system_CA_certs(ctx);
-    }
-#endif
 
     /* Return 1 on success or 0 on failure. */
     return WS_RC(ret);
@@ -3975,6 +3986,14 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_verify_buffer_ex");
 
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    /* TEST ONLY CODE: force native cert validation on */
+    if (ctx != NULL) {
+        WOLFSSL_MSG("ANCV Test: loading system CA certs");
+        wolfSSL_CTX_load_system_CA_certs(ctx);
+    }
+#endif
+
     /* Get setting on how to verify certificates. */
     verify = GET_VERIFY_SETTING_CTX(ctx);
     /* Overwrite setting when flag set. */
@@ -3996,12 +4015,6 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx, const unsigned char* in,
     if (ret == 1) {
         /* Load certificate/s as trusted peer certificate. */
         ret = wolfSSL_CTX_trust_peer_buffer(ctx, in, sz, format);
-    }
-#endif
-
-#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
-    if (ret == 1) {
-        wolfSSL_CTX_load_system_CA_certs(ctx);
     }
 #endif
 

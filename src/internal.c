@@ -42849,7 +42849,7 @@ static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
 
     info = CFErrorCopyUserInfo(error);
     if (info) {
-        printf("Trust error info dump:\n");
+        WOLFSSL_MSG("Trust error info dump:\n");
         CFShow(info);
         CFRelease(info);
     }
@@ -42935,6 +42935,7 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
 #if defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     /* TEST ONLY CODE:
      * Set accumulated list of trusted CA certificates as trust anchors */
+    WOLFSSL_MSG("Setting anchor certificates");
     if (ssl->ctx->testTrustedCAs != NULL) {
         status = SecTrustSetAnchorCertificates(trust, ssl->ctx->testTrustedCAs);
         if (status != errSecSuccess) {
@@ -42967,6 +42968,7 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
             if (code == errSecCertificateValidityPeriodTooLong) {
                 WOLFSSL_MSG("Skipping certificate validity period error");
                 ret = 1;
+                /* TODO: ensure other errors aren't masked by this error */
             }
 #endif
 

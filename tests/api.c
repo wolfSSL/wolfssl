@@ -68151,7 +68151,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerCRL),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
-#ifdef HAVE_CERT_CHAIN_VALIDATION
+#if defined(HAVE_CERT_CHAIN_VALIDATION) && !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     TEST_DECL(test_various_pathlen_chains),
 #endif
 
@@ -68201,7 +68201,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_CONF_CTX_CMDLINE),
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
+    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),
@@ -68246,7 +68247,8 @@ TEST_CASE testCases[] = {
     /* Large number of memory allocations. */
     TEST_DECL(test_wolfSSL_CTX_load_system_CA_certs),
 
-#ifdef HAVE_CERT_CHAIN_VALIDATION
+#if defined(HAVE_CERT_CHAIN_VALIDATION) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     TEST_DECL(test_wolfSSL_CertRsaPss),
 #endif
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
