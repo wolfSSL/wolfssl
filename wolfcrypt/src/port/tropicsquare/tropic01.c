@@ -243,19 +243,28 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
                 TROPIC01_ED25519_PRIV_KEY_SIZE);
             if (ret != 0) {
                 WOLFSSL_MSG_EX(
-                    "TROPIC01: CryptoCB: Failed to get ED25519 key, ret=%d",
+                    "TROPIC01: CryptoCB: Failed to get ED25519 PRIVkey,ret=%d",
+                     ret);
+                return ret;
+            }
+            ret = Tropic01_GetKeyECC(
+                info->pk.ed25519sign.key->p,
+                TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT,
+                TROPIC01_ED25519_PUB_KEY_SIZE);
+            if (ret != 0) {
+                WOLFSSL_MSG_EX(
+                    "TROPIC01: CryptoCB: Failed to get ED25519 PUBkey,ret=%d",
                      ret);
                 return ret;
             }
             /* set devId to invalid, so software is used */
             info->pk.ed25519sign.key->devId = INVALID_DEVID;
+            info->pk.ed25519sign.key->privKeySet = 1;
             info->pk.ed25519sign.key->pubKeySet = 1;
-
-            ret = wc_ed25519_sign_msg_ex(
+            ret = wc_ed25519_sign_msg(
                 info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
                 info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
-                info->pk.ed25519sign.key, info->pk.ed25519sign.type,
-                info->pk.ed25519sign.context, info->pk.ed25519sign.contextLen);
+                info->pk.ed25519sign.key);
 
             /* reset devId */
             info->pk.ed25519sign.key->devId = devId;
@@ -266,7 +275,7 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
             WOLFSSL_MSG("TROPIC01: CryptoCB: ED25519 verification request");
             /* retrieve public key from TROPIC01 secure R memory */
             ret = Tropic01_GetKeyECC(
-                info->pk.ed25519sign.key->p,
+                info->pk.ed25519verify.key->p,
                 TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT,
                 TROPIC01_ED25519_PUB_KEY_SIZE);
             if (ret != 0) {
@@ -278,12 +287,11 @@ int Tropic01_CryptoCb(int devId, wc_CryptoInfo* info, void* ctx)
 
             /* set devId to invalid, so software is used */
             info->pk.ed25519verify.key->devId = INVALID_DEVID;
-
-            ret = wc_ed25519_verify_msg_ex(
+            info->pk.ed25519verify.key->pubKeySet = 1;
+            ret = wc_ed25519_verify_msg(
                 info->pk.ed25519verify.sig, info->pk.ed25519verify.sigLen,
                 info->pk.ed25519verify.msg, info->pk.ed25519verify.msgLen,
-                info->pk.ed25519verify.res, info->pk.ed25519verify.key,
-                info->pk.ed25519verify.type, NULL, 0);
+                info->pk.ed25519verify.res, info->pk.ed25519verify.key);
 
             /* reset devId */
             info->pk.ed25519verify.key->devId = devId;
