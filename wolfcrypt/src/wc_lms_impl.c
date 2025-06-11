@@ -3208,7 +3208,7 @@ static void wc_hss_priv_data_store(const LmsParams* params, HssPrivKey* key,
 int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     HssPrivKey* priv_key, byte* priv_data, byte* pub_root)
 {
-    int ret;
+    int ret = 0;
 
     (void)pub_root;
 
@@ -3217,27 +3217,34 @@ int wc_hss_reload_key(LmsState* state, const byte* priv_raw,
     priv_key->inited = 0;
 #endif
 
-    /* Expand the raw private key into the private key data. */
-    ret = wc_hss_expand_private_key(state, priv_key->priv, priv_raw, 0);
-#ifndef WOLFSSL_WC_LMS_SMALL
-    if ((ret == 0) && (!priv_key->inited)) {
-        /* Initialize the authentication paths and caches for all trees. */
-        ret = wc_hss_init_auth_path(state, priv_key, pub_root);
-    #ifndef WOLFSSL_LMS_NO_SIGN_SMOOTHING
-        if (ret == 0) {
-            ret = wc_hss_next_subtrees_init(state, priv_key);
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+    if (pub_root != NULL)
+#endif
+    {
+        /* Expand the raw private key into the private key data. */
+        ret = wc_hss_expand_private_key(state, priv_key->priv, priv_raw, 0);
+    #ifndef WOLFSSL_WC_LMS_SMALL
+        if ((ret == 0) && (!priv_key->inited)) {
+            /* Initialize the authentication paths and caches for all trees. */
+            ret = wc_hss_init_auth_path(state, priv_key, pub_root);
+        #ifndef WOLFSSL_LMS_NO_SIGN_SMOOTHING
+            if (ret == 0) {
+                ret = wc_hss_next_subtrees_init(state, priv_key);
+            }
+        #endif
+        #if !defined(WOLFSSL_LMS_NO_SIG_CACHE) && (LMS_MAX_LEVELS > 1)
+            if (ret == 0) {
+                /* Calculate signatures for trees not at bottom. */
+                ret = wc_hss_presign(state, priv_key);
+            }
+        #endif /* !WOLFSSL_LMS_NO_SIG_CACHE */
         }
-    #endif
-    #if !defined(WOLFSSL_LMS_NO_SIG_CACHE) && (LMS_MAX_LEVELS > 1)
-        if (ret == 0) {
-            /* Calculate signatures for trees not at bottom. */
-            ret = wc_hss_presign(state, priv_key);
-        }
-    #endif /* !WOLFSSL_LMS_NO_SIG_CACHE */
-        /* Set initialized flag. */
-        priv_key->inited = (ret == 0);
+    #endif /* WOLFSSL_WC_LMS_SMALL */
     }
-#endif /* WOLFSSL_WC_LMS_SMALL */
+#ifndef WOLFSSL_WC_LMS_SMALL
+    /* Set initialized flag. */
+    priv_key->inited = (ret == 0);
+#endif
 
     return ret;
 }
@@ -3300,6 +3307,10 @@ int wc_hss_make_key(LmsState* state, WC_RNG* rng, byte* priv_raw,
         /* Encode the public key with remaining fields from the private key. */
         wc_lmots_public_key_encode(params, priv_key->priv, pub);
     }
+
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+    wc_hss_priv_data_store(state->params, priv_key, priv_data);
+#endif
 
     return ret;
 }
@@ -3581,7 +3592,7 @@ static int wc_hss_sign_build_sig(LmsState* state, byte* priv_raw,
  *
  * @param [in, out] state      LMS state.
  * @param [in, out] priv_raw   Raw private key bytes.
- * @param [in, out] priv_key   Private key data.
+ * @param [in, out] priv_key   Private key.
  * @param [in, out] priv_data  Private key data.
  * @param [in]      msg        Message to sign.
  * @param [in]      msgSz      Length of message in bytes.
