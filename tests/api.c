@@ -33158,6 +33158,12 @@ static int test_wolfSSL_RAND_bytes(void)
     const int size4 = RNG_MAX_BLOCK_LEN * 4;    /* in bytes */
     int  max_bufsize;
     byte *my_buf = NULL;
+#if defined(HAVE_GETPID)
+    byte seed[16] = {0};
+    byte randbuf[8] = {0};
+    int pipefds[2] = {0};
+    pid_t pid = 0;
+#endif
 
     /* sanity check */
     ExpectIntEQ(RAND_bytes(NULL, 16), 0);
@@ -33176,6 +33182,46 @@ static int test_wolfSSL_RAND_bytes(void)
     ExpectIntEQ(RAND_bytes(my_buf, size2), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size3), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size4), 1);
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID)
+    XMEMSET(seed, 0, sizeof(seed));
+    RAND_cleanup();
+
+    /* No global methods set. */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+
+    ExpectIntEQ(pipe(pipefds), 0);
+    pid = fork();
+    ExpectIntGE(pid, 0);
+    if (pid == 0) {
+        ssize_t n_written = 0;
+
+        /* Child process. */
+        close(pipefds[0]);
+        RAND_bytes(randbuf, sizeof(randbuf));
+        n_written = write(pipefds[1], randbuf, sizeof(randbuf));
+        close(pipefds[1]);
+        exit(n_written == sizeof(randbuf) ? 0 : 1);
+    }
+    else {
+        /* Parent process. */
+        word64 childrand64 = 0;
+        int waitstatus = 0;
+
+        close(pipefds[1]);
+        ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
+        ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)),
+            sizeof(childrand64));
+    #ifdef WOLFSSL_NO_GETPID
+        ExpectBufEQ(randbuf, &childrand64, sizeof(randbuf));
+    #else
+        ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
+    #endif
+        close(pipefds[0]);
+        waitpid(pid, &waitstatus, 0);
+    }
+    RAND_cleanup();
+#endif
 
     XFREE(my_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -33209,50 +33255,60 @@ static int test_wolfSSL_RAND(void)
 }
 
 
+#if defined(WC_RNG_SEED_CB) && defined(OPENSSL_EXTRA)
+static int wc_DummyGenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    word32 i;
+    for (i = 0; i < sz; i++ )
+        output[i] = (byte)i;
+
+    (void)os;
+
+    return 0;
+}
+#endif /* WC_RNG_SEED_CB */
+
+
 static int test_wolfSSL_RAND_poll(void)
 {
     EXPECT_DECLS;
 
-#if defined(OPENSSL_EXTRA) && defined(__linux__)
-    byte seed[16] = {0};
-    byte randbuf[8] = {0};
-    int pipefds[2] = {0};
-    pid_t pid = 0;
+#if defined(OPENSSL_EXTRA)
+     byte seed[16];
+    byte rand1[16];
+#ifdef WC_RNG_SEED_CB
+    byte rand2[16];
+#endif
 
     XMEMSET(seed, 0, sizeof(seed));
-
-    /* No global methods set. */
     ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+    ExpectIntEQ(RAND_poll(), 1);
+    ExpectIntEQ(RAND_bytes(rand1, 16), 1);
+    RAND_cleanup();
 
-    ExpectIntEQ(pipe(pipefds), 0);
-    pid = fork();
-    ExpectIntGE(pid, 0);
-    if (pid == 0)
-    {
-        ssize_t n_written = 0;
+#ifdef WC_RNG_SEED_CB
+    /* Test with custom seed and poll */
+    wc_SetSeed_Cb(wc_DummyGenerateSeed);
 
-        /* Child process. */
-        close(pipefds[0]);
-        RAND_poll();
-        RAND_bytes(randbuf, sizeof(randbuf));
-        n_written = write(pipefds[1], randbuf, sizeof(randbuf));
-        close(pipefds[1]);
-        exit(n_written == sizeof(randbuf) ? 0 : 1);
-    }
-    else
-    {
-        /* Parent process. */
-        word64 childrand64 = 0;
-        int waitstatus = 0;
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+    ExpectIntEQ(RAND_bytes(rand1, 16), 1);
+    RAND_cleanup();
 
-        close(pipefds[1]);
-        ExpectIntEQ(RAND_poll(), 1);
-        ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
-        ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)), sizeof(childrand64));
-        ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
-        close(pipefds[0]);
-        waitpid(pid, &waitstatus, 0);
-    }
+    /* test that the same value is generated twice with dummy seed function */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+    ExpectIntEQ(RAND_bytes(rand2, 16), 1);
+    ExpectIntEQ(XMEMCMP(rand1, rand2, 16), 0);
+    RAND_cleanup();
+
+    /* test that doing a poll is reseeding RNG */
+    ExpectIntEQ(RAND_seed(seed, sizeof(seed)), 1);
+    ExpectIntEQ(RAND_poll(), 1);
+    ExpectIntEQ(RAND_bytes(rand2, 16), 1);
+    ExpectIntNE(XMEMCMP(rand1, rand2, 16), 0);
+
+    /* reset the seed function used */
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
     RAND_cleanup();
 
     ExpectIntEQ(RAND_egd(NULL), -1);

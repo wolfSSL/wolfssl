@@ -48,6 +48,9 @@ jobs:
           '--enable-sniffer --enable-curve25519 --enable-curve448 --enable-enckeys CFLAGS=-DWOLFSSL_DH_EXTRA',
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
             --enable-dtls-mtu CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS',
+          '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
+          '--enable-opensslall --enable-opensslextra
+            CPPFLAGS='-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
