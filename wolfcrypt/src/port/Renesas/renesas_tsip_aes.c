@@ -390,7 +390,7 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     WOLFSSL_ENTER("wc_tsip_AesCipher");
 
-    if (info == NULL || ctx == NULL) {
+    if (info == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -479,6 +479,7 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* !NO_AES */
 
     }
+    (void)cbInfo;
     WOLFSSL_LEAVE("wc_tsip_AesCipher", ret);
     return ret;
 }
