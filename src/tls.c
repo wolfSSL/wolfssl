@@ -9347,7 +9347,7 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
 {
     int ret = 0;
 #ifdef HAVE_ECC
-    int curveId = ECC_CURVE_INVALID;
+    int curveId;
     ecc_key* eccKey = (ecc_key*)keyShareEntry->key;
 
     /* find supported curve */
@@ -9385,6 +9385,7 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
     #endif
         default:
             /* unsupported curve */
+            curveId = ECC_CURVE_INVALID;
             WOLFSSL_ERROR_VERBOSE(ECC_PEERKEY_ERROR);
             return ECC_PEERKEY_ERROR;
     }

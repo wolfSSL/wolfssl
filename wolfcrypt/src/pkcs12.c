@@ -1716,7 +1716,6 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
 
         /* free temporary buffer */
         XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        buf = NULL;
 
         ci = ci->next;
         WOLFSSL_MSG("Done Parsing PKCS12 Content Info Container");
