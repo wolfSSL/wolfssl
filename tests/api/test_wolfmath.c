@@ -46,8 +46,13 @@ int test_mp_get_digit_count(void)
 
     ExpectIntEQ(mp_init(&a), 0);
 
+#ifdef HAVE_FIPS
+    ExpectIntEQ(get_digit_count(NULL), 0);
+    ExpectIntEQ(get_digit_count(&a), 0);
+#else
     ExpectIntEQ(mp_get_digit_count(NULL), 0);
     ExpectIntEQ(mp_get_digit_count(&a), 0);
+#endif
 
     mp_clear(&a);
 #endif
@@ -67,8 +72,13 @@ int test_mp_get_digit(void)
     XMEMSET(&a, 0, sizeof(mp_int));
 
     ExpectIntEQ(mp_init(&a), MP_OKAY);
+#ifdef HAVE_FIPS
+    ExpectIntEQ(get_digit(NULL, n), 0);
+    ExpectIntEQ(get_digit(&a, n), 0);
+#else
     ExpectIntEQ(mp_get_digit(NULL, n), 0);
     ExpectIntEQ(mp_get_digit(&a, n), 0);
+#endif
 
     mp_clear(&a);
 #endif
@@ -89,10 +99,17 @@ int test_mp_get_rand_digit(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
+#ifdef HAVE_FIPS
+    ExpectIntEQ(get_rand_digit(&rng, &d), 0);
+    ExpectIntEQ(get_rand_digit(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(get_rand_digit(NULL, &d), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(get_rand_digit(&rng, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#else
     ExpectIntEQ(mp_get_rand_digit(&rng, &d), 0);
     ExpectIntEQ(mp_get_rand_digit(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(mp_get_rand_digit(NULL, &d), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(mp_get_rand_digit(&rng, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#endif
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
