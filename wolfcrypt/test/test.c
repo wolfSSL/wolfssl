@@ -2217,8 +2217,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("DSA      test passed!\n");
 #endif
 
-#if defined(WOLFCRYPT_HAVE_SRP) && ((defined(FP_MAX_BITS) && (FP_MAX_BITS >= 3072)) \
-                                 || (defined(SP_INT_BITS) && (SP_INT_BITS >= 3072)))
+#ifdef WOLFCRYPT_HAVE_SRP
     if ( (ret = srp_test()) != 0)
         TEST_FAIL("SRP      test failed!\n", ret);
     else
@@ -24152,8 +24151,7 @@ out:
 
 #endif /* !NO_DSA */
 
-#if defined(WOLFCRYPT_HAVE_SRP) && ((defined(FP_MAX_BITS) && (FP_MAX_BITS >= 3072)) \
-                                 || (defined(SP_INT_BITS) && (SP_INT_BITS >= 3072)))
+#ifdef WOLFCRYPT_HAVE_SRP
 static wc_test_ret_t generate_random_salt(byte *buf, word32 size)
 {
     wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
@@ -24171,14 +24169,21 @@ static wc_test_ret_t generate_random_salt(byte *buf, word32 size)
     return ret;
 }
 
+#if ((defined(FP_MAX_BITS) && (FP_MAX_BITS >= 3072)) \
+  || (defined(SP_INT_BITS) && (SP_INT_BITS >= 3072)))
+    #define SRP_TEST_BUFFER_SIZE  192
+#else
+    #define SRP_TEST_BUFFER_SIZE  128
+#endif
+
 static wc_test_ret_t srp_test_digest(SrpType dgstType)
 {
     wc_test_ret_t r;
 
-    byte clientPubKey[192]; /* A */
-    byte serverPubKey[192]; /* B */
-    word32 clientPubKeySz = 192;
-    word32 serverPubKeySz = 192;
+    byte clientPubKey[SRP_TEST_BUFFER_SIZE]; /* A */
+    byte serverPubKey[SRP_TEST_BUFFER_SIZE]; /* B */
+    word32 clientPubKeySz = SRP_TEST_BUFFER_SIZE;
+    word32 serverPubKeySz = SRP_TEST_BUFFER_SIZE;
 
     byte username[] = "user";
     word32 usernameSz = 4;
@@ -24186,6 +24191,26 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
     byte password[] = "password";
     word32 passwordSz = 8;
 
+#if SRP_TEST_BUFFER_SIZE == 128
+    WOLFSSL_SMALL_STACK_STATIC const byte N[] = {
+        0xEE, 0xAF, 0x0A, 0xB9, 0xAD, 0xB3, 0x8D, 0xD6,
+        0x9C, 0x33, 0xF8, 0x0A, 0xFA, 0x8F, 0xC5, 0xE8,
+        0x60, 0x72, 0x61, 0x87, 0x75, 0xFF, 0x3C, 0x0B,
+        0x9E, 0xA2, 0x31, 0x4C, 0x9C, 0x25, 0x65, 0x76,
+        0xD6, 0x74, 0xDF, 0x74, 0x96, 0xEA, 0x81, 0xD3,
+        0x38, 0x3B, 0x48, 0x13, 0xD6, 0x92, 0xC6, 0xE0,
+        0xE0, 0xD5, 0xD8, 0xE2, 0x50, 0xB9, 0x8B, 0xE4,
+        0x8E, 0x49, 0x5C, 0x1D, 0x60, 0x89, 0xDA, 0xD1,
+        0x5D, 0xC7, 0xD7, 0xB4, 0x61, 0x54, 0xD6, 0xB6,
+        0xCE, 0x8E, 0xF4, 0xAD, 0x69, 0xB1, 0x5D, 0x49,
+        0x82, 0x55, 0x9B, 0x29, 0x7B, 0xCF, 0x18, 0x85,
+        0xC5, 0x29, 0xF5, 0x66, 0x66, 0x0E, 0x57, 0xEC,
+        0x68, 0xED, 0xBC, 0x3C, 0x05, 0x72, 0x6C, 0xC0,
+        0x2F, 0xD4, 0xCB, 0xF4, 0x97, 0x6E, 0xAA, 0x9A,
+        0xFD, 0x51, 0x38, 0xFE, 0x83, 0x76, 0x43, 0x5B,
+        0x9F, 0xC6, 0x1D, 0x2F, 0xC0, 0xEB, 0x06, 0xE3
+    };
+#else
     WOLFSSL_SMALL_STACK_STATIC const byte N[] = {
         0xfc, 0x58, 0x7a, 0x8a, 0x70, 0xfb, 0x5a, 0x9a,
         0x5d, 0x39, 0x48, 0xbf, 0x1c, 0x46, 0xd8, 0x3b,
@@ -24212,14 +24237,16 @@ static wc_test_ret_t srp_test_digest(SrpType dgstType)
         0xb9, 0x26, 0x03, 0xba, 0xb5, 0x58, 0x6f, 0x6c,
         0x8b, 0x08, 0xa1, 0x7b, 0x6f, 0x42, 0xc9, 0x53
     };
+#endif
 
+    /* Generator is 2 for both cases. */
     WOLFSSL_SMALL_STACK_STATIC const byte g[] = {
         0x02
     };
 
     byte salt[10];
 
-    byte verifier[192];
+    byte verifier[SRP_TEST_BUFFER_SIZE];
     word32 v_size = (word32)sizeof(verifier);
 
     word32 clientProofSz = SRP_MAX_DIGEST_SIZE;
@@ -24341,9 +24368,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srp_test(void)
     return ret;
 }
 
-#endif
-/* WOLFCRYPT_HAVE_SRP && ((FP_MAX_BITS && (FP_MAX_BITS >= 3072))
-   || (SP_INT_BITS && (SP_INT_BITS >= 3072))) */
+#endif /* WOLFCRYPT_HAVE_SRP */
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
