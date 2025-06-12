@@ -83,7 +83,7 @@ This library provides big integer math functions.
 
 #if !defined(NO_BIG_INT)
 /* common math functions */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
 MP_API int get_digit_count(const mp_int* a);
 MP_API mp_digit get_digit(const mp_int* a, int n);
 MP_API int get_rand_digit(WC_RNG* rng, mp_digit* d);
