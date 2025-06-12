@@ -43270,7 +43270,8 @@ static int test_wolfSSL_X509V3_set_ctx(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
+    defined(HAVE_CRL)
     WOLFSSL_X509V3_CTX ctx;
     WOLFSSL_X509* issuer = NULL;
     WOLFSSL_X509* subject = NULL;
@@ -56701,7 +56702,7 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
 
     AssertTrue((f = XFOPEN(crl1, "rb")) != XBADFILE);
     AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
-    AssertIntGE(sz = (size_t) XFTELL(f), 1);
+    AssertIntGE(sz = (word32) XFTELL(f), 1);
     AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
     AssertTrue( \
         (crl1Buff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL);
@@ -56711,7 +56712,7 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
 
     AssertTrue((f = XFOPEN(crlRevoked, "rb")) != XBADFILE);
     AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
-    AssertIntGE(sz = (size_t) XFTELL(f), 1);
+    AssertIntGE(sz = (word32) XFTELL(f), 1);
     AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
     AssertTrue( \
         (crlRevBuff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL);
@@ -56732,7 +56733,8 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
     AssertIntEQ(crl1Info.lastDateFormat, old->lastDateFormat);
     AssertIntEQ(crl1Info.nextDateMaxLen, old->nextDateMaxLen);
     AssertIntEQ(crl1Info.nextDateFormat, old->nextDateFormat);
-    AssertIntEQ(crl1Info.crlNumber,      old->crlNumber);
+    AssertIntEQ(XMEMCMP(
+        crl1Info.crlNumber, old->crlNumber, CRL_MAX_NUM_SZ), 0);
     AssertIntEQ(XMEMCMP(
         crl1Info.issuerHash, old->issuerHash, old->issuerHashLen), 0);
     AssertIntEQ(XMEMCMP(
@@ -56746,7 +56748,8 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
     AssertIntEQ(crlRevInfo.lastDateFormat, cnew->lastDateFormat);
     AssertIntEQ(crlRevInfo.nextDateMaxLen, cnew->nextDateMaxLen);
     AssertIntEQ(crlRevInfo.nextDateFormat, cnew->nextDateFormat);
-    AssertIntEQ(crlRevInfo.crlNumber,      cnew->crlNumber);
+    AssertIntEQ(XMEMCMP(
+        crlRevInfo.crlNumber, cnew->crlNumber, CRL_MAX_NUM_SZ), 0);
     AssertIntEQ(XMEMCMP(
         crlRevInfo.issuerHash, cnew->issuerHash, cnew->issuerHashLen), 0);
     AssertIntEQ(XMEMCMP(
