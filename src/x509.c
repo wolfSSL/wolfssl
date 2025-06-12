@@ -5507,7 +5507,7 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
 WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 {
     WOLFSSL_EVP_PKEY* key = NULL;
-    int ret;
+    int ret = 0;
 
     (void)ret;
 
