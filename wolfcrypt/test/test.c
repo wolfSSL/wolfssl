@@ -2217,7 +2217,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("DSA      test passed!\n");
 #endif
 
-#ifdef WOLFCRYPT_HAVE_SRP
+#if defined(WOLFCRYPT_HAVE_SRP) && ((defined(FP_MAX_BITS) && (FP_MAX_BITS >= 3072)) \
+                                 || (defined(SP_INT_BITS) && (SP_INT_BITS >= 3072)))
     if ( (ret = srp_test()) != 0)
         TEST_FAIL("SRP      test failed!\n", ret);
     else
@@ -24151,8 +24152,8 @@ out:
 
 #endif /* !NO_DSA */
 
-#ifdef WOLFCRYPT_HAVE_SRP
-
+#if defined(WOLFCRYPT_HAVE_SRP) && ((defined(FP_MAX_BITS) && (FP_MAX_BITS >= 3072)) \
+                                 || (defined(SP_INT_BITS) && (SP_INT_BITS >= 3072)))
 static wc_test_ret_t generate_random_salt(byte *buf, word32 size)
 {
     wc_test_ret_t ret = WC_TEST_RET_ENC_NC;
@@ -24340,7 +24341,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srp_test(void)
     return ret;
 }
 
-#endif /* WOLFCRYPT_HAVE_SRP */
+#endif
+/* WOLFCRYPT_HAVE_SRP && ((FP_MAX_BITS && (FP_MAX_BITS >= 3072))
+   || (SP_INT_BITS && (SP_INT_BITS >= 3072))) */
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
