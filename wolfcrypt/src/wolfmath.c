@@ -85,11 +85,7 @@ void mp_reverse(unsigned char *s, int len)
     }
 }
 
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-int get_digit_count(const mp_int* a)
-#else
 int mp_get_digit_count(const mp_int* a)
-#endif
 {
     if (a == NULL)
         return 0;
@@ -97,11 +93,7 @@ int mp_get_digit_count(const mp_int* a)
     return (int)a->used;
 }
 
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-mp_digit get_digit(const mp_int* a, int n)
-#else
 mp_digit mp_get_digit(const mp_int* a, int n)
-#endif
 {
     if (a == NULL)
         return 0;
@@ -146,18 +138,10 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
          * mp_get_digit() returns 0 when index greater than available digit.
          */
         for (i = 0; i < a->used; i++) {
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
-#else
             b->dp[i] ^= (mp_get_digit(a, (int)i) ^ mp_get_digit(b, (int)i)) & mask;
-#endif
         }
         for (; i < b->used; i++) {
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
-#else
             b->dp[i] ^= (mp_get_digit(a, (int)i) ^ mp_get_digit(b, (int)i)) & mask;
-#endif
         }
         b->used ^= (a->used ^ b->used) & (wc_mp_size_t)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
@@ -172,11 +156,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
 
 #ifndef WC_NO_RNG
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-int get_rand_digit(WC_RNG* rng, mp_digit* d)
-#else
 int mp_get_rand_digit(WC_RNG* rng, mp_digit* d)
-#endif
 {
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
@@ -225,11 +205,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif
         /* ensure top digit is not zero */
         while ((ret == MP_OKAY) && (a->dp[a->used - 1] == 0)) {
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
-            ret = get_rand_digit(rng, &a->dp[a->used - 1]);
-#else
             ret = mp_get_rand_digit(rng, &a->dp[a->used - 1]);
-#endif
 #ifdef USE_INTEGER_HEAP_MATH
             a->dp[a->used - 1] &= MP_MASK;
 #endif
