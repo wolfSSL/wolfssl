@@ -430,6 +430,8 @@
 #ifdef HAVE_FIPS
     #if FIPS_VERSION_LT(2,0)
         #define WC_RNG RNG
+        /* blinding adds API not available yet in FIPS mode */
+        #undef WC_RSA_BLINDING
     #else
         /* RNG needs to be defined to WC_RNG anytime another library on the
          * system or other set of headers included by wolfSSL already defines
@@ -439,8 +441,6 @@
             #define RNG WC_RNG
         #endif
     #endif
-    /* blinding adds API not available yet in FIPS mode */
-    #undef WC_RSA_BLINDING
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */
