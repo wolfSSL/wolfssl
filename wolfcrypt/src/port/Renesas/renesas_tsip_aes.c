@@ -654,7 +654,18 @@ int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
     #endif
     }
 
-    if (ret != TSIP_SUCCESS) {
+    if (ret == TSIP_SUCCESS) {
+        /* increment IV counter */
+        int i, blocks = (int)(sz / WC_AES_BLOCK_SIZE);
+        while (blocks--) {
+            /* in network byte order so start at end and work back */
+            for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
+                if (++iv[i]) /* we're done unless we overflow */
+                    break;
+            }
+        }
+    }
+    else {
         WOLFSSL_ERROR(ret);
         WOLFSSL_MSG("TSIP AES CTR failed");
         ret = -1;
