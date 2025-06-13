@@ -50,7 +50,7 @@ jobs:
             --enable-dtls-mtu CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS',
           '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
           '--enable-opensslall --enable-opensslextra
-            CPPFLAGS='-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'',
+            CPPFLAGS=''-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'' ',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
