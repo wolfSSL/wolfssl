@@ -222,6 +222,11 @@ WC_MAYBE_UNUSED static int check_shash_driver_masking(struct crypto_shash *tfm, 
 static int linuxkm_lkcapi_register(void);
 static int linuxkm_lkcapi_unregister(void);
 
+#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
+    !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+static int enabled_fips = 0;
+#endif
+
 static ssize_t install_algs_handler(struct kobject *kobj, struct kobj_attribute *attr,
                               const char *buf, size_t count)
 {
@@ -260,6 +265,14 @@ static ssize_t deinstall_algs_handler(struct kobject *kobj, struct kobj_attribut
     ret = linuxkm_lkcapi_unregister();
     if (ret != 0)
         return ret;
+
+#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
+    !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+    if (enabled_fips) {
+        pr_info("wolfCrypt: restoring fips_enabled to off.");
+        enabled_fips = fips_enabled = 0;
+    }
+#endif
 
     return count;
 }
@@ -305,10 +318,6 @@ static int linuxkm_lkcapi_register(void)
 {
     int ret = -1;
     int seen_err = 0;
-#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
-        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-    int enabled_fips = 0;
-#endif
 
     ret = linuxkm_lkcapi_sysfs_install();
     if (ret)
@@ -321,12 +330,14 @@ static int linuxkm_lkcapi_register(void)
      */
     disable_setkey_warnings = 1;
 #endif
-#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
-        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+#if !defined(LINUXKM_DONT_FORCE_FIPS_ENABLED) && \
+    defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
+    !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
     if (! fips_enabled) {
-        /* temporarily assert system-wide FIPS status, to disable FIPS-forbidden
+        /* assert system-wide FIPS status, to disable FIPS-forbidden
          * test vectors and fuzzing from the CRYPTO_MANAGER.
          */
+        pr_info("wolfCrypt: changing fips_enabled from 0 to 1 for FIPS module.");
         enabled_fips = fips_enabled = 1;
     }
 #endif
@@ -364,6 +375,59 @@ static int linuxkm_lkcapi_register(void)
             }                                                                \
         }                                                                    \
     } while (0)
+
+#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
+    !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+/* Same as above, but allow for option to skip problematic algs that are
+ * not consistently labeled fips_allowed in crypto/testmgr.c, and hence
+ * may be rejected by the kernel at runtime if is_fips is true. */
+#define REGISTER_ALG_OPTIONAL(alg, alg_class, tester) do {\
+        if (! alg ## _loaded) {                                              \
+            ret =  (crypto_register_ ## alg_class)(&(alg));                  \
+            if (ret) {                                                       \
+                if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
+                    pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
+                            (alg).base.cra_driver_name);                     \
+                }                                                            \
+                else {                                                       \
+                    seen_err = ret;                                          \
+                    pr_err("ERROR: crypto_register_" #alg_class              \
+                           " for %s failed "                                 \
+                           "with return code %d.\n",                         \
+                           (alg).base.cra_driver_name, ret);                 \
+                }                                                            \
+            } else {                                                         \
+                ret = (tester());                                            \
+                if (ret) {                                                   \
+                    if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
+                        pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
+                                (alg).base.cra_driver_name);                 \
+                    }                                                        \
+                    else {                                                   \
+                        seen_err = -EINVAL;                                  \
+                        pr_err("ERROR: wolfCrypt self-test for %s failed "   \
+                               "with return code %d.\n",                     \
+                               (alg).base.cra_driver_name, ret);             \
+                    }                                                        \
+                    (crypto_unregister_ ## alg_class)(&(alg));               \
+                    if (! (alg.base.cra_flags & CRYPTO_ALG_DEAD)) {          \
+                        pr_err("ERROR: alg %s not _DEAD "                    \
+                               "after crypto_unregister_%s -- "              \
+                               "marking as loaded despite test failure.",    \
+                               (alg).base.cra_driver_name,                   \
+                               #alg_class);                                  \
+                        alg ## _loaded = 1;                                  \
+                        ++linuxkm_lkcapi_n_registered;                       \
+                    }                                                        \
+                } else {                                                     \
+                    alg ## _loaded = 1;                                      \
+                    ++linuxkm_lkcapi_n_registered;                           \
+                    WOLFKM_INSTALL_NOTICE(alg)                               \
+                }                                                            \
+            }                                                                \
+        }                                                                    \
+    } while (0)
+#endif /* HAVE_FIPS && CONFIG_CRYPTO_MANAGER && etc.. */
 
     /* We always register the derivative/composite algs first, to assure that
      * the kernel doesn't synthesize them dynamically from our primitives.
@@ -464,7 +528,6 @@ static int linuxkm_lkcapi_register(void)
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_ECDSA
-
     #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
         defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(CONFIG_CRYPTO_MANAGER) &&                    \
@@ -473,30 +536,43 @@ static int linuxkm_lkcapi_register(void)
          * ecdsa was not recognized as fips_allowed before linux v6.3
          * in kernel crypto/testmgr.c.
          */
-        fips_enabled = 0;
-    #endif
+        #if defined(LINUXKM_ECC192)
+        REGISTER_ALG_OPTIONAL(ecdsa_nist_p192, akcipher,
+                              linuxkm_test_ecdsa_nist_p192);
+        #endif /* LINUXKM_ECC192 */
 
-    #if defined(LINUXKM_ECC192)
-    REGISTER_ALG(ecdsa_nist_p192, akcipher,
-                 linuxkm_test_ecdsa_nist_p192);
-    #endif /* LINUXKM_ECC192 */
+        REGISTER_ALG_OPTIONAL(ecdsa_nist_p256, akcipher,
+                              linuxkm_test_ecdsa_nist_p256);
 
-    REGISTER_ALG(ecdsa_nist_p256, akcipher,
-                 linuxkm_test_ecdsa_nist_p256);
+        REGISTER_ALG_OPTIONAL(ecdsa_nist_p384, akcipher,
+                              linuxkm_test_ecdsa_nist_p384);
 
-    REGISTER_ALG(ecdsa_nist_p384, akcipher,
-                 linuxkm_test_ecdsa_nist_p384);
+        #if defined(HAVE_ECC521)
+        REGISTER_ALG_OPTIONAL(ecdsa_nist_p521, akcipher,
+                              linuxkm_test_ecdsa_nist_p521);
+        #endif /* HAVE_ECC521 */
+    #else
+        #if defined(LINUXKM_ECC192)
+        REGISTER_ALG(ecdsa_nist_p192, akcipher,
+                     linuxkm_test_ecdsa_nist_p192);
+        #endif /* LINUXKM_ECC192 */
 
-    #if defined(HAVE_ECC521)
-    REGISTER_ALG(ecdsa_nist_p521, akcipher,
-                 linuxkm_test_ecdsa_nist_p521);
-    #endif /* HAVE_ECC521 */
+        REGISTER_ALG(ecdsa_nist_p256, akcipher,
+                     linuxkm_test_ecdsa_nist_p256);
+
+        REGISTER_ALG(ecdsa_nist_p384, akcipher,
+                     linuxkm_test_ecdsa_nist_p384);
+
+        #if defined(HAVE_ECC521)
+        REGISTER_ALG(ecdsa_nist_p521, akcipher,
+                     linuxkm_test_ecdsa_nist_p521);
+        #endif /* HAVE_ECC521 */
+    #endif /* if linux < 6.3 && HAVE_FIPS && etc.. */
 
     #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&    \
         defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(CONFIG_CRYPTO_MANAGER) &&                    \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-        fips_enabled = 1;
     #endif
 
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
@@ -514,33 +590,24 @@ static int linuxkm_lkcapi_register(void)
     * Given the above, and given we're not actually relying on the crypto
     * manager for FIPS self tests, and given the FIPS ECDH implementation passes
     * the non-FIPS ECDH crypto manager tests, the pragmatic solution we settle
-    * on here for ECDH is to always clear fips_enabled in target kernels that
-    * have it.
+    * on here is for ECDH loading to be optional when fips and fips tests are
+    * enabled. Failures because of !fips_allowed are skipped over.
     */
-
     #if defined(CONFIG_CRYPTO_FIPS) &&                \
         defined(CONFIG_CRYPTO_MANAGER) &&             \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-        fips_enabled = 0;
-    #endif
-
-    #if defined(LINUXKM_ECC192)
-    REGISTER_ALG(ecdh_nist_p192, kpp,
-                 linuxkm_test_ecdh_nist_p192);
-    #endif /* LINUXKM_ECC192 */
-
-    REGISTER_ALG(ecdh_nist_p256, kpp,
-                 linuxkm_test_ecdh_nist_p256);
-
-    REGISTER_ALG(ecdh_nist_p384, kpp,
-                 linuxkm_test_ecdh_nist_p384);
-
-    #if defined(CONFIG_CRYPTO_FIPS) &&                \
-        defined(CONFIG_CRYPTO_MANAGER) &&             \
-        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-        fips_enabled = 1;
-    #endif
-
+        #if defined(LINUXKM_ECC192)
+        REGISTER_ALG_OPTIONAL(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
+        #endif /* LINUXKM_ECC192 */
+        REGISTER_ALG_OPTIONAL(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
+        REGISTER_ALG_OPTIONAL(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
+    #else
+        #if defined(LINUXKM_ECC192)
+        REGISTER_ALG(ecdh_nist_p192, kpp, linuxkm_test_ecdh_nist_p192);
+        #endif /* LINUXKM_ECC192 */
+        REGISTER_ALG(ecdh_nist_p256, kpp, linuxkm_test_ecdh_nist_p256);
+        REGISTER_ALG(ecdh_nist_p384, kpp, linuxkm_test_ecdh_nist_p384);
+    #endif /* CONFIG_CRYPTO_FIPS && etc.. */
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDH */
 
 #ifdef LINUXKM_LKCAPI_REGISTER_RSA
@@ -625,12 +692,8 @@ static int linuxkm_lkcapi_register(void)
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
 
 #undef REGISTER_ALG
+#undef REGISTER_ALG_OPTIONAL
 
-#if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
-        !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
-    if (enabled_fips)
-        fips_enabled = 0;
-#endif
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
     disable_setkey_warnings = 0;
 #endif
