@@ -22154,7 +22154,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     ExpectIntEQ(X509_NAME_print_ex(NULL, NULL, 0, 0), WOLFSSL_FAILURE);
     ExpectIntEQ(X509_NAME_print_ex(membio, NULL, 0, 0), WOLFSSL_FAILURE);
     ExpectIntEQ(X509_NAME_print_ex(NULL, name, 0, 0), WOLFSSL_FAILURE);
-    ExpectIntEQ(X509_NAME_print_ex(membio, empty, 0, 0), WOLFSSL_FAILURE);
+    ExpectIntEQ(X509_NAME_print_ex(membio, empty, 0, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
     wolfSSL_X509_NAME_free(empty);
     BIO_free(membio);
@@ -22174,6 +22174,23 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     BIO_free(membio);
     membio = NULL;
 
+    X509_free(x509);
+    BIO_free(bio);
+    name = NULL;
+
+    /* Test with empty issuer cert. */
+    ExpectNotNull(bio = BIO_new(BIO_s_file()));
+    ExpectIntGT(BIO_read_filename(bio, noIssuerCertFile), 0);
+    ExpectNotNull(PEM_read_bio_X509(bio, &x509, NULL, NULL));
+    ExpectNotNull(name = X509_get_subject_name(x509));
+
+    ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, 0), WOLFSSL_SUCCESS);
+    /* Should be empty string "" */
+    ExpectIntEQ((memSz = BIO_get_mem_data(membio, &mem)), 0);
+
+    BIO_free(membio);
+    membio = NULL;
     X509_free(x509);
     BIO_free(bio);
     name = NULL;
