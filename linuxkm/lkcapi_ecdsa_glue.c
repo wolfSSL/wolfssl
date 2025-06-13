@@ -727,12 +727,27 @@ static int linuxkm_test_ecdsa_nist_driver(const char * driver,
      */
     tfm = crypto_alloc_akcipher(driver, 0, 0);
     if (IS_ERR(tfm)) {
-        pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
-               driver, PTR_ERR(tfm));
-        if (PTR_ERR(tfm) == -ENOMEM)
-            test_rc = MEMORY_E;
+        #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) &&       \
+            defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_MANAGER) && \
+            !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+        /* ecdsa was not recognized as fips_allowed before linux v6.3
+         * in kernel crypto/testmgr.c, and the kernel will block
+         * its allocation if fips_enabled is set. */
+        if ((PTR_ERR(tfm) == -ENOENT) && fips_enabled) {
+            pr_info("info: skipping unsupported akcipher algorithm %s: %ld\n",
+                    driver, PTR_ERR(tfm));
+            test_rc = NOT_COMPILED_IN;
+        }
         else
-            test_rc = BAD_FUNC_ARG;
+        #endif
+        {
+            pr_err("error: allocating akcipher algorithm %s failed: %ld\n",
+                   driver, PTR_ERR(tfm));
+            if (PTR_ERR(tfm) == -ENOMEM)
+                test_rc = MEMORY_E;
+            else
+                test_rc = BAD_FUNC_ARG;
+        }
         tfm = NULL;
         goto test_ecdsa_nist_end;
     }
