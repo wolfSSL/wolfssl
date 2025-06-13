@@ -59436,7 +59436,6 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
 {
      wc_test_ret_t ret = 0;
 #if defined(HAVE_ECC)
-
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key* key = (ecc_key *)XMALLOC(sizeof *key,
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -59444,21 +59443,19 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte* out = (byte*)XMALLOC(sizeof(byte),
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    #ifdef OPENSSL_EXTRA
-    byte* check = (byte*)XMALLOC(sizeof(byte)*(256), HEAP_HINT,
-                                            DYNAMIC_TYPE_TMP_BUFFER);
-
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+    byte* check = (byte*)XMALLOC(256, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 #else
     ecc_key key[1];
+    #ifdef HAVE_ECC_DHE
     ecc_key pub[1];
-    byte    out[256];
-     #ifdef OPENSSL_EXTRA
-    unsigned char check[256];
+    #endif
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+    byte check[256];
     #endif
 #endif
-
-    #ifdef OPENSSL_EXTRA
+#if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     WOLFSSL_EVP_PKEY* privKey = NULL;
     WOLFSSL_EVP_PKEY* pubKey = NULL;
     #ifdef USE_CERT_BUFFERS_256
@@ -59497,17 +59494,22 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
         0x94,0x1d,0x7a,0x66,0xf8,0xd1,0x1d,0xcf,0xb0,0x48,
         0xef,0x8c,0x94,0x6f,0xdd,0x62,
     };
-    #endif
-
+#endif
+#ifdef HAVE_ECC_DHE
     WC_RNG rng;
+#endif
     EncryptedInfo encInfo;
     int keyFormat = 0;
+#ifdef USE_CERT_BUFFERS_256
     word32 keyIdx = 0;
-
+#endif
+#if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
     byte   in[] = "Everyone gets Friday off. ecc p";
     word32 inLen = (word32)XSTRLEN((char*)in);
+    byte   out[256];
     word32 outLen;
     int    verify;
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key == NULL || pub == NULL) {
@@ -59518,7 +59520,8 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
 
-    /* wc_CryptoCb_MakeEccKey cb test, , no actual testing */
+    /* wc_CryptoCb_MakeEccKey cb test, no actual testing */
+#ifdef HAVE_ECC_DHE
     ctx->exampleVar = 99;
     ret = wc_ecc_make_key(&rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0)
@@ -59530,7 +59533,7 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     } else
         /* reset return code */
         ret = 0;
-
+#endif
 #ifdef USE_CERT_BUFFERS_256
     if (ret == 0) {
         /* load ECC private key and perform private transform */
@@ -59539,6 +59542,9 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
+#endif
+
+#ifdef HAVE_ECC_SIGN
     /* wc_CryptoCb_EccSign cb test, no actual testing */
     ctx->exampleVar = 99;
     if (ret == 0) {
@@ -59556,6 +59562,7 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     else
         ret = 0;
 
+#ifdef HAVE_ECC_VERIFY
     /* wc_CryptoCb_EccVerify cb test, no actual testing */
     ctx->exampleVar = 99;
     if (ret == 0) {
@@ -59573,7 +59580,10 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
     else
         ret = 0;
+#endif /* HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN */
 
+#ifdef HAVE_ECC_DHE
     /* wc_CryptoCb_Ecdh cb test, no actual testing */
 
     /* make public key for shared secret */
@@ -59595,9 +59605,9 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     else
         ret = 0;
 
+#endif /* HAVE_ECC_DHE */
 
-    #ifdef OPENSSL_EXTRA
-
+#if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     (void)pkey;
     cp = ecc_clikey_der_256;
     privKey = d2i_PrivateKey(WC_EVP_PKEY_EC, NULL, &cp,
@@ -59658,7 +59668,6 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     }
 
     /* verify */
-
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     if (ret == WOLFSSL_SUCCESS) {
@@ -59694,24 +59703,11 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_onlycb);
     } else
         ret = 0;
-    #endif
-#else
-    (void)verify;
-    (void)outLen;
-    (void)inLen;
-    (void)out;
-    (void)pub;
-    #ifdef OPENSSL_EXTRA
-    (void)privKey;
-    (void)pubKey;
-    (void)mdCtx;
-    (void)check;
-    (void)checkSz;
-    (void)p;
-     #endif
-#endif
+#endif /* !WOLFCRYPT_ONLY && OPENSSL_EXTRA */
+
     (void)keyFormat;
     (void)encInfo;
+    (void)ctx;
 
 exit_onlycb:
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -59721,14 +59717,14 @@ exit_onlycb:
     }
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    #ifdef OPENSSL_EXTRA
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     if (check) {
         FREE(check, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif
 #else
     wc_ecc_free(key);
-    #ifdef OPENSSL_EXTRA
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     if (privKey)
         wolfSSL_EVP_PKEY_free(privKey);
     if (pubKey)
@@ -59863,6 +59859,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
         if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+        #ifdef HAVE_ECC_DHE
             /* set devId to invalid, so software is used */
             info->pk.eckg.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ECC)
@@ -59879,8 +59876,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->pk.eckg.key->devId = devIdArg;
+        #endif
         }
         else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+        #ifdef HAVE_ECC_SIGN
             /* set devId to invalid, so software is used */
             info->pk.eccsign.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ECC)
@@ -59899,8 +59898,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->pk.eccsign.key->devId = devIdArg;
+        #endif
         }
         else if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+        #ifdef HAVE_ECC_VERIFY
             /* set devId to invalid, so software is used */
             info->pk.eccverify.key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ECC)
@@ -59919,8 +59920,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->pk.eccverify.key->devId = devIdArg;
+        #endif
         }
         else if (info->pk.type == WC_PK_TYPE_ECDH) {
+        #ifdef HAVE_ECC_DHE
             /* set devId to invalid, so software is used */
             info->pk.ecdh.private_key->devId = INVALID_DEVID;
             #if defined(WOLF_CRYPTO_CB_ONLY_ECC)
@@ -59938,6 +59941,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
             /* reset devId */
             info->pk.ecdh.private_key->devId = devIdArg;
+        #endif
         }
     #endif /* HAVE_ECC */
     #ifdef HAVE_CURVE25519
