@@ -1510,74 +1510,6 @@ int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 
-static int X509StoreReadFile(const char *fname,
-                StaticBuffer *content, word32 *bytesRead, int *type)
-{
-    int ret = -1;
-    long sz = 0;
-#ifdef HAVE_CRL
-    const char* header = NULL;
-    const char* footer = NULL;
-#endif
-
-    ret = wolfssl_read_file_static(fname, content, NULL, DYNAMIC_TYPE_FILE,
-        &sz);
-    if (ret == 0) {
-        *type = CERT_TYPE;
-        *bytesRead = (word32)sz;
-#ifdef HAVE_CRL
-        /* Look for CRL header and footer. */
-        if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
-                (XSTRNSTR((char*)content->buffer, header, (word32)sz) !=
-                    NULL)) {
-            *type = CRL_TYPE;
-        }
-#endif
-    }
-
-    return (ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
-}
-
-static int X509StoreLoadFile(WOLFSSL_X509_STORE *str,
-                                        const char *fname)
-{
-    int ret = WOLFSSL_SUCCESS;
-    int type = 0;
-#ifndef WOLFSSL_SMALL_STACK
-    byte   stackBuffer[FILE_BUFFER_SIZE];
-#endif
-    StaticBuffer content;
-    word32 contentLen = 0;
-
-#ifdef WOLFSSL_SMALL_STACK
-    static_buffer_init(&content);
-#else
-    static_buffer_init(&content, stackBuffer, FILE_BUFFER_SIZE);
-#endif
-
-    WOLFSSL_MSG_EX("X509StoreLoadFile: Loading file: %s", fname);
-
-    ret = X509StoreReadFile(fname, &content, &contentLen, &type);
-    if (ret != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Failed to load file");
-        ret = WOLFSSL_FAILURE;
-    }
-
-    if ((ret == WOLFSSL_SUCCESS) && (type == CERT_TYPE)) {
-        ret = X509StoreLoadCertBuffer(str, content.buffer,
-                                        contentLen, WOLFSSL_FILETYPE_PEM);
-    }
-#ifdef HAVE_CRL
-    else if ((ret == WOLFSSL_SUCCESS) && (type == CRL_TYPE)) {
-        ret = BufferLoadCRL(str->cm->crl, content.buffer, contentLen,
-                                        WOLFSSL_FILETYPE_PEM, 0);
-    }
-#endif
-
-    static_buffer_free(&content, NULL, DYNAMIC_TYPE_FILE);
-    return ret;
-}
-
 /* Loads certificate(s) files in pem format into X509_STORE struct from either
  * a file or directory.
  * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
@@ -1607,23 +1539,9 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     wolfSSL_CertManagerFree(ctx->cm);
     ctx->cm = str->cm;
 
-#ifdef HAVE_CRL
-    if (str->cm->crl == NULL) {
-        /* Workaround to allocate the internals to load CRL's but don't enable
-         * CRL checking by default */
-        if (wolfSSL_CertManagerEnableCRL(str->cm, WOLFSSL_CRL_CHECK)
-                != WOLFSSL_SUCCESS ||
-                wolfSSL_CertManagerDisableCRL(str->cm) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Enable CRL failed");
-            wolfSSL_CTX_free(ctx);
-            return WOLFSSL_FAILURE;
-        }
-    }
-#endif
-
     /* Load individual file */
     if (file) {
-        ret = X509StoreLoadFile(str, file);
+        ret = X509LoadPemFile(str, file);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Failed to load file");
             ret = WOLFSSL_FAILURE;
@@ -1649,7 +1567,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         while (ret == 0 && name) {
             WOLFSSL_MSG(name);
 
-            ret = X509StoreLoadFile(str, name);
+            ret = X509LoadPemFile(str, name);
             /* Not failing on load errors */
             if (ret != WOLFSSL_SUCCESS)
                 WOLFSSL_MSG("Failed to load file in path, continuing");
