@@ -24,17 +24,17 @@
 
 #include <tests/api/api_decl.h>
 
-int test_get_digit_count(void);
-int test_get_digit(void);
-int test_get_rand_digit(void);
+int test_mp_get_digit_count(void);
+int test_mp_get_digit(void);
+int test_mp_get_rand_digit(void);
 int test_mp_cond_copy(void);
 int test_mp_rand(void);
 int test_wc_export_int(void);
 
 #define TEST_WOLFMATH_DECLS                             \
-    TEST_DECL_GROUP("wolfmath", test_get_digit_count),  \
-    TEST_DECL_GROUP("wolfmath", test_get_digit),        \
-    TEST_DECL_GROUP("wolfmath", test_get_rand_digit),   \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_digit_count),  \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_digit),        \
+    TEST_DECL_GROUP("wolfmath", test_mp_get_rand_digit),   \
     TEST_DECL_GROUP("wolfmath", test_mp_cond_copy),     \
     TEST_DECL_GROUP("wolfmath", test_mp_rand),          \
     TEST_DECL_GROUP("wolfmath", test_wc_export_int)

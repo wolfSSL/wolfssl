@@ -35727,6 +35727,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->verifySig = NULL;
     #endif
+
+        if (
+        #ifdef WOLFSSL_ASYNC_IO
+            args != NULL &&
+        #endif
+            args->input != NULL) {
+            XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            args->input = NULL;
+        }
+
         (void)args;
     }
 

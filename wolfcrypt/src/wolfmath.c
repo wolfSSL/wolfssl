@@ -85,7 +85,7 @@ void mp_reverse(unsigned char *s, int len)
     }
 }
 
-int get_digit_count(const mp_int* a)
+int mp_get_digit_count(const mp_int* a)
 {
     if (a == NULL)
         return 0;
@@ -93,7 +93,7 @@ int get_digit_count(const mp_int* a)
     return (int)a->used;
 }
 
-mp_digit get_digit(const mp_int* a, int n)
+mp_digit mp_get_digit(const mp_int* a, int n)
 {
     if (a == NULL)
         return 0;
@@ -135,13 +135,13 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
          * When mask all set, b ^ b ^ a = a
          */
         /* Conditionally copy all digits and then number of used digits.
-         * get_digit() returns 0 when index greater than available digit.
+         * mp_get_digit() returns 0 when index greater than available digit.
          */
         for (i = 0; i < a->used; i++) {
-            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
+            b->dp[i] ^= (mp_get_digit(a, (int)i) ^ mp_get_digit(b, (int)i)) & mask;
         }
         for (; i < b->used; i++) {
-            b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
+            b->dp[i] ^= (mp_get_digit(a, (int)i) ^ mp_get_digit(b, (int)i)) & mask;
         }
         b->used ^= (a->used ^ b->used) & (wc_mp_size_t)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
@@ -156,7 +156,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
 
 #ifndef WC_NO_RNG
-int get_rand_digit(WC_RNG* rng, mp_digit* d)
+int mp_get_rand_digit(WC_RNG* rng, mp_digit* d)
 {
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
 }
@@ -205,7 +205,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif
         /* ensure top digit is not zero */
         while ((ret == MP_OKAY) && (a->dp[a->used - 1] == 0)) {
-            ret = get_rand_digit(rng, &a->dp[a->used - 1]);
+            ret = mp_get_rand_digit(rng, &a->dp[a->used - 1]);
 #ifdef USE_INTEGER_HEAP_MATH
             a->dp[a->used - 1] &= MP_MASK;
 #endif
