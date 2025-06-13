@@ -2280,6 +2280,11 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
     /* Ensure zero return length on error. */
     *len = 0;
 
+    if (input == NULL || inOutIdx == NULL || len == NULL) {
+        WOLFSSL_MSG("GetLength - bad input");
+        return ASN_PARSE_E;
+    }
+
     /* Check there is at least one byte available containing length information.
      */
     if ((idx + 1) > maxIdx) {
@@ -6842,6 +6847,12 @@ word32 wc_oid_sum(const byte* input, int length)
 #ifndef WOLFSSL_OLD_OID_SUM
     int shift = 0;
 #endif
+
+    /* Check for valid input. */
+    if (input == NULL || length > MAX_OID_SZ) {
+        WOLFSSL_MSG("wc_oid_sum: invalid args");
+        return 0;
+    }
 
     /* Sum it up for now. */
     for (i = 0; i < length; i++) {
