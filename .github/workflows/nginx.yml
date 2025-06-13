@@ -122,7 +122,28 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo cpan -iT Proc::Find Net::SSLeay IO::Socket::SSL
+          sudo cpan -iT Proc::Find
+
+      # Locking in the version of SSLeay used with testing
+      - name: Download and install Net::SSLeay 1.94 manually
+        run: |
+          curl -LO https://www.cpan.org/modules/by-module/Net/CHRISN/Net-SSLeay-1.94.tar.gz
+          tar -xzf Net-SSLeay-1.94.tar.gz
+          cd Net-SSLeay-1.94
+          perl Makefile.PL
+          make
+          sudo make install
+
+      # SSL version 2.091 changes '' return to undef causing test case to fail.
+      # Locking in the test version to use as 2.090
+      - name: Download and install IO::Socket::SSL 2.090 manually
+        run: |
+          curl -LO https://www.cpan.org/modules/by-module/IO/IO-Socket-SSL-2.090.tar.gz
+          tar -xzf IO-Socket-SSL-2.090.tar.gz
+          cd IO-Socket-SSL-2.090
+          perl Makefile.PL
+          make
+          sudo make install
 
       - name: Checkout wolfssl-nginx
         uses: actions/checkout@v4

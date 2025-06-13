@@ -25,6 +25,7 @@
     #include <AvailabilityMacros.h>
 #endif
 
+#include <wolfssl/wolfcrypt/cpuid.h>
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -145,6 +146,10 @@
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
 
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+int aarch64_use_sb = 0;
+#endif
+
 /* Used to initialize state for wolfcrypt
    return 0 on success
  */
@@ -154,6 +159,10 @@ int wolfCrypt_Init(void)
     int ret = 0;
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
+
+    #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+        aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
+    #endif
 
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Initialize the mutex for access to the list of memory locations that
