@@ -45,9 +45,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # A good way to measure how much each test takes is to create a bash script
+          # in the openssh root like this (make it executable):
+          # time-measure.sh
+          #   #!/bin/bash
+          #   /usr/bin/time -a -o /tmp/LTESTS-times.txt -f '%e %C' /usr/bin/bash "$@"
+          # And invoke the openssh tests like this:
+          #   rm -f /tmp/LTESTS-times.txt && \
+          #     make tests TEST_SHELL=$(pwd)/time-measure.sh SKIP_UNIT=yes && \
+          #     grep test-exec.sh /tmp/LTESTS-times.txt
           - git_ref: 'V_9_6_P1'
             osp_ver: '9.6'
-    name: ${{ matrix.ref }}
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex cert-userkey forward-control integrity
+              channel-timeout connection-timeout
+          - git_ref: 'V_9_9_P2'
+            osp_ver: '9.9p2'
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex cert-userkey forward-control integrity
+              channel-timeout connection-timeout
+          - git_ref: 'V_10_0_P2'
+            osp_ver: '10.0p2'
+            SKIP_LTESTS: >-
+              exit-status rekey multiplex forward-control channel-timeout
+              connection-timeout
+    name: ${{ matrix.osp_ver }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     needs: build_wolfssl
@@ -80,5 +102,4 @@ jobs:
       - name: Run tests
         working-directory: ./openssh
         run: |
-          # Run all the tests except (t-exec) as it takes too long
-          make file-tests interop-tests extra-tests unit
+          make tests SKIP_LTESTS='${{ matrix.SKIP_LTESTS }}'
