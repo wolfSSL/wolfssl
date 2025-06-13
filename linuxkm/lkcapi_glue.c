@@ -385,7 +385,7 @@ static int linuxkm_lkcapi_register(void)
         if (! alg ## _loaded) {                                              \
             ret =  (crypto_register_ ## alg_class)(&(alg));                  \
             if (ret) {                                                       \
-                if (fips_enabled && (ret == NOT_COMPILED_IN)) {              \
+                if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
                     pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
                             (alg).base.cra_driver_name);                     \
                 }                                                            \
@@ -399,7 +399,7 @@ static int linuxkm_lkcapi_register(void)
             } else {                                                         \
                 ret = (tester());                                            \
                 if (ret) {                                                   \
-                    if (fips_enabled && (ret == NOT_COMPILED_IN)) {          \
+                    if (fips_enabled && (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) { \
                         pr_info("wolfCrypt: skipping FIPS-incompatible alg %s.\n", \
                                 (alg).base.cra_driver_name);                 \
                     }                                                        \
