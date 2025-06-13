@@ -20916,7 +20916,6 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
         if (asn_time != s) {
             XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
         }
-        asn_time = NULL;
     }
 
     /* negative offset */
@@ -20932,7 +20931,6 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
         if (asn_time != s) {
             XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
         }
-        asn_time = NULL;
     }
 
     XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -20959,7 +20957,6 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
         if (asn_time != s) {
             XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
         }
-        asn_time = NULL;
     }
 
     XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -20982,7 +20979,6 @@ static int test_wolfSSL_ASN1_TIME_adj(void)
         date_str[CTC_DATE_SIZE] = '\0';
         ExpectIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
         XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
-        asn_time = NULL;
     }
     ExpectNotNull(asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day,
         offset_sec));
