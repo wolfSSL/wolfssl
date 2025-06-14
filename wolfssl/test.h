@@ -527,6 +527,7 @@ err_sys_with_errno(const char* msg)
 #define cliEd448CertFile  "certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "certs/ed448/ca-ed448.pem"
+#define noIssuerCertFile  "certs/empty-issuer-cert.pem"
 #define caCertFolder      "certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
@@ -590,6 +591,7 @@ err_sys_with_errno(const char* msg)
 #define cliEd448CertFile  "./certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "./certs/ed448/ca-ed448.pem"
+#define noIssuerCertFile  "./certs/empty-issuer-cert.pem"
 #define caCertFolder      "./certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
