@@ -297,30 +297,36 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local);
 WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 {
     WC_RNG* ret = NULL;
-
-    /* Assume not local until one created. */
-    *local = 0;
-
 #ifdef WOLFSSL_SMALL_STACK
+    int freeRng = 0;
+
     /* Allocate RNG object . */
-    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (rng == NULL) {
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        freeRng = 1;
+    }
 #endif
-    /* Check we have a local RNG object and initialize. */
-    if ((rng != NULL) && (wc_InitRng(rng) == 0)) {
-        ret = rng;
-        *local = 1;
+
+    if (rng != NULL) {
+        if (wc_InitRng(rng) == 0) {
+            ret = rng;
+            *local = 1;
+        }
+        else {
+            WOLFSSL_MSG("Bad RNG Init");
+#ifdef WOLFSSL_SMALL_STACK
+            if (freeRng) {
+                XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+                rng = NULL;
+            }
+#endif
+        }
     }
     if (ret == NULL) {
-    #ifdef HAVE_GLOBAL_RNG
-        WOLFSSL_MSG("Bad RNG Init, trying global");
-    #endif
-        ret = wolfssl_make_global_rng();
-    }
-
-    if (ret != rng) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+#ifdef HAVE_GLOBAL_RNG
+        WOLFSSL_MSG("trying global RNG");
 #endif
+        ret = wolfssl_make_global_rng();
     }
 
     return ret;
