@@ -205,7 +205,12 @@ typedef int           mp_err;
 #define NEW_MP_INT_SIZE(name, bits, heap, type) \
     XMEMSET(name, 0, sizeof(mp_int))
 /* Dispose of static mp_int. */
-#define FREE_MP_INT_SIZE(name, heap, type) WC_DO_NOTHING
+#define FREE_MP_INT_SIZE(name, heap, type) \
+    do {                                   \
+        if ((name) != NULL) {              \
+            mp_free(name);                 \
+        }                                  \
+    } while (0)
 /* Initialize an mp_int. */
 #define INIT_MP_INT_SIZE(name, bits) \
     mp_init(name)
