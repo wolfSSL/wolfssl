@@ -12812,10 +12812,10 @@ cleanup:
             return 0;
 
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_CLIENT)
-    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.dtls
-            && IsAtLeastTLSv1_3(ssl->version)) {
-        return ssl->options.serverState == SERVER_FINISHED_ACKED;
-    }
+        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.dtls
+                && IsAtLeastTLSv1_3(ssl->version)) {
+            return ssl->options.serverState == SERVER_FINISHED_ACKED;
+        }
 #endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT */
 
         /* Can't use ssl->options.connectState and ssl->options.acceptState
@@ -26759,4 +26759,3 @@ void wolfSSL_FIPS_drbg_set_app_data(WOLFSSL_DRBG_CTX *ctx, void *app_data)
 
 
 #endif /* !WOLFCRYPT_ONLY */
-
