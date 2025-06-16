@@ -13874,7 +13874,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
 
-    if ((name == NULL) || (name->sz == 0) || (bio == NULL))
+    if ((name == NULL) || (bio == NULL))
         return WOLFSSL_FAILURE;
 
     XMEMSET(eqStr, 0, sizeof(eqStr));
