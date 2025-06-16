@@ -307,7 +307,11 @@ This library contains implementation for the random number generator.
 
 #ifdef WC_RNG_SEED_CB
 
+#ifndef HAVE_FIPS
+static wc_RngSeed_Cb seedCb = wc_GenerateSeed;
+#else
 static wc_RngSeed_Cb seedCb = NULL;
+#endif
 
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
