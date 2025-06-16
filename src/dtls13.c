@@ -905,7 +905,7 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
         /* the other peer may have retransmitted because an ACK for a flight
            that needs explicit ACK was lost.*/
         if (ssl->dtls13Rtx.seenRecords != NULL)
-            ssl->dtls13Rtx.sendAcks = (byte)ssl->options.dtls13SendMoreAcks;
+            ssl->dtls13Rtx.sendAcks = 1;
     }
 
     if (ssl->keys.dtls_peer_handshake_number ==

@@ -1383,3 +1383,82 @@ int test_dtls_rtx_across_epoch_change(void)
           defined(WOLFSSL_DTLS13) */
     return EXPECT_RESULT();
 }
+int test_dtls_drop_client_ack(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                           \
+    defined(WOLFSSL_DTLS13) && defined(WOLFSSL_DTLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    char data[32];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Setup DTLS contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method),
+        0);
+
+    /* disable new session ticket to simplify testing */
+    ExpectIntEQ(wolfSSL_no_ticket_TLSv13(ssl_s), 0);
+
+    /* CH0 */
+    wolfSSL_SetLoggingPrefix("client:");
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* HRR */
+    wolfSSL_SetLoggingPrefix("server:");
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* CH1 */
+    wolfSSL_SetLoggingPrefix("client:");
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* SH ... FINISHED */
+    wolfSSL_SetLoggingPrefix("server:");
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* ... FINISHED */
+    wolfSSL_SetLoggingPrefix("client:");
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* init is finished should return false at this point */
+    ExpectFalse(wolfSSL_is_init_finished(ssl_c));
+
+    /* ACK */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), WOLFSSL_SUCCESS);
+    /* Drop the ack */
+    test_memio_clear_buffer(&test_ctx, 1);
+
+    /* trigger client timeout, finished should be rtx */
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+    /* this should have triggered a rtx */
+    ExpectIntGT(test_ctx.s_msg_count, 0);
+
+    /* this should re-send the ack immediately */
+    ExpectIntEQ(wolfSSL_read(ssl_s, data, 32), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_ctx.c_msg_count, 1);
+
+    /* This should advance the connection on the client */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), WOLFSSL_SUCCESS);
+
+    /* Test communication works correctly */
+    ExpectIntEQ(test_dtls_communication(ssl_s, ssl_c), TEST_SUCCESS);
+
+    /* Cleanup */
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                     \
+          defined(WOLFSSL_DTLS13) */
+    return EXPECT_RESULT();
+}
