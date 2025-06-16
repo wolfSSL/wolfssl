@@ -27,6 +27,8 @@
 #include "wolfssl/certs_test.h"
 #include <wolfssl_simple_demo.h>
 
+#if defined(SIMPLE_TLS_SERVER)
+
 static WOLFSSL_CTX *server_ctx;
 
 static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
@@ -192,3 +194,4 @@ out:
     tcp_sht_cep(cepid);
     tcp_cls_cep(cepid, TMO_FEVR);
 }
+#endif
