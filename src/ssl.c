@@ -26110,6 +26110,10 @@ int wolfSSL_RAND_poll(void)
             ret = WOLFSSL_SUCCESS;
         }
         wc_UnLockMutex(&globalRNGMutex);
+#elif defined(HAVE_INTEL_RDRAND)
+        WOLFSSL_MSG("Not polling with RAND_poll, RDRAND used without "
+                    "HAVE_HASHDRBG");
+        ret = WOLFSSL_SUCCESS;
 #else
         WOLFSSL_MSG("RAND_poll called with HAVE_HASHDRBG not set");
         ret = WOLFSSL_FAILURE;
