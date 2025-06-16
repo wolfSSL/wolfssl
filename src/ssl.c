@@ -12811,6 +12811,13 @@ cleanup:
         if (ssl == NULL)
             return 0;
 
+#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_NO_CLIENT)
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->options.dtls
+            && IsAtLeastTLSv1_3(ssl->version)) {
+        return ssl->options.serverState == SERVER_FINISHED_ACKED;
+    }
+#endif /* WOLFSSL_DTLS13 && !WOLFSSL_NO_CLIENT */
+
         /* Can't use ssl->options.connectState and ssl->options.acceptState
          * because they differ in meaning for TLS <=1.2 and 1.3 */
         if (ssl->options.handShakeState == HANDSHAKE_DONE)
