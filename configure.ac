@@ -1665,6 +1665,7 @@ then
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
     fi
+    ENABLED_CERTS=yes
 fi
 
 # XMSS
@@ -4444,6 +4445,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM2 -DWOLFSSL_BASE16"
+    ENABLED_CERTS=yes
 fi
 
 
@@ -6305,6 +6307,7 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"
     ENABLED_FE448=yes
+    ENABLED_CERTS=yes
 fi
 
 # Ed448
@@ -9922,10 +9925,6 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"
     ENABLED_FEMATH=yes
     ENABLED_GEMATH=yes
-fi
-
-if test "$ENABLED_ED25519" != "no" || test "$ENABLED_ED448" != "no"
-then
     ENABLED_CERTS=yes
 fi
 
