@@ -23,7 +23,7 @@ Integration guide for using Tropic Square's TROPIC01 secure element with wolfSSL
 ## TROPIC01 Secure Element with an open architecture
 
 The TROPIC01 secure element is built with tamper-proof technology and advanced attack countermeasures to ensure robust asset protection, securing electronic devices against a wide range of potential attacks. It securely supplies and stores the cryptographic keys of embedded solutions.
-The TROPIC01 datasheet is available via [this link](https://www.nxp.com/docs/en/application-note/AN12570.pdf)
+The TROPIC01 datasheet is available via [this link](https://github.com/tropicsquare/tropic01/blob/main/doc/datasheet/ODD_tropic01_datasheet_revA6.pdf)
 
 ## Hardware Overview
 
@@ -71,15 +71,16 @@ Also, for Raspberry PI, there are a few more steps:
 2.  Install wiringPI:
 
 ```sh
-$ sudo apt update
-$ sudo apt install wiringpi
+$ wget https://github.com/WiringPi/WiringPi/releases/download/3.14/wiringpi_3.14_arm64.deb
+$ sudo apt install ./wiringpi_3.14_arm64.deb
 ```
 
 ### Keys installation
 
 For the integration with wolfSSL, there are a few pre-defined slots for the secure keys storage (the slots mapping might be changed in tropic01.h):
 ```sh
-TROPIC01_AES_RMEM_SLOT_DEFAULT 1 // slot in R-memory for AES key
+TROPIC01_AES_KEY_RMEM_SLOT 0 // slot in R-memory for AES key
+TROPIC01_AES_IV_RMEM_SLOT 1 // slot in R-memory for AES IV
 TROPIC01_ED25519_PUB_RMEM_SLOT_DEFAULT 2 // slot in R-memory for ED25519 Public key
 TROPIC01_ED25519_PRIV_RMEM_SLOT_DEFAULT 3 //slot in R-memory for ED25519 Private key
 TROPIC01_ED25519_ECC_SLOT_DEFAULT 1 // slot in ECC keys storage for both public and private keys
