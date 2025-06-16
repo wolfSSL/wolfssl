@@ -946,6 +946,22 @@ struct wc_linuxkm_drbg_ctx {
     } *rngs; /* one per CPU ID */
 };
 
+static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
+{
+    unsigned int i;
+
+    if (ctx->rngs) {
+        for (i = 0; i < nr_cpu_ids; ++i) {
+            (void)wc_FreeMutex(&ctx->rngs[i].lock);
+            wc_FreeRng(&ctx->rngs[i].rng);
+        }
+        free(ctx->rngs);
+        ctx->rngs = NULL;
+    }
+
+    return;
+}
+
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
@@ -975,12 +991,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     }
 
     if (ret != 0) {
-        for (i = 0; i < nr_cpu_ids; ++i) {
-            (void)wc_FreeMutex(&ctx->rngs[i].lock);
-            wc_FreeRng(&ctx->rngs[i].rng);
-        }
-        free(ctx->rngs);
-        ctx->rngs = NULL;
+        wc_linuxkm_drbg_ctx_clear(ctx);
     }
 
     return ret;
@@ -989,16 +1000,8 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
-    unsigned int i;
 
-    if (ctx->rngs) {
-        for (i = 0; i < nr_cpu_ids; ++i) {
-            (void)wc_FreeMutex(&ctx->rngs[i].lock);
-            wc_FreeRng(&ctx->rngs[i].rng);
-        }
-        free(ctx->rngs);
-        ctx->rngs = NULL;
-    }
+    wc_linuxkm_drbg_ctx_clear(ctx);
 
     return;
 }
