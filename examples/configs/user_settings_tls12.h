@@ -44,7 +44,6 @@ extern "C" {
 #define WOLFSSL_USER_IO
 #define WOLFSSL_IGNORE_FILE_WARN /* ignore file includes not required */
 //#define WOLFSSL_SMALL_STACK /* option to reduce stack size, offload to heap */
-#define NO_FILESYSTEM
 #define NO_WRITEV
 #define NO_SIG_WRAPPER
 
