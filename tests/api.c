@@ -22178,7 +22178,8 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     BIO_free(bio);
     name = NULL;
 
-    /* Test with empty issuer cert. */
+    /* Test with empty issuer cert empty-issuer-cert.pem.
+     * See notes in certs/test/gen-testcerts.sh for how it was generated. */
     ExpectNotNull(bio = BIO_new(BIO_s_file()));
     ExpectIntGT(BIO_read_filename(bio, noIssuerCertFile), 0);
     ExpectNotNull(PEM_read_bio_X509(bio, &x509, NULL, NULL));
