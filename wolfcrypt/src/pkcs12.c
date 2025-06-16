@@ -1830,6 +1830,8 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     word32 totalSz = 0;
     int ret;
     byte* pkcs8Key = NULL;
+    byte salt[PKCS5V2_SALT_SZ]; /* PKCS5V2_SALT_SZ > PKCS5_SALT_SZ */
+    word32 saltSz = 0;
 
     int vPKCS = -1;
     int outAlgo = -1;
@@ -1875,9 +1877,13 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
                 &hmacOid)) < 0) {
             return ret;
         }
+        saltSz = (outAlgo != PBES2) ? PKCS5_SALT_SZ : PKCS5V2_SALT_SZ;
+        if ((ret = wc_RNG_GenerateBlock(rng, salt, saltSz)) < 0) {
+            return ret;
+        }
 
         ret = TraditionalEnc_ex(key, keySz, pkcs8Key, &sz, pass, passSz,
-                vPKCS, outAlgo, blkOid, NULL, 0, itt, hmacOid, rng, heap);
+                vPKCS, outAlgo, blkOid, salt, saltSz, itt, hmacOid, rng, heap);
     }
     if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         *outSz =  sz + MAX_LENGTH_SZ + 1;

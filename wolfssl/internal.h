@@ -2548,6 +2548,8 @@ typedef struct CRL_Entry CRL_Entry;
         #error CRL_MAX_REVOKED_CERTS too big, max is 22000
     #endif
 #endif
+
+#ifdef HAVE_CRL
 /* Complete CRL */
 struct CRL_Entry {
     byte*   toBeSigned;
@@ -2560,6 +2562,7 @@ struct CRL_Entry {
     /* DupCRL_Entry copies data after the `verifyMutex` member. Using the mutex
      * as the marker because clang-tidy doesn't like taking the sizeof a
      * pointer. */
+    byte    crlNumber[CRL_MAX_NUM_SZ];    /* CRL number extension */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
     /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
     /* restore the hash here if needed for optimized comparisons */
@@ -2587,10 +2590,10 @@ struct CRL_Entry {
     byte*   sigParams;   /* buffer with signature parameters */
 #endif
 #if !defined(NO_SKID) && !defined(NO_ASN)
-    byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
+    byte    extAuthKeyIdSet:1;  /* Auth key identifier set indicator */
 #endif
-    int                   crlNumber;  /* CRL number extension */
+    byte    crlNumberSet:1;     /* CRL number set indicator */
 };
 
 
@@ -2643,6 +2646,7 @@ struct WOLFSSL_CRL {
 #endif
     void*                 heap;          /* heap hint for dynamic memory */
 };
+#endif
 
 
 #ifdef NO_ASN

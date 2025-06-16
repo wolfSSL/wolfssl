@@ -2612,6 +2612,11 @@ struct RevokedCert {
     byte         revDateFormat;
 };
 
+#ifndef CRL_MAX_NUM_SZ
+#define CRL_MAX_NUM_SZ 20 /* RFC5280 states that CRL number can be up to 20 */
+#endif                    /* octets long */
+
+
 typedef struct DecodedCRL DecodedCRL;
 
 struct DecodedCRL {
@@ -2624,6 +2629,7 @@ struct DecodedCRL {
     word32  sigParamsLength;         /* length of signature parameters   */
 #endif
     byte*   signature;               /* pointer into raw source, not owned */
+    byte    crlNumber[CRL_MAX_NUM_SZ];      /* CRL number extension */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
@@ -2639,10 +2645,10 @@ struct DecodedCRL {
     int          version;            /* version of cert    */
     void*   heap;
 #ifndef NO_SKID
-    byte    extAuthKeyIdSet;
-    byte    extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID        */
+    byte        extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID */
+    WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
-    int          crlNumber;          /* CRL number extension  */
+    WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);
