@@ -2774,7 +2774,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
     }
 #endif
 
-#ifdef WOLFSSL_DER_TO_PEM
+#if defined(WOLFSSL_DER_TO_PEM) && !defined(NO_CERTS)
     if (filePem) {
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         XFILE pemFile;

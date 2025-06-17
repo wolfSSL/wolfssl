@@ -147,12 +147,13 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
 #elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
     #include "cyhal_trng.h" /* Infineon/Cypress HAL RNG implementation */
-#elif defined(WOLFSSL_GETRANDOM)
-    #include <errno.h>
-    #include <sys/random.h>
 #elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #else
+    #if defined(WOLFSSL_GETRANDOM) || defined(HAVE_GETRANDOM)
+        #include <errno.h>
+        #include <sys/random.h>
+    #endif
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
     #ifndef EBSNET
@@ -306,7 +307,11 @@ This library contains implementation for the random number generator.
 
 #ifdef WC_RNG_SEED_CB
 
+#ifndef HAVE_FIPS
+static wc_RngSeed_Cb seedCb = wc_GenerateSeed;
+#else
 static wc_RngSeed_Cb seedCb = NULL;
+#endif
 
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
@@ -3971,37 +3976,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return wc_MXC_TRNG_Random(output, sz);
     }
 
-#elif defined(WOLFSSL_GETRANDOM)
-
-    /* getrandom() was added to the Linux kernel in version 3.17.
-     * Added to glibc in version 2.25. */
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        int ret = 0;
-        (void)os;
-
-        while (sz) {
-            int len;
-
-            errno = 0;
-            len = (int)getrandom(output, sz, 0);
-            if (len == -1) {
-                if (errno == EINTR) {
-                    /* interrupted, call getrandom again */
-                    continue;
-                }
-                else {
-                    ret = READ_RAN_E;
-                }
-                break;
-            }
-
-            sz     -= len;
-            output += len;
-        }
-        return ret;
-    }
-
 #elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
 
     /* Infineon/Cypress HAL RNG implementation */
@@ -4137,6 +4111,43 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
     #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
+    #if defined(WOLFSSL_GETRANDOM) || defined(HAVE_GETRANDOM)
+        {
+            word32 grSz = sz;
+            byte* grOutput = output;
+
+            while (grSz) {
+                ssize_t len;
+
+                errno = 0;
+                len = getrandom(grOutput, grSz, 0);
+                if (len == -1) {
+                    if (errno == EINTR) {
+                        /* interrupted, call getrandom again */
+                        continue;
+                    }
+                    else {
+                        ret = READ_RAN_E;
+                    }
+                    break;
+                }
+
+                grSz     -= (word32)len;
+                grOutput += len;
+            }
+            if (ret == 0)
+                return ret;
+        #ifdef FORCE_FAILURE_GETRANDOM
+            /* don't fallback to /dev/urandom */
+            return ret;
+        #else
+            /* reset error and fallback to using /dev/urandom */
+            ret = 0;
+        #endif
+        }
+    #endif
+
+#ifndef NO_FILESYSTEM
     #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
         os->fd = open("/dev/urandom", O_RDONLY);
         #if defined(DEBUG_WOLFSSL)
@@ -4176,6 +4187,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
         }
         close(os->fd);
+#else
+        ret = NOT_COMPILED_IN;
+#endif /* NO_FILESYSTEM */
 
         return ret;
     }
