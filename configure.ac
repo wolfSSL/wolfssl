@@ -213,7 +213,7 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
 AC_ARG_ENABLE([debug-code-points],
-    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-verbose messages.]) ],
+    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-debug messages.]) ],
     [ ENABLED_DEBUG_CODEPOINTS=$enableval ],
     [ ENABLED_DEBUG_CODEPOINTS=no ]
     )
