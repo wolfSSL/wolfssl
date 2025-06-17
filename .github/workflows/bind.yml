@@ -44,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 9.18.0, 9.18.28 ]
+        ref: [ 9.18.0, 9.18.28, 9.18.33 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
