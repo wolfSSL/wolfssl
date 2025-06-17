@@ -9384,9 +9384,9 @@ static int TLSX_KeyShare_ProcessEcc_ex(WOLFSSL* ssl,
             break;
     #endif
         default:
-            /* unsupported curve */
             curveId = ECC_CURVE_INVALID;
             WOLFSSL_ERROR_VERBOSE(ECC_PEERKEY_ERROR);
+            (void)curveId;
             return ECC_PEERKEY_ERROR;
     }
 
