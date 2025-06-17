@@ -830,7 +830,10 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
         wc_PKCS12_free(*pkcs12);
         *pkcs12 = NULL;
     }
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf != NULL) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = NULL;
+    }
 
     WOLFSSL_LEAVE("wc_d2i_PKCS12_fp", ret);
 
@@ -1715,7 +1718,11 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
         }
 
         /* free temporary buffer */
-        XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        /* At the other location where buf is freed */
+        if (buf != NULL) {
+            XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+            buf = NULL;  /* Set to NULL to prevent double-free at exit */
+}
 
         ci = ci->next;
         WOLFSSL_MSG("Done Parsing PKCS12 Content Info Container");
@@ -1742,23 +1749,22 @@ int wc_PKCS12_parse_ex(WC_PKCS12* pkcs12, const char* psw,
     ret = 0; /* success */
 
 exit_pk12par:
-
     if (ret != 0) {
         /* failure cleanup */
         if (*pkey) {
             XFREE(*pkey, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             *pkey = NULL;
         }
-        XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-        buf = NULL;
-
         wc_FreeCertList(certList, pkcs12->heap);
+    }
+    /* Always cleanup buf, but check if it's already been freed */
+    if (buf != NULL) {
+        XFREE(buf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        /* No buf = NULL needed since we return immediately */
     }
 
     return ret;
 }
-
-
 /* Helper function to get parameters for key and cert encryptions */
 static int wc_PKCS12_get_enc_params(int inAlgo, int* vPKCS, int* outAlgo,
         int* blkOid, int* hmacOid)

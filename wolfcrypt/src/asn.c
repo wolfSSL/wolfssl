@@ -25028,8 +25028,10 @@ Signer* findSignerByName(Signer *list, byte *hash)
     }
     return NULL;
 }
+/*declared with WOLFSSL_LOCAL due to coverity warning "routine not emitted",
+likely due to inconsistencies between its declaration and definition. */
 
-int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                       Signer *extraCAList)
 {
     int    ret = 0;
