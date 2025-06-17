@@ -1042,3 +1042,4 @@ ssize_t
 sun
 versal
 wc_Tls13_HKDF_Expand_Label
+__STDC_NO_ATOMICS__
