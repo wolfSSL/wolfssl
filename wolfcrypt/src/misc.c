@@ -633,7 +633,13 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 }
 #endif
 
-#ifndef WOLFSSL_NO_CT_OPS
+
+#if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY))
+/* constant time operations with mask are required for RSA and TLS operations */
+#warning constant time operations required unless using NO_RSA & WOLFCRYPT_ONLY
+#endif
+
+#if !defined(WOLFSSL_NO_CT_OPS) || !defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)
 /* Constant time - mask set when a > b. */
 WC_MISC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
 {
@@ -761,7 +767,8 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     /* returns the smaller of a and b */
     WC_MISC_STATIC WC_INLINE word32 min(word32 a, word32 b)
     {
-#if !defined(WOLFSSL_NO_CT_OPS) && defined(WORD64_AVAILABLE)
+#if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
+    defined(WORD64_AVAILABLE)
         word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
         return (a & ~gte_mask) | (b & gte_mask);
 #else /* WOLFSSL_NO_CT_OPS */
@@ -777,7 +784,8 @@ WC_MISC_STATIC WC_INLINE void ctMaskCopy(byte mask, byte* dst, byte* src,
     #endif
     WC_MISC_STATIC WC_INLINE word32 max(word32 a, word32 b)
     {
-#if !defined(WOLFSSL_NO_CT_OPS) && defined(WORD64_AVAILABLE)
+#if !defined(WOLFSSL_NO_CT_OPS) && !defined(WOLFSSL_NO_CT_MAX_MIN) && \
+    defined(WORD64_AVAILABLE)
         word32 gte_mask = (word32)ctMaskWord32GTE(a, b);
         return (a & gte_mask) | (b & ~gte_mask);
 #else /* WOLFSSL_NO_CT_OPS */
