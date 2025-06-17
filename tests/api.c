@@ -66090,8 +66090,7 @@ static int test_dtls13_missing_finished_server(void)
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
     /* Let's clear the output */
     test_memio_clear_buffer(&test_ctx, 0);
-    /* We should signal that the handshake is done */
-    ExpectTrue(wolfSSL_is_init_finished(ssl_c));
+    ExpectFalse(wolfSSL_is_init_finished(ssl_c));
     /* Let's send some app data */
     ExpectIntEQ(wolfSSL_write(ssl_c, test_str, sizeof(test_str)),
                 sizeof(test_str));
@@ -68496,6 +68495,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_dtls_cid_parse),
     TEST_DECL(test_dtls13_epochs),
     TEST_DECL(test_dtls_rtx_across_epoch_change),
+    TEST_DECL(test_dtls_drop_client_ack),
     TEST_DECL(test_dtls13_ack_order),
     TEST_DECL(test_dtls_version_checking),
     TEST_DECL(test_ocsp_status_callback),
