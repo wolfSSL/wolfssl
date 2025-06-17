@@ -69,6 +69,10 @@
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
 
+#if defined(WOLFSSL_TROPIC01)
+    #include <wolfssl/wolfcrypt/port/tropicsquare/tropic01.h>
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) \
     && !defined(WOLFCRYPT_ONLY)
     #include <wolfssl/openssl/evp.h>
@@ -294,7 +298,13 @@ int wolfCrypt_Init(void)
     #if defined(WOLFSSL_STSAFEA100)
         stsafe_interface_init();
     #endif
-
+    #if defined(WOLFSSL_TROPIC01)
+        ret = Tropic01_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("Tropic01 init failed");
+            return ret;
+        }
+    #endif
     #if defined(WOLFSSL_PSOC6_CRYPTO)
         ret = psoc6_crypto_port_init();
         if (ret != 0) {
@@ -513,6 +523,9 @@ int wolfCrypt_Cleanup(void)
     #endif
     #ifdef WOLFSSL_SILABS_SE_ACCEL
         ret = sl_se_deinit();
+    #endif
+    #if defined(WOLFSSL_TROPIC01)
+        Tropic01_Deinit();
     #endif
     #if defined(WOLFSSL_RENESAS_TSIP)
         tsip_Close();

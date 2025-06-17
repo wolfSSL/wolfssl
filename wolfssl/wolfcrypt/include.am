@@ -109,6 +109,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/silabs/silabs_random.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
+                         wolfssl/wolfcrypt/port/tropicsquare/tropic01.h \
                          wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
                          wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h \
@@ -227,6 +228,10 @@ endif
 
 if BUILD_SE050
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/se050_port.h
+endif
+
+if BUILD_TROPIC01
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/tropicsquare/tropic01.h
 endif
 
 if BUILD_MAXQ10XX
