@@ -31689,7 +31689,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
         certSignCtx->state = CERTSIGN_STATE_DO;
         ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
 
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         if (rsaKey) {
             /* signature */
             ret = wc_RsaSSL_Sign(certSignCtx->encSig,

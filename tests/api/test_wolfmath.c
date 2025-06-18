@@ -34,9 +34,9 @@
 #include <tests/api/test_wolfmath.h>
 
 /*
- * Testing get_digit_count
+ * Testing mp_get_digit_count
  */
-int test_get_digit_count(void)
+int test_mp_get_digit_count(void)
 {
     EXPECT_DECLS;
 #if !defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_PUBLIC_MP)
@@ -46,8 +46,8 @@ int test_get_digit_count(void)
 
     ExpectIntEQ(mp_init(&a), 0);
 
-    ExpectIntEQ(get_digit_count(NULL), 0);
-    ExpectIntEQ(get_digit_count(&a), 0);
+    ExpectIntEQ(mp_get_digit_count(NULL), 0);
+    ExpectIntEQ(mp_get_digit_count(&a), 0);
 
     mp_clear(&a);
 #endif
@@ -55,9 +55,9 @@ int test_get_digit_count(void)
 } /* End test_get_digit_count */
 
 /*
- * Testing get_digit
+ * Testing mp_get_digit
  */
-int test_get_digit(void)
+int test_mp_get_digit(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_PUBLIC_MP)
@@ -67,8 +67,8 @@ int test_get_digit(void)
     XMEMSET(&a, 0, sizeof(mp_int));
 
     ExpectIntEQ(mp_init(&a), MP_OKAY);
-    ExpectIntEQ(get_digit(NULL, n), 0);
-    ExpectIntEQ(get_digit(&a, n), 0);
+    ExpectIntEQ(mp_get_digit(NULL, n), 0);
+    ExpectIntEQ(mp_get_digit(&a, n), 0);
 
     mp_clear(&a);
 #endif
@@ -76,9 +76,9 @@ int test_get_digit(void)
 } /* End test_get_digit */
 
 /*
- * Testing get_rand_digit
+ * Testing mp_get_rand_digit
  */
-int test_get_rand_digit(void)
+int test_mp_get_rand_digit(void)
 {
     EXPECT_DECLS;
 #if !defined(WC_NO_RNG) && defined(WOLFSSL_PUBLIC_MP)
@@ -89,10 +89,10 @@ int test_get_rand_digit(void)
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(get_rand_digit(&rng, &d), 0);
-    ExpectIntEQ(get_rand_digit(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(get_rand_digit(NULL, &d), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(get_rand_digit(&rng, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(mp_get_rand_digit(&rng, &d), 0);
+    ExpectIntEQ(mp_get_rand_digit(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(mp_get_rand_digit(NULL, &d), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(mp_get_rand_digit(&rng, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
 #endif
