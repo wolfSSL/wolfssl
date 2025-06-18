@@ -41,6 +41,7 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 #include <wolfssl/wolfcrypt/sha512.h>
 
@@ -90,9 +91,11 @@ static const word64 L_SHA512_transform_len_k[] = {
 
 void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512_p,
+    const byte* data_p, word32 len_p)
 #else
-void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512,
+    const byte* data, word32 len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3591,4 +3594,5 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

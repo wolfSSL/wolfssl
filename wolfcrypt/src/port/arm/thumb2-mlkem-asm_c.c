@@ -41,6 +41,7 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #include <wolfssl/wolfcrypt/wc_mlkem.h>
 
 #ifdef WOLFSSL_WC_MLKEM
@@ -64,9 +65,9 @@ XALIGNED(16) static const word16 L_mlkem_thumb2_ntt_zetas[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void mlkem_thumb2_ntt(sword16* r_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r_p)
 #else
-void mlkem_thumb2_ntt(sword16* r)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_ntt(sword16* r)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1387,9 +1388,9 @@ XALIGNED(16) static const word16 L_mlkem_invntt_zetas_inv[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void mlkem_thumb2_invntt(sword16* r_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r_p)
 #else
-void mlkem_thumb2_invntt(sword16* r)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_invntt(sword16* r)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3077,10 +3078,11 @@ XALIGNED(16) static const word16 L_mlkem_basemul_mont_zetas[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void mlkem_thumb2_basemul_mont(sword16* r_p, const sword16* a_p,
-    const sword16* b_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r_p,
+    const sword16* a_p, const sword16* b_p)
 #else
-void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont(sword16* r,
+    const sword16* a, const sword16* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3227,11 +3229,11 @@ void mlkem_thumb2_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void mlkem_thumb2_basemul_mont_add(sword16* r_p, const sword16* a_p,
-    const sword16* b_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r_p,
+    const sword16* a_p, const sword16* b_p)
 #else
-void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
-    const sword16* b)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_basemul_mont_add(sword16* r,
+    const sword16* a, const sword16* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3390,9 +3392,9 @@ void mlkem_thumb2_basemul_mont_add(sword16* r, const sword16* a,
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void mlkem_thumb2_csubq(sword16* p_p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p_p)
 #else
-void mlkem_thumb2_csubq(sword16* p)
+WC_OMIT_FRAME_POINTER void mlkem_thumb2_csubq(sword16* p)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3503,11 +3505,11 @@ void mlkem_thumb2_csubq(sword16* p)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-unsigned int mlkem_thumb2_rej_uniform(sword16* p_p, unsigned int len_p,
-    const byte* r_p, unsigned int rLen_p)
+WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p_p,
+    unsigned int len_p, const byte* r_p, unsigned int rLen_p)
 #else
-unsigned int mlkem_thumb2_rej_uniform(sword16* p, unsigned int len,
-    const byte* r, unsigned int rLen)
+WC_OMIT_FRAME_POINTER unsigned int mlkem_thumb2_rej_uniform(sword16* p,
+    unsigned int len, const byte* r, unsigned int rLen)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3856,4 +3858,5 @@ unsigned int mlkem_thumb2_rej_uniform(sword16* p, unsigned int len,
 #endif /* WOLFSSL_WC_MLKEM */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

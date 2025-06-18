@@ -252,11 +252,11 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -614,11 +614,11 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -754,10 +754,11 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -796,9 +797,11 @@ static sp_digit sp_2048_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_in_place_16(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_16(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_16(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -850,11 +853,11 @@ static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_16(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_16(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_16(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -972,9 +975,11 @@ SP_NOINLINE static void sp_2048_mul_16(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1054,11 +1059,11 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1208,9 +1213,11 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_in_place_64(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1346,11 +1353,11 @@ static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1557,9 +1564,11 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1807,9 +1816,11 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1926,10 +1937,11 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2004,11 +2016,11 @@ SP_NOINLINE static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_16(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_16(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_16(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_16(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2097,11 +2109,11 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2220,11 +2232,11 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2277,9 +2289,11 @@ static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_in_place_64(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2331,10 +2345,11 @@ static sp_digit sp_2048_sub_in_place_64(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2457,9 +2472,10 @@ static void sp_2048_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_sqr_64(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_sqr_64(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2596,11 +2612,11 @@ static void sp_2048_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2653,9 +2669,11 @@ static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2707,10 +2725,11 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2833,9 +2852,10 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_sqr_32(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_sqr_32(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2976,9 +2996,11 @@ static void sp_2048_mont_setup(const sp_digit* a, sp_digit* rho)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_d_64(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3035,9 +3057,11 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_d_64(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_64(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3399,11 +3423,11 @@ static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3457,11 +3481,11 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3603,11 +3627,11 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3917,11 +3941,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4040,11 +4064,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4264,11 +4288,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4405,9 +4429,11 @@ SP_NOINLINE static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a,
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_d_32(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4464,9 +4490,11 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_mul_d_32(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_2048_mul_d_32(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4654,11 +4682,11 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4721,11 +4749,11 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -4803,9 +4831,11 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_2048_cmp_32(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_32(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_32(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5611,11 +5641,11 @@ static void sp_2048_mont_norm_64(sp_digit* r, const sp_digit* m)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_sub_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5669,11 +5699,11 @@ static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_sub_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_sub_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -5927,11 +5957,11 @@ static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6497,11 +6527,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -6620,11 +6650,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7004,11 +7034,11 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_2048_mont_reduce_64(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7145,11 +7175,11 @@ SP_NOINLINE static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7201,11 +7231,11 @@ static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_sub_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_sub_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7347,11 +7377,11 @@ static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7414,11 +7444,11 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -7599,9 +7629,11 @@ static void sp_2048_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_2048_cmp_64(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_64(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_2048_cmp_64(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -8881,11 +8913,11 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -8939,11 +8971,11 @@ static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_2048_cond_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_2048_cond_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -9391,9 +9423,11 @@ int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_FFDHE_2048
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_2048_lshift_64(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_2048_lshift_64(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_2048_lshift_64(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_2048_lshift_64(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -10219,10 +10253,11 @@ static void sp_3072_to_bin_96(sp_digit* r, byte* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_3072_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_12(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11248,11 +11283,11 @@ static void sp_3072_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11298,9 +11333,11 @@ static sp_digit sp_3072_add_12(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_in_place_24(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_24(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_24(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11366,11 +11403,11 @@ static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_24(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_24(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_24(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11506,9 +11543,11 @@ SP_NOINLINE static void sp_3072_mul_24(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11616,11 +11655,11 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11798,9 +11837,11 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_in_place_96(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -11992,11 +12033,11 @@ static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -12258,9 +12299,10 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_sqr_12(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -12960,11 +13002,11 @@ static void sp_3072_sqr_12(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13046,11 +13088,11 @@ SP_NOINLINE static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_24(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_24(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_24(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_24(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13153,11 +13195,11 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13304,11 +13346,11 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13361,9 +13403,11 @@ static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_in_place_96(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13415,10 +13459,11 @@ static sp_digit sp_3072_sub_in_place_96(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13541,9 +13586,10 @@ static void sp_3072_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_sqr_96(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_96(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13680,11 +13726,11 @@ static void sp_3072_mask_48(sp_digit* r, const sp_digit* a, sp_digit m)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_add_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_add_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13737,9 +13783,11 @@ static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13791,10 +13839,11 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -13917,9 +13966,10 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_sqr_48(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_48(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14060,9 +14110,11 @@ static void sp_3072_mont_setup(const sp_digit* a, sp_digit* rho)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_d_96(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14119,9 +14171,11 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_d_96(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_96(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14643,11 +14697,11 @@ static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_sub_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14701,11 +14755,11 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_sub_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -14903,11 +14957,11 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15345,11 +15399,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15468,11 +15522,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15772,11 +15826,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_48(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15913,9 +15967,11 @@ SP_NOINLINE static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a,
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_d_48(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -15972,9 +16028,11 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_mul_d_48(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_3072_mul_d_48(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -16242,11 +16300,11 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -16309,11 +16367,11 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -16391,9 +16449,11 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_3072_cmp_48(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_48(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_48(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -17375,11 +17435,11 @@ static void sp_3072_mont_norm_96(sp_digit* r, const sp_digit* m)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_sub_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -17433,11 +17493,11 @@ static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_sub_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_sub_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -17803,11 +17863,11 @@ static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -18629,11 +18689,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -18752,11 +18812,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19296,11 +19356,11 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_3072_mont_reduce_96(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19437,11 +19497,11 @@ SP_NOINLINE static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19493,11 +19553,11 @@ static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_sub_96(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_sub_96(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19695,11 +19755,11 @@ static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19762,11 +19822,11 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -19947,9 +20007,11 @@ static void sp_3072_mask_96(sp_digit* r, const sp_digit* a, sp_digit m)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_3072_cmp_96(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_96(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_3072_cmp_96(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -21581,11 +21643,11 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_add_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -21639,11 +21701,11 @@ static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_3072_cond_add_48(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_3072_cond_add_48(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -22147,9 +22209,11 @@ int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_FFDHE_3072
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_3072_lshift_96(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_3072_lshift_96(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_3072_lshift_96(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_3072_lshift_96(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23166,9 +23230,11 @@ static void sp_4096_to_bin_128(sp_digit* r, byte* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_sub_in_place_128(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23416,11 +23482,11 @@ static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_add_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23747,11 +23813,11 @@ SP_NOINLINE static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_add_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_add_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23804,9 +23870,11 @@ static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_sub_in_place_128(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23858,10 +23926,11 @@ static sp_digit sp_4096_sub_in_place_128(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mul_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -23984,9 +24053,11 @@ static void sp_4096_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_sqr_128(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_4096_sqr_128(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_4096_sqr_128(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -24125,9 +24196,11 @@ static void sp_4096_mont_setup(const sp_digit* a, sp_digit* rho)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mul_d_128(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -24184,9 +24257,11 @@ static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_mul_d_128(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_4096_mul_d_128(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_4096_mul_d_128(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -24869,11 +24944,11 @@ static void sp_4096_mont_norm_128(sp_digit* r, const sp_digit* m)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_cond_sub_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -24927,11 +25002,11 @@ static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_cond_sub_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_sub_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -25409,11 +25484,11 @@ static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -26491,11 +26566,11 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -26614,11 +26689,11 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -27318,11 +27393,11 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_4096_mont_reduce_128(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -27459,11 +27534,11 @@ SP_NOINLINE static void sp_4096_mont_sqr_128(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_sub_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -27515,11 +27590,11 @@ static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_sub_128(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_sub_128(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -27773,11 +27848,11 @@ static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -27840,11 +27915,11 @@ SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_4096_word_128(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -28025,9 +28100,11 @@ static void sp_4096_mask_128(sp_digit* r, const sp_digit* a, sp_digit m)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_4096_cmp_128(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_4096_cmp_128(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_4096_cmp_128(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_4096_cmp_128(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -30011,11 +30088,11 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_cond_add_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -30069,11 +30146,11 @@ static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_4096_cond_add_64(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_4096_cond_add_64(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -30633,9 +30710,11 @@ int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
 
 #ifdef HAVE_FFDHE_4096
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_4096_lshift_128(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_4096_lshift_128(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_4096_lshift_128(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_4096_lshift_128(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -31709,10 +31788,11 @@ static const sp_digit p256_b[8] = {
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -31838,11 +31918,11 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32200,11 +32280,11 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32341,9 +32421,10 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_256_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32461,9 +32542,11 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32711,9 +32794,11 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_sqr_8(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32832,10 +32917,11 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_add_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32888,10 +32974,11 @@ static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_add_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_add_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -32932,11 +33019,11 @@ static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * m  The modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static int sp_256_mod_mul_norm_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER static int sp_256_mod_mul_norm_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-static int sp_256_mod_mul_norm_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER static int sp_256_mod_mul_norm_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -33380,11 +33467,12 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p,
+    sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -33874,11 +33962,12 @@ SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p,
+    sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34145,11 +34234,11 @@ SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34528,11 +34617,11 @@ SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a,
  * mp  Montgomery multiplier.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -34876,9 +34965,11 @@ static void sp_256_mont_inv_8(sp_digit* r, const sp_digit* a, sp_digit* td)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_256_cmp_8(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_256_cmp_8(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_256_cmp_8(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35032,11 +35123,11 @@ static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_cond_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35090,11 +35181,11 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_cond_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_cond_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35154,11 +35245,11 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p,
-    sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35276,11 +35367,11 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p,
-    sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35381,11 +35472,11 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a_p, const sp_digit* m_p,
-    sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35549,11 +35640,11 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35671,11 +35762,11 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_reduce_order_8(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35817,11 +35908,11 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35885,11 +35976,11 @@ SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -35948,11 +36039,11 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -36044,11 +36135,11 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -36110,11 +36201,11 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a,
  * m  Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_256_mont_div2_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -39671,9 +39762,9 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_add_one_8(sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_256_add_one_8(sp_digit* a_p)
 #else
-static void sp_256_add_one_8(sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_256_add_one_8(sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40085,9 +40176,11 @@ int sp_ecc_secret_gen_256_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_sub_in_place_8(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40137,9 +40230,11 @@ static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_sub_in_place_8(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_in_place_8(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40179,9 +40274,11 @@ static sp_digit sp_256_sub_in_place_8(sp_digit* a, const sp_digit* b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mul_d_8(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
+    sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40238,9 +40335,11 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_mul_d_8(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
+    sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40308,11 +40407,11 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -40375,11 +40474,11 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -41102,10 +41201,11 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -41157,10 +41257,11 @@ static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_256_sub_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_256_sub_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -41194,9 +41295,11 @@ static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
 #endif /* WOLFSSL_SP_SMALL */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_rshift1_8(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_256_rshift1_8(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_256_rshift1_8(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_256_rshift1_8(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -41245,10 +41348,11 @@ static void sp_256_rshift1_8(sp_digit* r, const sp_digit* a)
  * m  Modulus.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_256_div2_mod_8(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER static void sp_256_div2_mod_8(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+WC_OMIT_FRAME_POINTER static void sp_256_div2_mod_8(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -41333,9 +41437,9 @@ static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static int sp_256_num_bits_8(const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static int sp_256_num_bits_8(const sp_digit* a_p)
 #else
-static int sp_256_num_bits_8(const sp_digit* a)
+WC_OMIT_FRAME_POINTER static int sp_256_num_bits_8(const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -42615,10 +42719,11 @@ static const sp_digit p384_b[12] = {
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mul_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -42743,10 +42848,11 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mul_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_12(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -43773,9 +43879,10 @@ static void sp_384_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_sqr_12(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -43892,9 +43999,10 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_sqr_12(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44596,10 +44704,11 @@ static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -44652,10 +44761,11 @@ static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45002,11 +45112,11 @@ static int sp_384_point_to_ecc_point_12(const sp_point_384* p, ecc_point* pm)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_cond_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45060,11 +45170,11 @@ static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_cond_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45137,11 +45247,11 @@ static sp_digit sp_384_cond_sub_12(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45291,11 +45401,11 @@ SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45558,9 +45668,11 @@ static void sp_384_mont_inv_12(sp_digit* r, const sp_digit* a, sp_digit* td)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_384_cmp_12(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_384_cmp_12(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_384_cmp_12(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_384_cmp_12(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45796,11 +45908,11 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45823,11 +45935,11 @@ SP_NOINLINE static void sp_384_mont_add_12(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45849,11 +45961,11 @@ SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45878,10 +45990,11 @@ SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45933,10 +46046,11 @@ static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -45986,11 +46100,11 @@ static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_cond_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -46044,11 +46158,11 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_cond_add_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_cond_add_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -46119,11 +46233,11 @@ static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -46143,9 +46257,11 @@ SP_NOINLINE static void sp_384_mont_sub_12(sp_digit* r, const sp_digit* a,
 #else
 #endif /* WOLFSSL_SP_SMALL */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_rshift1_12(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_384_rshift1_12(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_384_rshift1_12(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_384_rshift1_12(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -49782,9 +49898,9 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_add_one_12(sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_384_add_one_12(sp_digit* a_p)
 #else
-static void sp_384_add_one_12(sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_384_add_one_12(sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50202,9 +50318,11 @@ int sp_ecc_secret_gen_384_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_sub_in_place_12(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50254,9 +50372,11 @@ static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_384_sub_in_place_12(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_384_sub_in_place_12(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50303,9 +50423,11 @@ static sp_digit sp_384_sub_in_place_12(sp_digit* a, const sp_digit* b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mul_d_12(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50362,9 +50484,11 @@ static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_mul_d_12(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_384_mul_d_12(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50452,11 +50576,11 @@ static void sp_384_mul_d_12(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -50519,11 +50643,11 @@ SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_384_word_12(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -51216,11 +51340,11 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
  * m  Modulus.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_384_div2_mod_12(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER static void sp_384_div2_mod_12(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER static void sp_384_div2_mod_12(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -51343,9 +51467,9 @@ static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a,
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static int sp_384_num_bits_12(const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static int sp_384_num_bits_12(const sp_digit* a_p)
 #else
-static int sp_384_num_bits_12(const sp_digit* a)
+WC_OMIT_FRAME_POINTER static int sp_384_num_bits_12(const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -52771,10 +52895,11 @@ static const sp_digit p521_b[17] = {
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mul_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -52902,10 +53027,11 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mul_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_17(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -54946,9 +55072,10 @@ static void sp_521_mul_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_sqr_17(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -55068,9 +55195,10 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_sqr_17(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56356,10 +56484,11 @@ static void sp_521_sqr_17(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_add_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_521_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56418,10 +56547,11 @@ static sp_digit sp_521_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_add_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_521_add_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_add_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56696,11 +56826,11 @@ static int sp_521_point_to_ecc_point_17(const sp_point_521* p, ecc_point* pm)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_cond_sub_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56754,11 +56884,11 @@ static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_cond_sub_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_cond_sub_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56847,11 +56977,11 @@ static sp_digit sp_521_cond_sub_17(sp_digit* r, const sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a,
+    const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -56987,11 +57117,11 @@ SP_NOINLINE static void sp_521_mont_reduce_17(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -57268,11 +57398,11 @@ SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a,
-    const sp_digit* m, sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_reduce_order_17(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -57644,9 +57774,11 @@ static void sp_521_mont_inv_17(sp_digit* r, const sp_digit* a, sp_digit* td)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_521_cmp_17(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_521_cmp_17(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_521_cmp_17(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_521_cmp_17(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -57937,11 +58069,11 @@ static void sp_521_map_17(sp_point_521* r, const sp_point_521* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -58030,11 +58162,11 @@ SP_NOINLINE static void sp_521_mont_add_17(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -58113,11 +58245,11 @@ SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -58217,11 +58349,11 @@ SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -58305,9 +58437,11 @@ SP_NOINLINE static void sp_521_mont_sub_17(sp_digit* r, const sp_digit* a,
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_rshift1_17(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_521_rshift1_17(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_521_rshift1_17(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_521_rshift1_17(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -62586,9 +62720,9 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_add_one_17(sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_521_add_one_17(sp_digit* a_p)
 #else
-static void sp_521_add_one_17(sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_521_add_one_17(sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63008,9 +63142,11 @@ int sp_ecc_secret_gen_521_nb(sp_ecc_ctx_t* sp_ctx, const mp_int* priv,
 
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_rshift_17(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_521_rshift_17(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_521_rshift_17(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_521_rshift_17(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63113,9 +63249,11 @@ static void sp_521_rshift_17(sp_digit* r, const sp_digit* a, byte n)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_lshift_17(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_521_lshift_17(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_521_lshift_17(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_521_lshift_17(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63235,9 +63373,11 @@ static void sp_521_lshift_17(sp_digit* r, const sp_digit* a, byte n)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_lshift_34(sp_digit* r_p, const sp_digit* a_p, byte n_p)
+WC_OMIT_FRAME_POINTER static void sp_521_lshift_34(sp_digit* r_p,
+    const sp_digit* a_p, byte n_p)
 #else
-static void sp_521_lshift_34(sp_digit* r, const sp_digit* a, byte n)
+WC_OMIT_FRAME_POINTER static void sp_521_lshift_34(sp_digit* r,
+    const sp_digit* a, byte n)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63465,9 +63605,11 @@ static void sp_521_lshift_34(sp_digit* r, const sp_digit* a, byte n)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_sub_in_place_17(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63522,9 +63664,11 @@ static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_sub_in_place_17(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_in_place_17(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63582,9 +63726,11 @@ static sp_digit sp_521_sub_in_place_17(sp_digit* a, const sp_digit* b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mul_d_17(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63641,9 +63787,11 @@ static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_mul_d_17(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_521_mul_d_17(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63756,11 +63904,11 @@ static void sp_521_mul_d_17(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -63823,11 +63971,11 @@ SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1_p,
+    sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_521_word_17(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -64551,10 +64699,11 @@ int sp_ecc_sign_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_sub_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -64611,10 +64760,11 @@ static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_521_sub_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_521_sub_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -64672,11 +64822,11 @@ static sp_digit sp_521_sub_17(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * m  Modulus.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_521_div2_mod_17(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER static void sp_521_div2_mod_17(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER static void sp_521_div2_mod_17(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -64834,9 +64984,9 @@ static void sp_521_div2_mod_17(sp_digit* r, const sp_digit* a,
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static int sp_521_num_bits_17(const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static int sp_521_num_bits_17(const sp_digit* a_p)
 #else
-static int sp_521_num_bits_17(const sp_digit* a)
+WC_OMIT_FRAME_POINTER static int sp_521_num_bits_17(const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -66270,10 +66420,11 @@ typedef struct sp_point_1024 {
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mul_16(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_16(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_1024_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_16(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -68080,9 +68231,10 @@ static void sp_1024_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_sqr_16(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69234,11 +69386,11 @@ static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_add_16(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_16(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_16(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69291,9 +69443,11 @@ static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_sub_in_place_32(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69373,11 +69527,11 @@ static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69528,11 +69682,11 @@ SP_NOINLINE static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_sub_16(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_16(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_1024_sub_16(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_16(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69622,10 +69776,11 @@ SP_NOINLINE static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mul_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69748,9 +69903,10 @@ static void sp_1024_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_sqr_32(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_sqr_32(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -69953,9 +70109,11 @@ static const sp_point_1024 p1024_base = {
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_sub_in_place_32(sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70009,11 +70167,11 @@ static sp_digit sp_1024_sub_in_place_32(sp_digit* a, const sp_digit* b)
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_cond_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70067,11 +70225,11 @@ static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_cond_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70212,11 +70370,11 @@ static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
  * b  A single precision integer.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p)
 #else
-static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70270,9 +70428,11 @@ static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mul_d_32(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70329,9 +70489,11 @@ static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * b  A single precision digit.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_mul_d_32(sp_digit* r_p, const sp_digit* a_p, sp_digit b_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r_p,
+    const sp_digit* a_p, sp_digit b_p)
 #else
-static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
+WC_OMIT_FRAME_POINTER static void sp_1024_mul_d_32(sp_digit* r,
+    const sp_digit* a, sp_digit b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70519,11 +70681,11 @@ static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a, sp_digit b)
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70586,11 +70748,11 @@ SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0,
  * Note that this is an approximate div. It may give an answer 1 larger.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1_p, sp_digit d0_p,
-    sp_digit div_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(
+    sp_digit d1_p, sp_digit d0_p, sp_digit div_p)
 #else
-SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0,
-    sp_digit div)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1,
+    sp_digit d0, sp_digit div)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -70698,9 +70860,11 @@ static void sp_1024_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
  * respectively.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_int32 sp_1024_cmp_32(const sp_digit* a_p, const sp_digit* b_p)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_1024_cmp_32(const sp_digit* a_p,
+    const sp_digit* b_p)
 #else
-static sp_int32 sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
+WC_OMIT_FRAME_POINTER static sp_int32 sp_1024_cmp_32(const sp_digit* a,
+    const sp_digit* b)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -71438,11 +71602,11 @@ static int sp_1024_point_to_ecc_point_32(const sp_point_1024* p, ecc_point* pm)
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -71757,11 +71921,11 @@ SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a_p,
-    const sp_digit* m_p, sp_digit mp_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+    sp_digit* a_p, const sp_digit* m_p, sp_digit mp_p)
 #else
-SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
-    sp_digit mp)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_reduce_32(
+    sp_digit* a, const sp_digit* m, sp_digit mp)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -72124,11 +72288,11 @@ static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -72305,11 +72469,11 @@ SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -72469,11 +72633,11 @@ SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -72789,11 +72953,11 @@ SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, const sp_digit* m_p)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, const sp_digit* m_p)
 #else
-SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, const sp_digit* m)
+WC_OMIT_FRAME_POINTER SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, const sp_digit* m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -72967,11 +73131,11 @@ SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_cond_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -73025,11 +73189,11 @@ static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a,
  * m  Mask value to apply.
  */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static sp_digit sp_1024_cond_add_32(sp_digit* r_p, const sp_digit* a_p,
-    const sp_digit* b_p, sp_digit m_p)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r_p,
+    const sp_digit* a_p, const sp_digit* b_p, sp_digit m_p)
 #else
-static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a,
-    const sp_digit* b, sp_digit m)
+WC_OMIT_FRAME_POINTER static sp_digit sp_1024_cond_add_32(sp_digit* r,
+    const sp_digit* a, const sp_digit* b, sp_digit m)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -73163,9 +73327,11 @@ static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a,
 
 #endif /* WOLFSSL_SP_SMALL */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-static void sp_1024_rshift1_32(sp_digit* r_p, const sp_digit* a_p)
+WC_OMIT_FRAME_POINTER static void sp_1024_rshift1_32(sp_digit* r_p,
+    const sp_digit* a_p)
 #else
-static void sp_1024_rshift1_32(sp_digit* r, const sp_digit* a)
+WC_OMIT_FRAME_POINTER static void sp_1024_rshift1_32(sp_digit* r,
+    const sp_digit* a)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

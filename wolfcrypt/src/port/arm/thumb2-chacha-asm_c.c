@@ -41,13 +41,16 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #ifdef HAVE_CHACHA
 #include <wolfssl/wolfcrypt/chacha.h>
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void wc_chacha_setiv(word32* x_p, const byte* iv_p, word32 counter_p)
+WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x_p, const byte* iv_p,
+    word32 counter_p)
 #else
-void wc_chacha_setiv(word32* x, const byte* iv, word32 counter)
+WC_OMIT_FRAME_POINTER void wc_chacha_setiv(word32* x, const byte* iv,
+    word32 counter)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -80,9 +83,11 @@ XALIGNED(16) static const word32 L_chacha_thumb2_constants[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
+WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x_p, const byte* key_p,
+    word32 keySz_p)
 #else
-void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
+WC_OMIT_FRAME_POINTER void wc_chacha_setkey(word32* x, const byte* key,
+    word32 keySz)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -146,10 +151,11 @@ void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p,
-    word32 len_p)
+WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p,
+    const byte* m_p, word32 len_p)
 #else
-void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len)
+WC_OMIT_FRAME_POINTER void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c,
+    const byte* m, word32 len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -585,10 +591,11 @@ void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p,
-    word32 len_p)
+WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over_p, byte* output_p,
+    const byte* input_p, word32 len_p)
 #else
-void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
+WC_OMIT_FRAME_POINTER void wc_chacha_use_over(byte* over, byte* output,
+    const byte* input, word32 len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -730,4 +737,5 @@ void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
 #endif /* HAVE_CHACHA */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */
