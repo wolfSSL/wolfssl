@@ -177,7 +177,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
     (void)line;
 #endif
 #endif
-#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
     if (pthread_mutex_lock(&memLock) == 0)
     {
 #endif
@@ -223,7 +223,7 @@ static WC_INLINE void* TrackMalloc(size_t sz)
         ourMemList.tail = header;      /* add to the end either way */
         ourMemList.count++;
 #endif
-#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
         pthread_mutex_unlock(&memLock);
     }
 #endif /* DO_MEM_LIST */
@@ -250,7 +250,7 @@ static WC_INLINE void TrackFree(void* ptr)
     header = &mt->u.hint;
     sz = header->thisSize;
 
-#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
     if (pthread_mutex_lock(&memLock) == 0)
     {
 #endif
@@ -284,7 +284,7 @@ static WC_INLINE void TrackFree(void* ptr)
         ourMemList.count--;
 #endif
 
-#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
+#if !defined(SINGLE_THREADED) && (defined(DO_MEM_LIST) || defined(DO_MEM_STATS))
         pthread_mutex_unlock(&memLock);
     }
 #endif
