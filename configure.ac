@@ -160,6 +160,9 @@ fi
 #ifdef HAVE_STDLIB_H
     #include <stdlib.h>
 #endif
+#ifdef HAVE_UNISTD_H
+    #include <unistd.h>
+#endif
 #ifdef HAVE_CTYPE_H
     #include <ctype.h>
 #endif
@@ -10467,6 +10470,12 @@ fi
 if test "$ac_cv_type___uint128_t" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
+fi
+
+# Add HAVE_GETPID to AM_CFLAGS for inclusion in options.h
+if test "$ac_cv_func_getpid" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_GETPID=1"
 fi
 
 LIB_SOCKET_NSL
