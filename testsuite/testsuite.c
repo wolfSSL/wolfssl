@@ -467,11 +467,6 @@ static int test_tls(func_args* server_args)
     if (echo_args.return_code != 0)
         return echo_args.return_code;
 
-#ifdef WOLFSSL_DTLS
-    /* Ensure server is ready for UDP data. */
-    wait_tcp_ready(server_args);
-#endif
-
     /* Next client connection - send quit to shutdown server. */
     echo_args.argc = 2;
     XSTRLCPY(arg[1], "quit", sizeof(arg[1]));
