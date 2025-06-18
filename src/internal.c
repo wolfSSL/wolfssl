@@ -42857,6 +42857,46 @@ static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
     return 0;
 }
 
+static int MaxValidityPeriodErrorOnly(CFErrorRef error)
+{
+    int multiple = 0;
+
+    CFDictionaryRef userInfo = CFErrorCopyUserInfo(error);
+    if (userInfo) {
+        /* Get underlying error */
+        CFTypeRef underlying  =
+            CFDictionaryGetValue(userInfo, kCFErrorUnderlyingErrorKey);
+        if (underlying) {
+            /* Get underlying error value*/
+            CFDictionaryRef underlyingDict =
+                CFErrorCopyUserInfo((CFErrorRef)underlying);
+            if (underlyingDict) {
+                char buffer[512];
+                CFStringRef values = 
+                    CFDictionaryGetValue(underlyingDict,
+                        kCFErrorLocalizedDescriptionKey);
+                if(CFStringGetCString(values, buffer, sizeof(buffer),
+                    kCFStringEncodingUTF8)) {
+                    if (XSTRSTR(buffer, "Certificate exceeds maximum "
+                            "temporal validity period") &&
+                        (!XSTRSTR(buffer, "Certificate exceeds maximum "
+                            "temporal validity period,") ||
+                        !XSTRSTR(buffer, ", Certificate exceeds maximum "
+                            "temporal validity period"))) {
+                        WOLFSSL_MSG("Maximum validity period error only");
+                    } else {
+                        WOLFSSL_MSG("Found other errors");
+                        multiple = 1;
+                    }
+                }
+                CFRelease(underlyingDict);
+            }
+        }
+        CFRelease(userInfo);
+    }
+    return multiple;
+}
+
 /*
  * Validates a chain of certificates using the Apple system trust APIs
  *
@@ -42966,8 +43006,14 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
              * (See: https://support.apple.com/en-us/103769)
              * therefore we should skip over this particular error */
             if (code == errSecCertificateValidityPeriodTooLong) {
-                WOLFSSL_MSG("Skipping certificate validity period error");
-                ret = 1;
+                if (MaxValidityPeriodErrorOnly(error)) {
+                    WOLFSSL_MSG("Multiple reasons for validity period error, "
+                                "not skipping");
+                    ret = 0;
+                } else {
+                    WOLFSSL_MSG("Skipping certificate validity period error");
+                    ret = 1;
+                }
                 /* TODO: ensure other errors aren't masked by this error */
             }
 #endif

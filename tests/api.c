@@ -5039,6 +5039,7 @@ static int test_wolfSSL_OtherName(void)
 }
 
 #ifdef HAVE_CERT_CHAIN_VALIDATION
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_wolfSSL_CertRsaPss(void)
 {
     EXPECT_DECLS;
@@ -5097,7 +5098,7 @@ static int test_wolfSSL_CertRsaPss(void)
     return EXPECT_RESULT();
 }
 #endif
-
+#endif
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
     EXPECT_DECLS;
@@ -48425,6 +48426,7 @@ static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
 #endif
 
 #if !defined(NO_FILESYSTEM)
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_RsaSigFailure_cm(void)
 {
     EXPECT_DECLS;
@@ -48499,7 +48501,7 @@ static int test_EccSigFailure_cm(void)
 #endif /* HAVE_ECC */
     return EXPECT_RESULT();
 }
-
+#endif
 #endif /* !NO_FILESYSTEM */
 #endif /* NO_CERTS */
 
@@ -58104,6 +58106,7 @@ static int test_chainJ(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_various_pathlen_chains(void)
 {
     EXPECT_DECLS;
@@ -58162,6 +58165,7 @@ static int test_various_pathlen_chains(void)
 
     return EXPECT_RESULT();
 }
+#endif
 #endif /* !NO_RSA && !NO_SHA && !NO_FILESYSTEM && !NO_CERTS */
 
 #if defined(HAVE_KEYING_MATERIAL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
@@ -67013,6 +67017,7 @@ static int test_tls_cert_store_unchanged_ssl_ready(WOLFSSL* ssl)
 }
 #endif
 
+#ifndef WOLFSSL_TEST_NATIVE_CERT_VALIDATION
 static int test_tls_cert_store_unchanged(void)
 {
     EXPECT_DECLS;
@@ -67069,6 +67074,7 @@ static int test_tls_cert_store_unchanged(void)
 #endif
     return EXPECT_RESULT();
 }
+#endif
 
 static int test_wolfSSL_SendUserCanceled(void)
 {
