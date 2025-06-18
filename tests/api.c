@@ -5068,7 +5068,8 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
 {
     EXPECT_DECLS;
 
-#if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_KEY_GEN)
     /* Test digest */
     const unsigned char test_digest[32] = {
         0x08, 0x09, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
@@ -5147,7 +5148,7 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     if (key_ctx)
         EVP_PKEY_CTX_free(key_ctx);
 
-#endif /* !NO_RSA && OPENSSL_EXTRA && WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN */
 
     return EXPECT_RESULT();
 }
