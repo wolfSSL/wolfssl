@@ -4817,7 +4817,6 @@ fi
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
-    enable_md5=yes
 fi
 
 
@@ -5480,6 +5479,16 @@ AC_ARG_ENABLE([md5],
     [ ENABLED_MD5=$enableval ],
     [ ENABLED_MD5=no ]
     )
+
+# Options that require MD5
+if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_HAPROXY" = "yes" || \
+    test "$ENABLED_KRB" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+    test "$ENABLED_NGINX" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
+    test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+    test "$ENABLED_TLSV10" = "yes" || test "$ENABLED_OLD_TLS" = "yes"
+then
+    ENABLED_MD5=yes
+fi
 
 # SHA
 AC_ARG_ENABLE([sha],
@@ -8034,6 +8043,11 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     fi
 
+    if test "x$ENABLED_MD5" = "xno"
+    then
+        ENABLED_MD5="yes"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
@@ -10188,7 +10202,6 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
-    enable_md5=yes
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
