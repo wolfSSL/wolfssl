@@ -1323,6 +1323,7 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
@@ -4816,6 +4817,7 @@ fi
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
+    enable_md5=yes
 fi
 
 
@@ -4861,8 +4863,6 @@ if test "$ENABLED_TLSV12" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
 fi
-
-
 
 # STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
@@ -5476,9 +5476,9 @@ AC_ARG_ENABLE([arc4],
 
 # MD5
 AC_ARG_ENABLE([md5],
-    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
+    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: disabled)])],
     [ ENABLED_MD5=$enableval ],
-    [ ENABLED_MD5=yes ]
+    [ ENABLED_MD5=no ]
     )
 
 # SHA
@@ -10188,7 +10188,8 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    enable_md5=yes
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
