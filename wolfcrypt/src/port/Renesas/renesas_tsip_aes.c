@@ -606,13 +606,17 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_COUNTER
+/* API only supports even blocks (16 byte) */
+/* Use the public wc_AesCtrEncrypt with crypto callbacks to handle odd remain */
 int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
 {
     tsip_aes_handle_t _handle;
     int ret;
+    int blocks = (int)(sz / WC_AES_BLOCK_SIZE);
+    int remain = (int)(sz % WC_AES_BLOCK_SIZE);
     byte *iv;
 
-    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+    if (aes == NULL || in == NULL || out == NULL || sz == 0 || remain != 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -630,7 +634,7 @@ int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
         ret = R_TSIP_Aes128CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
         if (ret == TSIP_SUCCESS) {
             ret = R_TSIP_Aes128CtrUpdate(&_handle, (uint8_t*)in,
-                (uint8_t*)out, sz);
+                (uint8_t*)out, blocks * WC_AES_BLOCK_SIZE);
             if (ret == TSIP_SUCCESS) {
                 ret = R_TSIP_Aes128CtrFinal(&_handle);
             }
@@ -644,7 +648,7 @@ int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
         ret = R_TSIP_Aes256CtrInit(&_handle, &aes->ctx.tsip_keyIdx, iv);
         if (ret == TSIP_SUCCESS) {
             ret = R_TSIP_Aes256CtrUpdate(&_handle, (uint8_t*)in,
-                (uint8_t*)out, sz);
+                (uint8_t*)out, blocks * WC_AES_BLOCK_SIZE);
             if (ret == TSIP_SUCCESS) {
                 ret = R_TSIP_Aes256CtrFinal(&_handle);
             }
@@ -656,9 +660,9 @@ int wc_tsip_AesCtr(struct Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (ret == TSIP_SUCCESS) {
         /* increment IV counter */
-        int i, blocks = (int)(sz / WC_AES_BLOCK_SIZE);
         while (blocks--) {
             /* in network byte order so start at end and work back */
+            int i;
             for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
                 if (++iv[i]) /* we're done unless we overflow */
                     break;
