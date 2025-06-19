@@ -2604,7 +2604,7 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx,
 #ifndef NO_RSA
     ctx->saltlen = saltlen;
 #else
-    void(saltlen);
+    (void)saltlen;
 #endif
     return WOLFSSL_SUCCESS;
 }
@@ -2617,7 +2617,7 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx,
 #ifndef NO_RSA
     ctx->mgf1_md = md;
 #else
-    void(saltlen);
+    (void)saltlen;
 #endif
     return WOLFSSL_SUCCESS;
 }
