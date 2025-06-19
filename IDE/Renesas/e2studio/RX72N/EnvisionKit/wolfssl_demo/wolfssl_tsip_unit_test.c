@@ -226,12 +226,6 @@ static int tsip_aes128_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte oddCipher[] =
-    {
-        0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
-        0xc2
-    };
-
     WOLFSSL_SMALL_STACK_STATIC const byte ctr128Key[] =
     {
         0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
@@ -248,13 +242,6 @@ static int tsip_aes128_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
         0x5b,0x4f,0x09,0x02,0x0d,0xb0,0x3e,0xab,
         0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,
         0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
-    };
-
-    WOLFSSL_SMALL_STACK_STATIC const byte ctr128Wrap128Cipher[] =
-    {
-        0xe1,0x33,0x38,0xe3,0x6c,0xb7,0x19,0x62,
-        0xe0,0x0d,0x02,0x0b,0x4c,0xed,0xbd,0x86,
-        0xd3,0xda,0xe1,0x5b,0x04
     };
     WOLFSSL_SMALL_STACK_STATIC const byte ctr128Wrap128CipherLong[] =
     {
@@ -274,14 +261,6 @@ static int tsip_aes128_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
     } testVec[] = {
         { ctr128Key, (int)sizeof(ctr128Key), ctrIv,
           ctrPlain, (int)sizeof(ctrPlain), ctr128Cipher },
-        /* let's try with just 9 bytes, non block size test */
-        { ctr128Key, (int)sizeof(ctr128Key), ctrIv,
-          ctrPlain, (int)sizeof(oddCipher), ctr128Cipher },
-        /* and an additional 9 bytes to reuse tmp left buffer */
-        { NULL, 0, NULL, ctrPlain, (int)sizeof(oddCipher), oddCipher },
-        /* Counter wrapping */
-        { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
-          ctrPlain, (int)sizeof(ctr128Wrap128Cipher), ctr128Wrap128Cipher },
         { ctr128Key, (int)sizeof(ctr128Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr128Wrap128CipherLong),
           ctr128Wrap128CipherLong },
@@ -300,6 +279,22 @@ static int tsip_aes128_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
     if (dec == NULL){
         ret = -2;
         goto out;
+    }
+
+    /* test failure cases - null */
+    ret = wc_tsip_AesCtr(NULL, NULL, NULL, 1);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -8; goto out;
+    }
+    /* test failure cases - size, but no buffer */
+    ret = wc_tsip_AesCtr(enc, NULL, NULL, 1);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -9; goto out;
+    }
+    /* test failure cases - non block aligned  */
+    ret = wc_tsip_AesCtr(enc, plain, cipher, 15);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -10; goto out;
     }
 
     for (i = 0; i < AES_CTR_TEST_LEN; i++) {
@@ -386,11 +381,6 @@ static int tsip_aes256_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte oddCipher[] =
-    {
-        0xb9,0xd7,0xcb,0x08,0xb0,0xe1,0x7b,0xa0,
-        0xc2
-    };
     WOLFSSL_SMALL_STACK_STATIC const byte ctr256Key[] =
     {
         0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
@@ -409,12 +399,6 @@ static int tsip_aes256_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
         0xe8,0x70,0x17,0xba,0x2d,0x84,0x98,0x8d,
         0xdf,0xc9,0xc5,0x8d,0xb6,0x7a,0xad,0xa6,
         0x13,0xc2,0xdd,0x08,0x45,0x79,0x41,0xa6
-    };
-    WOLFSSL_SMALL_STACK_STATIC const byte ctr256Wrap128Cipher[] =
-    {
-        0x50,0xfd,0x97,0xc3,0xe6,0x1a,0xbb,0x48,
-        0x73,0xfb,0x78,0xdf,0x1e,0x8e,0x77,0xe6,
-        0x4b,0x45,0x7c,0xd6,0x8a
     };
     WOLFSSL_SMALL_STACK_STATIC const byte ctr256Wrap128CipherLong[] =
     {
@@ -435,12 +419,6 @@ static int tsip_aes256_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
     } testVec[] = {
         { ctr256Key, (int)sizeof(ctr256Key), ctrIv,
           ctrPlain, (int)sizeof(ctrPlain), ctr256Cipher },
-        /* let's try with just 9 bytes, non block size test */
-        { ctr256Key, (int)sizeof(ctr256Key), ctrIv,
-          ctrPlain, (int)sizeof(oddCipher), ctr256Cipher },
-        /* Counter wrapping */
-        { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
-          ctrPlain, (int)sizeof(ctr256Wrap128Cipher), ctr256Wrap128Cipher },
         { ctr256Key, (int)sizeof(ctr256Key), ctrIvWrap128,
           ctrPlain, (int)sizeof(ctr256Wrap128CipherLong),
           ctr256Wrap128CipherLong },
@@ -459,6 +437,22 @@ static int tsip_aes256_ctr_test(int prnt, tsip_aes_key_index_t* aes_key)
     if (dec == NULL){
         ret = -2;
         goto out;
+    }
+
+    /* test failure cases - null */
+    ret = wc_tsip_AesCtr(NULL, NULL, NULL, 1);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -8; goto out;
+    }
+    /* test failure cases - size, but no buffer */
+    ret = wc_tsip_AesCtr(enc, NULL, NULL, 1);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -9; goto out;
+    }
+    /* test failure cases - non block aligned  */
+    ret = wc_tsip_AesCtr(enc, plain, cipher, 15);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -10; goto out;
     }
 
     for (i = 0; i < AES_CTR_TEST_LEN; i++) {
