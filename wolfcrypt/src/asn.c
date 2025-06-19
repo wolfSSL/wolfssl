@@ -40601,6 +40601,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     dcrl->crlNumberSet = 1;
                 }
 
+                mp_free(m);
                 FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             }
             /* TODO: check criticality */
