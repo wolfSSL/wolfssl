@@ -2467,14 +2467,14 @@ static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
 static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     char err_buffer[WOLFSSL_MAX_ERROR_SZ];
+    int err;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
-#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(OPENSSL_EXTRA_X509_SMALL)
+#endif
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
     WOLFSSL_BIO* bio = NULL;
     WOLFSSL_STACK* sk = NULL;
     X509* x509 = NULL;
-#endif
 #endif
 
     /* Verify Callback Arguments:
@@ -2492,10 +2492,17 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         will be discarded (only with SESSION_CERTS)
      */
 
-    fprintf(stderr, "In verification callback, error = %d, %s\n", store->error,
-            wolfSSL_ERR_error_string((unsigned long) store->error, err_buffer));
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_EXTRA)
+    err = wolfSSL_X509_STORE_CTX_get_error(store);
+#else
+    err = store->error;
+#endif
+
+    fprintf(stderr, "In verification callback, error = %d, %s\n", err,
+            wolfSSL_ERR_error_string((unsigned long) err, err_buffer));
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    peer = store->current_cert;
+    peer = wolfSSL_X509_STORE_CTX_get_current_cert(store);
     if (peer) {
         char* issuer  = wolfSSL_X509_NAME_oneline(
                                        wolfSSL_X509_get_issuer_name(peer), 0, 0);
@@ -2515,8 +2522,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
-#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
         /* avoid printing duplicate certs */
         if (store->depth == 1) {
             int i;
