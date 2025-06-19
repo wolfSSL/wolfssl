@@ -166,6 +166,7 @@ L_SHA256_transform_len_begin:
 	lwz	29, 52(4)
 	lwz	30, 56(4)
 	lwz	31, 60(4)
+#ifndef WOLFSSL_PPC32_ASM_SMALL
 	li	7, 3
 	mtctr	7
 	# Start of 16 rounds
@@ -1228,6 +1229,720 @@ L_SHA256_transform_len_start:
 	and	0, 0, 7
 	xor	0, 0, 10
 	add	8, 8, 0
+	subi	6, 6, 0xc0
+#else
+	li	7, 4
+	mtctr	7
+	# Start of 16 rounds
+L_SHA256_transform_len_start:
+	# Round 0
+	rotlwi	0, 12, 26
+	rotlwi	7, 12, 21
+	xor	0, 0, 7
+	rotlwi	7, 12, 7
+	xor	0, 0, 7
+	add	15, 15, 0
+	xor	0, 13, 14
+	and	0, 0, 12
+	xor	0, 0, 14
+	add	15, 15, 0
+	lwz	0, 0(6)
+	add	15, 15, 16
+	add	15, 15, 0
+	add	11, 11, 15
+	rotlwi	0, 8, 30
+	rotlwi	7, 8, 19
+	xor	0, 0, 7
+	rotlwi	7, 8, 10
+	xor	0, 0, 7
+	add	15, 15, 0
+	xor	7, 8, 9
+	xor	0, 9, 10
+	and	0, 0, 7
+	xor	0, 0, 9
+	add	15, 15, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_0
+	# Calc new W[0]
+	rotlwi	0, 17, 25
+	rotlwi	7, 17, 14
+	xor	0, 0, 7
+	srwi	7, 17, 3
+	xor	0, 0, 7
+	add	16, 16, 0
+	rotlwi	0, 30, 15
+	rotlwi	7, 30, 13
+	xor	0, 0, 7
+	srwi	7, 30, 10
+	xor	0, 0, 7
+	add	16, 16, 0
+	add	16, 16, 25
+L_SHA256_transform_len_after_blk_0:
+	# Round 1
+	rotlwi	0, 11, 26
+	rotlwi	7, 11, 21
+	xor	0, 0, 7
+	rotlwi	7, 11, 7
+	xor	0, 0, 7
+	add	14, 14, 0
+	xor	0, 12, 13
+	and	0, 0, 11
+	xor	0, 0, 13
+	add	14, 14, 0
+	lwz	0, 4(6)
+	add	14, 14, 17
+	add	14, 14, 0
+	add	10, 10, 14
+	rotlwi	0, 15, 30
+	rotlwi	7, 15, 19
+	xor	0, 0, 7
+	rotlwi	7, 15, 10
+	xor	0, 0, 7
+	add	14, 14, 0
+	xor	7, 15, 8
+	xor	0, 8, 9
+	and	0, 0, 7
+	xor	0, 0, 8
+	add	14, 14, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_1
+	# Calc new W[1]
+	rotlwi	0, 18, 25
+	rotlwi	7, 18, 14
+	xor	0, 0, 7
+	srwi	7, 18, 3
+	xor	0, 0, 7
+	add	17, 17, 0
+	rotlwi	0, 31, 15
+	rotlwi	7, 31, 13
+	xor	0, 0, 7
+	srwi	7, 31, 10
+	xor	0, 0, 7
+	add	17, 17, 0
+	add	17, 17, 26
+L_SHA256_transform_len_after_blk_1:
+	# Round 2
+	rotlwi	0, 10, 26
+	rotlwi	7, 10, 21
+	xor	0, 0, 7
+	rotlwi	7, 10, 7
+	xor	0, 0, 7
+	add	13, 13, 0
+	xor	0, 11, 12
+	and	0, 0, 10
+	xor	0, 0, 12
+	add	13, 13, 0
+	lwz	0, 8(6)
+	add	13, 13, 18
+	add	13, 13, 0
+	add	9, 9, 13
+	rotlwi	0, 14, 30
+	rotlwi	7, 14, 19
+	xor	0, 0, 7
+	rotlwi	7, 14, 10
+	xor	0, 0, 7
+	add	13, 13, 0
+	xor	7, 14, 15
+	xor	0, 15, 8
+	and	0, 0, 7
+	xor	0, 0, 15
+	add	13, 13, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_2
+	# Calc new W[2]
+	rotlwi	0, 19, 25
+	rotlwi	7, 19, 14
+	xor	0, 0, 7
+	srwi	7, 19, 3
+	xor	0, 0, 7
+	add	18, 18, 0
+	rotlwi	0, 16, 15
+	rotlwi	7, 16, 13
+	xor	0, 0, 7
+	srwi	7, 16, 10
+	xor	0, 0, 7
+	add	18, 18, 0
+	add	18, 18, 27
+L_SHA256_transform_len_after_blk_2:
+	# Round 3
+	rotlwi	0, 9, 26
+	rotlwi	7, 9, 21
+	xor	0, 0, 7
+	rotlwi	7, 9, 7
+	xor	0, 0, 7
+	add	12, 12, 0
+	xor	0, 10, 11
+	and	0, 0, 9
+	xor	0, 0, 11
+	add	12, 12, 0
+	lwz	0, 12(6)
+	add	12, 12, 19
+	add	12, 12, 0
+	add	8, 8, 12
+	rotlwi	0, 13, 30
+	rotlwi	7, 13, 19
+	xor	0, 0, 7
+	rotlwi	7, 13, 10
+	xor	0, 0, 7
+	add	12, 12, 0
+	xor	7, 13, 14
+	xor	0, 14, 15
+	and	0, 0, 7
+	xor	0, 0, 14
+	add	12, 12, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_3
+	# Calc new W[3]
+	rotlwi	0, 20, 25
+	rotlwi	7, 20, 14
+	xor	0, 0, 7
+	srwi	7, 20, 3
+	xor	0, 0, 7
+	add	19, 19, 0
+	rotlwi	0, 17, 15
+	rotlwi	7, 17, 13
+	xor	0, 0, 7
+	srwi	7, 17, 10
+	xor	0, 0, 7
+	add	19, 19, 0
+	add	19, 19, 28
+L_SHA256_transform_len_after_blk_3:
+	# Round 4
+	rotlwi	0, 8, 26
+	rotlwi	7, 8, 21
+	xor	0, 0, 7
+	rotlwi	7, 8, 7
+	xor	0, 0, 7
+	add	11, 11, 0
+	xor	0, 9, 10
+	and	0, 0, 8
+	xor	0, 0, 10
+	add	11, 11, 0
+	lwz	0, 16(6)
+	add	11, 11, 20
+	add	11, 11, 0
+	add	15, 15, 11
+	rotlwi	0, 12, 30
+	rotlwi	7, 12, 19
+	xor	0, 0, 7
+	rotlwi	7, 12, 10
+	xor	0, 0, 7
+	add	11, 11, 0
+	xor	7, 12, 13
+	xor	0, 13, 14
+	and	0, 0, 7
+	xor	0, 0, 13
+	add	11, 11, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_4
+	# Calc new W[4]
+	rotlwi	0, 21, 25
+	rotlwi	7, 21, 14
+	xor	0, 0, 7
+	srwi	7, 21, 3
+	xor	0, 0, 7
+	add	20, 20, 0
+	rotlwi	0, 18, 15
+	rotlwi	7, 18, 13
+	xor	0, 0, 7
+	srwi	7, 18, 10
+	xor	0, 0, 7
+	add	20, 20, 0
+	add	20, 20, 29
+L_SHA256_transform_len_after_blk_4:
+	# Round 5
+	rotlwi	0, 15, 26
+	rotlwi	7, 15, 21
+	xor	0, 0, 7
+	rotlwi	7, 15, 7
+	xor	0, 0, 7
+	add	10, 10, 0
+	xor	0, 8, 9
+	and	0, 0, 15
+	xor	0, 0, 9
+	add	10, 10, 0
+	lwz	0, 20(6)
+	add	10, 10, 21
+	add	10, 10, 0
+	add	14, 14, 10
+	rotlwi	0, 11, 30
+	rotlwi	7, 11, 19
+	xor	0, 0, 7
+	rotlwi	7, 11, 10
+	xor	0, 0, 7
+	add	10, 10, 0
+	xor	7, 11, 12
+	xor	0, 12, 13
+	and	0, 0, 7
+	xor	0, 0, 12
+	add	10, 10, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_5
+	# Calc new W[5]
+	rotlwi	0, 22, 25
+	rotlwi	7, 22, 14
+	xor	0, 0, 7
+	srwi	7, 22, 3
+	xor	0, 0, 7
+	add	21, 21, 0
+	rotlwi	0, 19, 15
+	rotlwi	7, 19, 13
+	xor	0, 0, 7
+	srwi	7, 19, 10
+	xor	0, 0, 7
+	add	21, 21, 0
+	add	21, 21, 30
+L_SHA256_transform_len_after_blk_5:
+	# Round 6
+	rotlwi	0, 14, 26
+	rotlwi	7, 14, 21
+	xor	0, 0, 7
+	rotlwi	7, 14, 7
+	xor	0, 0, 7
+	add	9, 9, 0
+	xor	0, 15, 8
+	and	0, 0, 14
+	xor	0, 0, 8
+	add	9, 9, 0
+	lwz	0, 24(6)
+	add	9, 9, 22
+	add	9, 9, 0
+	add	13, 13, 9
+	rotlwi	0, 10, 30
+	rotlwi	7, 10, 19
+	xor	0, 0, 7
+	rotlwi	7, 10, 10
+	xor	0, 0, 7
+	add	9, 9, 0
+	xor	7, 10, 11
+	xor	0, 11, 12
+	and	0, 0, 7
+	xor	0, 0, 11
+	add	9, 9, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_6
+	# Calc new W[6]
+	rotlwi	0, 23, 25
+	rotlwi	7, 23, 14
+	xor	0, 0, 7
+	srwi	7, 23, 3
+	xor	0, 0, 7
+	add	22, 22, 0
+	rotlwi	0, 20, 15
+	rotlwi	7, 20, 13
+	xor	0, 0, 7
+	srwi	7, 20, 10
+	xor	0, 0, 7
+	add	22, 22, 0
+	add	22, 22, 31
+L_SHA256_transform_len_after_blk_6:
+	# Round 7
+	rotlwi	0, 13, 26
+	rotlwi	7, 13, 21
+	xor	0, 0, 7
+	rotlwi	7, 13, 7
+	xor	0, 0, 7
+	add	8, 8, 0
+	xor	0, 14, 15
+	and	0, 0, 13
+	xor	0, 0, 15
+	add	8, 8, 0
+	lwz	0, 28(6)
+	add	8, 8, 23
+	add	8, 8, 0
+	add	12, 12, 8
+	rotlwi	0, 9, 30
+	rotlwi	7, 9, 19
+	xor	0, 0, 7
+	rotlwi	7, 9, 10
+	xor	0, 0, 7
+	add	8, 8, 0
+	xor	7, 9, 10
+	xor	0, 10, 11
+	and	0, 0, 7
+	xor	0, 0, 10
+	add	8, 8, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_7
+	# Calc new W[7]
+	rotlwi	0, 24, 25
+	rotlwi	7, 24, 14
+	xor	0, 0, 7
+	srwi	7, 24, 3
+	xor	0, 0, 7
+	add	23, 23, 0
+	rotlwi	0, 21, 15
+	rotlwi	7, 21, 13
+	xor	0, 0, 7
+	srwi	7, 21, 10
+	xor	0, 0, 7
+	add	23, 23, 0
+	add	23, 23, 16
+L_SHA256_transform_len_after_blk_7:
+	# Round 8
+	rotlwi	0, 12, 26
+	rotlwi	7, 12, 21
+	xor	0, 0, 7
+	rotlwi	7, 12, 7
+	xor	0, 0, 7
+	add	15, 15, 0
+	xor	0, 13, 14
+	and	0, 0, 12
+	xor	0, 0, 14
+	add	15, 15, 0
+	lwz	0, 32(6)
+	add	15, 15, 24
+	add	15, 15, 0
+	add	11, 11, 15
+	rotlwi	0, 8, 30
+	rotlwi	7, 8, 19
+	xor	0, 0, 7
+	rotlwi	7, 8, 10
+	xor	0, 0, 7
+	add	15, 15, 0
+	xor	7, 8, 9
+	xor	0, 9, 10
+	and	0, 0, 7
+	xor	0, 0, 9
+	add	15, 15, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_8
+	# Calc new W[8]
+	rotlwi	0, 25, 25
+	rotlwi	7, 25, 14
+	xor	0, 0, 7
+	srwi	7, 25, 3
+	xor	0, 0, 7
+	add	24, 24, 0
+	rotlwi	0, 22, 15
+	rotlwi	7, 22, 13
+	xor	0, 0, 7
+	srwi	7, 22, 10
+	xor	0, 0, 7
+	add	24, 24, 0
+	add	24, 24, 17
+L_SHA256_transform_len_after_blk_8:
+	# Round 9
+	rotlwi	0, 11, 26
+	rotlwi	7, 11, 21
+	xor	0, 0, 7
+	rotlwi	7, 11, 7
+	xor	0, 0, 7
+	add	14, 14, 0
+	xor	0, 12, 13
+	and	0, 0, 11
+	xor	0, 0, 13
+	add	14, 14, 0
+	lwz	0, 36(6)
+	add	14, 14, 25
+	add	14, 14, 0
+	add	10, 10, 14
+	rotlwi	0, 15, 30
+	rotlwi	7, 15, 19
+	xor	0, 0, 7
+	rotlwi	7, 15, 10
+	xor	0, 0, 7
+	add	14, 14, 0
+	xor	7, 15, 8
+	xor	0, 8, 9
+	and	0, 0, 7
+	xor	0, 0, 8
+	add	14, 14, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_9
+	# Calc new W[9]
+	rotlwi	0, 26, 25
+	rotlwi	7, 26, 14
+	xor	0, 0, 7
+	srwi	7, 26, 3
+	xor	0, 0, 7
+	add	25, 25, 0
+	rotlwi	0, 23, 15
+	rotlwi	7, 23, 13
+	xor	0, 0, 7
+	srwi	7, 23, 10
+	xor	0, 0, 7
+	add	25, 25, 0
+	add	25, 25, 18
+L_SHA256_transform_len_after_blk_9:
+	# Round 10
+	rotlwi	0, 10, 26
+	rotlwi	7, 10, 21
+	xor	0, 0, 7
+	rotlwi	7, 10, 7
+	xor	0, 0, 7
+	add	13, 13, 0
+	xor	0, 11, 12
+	and	0, 0, 10
+	xor	0, 0, 12
+	add	13, 13, 0
+	lwz	0, 40(6)
+	add	13, 13, 26
+	add	13, 13, 0
+	add	9, 9, 13
+	rotlwi	0, 14, 30
+	rotlwi	7, 14, 19
+	xor	0, 0, 7
+	rotlwi	7, 14, 10
+	xor	0, 0, 7
+	add	13, 13, 0
+	xor	7, 14, 15
+	xor	0, 15, 8
+	and	0, 0, 7
+	xor	0, 0, 15
+	add	13, 13, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_10
+	# Calc new W[10]
+	rotlwi	0, 27, 25
+	rotlwi	7, 27, 14
+	xor	0, 0, 7
+	srwi	7, 27, 3
+	xor	0, 0, 7
+	add	26, 26, 0
+	rotlwi	0, 24, 15
+	rotlwi	7, 24, 13
+	xor	0, 0, 7
+	srwi	7, 24, 10
+	xor	0, 0, 7
+	add	26, 26, 0
+	add	26, 26, 19
+L_SHA256_transform_len_after_blk_10:
+	# Round 11
+	rotlwi	0, 9, 26
+	rotlwi	7, 9, 21
+	xor	0, 0, 7
+	rotlwi	7, 9, 7
+	xor	0, 0, 7
+	add	12, 12, 0
+	xor	0, 10, 11
+	and	0, 0, 9
+	xor	0, 0, 11
+	add	12, 12, 0
+	lwz	0, 44(6)
+	add	12, 12, 27
+	add	12, 12, 0
+	add	8, 8, 12
+	rotlwi	0, 13, 30
+	rotlwi	7, 13, 19
+	xor	0, 0, 7
+	rotlwi	7, 13, 10
+	xor	0, 0, 7
+	add	12, 12, 0
+	xor	7, 13, 14
+	xor	0, 14, 15
+	and	0, 0, 7
+	xor	0, 0, 14
+	add	12, 12, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_11
+	# Calc new W[11]
+	rotlwi	0, 28, 25
+	rotlwi	7, 28, 14
+	xor	0, 0, 7
+	srwi	7, 28, 3
+	xor	0, 0, 7
+	add	27, 27, 0
+	rotlwi	0, 25, 15
+	rotlwi	7, 25, 13
+	xor	0, 0, 7
+	srwi	7, 25, 10
+	xor	0, 0, 7
+	add	27, 27, 0
+	add	27, 27, 20
+L_SHA256_transform_len_after_blk_11:
+	# Round 12
+	rotlwi	0, 8, 26
+	rotlwi	7, 8, 21
+	xor	0, 0, 7
+	rotlwi	7, 8, 7
+	xor	0, 0, 7
+	add	11, 11, 0
+	xor	0, 9, 10
+	and	0, 0, 8
+	xor	0, 0, 10
+	add	11, 11, 0
+	lwz	0, 48(6)
+	add	11, 11, 28
+	add	11, 11, 0
+	add	15, 15, 11
+	rotlwi	0, 12, 30
+	rotlwi	7, 12, 19
+	xor	0, 0, 7
+	rotlwi	7, 12, 10
+	xor	0, 0, 7
+	add	11, 11, 0
+	xor	7, 12, 13
+	xor	0, 13, 14
+	and	0, 0, 7
+	xor	0, 0, 13
+	add	11, 11, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_12
+	# Calc new W[12]
+	rotlwi	0, 29, 25
+	rotlwi	7, 29, 14
+	xor	0, 0, 7
+	srwi	7, 29, 3
+	xor	0, 0, 7
+	add	28, 28, 0
+	rotlwi	0, 26, 15
+	rotlwi	7, 26, 13
+	xor	0, 0, 7
+	srwi	7, 26, 10
+	xor	0, 0, 7
+	add	28, 28, 0
+	add	28, 28, 21
+L_SHA256_transform_len_after_blk_12:
+	# Round 13
+	rotlwi	0, 15, 26
+	rotlwi	7, 15, 21
+	xor	0, 0, 7
+	rotlwi	7, 15, 7
+	xor	0, 0, 7
+	add	10, 10, 0
+	xor	0, 8, 9
+	and	0, 0, 15
+	xor	0, 0, 9
+	add	10, 10, 0
+	lwz	0, 52(6)
+	add	10, 10, 29
+	add	10, 10, 0
+	add	14, 14, 10
+	rotlwi	0, 11, 30
+	rotlwi	7, 11, 19
+	xor	0, 0, 7
+	rotlwi	7, 11, 10
+	xor	0, 0, 7
+	add	10, 10, 0
+	xor	7, 11, 12
+	xor	0, 12, 13
+	and	0, 0, 7
+	xor	0, 0, 12
+	add	10, 10, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_13
+	# Calc new W[13]
+	rotlwi	0, 30, 25
+	rotlwi	7, 30, 14
+	xor	0, 0, 7
+	srwi	7, 30, 3
+	xor	0, 0, 7
+	add	29, 29, 0
+	rotlwi	0, 27, 15
+	rotlwi	7, 27, 13
+	xor	0, 0, 7
+	srwi	7, 27, 10
+	xor	0, 0, 7
+	add	29, 29, 0
+	add	29, 29, 22
+L_SHA256_transform_len_after_blk_13:
+	# Round 14
+	rotlwi	0, 14, 26
+	rotlwi	7, 14, 21
+	xor	0, 0, 7
+	rotlwi	7, 14, 7
+	xor	0, 0, 7
+	add	9, 9, 0
+	xor	0, 15, 8
+	and	0, 0, 14
+	xor	0, 0, 8
+	add	9, 9, 0
+	lwz	0, 56(6)
+	add	9, 9, 30
+	add	9, 9, 0
+	add	13, 13, 9
+	rotlwi	0, 10, 30
+	rotlwi	7, 10, 19
+	xor	0, 0, 7
+	rotlwi	7, 10, 10
+	xor	0, 0, 7
+	add	9, 9, 0
+	xor	7, 10, 11
+	xor	0, 11, 12
+	and	0, 0, 7
+	xor	0, 0, 11
+	add	9, 9, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_14
+	# Calc new W[14]
+	rotlwi	0, 31, 25
+	rotlwi	7, 31, 14
+	xor	0, 0, 7
+	srwi	7, 31, 3
+	xor	0, 0, 7
+	add	30, 30, 0
+	rotlwi	0, 28, 15
+	rotlwi	7, 28, 13
+	xor	0, 0, 7
+	srwi	7, 28, 10
+	xor	0, 0, 7
+	add	30, 30, 0
+	add	30, 30, 23
+L_SHA256_transform_len_after_blk_14:
+	# Round 15
+	rotlwi	0, 13, 26
+	rotlwi	7, 13, 21
+	xor	0, 0, 7
+	rotlwi	7, 13, 7
+	xor	0, 0, 7
+	add	8, 8, 0
+	xor	0, 14, 15
+	and	0, 0, 13
+	xor	0, 0, 15
+	add	8, 8, 0
+	lwz	0, 60(6)
+	add	8, 8, 31
+	add	8, 8, 0
+	add	12, 12, 8
+	rotlwi	0, 9, 30
+	rotlwi	7, 9, 19
+	xor	0, 0, 7
+	rotlwi	7, 9, 10
+	xor	0, 0, 7
+	add	8, 8, 0
+	xor	7, 9, 10
+	xor	0, 10, 11
+	and	0, 0, 7
+	xor	0, 0, 10
+	add	8, 8, 0
+	mfctr	7
+	cmpwi	0, 7, 1
+	beq	0, L_SHA256_transform_len_after_blk_15
+	# Calc new W[15]
+	rotlwi	0, 16, 25
+	rotlwi	7, 16, 14
+	xor	0, 0, 7
+	srwi	7, 16, 3
+	xor	0, 0, 7
+	add	31, 31, 0
+	rotlwi	0, 29, 15
+	rotlwi	7, 29, 13
+	xor	0, 0, 7
+	srwi	7, 29, 10
+	xor	0, 0, 7
+	add	31, 31, 0
+	add	31, 31, 24
+L_SHA256_transform_len_after_blk_15:
+	addi	6, 6, 0x40
+	bdnz	L_SHA256_transform_len_start
+	subi	6, 6, 0x100
+#endif /* WOLFSSL_PPC32_ASM_SMALL */
 	# Add in digest from start
 	lwz	0, 0(1)
 	lwz	7, 4(1)
@@ -1253,7 +1968,6 @@ L_SHA256_transform_len_start:
 	stw	13, 20(1)
 	stw	14, 24(1)
 	stw	15, 28(1)
-	subi	6, 6, 0xc0
 	mtctr	5
 	addi	4, 4, 0x40
 	subi	5, 5, 1
