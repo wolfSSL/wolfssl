@@ -41,6 +41,7 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
@@ -197,9 +198,9 @@ static const word32* L_AES_Thumb2_te = L_AES_Thumb2_te_data;
 #ifdef HAVE_AES_DECRYPT
 void AES_invert_key(unsigned char* ks, word32 rounds);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
+WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 #else
-void AES_invert_key(unsigned char* ks, word32 rounds)
+WC_OMIT_FRAME_POINTER void AES_invert_key(unsigned char* ks, word32 rounds)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -343,11 +344,11 @@ XALIGNED(16) static const word32 L_AES_Thumb2_rcon[] = {
 void AES_set_encrypt_key(const unsigned char* key, word32 len,
         unsigned char* ks);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
-    unsigned char* ks_p)
+WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key_p,
+    word32 len_p, unsigned char* ks_p)
 #else
-void AES_set_encrypt_key(const unsigned char* key, word32 len,
-    unsigned char* ks)
+WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
+    word32 len, unsigned char* ks)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -638,10 +639,11 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len,
 
 void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_encrypt_block(const word32* te_p, int nr_p, int len_p,
-    const word32* ks_p)
+WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te_p, int nr_p,
+    int len_p, const word32* ks_p)
 #else
-void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks)
+WC_OMIT_FRAME_POINTER void AES_encrypt_block(const word32* te, int nr, int len,
+    const word32* ks)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -882,11 +884,12 @@ static const word32* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p)
+WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p)
 #else
-void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr)
+WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1105,12 +1108,13 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p,
-    unsigned char* iv_p)
+WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p, unsigned char* iv_p)
 #else
-void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+WC_OMIT_FRAME_POINTER void AES_CBC_encrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* iv)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1349,12 +1353,13 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
 void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p,
-    unsigned char* ctr_p)
+WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p, unsigned char* ctr_p)
 #else
-void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* ctr)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1615,9 +1620,11 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out,
         defined(HAVE_AES_CBC)
 void AES_decrypt_block(const word32* td, int nr, const byte* td4);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p)
+WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p, int nr_p,
+    const byte* td4_p)
 #else
-void AES_decrypt_block(const word32* td, int nr, const byte* td4)
+WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td, int nr,
+    const byte* td4)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1887,11 +1894,12 @@ static const byte L_AES_Thumb2_td4[] = {
 void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p)
+WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p)
 #else
-void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr)
+WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2112,12 +2120,13 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p,
-    unsigned char* iv_p)
+WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p, unsigned char* iv_p)
 #else
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr, unsigned char* iv)
+WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* iv)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2533,11 +2542,11 @@ XALIGNED(16) static const word32 L_GCM_gmult_len_r[] = {
 void GCM_gmult_len(unsigned char* x, const unsigned char** m,
         const unsigned char* data, unsigned long len);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
-    const unsigned char* data_p, unsigned long len_p)
+WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x_p,
+    const unsigned char** m_p, const unsigned char* data_p, unsigned long len_p)
 #else
-void GCM_gmult_len(unsigned char* x, const unsigned char** m,
-    const unsigned char* data, unsigned long len)
+WC_OMIT_FRAME_POINTER void GCM_gmult_len(unsigned char* x,
+    const unsigned char** m, const unsigned char* data, unsigned long len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3126,12 +3135,13 @@ static const word32* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
 void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
-    unsigned long len_p, const unsigned char* ks_p, int nr_p,
-    unsigned char* ctr_p)
+WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in_p,
+    unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p,
+    int nr_p, unsigned char* ctr_p)
 #else
-void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
-    unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr)
+WC_OMIT_FRAME_POINTER void AES_GCM_encrypt(const unsigned char* in,
+    unsigned char* out, unsigned long len, const unsigned char* ks, int nr,
+    unsigned char* ctr)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3381,4 +3391,5 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
 #endif /* !NO_AES */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

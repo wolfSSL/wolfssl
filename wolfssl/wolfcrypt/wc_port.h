@@ -138,6 +138,15 @@
 #endif
 #endif
 
+#ifndef WC_OMIT_FRAME_POINTER
+    #if defined(__GNUC__)
+        #define WC_OMIT_FRAME_POINTER  \
+            __attribute__((optimize("-fomit-frame-pointer")))
+    #else
+        #define WC_OMIT_FRAME_POINTER
+    #endif
+#endif
+
 /* THREADING/MUTEX SECTION */
 #if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
     /* No system headers required for build. */

@@ -41,6 +41,7 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #ifdef WOLFSSL_SHA3
 static const word64 L_sha3_thumb2_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
@@ -60,9 +61,9 @@ static const word64 L_sha3_thumb2_rt[] = {
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void BlockSha3(word64* state_p)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state_p)
 #else
-void BlockSha3(word64* state)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1162,4 +1163,5 @@ void BlockSha3(word64* state)
 #endif /* WOLFSSL_SHA3 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

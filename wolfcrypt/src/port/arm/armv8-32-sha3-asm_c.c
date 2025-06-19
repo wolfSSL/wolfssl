@@ -48,6 +48,7 @@
 #define __volatile__
 #define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __ghs__ */
+
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_ARMASM_NO_NEON
 static const word64 L_sha3_arm2_neon_rt[] = {
@@ -68,9 +69,9 @@ static const word64 L_sha3_arm2_neon_rt[] = {
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void BlockSha3(word64* state_p)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state_p)
 #else
-void BlockSha3(word64* state)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -377,9 +378,9 @@ static const word64 L_sha3_arm2_rt[] = {
 #include <wolfssl/wolfcrypt/sha3.h>
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void BlockSha3(word64* state_p)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state_p)
 #else
-void BlockSha3(word64* state)
+WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

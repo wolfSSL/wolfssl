@@ -452,8 +452,8 @@ static WC_INLINE void AddLength(wc_Sha256* sha256, word32 len)
  * @param [in]      data    Buffer of data to hash.
  * @param [in]      blocks  Number of blocks of data to hash.
  */
-static WC_INLINE void Sha256Transform(wc_Sha256* sha256, const byte* data,
-    word32 blocks)
+static WC_OMIT_FRAME_POINTER WC_INLINE void Sha256Transform(wc_Sha256* sha256,
+    const byte* data, word32 blocks)
 {
     word32* k = (word32*)K;
 
@@ -567,6 +567,7 @@ static WC_INLINE void Sha256Transform(wc_Sha256* sha256, const byte* data,
           "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10",
           "s11"
     );
+
 }
 
 #else
