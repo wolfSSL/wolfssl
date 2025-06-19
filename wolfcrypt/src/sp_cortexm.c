@@ -31652,11 +31652,13 @@ static const sp_digit p256_order[8] = {
     0x00000000,0xffffffff
 };
 #endif
+#ifndef WC_NO_RNG
 /* The order of the curve P256 minus 2. */
 static const sp_digit p256_order2[8] = {
     0xfc63254f,0xf3b9cac2,0xa7179e84,0xbce6faad,0xffffffff,0xffffffff,
     0x00000000,0xffffffff
 };
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montgomery normalizer for order of the curve P256. */
 static const sp_digit p256_norm_order[8] = {
@@ -31694,7 +31696,8 @@ static const sp_point_256 p256_base = {
     /* infinity */
     0
 };
-#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER) || \
+     defined(HAVE_COMP_KEY)
 static const sp_digit p256_b[8] = {
     0x27d2604b,0x3bce3c3e,0xcc53b0f6,0x651d06b0,0x769886bc,0xb3ebbd55,
     0xaa3a93e7,0x5ac635d8
@@ -39666,6 +39669,7 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifndef WC_NO_RNG
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -39699,6 +39703,7 @@ static void sp_256_add_one_8(sp_digit* a)
     );
 }
 
+#endif
 /* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
@@ -41977,7 +41982,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* WOLFSSL_SP_NONBLOCK */
 #endif /* HAVE_ECC_VERIFY */
 
-#ifdef HAVE_ECC_CHECK_KEY
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
@@ -42546,7 +42551,7 @@ static const sp_digit p384_norm_mod[12] = {
     0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000
 };
 /* The Montgomery multiplier for modulus of the curve P384. */
-static sp_digit p384_mp_mod = 0x00000001;
+static const sp_digit p384_mp_mod = 0x00000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
 /* The order of the curve P384. */
@@ -42555,11 +42560,13 @@ static const sp_digit p384_order[12] = {
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff
 };
 #endif
+#ifndef WC_NO_RNG
 /* The order of the curve P384 minus 2. */
 static const sp_digit p384_order2[12] = {
     0xccc52971,0xecec196a,0x48b0a77a,0x581a0db2,0xf4372ddf,0xc7634d81,
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff
 };
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montgomery normalizer for order of the curve P384. */
 static const sp_digit p384_norm_order[12] = {
@@ -42569,7 +42576,7 @@ static const sp_digit p384_norm_order[12] = {
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montgomery multiplier for order of the curve P384. */
-static sp_digit p384_mp_order = 0xe88fdc45;
+static const sp_digit p384_mp_order = 0xe88fdc45;
 #endif
 /* The base point of curve P384. */
 static const sp_point_384 p384_base = {
@@ -42600,7 +42607,8 @@ static const sp_point_384 p384_base = {
     /* infinity */
     0
 };
-#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER) || \
+     defined(HAVE_COMP_KEY)
 static const sp_digit p384_b[12] = {
     0xd3ec2aef,0x2a85c8ed,0x8a2ed19d,0xc656398d,0x5013875a,0x0314088f,
     0xfe814112,0x181d9c6e,0xe3f82d19,0x988e056b,0xe23ee7e4,0xb3312fa7
@@ -49777,6 +49785,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifndef WC_NO_RNG
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -49816,6 +49825,7 @@ static void sp_384_add_one_12(sp_digit* a)
     );
 }
 
+#endif
 /* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
@@ -52091,7 +52101,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* WOLFSSL_SP_NONBLOCK */
 #endif /* HAVE_ECC_VERIFY */
 
-#ifdef HAVE_ECC_CHECK_KEY
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
@@ -52692,7 +52702,7 @@ static const sp_digit p521_norm_mod[17] = {
     0x00000000,0x00000000,0x00000000,0x00000000,0x00000000
 };
 /* The Montgomery multiplier for modulus of the curve P521. */
-static sp_digit p521_mp_mod = 0x00000001;
+static const sp_digit p521_mp_mod = 0x00000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
 /* The order of the curve P521. */
@@ -52702,12 +52712,14 @@ static const sp_digit p521_order[17] = {
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0x000001ff
 };
 #endif
+#ifndef WC_NO_RNG
 /* The order of the curve P521 minus 2. */
 static const sp_digit p521_order2[17] = {
     0x91386407,0xbb6fb71e,0x899c47ae,0x3bb5c9b8,0xf709a5d0,0x7fcc0148,
     0xbf2f966b,0x51868783,0xfffffffa,0xffffffff,0xffffffff,0xffffffff,
     0xffffffff,0xffffffff,0xffffffff,0xffffffff,0x000001ff
 };
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montgomery normalizer for order of the curve P521. */
 static const sp_digit p521_norm_order[17] = {
@@ -52718,7 +52730,7 @@ static const sp_digit p521_norm_order[17] = {
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montgomery multiplier for order of the curve P521. */
-static sp_digit p521_mp_order = 0x79a995c7;
+static const sp_digit p521_mp_order = 0x79a995c7;
 #endif
 /* The base point of curve P521. */
 static const sp_point_521 p521_base = {
@@ -52755,7 +52767,8 @@ static const sp_point_521 p521_base = {
     /* infinity */
     0
 };
-#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER) || \
+     defined(HAVE_COMP_KEY)
 static const sp_digit p521_b[17] = {
     0x6b503f00,0xef451fd4,0x3d2c34f1,0x3573df88,0x3bb1bf07,0x1652c0bd,
     0xec7e937b,0x56193951,0x8ef109e1,0xb8b48991,0x99b315f3,0xa2da725b,
@@ -62581,6 +62594,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifndef WC_NO_RNG
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -62629,6 +62643,7 @@ static void sp_521_add_one_17(sp_digit* a)
     );
 }
 
+#endif
 /* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
@@ -65719,7 +65734,7 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* WOLFSSL_SP_NONBLOCK */
 #endif /* HAVE_ECC_VERIFY */
 
-#ifdef HAVE_ECC_CHECK_KEY
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* Check that the x and y ordinates are a valid point on the curve.
  *
  * point  EC point.
@@ -82233,7 +82248,7 @@ int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#ifdef HAVE_ECC_CHECK_KEY
+#if defined(HAVE_ECC_CHECK_KEY) || !defined(NO_ECC_CHECK_PUBKEY_ORDER)
 /* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
