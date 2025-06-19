@@ -32052,7 +32052,8 @@ done:
 }
 #endif /* !WOLFSSL_ATECC508A && HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#if !defined(NO_SIG_WRAPPER) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+#if !defined(NO_SIG_WRAPPER) && !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
+    !defined(NO_ECC_SIGN)
 static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 {
     wc_test_ret_t ret;
@@ -32393,7 +32394,7 @@ static wc_test_ret_t ecc_def_curve_test(WC_RNG *rng)
         goto done;
     }
 
-    #ifndef NO_SIG_WRAPPER
+    #if !defined(NO_SIG_WRAPPER) && !defined(NO_ECC_SIGN)
     ret = ecc_sig_test(rng, key);
     if (ret < 0)
         goto done;
