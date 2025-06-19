@@ -2050,7 +2050,7 @@ enum Max_ASN {
                             /* Maximum DER digest ASN header size */
                             /* Max X509 header length indicates the
                              * max length + 2 ('\n', '\0') */
-    MAX_X509_HEADER_SZ  = (41 + 2), /* Maximum PEM Header/Footer Size */
+    MAX_X509_HEADER_SZ  = (48 + 2), /* Maximum PEM Header/Footer Size */
 #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #else
