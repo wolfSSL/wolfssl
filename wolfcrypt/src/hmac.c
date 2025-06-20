@@ -152,122 +152,71 @@ static int HmacKeyInitHash(wc_HmacHash* hash, int type, void* heap, int devId)
 {
     int ret = 0;
 
-    switch ((enum wc_HashType)type) {
-        case WC_HASH_TYPE_MD5:
-        #ifndef NO_MD5
+    switch (type) {
+    #ifndef NO_MD5
+        case WC_MD5:
             ret = wc_InitMd5_ex(&hash->md5, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif /* !NO_MD5 */
 
-        case WC_HASH_TYPE_SHA:
-        #ifndef NO_SHA
+    #ifndef NO_SHA
+        case WC_SHA:
             ret = wc_InitSha_ex(&hash->sha, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif /* !NO_SHA */
 
-        case WC_HASH_TYPE_SHA224:
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
             ret = wc_InitSha224_ex(&hash->sha224, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif /* WOLFSSL_SHA224 */
 
-        case WC_HASH_TYPE_SHA256:
-        #ifndef NO_SHA256
+    #ifndef NO_SHA256
+        case WC_SHA256:
             ret = wc_InitSha256_ex(&hash->sha256, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif /* !NO_SHA256 */
 
-        case WC_HASH_TYPE_SHA384:
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
             ret = wc_InitSha384_ex(&hash->sha384, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA512:
-        #ifdef WOLFSSL_SHA512
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
             ret = wc_InitSha512_ex(&hash->sha512, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif /* WOLFSSL_SHA512 */
 
-        case WC_HASH_TYPE_SHA3_224:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
             ret = wc_InitSha3_224(&hash->sha3, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_256:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
             ret = wc_InitSha3_256(&hash->sha3, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_384:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
             ret = wc_InitSha3_384(&hash->sha3, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_512:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
             ret = wc_InitSha3_512(&hash->sha3, heap, devId);
-        #else
-            ret = BAD_FUNC_ARG;
-        #endif
             break;
+    #endif
+    #endif
 
     #ifdef WOLFSSL_SM3
-        case WC_HASH_TYPE_SM3:
+        case WC_SM3:
             ret = wc_InitSm3(&hash->sm3, heap, devId);
             break;
     #endif
 
-        case WC_HASH_TYPE_NONE:
-        case WC_HASH_TYPE_MD2:
-        case WC_HASH_TYPE_MD4:
-        case WC_HASH_TYPE_MD5_SHA:
-        case WC_HASH_TYPE_BLAKE2B:
-        case WC_HASH_TYPE_BLAKE2S:
-            ret = BAD_FUNC_ARG;
-            break;
-
-    #ifndef WOLFSSL_NOSHA512_224
-        case WC_HASH_TYPE_SHA512_224:
-            ret = BAD_FUNC_ARG;
-            break;
-    #endif
-    #ifndef WOLFSSL_NOSHA512_256
-        case WC_HASH_TYPE_SHA512_256:
-            ret = BAD_FUNC_ARG;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHAKE128
-        case WC_HASH_TYPE_SHAKE128:
-            ret = BAD_FUNC_ARG;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHAKE256
-        case WC_HASH_TYPE_SHAKE256:
-            ret = BAD_FUNC_ARG;
-            break;
-    #endif
         default:
             ret = BAD_FUNC_ARG;
             break;
@@ -380,93 +329,70 @@ static int HmacKeyHashUpdate(byte macType, wc_HmacHash* hash, byte* pad)
 {
     int ret = 0;
 
-    switch ((enum wc_HashType)macType) {
-        case WC_HASH_TYPE_MD5:
-        #ifndef NO_MD5
+    switch (macType) {
+    #ifndef NO_MD5
+        case WC_MD5:
             ret = wc_Md5Update(&hash->md5, pad, WC_MD5_BLOCK_SIZE);
-        #endif
             break;
+    #endif /* !NO_MD5 */
 
-        case WC_HASH_TYPE_SHA:
-        #ifndef NO_SHA
+    #ifndef NO_SHA
+        case WC_SHA:
             ret = wc_ShaUpdate(&hash->sha, pad, WC_SHA_BLOCK_SIZE);
-        #endif
             break;
+    #endif /* !NO_SHA */
 
-        case WC_HASH_TYPE_SHA224:
-        #ifdef WOLFSSL_SHA224
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
             ret = wc_Sha224Update(&hash->sha224, pad, WC_SHA224_BLOCK_SIZE);
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA256:
-        #ifndef NO_SHA256
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+        case WC_SHA256:
             ret = wc_Sha256Update(&hash->sha256, pad, WC_SHA256_BLOCK_SIZE);
-        #endif
             break;
+    #endif /* !NO_SHA256 */
 
-        case WC_HASH_TYPE_SHA384:
-        #ifdef WOLFSSL_SHA384
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
             ret = wc_Sha384Update(&hash->sha384, pad, WC_SHA384_BLOCK_SIZE);
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA512:
-        #ifdef WOLFSSL_SHA512
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
             ret = wc_Sha512Update(&hash->sha512, pad, WC_SHA512_BLOCK_SIZE);
-        #endif
             break;
+    #endif /* WOLFSSL_SHA512 */
 
-        case WC_HASH_TYPE_SHA3_224:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
             ret = wc_Sha3_224_Update(&hash->sha3, pad, WC_SHA3_224_BLOCK_SIZE);
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_256:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
             ret = wc_Sha3_256_Update(&hash->sha3, pad, WC_SHA3_256_BLOCK_SIZE);
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_384:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
             ret = wc_Sha3_384_Update(&hash->sha3, pad, WC_SHA3_384_BLOCK_SIZE);
-        #endif
             break;
-
-        case WC_HASH_TYPE_SHA3_512:
-        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
             ret = wc_Sha3_512_Update(&hash->sha3, pad, WC_SHA3_512_BLOCK_SIZE);
-        #endif
             break;
+    #endif
+    #endif /* WOLFSSL_SHA3 */
 
     #ifdef WOLFSSL_SM3
-        case WC_HASH_TYPE_SM3:
+        case WC_SM3:
             ret = wc_Sm3Update(&hash->sm3, pad, WC_SM3_BLOCK_SIZE);
             break;
     #endif
 
-        /* HmacKeyHashUpdate is only ever called with a valid hash type.
-         * Default to no-op. */
-        case WC_HASH_TYPE_NONE:
-        case WC_HASH_TYPE_MD2:
-        case WC_HASH_TYPE_MD4:
-        case WC_HASH_TYPE_MD5_SHA:
-        case WC_HASH_TYPE_BLAKE2B:
-        case WC_HASH_TYPE_BLAKE2S:
-    #ifndef WOLFSSL_NOSHA512_224
-        case WC_HASH_TYPE_SHA512_224:
-    #endif
-    #ifndef WOLFSSL_NOSHA512_256
-        case WC_HASH_TYPE_SHA512_256:
-    #endif
-    #ifdef WOLFSSL_SHAKE128
-        case WC_HASH_TYPE_SHAKE128:
-    #endif
-    #ifdef WOLFSSL_SHAKE256
-        case WC_HASH_TYPE_SHAKE256:
-    #endif
         default:
             break;
     }
