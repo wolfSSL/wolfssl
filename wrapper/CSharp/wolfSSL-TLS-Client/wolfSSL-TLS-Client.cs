@@ -54,9 +54,18 @@ public class wolfSSL_TLS_Client
     /// <param name="x509_ctx">Certificate in WOLFSSL_X509_STORE_CTX format</param>
     private static int myVerify(int preverify, IntPtr x509_ctx)
     {
-        /* Use the provided verification */
+        int verify = preverify;
+
+        /* example for overriding an error code */
+        /* X509_STORE_CTX_get_error API can be enabled with
+         * OPENSSL_EXTRA_X509_SMALL or WOLFSSL_EXTRA */
+        int error = wolfssl.X509_STORE_CTX_get_error(x509_ctx);
+        if (error == wolfcrypt.ASN_BEFORE_DATE_E) {
+            verify = 1; /* override error */
+        }
+
         /* Can optionally override failures by returning non-zero value */
-        return preverify;
+        return verify;
     }
 
     /// <summary>
@@ -90,7 +99,7 @@ public class wolfSSL_TLS_Client
 
         if (caCert == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported.");
-            return; 
+            return;
         }
 
         StringBuilder buff = new StringBuilder(1024);
@@ -133,14 +142,14 @@ public class wolfSSL_TLS_Client
         }
 
         int sniArg = haveSNI(args);
-        if (sniArg >= 0) 
+        if (sniArg >= 0)
         {
             string sniHostNameString = args[sniArg].Trim();
             sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
 
             ushort size = (ushort)sniHostNameString.Length;
 
-           if (wolfssl.CTX_UseSNI(ctx, (byte)wolfssl.WOLFSSL_SNI_HOST_NAME, sniHostName, size) != wolfssl.SUCCESS) 
+           if (wolfssl.CTX_UseSNI(ctx, (byte)wolfssl.WOLFSSL_SNI_HOST_NAME, sniHostName, size) != wolfssl.SUCCESS)
            {
                Console.WriteLine("UseSNI failed");
                wolfssl.CTX_free(ctx);

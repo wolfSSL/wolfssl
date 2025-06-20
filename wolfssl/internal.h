@@ -1086,12 +1086,16 @@
 
 #undef WSSL_HARDEN_TLS
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
-#define SSL_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? (ssl)->client_ca_names : \
+/* Client CA Names feature */
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
+    #define SSL_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? \
+        (ssl)->client_ca_names : \
         (ssl)->ctx->client_ca_names)
 #else
-#define WOLFSSL_NO_CA_NAMES
+    #undef  WOLFSSL_NO_CA_NAMES
+    #define WOLFSSL_NO_CA_NAMES
 #endif
+
 
 /* actual cipher values, 2nd byte */
 enum {
