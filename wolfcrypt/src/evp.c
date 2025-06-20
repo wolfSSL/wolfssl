@@ -3328,9 +3328,9 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             return WOLFSSL_SUCCESS;
         }
 
+#ifdef OPENSSL_ALL && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         /* Handle PSS padding using RSA_padding_add_PKCS1_PSS_mgf1 if saltlen
          * or mgf1 hash were set.  Use generic signing otherwise. */
-#ifdef OPENSSL_ALL
         if (ctx->mgf1_md || ctx->saltlen) {
             int ret;
             unsigned char *encodedSig = NULL;
@@ -3514,7 +3514,7 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
     switch (ctx->pkey->type) {
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-#ifdef OPENSSL_ALL
+#ifdef OPENSSL_ALL && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         /* Verify PSS padding using wolfSSL_RSA_verify_PKCS1_PSS_mgf1 if saltlen
          * or mgf1 hash were set. Do generic verification otherwise. */
         if (ctx->mgf1_md || ctx->saltlen) {
