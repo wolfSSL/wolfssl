@@ -40,7 +40,7 @@
 #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-#ifdef HAVE_BLAKE2
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SHA3
@@ -51,9 +51,6 @@
 #endif
 #ifdef WOLFSSL_MD2
     #include <wolfssl/wolfcrypt/md2.h>
-#endif
-#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
-    #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SM3
     #include <wolfssl/wolfcrypt/sm3.h>
@@ -122,11 +119,15 @@ typedef struct {
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
+
 /* Find largest possible digest size
    Note if this gets up to the size of 80 or over check smallstack build */
+#undef WC_MAX_DIGEST_SIZE
+#undef WC_MAX_BLOCK_SIZE
 #if defined(WOLFSSL_SHA3)
+    /* note: SHA3-224 has the largest block size */
     #define WC_MAX_DIGEST_SIZE WC_SHA3_512_DIGEST_SIZE
-    #define WC_MAX_BLOCK_SIZE  WC_SHA3_224_BLOCK_SIZE /* 224 is the largest block size */
+    #define WC_MAX_BLOCK_SIZE  WC_SHA3_224_BLOCK_SIZE
 #elif defined(WOLFSSL_SHA512)
     #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
     #define WC_MAX_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
