@@ -44,6 +44,7 @@
 #include <wolfssl/wolfcrypt/tfm.h>
 #include <wolfcrypt/src/asm.c>  /* will define asm MACROS or C ones */
 #include <wolfssl/wolfcrypt/wolfmath.h> /* common functions */
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_ESPIDF
     #include <esp_log.h>
@@ -3297,7 +3298,16 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #endif
 
    /* handle modulus of zero and prevent overflows */
-   if (fp_iszero(P) || (P->used > (FP_SIZE/2))) {
+   if  (fp_iszero(P)) {
+      return FP_VAL;
+   }
+   if (P->used > (FP_SIZE/2)) {
+      /* FP_MAX_BITS too small is a common cert failure cause */
+      WOLFSSL_MSG_CERT("TFM fp_exptmod_nct failed: P.used (%d) > (FP_SIZE/2);"
+                       " FP_SIZE: %d; FP_MAX_SIZE: %d",
+                       P->used, FP_SIZE, FP_MAX_BITS, FP_MAX_SIZE);
+      WOLFSSL_MSG_CERT("Consider adjusting current FP_MAX_BITS: %d",
+                       FP_MAX_BITS);
       return FP_VAL;
    }
    if (fp_isone(P)) {

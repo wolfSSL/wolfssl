@@ -5866,7 +5866,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     DecodedCert  cert[1];
 #endif
     DerBuffer*   der = *pDer;
-
+#ifdef WOLFSSL_DEBUG_CERTS
+    const char*  msg;
+#endif
     WOLFSSL_MSG("Adding a CA");
 
     if (cm == NULL) {
@@ -5891,8 +5893,33 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     }
 #endif
 
+    WOLFSSL_MSG_CERT("\tParsing new CA");
     ret = ParseCert(cert, CA_TYPE, verify, cm);
+
     WOLFSSL_MSG("\tParsed new CA");
+#ifdef WOLFSSL_DEBUG_CERTS
+    #ifdef WOLFSSL_SMALL_STACK
+    if (cert == NULL) {
+        WOLFSSL_MSG_CERT(WOLFSSL_MSG_CERT_INDENT"Failed; cert is NULL");
+    }
+    else
+    #endif
+    {
+        if (ret == 0) {
+            WOLFSSL_MSG_CERT(WOLFSSL_MSG_CERT_INDENT"issuer:  '%s'",
+                cert->issuer);
+            WOLFSSL_MSG_CERT(WOLFSSL_MSG_CERT_INDENT"subject: '%s'",
+                cert->subject);
+        }
+        else {
+            WOLFSSL_MSG_CERT(
+                WOLFSSL_MSG_CERT_INDENT"Failed during parse of new CA");
+            msg = wc_GetErrorString(ret);
+            WOLFSSL_MSG_CERT(WOLFSSL_MSG_CERT_INDENT"error ret: %d; %s",
+                ret, msg);
+        }
+    }
+#endif /* WOLFSSL_DEBUG_CERTS */
 
 #ifndef NO_SKID
     subjectHash = cert->extSubjKeyId;
@@ -5901,7 +5928,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #endif
 
     /* check CA key size */
-    if (verify) {
+    if (verify && (ret == 0 )) {
         switch (cert->keyOID) {
         #ifndef NO_RSA
             #ifdef WC_RSA_PSS
@@ -5911,7 +5938,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 if (cm->minRsaKeySz < 0 ||
                                    cert->pubKeySize < (word16)cm->minRsaKeySz) {
                     ret = RSA_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA RSA key size error");
+                    WOLFSSL_MSG_CERT("\tCA RSA key size error: pubKeySize = %d;"
+                                                            " minRsaKeySz = %d",
+                                   cert->pubKeySize, cm->minRsaKeySz);
                 }
                 break;
         #endif /* !NO_RSA */
@@ -5920,7 +5949,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 if (cm->minEccKeySz < 0 ||
                                    cert->pubKeySize < (word16)cm->minEccKeySz) {
                     ret = ECC_KEY_SIZE_E;
-                    WOLFSSL_MSG("\tCA ECC key size error");
+                    WOLFSSL_MSG_CERT("\tCA ECC key size error: pubKeySize = %d;"
+                                                            " minEccKeySz = %d",
+                                   cert->pubKeySize, cm->minEccKeySz);
                 }
                 break;
             #endif /* HAVE_ECC */
