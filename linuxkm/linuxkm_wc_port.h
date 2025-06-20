@@ -367,7 +367,7 @@
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
         extern __must_check int can_save_vector_registers_x86(void);
-        extern __must_check int save_vector_registers_x86(void);
+        extern __must_check int save_vector_registers_x86(int inhibit_p);
         extern void restore_vector_registers_x86(void);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -383,11 +383,11 @@
             #endif
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
-                int _svr_ret = save_vector_registers_x86(); \
-                if (_svr_ret != 0) {                        \
-                    fail_clause                             \
-                }                                           \
+            #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
+                int _svr_ret = save_vector_registers_x86(0); \
+                if (_svr_ret != 0) {                         \
+                    fail_clause                              \
+                }                                            \
             }
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
@@ -395,15 +395,22 @@
                 #define SAVE_VECTOR_REGISTERS2() ({                    \
                     int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
                     (_fuzzer_ret == 0) ?                               \
-                     save_vector_registers_x86() :                     \
+                     save_vector_registers_x86(0) :                    \
                      _fuzzer_ret;                                      \
                 })
             #else
-                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86(0)
             #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
+        #endif
+
+        #ifndef DISABLE_VECTOR_REGISTERS
+            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(1)
+        #endif
+        #ifndef REENABLE_VECTOR_REGISTERS
+            #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
         #endif
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))

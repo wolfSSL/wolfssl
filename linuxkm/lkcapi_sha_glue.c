@@ -941,7 +941,7 @@ struct wc_swallow_the_semicolon
 
 struct wc_linuxkm_drbg_ctx {
     struct wc_rng_inst {
-        wolfSSL_Mutex lock;
+        wolfSSL_Atomic_Int lock;
         WC_RNG rng;
     } *rngs; /* one per CPU ID */
 };
@@ -952,7 +952,6 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
 
     if (ctx->rngs) {
         for (i = 0; i < nr_cpu_ids; ++i) {
-            (void)wc_FreeMutex(&ctx->rngs[i].lock);
             wc_FreeRng(&ctx->rngs[i].rng);
         }
         free(ctx->rngs);
@@ -974,11 +973,7 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * nr_cpu_ids);
 
     for (i = 0; i < nr_cpu_ids; ++i) {
-        ret = wc_InitMutex(&ctx->rngs[i].lock);
-        if (ret != 0) {
-            ret = -EINVAL;
-            break;
-        }
+        ctx->rngs[i].lock = 0;
 
         /* Note the new DRBG instance is seeded, and later reseeded, from system
          * get_random_bytes() via wc_GenerateSeed().
@@ -1006,39 +1001,96 @@ static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
     return;
 }
 
+static int wc_linuxkm_drbg_default_instance_registered = 0;
+
+static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
+    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
+    int n;
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    int disabled_vector_registers = 0;
+
+    if (tfm == crypto_default_rng) {
+        /* The persistent default stdrng needs to use interrupt-safe mechanisms,
+         * because we use it as the back end for get_random_bytes().  With
+         * SMALL_STACK_CACHE, this only affects the ephemeral SHA256 instances used
+         * by the seed generator, but without SMALL_STACK_CACHE it affects every
+         * DRBG call.
+         */
+        int ret = DISABLE_VECTOR_REGISTERS();
+        if (ret != 0) {
+            pr_err("get_drbg DISABLE_VECTOR_REGISTERS returned %d", ret);
+        } else {
+            disabled_vector_registers = 1;
+        }
+    }
+#endif
+
+    n = raw_smp_processor_id();
+
+    for (;;) {
+        if (likely(__atomic_test_and_set(&ctx->rngs[n].lock,__ATOMIC_ACQUIRE))) {
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+            if (disabled_vector_registers)
+                ctx->rngs[n].lock = 2;
+            else
+                ctx->rngs[n].lock = 1; /* be sure. */
+#endif
+            return &ctx->rngs[n];
+        }
+        ++n;
+        if (n >= (int)nr_cpu_ids)
+            n = 0;
+    }
+
+    __builtin_unreachable();
+}
+
+static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, int n) {
+    for (;;) {
+        if (likely(__atomic_test_and_set(&ctx->rngs[n].lock,__ATOMIC_ACQUIRE)))
+            return &ctx->rngs[n];
+        cond_resched();
+    }
+
+    __builtin_unreachable();
+}
+
+static inline void put_drbg(struct wc_rng_inst *drbg) {
+#ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+    if (drbg->lock == 2)
+        REENABLE_VECTOR_REGISTERS();
+#endif
+    __atomic_store_n(&(drbg->lock),0,__ATOMIC_RELEASE);
+}
+
 static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
                         const u8 *src, unsigned int slen,
                         u8 *dst, unsigned int dlen)
 {
-    struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
     /* Note, core is not locked, so the actual core ID may change while
-     * executing, hence the mutex.
-     * The mutex is also needed to coordinate with wc_linuxkm_drbg_seed(), which
+     * executing, hence the lock.
+     * The lock is also needed to coordinate with wc_linuxkm_drbg_seed(), which
      * seeds all instances.
      */
-    int my_cpu = raw_smp_processor_id();
-    wolfSSL_Mutex *lock = &ctx->rngs[my_cpu].lock;
-    WC_RNG *rng = &ctx->rngs[my_cpu].rng;
-
-    if (wc_LockMutex(lock) != 0)
-        return -EINVAL;
+    struct wc_rng_inst *drbg = get_drbg(tfm);
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(rng, src, slen);
+        ret = wc_RNG_DRBG_Reseed(&drbg->rng, src, slen);
         if (ret != 0) {
             ret = -EINVAL;
             goto out;
         }
     }
 
-    ret = wc_RNG_GenerateBlock(rng, dst, dlen);
+    ret = wc_RNG_GenerateBlock(&drbg->rng, dst, dlen);
     if (ret != 0)
         ret = -EINVAL;
 
 out:
 
-    wc_UnLockMutex(lock);
+    put_drbg(drbg);
 
     return ret;
 }
@@ -1049,7 +1101,7 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     u8 *seed_copy = NULL;
     int ret;
-    unsigned int i;
+    int n;
 
     if (slen == 0)
         return 0;
@@ -1059,25 +1111,21 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
         return -ENOMEM;
     XMEMCPY(seed_copy + 2, seed, slen);
 
-    for (i = 0; i < nr_cpu_ids; ++i) {
-        wolfSSL_Mutex *lock = &ctx->rngs[i].lock;
-        WC_RNG *rng = &ctx->rngs[i].rng;
+    for (n = nr_cpu_ids - 1; n >= 0; --n) {
+        struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
 
         /* perturb the seed with the CPU ID, so that no DRBG has the exact same
          * seed.
          */
-        seed_copy[0] = (u8)(i >> 8);
-        seed_copy[1] = (u8)i;
+        seed_copy[0] = (u8)(n >> 8);
+        seed_copy[1] = (u8)n;
 
-        if (wc_LockMutex(lock) != 0)
-            return -EINVAL;
-
-        ret = wc_RNG_DRBG_Reseed(rng, seed_copy, slen + 2);
+        ret = wc_RNG_DRBG_Reseed(&drbg->rng, seed_copy, slen + 2);
         if (ret != 0) {
             ret = -EINVAL;
         }
 
-        wc_UnLockMutex(lock);
+        put_drbg(drbg);
 
         if (ret != 0)
             break;
@@ -1103,7 +1151,6 @@ static struct rng_alg wc_linuxkm_drbg = {
     }
 };
 static int wc_linuxkm_drbg_loaded = 0;
-static int wc_linuxkm_drbg_default_instance_registered = 0;
 
 WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
 {
@@ -1222,7 +1269,18 @@ WC_MAYBE_UNUSED static int wc_linuxkm_drbg_startup(void)
         return ret;
     }
 
+    #ifdef DISABLE_VECTOR_REGISTERS
+    ret = DISABLE_VECTOR_REGISTERS();
+    if (ret != 0) {
+        pr_err("DISABLE_VECTOR_REGISTERS() returned %d", ret);
+        return -EINVAL;
+    }
+    #endif
     ret = crypto_get_default_rng();
+    #ifdef DISABLE_VECTOR_REGISTERS
+    REENABLE_VECTOR_REGISTERS();
+    #endif
+
     if (ret) {
         pr_err("crypto_get_default_rng returned %d", ret);
         return ret;

@@ -20,11 +20,7 @@
  */
 
 #ifndef WOLFSSL_LICENSE
-#ifdef WOLFSSL_COMMERCIAL_LICENSE
-#define WOLFSSL_LICENSE "wolfSSL Commercial"
-#else
 #define WOLFSSL_LICENSE "GPL v2"
-#endif
 #endif
 
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
@@ -453,22 +449,6 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 static struct task_struct *my_get_current_thread(void) {
     return get_current();
 }
-
-#if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_COMMERCIAL_LICENSE)
-
-/* ditto for fpregs_lock/fpregs_unlock */
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-static void my_fpregs_lock(void) {
-    fpregs_lock();
-}
-
-static void my_fpregs_unlock(void) {
-    fpregs_unlock();
-}
-
-#endif /* WOLFSSL_LINUXKM_SIMD_X86 && WOLFSSL_COMMERCIAL_LICENSE */
-
-#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
