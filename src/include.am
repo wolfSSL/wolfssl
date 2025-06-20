@@ -251,9 +251,18 @@ endif !BUILD_X86_ASM
 endif !BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
 
+
 if BUILD_RISCV_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
 endif BUILD_RISCV_ASM
+
+if BUILD_PPC32_ASM
+if BUILD_PPC32_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE
+endif BUILD_PPC32_ASM
 
 if BUILD_SHA512
 if BUILD_RISCV_ASM
@@ -454,6 +463,14 @@ endif !BUILD_ARMASM_NEON
 if BUILD_RISCV_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
 endif BUILD_RISCV_ASM
+
+if BUILD_PPC32_ASM
+if BUILD_PPC32_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE
+endif BUILD_PPC32_ASM
 
 if BUILD_SHA512
 if BUILD_RISCV_ASM
@@ -717,6 +734,14 @@ endif !BUILD_ARMASM_NEON
 if BUILD_RISCV_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-sha256.c
 endif BUILD_RISCV_ASM
+
+if BUILD_PPC32_ASM
+if BUILD_PPC32_ASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/ppc32/ppc32-sha256-asm.S
+endif !BUILD_PPC32_ASM_INLINE
+endif BUILD_PPC32_ASM
 
 endif !BUILD_FIPS_CURRENT
 
