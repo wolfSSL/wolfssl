@@ -1342,6 +1342,8 @@ static int Entropy_HealthTest_Proportion(byte noise)
         prop_last = (prop_last + 1) % PROP_WINDOW_SIZE;
         /* Added sample to queue - add count. */
         prop_cnt[noise]++;
+        /* Update count of store values. */
+        prop_total++;
 
         /* Check whether first value has too many repetitions in queue. */
         if (prop_cnt[noise] >= PROP_CUTOFF) {
@@ -1360,6 +1362,8 @@ static int Entropy_HealthTest_Proportion(byte noise)
             prop_first = (prop_first + 1) % PROP_WINDOW_SIZE;
             /* Removed first sample from queue - remove count. */
             prop_cnt[val]--;
+            /* Update count of store values. */
+            prop_total--;
         }
     }
 
