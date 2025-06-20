@@ -35719,6 +35719,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         (void)ssl;
 
+        if (args == NULL)
+            return;
+
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
         args->exportBuf = NULL;
@@ -35728,16 +35731,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         args->verifySig = NULL;
     #endif
 
-        if (
-        #ifdef WOLFSSL_ASYNC_IO
-            args != NULL &&
-        #endif
-            args->input != NULL) {
+        if (args->input != NULL) {
             XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             args->input = NULL;
         }
-
-        (void)args;
     }
 
     /* handle generation of server_key_exchange (12) */
