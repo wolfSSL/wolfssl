@@ -5069,8 +5069,8 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     EXPECT_DECLS;
 
 /* Early FIPS did not support PSS. */
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-    (HAVE_FIPS_VERSION > 2))
+#if !defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+                                (HAVE_SELFTEST_VERSION > 2))
 
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_KEY_GEN)
