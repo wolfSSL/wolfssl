@@ -39,7 +39,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hash.h>
-#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
 #include <wolfssl/ssl.h>
 #endif
 #ifdef WOLF_CRYPTO_CB
@@ -573,21 +573,33 @@ WOLFSSL_API int wc_tsip_generateVerifyData(
         const uint8_t*  side,
         const uint8_t*  handshake_hash,
         uint8_t*        hashes);
+
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
 WOLFSSL_API int wc_tsip_AesCbcEncrypt(
-        Aes* aes,
+        struct Aes* aes,
         byte*       out,
         const byte* in,
         word32      sz);
 
 WOLFSSL_API int wc_tsip_AesCbcDecrypt(
-        Aes* aes,
+        struct Aes* aes,
         byte*       out,
         const byte* in,
         word32      sz);
+#endif /* HAVE_AES_CBC */
 
+#ifdef WOLFSSL_AES_COUNTER
+WOLFSSL_API int wc_tsip_AesCtr(
+        struct Aes*,
+        byte*       out,
+        const byte* in,
+        word32      sz);
+#endif /* WOLFSSL_AES_COUNTER */
+
+#ifdef HAVE_AESGCM
 WOLFSSL_API int wc_tsip_AesGcmEncrypt(
-        Aes* aes, byte* out,
+        struct Aes* aes, byte* out,
         const byte* in, word32 sz,
               byte* iv, word32 ivSz,
               byte* authTag, word32 authTagSz,
@@ -595,13 +607,15 @@ WOLFSSL_API int wc_tsip_AesGcmEncrypt(
         void* ctx);
 
 WOLFSSL_API int wc_tsip_AesGcmDecrypt(
-        Aes* aes, byte* out,
+        struct Aes* aes, byte* out,
         const byte* in, word32 sz,
         const byte* iv, word32 ivSz,
         const byte* authTag, word32 authTagSz,
         const byte* authIn, word32 authInSz,
         void* ctx);
-#endif /* NO_AES */
+#endif /* HAVE_AESGCM */
+#endif /* !NO_AES */
+
 WOLFSSL_API int wc_tsip_ShaXHmacVerify(
         const struct WOLFSSL *ssl,
         const byte* message,
@@ -625,13 +639,17 @@ WOLFSSL_API int wc_tsip_Sha256HmacGenerate(
         word32      sz,
         byte*       digest);
 
-WOLFSSL_LOCAL int  tsip_Open();
+WOLFSSL_LOCAL int  tsip_Open(void);
 
-WOLFSSL_LOCAL void tsip_Close();
+WOLFSSL_LOCAL void tsip_Close(void);
 
-WOLFSSL_LOCAL int  tsip_hw_lock();
-
-WOLFSSL_LOCAL void tsip_hw_unlock( void );
+#ifdef SINGLE_THREADED
+#define tsip_hw_lock() 0
+#define tsip_hw_unlock()
+#else
+WOLFSSL_LOCAL int  tsip_hw_lock(void);
+WOLFSSL_LOCAL void tsip_hw_unlock(void);
+#endif
 
 WOLFSSL_LOCAL int  tsip_usable(const struct WOLFSSL *ssl,
                                 uint8_t session_key_generated);
