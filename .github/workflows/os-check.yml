@@ -51,6 +51,7 @@ jobs:
           '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
           '--enable-opensslall --enable-opensslextra
             CPPFLAGS=''-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'' ',
+          '--enable-all CPPFLAGS=-DWOLFSSL_DEBUG_CERTS ',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
