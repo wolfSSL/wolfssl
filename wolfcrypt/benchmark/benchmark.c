@@ -3136,7 +3136,7 @@ static void* benchmarks_do(void* args)
         }
 
         bench_buf_size = XFTELL(file);
-        if(XFSEEK(file, 0, XSEEK_SET) != 0) {
+        if(bench_buf_size < 0 || XFSEEK(file, 0, XSEEK_SET) != 0) {
             XFCLOSE(file);
             goto exit;
         }
@@ -3182,7 +3182,7 @@ static void* benchmarks_do(void* args)
         }
 
         bench_buf_size = XFTELL(file);
-        if(XFSEEK(file, 0, XSEEK_SET) != 0) {
+        if (bench_buf_size < 0 || XFSEEK(file, 0, XSEEK_SET) != 0) {
             XFCLOSE(file);
             goto exit;
         }
