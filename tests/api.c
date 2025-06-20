@@ -5068,6 +5068,10 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
 {
     EXPECT_DECLS;
 
+/* Early FIPS did not support PSS. */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION > 2))
+
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_KEY_GEN)
     /* Test digest */
@@ -5149,6 +5153,7 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
         EVP_PKEY_CTX_free(key_ctx);
 
 #endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN */
+#endif /* Early FIPS. */
 
     return EXPECT_RESULT();
 }
