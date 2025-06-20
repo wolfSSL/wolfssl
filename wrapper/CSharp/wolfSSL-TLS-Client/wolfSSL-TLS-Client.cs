@@ -60,9 +60,7 @@ public class wolfSSL_TLS_Client
         /* X509_STORE_CTX_get_error API can be enabled with
          * OPENSSL_EXTRA_X509_SMALL or WOLFSSL_EXTRA */
         int error = wolfssl.X509_STORE_CTX_get_error(x509_ctx);
-        const int ASN_BEFORE_DATE_E = -150;  /* ASN date error, current date before */
-
-        if (error == ASN_BEFORE_DATE_E) {
+        if (error == wolfcrypt.ASN_BEFORE_DATE_E) {
             verify = 1; /* override error */
         }
 
