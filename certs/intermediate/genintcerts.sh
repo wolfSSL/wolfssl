@@ -313,6 +313,9 @@ create_cert wolfssl_int2_ecc wolfssl_int2_ecc ./certs/ecc-key.pem server-int-ecc
 echo "Create ECC Client Certificate signed by intermediate2"
 create_cert wolfssl_int2_ecc wolfssl_int2_ecc ./certs/ecc-client-key.pem client-int-ecc-cert usr_cert "wolfSSL Client Chain ECC" 3650
 
+echo "Create alt CA with intentionally invalid AKI"
+create_cert wolfssl_root_ecc wolfssl_int ./certs/ca-ecc-key.pem ca-ecc-bad-aki v3_intermediate_ca "www.wolfssl.com" 7300
+
 echo "Generate CRLs for new certificates"
 openssl ca -config ./certs/intermediate/wolfssl_root_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int-ecc.pem -keyfile ./certs/intermediate/ca-int-ecc-key.pem -cert ./certs/intermediate/ca-int-ecc-cert.pem
 check_result $?
