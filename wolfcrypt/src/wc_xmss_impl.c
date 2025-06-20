@@ -2590,7 +2590,7 @@ static void wc_xmss_bds_state_treehash_set_next_idx(BdsState* bds, int i,
 static void wc_xmss_bds_state_treehash_complete(BdsState* bds, int i)
 {
     byte* sk = bds->treeHash + i * 4;
-    sk[3] |= 1 << 7;
+    sk[3] |= 1 << 7; /* // NOLINT(clang-analyzer-core.NullDereference) */
 }
 
 /* Get the tree hash data at specified index for the BDS state.
