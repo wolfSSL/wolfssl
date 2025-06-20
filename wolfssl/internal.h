@@ -1086,8 +1086,8 @@
 
 #undef WSSL_HARDEN_TLS
 
-#if !defined(WOLFSSL_NO_CA_NAMES) && \
-    (defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY))
+/* Client CA Names feature */
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA)
     #define SSL_CA_NAMES(ssl) ((ssl)->client_ca_names != NULL ? \
         (ssl)->client_ca_names : \
         (ssl)->ctx->client_ca_names)
