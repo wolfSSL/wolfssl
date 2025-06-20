@@ -5097,6 +5097,105 @@ static int test_wolfSSL_CertRsaPss(void)
 }
 #endif
 
+
+/* Test RSA-PSS digital signature creation and verification */
+static int test_wc_RsaPSS_DigitalSignVerify(void)
+{
+    EXPECT_DECLS;
+
+/* Early FIPS did not support PSS. */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION > 2))
+#if !defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST_VERSION) && \
+    (HAVE_SELFTEST_VERSION > 2))
+
+#if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_KEY_GEN)
+    /* Test digest */
+    const unsigned char test_digest[32] = {
+        0x08, 0x09, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+        0x06, 0x07, 0x08, 0x09, 0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x00, 0x01,
+        0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09
+    };
+    const unsigned int digest_len = 32;
+
+    /* Variables for RSA key generation and signature operations */
+    EVP_PKEY_CTX *key_ctx = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *sign_ctx = NULL;
+    EVP_PKEY_CTX *verify_ctx = NULL;
+    unsigned char signature[384] = {0};
+    size_t signature_len = sizeof(signature);
+    int modulus_bits = 2048;
+
+    /* Generate RSA key pair to avoid file dependencies */
+    ExpectNotNull(key_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(key_ctx), 1);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_keygen_bits(key_ctx, modulus_bits), 1);
+    ExpectIntEQ(EVP_PKEY_keygen(key_ctx, &pkey), 1);
+
+    /* Create signing context */
+    ExpectNotNull(sign_ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_sign_init(sign_ctx), 1);
+
+    /* Configure RSA-PSS parameters for signing */
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(sign_ctx, RSA_PKCS1_PSS_PADDING),
+                1);
+    ExpectIntGT(EVP_PKEY_CTX_set_rsa_pss_saltlen(sign_ctx, 32), 0);
+    ExpectIntGT(EVP_PKEY_CTX_set_rsa_mgf1_md(sign_ctx, EVP_sha256()), 0);
+    ExpectIntEQ(EVP_PKEY_CTX_set_signature_md(sign_ctx, EVP_sha256()), 1);
+
+    /* Create the digital signature */
+    ExpectIntEQ(EVP_PKEY_sign(sign_ctx, signature, &signature_len, test_digest,
+                              digest_len), 1);
+    ExpectIntGT((int)signature_len, 0);
+
+    /* Create verification context */
+    ExpectNotNull(verify_ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    ExpectIntEQ(EVP_PKEY_verify_init(verify_ctx), 1);
+
+    /* Configure RSA-PSS parameters for verification */
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_padding(verify_ctx, RSA_PKCS1_PSS_PADDING),
+                1);
+
+    ExpectIntGT(EVP_PKEY_CTX_set_rsa_pss_saltlen(verify_ctx, 32), 0);
+    ExpectIntGT(EVP_PKEY_CTX_set_rsa_mgf1_md(verify_ctx, EVP_sha256()), 0);
+    ExpectIntEQ(EVP_PKEY_CTX_set_signature_md(verify_ctx, EVP_sha256()), 1);
+
+    /* Verify the digital signature */
+    ExpectIntEQ(EVP_PKEY_verify(verify_ctx, signature, signature_len,
+                                test_digest, digest_len), 1);
+
+    /* Test with wrong digest to ensure verification fails (negative test) */
+    {
+        const unsigned char wrong_digest[32] = {
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+            0x09, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+            0x07, 0x08, 0x09, 0x00, 0x01, 0x02, 0x03, 0x04,
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x00, 0x01, 0x02
+        };
+        ExpectIntNE(EVP_PKEY_verify(verify_ctx, signature, signature_len,
+                    wrong_digest, digest_len), 1);
+    }
+
+    /* Clean up */
+    if (verify_ctx)
+        EVP_PKEY_CTX_free(verify_ctx);
+    if (sign_ctx)
+        EVP_PKEY_CTX_free(sign_ctx);
+    if (pkey)
+        EVP_PKEY_free(pkey);
+    if (key_ctx)
+        EVP_PKEY_CTX_free(key_ctx);
+
+#endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN */
+#endif /* Self Test. */
+#endif /* Early FIPS. */
+
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
     EXPECT_DECLS;
@@ -32047,6 +32146,59 @@ static int test_wolfSSL_X509_get_ext_count(void)
 
     /* wolfSSL_X509_get_ext_count() valid input */
     ExpectIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 5);
+
+    wolfSSL_X509_free(x509);
+#endif
+    return EXPECT_RESULT();
+}
+
+
+/* Tests X509v3_get_ext_count, X509v3_get_ext_by_NID, and X509v3_get_ext
+ * working with a stack retrieved from wolfSSL_X509_get0_extensions().
+ */
+static int test_wolfSSL_X509_stack_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
+    WOLFSSL_X509* x509 = NULL;
+    const WOLFSSL_STACK* ext_stack = NULL;
+    WOLFSSL_X509_EXTENSION* ext = NULL;
+    int idx = -1;
+    int count = 0;
+    XFILE f = XBADFILE;
+
+    /* Load a certificate */
+    ExpectTrue((f = XFOPEN("./certs/server-cert.pem", "rb")) != XBADFILE);
+    ExpectNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    if (f != XBADFILE)
+        XFCLOSE(f);
+
+    /* Get the stack of extensions */
+    ExpectNotNull(ext_stack = wolfSSL_X509_get0_extensions(x509));
+
+    /* Test X509v3_get_ext_count */
+    ExpectIntGT((count = X509v3_get_ext_count(ext_stack)), 0);
+    printf("Extension count: %d\\n", count);
+
+    /* Test X509v3_get_ext_by_NID - find Basic Constraints extension */
+    ExpectIntGE((idx = X509v3_get_ext_by_NID(ext_stack, NID_basic_constraints,
+                -1)), 0);
+    printf("Basic Constraints extension found at index: %d\\n", idx);
+
+    /* Test X509v3_get_ext - get extension by index */
+    ExpectNotNull(ext = X509v3_get_ext(ext_stack, idx));
+
+    /* Verify that the extension is the correct one */
+    ExpectIntEQ(wolfSSL_OBJ_obj2nid(wolfSSL_X509_EXTENSION_get_object(ext)), 
+               NID_basic_constraints);
+
+    /* Test negative cases */
+    ExpectIntEQ(X509v3_get_ext_by_NID(NULL, NID_basic_constraints, -1), 
+               WOLFSSL_FATAL_ERROR);
+    ExpectNull(X509v3_get_ext(NULL, 0));
+    ExpectNull(X509v3_get_ext(ext_stack, -1));
+    ExpectNull(X509v3_get_ext(ext_stack, count));
 
     wolfSSL_X509_free(x509);
 #endif
@@ -67850,6 +68002,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_get_ext_by_NID),
     TEST_DECL(test_wolfSSL_X509_get_ext_subj_alt_name),
     TEST_DECL(test_wolfSSL_X509_get_ext_count),
+    TEST_DECL(test_wolfSSL_X509_stack_extensions),
     TEST_DECL(test_wolfSSL_X509_set_ext),
     TEST_DECL(test_wolfSSL_X509_add_ext),
     TEST_DECL(test_wolfSSL_X509_EXTENSION_new),
@@ -68148,6 +68301,7 @@ TEST_CASE testCases[] = {
 #ifdef HAVE_CERT_CHAIN_VALIDATION
     TEST_DECL(test_various_pathlen_chains),
 #endif
+TEST_DECL(test_wc_RsaPSS_DigitalSignVerify),
 
     /*********************************
      * SSL/TLS API tests
