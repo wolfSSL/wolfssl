@@ -1320,6 +1320,7 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
@@ -4859,8 +4860,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
 fi
 
-
-
 # STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
     [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
@@ -5473,10 +5472,20 @@ AC_ARG_ENABLE([arc4],
 
 # MD5
 AC_ARG_ENABLE([md5],
-    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
+    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: disabled)])],
     [ ENABLED_MD5=$enableval ],
-    [ ENABLED_MD5=yes ]
+    [ ENABLED_MD5=no ]
     )
+
+# Options that require MD5
+if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_HAPROXY" = "yes" || \
+    test "$ENABLED_KRB" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+    test "$ENABLED_NGINX" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
+    test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+    test "$ENABLED_TLSV10" = "yes" || test "$ENABLED_OLD_TLS" = "yes"
+then
+    ENABLED_MD5=yes
+fi
 
 # SHA
 AC_ARG_ENABLE([sha],
@@ -8031,6 +8040,11 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     fi
 
+    if test "x$ENABLED_MD5" = "xno"
+    then
+        ENABLED_MD5="yes"
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNER_DER_CERT"
@@ -10185,7 +10199,7 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
