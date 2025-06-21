@@ -1,0 +1,9 @@
+﻿{
+    "configurations": [
+        {
+            "name": "No-CMake",
+            "generator": "Ninja",
+            "buildCommandArgs": "echo 'No build command'"
+        }
+    ]
+}

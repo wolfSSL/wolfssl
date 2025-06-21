@@ -156,6 +156,8 @@ EXTRA_DIST+= LPCExpresso.cproject
 EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
 EXTRA_DIST+= CMakeLists.txt
+EXTRA_DIST+= CMakePresets.json
+EXTRA_DIST+= CMakeSettings.json
 EXTRA_DIST+= m4/ax_atomic.m4
 
 include cmake/include.am
