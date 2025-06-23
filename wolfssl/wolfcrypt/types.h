@@ -2063,10 +2063,14 @@ enum Max_ASN {
 #endif
 };
 
+#ifndef WC_MAX_DIGEST_SIZE
+#define WC_MAX_DIGEST_SIZE 64
+#endif
+#ifndef WC_MAX_DIGEST_SIZE
+#define WC_MAX_BLOCK_SIZE  128
+#endif
+
 #ifdef WOLFSSL_CERT_GEN
-    #ifdef WOLFSSL_NO_MALLOC
-    #include "wolfssl/wolfcrypt/hash.h" /* for max sizes */
-    #endif
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */
     enum CertSignState {
         CERTSIGN_STATE_BEGIN,
