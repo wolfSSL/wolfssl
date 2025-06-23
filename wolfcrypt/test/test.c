@@ -47895,7 +47895,7 @@ static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
 #ifndef WOLFSSL_NO_LMS_SHA256_256
 #define WC_TEST_LMS_SIG_LEN (8688)
 #else
-#define WC_TEST_LMS_SIG_LEN (4984)
+#define WC_TEST_LMS_SIG_LEN (4960)
 #endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
