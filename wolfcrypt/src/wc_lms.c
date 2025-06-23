@@ -1258,6 +1258,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     return ret;
 }
 
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
+
 /* Get the Key ID from the LMS key.
  *
  * PRIV = Q | PARAMS | SEED | I
@@ -1309,5 +1311,7 @@ const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
     }
     return priv + privSz - LMS_I_LEN;
 }
+
+#endif
 
 #endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */
