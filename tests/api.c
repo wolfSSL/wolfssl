@@ -28110,7 +28110,8 @@ static int test_wolfSSL_CTX_set_client_CA_list(void)
 static int test_wolfSSL_CTX_add_client_CA(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+#if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_CERTS) && \
     !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_X509* x509 = NULL;
@@ -38569,7 +38570,7 @@ static int test_wolfSSL_cert_cb_dyn_ciphers(void)
 static int test_wolfSSL_ciphersuite_auth(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
     WOLFSSL_CIPHERSUITE_INFO info;
 
     (void)info;
@@ -38659,7 +38660,7 @@ static int test_wolfSSL_ciphersuite_auth(void)
 static int test_wolfSSL_sigalg_info(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
     byte hashSigAlgo[WOLFSSL_MAX_SIGALGO];
     word16 len = 0;
     word16 idx = 0;

@@ -566,11 +566,29 @@ namespace wolfSSL.CSharp
         public static readonly int AES_BLOCK_SIZE = 16;
 
         /* Error codes */
-        public static readonly int SUCCESS = 0;
-        public static readonly int SIG_VERIFY_E = -229;    /* wolfcrypt signature verify error */
-        public static readonly int MEMORY_E = -125;        /* Out of memory error */
-        public static readonly int EXCEPTION_E = -1;
-        public static readonly int BUFFER_E = -131;        /* RSA buffer error, output too small/large */
+        public static readonly int SUCCESS            = 0;
+        public static readonly int EXCEPTION_E        = -1;
+        public static readonly int MEMORY_E           = -125;  /* Out of memory error */
+        public static readonly int BUFFER_E           = -131;  /* RSA buffer error, output too small/large */
+        public static readonly int ASN_PARSE_E        = -140;  /* ASN parsing error, invalid input */
+        public static readonly int ASN_VERSION_E      = -141;  /* ASN version error, invalid number */
+        public static readonly int ASN_GETINT_E       = -142;  /* ASN get big int error, invalid data */
+        public static readonly int ASN_RSA_KEY_E      = -143;  /* ASN key init error, invalid input */
+        public static readonly int ASN_OBJECT_ID_E    = -144;  /* ASN object id error, invalid id */
+        public static readonly int ASN_TAG_NULL_E     = -145;  /* ASN tag error, not null */
+        public static readonly int ASN_EXPECT_0_E     = -146;  /* ASN expect error, not zero */
+        public static readonly int ASN_BITSTR_E       = -147;  /* ASN bit string error, wrong id */
+        public static readonly int ASN_UNKNOWN_OID_E  = -148;  /* ASN oid error, unknown sum id */
+        public static readonly int ASN_DATE_SZ_E      = -149;  /* ASN date error, bad size */
+        public static readonly int ASN_BEFORE_DATE_E  = -150;  /* ASN date error, current date before */
+        public static readonly int ASN_AFTER_DATE_E   = -151;  /* ASN date error, current date after */
+        public static readonly int ASN_SIG_OID_E      = -152;  /* ASN signature error, mismatched oid */
+        public static readonly int ASN_TIME_E         = -153;  /* ASN time error, unknown time type */
+        public static readonly int ASN_INPUT_E        = -154;  /* ASN input error, not enough data */
+        public static readonly int ASN_SIG_CONFIRM_E  = -155;  /* ASN sig error, confirm failure */
+        public static readonly int ASN_SIG_HASH_E     = -156;  /* ASN sig error, unsupported hash type */
+        public static readonly int ASN_SIG_KEY_E      = -157;  /* ASN sig error, unsupported key type */
+        public static readonly int SIG_VERIFY_E       = -229;  /* wolfcrypt signature verify error */
 
 
         /***********************************************************************
