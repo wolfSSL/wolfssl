@@ -5121,7 +5121,7 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     const unsigned int digest_len = 32;
 
     /* Variables for RSA key generation and signature operations */
-    EVP_PKEY_CTX *key_ctx = NULL;
+    EVP_PKEY_CTX *pkctx = NULL;
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *sign_ctx = NULL;
     EVP_PKEY_CTX *verify_ctx = NULL;
@@ -5130,10 +5130,10 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     int modulus_bits = 2048;
 
     /* Generate RSA key pair to avoid file dependencies */
-    ExpectNotNull(key_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
-    ExpectIntEQ(EVP_PKEY_keygen_init(key_ctx), 1);
-    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_keygen_bits(key_ctx, modulus_bits), 1);
-    ExpectIntEQ(EVP_PKEY_keygen(key_ctx, &pkey), 1);
+    ExpectNotNull(pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL));
+    ExpectIntEQ(EVP_PKEY_keygen_init(pkctx), 1);
+    ExpectIntEQ(EVP_PKEY_CTX_set_rsa_keygen_bits(pkctx, modulus_bits), 1);
+    ExpectIntEQ(EVP_PKEY_keygen(pkctx, &pkey), 1);
 
     /* Create signing context */
     ExpectNotNull(sign_ctx = EVP_PKEY_CTX_new(pkey, NULL));
@@ -5186,8 +5186,8 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
         EVP_PKEY_CTX_free(sign_ctx);
     if (pkey)
         EVP_PKEY_free(pkey);
-    if (key_ctx)
-        EVP_PKEY_CTX_free(key_ctx);
+    if (pkctx)
+        EVP_PKEY_CTX_free(pkctx);
 
 #endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN &&
           WC_RSA_NO_PADDING */
