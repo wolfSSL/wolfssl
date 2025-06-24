@@ -33212,7 +33212,7 @@ static int test_wolfSSL_RAND_bytes(void)
 
     max_bufsize = size4;
 
-    ExpectNotNull(my_buf = (byte*)XMALLOC(max_bufsize * sizeof(byte), NULL,
+    ExpectNotNull(my_buf = (byte*)XMALLOC(max_bufsize * sizeof(byte), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
 
     ExpectIntEQ(RAND_bytes(my_buf, 0), 1);
@@ -33223,6 +33223,7 @@ static int test_wolfSSL_RAND_bytes(void)
     ExpectIntEQ(RAND_bytes(my_buf, size2), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size3), 1);
     ExpectIntEQ(RAND_bytes(my_buf, size4), 1);
+    XFREE(my_buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID)
     XMEMSET(seed, 0, sizeof(seed));
@@ -33263,8 +33264,6 @@ static int test_wolfSSL_RAND_bytes(void)
     }
     RAND_cleanup();
 #endif
-
-    XFREE(my_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
 }
