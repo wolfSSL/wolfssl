@@ -3339,30 +3339,30 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             const WOLFSSL_EVP_MD *mgf1Hash = ctx->mgf1_md;
 
             /* Allocate memory for encoded signature */
-            encodedSig = (unsigned char *)XMALLOC(emLen, NULL, 
+            encodedSig = (unsigned char *)XMALLOC(emLen, NULL,
                                                  DYNAMIC_TYPE_TMP_BUFFER);
             if (encodedSig == NULL)
                 return WOLFSSL_FAILURE;
-                
+
             /* Create PSS padded signature */
-            ret = wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(ctx->pkey->rsa, 
-                                                        encodedSig, tbs, 
-                                                        ctx->md, mgf1Hash, 
+            ret = wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(ctx->pkey->rsa,
+                                                        encodedSig, tbs,
+                                                        ctx->md, mgf1Hash,
                                                         saltLen);
             if (ret != 1) {
                 XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
-            
+
             /* Encrypt the PSS padded signature */
-            ret = wolfSSL_RSA_private_encrypt(emLen, encodedSig, sig, 
-                                             ctx->pkey->rsa, 
+            ret = wolfSSL_RSA_private_encrypt(emLen, encodedSig, sig,
+                                             ctx->pkey->rsa,
                                              RSA_NO_PADDING);
             XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            
+
             if (ret <= 0)
                 return WOLFSSL_FAILURE;
-                
+
             usiglen = (unsigned int)ret;
             *siglen = (size_t)usiglen;
             return WOLFSSL_SUCCESS;
@@ -3525,13 +3525,13 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
             const WOLFSSL_EVP_MD *mgf1Hash = ctx->mgf1_md;
 
             /* Allocate memory for decoded signature */
-            decodedSig = (unsigned char *)XMALLOC(emLen, NULL, 
+            decodedSig = (unsigned char *)XMALLOC(emLen, NULL,
                                                  DYNAMIC_TYPE_TMP_BUFFER);
             if (decodedSig == NULL)
                 return WOLFSSL_FAILURE;
 
             /* Decrypt the signature */
-            ret = wolfSSL_RSA_public_decrypt((int)siglen, sig, decodedSig, 
+            ret = wolfSSL_RSA_public_decrypt((int)siglen, sig, decodedSig,
                                             ctx->pkey->rsa, RSA_NO_PADDING);
             if (ret <= 0) {
                 XFREE(decodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3539,8 +3539,8 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
             }
 
             /* Verify PSS padding */
-            ret = wolfSSL_RSA_verify_PKCS1_PSS_mgf1(ctx->pkey->rsa, tbs, 
-                                                   ctx->md, mgf1Hash, 
+            ret = wolfSSL_RSA_verify_PKCS1_PSS_mgf1(ctx->pkey->rsa, tbs,
+                                                   ctx->md, mgf1Hash,
                                                    decodedSig, saltLen);
             XFREE(decodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 

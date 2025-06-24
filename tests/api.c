@@ -32191,11 +32191,11 @@ static int test_wolfSSL_X509_stack_extensions(void)
     ExpectNotNull(ext = X509v3_get_ext(ext_stack, idx));
 
     /* Verify that the extension is the correct one */
-    ExpectIntEQ(wolfSSL_OBJ_obj2nid(wolfSSL_X509_EXTENSION_get_object(ext)), 
+    ExpectIntEQ(wolfSSL_OBJ_obj2nid(wolfSSL_X509_EXTENSION_get_object(ext)),
                NID_basic_constraints);
 
     /* Test negative cases */
-    ExpectIntEQ(X509v3_get_ext_by_NID(NULL, NID_basic_constraints, -1), 
+    ExpectIntEQ(X509v3_get_ext_by_NID(NULL, NID_basic_constraints, -1),
                WOLFSSL_FATAL_ERROR);
     ExpectNull(X509v3_get_ext(NULL, 0));
     ExpectNull(X509v3_get_ext(ext_stack, -1));

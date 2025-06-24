@@ -1185,7 +1185,7 @@ int wolfSSL_BN_ucmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
     else {
         /* Neither are NULL; copy to new instances and switch to positive if
          * required, compare, and then free.  Must copy because there is
-         * possibility of switch to positive but they are declared const. 
+         * possibility of switch to positive but they are declared const.
          * wolfssl_bn_set_neg() only returns -1 if the bn is NULL, but we
          * already check that so we can ignore the return code. Note for
          * wolfSSL_BN_is_negative if n=1 then set to positive. */
