@@ -8070,6 +8070,7 @@ static int test_wolfSSL_client_server_nofail_memio_ex(test_ssl_cbf* client_cb,
     test_ctx.s_cb.return_code = EXPECT_FAILURE_CODEPOINT_ID;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+    WOLFSSL_MSG("DONE WITH THE FEKIN SETUP");
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
 
     if (client_on_handshake != NULL) {
@@ -8114,6 +8115,7 @@ static int test_wolfSSL_client_server_nofail_memio_ex(test_ssl_cbf* client_cb,
 int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, cbType client_on_handshake)
 {
+    WOLFSSL_MSG("EHE ANOTHER EXTENSION >:(");
     return (test_wolfSSL_client_server_nofail_memio_ex(client_cb, server_cb,
         client_on_handshake, NULL));
 }
@@ -32798,18 +32800,8 @@ static int test_wolfSSL_check_domain(void)
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_SYS_CA_CERTS)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(OPENSSL_COMPATIBLE_DEFAULTS)
 static const char* dn = NULL;
-static int test_wolfSSL_check_domain_basic_client_ctx(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_load_system_CA_certs(ctx), WOLFSSL_SUCCESS);
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
-
-    return EXPECT_RESULT();
-}
 static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -32826,8 +32818,6 @@ static int test_wolfSSL_check_domain_basic(void)
 
     XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
     XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
-
-    func_cb_client.ctx_ready = &test_wolfSSL_check_domain_basic_client_ctx;
 
     dn = "invalid.com";
     func_cb_client.ssl_ready = &test_wolfSSL_check_domain_basic_client_ssl;
