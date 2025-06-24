@@ -3622,6 +3622,9 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
+    #ifndef WOLFSSL_NO_GETPID
+        #define WOLFSSL_NO_GETPID
+    #endif /* WOLFSSL_NO_GETPID */
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
