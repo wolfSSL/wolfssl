@@ -5110,7 +5110,7 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     (HAVE_SELFTEST_VERSION > 2))
 
 #if !defined(NO_RSA) && defined(WC_RSA_PSS) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) && defined(WC_RSA_NO_PADDING)
     /* Test digest */
     const unsigned char test_digest[32] = {
         0x08, 0x09, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
@@ -5189,7 +5189,8 @@ static int test_wc_RsaPSS_DigitalSignVerify(void)
     if (key_ctx)
         EVP_PKEY_CTX_free(key_ctx);
 
-#endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA && WC_RSA_PSS && OPENSSL_EXTRA && WOLFSSL_KEY_GEN &&
+          WC_RSA_NO_PADDING */
 #endif /* Self Test. */
 #endif /* Early FIPS. */
 
