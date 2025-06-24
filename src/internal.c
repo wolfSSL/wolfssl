@@ -6930,9 +6930,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
 #ifndef NO_CERTS
-    /* Its possible that algorithm parameters were set in the ctx (ie: DH),
-     * recalculate cipher suites. */
-    if (ssl->options.haveDH) {
+    /* Its possible that DH algorithm parameters were set in the ctx, recalc
+     * cipher suites. */
+    if (ssl->options.haveDH && ctx->serverDH_P.buffer != NULL &&
+        ctx->serverDH_G.buffer != NULL) {
         if (ssl->suites == NULL) {
             if (AllocateSuites(ssl) != 0) {
                 return MEMORY_E;
