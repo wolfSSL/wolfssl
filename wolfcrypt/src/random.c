@@ -1083,6 +1083,16 @@ static word64 Entropy_GetSample(void)
     word64 now;
     word64 ret;
 
+#ifdef HAVE_FIPS
+    /* First sample must be disregard when in FIPS. */
+    if (entropy_last_time == 0) {
+        /* Get sample which triggers CAST in FIPS mode. */
+        Entropy_MemUse();
+        /* Start entropy time after CASTs. */
+        entropy_last_time = Entropy_TimeHiRes();
+    }
+#endif
+
     /* Use memory such that it will take an unpredictable amount of time. */
     Entropy_MemUse();
 
@@ -1184,6 +1194,7 @@ static int Entropy_HealthTest_Repetition(byte noise)
     if (!rep_have_prev) {
         rep_prev_noise = noise;
         rep_have_prev = 1;
+        rep_cnt = 1;
     }
     /* Check whether this sample matches last. */
     else if (noise == rep_prev_noise) {
@@ -1217,7 +1228,7 @@ static int Entropy_HealthTest_Repetition(byte noise)
 /* SP800-90b 4.4.2 - Adaptive Proportion Test
  * Note 10
  * C = 1 + CRITBINOM(W, power(2,( -H)),1-alpha)
- * alpa = 2^-30 = POWER(2,-30), H = 1, W = 512
+ * alpha = 2^-30 = POWER(2,-30), H = 1, W = 512
  * C = 1 + CRITBINOM(512, 0.5, 1-POWER(2,-30)) = 1 + 324 = 325
  */
 #define PROP_CUTOFF          325
@@ -1267,8 +1278,9 @@ static int Entropy_HealthTest_Proportion(byte noise)
 {
     int ret = 0;
 
-    /* Need at least 512-1 samples to test with. */
-    if (prop_total < PROP_WINDOW_SIZE - 1) {
+    /* Need minimum samples in queue to test with - keep adding while we have
+     * less. */
+    if (prop_total < PROP_CUTOFF - 1) {
         /* Store sample at last position in circular queue. */
         prop_samples[prop_last++] = noise;
         /* Update count of seen value based on new sample. */
@@ -1277,26 +1289,35 @@ static int Entropy_HealthTest_Proportion(byte noise)
         prop_total++;
     }
     else {
-        /* Get first value in queue - value to test. */
-        byte val = (byte)prop_samples[prop_first];
-        /* Store new sample in queue. */
+        /* We have at least a minimum set of samples in queue. */
+        /* Store new sample at end of queue. */
         prop_samples[prop_last] = noise;
-        /* Update first index now that we have removed in from the queue. */
-        prop_first = (prop_first + 1) % PROP_WINDOW_SIZE;
         /* Update last index now that we have added new sample to queue. */
         prop_last = (prop_last + 1) % PROP_WINDOW_SIZE;
-        /* Removed sample from queue - remove count. */
-        prop_cnt[val]--;
         /* Added sample to queue - add count. */
         prop_cnt[noise]++;
-        /* Check whether removed value has too many repetitions in queue. */
-        if (prop_cnt[val] >= PROP_CUTOFF) {
+        /* Update count of store values. */
+        prop_total++;
+
+        /* Check whether first value has too many repetitions in queue. */
+        if (prop_cnt[noise] >= PROP_CUTOFF) {
         #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
-            fprintf(stderr, "PROPORTION FAILED: %d %d\n", val, prop_cnt[val]);
+            fprintf(stderr, "PROPORTION FAILED: %d %d\n", val, prop_cnt[noise]);
         #endif
             Entropy_HealthTest_Proportion_Reset();
             /* Error code returned. */
             ret = ENTROPY_APT_E;
+        }
+        else if (prop_total == PROP_WINDOW_SIZE) {
+            /* Return to 511 samples in queue. */
+            /* Get first value in queue - value to test. */
+            byte val = (byte) prop_samples[prop_first];
+            /* Update first index to remove first sample from the queue. */
+            prop_first = (prop_first + 1) % PROP_WINDOW_SIZE;
+            /* Remove first sample from queue - remove count. */
+            prop_cnt[val]--;
+            /* Update count of store values. */
+            prop_total--;
         }
     }
 
@@ -1330,6 +1351,10 @@ static int Entropy_HealthTest_Startup(void)
 #ifdef WOLFSSL_DEBUG_ENTROPY_MEMUSE
     fprintf(stderr, "STARTUP HEALTH TEST\n");
 #endif
+
+    /* Reset cached values before testing. */
+    Entropy_HealthTest_Reset();
+
     /* Fill initial sample buffer with noise. */
     Entropy_GetNoise(initial, ENTROPY_INITIAL_COUNT);
     /* Health check initial noise. */
@@ -1496,8 +1521,6 @@ int wc_Entropy_OnDemandTest(void)
     }
 
     if (ret == 0) {
-        /* Reset health test state for startup test. */
-        Entropy_HealthTest_Reset();
         /* Perform startup tests. */
         ret = Entropy_HealthTest_Startup();
     }
