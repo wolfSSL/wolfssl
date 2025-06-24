@@ -2021,7 +2021,7 @@ enum Max_ASN {
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
-    MAX_SHORT_SZ        = (1 + MAX_LENGTH_SZ),     /* asn int + byte len + 4 byte length */
+    MAX_SHORT_SZ        = (1 + 1 + 5), /* asn int + byte len + 5 byte length */
     MAX_SEQ_SZ          = (1 + MAX_LENGTH_SZ), /* enum(seq | con) + length(5) */
     MAX_SET_SZ          = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
     MAX_OCTET_STR_SZ    = (1 + MAX_LENGTH_SZ), /* enum(set | con) + length(5) */
