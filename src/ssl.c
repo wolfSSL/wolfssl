@@ -25515,7 +25515,7 @@ static int wolfSSL_RAND_InitMutex(void)
 #ifdef OPENSSL_EXTRA
 
 #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
-    ((defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)) || defined(HAVE_SELFTEST))
+    ((defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0)) || defined(HAVE_SELFTEST))
 /* In older FIPS bundles add check for reseed here since it does not exist in
  * the older random.c certified files. */
 static pid_t currentRandPid = 0;
@@ -25534,7 +25534,7 @@ int wolfSSL_RAND_Init(void)
             ret = wc_InitRng(&globalRNG);
             if (ret == 0) {
             #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
-                ((defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)) || \
+                ((defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0)) || \
                  defined(HAVE_SELFTEST))
 
                 currentRandPid = getpid();
@@ -26017,7 +26017,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
          */
         if (initGlobalRNG) {
         #if defined(HAVE_GETPID) && !defined(WOLFSSL_NO_GETPID) && \
-                ((defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)) || \
+                ((defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0)) || \
                  defined(HAVE_SELFTEST))
             pid_t p;
 
