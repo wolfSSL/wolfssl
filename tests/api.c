@@ -48373,6 +48373,7 @@ static int test_X509_LOOKUP_add_dir(void)
                    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
 #if !defined(NO_RSA) || defined(HAVE_ECC)
 /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
     int type)
 {
@@ -48423,10 +48424,9 @@ static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
 
     return ret;
 }
-#endif
+
 
 #if !defined(NO_FILESYSTEM)
-#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_RsaSigFailure_cm(void)
 {
     EXPECT_DECLS;
@@ -48501,7 +48501,8 @@ static int test_EccSigFailure_cm(void)
 #endif /* HAVE_ECC */
     return EXPECT_RESULT();
 }
-#endif
+#endif /* !NO_FILESYSTEM */
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION*/
 #endif /* !NO_FILESYSTEM */
 #endif /* NO_CERTS */
 
@@ -57928,6 +57929,7 @@ static int test_wolfSSL_dtls_stateless(void)
         * HAVE_IO_TESTS_DEPENDENCIES && !SINGLE_THREADED */
 
 #ifdef HAVE_CERT_CHAIN_VALIDATION
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -58106,7 +58108,6 @@ static int test_chainJ(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_various_pathlen_chains(void)
 {
     EXPECT_DECLS;
@@ -66927,6 +66928,7 @@ static int test_get_signature_nid(void)
     return EXPECT_RESULT();
 }
 
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 #if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 static word32 test_tls_cert_store_unchanged_HashCaTable(Signer** caTable)
 {
@@ -67017,7 +67019,6 @@ static int test_tls_cert_store_unchanged_ssl_ready(WOLFSSL* ssl)
 }
 #endif
 
-#ifndef WOLFSSL_TEST_NATIVE_CERT_VALIDATION
 static int test_tls_cert_store_unchanged(void)
 {
     EXPECT_DECLS;
@@ -67074,7 +67075,7 @@ static int test_tls_cert_store_unchanged(void)
 #endif
     return EXPECT_RESULT();
 }
-#endif
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 
 static int test_wolfSSL_SendUserCanceled(void)
 {
@@ -68502,7 +68503,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
     TEST_DECL(test_tls_cert_store_unchanged),
+#endif
     TEST_DECL(test_wolfSSL_SendUserCanceled),
     TEST_DECL(test_wolfSSL_SSLDisableRead),
     TEST_DECL(test_wolfSSL_inject),

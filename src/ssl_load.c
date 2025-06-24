@@ -46,7 +46,7 @@
 #if defined(HAVE_SECURITY_SECTRUSTSETTINGS_H)
 #include <Security/SecTrustSettings.h>
 #endif /* HAVE_SECURITY_SECTRUSTSETTINGS_H */
-#if WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 #include <CoreFoundation/CoreFoundation.h>
 #endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 #endif /* __APPLE__ */

@@ -42857,6 +42857,8 @@ static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
     return 0;
 }
 
+#if defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION) && \
+    defined (WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
 static int MaxValidityPeriodErrorOnly(CFErrorRef error)
 {
     int multiple = 0;
@@ -42896,7 +42898,7 @@ static int MaxValidityPeriodErrorOnly(CFErrorRef error)
     }
     return multiple;
 }
-
+#endif
 /*
  * Validates a chain of certificates using the Apple system trust APIs
  *
@@ -42999,7 +43001,7 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
                            code);
             DisplaySecTrustError(error, trust);
 
-#if WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
             /* TEST ONLY CODE:
              * wolfSSL API tests use a cert with a validity period that is too
              * long for the Apple system trust APIs
