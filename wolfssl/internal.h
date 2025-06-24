@@ -3418,7 +3418,7 @@ typedef struct SignatureAlgorithms {
     #ifdef _MSC_VER
     #pragma warning(disable: 4200)
     #endif
-    byte        hashSigAlgo[]; /* sig/algo to offer */
+    byte        hashSigAlgo[WOLFSSL_FLEXIBLE_ARRAY_SIZE]; /* sig/algo to offer */
 } SignatureAlgorithms;
 
 WOLFSSL_LOCAL SignatureAlgorithms* TLSX_SignatureAlgorithms_New(
@@ -3603,7 +3603,7 @@ typedef struct Cookie {
     #ifdef _MSC_VER
     #pragma warning(disable: 4200)
     #endif
-    byte   data[];
+    byte   data[WOLFSSL_FLEXIBLE_ARRAY_SIZE];
 } Cookie;
 
 WOLFSSL_LOCAL int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data,
@@ -5541,7 +5541,7 @@ typedef struct DtlsFragBucket {
 #ifdef _MSC_VER
 #pragma warning(disable: 4200)
 #endif
-    byte buf[];
+    byte buf[WOLFSSL_FLEXIBLE_ARRAY_SIZE];
 } DtlsFragBucket;
 
 typedef struct DtlsMsg {
@@ -5796,7 +5796,7 @@ typedef struct ConnectionID {
 #ifdef _MSC_VER
 #pragma warning(disable: 4200)
 #endif
-    byte id[];
+    byte id[WOLFSSL_FLEXIBLE_ARRAY_SIZE];
 } ConnectionID;
 
 typedef struct CIDInfo {
