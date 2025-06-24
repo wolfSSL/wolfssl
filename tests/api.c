@@ -33199,7 +33199,8 @@ static int test_wolfSSL_RAND_bytes(void)
     const int size4 = RNG_MAX_BLOCK_LEN * 4;    /* in bytes */
     int  max_bufsize;
     byte *my_buf = NULL;
-#if defined(HAVE_GETPID)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \
+    !defined(__MINGW32__)
     byte seed[16] = {0};
     byte randbuf[8] = {0};
     int pipefds[2] = {0};
@@ -33225,7 +33226,8 @@ static int test_wolfSSL_RAND_bytes(void)
     ExpectIntEQ(RAND_bytes(my_buf, size4), 1);
     XFREE(my_buf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_GETPID) && !defined(__MINGW64__) && \
+    !defined(__MINGW32__)
     XMEMSET(seed, 0, sizeof(seed));
     RAND_cleanup();
 
@@ -33247,17 +33249,17 @@ static int test_wolfSSL_RAND_bytes(void)
     }
     else {
         /* Parent process. */
-        word64 childrand64 = 0;
+        byte childrand[8] = {0};
         int waitstatus = 0;
 
         close(pipefds[1]);
         ExpectIntEQ(RAND_bytes(randbuf, sizeof(randbuf)), 1);
-        ExpectIntEQ(read(pipefds[0], &childrand64, sizeof(childrand64)),
-            sizeof(childrand64));
+        ExpectIntEQ(read(pipefds[0], childrand, sizeof(childrand)),
+            sizeof(childrand));
     #ifdef WOLFSSL_NO_GETPID
-        ExpectBufEQ(randbuf, &childrand64, sizeof(randbuf));
+        ExpectBufEQ(randbuf, childrand, sizeof(randbuf));
     #else
-        ExpectBufNE(randbuf, &childrand64, sizeof(randbuf));
+        ExpectBufNE(randbuf, childrand, sizeof(randbuf));
     #endif
         close(pipefds[0]);
         waitpid(pid, &waitstatus, 0);
