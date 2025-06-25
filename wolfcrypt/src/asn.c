@@ -40565,7 +40565,10 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             /* Length of extension data. */
             int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
-            /* Check for duplicate extension */
+            /* Check for duplicate extension. RFC 5280 Section 4.2 states that
+             * a certificate must not include more than one instance of a
+             * particular extension. Note that the same guidance does not appear
+             * for CRLs but the same reasoning should apply. */
             if ((oid == AUTH_KEY_OID && seenAuthKey) ||
                 (oid == CRL_NUMBER_OID && seenCrlNum)) {
                 WOLFSSL_MSG("Duplicate CRL extension found");
@@ -40628,6 +40631,7 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                     FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
             }
+            /* TODO: check criticality */
             /* Move index on to next extension. */
             idx += (word32)length;
         }
