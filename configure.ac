@@ -9250,6 +9250,8 @@ then
         # Use the smaller object size implementation
         ENABLED_AESGCM=yes
     fi
+
+    ENABLED_MD5=yes
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
