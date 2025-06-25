@@ -1718,7 +1718,8 @@ static const char* client_usage_msg[][78] = {
 
 static void showPeerPEM(WOLFSSL* ssl)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_BIO) && defined(WOLFSSL_CERT_GEN)
+#if defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && !defined(NO_BIO) && \
+    defined(WOLFSSL_CERT_GEN)
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer) {
         WOLFSSL_BIO* bioOut = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
@@ -1742,7 +1743,7 @@ static void showPeerPEM(WOLFSSL* ssl)
         wolfSSL_BIO_free(bioOut);
     }
     wolfSSL_FreeX509(peer);
-#endif /* OPENSSL_ALL && WOLFSSL_CERT_GEN && !NO_BIO */
+#endif
     (void)ssl;
 }
 

@@ -10267,9 +10267,11 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
          * for all connections. TLS 1.3 only has tickets so if we don't
          * include the session id in the ticket then the certificates
          * will not be available on resumption. */
+    #ifdef KEEP_PEER_CERT
         WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
         AssertNotNull(peer);
         wolfSSL_X509_free(peer);
+    #endif
         AssertNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
     #ifdef OPENSSL_EXTRA
         AssertNotNull(SSL_SESSION_get0_peer(*sess));
@@ -10668,9 +10670,11 @@ static int twcase_server_sess_ctx_pre_shutdown(WOLFSSL* ssl)
          * for all connections. TLS 1.3 only has tickets so if we don't
          * include the session id in the ticket then the certificates
          * will not be available on resumption. */
+    #ifdef KEEP_PEER_CERT
         WOLFSSL_X509* peer = NULL;
         ExpectNotNull(peer = wolfSSL_get_peer_certificate(ssl));
         wolfSSL_X509_free(peer);
+    #endif
         ExpectNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
     }
 #endif
@@ -10697,10 +10701,11 @@ static int twcase_client_sess_ctx_pre_shutdown(WOLFSSL* ssl)
             wolfSSL_session_reused(ssl))
 #endif
     {
-
+    #ifdef KEEP_PEER_CERT
         WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
         ExpectNotNull(peer);
         wolfSSL_X509_free(peer);
+    #endif
         ExpectNotNull(wolfSSL_SESSION_get_peer_chain(*sess));
 #ifdef OPENSSL_EXTRA
         ExpectNotNull(wolfSSL_SESSION_get0_peer(*sess));
@@ -30247,16 +30252,16 @@ static int msgSrvCb(SSL_CTX *ctx, SSL *ssl)
 #endif
 
 #if defined(OPENSSL_ALL) && defined(SESSION_CERTS) && !defined(NO_BIO)
+#ifdef KEEP_PEER_CERT
     {
         WOLFSSL_X509* peer = NULL;
-
         ExpectNotNull(peer= wolfSSL_get_peer_certificate(ssl));
         ExpectNotNull(bio = BIO_new_fp(stderr, BIO_NOCLOSE));
-
         fprintf(stderr, "Peer Certificate = :\n");
-        X509_print(bio,peer);
+        X509_print(bio, peer);
         X509_free(peer);
     }
+#endif
 
     ExpectNotNull(sk = SSL_get_peer_cert_chain(ssl));
     if (sk == NULL) {
@@ -53654,8 +53659,8 @@ static int test_wolfSSL_PEM_write_RSAPrivateKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_RSA) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && \
-    (defined(WOLFSSL_PEM_TO_DER) || \
-    defined(WOLFSSL_DER_TO_PEM)) && !defined(NO_FILESYSTEM)
+    (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)) && \
+    !defined(NO_FILESYSTEM)
     RSA* rsa = NULL;
 #ifdef USE_CERT_BUFFERS_1024
     const unsigned char* privDer = client_key_der_1024;
@@ -53685,12 +53690,13 @@ static int test_wolfSSL_PEM_write_RSAPrivateKey(void)
 
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, NULL, NULL, 0,
         NULL, NULL), 1);
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
         NULL, 0, NULL, NULL), 1);
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
         passwd, sizeof(passwd) - 1, NULL, NULL), 1);
 #endif
+
     RSA_free(rsa);
 #endif
     return EXPECT_RESULT();
@@ -53736,7 +53742,7 @@ static int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
         &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     pem = NULL;
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     ExpectIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, EVP_aes_128_cbc(),
         NULL, 0, &pem, &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);

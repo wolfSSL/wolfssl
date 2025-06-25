@@ -3913,7 +3913,7 @@ extern void uITRON4_free(void *p) ;
 /* Parts of the openssl compatibility layer require peer certs */
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
      defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-     defined(HAVE_LIGHTY)) && !defined(NO_CERTS)
+     defined(HAVE_LIGHTY)) && !defined(NO_CERTS) && !defined(NO_KEEP_PEER_CERT)
     #undef  KEEP_PEER_CERT
     #define KEEP_PEER_CERT
 #endif
