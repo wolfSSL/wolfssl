@@ -16336,7 +16336,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif
 
-                WOLFSSL_MSG_EX("checking for ability to match names verifyNone = %d and domainname is null? %s", ssl->options.verifyNone, ((ssl->buffers.domainName.buffer == NULL) ? "yes" : "no"));
                 if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
@@ -42874,7 +42873,7 @@ static int MaxValidityPeriodErrorOnly(CFErrorRef error)
                 CFErrorCopyUserInfo((CFErrorRef)underlying);
             if (underlyingDict) {
                 char buffer[512];
-                CFStringRef values = 
+                CFStringRef values =
                     CFDictionaryGetValue(underlyingDict,
                         kCFErrorLocalizedDescriptionKey);
                 if(CFStringGetCString(values, buffer, sizeof(buffer),
@@ -42926,6 +42925,7 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
     SecTrustRef       trust     = NULL;
     SecPolicyRef      policy    = NULL;
     CFStringRef       hostname  = NULL;
+    CFErrorRef        error     = NULL;
 
     WOLFSSL_ENTER("DoAppleNativeCertValidation");
 
@@ -42991,7 +42991,6 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
     /* Evaluate the certificate's authenticity */
     WOLFSSL_MSG("Performing Apple native cert validation via "
                 "SecTrustEvaluateWithError");
-    CFErrorRef error = NULL;
     ret              = SecTrustEvaluateWithError(trust, &error);
     if (ret != 1) {
         if (error) {
@@ -43016,7 +43015,6 @@ static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
                     WOLFSSL_MSG("Skipping certificate validity period error");
                     ret = 1;
                 }
-                /* TODO: ensure other errors aren't masked by this error */
             }
 #endif
             (void)code;

@@ -8070,7 +8070,6 @@ static int test_wolfSSL_client_server_nofail_memio_ex(test_ssl_cbf* client_cb,
     test_ctx.s_cb.return_code = EXPECT_FAILURE_CODEPOINT_ID;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
-    WOLFSSL_MSG("DONE WITH THE FEKIN SETUP");
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
 
     if (client_on_handshake != NULL) {
@@ -8115,7 +8114,6 @@ static int test_wolfSSL_client_server_nofail_memio_ex(test_ssl_cbf* client_cb,
 int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, cbType client_on_handshake)
 {
-    WOLFSSL_MSG("EHE ANOTHER EXTENSION >:(");
     return (test_wolfSSL_client_server_nofail_memio_ex(client_cb, server_cb,
         client_on_handshake, NULL));
 }
