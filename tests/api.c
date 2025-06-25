@@ -332,6 +332,7 @@
 #include <tests/api/test_tls_ext.h>
 #include <tests/api/test_tls.h>
 #include <tests/api/test_x509.h>
+#include <tests/api/test_asn.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -67445,6 +67446,9 @@ TEST_CASE testCases[] = {
     TEST_SIGNATURE_DECLS,
     /* x509 */
     TEST_X509_DECLS,
+
+    /* ASN */
+    TEST_ASN_DECLS,
 
     /* PEM and DER APIs. */
     TEST_DECL(test_wc_PemToDer),

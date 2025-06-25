@@ -2202,7 +2202,7 @@ WOLFSSL_LOCAL byte GetCertNameId(int idx);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);
-WOLFSSL_LOCAL int SetShortInt(byte* input, word32* inOutIdx, word32 number,
+WOLFSSL_TEST_VIS int SetShortInt(byte* input, word32* inOutIdx, word32 number,
                               word32 maxIdx);
 
 WOLFSSL_LOCAL const char* GetSigName(int oid);
