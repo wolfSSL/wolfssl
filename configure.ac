@@ -7479,6 +7479,7 @@ then
 
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
+        ENABLED_MD5="yes"
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
