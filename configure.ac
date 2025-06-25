@@ -5486,7 +5486,8 @@ if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_HAPROXY" = "yes" || \
     test "$ENABLED_NGINX" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
     test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
     test "$ENABLED_TLSV10" = "yes" || test "$ENABLED_OLD_TLS" = "yes" || \
-    test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_LIGHTY" = "yes"
+    test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_LIGHTY" = "yes" || \
+    test "$ENABLED_DES3" = "yes"
 then
     ENABLED_MD5=yes
 fi
