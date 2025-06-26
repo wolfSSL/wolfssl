@@ -19644,8 +19644,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 #endif
 
     (void)out;
-    (void)input;
     (void)sz;
+    (void)type;
 
     if (input == NULL) {
         return BAD_FUNC_ARG;
@@ -19722,8 +19722,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             additionalSz = writeAeadAuthData(ssl,
                     /* Length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    sz - (word16)(AESGCM_EXP_IV_SZ) - ssl->specs.aead_mac_size, type,
-                    ssl->encrypt.additional, 0, NULL, CUR_ORDER);
+                    sz - (word16)(AESGCM_EXP_IV_SZ) - ssl->specs.aead_mac_size,
+                    type, ssl->encrypt.additional, 0, NULL, CUR_ORDER);
             if (additionalSz < 0) {
                 ret = additionalSz;
                 break;
