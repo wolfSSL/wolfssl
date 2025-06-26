@@ -56,7 +56,8 @@ jobs:
           '--enable-opensslextra CPPFLAGS=''-DWOLFSSL_NO_CA_NAMES'' ',
           '--enable-opensslextra=x509small',
           'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',
-          '--enable-lms=small,verify-only --enable-xmss=small,verify-only'
+          '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
+          '--disable-sys-ca-certs'
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

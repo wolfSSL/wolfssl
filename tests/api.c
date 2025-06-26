@@ -32798,7 +32798,7 @@ static int test_wolfSSL_check_domain(void)
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    !defined(WOLFSSL_SYS_CA_CERTS)
+    defined(WOLFSSL_SYS_CA_CERTS)
 static const char* dn = NULL;
 static int test_wolfSSL_check_domain_basic_client_ctx(WOLFSSL_CTX* ctx)
 {

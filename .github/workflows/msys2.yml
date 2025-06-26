@@ -26,7 +26,7 @@ jobs:
           update: true
           install: git gcc autotools base-devel autoconf netcat
       - name: configure wolfSSL
-        run: ./autogen.sh && ./configure CFLAGS="-DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -DNO_WRITE_TEMP_FILES"
+        run: ./autogen.sh && ./configure --disable-sys-ca-certs CFLAGS="-DUSE_CERT_BUFFERS_2048 -DUSE_CERT_BUFFERS_256 -DNO_WRITE_TEMP_FILES"
       - name: build wolfSSL
         run: make
       - name: run tests
