@@ -5097,8 +5097,9 @@ static int test_wolfSSL_CertRsaPss(void)
 
     return EXPECT_RESULT();
 }
-#endif
-#endif
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif /* HAVE_CERT_CHAIN_VALIDATION */
+
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
     EXPECT_DECLS;
@@ -48491,7 +48492,7 @@ static int test_EccSigFailure_cm(void)
 }
 #endif /* !NO_FILESYSTEM */
 #endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION*/
-#endif /* !NO_FILESYSTEM */
+#endif /* !NO_RSA || HAVE_ECC */
 #endif /* NO_CERTS */
 
 #ifdef WOLFSSL_TLS13
