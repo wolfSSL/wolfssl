@@ -5241,7 +5241,7 @@ int sp_grow(sp_int* a, int l)
 #endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || !NO_DH || HAVE_ECC */
 
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP)
 /* Set the multi-precision number to zero.
  *
  * @param  [out]  a  SP integer to set to zero.
@@ -5826,7 +5826,7 @@ int sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
 
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     ((defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_SM2)) && \
-     defined(HAVE_ECC)) || defined(OPENSSL_EXTRA)
+     defined(HAVE_ECC)) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_PUBLIC_MP)
 /* Check if a bit is set
  *
  * When a is NULL, result is 0.
