@@ -47911,8 +47911,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     word32        sigSz = 0;
     const char *  msg = "LMS HSS post quantum signature test";
     word32        msgSz = (word32) XSTRLEN(msg);
+#ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
     unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
     unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
+#else
+    static unsigned char priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
+    static unsigned char old_priv[64 * 1024 + HSS_MAX_PRIVATE_KEY_LEN];
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte *        sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
