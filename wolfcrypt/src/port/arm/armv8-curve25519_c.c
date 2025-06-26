@@ -868,7 +868,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert1_%=\n\t"
+        "b.ne	L_fe_invert1_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -969,7 +969,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert2_%=\n\t"
+        "b.ne	L_fe_invert2_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -1070,7 +1070,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert3_%=\n\t"
+        "b.ne	L_fe_invert3_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -1171,7 +1171,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert4_%=\n\t"
+        "b.ne	L_fe_invert4_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -1270,7 +1270,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert5_%=\n\t"
+        "b.ne	L_fe_invert5_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -1371,7 +1371,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert6_%=\n\t"
+        "b.ne	L_fe_invert6_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -1472,7 +1472,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert7_%=\n\t"
+        "b.ne	L_fe_invert7_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -1571,7 +1571,7 @@ void fe_invert(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x20, x20, #1\n\t"
-        "bne	L_fe_invert8_%=\n\t"
+        "b.ne	L_fe_invert8_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"
@@ -2830,7 +2830,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_1_%=\n\t"
+        "b.ne	L_curve25519_inv_1_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -2931,7 +2931,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_2_%=\n\t"
+        "b.ne	L_curve25519_inv_2_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -3032,7 +3032,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_3_%=\n\t"
+        "b.ne	L_curve25519_inv_3_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #144]\n\t"
         "stp	x8, x9, [x29, #160]\n\t"
@@ -3133,7 +3133,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_4_%=\n\t"
+        "b.ne	L_curve25519_inv_4_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -3232,7 +3232,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_5_%=\n\t"
+        "b.ne	L_curve25519_inv_5_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -3333,7 +3333,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_6_%=\n\t"
+        "b.ne	L_curve25519_inv_6_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #144]\n\t"
         "stp	x8, x9, [x29, #160]\n\t"
@@ -3434,7 +3434,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_7_%=\n\t"
+        "b.ne	L_curve25519_inv_7_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #112]\n\t"
         "stp	x8, x9, [x29, #128]\n\t"
@@ -3533,7 +3533,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x24, x24, #1\n\t"
-        "bne	L_curve25519_inv_8_%=\n\t"
+        "b.ne	L_curve25519_inv_8_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -3854,7 +3854,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_1_%=\n\t"
+        "b.ne	L_fe_pow22523_1_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"
@@ -3957,7 +3957,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_2_%=\n\t"
+        "b.ne	L_fe_pow22523_2_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"
@@ -4058,7 +4058,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_3_%=\n\t"
+        "b.ne	L_fe_pow22523_3_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -4159,7 +4159,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_4_%=\n\t"
+        "b.ne	L_fe_pow22523_4_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"
@@ -4258,7 +4258,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_5_%=\n\t"
+        "b.ne	L_fe_pow22523_5_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"
@@ -4359,7 +4359,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_6_%=\n\t"
+        "b.ne	L_fe_pow22523_6_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #80]\n\t"
         "stp	x8, x9, [x29, #96]\n\t"
@@ -4460,7 +4460,7 @@ void fe_pow22523(fe r, const fe a)
         "adcs	x8, x12, x15\n\t"
         "adc	x9, x13, x16\n\t"
         "subs	x23, x23, #1\n\t"
-        "bne	L_fe_pow22523_7_%=\n\t"
+        "b.ne	L_fe_pow22523_7_%=\n\t"
         /* Store */
         "stp	x6, x7, [x29, #48]\n\t"
         "stp	x8, x9, [x29, #64]\n\t"

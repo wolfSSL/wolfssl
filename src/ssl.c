@@ -234,8 +234,10 @@ static struct SystemCryptoPolicy crypto_policy;
 static WC_RNG globalRNG;
 static volatile int initGlobalRNG = 0;
 
+#if defined(OPENSSL_EXTRA) || !defined(WOLFSSL_MUTEX_INITIALIZER)
 static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(globalRNGMutex);
+#endif
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 static int globalRNGMutex_valid = 0;
 #endif
