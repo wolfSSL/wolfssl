@@ -2085,6 +2085,7 @@ if(WOLFSSL_TPM)
     override_cache(WOLFSSL_CERTEXT  "yes")
     override_cache(WOLFSSL_PKCS7    "yes")
     override_cache(WOLFSSL_AESCFB   "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_ENCODING_CA_FALSE")
 endif()
 
 if(WOLFSSL_CLU)
