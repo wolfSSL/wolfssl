@@ -3259,6 +3259,10 @@ int SetShortInt(byte* output, word32* inOutIdx, word32 number, word32 maxIdx)
     else
         len = BytePrecision(number);
 
+    /* clarify the len range to prepare for the next right bit shifting */
+    if (len < 1 || len > sizeof(number)) {
+        return ASN_PARSE_E;
+    }
     if (number >> (WOLFSSL_BIT_SIZE * len - 1)) {
         /* Need one byte of zero value not to be negative number */
         extraByte = 1;
