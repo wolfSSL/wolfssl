@@ -1572,7 +1572,20 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #if __WATCOMC__ < 1300
         #define _WCCALLBACK
     #endif
-    #if defined(__NT__)
+    #if defined(__MACH__)
+        #include <dispatch/dispatch.h>
+        #include <pthread.h>
+        typedef struct COND_TYPE {
+            dispatch_semaphore_t cond;
+        } COND_TYPE;
+        typedef void*         THREAD_RETURN;
+        typedef pthread_t     THREAD_TYPE;
+        #define WOLFSSL_COND
+        #define WOLFSSL_THREAD
+        #ifndef HAVE_SELFTEST
+            #define WOLFSSL_THREAD_NO_JOIN
+        #endif
+    #elif defined(__NT__)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
         typedef struct COND_TYPE {
