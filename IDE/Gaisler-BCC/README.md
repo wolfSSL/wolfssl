@@ -31,6 +31,11 @@ the root of the source code. Then edit this to add the following:
 ```c
 #define WOLFSSL_GAISLER_BCC
 #define WOLFSSL_GENSEED_FORTEST
+#define NO_ASN_TIME
+```
+and comment out the following line:
+```
+//    #define NO_MAIN_DRIVER
 ```
 
 The first `#define` is only required to compile the wolfCrypt benchmark.
@@ -39,13 +44,13 @@ The first `#define` is only required to compile the wolfCrypt benchmark.
 entropy for the RNG. It is recommended an external entropy source is used when
 developing for production.
 
-You can then compile with the following. Change `leon5` to the LEON CPU version
-used:
+You can then compile with the following. Change the `mcpu` and `qbsp` according
+to the LEON CPU version and board used:
 
 ```sh
 export CC=/opt/sparc-bcc-2.3.1-gcc/bin/sparc-gaisler-elf-gcc
 export CXX=/opt/sparc-bcc-2.3.1-gcc/bin/sparc-gaisler-elf-g++
-export CFLAGS="-mcpu=leon5"
+export CFLAGS="-qbsp=gr740 -mcpu=leon3"
 
 ./configure --host=sparc --enable-usersettings --disable-examples --enable-static
 make
@@ -53,12 +58,12 @@ make
 
 ### Linux
 
-To compile for Linux on the LEON use the following commands:
+To compile for Linux on the LEON use the following commands, make sure to use the right `mcpu` option:
 
 ```sh
 export CC=/opt/sparc-gaisler-linux5.10/bin/sparc-gaisler-linux5.10-gcc
 export CXX=/opt/sparc-gaisler-linux5.10/bin/sparc-gaisler-linux5.10-g++
-export CFLAGS="-mcpu=leon5"
+export CFLAGS="-mcpu=leon3"
 
 ./configure --host=sparc-linux
 make
