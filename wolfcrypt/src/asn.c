@@ -6856,6 +6856,12 @@ word32 wc_oid_sum(const byte* input, int length)
     int shift = 0;
 #endif
 
+    /* Check for valid input. */
+    if (input == NULL || length > MAX_OID_SZ) {
+        WOLFSSL_MSG("wc_oid_sum: invalid args");
+        return 0;
+    }
+
     /* Sum it up for now. */
     for (i = 0; i < length; i++) {
     #ifdef WOLFSSL_OLD_OID_SUM
