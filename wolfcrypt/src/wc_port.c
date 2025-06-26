@@ -3962,7 +3962,21 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-    #if defined(__OS2__)
+    #if defined(__MACH__)
+        cond->cond = dispatch_semaphore_create(0);
+        if (cond->cond == NULL)
+            return MEMORY_E;
+
+        /* dispatch_release() fails hard, with Trace/BPT trap signal, if the
+         * sem's internal count is less than the value passed in with
+         * dispatch_semaphore_create().  work around this by initializing
+         * with 0, then incrementing it afterwards.
+         */
+        if (dispatch_semaphore_signal(s->sem) < 0) {
+            dispatch_release(s->sem);
+            return return MEMORY_E;
+        }
+    #elif defined(__OS2__)
         DosCreateMutexSem( NULL, &cond->mutex, 0, FALSE );
         DosCreateEventSem( NULL, &cond->cond, DCE_POSTONE, FALSE );
     #elif defined(__NT__)
@@ -3993,7 +4007,9 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-    #if defined(__OS2__)
+    #if defined(__MACH__)
+        dispatch_release(cond->cond);
+    #elif defined(__OS2__)
         DosCloseMutexSem(cond->mutex);
         DosCloseEventSem(cond->cond);
     #elif defined(__NT__)
@@ -4013,7 +4029,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-    #if defined(__OS2__)
+    #if defined(__MACH__)
+    #elif defined(__OS2__)
     #elif defined(__NT__)
         if (wc_LockMutex(&cond->mutex) != 0)
             return BAD_MUTEX_E;
@@ -4028,7 +4045,9 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-    #if defined(__OS2__)
+    #if defined(__MACH__)
+        dispatch_semaphore_signal(cond->cond);
+    #elif defined(__OS2__)
     #elif defined(__NT__)
         if (wc_UnLockMutex(&cond->mutex) != 0)
             return BAD_MUTEX_E;
@@ -4049,7 +4068,9 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     {
         if (cond == NULL)
             return BAD_FUNC_ARG;
-    #if defined(__OS2__)
+    #if defined(__MACH__)
+        dispatch_semaphore_wait(cond->cond, DISPATCH_TIME_FOREVER);
+    #elif defined(__OS2__)
     #elif defined(__NT__)
         if (wc_UnLockMutex(&cond->mutex) != 0)
             return BAD_MUTEX_E;
