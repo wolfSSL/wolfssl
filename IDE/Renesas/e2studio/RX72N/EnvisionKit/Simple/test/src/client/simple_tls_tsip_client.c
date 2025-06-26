@@ -31,7 +31,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
-#define SIMPLE_TLSSEVER_IP       "192.168.11.5"
+#if defined(SIMPLE_TLS_TSIP_CLIENT) || defined(SIMPLE_TLS_CLIENT)
+#define SIMPLE_TLSSEVER_IP       "192.168.11.11"
 #define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
@@ -360,3 +361,4 @@ void wolfSSL_TLS_client( )
 
     return;
 }
+#endif /* SIMPLE_TSIP TLS_CLIENT || SIMPLE_TLS_CLIENT */
