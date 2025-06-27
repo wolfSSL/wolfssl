@@ -1364,7 +1364,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(
         "ROR r4, r4, #25 \n\t" // 4 4
         "VEXT.8 q11, q11, q11, #4 \n\t" // permute elements left by one
 
-        "B.NE L_chacha20_arm32_256_loop_%= \n\t"
+        "BNE L_chacha20_arm32_256_loop_%= \n\t"
 
         // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
         //  0  1  2  3  4  5  6  7  8  9  12  13  14
@@ -1736,7 +1736,7 @@ static WC_INLINE int wc_Chacha_encrypt_128(
         "VEXT.8 q6, q6, q6, #8 \n\t" // permute elements left by two
         "VEXT.8 q7, q7, q7, #4 \n\t" // permute elements left by one
 
-        "B.NE L_chacha20_arm32_128_loop_%= \n\t"
+        "BNE L_chacha20_arm32_128_loop_%= \n\t"
 
         "VMOV.I32 q8, #0 \n\t"
         "VADD.I32 q0, q0, q10 \n\t"
@@ -2816,7 +2816,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "VADD.I32   q2, q2, q10          \n\t"
         "VADD.I32   q3, q3, q11          \n\t"
         "CMP        %[bytes], #64        \n\t"
-        "B.LT        L_chacha20_arm32_64_lt_64_%= \n\t"
+        "BLT        L_chacha20_arm32_64_lt_64_%= \n\t"
         /* XOR full 64 byte block */
         "VLD1.8     { q4, q5 }, [%[m]]!  \n\t"
         "VLD1.8     { q6, q7 }, [%[m]]!  \n\t"
@@ -2828,14 +2828,14 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "VST1.8     { q2, q3 }, [%[c]]!  \n\t"
         "SUBS       %[bytes], %[bytes], #64 \n\t"
         "VADD.I32   q11, q11, q14        \n\t"
-        "B.NE        L_chacha20_arm32_64_outer_loop_%= \n\t"
+        "BNE        L_chacha20_arm32_64_outer_loop_%= \n\t"
         "B          L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_64_%=: \n\t"
         "VSTM       %[over], {q0-q3}     \n\t"
         /* XOR 32 bytes */
         "CMP        %[bytes], #32        \n\t"
-        "B.LT        L_chacha20_arm32_64_lt_32_%= \n\t"
+        "BLT        L_chacha20_arm32_64_lt_32_%= \n\t"
         "VLD1.8     { q4, q5 }, [%[m]]!  \n\t"
         "VEOR       q4, q4, q0           \n\t"
         "VEOR       q5, q5, q1           \n\t"
@@ -2843,41 +2843,41 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "SUBS       %[bytes], %[bytes], #32 \n\t"
         "VMOV       q0, q2               \n\t"
         "VMOV       q1, q3               \n\t"
-        "B.EQ        L_chacha20_arm32_64_done_%= \n\t"
+        "BEQ        L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_32_%=: \n\t"
         /* XOR 16 bytes */
         "CMP        %[bytes], #16        \n\t"
-        "B.LT        L_chacha20_arm32_64_lt_16_%= \n\t"
+        "BLT        L_chacha20_arm32_64_lt_16_%= \n\t"
         "VLD1.8     { q4 }, [%[m]]!      \n\t"
         "VEOR       q4, q4, q0           \n\t"
         "VST1.8     { q4 }, [%[c]]!      \n\t"
         "SUBS       %[bytes], %[bytes], #16 \n\t"
         "VMOV       q0, q1               \n\t"
-        "B.EQ        L_chacha20_arm32_64_done_%= \n\t"
+        "BEQ        L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_16_%=: \n\t"
         /* XOR 8 bytes */
         "CMP        %[bytes], #8         \n\t"
-        "B.LT        L_chacha20_arm32_64_lt_8_%= \n\t"
+        "BLT        L_chacha20_arm32_64_lt_8_%= \n\t"
         "VLD1.8     { d8 }, [%[m]]!      \n\t"
         "VEOR       d8, d8, d0           \n\t"
         "VST1.8     { d8 }, [%[c]]!      \n\t"
         "SUBS       %[bytes], %[bytes], #8 \n\t"
         "VMOV       d0, d1               \n\t"
-        "B.EQ        L_chacha20_arm32_64_done_%= \n\t"
+        "BEQ        L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_8_%=: \n\t"
         /* XOR 4 bytes */
         "CMP        %[bytes], #4         \n\t"
-        "B.LT        L_chacha20_arm32_64_lt_4_%= \n\t"
+        "BLT        L_chacha20_arm32_64_lt_4_%= \n\t"
         "LDR        r12, [%[m]], #4      \n\t"
         "VMOV       r14, d0[0]           \n\t"
         "EOR        r12, r12, r14        \n\t"
         "STR        r12, [%[c]], #4      \n\t"
         "SUBS       %[bytes], %[bytes], #4 \n\t"
         "VSHR.U64   d0, d0, #32          \n\t"
-        "B.EQ        L_chacha20_arm32_64_done_%= \n\t"
+        "BEQ        L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_4_%=: \n\t"
         /* XOR remaining bytes */
@@ -2889,7 +2889,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "STRB       r12, [%[c]], #1      \n\t"
         "SUBS       %[bytes], %[bytes], #1 \n\t"
         "LSR        r14, r14, #8         \n\t"
-        "B.GT        L_chacha20_arm32_64_lt_4_loop_%= \n\t"
+        "BGT        L_chacha20_arm32_64_lt_4_loop_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_done_%=: \n\t"
         : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes)
