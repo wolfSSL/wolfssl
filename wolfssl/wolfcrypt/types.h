@@ -2084,7 +2084,7 @@ enum Max_ASN {
 #ifndef WC_MAX_DIGEST_SIZE
 #define WC_MAX_DIGEST_SIZE 64
 #endif
-#ifndef WC_MAX_DIGEST_SIZE
+#ifndef WC_MAX_BLOCK_SIZE
 #define WC_MAX_BLOCK_SIZE  128
 #endif
 
