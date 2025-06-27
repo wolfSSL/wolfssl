@@ -801,7 +801,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void);
      defined(USE_FAST_MATH))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void);
 #endif
-#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN) && \
+    (!defined(NO_DH) || !defined(NO_DSA)) && !defined(WC_NO_RNG)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void);
 #endif
 #if defined(ASN_BER_TO_DER) && \
@@ -2481,7 +2482,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("mp       test passed!\n");
 #endif
 
-#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN) && \
+    (!defined(NO_DH) || !defined(NO_DSA)) && !defined(WC_NO_RNG)
     if ( (ret = prime_test()) != 0)
         TEST_FAIL("prime    test failed!\n", ret);
     else
@@ -23690,37 +23692,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
-            !defined(HAVE_SELFTEST)
-    agreeSz = DH_TEST_BUF_SIZE;
-    agreeSz2 = DH_TEST_BUF_SIZE;
-
-    ret = wc_DhAgree_ct(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-
-    ret = wc_DhAgree_ct(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-
-#ifdef WOLFSSL_PUBLIC_MP
-    if (agreeSz != (word32)mp_unsigned_bin_size(&key->p))
-    {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-#endif
-
-    if (agreeSz != agreeSz2)
-    {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    if (XMEMCMP(agree, agree2, agreeSz) != 0)
-    {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
-
 #endif /* !WC_NO_RNG */
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
@@ -23742,6 +23713,34 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
     }
 #endif
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+            !defined(HAVE_SELFTEST)
+    agreeSz = DH_TEST_BUF_SIZE;
+    agreeSz2 = DH_TEST_BUF_SIZE;
+
+    ret = wc_DhAgree_ct(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    ret = wc_DhAgree_ct(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+#ifdef WOLFSSL_PUBLIC_MP
+    if (agreeSz != (word32)mp_unsigned_bin_size(&key->p)) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+#endif
+
+    if (agreeSz != agreeSz2) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    if (XMEMCMP(agree, agree2, agreeSz) != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
     /* Test DH key import / export */
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
@@ -55544,9 +55543,9 @@ static wc_test_ret_t mp_test_div_3(mp_int* a, mp_int* r, WC_RNG* rng)
 #endif /* WOLFSSL_SP_MATH || !USE_FAST_MATH */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     (!defined WOLFSSL_SP_MATH && !defined(WOLFSSL_SP_MATH_ALL) && \
-    (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
+     (defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)))
 static wc_test_ret_t mp_test_radix_10(mp_int* a, mp_int* r, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -55759,6 +55758,8 @@ static wc_test_ret_t mp_test_shift(mp_int* a, mp_int* r1, WC_RNG* rng)
     return 0;
 }
 
+#if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
+    (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
 static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
 {
     int i, j;
@@ -55798,6 +55799,7 @@ static wc_test_ret_t mp_test_add_sub_d(mp_int* a, mp_int* r1)
 
     return 0;
 }
+#endif
 
 static wc_test_ret_t mp_test_read_to_bin(mp_int* a)
 {
@@ -55926,7 +55928,8 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
 
     mp_free(NULL);
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(NO_DH) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DH) || defined(HAVE_ECC)
     ret = mp_grow(NULL, 1);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
@@ -56106,8 +56109,8 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
 
     mp_zero(NULL);
 
-#if !defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_DH) || defined(HAVE_ECC) || (!defined(NO_RSA) && \
+    (defined(WC_RSA_BLINDING) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)))
     ret = mp_lshd(NULL, 0);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
@@ -58014,8 +58017,8 @@ static wc_test_ret_t mp_test_exptmod(mp_int* b, mp_int* e, mp_int* m, mp_int* r)
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || (HAVE_ECC && HAVE_COMP_KEY) ||
         * OPENSSL_EXTRA */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    defined(HAVE_ECC) || (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+#if defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 static wc_test_ret_t mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -58264,6 +58267,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
          #endif
     #endif
 
+        #if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
+            (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D) && \
+             defined(WOLFSSL_SP_INVMOD))
             /* Ensure add digit produce same result as sub digit. */
             ret = mp_add_d(a, d, r1);
             if (ret != 0)
@@ -58280,6 +58286,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
             ret = mp_invmod(a, p, r1);
             if (ret != 0 && ret != WC_NO_ERR_TRACE(MP_VAL))
                 ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        #endif
 
         #ifndef WOLFSSL_SP_MATH
             /* Shift up and down number all bits in a digit. */
@@ -58298,6 +58305,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
         }
     }
 
+#if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
+    (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
     /* Test adding and subtracting zero from zero. */
     mp_zero(a);
     ret = mp_add_d(a, 0, r1);
@@ -58312,6 +58321,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if (!mp_iszero(r2)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
+#endif
 
 #if DIGIT_BIT >= 32
     /* Check that setting a 32-bit digit works. */
@@ -58362,9 +58372,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
         goto done;
 #endif
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+     !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     (!defined WOLFSSL_SP_MATH && !defined(WOLFSSL_SP_MATH_ALL) && \
-    (defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)))
+     (defined(OPENSSL_EXTRA) || !defined(NO_DSA) || defined(HAVE_ECC)))
     if ((ret = mp_test_radix_10(a, r1, &rng)) != 0)
         goto done;
 #endif
@@ -58376,8 +58386,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
 
     if ((ret = mp_test_shift(a, r1, &rng)) != 0)
         goto done;
+#if !(defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) || \
+    (defined(WOLFSSL_SP_ADD_D) && defined(WOLFSSL_SP_SUB_D))
     if ((ret = mp_test_add_sub_d(a, r1)) != 0)
         goto done;
+#endif
     if ((ret = mp_test_read_to_bin(a)) != 0)
         goto done;
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
@@ -58432,8 +58445,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void)
     if ((ret = mp_test_exptmod(a, b, r1, r2)) != 0)
         goto done;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    defined(HAVE_ECC) || (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+#if defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
     if ((ret = mp_test_mont(a, b, r1, r2, &rng)) != 0)
         goto done;
 #endif
@@ -58487,6 +58500,7 @@ typedef struct pairs_t {
 } pairs_t;
 
 
+#if (!defined(NO_DH) || !defined(NO_DSA)) && !defined(WC_NO_RNG)
 /*
 n =p1p2p3, where pi = ki(p1-1)+1 with (k2,k3) = (173,293)
 p1 = 2^192 * 0x000000000000e24fd4f6d6363200bf2323ec46285cac1d3a
@@ -58801,6 +58815,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void)
 
     return ret;
 }
+#endif
 
 #endif /* WOLFSSL_PUBLIC_MP */
 
