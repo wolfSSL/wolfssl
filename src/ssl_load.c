@@ -5108,11 +5108,6 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
             /* Push X509 object onto stack to be freed. */
             ret = wolfSSL_sk_X509_push(ssl->ourCertChain, x509) > 0
                     ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-            if (ret != 1) {
-                /* Free it now on error. */
-                wolfSSL_X509_free(x509);
-                x509 = NULL;
-            }
         }
     }
     return WS_RC(ret);
