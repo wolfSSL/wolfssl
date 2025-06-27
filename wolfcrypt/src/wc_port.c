@@ -3974,7 +3974,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          */
         if (dispatch_semaphore_signal(s->sem) < 0) {
             dispatch_release(s->sem);
-            return return MEMORY_E;
+            return MEMORY_E;
         }
     #elif defined(__OS2__)
         DosCreateMutexSem( NULL, &cond->mutex, 0, FALSE );
