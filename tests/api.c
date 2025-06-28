@@ -4257,6 +4257,44 @@ static int test_wolfSSL_CertManagerNameConstraint5(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_CRL_duplicate_extensions(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_CERTS) && \
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(WOLFSSL_NO_ASN_STRICT)
+    const unsigned char crl_duplicate_akd[] =
+        "-----BEGIN X509 CRL-----\n"
+        "MIICCDCB8QIBATANBgkqhkiG9w0BAQsFADB5MQswCQYDVQQGEwJVUzETMBEGA1UE\n"
+        "CAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzETMBEGA1UECgwK\n"
+        "TXkgQ29tcGFueTETMBEGA1UEAwwKTXkgUm9vdCBDQTETMBEGA1UECwwKTXkgUm9v\n"
+        "dCBDQRcNMjQwOTAxMDAwMDAwWhcNMjUxMjAxMDAwMDAwWqBEMEIwHwYDVR0jBBgw\n"
+        "FoAU72ng99Ud5pns3G3Q9+K5XGRxgzUwHwYDVR0jBBgwFoAU72ng99Ud5pns3G3Q\n"
+        "9+K5XGRxgzUwDQYJKoZIhvcNAQELBQADggEBAIFVw4jrS4taSXR/9gPzqGrqFeHr\n"
+        "IXCnFtHJTLxqa8vUOAqSwqysvNpepVKioMVoGrLjFMjANjWQqTEiMROAnLfJ/+L8\n"
+        "FHZkV/mZwOKAXMhIC9MrJzifxBICwmvD028qnwQm09EP8z4ICZptD6wPdRTDzduc\n"
+        "KBuAX+zn8pNrJgyrheRKpPgno9KsbCzK4D/RIt1sTK2M3vVOtY+vpsN70QYUXvQ4\n"
+        "r2RZac3omlT43x5lddPxIlcouQpwWcVvr/K+Va770MRrjn88PBrJmvsEw/QYVBXp\n"
+        "Gxv2b78HFDacba80sMIm8ltRdqUCa5qIc6OATsz7izCQXEbkTEeESrcK1MA=\n"
+        "-----END X509 CRL-----\n";
+
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    int ret;
+
+    cm = wolfSSL_CertManagerNew();
+    ExpectNotNull(cm);
+
+    /* Test loading CRL with duplicate extensions */
+    WOLFSSL_MSG("Testing CRL with duplicate Authority Key Identifier extensions");
+    ret = wolfSSL_CertManagerLoadCRLBuffer(cm, crl_duplicate_akd,
+                                           sizeof(crl_duplicate_akd),
+                                           WOLFSSL_FILETYPE_PEM);
+    ExpectIntEQ(ret, ASN_PARSE_E);
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CertManagerCRL(void)
 {
     EXPECT_DECLS;
@@ -68150,6 +68188,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint4),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint5),
     TEST_DECL(test_wolfSSL_CertManagerCRL),
+    TEST_DECL(test_wolfSSL_CRL_duplicate_extensions),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
 #ifdef HAVE_CERT_CHAIN_VALIDATION

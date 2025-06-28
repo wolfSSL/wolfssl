@@ -40566,6 +40566,9 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
 {
     DECL_ASNGETDATA(dataASN, certExtASN_Length);
     int ret = 0;
+    /* Track if we've seen these extensions already */
+    word32 seenAuthKey = 0;
+    word32 seenCrlNum = 0;
 
     ALLOC_ASNGETDATA(dataASN, certExtASN_Length, ret, dcrl->heap);
 
@@ -40588,47 +40591,71 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
             /* Length of extension data. */
             int length = (int)dataASN[CERTEXTASN_IDX_VAL].length;
 
-            if (oid == AUTH_KEY_OID) {
-            #ifndef NO_SKID
-                /* Parse Authority Key Id extension.
-                 * idx is at start of OCTET_STRING data. */
-                ret = ParseCRL_AuthKeyIdExt(buf + localIdx, length, dcrl);
-                if (ret != 0) {
-                    WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
-                }
-            #endif
+            /* Check for duplicate extension. RFC 5280 Section 4.2 states that
+             * a certificate must not include more than one instance of a
+             * particular extension. Note that the same guidance does not appear
+             * for CRLs but the same reasoning should apply. */
+            if ((oid == AUTH_KEY_OID && seenAuthKey) ||
+                (oid == CRL_NUMBER_OID && seenCrlNum)) {
+                WOLFSSL_MSG("Duplicate CRL extension found");
+                /* Gating !WOLFSSL_NO_ASN_STRICT will allow wolfCLU to have same
+                 * behaviour as OpenSSL */
+#ifndef WOLFSSL_NO_ASN_STRICT
+                ret = ASN_PARSE_E;
+#endif
             }
-            else if (oid == CRL_NUMBER_OID) {
-                DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
-                               CRL_MAX_NUM_SZ * CHAR_BIT);
-                NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
 
-            #ifdef MP_INT_SIZE_CHECK_NULL
-                if (m == NULL) {
-                    ret = MEMORY_E;
+            /* Track this extension if no duplicate found */
+            if (ret == 0) {
+                if (oid == AUTH_KEY_OID)
+                    seenAuthKey = 1;
+                else if (oid == CRL_NUMBER_OID)
+                    seenCrlNum = 1;
+            }
+
+            if (ret == 0) {
+                if (oid == AUTH_KEY_OID) {
+                #ifndef NO_SKID
+                    /* Parse Authority Key Id extension.
+                     * idx is at start of OCTET_STRING data. */
+                    ret = ParseCRL_AuthKeyIdExt(buf + localIdx, length, dcrl);
+                    if (ret != 0) {
+                        WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
+                    }
+                #endif
                 }
-            #endif
+                else if (oid == CRL_NUMBER_OID) {
+                    DECL_MP_INT_SIZE_DYN(m, CRL_MAX_NUM_SZ * CHAR_BIT,
+                                   CRL_MAX_NUM_SZ * CHAR_BIT);
+                    NEW_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT, NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
 
-                if (ret == 0 && (INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ * CHAR_BIT)
-                             != MP_OKAY)) {
+                #ifdef MP_INT_SIZE_CHECK_NULL
+                    if (m == NULL) {
+                        ret = MEMORY_E;
+                    }
+                #endif
+
+                    if (ret == 0 && (INIT_MP_INT_SIZE(m, CRL_MAX_NUM_SZ *
+                        CHAR_BIT) != MP_OKAY)) {
                         ret = MP_INIT_E;
+                    }
+
+                    if (ret == 0) {
+                        ret = GetInt(m, buf, &localIdx, maxIdx);
+                    }
+
+                    if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
+                                 MP_RADIX_HEX) != MP_OKAY)
+                        ret = BUFFER_E;
+
+                    if (ret == 0) {
+                        dcrl->crlNumberSet = 1;
+                    }
+
+                    mp_free(m);
+                    FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 }
-
-                if (ret == 0) {
-                    ret = GetInt(m, buf, &localIdx, maxIdx);
-                }
-
-                if (ret == 0 && mp_toradix(m, (char*)dcrl->crlNumber,
-                             MP_RADIX_HEX) != MP_OKAY)
-                    ret = BUFFER_E;
-
-                if (ret == 0) {
-                    dcrl->crlNumberSet = 1;
-                }
-
-                mp_free(m);
-                FREE_MP_INT_SIZE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             }
             /* TODO: check criticality */
             /* Move index on to next extension. */
