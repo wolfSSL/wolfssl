@@ -360,11 +360,13 @@ static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
  * @param [in]  passedSz    Size of password in bytes.
  * @param [out] cipherInfo  PEM cipher information lines.
  * @param [in]  maxDerSz    Maximum size of DER buffer.
+ * @param [in]  hashType    Hash algorithm
  * @return  1 on success.
  * @return  0 on error.
  */
 int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
-    unsigned char* passwd, int passwdSz, byte **cipherInfo, int maxDerSz)
+    unsigned char* passwd, int passwdSz, byte **cipherInfo, int maxDerSz,
+    int hashType)
 {
     int ret = 0;
     int paddingSz = 0;
@@ -433,7 +435,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
 
         /* Encrypt DER buffer. */
         ret = wc_BufferKeyEncrypt(info, der, (word32)*derSz, passwd, passwdSz,
-            WC_MD5);
+            hashType);
         if (ret != 0) {
             WOLFSSL_MSG("encrypt key failed");
         }
@@ -504,6 +506,14 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     byte* tmp = NULL;
     byte* cipherInfo = NULL;
     int pemSz = 0;
+    int hashType = WC_HASH_TYPE_NONE;
+#if !defined(NO_SHA256)
+    hashType = WC_SHA256;
+#elif !defined(NO_SHA)
+    hashType = WC_SHA;
+#elif !defined(NO_MD5)
+    hashType = WC_MD5;
+#endif
 
     /* Macro doesn't always use it. */
     (void)heap;
@@ -536,7 +546,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
 
             /* Encrypt DER inline. */
             ret = EncryptDerKey(der, &derSz, cipher, passwd, passwdSz,
-                &cipherInfo, derSz + blockSz);
+                &cipherInfo, derSz + blockSz, hashType);
             if (ret != 1) {
                 WOLFSSL_ERROR_MSG("EncryptDerKey failed");
             }
@@ -5978,7 +5988,8 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
                                         unsigned char* passwd, int passwdSz,
                                         unsigned char **pem, int *pLen)
 {
-#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
+#if (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)) && \
+    !defined(NO_MD5)
     byte *derBuf, *tmp, *cipherInfo = NULL;
     int  der_max_len = 0, derSz = 0;
     const int type = DSA_PRIVATEKEY_TYPE;
@@ -6024,8 +6035,8 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     if (passwd != NULL && passwdSz > 0 && cipher != NULL) {
         int ret;
 
-        ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo, der_max_len);
+        ret = EncryptDerKey(derBuf, &derSz, cipher, passwd, passwdSz,
+            &cipherInfo, der_max_len, WC_MD5);
         if (ret != 1) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -6086,7 +6097,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     (void)pem;
     (void)pLen;
     return 0;
-#endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
+#endif /* (WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM) && !NO_MD5 */
 }
 
 #ifndef NO_FILESYSTEM

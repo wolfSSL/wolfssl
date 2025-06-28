@@ -11447,8 +11447,10 @@ const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
         return (const char *)ssl->buffers.domainName.buffer;
     else if (ssl->session && ssl->session->peer)
         return ssl->session->peer->subjectCN;
+#ifdef KEEP_PEER_CERT
     else if (ssl->peerCert.subjectCN[0])
         return ssl->peerCert.subjectCN;
+#endif
     else {
         ssl->error = NO_PEER_CERT;
         return NULL;
@@ -14634,7 +14636,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     return sk;
 }
 
-
+#ifdef KEEP_PEER_CERT
 /**
  * Implemented in a similar way that ngx_ssl_ocsp_validate does it when
  * SSL_get0_verified_chain is not available.
@@ -14695,6 +14697,7 @@ WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
     wolfSSL_X509_STORE_CTX_free(storeCtx);
     return chain;
 }
+#endif /* KEEP_PEER_CERT */
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
@@ -18405,9 +18408,8 @@ int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
-
-#if defined(HAVE_EX_DATA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(KEEP_PEER_CERT) && \
+    defined(HAVE_EX_DATA) && !defined(NO_FILESYSTEM)
 int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 {
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
@@ -18478,7 +18480,6 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
     return ret;
 }
 #endif
-#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
