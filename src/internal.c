@@ -4849,7 +4849,7 @@ void FreeX509(WOLFSSL_X509* x509)
     }
     #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         wolfSSL_RefFree(&x509->ref);
     #endif
 }
