@@ -75,97 +75,138 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32WB
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32WBA52xx)
     #define WOLFSSL_STM32WBA
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     /* NUCLEO-WBA52CG USART1 (TX=PB12 / RX=PA8) */
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32WL55xx)
     #define WOLFSSL_STM32WL
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
+    #endif
 #elif defined(STM32F407xx)
     #define WOLFSSL_STM32F4
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
-#elif defined(STM32F437xx)
+    #endif
+#elif defined(STM32F437xx) || defined(STM32F439xx)
     #define WOLFSSL_STM32F4
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
-    #define HAL_CONSOLE_UART huart4
+    #ifndef HAL_CONSOLE_UART
+        #ifdef STM32F439xx
+        #define HAL_CONSOLE_UART huart3
+        #else
+        #define HAL_CONSOLE_UART huart4
+        #endif
+    #endif
 #elif defined(STM32F777xx)
     #define WOLFSSL_STM32F7
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
+    #endif
 #elif defined(STM32F756xx)
     #define WOLFSSL_STM32F7
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32H7S3xx)
     #define WOLFSSL_STM32H7S
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define WOLFSSL_STM32_PKA
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32H723xx) || defined(STM32H725xx) || defined(STM32H743xx)
     #define WOLFSSL_STM32H7
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32L4A6xx)
     #define WOLFSSL_STM32L4
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART hlpuart1
+    #endif
 #elif defined(STM32L475xx)
     #define WOLFSSL_STM32L4
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32L562xx)
     #define WOLFSSL_STM32L5
     #define WOLFSSL_STM32_PKA
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32L552xx)
     #define WOLFSSL_STM32L5
     #undef  NO_STM32_HASH
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART hlpuart1
+    #endif
 #elif defined(STM32F207xx)
     #define WOLFSSL_STM32F2
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32F217xx)
     #define WOLFSSL_STM32F2
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart2
+    #endif
 #elif defined(STM32F107xC)
     #define WOLFSSL_STM32F1
-    #define HAL_CONSOLE_UART huart4
     #define NO_STM32_RNG
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart4
+    #endif
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
-    #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart2
+    #endif
 #elif defined(STM32G071xx)
     #define WOLFSSL_STM32G0
-    #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart2
+    #endif
 #elif defined(STM32G491xx)
     #define WOLFSSL_STM32G4
     #define HAL_CONSOLE_UART hlpuart1
 #elif defined(STM32U575xx) || defined(STM32U585xx) || defined(STM32U5A9xx)
-    #define HAL_CONSOLE_UART huart1
     #define WOLFSSL_STM32U5
     #define STM32_HAL_V2
     #if defined(STM32U585xx) || defined(STM32U5A9xx)
@@ -173,19 +214,35 @@ extern ${variable.value} ${variable.name};
         #undef  NO_STM32_CRYPTO
         #define WOLFSSL_STM32_PKA
     #endif
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart1
+    #endif
 #elif defined(STM32H563xx)
     #define WOLFSSL_STM32H5
-    #define HAL_CONSOLE_UART huart3
     #define STM32_HAL_V2
     #undef  NO_STM32_HASH
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart3
+    #endif
 #elif defined(STM32MP135Fxx)
     #define WOLFSSL_STM32MP13
-    #define HAL_CONSOLE_UART huart4
     #define STM32_HAL_V2
     #undef NO_STM32_HASH
     #undef NO_STM32_CRYPTO
     #define WOLFSSL_STM32_PKA
     #define WOLFSSL_STM32_PKA_V2
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart4
+    #endif
+#elif defined(STM32N657xx)
+    #define WOLFSSL_STM32N6
+    #define STM32_HAL_V2
+    #undef NO_STM32_HASH
+    #undef NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
+    #ifndef HAL_CONSOLE_UART
+    #define HAL_CONSOLE_UART huart1
+    #endif
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
@@ -199,16 +256,19 @@ extern ${variable.value} ${variable.name};
     /* Debug UART used for printf */
     /* The UART interface number varies for each board/CPU */
     /* Typically this is the UART attached to the ST-Link USB CDC UART port */
+    #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart4
+    #endif
 
     /* Hardware Crypto - uncomment as available on hardware */
+    //#define STM32_HAL_V2
     //#define WOLFSSL_STM32_PKA
+    //#define WOLFSSL_STM32_PKA_V2
     //#define NO_STM32_RNG
     //#undef  NO_STM32_HASH
     //#undef  NO_STM32_CRYPTO
     /* if no HW RNG is available use test seed */
     //#define WOLFSSL_GENSEED_FORTEST
-    //#define STM32_HAL_V2
 #endif
 
 

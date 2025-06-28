@@ -2110,7 +2110,8 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32G0)  || defined(WOLFSSL_STM32U5)   || \
     defined(WOLFSSL_STM32H5)  || defined(WOLFSSL_STM32WL)   || \
     defined(WOLFSSL_STM32G4)  || defined(WOLFSSL_STM32MP13) || \
-    defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32WBA)
+    defined(WOLFSSL_STM32H7S) || defined(WOLFSSL_STM32WBA)  || \
+    defined(WOLFSSL_STM32N6)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2174,6 +2175,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32u5xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
             #include "stm32h5xx_hal.h"
+        #elif defined(WOLFSSL_STM32N6)
+            #include "stm32n6xx_hal.h"
         #elif defined(WOLFSSL_STM32MP13)
             /* HAL headers error on our ASM files */
             #ifndef __ASSEMBLER__
