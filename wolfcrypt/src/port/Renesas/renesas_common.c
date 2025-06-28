@@ -181,68 +181,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
     #if !defined(NO_AES)
-    #ifdef HAVE_AESGCM
-        if (info->cipher.type == WC_CIPHER_AES_GCM
-        #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo->session_key_set == 1
-        #endif
-         ) {
-
-            if (info->cipher.enc) {
-                ret = wc_tsip_AesGcmEncrypt(
-                        info->cipher.aesgcm_enc.aes,
-                        (byte*)info->cipher.aesgcm_enc.out,
-                        (byte*)info->cipher.aesgcm_enc.in,
-                        info->cipher.aesgcm_enc.sz,
-                        (byte*)info->cipher.aesgcm_enc.iv,
-                        info->cipher.aesgcm_enc.ivSz,
-                        (byte*)info->cipher.aesgcm_enc.authTag,
-                        info->cipher.aesgcm_enc.authTagSz,
-                        (byte*)info->cipher.aesgcm_enc.authIn,
-                        info->cipher.aesgcm_enc.authInSz,
-                        (void*)ctx);
-
-            }
-            else {
-                ret = wc_tsip_AesGcmDecrypt(
-                        info->cipher.aesgcm_dec.aes,
-                        (byte*)info->cipher.aesgcm_dec.out,
-                        (byte*)info->cipher.aesgcm_dec.in,
-                        info->cipher.aesgcm_dec.sz,
-                        (byte*)info->cipher.aesgcm_dec.iv,
-                        info->cipher.aesgcm_dec.ivSz,
-                        (byte*)info->cipher.aesgcm_dec.authTag,
-                        info->cipher.aesgcm_dec.authTagSz,
-                        (byte*)info->cipher.aesgcm_dec.authIn,
-                        info->cipher.aesgcm_dec.authInSz,
-                        (void*)ctx);
-            }
-        }
-    #endif /* HAVE_AESGCM */
-    #ifdef HAVE_AES_CBC
-        if (info->cipher.type == WC_CIPHER_AES_CBC
-        #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo->session_key_set == 1
-        #endif
-            ) {
-
-            if (info->cipher.enc) {
-                ret = wc_tsip_AesCbcEncrypt(
-                    info->cipher.aescbc.aes,
-                    (byte*)info->cipher.aescbc.out,
-                    (byte*)info->cipher.aescbc.in,
-                    info->cipher.aescbc.sz);
-
-            }
-            else {
-                ret = wc_tsip_AesCbcDecrypt(
-                    info->cipher.aescbc.aes,
-                    (byte*)info->cipher.aescbc.out,
-                    (byte*)info->cipher.aescbc.in,
-                    info->cipher.aescbc.sz);
-            }
-        }
-    #endif /* HAVE_AES_CBC */
+         ret = wc_tsip_AesCipher(devIdArg, info, ctx);
     #endif /* !NO_AES */
     }
 

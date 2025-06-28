@@ -119,8 +119,12 @@
 									<listOptionValue builtIn="false" value="D_1=R_1"/>
 									<listOptionValue builtIn="false" value="D_2=R_2"/>
 									<listOptionValue builtIn="false" value="D_8=R_8"/>
+									<listOptionValue builtIn="false" value="DEXRAM=REXRAM"/>
+									<listOptionValue builtIn="false" value="DEXRAM_1=REXRAM_1"/>
+									<listOptionValue builtIn="false" value="DEXRAM_2=REXRAM_2"/>
+									<listOptionValue builtIn="false" value="DEXRAM_8=REXRAM_8"/>
 								</option>
-								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection.2043161263" name="セクション (-start)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection" useByScannerDiscovery="false" value="SU,SI,B_1,R_1,B_2,R_2,B,R,B_8,R_8/04,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/0800000,PResetPRG,C_1,C_2,C,C_8,C$*,D*,W*,L,P/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC,C_FIRMWARE_UPDATE_CONTROL_BLOCK,C_FIRMWARE_UPDATE_CONTROL_BLOCK_MIRROR/00100000" valueType="string"/>
+								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection.2043161263" name="セクション (-start)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection" useByScannerDiscovery="false" value="SU,SI,B_1,R_1,B_2,R_2,B,R,B_8,R_8/04,BEXRAM_1,REXRAM_1,BEXRAM_2,REXRAM_2,BEXRAM,REXRAM,BEXRAM_8,REXRAM_8,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/0800000,PResetPRG,C_1,C_2,C,C_8,C$*,D*,W*,L,P/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC,C_FIRMWARE_UPDATE_CONTROL_BLOCK,C_FIRMWARE_UPDATE_CONTROL_BLOCK_MIRROR/00100000" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.userBefore.1452234640" name="追加するオプション（すべての指定オプションの前に追加）" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.userBefore" useByScannerDiscovery="false" valueType="stringList">
 									<listOptionValue builtIn="false" value=""/>
 								</option>
@@ -218,6 +222,7 @@
 				<option id="board.name" value="EnvisionKitRX72N"/>
 				<option id="board.device" value="R5F572NNHxFB"/>
 			</storageModule>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.deviceConfiguration"/>
 		</cconfiguration>
 		<cconfiguration id="com.renesas.cdt.managedbuild.renesas.ccrx.debug.configuration.992474000">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.renesas.cdt.managedbuild.renesas.ccrx.debug.configuration.992474000" moduleId="org.eclipse.cdt.core.settings" name="Debug">
@@ -261,7 +266,7 @@
 							</tool>
 							<tool id="com.renesas.cdt.managedbuild.renesas.ccrx.base.compiler.278830907" name="Compiler" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.base.compiler">
 								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu.2144484247" name="浮動小数点演算命令を使用する (-fpu/-nofpu)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu" useByScannerDiscovery="false" value="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.fpu.yes" valueType="enumerated"/>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.include.545347560" name="インクルード・ファイルを検索するフォルダ (-include)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.include" valueType="includePath">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.include.545347560" name="インクルード・ファイルを検索するフォルダ (-include)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.include" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="${TCINSTALL}/include"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/smc_gen/general}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/smc_gen/Config_TMR0}&quot;"/>
@@ -280,7 +285,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/smc_gen/r_ether_rx}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/smc_gen}&quot;"/>
 								</option>
-								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.define.935611572" name="プリプロセッサ・マクロの定義 (-define)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.define" valueType="definedSymbols">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.define.935611572" name="プリプロセッサ・マクロの定義 (-define)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.define" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DEBUG_CONSOLE"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.userBefore.878126292" name="追加するオプション（すべての指定オプションの前に追加）" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.compiler.option.userBefore" useByScannerDiscovery="false" valueType="stringList">
@@ -329,8 +334,12 @@
 									<listOptionValue builtIn="false" value="D_1=R_1"/>
 									<listOptionValue builtIn="false" value="D_2=R_2"/>
 									<listOptionValue builtIn="false" value="D_8=R_8"/>
+									<listOptionValue builtIn="false" value="DEXRAM=REXRAM"/>
+									<listOptionValue builtIn="false" value="DEXRAM_1=REXRAM_1"/>
+									<listOptionValue builtIn="false" value="DEXRAM_2=REXRAM_2"/>
+									<listOptionValue builtIn="false" value="DEXRAM_8=REXRAM_8"/>
 								</option>
-								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection.1046231838" name="セクション (-start)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection" useByScannerDiscovery="false" value="SU,SI,B_1,R_1,B_2,R_2,B,R/04,PResetPRG,C_1,C_2,C,C$*,D*,W*,L,P/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/00010000,C_FIRMWARE_UPDATE_CONTROL_BLOCK,C_FIRMWARE_UPDATE_CONTROL_BLOCK_MIRROR/00100000" valueType="string"/>
+								<option id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection.1046231838" name="セクション (-start)" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.linkerSection" useByScannerDiscovery="false" value="SU,SI,B_1,R_1,B_2,R_2,B,R/04,PResetPRG,C_1,C_2,C,C$*,D*,W*,L,P/0FFE00000,EXCEPTVECT/0FFFFFF80,RESETVECT/0FFFFFFFC,B_ETHERNET_BUFFERS_1,B_RX_DESC_1,B_TX_DESC_1/00010000,C_FIRMWARE_UPDATE_CONTROL_BLOCK,C_FIRMWARE_UPDATE_CONTROL_BLOCK_MIRROR/00100000,BEXRAM_1,REXRAM_1,BEXRAM_2,REXRAM_2,BEXRAM,REXRAM,BEXRAM_8,REXRAM_8/00800000" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.userBefore.1651005552" name="追加するオプション（すべての指定オプションの前に追加）" superClass="com.renesas.cdt.managedbuild.renesas.ccrx.linker.option.userBefore" useByScannerDiscovery="false" valueType="stringList">
 									<listOptionValue builtIn="false" value=""/>
 								</option>
@@ -380,6 +389,7 @@
 				<option id="board.name" value="EnvisionKitRX72N"/>
 				<option id="board.device" value="R5F572NNHxFB"/>
 			</storageModule>
+			<storageModule moduleId="com.renesas.cdt.managedbuild.core.deviceConfiguration"/>
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
