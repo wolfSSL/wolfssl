@@ -59,10 +59,10 @@ jobs:
 
   nss_test:
     name: Test interop with nss
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     needs: build_nss
     timeout-minutes: 10
-    if: github.repository_owner == 'wolfssl'
     steps:
       - name: Checking if we have nss in cache
         uses: actions/cache/restore@v4

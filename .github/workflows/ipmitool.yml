@@ -16,9 +16,9 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-22.04
-    if: github.repository_owner == 'wolfssl'
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:

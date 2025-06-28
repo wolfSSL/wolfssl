@@ -47,6 +47,7 @@ jobs:
         # List of releases to test
         ref: [ 2.9.1 ]
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     container:
       image: quay.io/sssd/ci-client-devel:ubuntu-latest
