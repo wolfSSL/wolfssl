@@ -300,6 +300,10 @@
 #include <wolfssl/sniffer.h>
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
 
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    #include <CoreFoundation/CoreFoundation.h>
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -4242,6 +4246,10 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     int secLevel; /* The security level of system-wide crypto policy. */
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    CFMutableArrayRef testTrustedCAs;
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 };
 
 WOLFSSL_LOCAL
@@ -4277,6 +4285,13 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert);
 #endif
 #endif
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+    WOLFSSL_API
+    int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
+                                                    const byte* derCert,
+                                                    int derLen);
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 
 /* All cipher suite related info
  * Keep as a constant size (no ifdefs) for session export */

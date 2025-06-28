@@ -1,0 +1,27 @@
+name: MacOS apple native cert validation tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      fail-fast: false
+    runs-on: macos-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 5
+    steps:
+      - name: Build and configure wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          configure: CFLAGS='-DWOLFSSL_APPLE_NATIVE_CERT_VALIDATION -DWOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION -DRSA_MIN_SIZE=2048 -DNO_WOLFSSL_CIPHER_SUITE_TEST'
+

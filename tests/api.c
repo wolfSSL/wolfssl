@@ -5077,6 +5077,7 @@ static int test_wolfSSL_OtherName(void)
 }
 
 #ifdef HAVE_CERT_CHAIN_VALIDATION
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int test_wolfSSL_CertRsaPss(void)
 {
     EXPECT_DECLS;
@@ -5134,7 +5135,8 @@ static int test_wolfSSL_CertRsaPss(void)
 
     return EXPECT_RESULT();
 }
-#endif
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+#endif /* HAVE_CERT_CHAIN_VALIDATION */
 
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
@@ -32836,18 +32838,8 @@ static int test_wolfSSL_check_domain(void)
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
-    defined(WOLFSSL_SYS_CA_CERTS)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(OPENSSL_COMPATIBLE_DEFAULTS)
 static const char* dn = NULL;
-static int test_wolfSSL_check_domain_basic_client_ctx(WOLFSSL_CTX* ctx)
-{
-    EXPECT_DECLS;
-
-    ExpectIntEQ(wolfSSL_CTX_load_system_CA_certs(ctx), WOLFSSL_SUCCESS);
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
-
-    return EXPECT_RESULT();
-}
 static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -32864,8 +32856,6 @@ static int test_wolfSSL_check_domain_basic(void)
 
     XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
     XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
-
-    func_cb_client.ctx_ready = &test_wolfSSL_check_domain_basic_client_ctx;
 
     dn = "invalid.com";
     func_cb_client.ssl_ready = &test_wolfSSL_check_domain_basic_client_ssl;
@@ -48411,6 +48401,7 @@ static int test_X509_LOOKUP_add_dir(void)
                    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
 #if !defined(NO_RSA) || defined(HAVE_ECC)
 /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
     int type)
 {
@@ -48461,7 +48452,7 @@ static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
 
     return ret;
 }
-#endif
+
 
 #if !defined(NO_FILESYSTEM)
 static int test_RsaSigFailure_cm(void)
@@ -48538,8 +48529,9 @@ static int test_EccSigFailure_cm(void)
 #endif /* HAVE_ECC */
     return EXPECT_RESULT();
 }
-
 #endif /* !NO_FILESYSTEM */
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION*/
+#endif /* !NO_RSA || HAVE_ECC */
 #endif /* NO_CERTS */
 
 #ifdef WOLFSSL_TLS13
@@ -57965,6 +57957,7 @@ static int test_wolfSSL_dtls_stateless(void)
         * HAVE_IO_TESTS_DEPENDENCIES && !SINGLE_THREADED */
 
 #ifdef HAVE_CERT_CHAIN_VALIDATION
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -58201,6 +58194,7 @@ static int test_various_pathlen_chains(void)
 
     return EXPECT_RESULT();
 }
+#endif
 #endif /* !NO_RSA && !NO_SHA && !NO_FILESYSTEM && !NO_CERTS */
 
 #if defined(HAVE_KEYING_MATERIAL) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
@@ -66962,6 +66956,7 @@ static int test_get_signature_nid(void)
     return EXPECT_RESULT();
 }
 
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 #if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
 static word32 test_tls_cert_store_unchanged_HashCaTable(Signer** caTable)
 {
@@ -67108,6 +67103,7 @@ static int test_tls_cert_store_unchanged(void)
 #endif
     return EXPECT_RESULT();
 }
+#endif /* !WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 
 static int test_wolfSSL_SendUserCanceled(void)
 {
@@ -68191,7 +68187,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CRL_duplicate_extensions),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
-#ifdef HAVE_CERT_CHAIN_VALIDATION
+#if defined(HAVE_CERT_CHAIN_VALIDATION) && !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     TEST_DECL(test_various_pathlen_chains),
 #endif
 
@@ -68241,7 +68237,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_CONF_CTX_CMDLINE),
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
+    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),
@@ -68286,7 +68283,8 @@ TEST_CASE testCases[] = {
     /* Large number of memory allocations. */
     TEST_DECL(test_wolfSSL_CTX_load_system_CA_certs),
 
-#ifdef HAVE_CERT_CHAIN_VALIDATION
+#if defined(HAVE_CERT_CHAIN_VALIDATION) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     TEST_DECL(test_wolfSSL_CertRsaPss),
 #endif
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
@@ -68534,7 +68532,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_write_dup),
     TEST_DECL(test_read_write_hs),
     TEST_DECL(test_get_signature_nid),
+#ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
     TEST_DECL(test_tls_cert_store_unchanged),
+#endif
     TEST_DECL(test_wolfSSL_SendUserCanceled),
     TEST_DECL(test_wolfSSL_SSLDisableRead),
     TEST_DECL(test_wolfSSL_inject),
