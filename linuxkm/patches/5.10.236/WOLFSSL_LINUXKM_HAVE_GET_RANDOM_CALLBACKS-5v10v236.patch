@@ -1,0 +1,388 @@
+--- ./drivers/char/random.c.dist	2025-04-29 18:54:03.390121890 -0500
++++ ./drivers/char/random.c	2025-06-28 11:49:00.005493589 -0500
+@@ -60,6 +60,260 @@
+ #include <asm/irq_regs.h>
+ #include <asm/io.h>
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++
++#include <linux/delay.h>
++
++static atomic_long_t random_bytes_cb_owner =
++    ATOMIC_INIT((long)NULL);
++static atomic_t random_bytes_cb_refcnt =
++    ATOMIC_INIT(0); /* 0 if unregistered, 1 if no calls in flight. */
++static _get_random_bytes_cb_t _get_random_bytes_cb = NULL;
++static get_random_bytes_user_cb_t get_random_bytes_user_cb = NULL;
++static crng_ready_cb_t crng_ready_cb = NULL;
++static mix_pool_bytes_cb_t mix_pool_bytes_cb = NULL;
++static credit_init_bits_cb_t credit_init_bits_cb = NULL;
++static crng_reseed_cb_t crng_reseed_cb = NULL;
++
++int wolfssl_linuxkm_register_random_bytes_handlers(
++    struct module *new_random_bytes_cb_owner,
++    const struct wolfssl_linuxkm_random_bytes_handlers *handlers)
++{
++    if ((! new_random_bytes_cb_owner) ||
++        (! handlers) ||
++        (! handlers->_get_random_bytes) ||
++        (! handlers->get_random_bytes_user))
++    {
++        return -EINVAL;
++    }
++
++    /* random_bytes_cb_owner is used to enforce serialization of
++     * wolfssl_register_random_bytes_handlers() and
++     * wolfssl_unregister_random_bytes_handlers().
++     */
++    if (atomic_long_cmpxchg(&random_bytes_cb_owner,
++                            (long)NULL,
++                            (long)new_random_bytes_cb_owner)
++        != (long)NULL)
++    {
++        return -EBUSY;
++    }
++
++    {
++        int current_random_bytes_cb_refcnt = atomic_read(&random_bytes_cb_refcnt);
++        if (current_random_bytes_cb_refcnt) {
++            pr_err("BUG: random_bytes_cb_refcnt == %d with null random_bytes_cb_owner", current_random_bytes_cb_refcnt);
++            atomic_long_set(&random_bytes_cb_owner, (long)NULL);
++            return -EFAULT;
++        }
++    }
++
++    if (! try_module_get(new_random_bytes_cb_owner)) {
++        atomic_long_set(&random_bytes_cb_owner, (long)NULL);
++        return -ENODEV;
++    }
++
++    _get_random_bytes_cb = handlers->_get_random_bytes;
++    get_random_bytes_user_cb = handlers->get_random_bytes_user;
++    crng_ready_cb = handlers->crng_ready;
++    mix_pool_bytes_cb = handlers->mix_pool_bytes;
++    credit_init_bits_cb = handlers->credit_init_bits;
++    crng_reseed_cb = handlers->crng_reseed;
++
++    barrier();
++    atomic_set_release(&random_bytes_cb_refcnt, 1);
++
++    return 0;
++}
++EXPORT_SYMBOL_GPL(wolfssl_linuxkm_register_random_bytes_handlers);
++
++int wolfssl_linuxkm_unregister_random_bytes_handlers(void)
++{
++    int current_random_bytes_cb_refcnt;
++    int n_tries;
++    if (! atomic_long_read(&random_bytes_cb_owner))
++        return -ENODEV;
++
++    /* we're racing the kernel at large to try to catch random_bytes_cb_refcnt
++     * with no callers in flight -- retry and relax up to 100 times.
++     */
++    for (n_tries = 0; n_tries < 100; ++n_tries) {
++        current_random_bytes_cb_refcnt = atomic_cmpxchg(&random_bytes_cb_refcnt, 1, 0);
++        if (current_random_bytes_cb_refcnt == 1)
++            break;
++        if (current_random_bytes_cb_refcnt < 0) {
++            pr_err("BUG: random_bytes_cb_refcnt is %d in wolfssl_linuxkm_unregister_random_bytes_handlers.", current_random_bytes_cb_refcnt);
++            break;
++        }
++        if (msleep_interruptible(10) != 0)
++            return -EINTR;
++    }
++    if (current_random_bytes_cb_refcnt != 1) {
++        pr_warn("WARNING: wolfssl_unregister_random_bytes_handlers called with random_bytes_cb_refcnt == %d", current_random_bytes_cb_refcnt);
++        return -EBUSY;
++    }
++
++    _get_random_bytes_cb = NULL;
++    get_random_bytes_user_cb = NULL;
++    crng_ready_cb = NULL;
++    mix_pool_bytes_cb = NULL;
++    credit_init_bits_cb = NULL;
++    crng_reseed_cb = NULL;
++
++    module_put((struct module *)atomic_long_read(&random_bytes_cb_owner));
++    barrier();
++    atomic_long_set(&random_bytes_cb_owner, (long)NULL);
++
++    return 0;
++}
++EXPORT_SYMBOL_GPL(wolfssl_linuxkm_unregister_random_bytes_handlers);
++
++static __always_inline int reserve_random_bytes_cb(void) {
++    int current_random_bytes_cb_refcnt =
++        atomic_read_acquire(&random_bytes_cb_refcnt);
++
++    if (! current_random_bytes_cb_refcnt)
++        return -ENODEV;
++
++    if (current_random_bytes_cb_refcnt < 0) {
++        pr_err("BUG: random_bytes_cb_refcnt is %d in reserve_random_bytes_cb.", current_random_bytes_cb_refcnt);
++        return -EFAULT;
++    }
++
++    for (;;) {
++        int orig_random_bytes_cb_refcnt =
++            atomic_cmpxchg(
++                &random_bytes_cb_refcnt,
++                current_random_bytes_cb_refcnt,
++                current_random_bytes_cb_refcnt + 1);
++        if (orig_random_bytes_cb_refcnt == current_random_bytes_cb_refcnt)
++            return 0;
++        else if (! orig_random_bytes_cb_refcnt)
++            return -ENODEV;
++        else
++            current_random_bytes_cb_refcnt = orig_random_bytes_cb_refcnt;
++    }
++
++    __builtin_unreachable();
++}
++
++static __always_inline void release_random_bytes_cb(void) {
++    atomic_dec(&random_bytes_cb_refcnt);
++}
++
++static inline int call__get_random_bytes_cb(void *buf, size_t len)
++{
++    int ret;
++
++    if (! _get_random_bytes_cb)
++        return -ENODEV;
++
++    ret = reserve_random_bytes_cb();
++    if (ret)
++        return ret;
++
++    ret = _get_random_bytes_cb(buf, len);
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++static inline ssize_t call_get_random_bytes_user_cb(struct iov_iter *iter)
++{
++    ssize_t ret;
++
++    if (! get_random_bytes_user_cb)
++        return -ECANCELED;
++
++    ret = (ssize_t)reserve_random_bytes_cb();
++    if (ret)
++        return ret;
++
++    ret = get_random_bytes_user_cb(iter);
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++static inline bool call_crng_ready_cb(void)
++{
++    bool ret;
++
++    /* Null crng_ready_cb signifies that the DRBG is always ready, i.e. that if
++     * called, it will always have or obtain sufficient entropy to fulfill the
++     * call.
++     */
++    if (! crng_ready_cb)
++        return 1;
++
++    if (reserve_random_bytes_cb() != 0)
++        return 0;
++
++    ret = crng_ready_cb();
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++static inline int call_mix_pool_bytes_cb(const void *buf, size_t len)
++{
++    int ret;
++
++    if (! mix_pool_bytes_cb)
++        return -ENODEV;
++
++    ret = reserve_random_bytes_cb();
++    if (ret)
++        return ret;
++
++    ret = mix_pool_bytes_cb(buf, len);
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++static inline int call_credit_init_bits_cb(size_t bits)
++{
++    int ret;
++
++    if (! credit_init_bits_cb)
++        return -ENODEV;
++
++    ret = reserve_random_bytes_cb();
++    if (ret)
++        return ret;
++
++    ret = credit_init_bits_cb(bits);
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++static inline int call_crng_reseed_cb(void)
++{
++    int ret;
++
++    if (! crng_reseed_cb)
++        return -ENODEV;
++
++    ret = reserve_random_bytes_cb();
++    if (ret)
++        return ret;
++
++    ret = crng_reseed_cb();
++
++    release_random_bytes_cb();
++
++    return ret;
++}
++
++#endif /* WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS */
++
+ /*********************************************************************
+  *
+  * Initialization and readiness waiting.
+@@ -79,7 +333,13 @@ static enum {
+ 	CRNG_EARLY = 1, /* At least POOL_EARLY_BITS collected */
+ 	CRNG_READY = 2  /* Fully initialized with POOL_READY_BITS collected */
+ } crng_init __read_mostly = CRNG_EMPTY;
+-#define crng_ready() (likely(crng_init >= CRNG_READY))
++
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++    #define crng_ready() (atomic_read(&random_bytes_cb_refcnt) ? call_crng_ready_cb() : (likely(crng_init >= CRNG_READY)))
++#else
++    #define crng_ready() (likely(crng_init >= CRNG_READY))
++#endif
++
+ /* Various types of waiters for crng_init->CRNG_READY transition. */
+ static DECLARE_WAIT_QUEUE_HEAD(crng_init_wait);
+ static struct fasync_struct *fasync;
+@@ -247,6 +507,11 @@ static void crng_reseed(void)
+ 	unsigned long next_gen;
+ 	u8 key[CHACHA_KEY_SIZE];
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++        (void)call_crng_reseed_cb();
++        /* fall through to reseed native crng too. */
++#endif
++
+ 	extract_entropy(key, sizeof(key));
+ 
+ 	/*
+@@ -401,6 +666,14 @@ static void _get_random_bytes(void *buf,
+ 	if (!len)
+ 		return;
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++        /* If call__get_random_bytes_cb() doesn't succeed, flow falls through to
++         * the native implementation.  _get_random_bytes() must succeed.
++         */
++        if (call__get_random_bytes_cb(buf, len) == 0)
++            return;
++#endif
++
+ 	first_block_len = min_t(size_t, 32, len);
+ 	crng_make_state(chacha_state, buf, first_block_len);
+ 	len -= first_block_len;
+@@ -450,6 +723,18 @@ static ssize_t get_random_bytes_user(str
+ 	if (unlikely(!iov_iter_count(iter)))
+ 		return 0;
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++        {
++            ssize_t cb_ret = call_get_random_bytes_user_cb(iter);
++            /* If the callback returns -ECANCELED, that signals that iter is
++             * still intact, and flow can safely fall through to the native
++             * implementation.
++             */
++            if (cb_ret != -ECANCELED)
++                return cb_ret;
++        }
++#endif
++
+ 	/*
+ 	 * Immediately overwrite the ChaCha key at index 4 with random
+ 	 * bytes, in case userspace causes copy_to_iter() below to sleep
+@@ -650,6 +935,11 @@ static void mix_pool_bytes(const void *b
+ {
+ 	unsigned long flags;
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++        (void)call_mix_pool_bytes_cb(buf, len);
++        /* fall through to mix into native pool too. */
++#endif
++
+ 	spin_lock_irqsave(&input_pool.lock, flags);
+ 	_mix_pool_bytes(buf, len);
+ 	spin_unlock_irqrestore(&input_pool.lock, flags);
+@@ -701,7 +991,11 @@ static void extract_entropy(void *buf, s
+ 	memzero_explicit(&block, sizeof(block));
+ }
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++#define credit_init_bits(bits) do { (void)call_credit_init_bits_cb(bits); if (!crng_ready()) _credit_init_bits(bits); } while (0)
++#else
+ #define credit_init_bits(bits) if (!crng_ready()) _credit_init_bits(bits)
++#endif
+ 
+ static void __cold _credit_init_bits(size_t bits)
+ {
+--- ./include/linux/random.h.dist	2025-04-29 18:54:07.595202807 -0500
++++ ./include/linux/random.h	2025-06-30 12:03:15.263141842 -0500
+@@ -138,4 +138,37 @@ int random_online_cpu(unsigned int cpu);
+ extern const struct file_operations random_fops, urandom_fops;
+ #endif
+ 
++#ifndef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++    #define WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS 1
++#endif
++
++typedef int (*_get_random_bytes_cb_t)(void *buf, size_t len);
++struct iov_iter;
++/* kernels >= 5.17.0 use get_random_bytes_user() */
++typedef ssize_t (*get_random_bytes_user_cb_t)(struct iov_iter *iter);
++/* kernels < 5.17.0 use extract_crng_user(), though some LTS kernels,
++ * e.g. 5.10.236, have the 5.17+ architecture backported.
++ */
++typedef ssize_t (*extract_crng_user_cb_t)(void __user *buf, size_t nbytes);
++typedef bool (*crng_ready_cb_t)(void);
++typedef int (*mix_pool_bytes_cb_t)(const void *buf, size_t len);
++typedef int (*credit_init_bits_cb_t)(size_t bits);
++typedef int (*crng_reseed_cb_t)(void);
++
++struct wolfssl_linuxkm_random_bytes_handlers {
++    _get_random_bytes_cb_t _get_random_bytes;
++    get_random_bytes_user_cb_t get_random_bytes_user;
++    extract_crng_user_cb_t extract_crng_user;
++    crng_ready_cb_t crng_ready;
++    mix_pool_bytes_cb_t mix_pool_bytes;
++    credit_init_bits_cb_t credit_init_bits;
++    crng_reseed_cb_t crng_reseed;
++};
++
++int wolfssl_linuxkm_register_random_bytes_handlers(
++    struct module *new_random_bytes_cb_owner,
++    const struct wolfssl_linuxkm_random_bytes_handlers *handlers);
++
++int wolfssl_linuxkm_unregister_random_bytes_handlers(void);
++
+ #endif /* _LINUX_RANDOM_H */

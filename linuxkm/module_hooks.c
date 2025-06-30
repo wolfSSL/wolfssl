@@ -33,6 +33,9 @@
     #include <wolfssl/ssl.h>
 #endif
 #ifdef HAVE_FIPS
+    #ifdef USE_CONTESTMUTEX
+        #error USE_CONTESTMUTEX is incompatible with WOLFSSL_LINUXKM
+    #endif
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
@@ -450,6 +453,14 @@ static struct task_struct *my_get_current_thread(void) {
     return get_current();
 }
 
+/* preempt_count() is an inline function in arch/x86/include/asm/preempt.h that
+ * accesses __preempt_count, which is an int array declared with
+ * DECLARE_PER_CPU_CACHE_HOT.
+ */
+static int my_preempt_count(void) {
+    return preempt_count();
+}
+
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
         &wolfssl_linuxkm_pie_redirect_table,
@@ -645,6 +656,12 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
+
+    wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_lock_irqsave = _raw_spin_lock_irqsave;
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_trylock = _raw_spin_trylock;
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_irqrestore = _raw_spin_unlock_irqrestore;
+    wolfssl_linuxkm_pie_redirect_table._cond_resched = _cond_resched;
 
 #ifdef CONFIG_ARM64
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;

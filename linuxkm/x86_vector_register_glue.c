@@ -54,7 +54,7 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
 #else
         static int warned_for_repeat_alloc = 0;
         if (! warned_for_repeat_alloc) {
-            pr_err("attempt at repeat allocation"
+            pr_err("BUG: attempt at repeat allocation"
                    " in allocate_wolfcrypt_linuxkm_fpu_states\n");
             warned_for_repeat_alloc = 1;
         }
@@ -69,7 +69,7 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
             wc_linuxkm_fpu_states_n_tracked * sizeof(wc_linuxkm_fpu_states[0]));
 
     if (! wc_linuxkm_fpu_states) {
-        pr_err("allocation of %lu bytes for "
+        pr_err("ERROR: allocation of %lu bytes for "
                "wc_linuxkm_fpu_states failed.\n",
                nr_cpu_ids * sizeof(struct fpu_state *));
         return MEMORY_E;
@@ -85,11 +85,8 @@ void free_wolfcrypt_linuxkm_fpu_states(void) {
     struct wc_thread_fpu_count_ent *i, *i_endptr;
     pid_t i_pid;
 
-    if (wc_linuxkm_fpu_states == NULL) {
-        pr_err("free_wolfcrypt_linuxkm_fpu_states called"
-               " before allocate_wolfcrypt_linuxkm_fpu_states.\n");
+    if (wc_linuxkm_fpu_states == NULL)
         return;
-    }
 
     for (i = wc_linuxkm_fpu_states,
              i_endptr = &wc_linuxkm_fpu_states[wc_linuxkm_fpu_states_n_tracked];
@@ -100,7 +97,7 @@ void free_wolfcrypt_linuxkm_fpu_states(void) {
         if (i_pid == 0)
             continue;
         if (i->fpu_state != 0) {
-            pr_err("free_wolfcrypt_linuxkm_fpu_states called"
+            pr_err("ERROR: free_wolfcrypt_linuxkm_fpu_states called"
                    " with nonzero state 0x%x for pid %d.\n", i->fpu_state, i_pid);
             i->fpu_state = 0;
         }
@@ -136,7 +133,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
 #endif
             {
                 if (_warned_on_null == 0) {
-                    pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
+                    pr_err("BUG: wc_linuxkm_fpu_state_assoc called by pid %d"
                            " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
                     _warned_on_null = 1;
                 }
@@ -151,7 +148,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
         if (create_p) {
             static int _warned_on_redundant_create_p = 0;
             if (_warned_on_redundant_create_p < 10) {
-                pr_err("wc_linuxkm_fpu_state_assoc called with create_p=1 by"
+                pr_err("BUG: wc_linuxkm_fpu_state_assoc called with create_p=1 by"
                        " pid %d on cpu %d with cpu slot already reserved by"
                        " said pid.\n", my_pid, my_cpu);
                 ++_warned_on_redundant_create_p;
@@ -164,18 +161,28 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
             __atomic_store_n(&slot->pid, my_pid, __ATOMIC_RELEASE);
             return slot;
         } else {
-            /* if the slot is already occupied, that can be benign due to a
-             * migration, but it will require fixup by the thread that owns the
-             * slot, which will happen when it releases its lock, or sooner (see
-             * below).
+            /* if the slot is already occupied, that can be benign-ish due to a
+             * unwanted migration, or due to a process crashing in kernel mode.
+             * it will require fixup either here, or by the thread that owns the
+             * slot, which will happen when it releases its lock.
              */
-            static int _warned_on_mismatched_pid = 0;
-            if (_warned_on_mismatched_pid < 10) {
-                pr_warn("wc_linuxkm_fpu_state_assoc called by pid %d on cpu %d"
-                       " but cpu slot already reserved by pid %d.\n",
-                        my_pid, my_cpu, slot_pid);
-                ++_warned_on_mismatched_pid;
+            if (find_get_pid(slot_pid) == NULL) {
+                if (__atomic_compare_exchange_n(&slot->pid, &slot_pid, my_pid, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)) {
+                    pr_warn("WARNING: wc_linuxkm_fpu_state_assoc_unlikely fixed up orphaned slot owned by dead PID %d.", slot_pid);
+                    return slot;
+                }
             }
+
+            {
+                static int _warned_on_mismatched_pid = 0;
+                if (_warned_on_mismatched_pid < 10) {
+                    pr_warn("WARNING: wc_linuxkm_fpu_state_assoc called by pid %d on cpu %d"
+                            " but cpu slot already reserved by pid %d.\n",
+                            my_pid, my_cpu, slot_pid);
+                    ++_warned_on_mismatched_pid;
+                }
+            }
+
             return NULL;
         }
     } else {
@@ -213,11 +220,21 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
                                           * checking if the pid matches or,
                                           * failing that, if create_p.
                                           */
-    pid_t my_pid = task_pid_nr(current), slot_pid;
+    pid_t my_pid, slot_pid;
     struct wc_thread_fpu_count_ent *slot;
 
-    if (unlikely(wc_linuxkm_fpu_states == NULL))
-        return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
+    if (unlikely(wc_linuxkm_fpu_states == NULL)) {
+        if (! assume_fpu_began) {
+            /* this was just a quick check for whether we're in a recursive
+             * save_vector_registers_x86().  we're not.
+             */
+            return NULL;
+        }
+        else
+            return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
+    }
+
+    my_pid = task_pid_nr(current);
 
     slot = &wc_linuxkm_fpu_states[my_cpu];
     slot_pid = __atomic_load_n(&slot->pid, __ATOMIC_CONSUME);
@@ -230,6 +247,10 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
     if (! assume_fpu_began) {
         /* this was just a quick check for whether we're in a recursive
          * save_vector_registers_x86().  we're not.
+         *
+         * if we're in a softirq context, we'll always wind up here, because
+         * processes with entries in wc_linuxkm_fpu_states[] always have
+         * softirqs inhibited.
          */
         return NULL;
     }
@@ -270,14 +291,22 @@ static inline void wc_linuxkm_fpu_state_release(
 
 WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
 {
-    /* First, check if we're already saved, per wc_linuxkm_fpu_states.
+    struct wc_thread_fpu_count_ent *pstate;
+
+    /* check for hard interrupt context (unusable current->pid) preemptively.
+     * if we're in a softirq context we'll catch that below with
+     * irq_fpu_usable().
+     */
+    if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0))
+        return 0;
+
+    /* Check if we're already saved, per wc_linuxkm_fpu_states.
      *
      * On kernel >= 6.15, irq_fpu_usable() dumps a backtrace to the kernel log
      * if called while already saved, so it's crucial to preempt that call by
      * checking wc_linuxkm_fpu_states.
      */
-
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 0);
+    pstate = wc_linuxkm_fpu_state_assoc(0, 0);
 
     if ((pstate != NULL) && (pstate->fpu_state != 0U)) {
         if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG))
@@ -323,7 +352,16 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
 
 WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
 {
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 0);
+    struct wc_thread_fpu_count_ent *pstate;
+
+    /* check for hard interrupt context (unusable current->pid) preemptively.
+     * if we're in a softirq context we'll catch that below with
+     * irq_fpu_usable().
+     */
+    if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0))
+        return WC_ACCEL_INHIBIT_E;
+
+    pstate = wc_linuxkm_fpu_state_assoc(0, 0);
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
@@ -353,7 +391,8 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
     }
 
     if (inhibit_p) {
-        preempt_disable();
+        if (in_softirq())
+            return WC_ACCEL_INHIBIT_E;
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
         /* inhibit migration, which gums up the algorithm in
@@ -361,13 +400,18 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
          */
         migrate_disable();
     #endif
+        /* we need to inhibit softirqs to assure that we can support recursive
+         * calls safely, i.e. without mistaking a softirq context for a
+         * recursion.
+         */
+        local_bh_disable();
         pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
             migrate_enable();
     #endif
-            preempt_enable();
+            local_bh_enable();
             return BAD_STATE_E;
         }
 
@@ -409,7 +453,6 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
         migrate_disable();
     #endif
         kernel_fpu_begin();
-
         pstate = wc_linuxkm_fpu_state_assoc(1, 1);
         if (pstate == NULL) {
             kernel_fpu_end();
@@ -426,7 +469,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
         static int warned_fpu_forbidden = 0;
         if (! warned_fpu_forbidden)
             pr_err("save_vector_registers_x86 called from IRQ handler.\n");
-        return BAD_STATE_E;
+        return WC_ACCEL_INHIBIT_E;
     }
 #if defined(TIF_NEED_FPU_LOAD) && \
     (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)) && \
@@ -465,7 +508,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
                    " thread without previous FPU save.\n");
             warned_fpu_forbidden = 1;
         }
-        return BAD_STATE_E;
+        return WC_ACCEL_INHIBIT_E;
     }
 
     return 0;
@@ -473,9 +516,17 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(int inhibit_p)
 
 void restore_vector_registers_x86(void)
 {
-    struct wc_thread_fpu_count_ent *pstate = wc_linuxkm_fpu_state_assoc(0, 1);
+    struct wc_thread_fpu_count_ent *pstate;
+
+    if (in_nmi() || hardirq_count() || (task_pid_nr(current) == 0)) {
+        pr_warn("BUG: restore_vector_registers_x86() called from interrupt handler on CPU %d.",
+                raw_smp_processor_id());
+        return;
+    }
+
+    pstate = wc_linuxkm_fpu_state_assoc(0, 1);
     if (unlikely(pstate == NULL)) {
-        pr_err("restore_vector_registers_x86 called by pid %d on CPU %d "
+        pr_warn("BUG: restore_vector_registers_x86() called by pid %d on CPU %d "
                "with no saved state.\n", task_pid_nr(current),
                raw_smp_processor_id());
         return;
@@ -488,7 +539,11 @@ void restore_vector_registers_x86(void)
     if (pstate->fpu_state == 0U) {
         wc_linuxkm_fpu_state_release(pstate);
         kernel_fpu_end();
-    } else if (unlikely(pstate->fpu_state & (WC_FPU_INHIBITED_FLAG | WC_FPU_ALREADY_FLAG))) {
+    } else if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
+        pstate->fpu_state = 0U;
+        wc_linuxkm_fpu_state_release(pstate);
+        local_bh_enable();
+    } else if (unlikely(pstate->fpu_state & WC_FPU_ALREADY_FLAG)) {
         pstate->fpu_state = 0U;
         wc_linuxkm_fpu_state_release(pstate);
         preempt_enable();

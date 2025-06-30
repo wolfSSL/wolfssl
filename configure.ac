@@ -119,6 +119,22 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_EXPERIMENTAL_SETTINGS"
 fi
 
+
+# Linux Kernel Module options (more options later)
+
+AC_ARG_ENABLE([linuxkm],
+    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM=$enableval],
+    [ENABLED_LINUXKM=no]
+    )
+
+AC_ARG_ENABLE([linuxkm-defaults],
+    [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable feature defaults for Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM_DEFAULTS=$enableval],
+    [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
+    )
+
+
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
@@ -658,18 +674,7 @@ AC_ARG_ENABLE([benchmark],
     )
 
 
-# Linux Kernel Module
-AC_ARG_ENABLE([linuxkm],
-    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
-    [ENABLED_LINUXKM=$enableval],
-    [ENABLED_LINUXKM=no]
-    )
-
-AC_ARG_ENABLE([linuxkm-defaults],
-    [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable feature defaults for Linux Kernel Module (default: disabled)])],
-    [ENABLED_LINUXKM_DEFAULTS=$enableval],
-    [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
-    )
+# Remainder of Linux kernel module options, continued from earlier:
 
 AC_ARG_ENABLE([linuxkm-pie],
     [AS_HELP_STRING([--enable-linuxkm-pie],[Enable relocatable object build of Linux kernel module (default: disabled)])],
@@ -5649,10 +5654,18 @@ AC_ARG_ENABLE([pwdbased],
 
 # MemUse Entropy
 # wolfEntropy Software Jitter SP800-90B certifiable entropy source
+
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
+else
+    ENABLED_ENTROPY_MEMUSE_DEFAULT=no
+fi
+
 AC_ARG_ENABLE([wolfEntropy],
     [AS_HELP_STRING([--enable-wolfEntropy],[Enable memuse entropy support (default: disabled)])],
     [ ENABLED_ENTROPY_MEMUSE=$enableval ],
-    [ ENABLED_ENTROPY_MEMUSE=no ]
+    [ ENABLED_ENTROPY_MEMUSE=$ENABLED_ENTROPY_MEMUSE_DEFAULT ]
     )
 AC_ARG_ENABLE([entropy-memuse],
     [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
@@ -9538,7 +9551,11 @@ if test -n "$MPI_MAX_KEY_BITS" -o -n "$WITH_MAX_ECC_BITS"; then
 fi
 
 AC_ARG_ENABLE([linuxkm-lkcapi-register],
-    [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.  Possible values are "none", "all", "cbc(aes)", "cfb(aes)", "gcm(aes)", and "xts(aes)", or a comma-separate combination. (default: none)])],
+    [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.
+    Possible values are "none" or a comma-separated combination of "all", "all-kconfig", "sysfs-nodes-only", "cbc(aes)", "cfb(aes)",
+    "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "sha1", "sha2", "sha3", "hmac(sha1)", "hmac(sha2)",
+    "hmac(sha3)", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", and negations of the foregoing algorithms by prefixing "-".
+    (default: none)])],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=no]
     )

@@ -2210,32 +2210,7 @@ int wolfSSL_HwPkMutexUnLock(void)
     }
 #elif defined(WOLFSSL_LINUXKM)
 
-    /* Linux kernel mutex routines are voids, alas. */
-
-    int wc_InitMutex(wolfSSL_Mutex* m)
-    {
-        mutex_init(m);
-        return 0;
-    }
-
-    int wc_FreeMutex(wolfSSL_Mutex* m)
-    {
-        mutex_destroy(m);
-        return 0;
-    }
-
-    int wc_LockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_lock(m);
-        return 0;
-    }
-
-
-    int wc_UnLockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_unlock(m);
-        return 0;
-    }
+    /* defined as inlines in linuxkm/linuxkm_wc_port.h */
 
 #elif defined(WOLFSSL_VXWORKS)
 
