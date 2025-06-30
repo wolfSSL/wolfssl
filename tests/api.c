@@ -29078,39 +29078,6 @@ static int test_wolfSSL_X509_STORE_load_locations(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_X509_STORE_load_multiple_certs(void)
-{
-    EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_WOLFSSL_DIR) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_SIGNER_DER_CERT)
-    X509_STORE *store = NULL;
-    STACK_OF(X509_OBJECT) *objs = NULL;
-    const char multi_cert_file[] = "./certs/intermediate/server-chain.pem";
-    int cert_count = 0;
-    int i;
-
-    /* The server-chain.pem file contains 3 certificates, ensure they
-     * all load into the store correctly */
-    ExpectNotNull(store = X509_STORE_new());
-    ExpectIntEQ(X509_STORE_load_locations(store, multi_cert_file, NULL),
-        WOLFSSL_SUCCESS);
-
-    /* Count X509 certificate objects in store */
-    ExpectNotNull(objs = X509_STORE_get0_objects(store));
-    for (i = 0; i < sk_X509_OBJECT_num(objs) && EXPECT_SUCCESS(); i++) {
-        X509_OBJECT *obj = (X509_OBJECT*)sk_X509_OBJECT_value(objs, i);
-        if (obj && X509_OBJECT_get_type(obj) == X509_LU_X509) {
-            cert_count++;
-        }
-    }
-
-    ExpectIntEQ(cert_count, 3);
-    X509_STORE_free(store);
-#endif
-    return EXPECT_RESULT();
-}
-
 static int test_X509_STORE_get0_objects(void)
 {
     EXPECT_DECLS;
@@ -67845,7 +67812,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_store),
     TEST_DECL(test_wolfSSL_X509_STORE),
     TEST_DECL(test_wolfSSL_X509_STORE_load_locations),
-    TEST_DECL(test_wolfSSL_X509_STORE_load_multiple_certs),
     TEST_DECL(test_X509_STORE_get0_objects),
     TEST_DECL(test_wolfSSL_X509_load_crl_file),
     TEST_DECL(test_wolfSSL_X509_STORE_get1_certs),

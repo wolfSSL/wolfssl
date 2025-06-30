@@ -23,8 +23,10 @@
 #define WOLFCRYPT_TEST_X509_H
 
 int test_x509_rfc2818_verification_callback(void);
+int test_wolfSSL_X509_STORE_load_multiple_certs(void);
 
 #define TEST_X509_DECLS                                                        \
-    TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback)
+    TEST_DECL_GROUP("x509", test_x509_rfc2818_verification_callback),          \
+    TEST_DECL_GROUP("x509", test_wolfSSL_X509_STORE_load_multiple_certs)
 
 #endif /* WOLFCRYPT_TEST_X509_H */
