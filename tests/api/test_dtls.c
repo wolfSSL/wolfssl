@@ -1101,7 +1101,7 @@ int test_dtls_record_cross_boundaries(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    unsigned char readBuf[100];
+    unsigned char readBuf[256];
     int rec0_len, rec1_len;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -1124,7 +1124,8 @@ int test_dtls_record_cross_boundaries(void)
     rec1_len = test_ctx.s_msg_sizes[1];
 
     ExpectIntLE(rec0_len + rec1_len, sizeof(readBuf));
-    XMEMCPY(readBuf, test_ctx.s_buff, rec0_len + rec1_len);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(readBuf, test_ctx.s_buff, rec0_len + rec1_len);
 
     /* clear buffer */
     test_memio_clear_buffer(&test_ctx, 0);
@@ -1247,7 +1248,7 @@ int test_records_span_network_boundaries(void)
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
-    unsigned char readBuf[50];
+    unsigned char readBuf[256];
     int record_len;
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -1263,10 +1264,11 @@ int test_records_span_network_boundaries(void)
     /* create a good record in the buffer */
     wolfSSL_SetLoggingPrefix("client");
     ExpectIntEQ(wolfSSL_write(ssl_c, "test", 4), 4);
-    ExpectIntLE(test_ctx.s_len, 50);
+    ExpectIntLE(test_ctx.s_len, sizeof(readBuf));
     ExpectIntGT(test_ctx.s_len, 10);
     record_len = test_ctx.s_len;
-    XMEMCPY(readBuf, test_ctx.s_buff, record_len);
+    if (EXPECT_SUCCESS())
+        XMEMCPY(readBuf, test_ctx.s_buff, record_len);
 
     /* drop record and simulate a split write */
     ExpectIntEQ(test_memio_drop_message(&test_ctx, 0, 0), 0);
