@@ -41,6 +41,7 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
@@ -66,9 +67,11 @@ XALIGNED(16) static const word32 L_SHA256_transform_len_k[] = {
 
 void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256_p,
+    const byte* data_p, word32 len_p)
 #else
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
+    const byte* data, word32 len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1476,4 +1479,5 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
 #endif /* !NO_SHA256 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

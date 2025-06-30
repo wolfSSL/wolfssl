@@ -2905,7 +2905,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         defined(WOLFSSL_WPAS_SMALL)
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
     #endif
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+    #ifndef WOLFSSL_NO_CA_NAMES
         wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
         ctx->client_ca_names = NULL;
     #endif
@@ -2915,6 +2915,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->x509Chain = NULL;
         }
     #endif
+    #ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+        if (ctx->testTrustedCAs != NULL) {
+            CFRelease(ctx->testTrustedCAs);
+            ctx->testTrustedCAs = NULL;
+        }
+    #endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_TLS_EXTENSIONS
@@ -6922,13 +6928,36 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* If we are setting the ctx on an already initialized SSL object
      * then we possibly already have a side defined. Don't overwrite unless
      * the context has a well defined role. */
-    if (newSSL || ctx->method->side != WOLFSSL_NEITHER_END)
-        ssl->options.side      = (word16)(ctx->method->side);
-    ssl->options.downgrade    = (word16)(ctx->method->downgrade);
-    ssl->options.minDowngrade = ctx->minDowngrade;
-
+    if (newSSL || ctx->method->side != WOLFSSL_NEITHER_END) {
+        ssl->options.side  = (word16)(ctx->method->side);
+    }
+    ssl->options.downgrade        = (word16)(ctx->method->downgrade);
+    ssl->options.minDowngrade     = ctx->minDowngrade;
     ssl->options.haveRSA          = ctx->haveRSA;
     ssl->options.haveDH           = ctx->haveDH;
+#if  !defined(NO_CERTS) && !defined(NO_DH)
+    /* Its possible that DH algorithm parameters were set in the ctx, recalc
+     * cipher suites. */
+    if (ssl->options.haveDH && ctx->serverDH_P.buffer != NULL &&
+        ctx->serverDH_G.buffer != NULL) {
+        if (ssl->suites == NULL) {
+            if (AllocateSuites(ssl) != 0) {
+                return MEMORY_E;
+            }
+        }
+        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz,
+                   ssl->options.haveRSA,
+#ifdef NO_PSK
+                   0,
+#else
+                   ctx->havePSK,
+#endif
+                   ssl->options.haveDH,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC, TRUE,
+                   ssl->options.haveStaticECC, ssl->options.useAnon,
+                   TRUE, TRUE, TRUE, TRUE, ssl->options.side);
+    }
+#endif /* !NO_CERTS && !NO_DH */
     ssl->options.haveECDSAsig     = ctx->haveECDSAsig;
     ssl->options.haveECC          = ctx->haveECC;
     ssl->options.haveStaticECC    = ctx->haveStaticECC;
@@ -8784,7 +8813,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
     #endif
 #endif
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
+#ifndef WOLFSSL_NO_CA_NAMES
     wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
     ssl->client_ca_names = NULL;
 #endif
@@ -16307,7 +16336,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
             #endif
 
-
                 if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
@@ -19621,8 +19649,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 #endif
 
     (void)out;
-    (void)input;
     (void)sz;
+    (void)type;
 
     if (input == NULL) {
         return BAD_FUNC_ARG;
@@ -19699,8 +19727,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             additionalSz = writeAeadAuthData(ssl,
                     /* Length of the plain text minus the explicit
                      * IV length minus the authentication tag size. */
-                    sz - (word16)(AESGCM_EXP_IV_SZ) - ssl->specs.aead_mac_size, type,
-                    ssl->encrypt.additional, 0, NULL, CUR_ORDER);
+                    sz - (word16)(AESGCM_EXP_IV_SZ) - ssl->specs.aead_mac_size,
+                    type, ssl->encrypt.additional, 0, NULL, CUR_ORDER);
             if (additionalSz < 0) {
                 ret = additionalSz;
                 break;
@@ -21858,7 +21886,7 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
         else {
             /* Pending peer present and record deprotected. Update the peer. */
             (void)wolfSSL_dtls_set_peer(ssl,
-                    &ssl->buffers.dtlsCtx.pendingPeer.sa,
+                    ssl->buffers.dtlsCtx.pendingPeer.sa,
                     ssl->buffers.dtlsCtx.pendingPeer.sz);
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
             dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
@@ -26488,7 +26516,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "peer ip address mismatch";
 
     case WANT_READ :
-    case -WOLFSSL_ERROR_WANT_READ :
+    case WOLFSSL_ERROR_WANT_READ_E :
         return "non-blocking socket wants data to be read";
 
     case NOT_READY_ERROR :
@@ -26498,17 +26526,17 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer version error";
 
     case WANT_WRITE :
-    case -WOLFSSL_ERROR_WANT_WRITE :
+    case WOLFSSL_ERROR_WANT_WRITE_E :
         return "non-blocking socket write buffer full";
 
-    case -WOLFSSL_ERROR_WANT_CONNECT:
-    case -WOLFSSL_ERROR_WANT_ACCEPT:
+    case WOLFSSL_ERROR_WANT_CONNECT_E :
+    case WOLFSSL_ERROR_WANT_ACCEPT_E :
         return "The underlying BIO was not yet connected";
 
-    case -WOLFSSL_ERROR_SYSCALL:
+    case WOLFSSL_ERROR_SYSCALL_E :
         return "fatal I/O error in TLS layer";
 
-    case -WOLFSSL_ERROR_WANT_X509_LOOKUP:
+    case WOLFSSL_ERROR_WANT_X509_LOOKUP_E :
         return "application client cert callback asked to be called again";
 
     case BUFFER_ERROR :
@@ -26548,7 +26576,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "can't decode peer key";
 
     case ZERO_RETURN:
-    case -WOLFSSL_ERROR_ZERO_RETURN:
+    case WOLFSSL_ERROR_ZERO_RETURN_E :
         return "peer sent close notify alert";
 
     case ECC_CURVETYPE_ERROR:
@@ -27090,6 +27118,7 @@ void SetErrorString(int error, char* str)
     #endif
 #endif /* NO_CIPHER_SUITE_ALIASES */
 
+#ifndef NO_TLS
 static const CipherSuiteInfo cipher_names[] =
 {
 
@@ -27569,6 +27598,14 @@ static const CipherSuiteInfo cipher_names[] =
 #endif /* WOLFSSL_NO_TLS12 */
 };
 
+#else /* NO_TLS */
+
+static const CipherSuiteInfo cipher_names[] =
+{
+    SUITE_INFO("NO-TLS","NO-TLS", 0, 0, 0, 0),
+};
+
+#endif /* NO_TLS */
 
 /* returns the cipher_names array */
 const CipherSuiteInfo* GetCipherNames(void)
@@ -27580,7 +27617,11 @@ const CipherSuiteInfo* GetCipherNames(void)
 /* returns the number of elements in the cipher_names array */
 int GetCipherNamesSize(void)
 {
+#ifdef NO_TLS
+    return 0;
+#else
     return (int)(sizeof(cipher_names) / sizeof(CipherSuiteInfo));
+#endif
 }
 
 
@@ -35345,6 +35386,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case WOLFSSL_P521_ML_KEM_1024:
             case WOLFSSL_X25519_ML_KEM_512:
             case WOLFSSL_X448_ML_KEM_768:
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+            case WOLFSSL_P256_ML_KEM_512_OLD:
+            case WOLFSSL_P384_ML_KEM_768_OLD:
+            case WOLFSSL_P521_ML_KEM_1024_OLD:
+#endif
         #endif
         #ifdef WOLFSSL_MLKEM_KYBER
             case WOLFSSL_P256_KYBER_LEVEL3:
@@ -35701,6 +35747,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         (void)ssl;
 
+        if (args == NULL)
+            return;
+
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
         args->exportBuf = NULL;
@@ -35709,7 +35758,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->verifySig = NULL;
     #endif
-        (void)args;
+
+        if (args->input != NULL) {
+            XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            args->input = NULL;
+        }
     }
 
     /* handle generation of server_key_exchange (12) */
@@ -42729,7 +42782,122 @@ cleanup:
     return secCert;
 }
 
+static int DisplaySecTrustError(CFErrorRef error, SecTrustRef trust)
+{
+    CFStringRef        desc;
+    CFStringRef        domain;
+    SecTrustResultType trustResult;
+    CFDictionaryRef    info;
 
+    /* Description */
+    desc = CFErrorCopyDescription(error);
+    if (desc) {
+        char buffer[256];
+        if (CFStringGetCString(desc, buffer, sizeof(buffer),
+                               kCFStringEncodingUTF8)) {
+            WOLFSSL_MSG_EX("SecTrustEvaluateWithError Error description: %s\n",
+                           buffer);
+        }
+        CFRelease(desc);
+    }
+
+    /* Domain */
+    domain = CFErrorGetDomain(error);
+    if (domain) {
+        char domainStr[128];
+        if (CFStringGetCString(domain, domainStr, sizeof(domainStr),
+                               kCFStringEncodingUTF8)) {
+            WOLFSSL_MSG_EX("SecTrustEvaluateWithError Domain: %s\n", domainStr);
+        }
+    }
+
+    /* Get additional trust result info */
+    if (SecTrustGetTrustResult(trust, &trustResult) == errSecSuccess) {
+        WOLFSSL_MSG_EX("SecTrustResultType: %d\n", trustResult);
+        /* Optional: decode the enum */
+        switch (trustResult) {
+            case kSecTrustResultInvalid:
+                WOLFSSL_MSG("TrustResult: Invalid\n");
+                break;
+            case kSecTrustResultProceed:
+                WOLFSSL_MSG("TrustResult: Proceed\n");
+                break;
+            case kSecTrustResultDeny:
+                WOLFSSL_MSG("TrustResult: Deny\n");
+                break;
+            case kSecTrustResultUnspecified:
+                WOLFSSL_MSG("TrustResult: Unspecified (implicitly trusted)\n");
+                break;
+            case kSecTrustResultRecoverableTrustFailure:
+                WOLFSSL_MSG("TrustResult: Recoverable trust failure\n");
+                break;
+            case kSecTrustResultFatalTrustFailure:
+                WOLFSSL_MSG("TrustResult: Fatal trust failure\n");
+                break;
+            case kSecTrustResultOtherError:
+                WOLFSSL_MSG("TrustResult: Other error\n");
+                break;
+            default:
+                WOLFSSL_MSG("TrustResult: Unknown\n");
+                break;
+        }
+    }
+    else {
+        WOLFSSL_MSG("SecTrustGetTrustResult failed\n");
+    }
+
+    info = CFErrorCopyUserInfo(error);
+    if (info) {
+        WOLFSSL_MSG("Trust error info dump:\n");
+        CFShow(info);
+        CFRelease(info);
+    }
+
+    return 0;
+}
+
+#if defined(WOLFSSL_APPLE_NATIVE_CERT_VALIDATION) && \
+    defined (WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+static int MaxValidityPeriodErrorOnly(CFErrorRef error)
+{
+    int multiple = 0;
+
+    CFDictionaryRef userInfo = CFErrorCopyUserInfo(error);
+    if (userInfo) {
+        /* Get underlying error */
+        CFTypeRef underlying  =
+            CFDictionaryGetValue(userInfo, kCFErrorUnderlyingErrorKey);
+        if (underlying) {
+            /* Get underlying error value*/
+            CFDictionaryRef underlyingDict =
+                CFErrorCopyUserInfo((CFErrorRef)underlying);
+            if (underlyingDict) {
+                char buffer[512];
+                CFStringRef values =
+                    CFDictionaryGetValue(underlyingDict,
+                        kCFErrorLocalizedDescriptionKey);
+                if(CFStringGetCString(values, buffer, sizeof(buffer),
+                    kCFStringEncodingUTF8)) {
+                    if (XSTRSTR(buffer, "Certificate exceeds maximum "
+                            "temporal validity period") &&
+                        (!XSTRSTR(buffer, "Certificate exceeds maximum "
+                            "temporal validity period,") ||
+                        !XSTRSTR(buffer, ", Certificate exceeds maximum "
+                            "temporal validity period"))) {
+                        WOLFSSL_MSG("Maximum validity period error only");
+                    } else {
+                        WOLFSSL_MSG("Found other errors");
+                        multiple = 1;
+                    }
+                }
+                CFRelease(underlyingDict);
+            }
+        }
+        CFRelease(userInfo);
+    }
+    return multiple;
+}
+#endif
 /*
  * Validates a chain of certificates using the Apple system trust APIs
  *
@@ -42745,23 +42913,23 @@ cleanup:
  * wolfSSL's built-in certificate validation mechanisms anymore. We instead
  * must call into the Security Framework APIs to authenticate peer certificates
  */
-static int DoAppleNativeCertValidation(WOLFSSL* ssl,
-                                            const WOLFSSL_BUFFER_INFO* certs,
-                                            int totalCerts)
+static int DoAppleNativeCertValidation(WOLFSSL*                   ssl,
+                                       const WOLFSSL_BUFFER_INFO* certs,
+                                       int                        totalCerts)
 {
-    int i;
-    int ret;
-    OSStatus status;
+    int               i;
+    int               ret;
+    OSStatus          status;
     CFMutableArrayRef certArray = NULL;
     SecCertificateRef secCert   = NULL;
     SecTrustRef       trust     = NULL;
     SecPolicyRef      policy    = NULL;
     CFStringRef       hostname  = NULL;
+    CFErrorRef        error     = NULL;
 
     WOLFSSL_ENTER("DoAppleNativeCertValidation");
 
-    certArray = CFArrayCreateMutable(kCFAllocatorDefault,
-                                     totalCerts,
+    certArray = CFArrayCreateMutable(kCFAllocatorDefault, totalCerts,
                                      &kCFTypeArrayCallBacks);
     if (!certArray) {
         WOLFSSL_MSG("Error: can't allocate CFArray for certificates");
@@ -42770,8 +42938,8 @@ static int DoAppleNativeCertValidation(WOLFSSL* ssl,
     }
 
     for (i = 0; i < totalCerts; i++) {
-        secCert = ConvertToSecCertificateRef(certs[i].buffer,
-                (int)certs[i].length);
+        secCert =
+            ConvertToSecCertificateRef(certs[i].buffer, (int)certs[i].length);
         if (!secCert) {
             WOLFSSL_MSG("Error: can't convert DER cert to SecCertificateRef");
             ret = 0;
@@ -42785,35 +42953,80 @@ static int DoAppleNativeCertValidation(WOLFSSL* ssl,
     }
 
     /* Create trust object for SecCertifiate Ref */
-    if (ssl->buffers.domainName.buffer &&
-            ssl->buffers.domainName.length > 0) {
+    if (ssl->buffers.domainName.buffer && ssl->buffers.domainName.length > 0) {
         /* Create policy with specified value to require host name match */
-        hostname = CFStringCreateWithCString(kCFAllocatorDefault,
-                                (const char*)ssl->buffers.domainName.buffer,
-                                 kCFStringEncodingUTF8);
+        hostname = CFStringCreateWithCString(
+            kCFAllocatorDefault, (const char*)ssl->buffers.domainName.buffer,
+            kCFStringEncodingUTF8);
     }
     if (hostname != NULL) {
         policy = SecPolicyCreateSSL(true, hostname);
-    } else {
+    }
+    else {
         policy = SecPolicyCreateSSL(true, NULL);
     }
     status = SecTrustCreateWithCertificates(certArray, policy, &trust);
     if (status != errSecSuccess) {
         WOLFSSL_MSG_EX("Error creating trust object, "
-                       "SecTrustCreateWithCertificates returned %d",status);
+                       "SecTrustCreateWithCertificates returned %d",
+                       status);
         ret = 0;
         goto cleanup;
     }
 
+#if defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    /* TEST ONLY CODE:
+     * Set accumulated list of trusted CA certificates as trust anchors */
+    WOLFSSL_MSG("Setting anchor certificates");
+    if (ssl->ctx->testTrustedCAs != NULL) {
+        status = SecTrustSetAnchorCertificates(trust, ssl->ctx->testTrustedCAs);
+        if (status != errSecSuccess) {
+            WOLFSSL_MSG_EX("Error setting anchor certificates: %d", status);
+            ret = 0;
+            goto cleanup;
+        }
+    }
+#endif
+
     /* Evaluate the certificate's authenticity */
-    if (SecTrustEvaluateWithError(trust, NULL) == 1) {
-        WOLFSSL_MSG("Cert chain is trusted");
-        ret = 1;
+    WOLFSSL_MSG("Performing Apple native cert validation via "
+                "SecTrustEvaluateWithError");
+    ret              = SecTrustEvaluateWithError(trust, &error);
+    if (ret != 1) {
+        if (error) {
+            CFIndex code;
+            code = CFErrorGetCode(error);
+            WOLFSSL_MSG_EX("SecTrustEvaluateWithError failed with code: %ld\n",
+                           code);
+            DisplaySecTrustError(error, trust);
+
+#ifdef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
+            /* TEST ONLY CODE:
+             * wolfSSL API tests use a cert with a validity period that is too
+             * long for the Apple system trust APIs
+             * (See: https://support.apple.com/en-us/103769)
+             * therefore we should skip over this particular error */
+            if (code == errSecCertificateValidityPeriodTooLong) {
+                if (MaxValidityPeriodErrorOnly(error)) {
+                    WOLFSSL_MSG("Multiple reasons for validity period error, "
+                                "not skipping");
+                    ret = 0;
+                } else {
+                    WOLFSSL_MSG("Skipping certificate validity period error");
+                    ret = 1;
+                }
+            }
+#endif
+            (void)code;
+            CFRelease(error);
+        }
+        else {
+            WOLFSSL_MSG(
+                "SecTrustEvaluateWithError failed with unknown error.\n");
+        }
     }
     else {
-        WOLFSSL_MSG("Cert chain trust evaluation failed"
-                    "SecTrustEvaluateWithError returned 0");
-        ret = 0;
+        WOLFSSL_MSG("SecTrustEvaluateWithError succeeded");
     }
 
     /* Cleanup */
@@ -42835,6 +43048,38 @@ cleanup:
 
     return ret;
 }
+
+#if defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+int wolfSSL_TestAppleNativeCertValidation_AppendCA(WOLFSSL_CTX* ctx,
+                                                   const byte*  derCert,
+                                                   int          derLen)
+{
+    SecCertificateRef certRef;
+
+    if (derCert == NULL || derLen == 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Create the base array for trust anchors if it doesn't exist */
+    if (ctx->testTrustedCAs == NULL) {
+        ctx->testTrustedCAs =
+            CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+        if (!ctx->testTrustedCAs) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    certRef = ConvertToSecCertificateRef(derCert, derLen);
+    if (!certRef) {
+        return false;
+    }
+
+    CFArrayAppendValue(ctx->testTrustedCAs, certRef);
+    CFRelease(certRef);
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION */
+
 #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
 #undef ERROR_OUT

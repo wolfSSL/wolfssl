@@ -41,13 +41,23 @@ jobs:
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
            --enable-dtls-mtu',
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
-            --enable-psk --enable-aesccm --enable-nullcipher CPPFLAGS=-DWOLFSSL_STATIC_RSA',
+            --enable-psk --enable-aesccm --enable-nullcipher
+            CPPFLAGS=-DWOLFSSL_STATIC_RSA',
           '--enable-ascon --enable-experimental',
           '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
           '--enable-all CPPFLAGS=''-DNO_AES_192 -DNO_AES_256'' ',
-          '--enable-sniffer --enable-curve25519 --enable-curve448 --enable-enckeys CFLAGS=-DWOLFSSL_DH_EXTRA',
+          '--enable-sniffer --enable-curve25519 --enable-curve448 --enable-enckeys
+            CPPFLAGS=-DWOLFSSL_DH_EXTRA',
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
             --enable-dtls-mtu CPPFLAGS=-DWOLFSSL_DTLS_RECORDS_CAN_SPAN_DATAGRAMS',
+          '--enable-opensslall --enable-opensslextra CPPFLAGS=-DWC_RNG_SEED_CB',
+          '--enable-opensslall --enable-opensslextra
+            CPPFLAGS=''-DWC_RNG_SEED_CB -DWOLFSSL_NO_GETPID'' ',
+          '--enable-opensslextra CPPFLAGS=''-DWOLFSSL_NO_CA_NAMES'' ',
+          '--enable-opensslextra=x509small',
+          'CPPFLAGS=''-DWOLFSSL_EXTRA'' ',
+          '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
+          '--disable-sys-ca-certs'
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

@@ -372,7 +372,7 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
-#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+#if defined(TSIP_RSASSA_1024) && TSIP_RSASSA_1024 == 1
                 case TSIP_KEY_TYPE_RSA1024:
                     err = R_TSIP_RsassaPkcs1024SignatureVerification(&sigData,
                             &hashData,
@@ -390,7 +390,7 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     }
                     break;
 #endif
-#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+#if defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     err = R_TSIP_RsassaPkcs2048SignatureVerification(&sigData,
                             &hashData,

@@ -103,6 +103,8 @@
   #define HAVE_AESGCM
   #define HAVE_AESCCM
   #define HAVE_AES_CBC
+  #define WOLFSSL_AES_DIRECT
+  #define WOLFSSL_AES_COUNTER
   #define WOLFSSL_SHA512
 
   #define HAVE_SUPPORTED_CURVES

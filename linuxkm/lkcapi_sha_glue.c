@@ -414,7 +414,7 @@ WC_MAYBE_UNUSED static int sha3_test_once(void) {
 #define WC_LINUXKM_SHA_IMPLEMENT(name, digest_size, block_size,            \
                                   this_cra_name, this_cra_driver_name,     \
                                   init_f, update_f, final_f,               \
-                                  test_routine)                            \
+                                  free_f, test_routine)                    \
                                                                            \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
@@ -436,14 +436,18 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
-    else                                                                   \
+    else {                                                                 \
+        free_f(&ctx-> name ## _state);                                     \
         return -EINVAL;                                                    \
+    }                                                                      \
 }                                                                          \
                                                                            \
 static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
     struct km_sha_state *ctx = (struct km_sha_state *)shash_desc_ctx(desc);\
                                                                            \
     int ret = final_f(&ctx-> name ## _state, out);                         \
+                                                                           \
+    free_f(&ctx-> name ## _state);                                         \
                                                                            \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -458,8 +462,10 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     int ret = update_f(&ctx-> name ## _state, data, len);                  \
                                                                            \
-    if (ret != 0)                                                          \
+    if (ret != 0) {                                                        \
+        free_f(&ctx-> name ## _state);                                     \
         return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     return km_ ## name ## _final(desc, out);                               \
 }                                                                          \
@@ -510,7 +516,7 @@ struct wc_swallow_the_semicolon
 #define WC_LINUXKM_SHA3_IMPLEMENT(name, digest_size, block_size,           \
                                   this_cra_name, this_cra_driver_name,     \
                                   init_f, update_f, final_f,               \
-                                  test_routine)                            \
+                                  free_f, test_routine)                    \
                                                                            \
                                                                            \
 static int km_ ## name ## _init(struct shash_desc *desc) {                 \
@@ -537,6 +543,7 @@ static int km_ ## name ## _update(struct shash_desc *desc, const u8 *data, \
     if (ret == 0)                                                          \
         return 0;                                                          \
     else {                                                                 \
+        free_f(ctx-> name ## _state);                                      \
         km_sha3_free_tstate(ctx);                                          \
         return -EINVAL;                                                    \
     }                                                                      \
@@ -547,6 +554,7 @@ static int km_ ## name ## _final(struct shash_desc *desc, u8 *out) {       \
                                                                            \
     int ret = final_f(ctx-> name ## _state, out);                          \
                                                                            \
+    free_f(ctx-> name ## _state);                                          \
     km_sha3_free_tstate(ctx);                                              \
     if (ret == 0)                                                          \
         return 0;                                                          \
@@ -561,8 +569,10 @@ static int km_ ## name ## _finup(struct shash_desc *desc, const u8 *data,  \
                                                                            \
     int ret = update_f(ctx-> name ## _state, data, len);                   \
                                                                            \
-    if (ret != 0)                                                          \
+    if (ret != 0) {                                                        \
+        free_f(ctx-> name ## _state);                                      \
         return -EINVAL;                                                    \
+    }                                                                      \
                                                                            \
     return km_ ## name ## _final(desc, out);                               \
 }                                                                          \
@@ -613,63 +623,63 @@ struct wc_swallow_the_semicolon
     WC_LINUXKM_SHA_IMPLEMENT(sha1, WC_SHA_DIGEST_SIZE, WC_SHA_BLOCK_SIZE,
                              WOLFKM_SHA1_NAME, WOLFKM_SHA1_DRIVER,
                              wc_InitSha, wc_ShaUpdate, wc_ShaFinal,
-                             sha_test);
+                             wc_ShaFree, sha_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_224
     WC_LINUXKM_SHA_IMPLEMENT(sha2_224, WC_SHA224_DIGEST_SIZE, WC_SHA224_BLOCK_SIZE,
                              WOLFKM_SHA2_224_NAME, WOLFKM_SHA2_224_DRIVER,
                              wc_InitSha224, wc_Sha224Update, wc_Sha224Final,
-                             sha224_test);
+                             wc_Sha224Free, sha224_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_256
     WC_LINUXKM_SHA_IMPLEMENT(sha2_256, WC_SHA256_DIGEST_SIZE, WC_SHA256_BLOCK_SIZE,
                              WOLFKM_SHA2_256_NAME, WOLFKM_SHA2_256_DRIVER,
                              wc_InitSha256, wc_Sha256Update, wc_Sha256Final,
-                             sha256_test);
+                             wc_Sha256Free, sha256_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_384
     WC_LINUXKM_SHA_IMPLEMENT(sha2_384, WC_SHA384_DIGEST_SIZE, WC_SHA384_BLOCK_SIZE,
                              WOLFKM_SHA2_384_NAME, WOLFKM_SHA2_384_DRIVER,
                              wc_InitSha384, wc_Sha384Update, wc_Sha384Final,
-                             sha384_test);
+                             wc_Sha384Free, sha384_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2_512
     WC_LINUXKM_SHA_IMPLEMENT(sha2_512, WC_SHA512_DIGEST_SIZE, WC_SHA512_BLOCK_SIZE,
                              WOLFKM_SHA2_512_NAME, WOLFKM_SHA2_512_DRIVER,
                              wc_InitSha512, wc_Sha512Update, wc_Sha512Final,
-                             sha512_test);
+                             wc_Sha512Free, sha512_test);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_224
     WC_LINUXKM_SHA3_IMPLEMENT(sha3_224, WC_SHA3_224_DIGEST_SIZE, WC_SHA3_224_BLOCK_SIZE,
                              WOLFKM_SHA3_224_NAME, WOLFKM_SHA3_224_DRIVER,
                              wc_InitSha3_224, wc_Sha3_224_Update, wc_Sha3_224_Final,
-                             sha3_test_once);
+                             wc_Sha3_224_Free, sha3_test_once);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_256
     WC_LINUXKM_SHA3_IMPLEMENT(sha3_256, WC_SHA3_256_DIGEST_SIZE, WC_SHA3_256_BLOCK_SIZE,
                              WOLFKM_SHA3_256_NAME, WOLFKM_SHA3_256_DRIVER,
                              wc_InitSha3_256, wc_Sha3_256_Update, wc_Sha3_256_Final,
-                             sha3_test_once);
+                             wc_Sha3_256_Free, sha3_test_once);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_384
     WC_LINUXKM_SHA3_IMPLEMENT(sha3_384, WC_SHA3_384_DIGEST_SIZE, WC_SHA3_384_BLOCK_SIZE,
                              WOLFKM_SHA3_384_NAME, WOLFKM_SHA3_384_DRIVER,
                              wc_InitSha3_384, wc_Sha3_384_Update, wc_Sha3_384_Final,
-                             sha3_test_once);
+                             wc_Sha3_384_Free, sha3_test_once);
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA3_512
     WC_LINUXKM_SHA3_IMPLEMENT(sha3_512, WC_SHA3_512_DIGEST_SIZE, WC_SHA3_512_BLOCK_SIZE,
                              WOLFKM_SHA3_512_NAME, WOLFKM_SHA3_512_DRIVER,
                              wc_InitSha3_512, wc_Sha3_512_Update, wc_Sha3_512_Final,
-                             sha3_test_once);
+                             wc_Sha3_512_Free, sha3_test_once);
 #endif
 
 struct km_sha_hmac_pstate {
@@ -700,6 +710,7 @@ WC_MAYBE_UNUSED static int linuxkm_hmac_setkey_common(struct crypto_shash *tfm, 
 }
 
 WC_MAYBE_UNUSED static void km_hmac_free_tstate(struct km_sha_hmac_state *t_ctx) {
+    wc_HmacFree(t_ctx->wc_hmac);
     free(t_ctx->wc_hmac);
     t_ctx->wc_hmac = NULL;
 }
@@ -730,6 +741,33 @@ WC_MAYBE_UNUSED static int km_hmac_init(struct shash_desc *desc) {
         return -ENOMEM;
 
     XMEMCPY(t_ctx->wc_hmac, &p_ctx->wc_hmac, sizeof *t_ctx->wc_hmac);
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* The cached W buffer from the persistent ctx can't be used because it
+     * would be double-freed, first by km_hmac_free_tstate(), then by
+     * km_hmac_exit_tfm().
+     */
+    switch (t_ctx->wc_hmac->macType) {
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+    #endif
+            t_ctx->wc_hmac->hash.sha256.W = NULL;
+            break;
+    #endif /* WOLFSSL_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+    #endif
+            t_ctx->wc_hmac->hash.sha512.W = NULL;
+            break;
+    #endif /* WOLFSSL_SHA512 */
+    }
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
 
     return 0;
 }
@@ -902,38 +940,68 @@ struct wc_swallow_the_semicolon
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
-    wolfSSL_Mutex lock;
-    WC_RNG rng;
+    struct wc_rng_inst {
+        wolfSSL_Mutex lock;
+        WC_RNG rng;
+    } *rngs; /* one per CPU ID */
 };
+
+static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
+{
+    unsigned int i;
+
+    if (ctx->rngs) {
+        for (i = 0; i < nr_cpu_ids; ++i) {
+            (void)wc_FreeMutex(&ctx->rngs[i].lock);
+            wc_FreeRng(&ctx->rngs[i].rng);
+        }
+        free(ctx->rngs);
+        ctx->rngs = NULL;
+    }
+
+    return;
+}
 
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
+    unsigned int i;
     int ret;
 
-    ret = wc_InitMutex(&ctx->lock);
-    if (ret != 0)
-        return -EINVAL;
+    ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * nr_cpu_ids);
+    if (! ctx->rngs)
+        return -ENOMEM;
+    XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * nr_cpu_ids);
 
-    /* Note the new DRBG instance is seeded, and later reseeded, from system
-     * get_random_bytes() via wc_GenerateSeed().
-     */
-    ret = wc_InitRng(&ctx->rng);
-    if (ret != 0) {
-        (void)wc_FreeMutex(&ctx->lock);
-        return -EINVAL;
+    for (i = 0; i < nr_cpu_ids; ++i) {
+        ret = wc_InitMutex(&ctx->rngs[i].lock);
+        if (ret != 0) {
+            ret = -EINVAL;
+            break;
+        }
+
+        /* Note the new DRBG instance is seeded, and later reseeded, from system
+         * get_random_bytes() via wc_GenerateSeed().
+         */
+        ret = wc_InitRng(&ctx->rngs[i].rng);
+        if (ret != 0) {
+            ret = -EINVAL;
+            break;
+        }
     }
 
-    return 0;
+    if (ret != 0) {
+        wc_linuxkm_drbg_ctx_clear(ctx);
+    }
+
+    return ret;
 }
 
 static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
 
-    wc_FreeRng(&ctx->rng);
-
-    (void)wc_FreeMutex(&ctx->lock);
+    wc_linuxkm_drbg_ctx_clear(ctx);
 
     return;
 }
@@ -944,24 +1012,33 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int ret;
+    /* Note, core is not locked, so the actual core ID may change while
+     * executing, hence the mutex.
+     * The mutex is also needed to coordinate with wc_linuxkm_drbg_seed(), which
+     * seeds all instances.
+     */
+    int my_cpu = raw_smp_processor_id();
+    wolfSSL_Mutex *lock = &ctx->rngs[my_cpu].lock;
+    WC_RNG *rng = &ctx->rngs[my_cpu].rng;
 
-    wc_LockMutex(&ctx->lock);
+    if (wc_LockMutex(lock) != 0)
+        return -EINVAL;
 
     if (slen > 0) {
-        ret = wc_RNG_DRBG_Reseed(&ctx->rng, src, slen);
+        ret = wc_RNG_DRBG_Reseed(rng, src, slen);
         if (ret != 0) {
             ret = -EINVAL;
             goto out;
         }
     }
 
-    ret = wc_RNG_GenerateBlock(&ctx->rng, dst, dlen);
+    ret = wc_RNG_GenerateBlock(rng, dst, dlen);
     if (ret != 0)
         ret = -EINVAL;
 
 out:
 
-    wc_UnLockMutex(&ctx->lock);
+    wc_UnLockMutex(lock);
 
     return ret;
 }
@@ -970,22 +1047,43 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
                         const u8 *seed, unsigned int slen)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
+    u8 *seed_copy = NULL;
     int ret;
+    unsigned int i;
 
     if (slen == 0)
         return 0;
 
-    wc_LockMutex(&ctx->lock);
+    seed_copy = (u8 *)malloc(slen + 2);
+    if (! seed_copy)
+        return -ENOMEM;
+    XMEMCPY(seed_copy + 2, seed, slen);
 
-    ret = wc_RNG_DRBG_Reseed(&ctx->rng, seed, slen);
-    if (ret != 0) {
-        ret = -EINVAL;
-        goto out;
+    for (i = 0; i < nr_cpu_ids; ++i) {
+        wolfSSL_Mutex *lock = &ctx->rngs[i].lock;
+        WC_RNG *rng = &ctx->rngs[i].rng;
+
+        /* perturb the seed with the CPU ID, so that no DRBG has the exact same
+         * seed.
+         */
+        seed_copy[0] = (u8)(i >> 8);
+        seed_copy[1] = (u8)i;
+
+        if (wc_LockMutex(lock) != 0)
+            return -EINVAL;
+
+        ret = wc_RNG_DRBG_Reseed(rng, seed_copy, slen + 2);
+        if (ret != 0) {
+            ret = -EINVAL;
+        }
+
+        wc_UnLockMutex(lock);
+
+        if (ret != 0)
+            break;
     }
 
-out:
-
-    wc_UnLockMutex(&ctx->lock);
+    free(seed_copy);
 
     return ret;
 }

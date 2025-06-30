@@ -1623,9 +1623,42 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
       goto end;
 
     if (ssl->options.dtls) {
+        w64wrapper epochNumber;
         ret = Dtls13DeriveSnKeys(ssl, provision);
         if (ret != 0)
-            return ret;
+            goto end;
+
+        switch (secret) {
+            case early_data_key:
+                epochNumber = w64From32(0, DTLS13_EPOCH_EARLYDATA);
+                break;
+            case handshake_key:
+                epochNumber = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
+                break;
+            case traffic_key:
+            case no_key:
+                epochNumber = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
+                break;
+            case update_traffic_key:
+                if (side == ENCRYPT_SIDE_ONLY) {
+                    epochNumber = ssl->dtls13Epoch;
+                }
+                else if (side == DECRYPT_SIDE_ONLY) {
+                    epochNumber = ssl->dtls13PeerEpoch;
+                }
+                else {
+                    ret = BAD_STATE_E;
+                    goto end;
+                }
+                w64Increment(&epochNumber);
+                break;
+            default:
+                ret = BAD_STATE_E;
+                goto end;
+        }
+        ret = Dtls13NewEpoch(ssl, epochNumber, side);
+        if (ret != 0)
+            goto end;
     }
 
 #endif /* WOLFSSL_DTLS13 */
@@ -4083,15 +4116,6 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
 
-#ifdef WOLFSSL_DTLS13
-        if (ssl->options.dtls) {
-            ret = Dtls13NewEpoch(
-                ssl, w64From32(0x0, DTLS13_EPOCH_EARLYDATA), ENCRYPT_SIDE_ONLY);
-            if (ret != 0)
-                return ret;
-        }
-#endif /* WOLFSSL_DTLS13 */
-
     }
     #endif
 
@@ -5118,6 +5142,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* Force client hello version 1.2 to work for static RSA. */
             ssl->chVersion.minor = TLSv1_2_MINOR;
             ssl->version.minor = TLSv1_2_MINOR;
+            ssl->options.tls1_3 = 0;
 
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {
@@ -5218,6 +5243,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.dtls) {
             ssl->chVersion.minor = DTLSv1_2_MINOR;
             ssl->version.minor = DTLSv1_2_MINOR;
+            ssl->options.tls1_3 = 0;
             ret = Dtls13ClientDoDowngrade(ssl);
             if (ret != 0)
                 return ret;
@@ -5231,6 +5257,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return VERSION_ERROR;
         }
 #ifndef WOLFSSL_NO_TLS12
+        ssl->options.tls1_3 = 0;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
         SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
@@ -6296,17 +6323,6 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                     return ret;
 
                 ssl->keys.encryptionOn = 1;
-
-#ifdef WOLFSSL_DTLS13
-                if (ssl->options.dtls) {
-                    ret = Dtls13NewEpoch(ssl,
-                        w64From32(0x0, DTLS13_EPOCH_EARLYDATA),
-                        DECRYPT_SIDE_ONLY);
-                    if (ret != 0)
-                        return ret;
-                }
-#endif /* WOLFSSL_DTLS13 */
-
                 ssl->earlyData = process_early_data;
             }
             else
@@ -7603,11 +7619,6 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     if (ssl->options.dtls) {
         w64wrapper epochHandshake = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
         ssl->dtls13Epoch = epochHandshake;
-
-        ret = Dtls13NewEpoch(
-            ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);
-        if (ret != 0)
-            return ret;
 
         ret = Dtls13SetEpochKeys(
             ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);
@@ -11194,11 +11205,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
             ssl->dtls13Epoch = epochTraffic0;
             ssl->dtls13PeerEpoch = epochTraffic0;
 
-            ret = Dtls13NewEpoch(
-                ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
-            if (ret != 0)
-                return ret;
-
             ret = Dtls13SetEpochKeys(
                 ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
             if (ret != 0)
@@ -11235,11 +11241,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
             epochTraffic0 = w64From32(0, DTLS13_EPOCH_TRAFFIC0);
             ssl->dtls13Epoch = epochTraffic0;
             ssl->dtls13PeerEpoch = epochTraffic0;
-
-            ret = Dtls13NewEpoch(
-                ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
-            if (ret != 0)
-                return ret;
 
             ret = Dtls13SetEpochKeys(
                 ssl, epochTraffic0, ENCRYPT_AND_DECRYPT_SIDE);
@@ -11439,10 +11440,6 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         w64Increment(&ssl->dtls13PeerEpoch);
-
-        ret = Dtls13NewEpoch(ssl, ssl->dtls13PeerEpoch, DECRYPT_SIDE_ONLY);
-        if (ret != 0)
-            return ret;
 
         ret = Dtls13SetEpochKeys(ssl, ssl->dtls13PeerEpoch, DECRYPT_SIDE_ONLY);
         if (ret != 0)
@@ -12858,11 +12855,6 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     epochHandshake = w64From32(0, DTLS13_EPOCH_HANDSHAKE);
                     ssl->dtls13Epoch = epochHandshake;
                     ssl->dtls13PeerEpoch = epochHandshake;
-
-                    ret = Dtls13NewEpoch(
-                        ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);
-                    if (ret != 0)
-                        return ret;
 
                     ret = Dtls13SetEpochKeys(
                         ssl, epochHandshake, ENCRYPT_AND_DECRYPT_SIDE);

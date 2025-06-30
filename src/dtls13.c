@@ -905,7 +905,7 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
         /* the other peer may have retransmitted because an ACK for a flight
            that needs explicit ACK was lost.*/
         if (ssl->dtls13Rtx.seenRecords != NULL)
-            ssl->dtls13Rtx.sendAcks = (byte)ssl->options.dtls13SendMoreAcks;
+            ssl->dtls13Rtx.sendAcks = 1;
     }
 
     if (ssl->keys.dtls_peer_handshake_number ==
@@ -2618,19 +2618,16 @@ static int Dtls13RtxIsTrackedByRn(const Dtls13RtxRecord* r, w64wrapper epoch,
 static int Dtls13KeyUpdateAckReceived(WOLFSSL* ssl)
 {
     int ret;
-    w64Increment(&ssl->dtls13Epoch);
-
-    /* Epoch wrapped up */
-    if (w64IsZero(ssl->dtls13Epoch))
-        return BAD_STATE_E;
 
     ret = DeriveTls13Keys(ssl, update_traffic_key, ENCRYPT_SIDE_ONLY, 1);
     if (ret != 0)
         return ret;
 
-    ret = Dtls13NewEpoch(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
-    if (ret != 0)
-        return ret;
+    w64Increment(&ssl->dtls13Epoch);
+
+    /* Epoch wrapped up */
+    if (w64IsZero(ssl->dtls13Epoch))
+        return BAD_STATE_E;
 
     return Dtls13SetEpochKeys(ssl, ssl->dtls13Epoch, ENCRYPT_SIDE_ONLY);
 }

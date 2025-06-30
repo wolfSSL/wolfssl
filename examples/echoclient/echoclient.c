@@ -38,10 +38,6 @@
 
 #include <wolfssl/ssl.h>
 
-#ifdef WOLFSSL_DTLS
-    #include <wolfssl/error-ssl.h>
-#endif
-
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
@@ -94,7 +90,6 @@ void echoclient_test(void* args)
     SSL*        ssl    = 0;
 
     int ret = 0, err = 0;
-    int doDTLS = 0;
     int doPSK = 0;
     int sendSz;
 #ifndef WOLFSSL_MDK_SHELL
@@ -123,10 +118,6 @@ void echoclient_test(void* args)
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");
 
-#ifdef WOLFSSL_DTLS
-    doDTLS  = 1;
-#endif
-
 #ifdef WOLFSSL_LEANPSK
     doPSK = 1;
 #endif
@@ -142,13 +133,7 @@ void echoclient_test(void* args)
     port = wolfSSLPort;
 #endif
 
-#if defined(WOLFSSL_DTLS)
-    #ifdef WOLFSSL_DTLS13
-    method = wolfDTLSv1_3_client_method();
-    #elif !defined(WOLFSSL_NO_TLS12)
-    method  = DTLSv1_2_client_method();
-    #endif
-#elif !defined(NO_TLS)
+#if !defined(NO_TLS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
     method = wolfTLSv1_2_client_method();
     #else
@@ -239,13 +224,9 @@ void echoclient_test(void* args)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ssl = SSL_new(ctx);
-    tcp_connect(&sockfd, wolfSSLIP, port, doDTLS, 0, ssl);
+    tcp_connect(&sockfd, wolfSSLIP, port, 0, 0, ssl);
 
     SSL_set_fd(ssl, sockfd);
-#if defined(USE_WINDOWS_API) && defined(WOLFSSL_DTLS) && defined(NO_MAIN_DRIVER)
-    /* let echoserver bind first, TODO: add Windows signal like pthreads does */
-    Sleep(100);
-#endif
 
     do {
         err = 0; /* Reset error */
@@ -324,16 +305,6 @@ void echoclient_test(void* args)
                 LIBCALL_CHECK_RET(fflush(fout));
                 sendSz -= ret;
             }
-#ifdef WOLFSSL_DTLS
-            else if (wolfSSL_dtls(ssl) &&
-                     err == WC_NO_ERR_TRACE(DECRYPT_ERROR))
-            {
-                /* This condition is OK. The packet should be dropped
-                 * silently when there is a decrypt or MAC error on
-                 * a DTLS record. */
-                sendSz = 0;
-            }
-#endif
             else {
                 fprintf(stderr, "SSL_read msg error %d, %s\n", err,
                     ERR_error_string((unsigned long)err, buffer));
@@ -342,27 +313,7 @@ void echoclient_test(void* args)
         }
     }
 
-
-#ifdef WOLFSSL_DTLS
-    strncpy(msg, "break", 6);
-    sendSz = (int)strlen(msg);
-    /* try to tell server done */
-    do {
-        err = 0; /* reset error */
-        ret = SSL_write(ssl, msg, sendSz);
-        if (ret <= 0) {
-            err = SSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
-#else
     SSL_shutdown(ssl);
-#endif
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);

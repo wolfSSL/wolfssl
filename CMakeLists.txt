@@ -124,6 +124,7 @@ check_function_exists("memset" HAVE_MEMSET)
 check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
+check_function_exists("getpid" HAVE_GETPID)
 
 include(CheckSymbolExists)
 check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
@@ -2084,6 +2085,7 @@ if(WOLFSSL_TPM)
     override_cache(WOLFSSL_CERTEXT  "yes")
     override_cache(WOLFSSL_PKCS7    "yes")
     override_cache(WOLFSSL_AESCFB   "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ALLOW_ENCODING_CA_FALSE")
 endif()
 
 if(WOLFSSL_CLU)
@@ -2635,6 +2637,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_tls_ext.c
         tests/api/test_tls.c
         tests/api/test_x509.c
+        tests/api/test_asn.c
         tests/srp.c
         tests/suites.c
         tests/w64wrapper.c

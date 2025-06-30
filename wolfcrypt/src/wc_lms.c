@@ -281,79 +281,79 @@ static const wc_LmsParamsMap wc_lms_map[] = {
 #ifdef WOLFSSL_LMS_SHA256_192
 #if LMS_MAX_HEIGHT >= 15
     { WC_LMS_PARM_SHA256_192_L1_H15_W2, "LMS/HSS_SHA256/192 L1_H15_W2",
-      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(1, 15, 2, 2, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H15_W4, "LMS/HSS_SHA256/192 L1_H15_W4",
-      LMS_PARAMS(1, 15, 4, 2, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(1, 15, 4, 3, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_LEVELS >= 2
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_SHA256_192_L2_H10_W2, "LMS/HSS SHA256/192 L2_H10_W2",
-      LMS_PARAMS(2, 10, 2, 1, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(2, 10, 2, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L2_H10_W4, "LMS/HSS SHA256/192 L2_H10_W4",
-      LMS_PARAMS(2, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(2, 10, 4, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L2_H10_W8, "LMS/HSS SHA256/192 L2_H10_W8",
-      LMS_PARAMS(2, 10, 8, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(2, 10, 8, 4, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 3
     { WC_LMS_PARM_SHA256_192_L3_H5_W2 , "LMS/HSS_SHA256/192 L3_H5_W2" ,
-      LMS_PARAMS(3,  5, 2, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(3,  5, 2, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L3_H5_W4 , "LMS/HSS_SHA256/192 L3_H5_W4" ,
-      LMS_PARAMS(3,  5, 4, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(3,  5, 4, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L3_H5_W8 , "LMS/HSS_SHA256/192 L3_H5_W8" ,
-      LMS_PARAMS(3,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(3,  5, 8, 4, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_SHA256_192_L3_H10_W4, "LMS/HSS_SHA256/192 L3_H10_W4",
-      LMS_PARAMS(3, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(3, 10, 4, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 4
     { WC_LMS_PARM_SHA256_192_L4_H5_W8 , "LMS/HSS_SHA256/192 L4_H5_W8" ,
-      LMS_PARAMS(4,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(4,  5, 8, 4, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 
     { WC_LMS_PARM_SHA256_192_L1_H5_W1 , "LMS/HSS_SHA256/192_L1_H5_W1" ,
-      LMS_PARAMS(1,  5, 1, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W1,
+      LMS_PARAMS(1,  5, 1, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W1,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H5_W2 , "LMS/HSS_SHA256/192_L1_H5_W2" ,
-      LMS_PARAMS(1,  5, 2, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(1,  5, 2, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H5_W4 , "LMS/HSS_SHA256/192_L1_H5_W4" ,
-      LMS_PARAMS(1,  5, 4, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(1,  5, 4, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H5_W8 , "LMS/HSS_SHA256/192_L1_H5_W8" ,
-      LMS_PARAMS(1,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(1,  5, 8, 4, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_SHA256_192_L1_H10_W2 , "LMS/HSS_SHA256/192_L1_H10_W2",
-      LMS_PARAMS(1, 10, 2, 1, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(1, 10, 2, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H10_W4 , "LMS/HSS_SHA256/192_L1_H10_W4",
-      LMS_PARAMS(1, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(1, 10, 4, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H10_W8 , "LMS/HSS_SHA256/192_L1_H10_W8",
-      LMS_PARAMS(1, 10, 8, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(1, 10, 8, 4, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_HEIGHT >= 20
     { WC_LMS_PARM_SHA256_192_L1_H20_W2 , "LMS/HSS_SHA256/192_L1_H20_W2",
-      LMS_PARAMS(1, 20, 2, 1, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W2,
+      LMS_PARAMS(1, 20, 2, 2, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H20_W4 , "LMS/HSS_SHA256/192_L1_H20_W4",
-      LMS_PARAMS(1, 20, 4, 2, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W4,
+      LMS_PARAMS(1, 20, 4, 3, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W4,
                  WC_SHA256_192_DIGEST_SIZE) },
     { WC_LMS_PARM_SHA256_192_L1_H20_W8 , "LMS/HSS_SHA256/192_L1_H20_W8",
-      LMS_PARAMS(1, 20, 8, 3, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W8,
+      LMS_PARAMS(1, 20, 8, 4, LMS_SHA256_M24_H20, LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
 #endif /* WOLFSSL_LMS_SHA256_192 */
@@ -586,11 +586,14 @@ void wc_LmsKey_Free(LmsKey* key)
     #ifndef WOLFSSL_LMS_VERIFY_ONLY
         if (key->priv_data != NULL) {
             const LmsParams* params = key->params;
-
-            ForceZero(key->priv_data, LMS_PRIV_DATA_LEN(params->levels,
+            int priv_data_len = LMS_PRIV_DATA_LEN(params->levels,
                 params->height, params->p, params->rootLevels,
-                params->cacheBits, params->hash_len));
+                params->cacheBits, params->hash_len);
 
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+            priv_data_len += HSS_PRIVATE_KEY_LEN(key->params->hash_len);
+#endif
+            ForceZero(key->priv_data, priv_data_len);
             XFREE(key->priv_data, key->heap, DYNAMIC_TYPE_LMS);
         }
     #endif
@@ -717,6 +720,7 @@ int wc_LmsKey_SetContext(LmsKey* key, void* context)
 int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 {
     int ret = 0;
+    int priv_data_len = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (rng == NULL)) {
@@ -738,17 +742,26 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && (key->priv_data == NULL)) {
+    if (ret == 0) {
         const LmsParams* params = key->params;
+        priv_data_len = LMS_PRIV_DATA_LEN(params->levels, params->height,
+            params->p, params->rootLevels, params->cacheBits, params->hash_len);
 
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        priv_data_len += HSS_PRIVATE_KEY_LEN(key->params->hash_len);
+#endif
+    }
+    if ((ret == 0) && (key->priv_data == NULL)) {
         /* Allocate memory for the private key data. */
-        key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
-            params->height, params->p, params->rootLevels, params->cacheBits,
-            params->hash_len), key->heap, DYNAMIC_TYPE_LMS);
+        key->priv_data = (byte *)XMALLOC(priv_data_len, key->heap,
+            DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
         }
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        XMEMSET(key->priv_data, 0, priv_data_len);
+#endif
     }
     if (ret == 0) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -759,7 +772,8 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -781,9 +795,18 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         }
     }
     if (ret == 0) {
+        int rv;
         /* Write private key to storage. */
-        int rv = key->write_private_key(key->priv_raw,
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        XMEMCPY(key->priv_data + priv_data_len -
+            HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->priv_raw,
+            HSS_PRIVATE_KEY_LEN(key->params->hash_len));
+        rv = key->write_private_key(key->priv_data, priv_data_len,
+            key->context);
+#else
+        rv = key->write_private_key(key->priv_raw,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
+#endif
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             ret = IO_FAILED_E;
         }
@@ -816,6 +839,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 int wc_LmsKey_Reload(LmsKey* key)
 {
     int ret = 0;
+    int priv_data_len = 0;
 
     /* Validate parameter. */
     if (key == NULL) {
@@ -837,25 +861,46 @@ int wc_LmsKey_Reload(LmsKey* key)
         ret = BAD_FUNC_ARG;
     }
 
-    if ((ret == 0) && (key->priv_data == NULL)) {
+    if (ret == 0) {
         const LmsParams* params = key->params;
+        priv_data_len = LMS_PRIV_DATA_LEN(params->levels, params->height,
+            params->p, params->rootLevels, params->cacheBits, params->hash_len);
 
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        priv_data_len += HSS_PRIVATE_KEY_LEN(params->hash_len);
+#endif
+    }
+    if ((ret == 0) && (key->priv_data == NULL)) {
         /* Allocate memory for the private key data. */
-        key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
-            params->height, params->p, params->rootLevels, params->cacheBits,
-            params->hash_len), key->heap, DYNAMIC_TYPE_LMS);
+        key->priv_data = (byte *)XMALLOC(priv_data_len, key->heap,
+            DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
         }
     }
     if (ret == 0) {
+        int rv;
+
         /* Load private key. */
-        int rv = key->read_private_key(key->priv_raw,
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        const LmsParams* params = key->params;
+
+        rv = key->read_private_key(key->priv_data, priv_data_len, key->context);
+#else
+        rv = key->read_private_key(key->priv_raw,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
+#endif
         if (rv != WC_LMS_RC_READ_TO_MEMORY) {
             ret = IO_FAILED_E;
         }
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        if (ret == 0) {
+            XMEMCPY(key->priv_raw, key->priv_data + priv_data_len -
+                HSS_PRIVATE_KEY_LEN(params->hash_len),
+                HSS_PRIVATE_KEY_LEN(params->hash_len));
+        }
+#endif
     }
 
     /* Double check the key actually has signatures left. */
@@ -874,7 +919,8 @@ int wc_LmsKey_Reload(LmsKey* key)
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -972,7 +1018,8 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -997,9 +1044,24 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
         *sigSz = (word32)key->params->sig_len;
     }
     if (ret == 0) {
+        int rv;
+
         /* Write private key to storage. */
-        int rv = key->write_private_key(key->priv_raw,
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+        const LmsParams* params = key->params;
+        int priv_data_len = LMS_PRIV_DATA_LEN(params->levels, params->height,
+            params->p, params->rootLevels, params->cacheBits,
+            params->hash_len) + HSS_PRIVATE_KEY_LEN(key->params->hash_len);
+
+        XMEMCPY(key->priv_data + priv_data_len -
+            HSS_PRIVATE_KEY_LEN(params->hash_len), key->priv_raw,
+            HSS_PRIVATE_KEY_LEN(params->hash_len));
+        rv = key->write_private_key(key->priv_data, priv_data_len,
+            key->context);
+#else
+        rv = key->write_private_key(key->priv_raw,
             HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
+#endif
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             ret = IO_FAILED_E;
         }
@@ -1234,7 +1296,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -1257,6 +1320,8 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
 
     return ret;
 }
+
+#ifndef WOLFSSL_LMS_VERIFY_ONLY
 
 /* Get the Key ID from the LMS key.
  *
@@ -1309,5 +1374,7 @@ const byte * wc_LmsKey_GetKidFromPrivRaw(const byte * priv, word32 privSz)
     }
     return priv + privSz - LMS_I_LEN;
 }
+
+#endif
 
 #endif /* WOLFSSL_HAVE_LMS && WOLFSSL_WC_LMS */

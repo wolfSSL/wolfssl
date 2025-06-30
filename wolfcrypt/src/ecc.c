@@ -2054,7 +2054,7 @@ static int _ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    }
    if (err == MP_OKAY) {
       if ( (mp_cmp(P->x, Q->x) == MP_EQ) &&
-           (get_digit_count(Q->z) && mp_cmp(P->z, Q->z) == MP_EQ) &&
+           (mp_get_digit_count(Q->z) && mp_cmp(P->z, Q->z) == MP_EQ) &&
            (mp_cmp(P->y, Q->y) == MP_EQ || mp_cmp(P->y, t1) == MP_EQ)) {
           mp_clear(t1);
           mp_clear(t2);
@@ -2990,7 +2990,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* tG, ecc_point* R,
        mode   = 0;
        bitcnt = 1;
        buf    = 0;
-       digidx = get_digit_count(k) - 1;
+       digidx = mp_get_digit_count(k) - 1;
        bitcpy = bitbuf = 0;
        first  = 1;
 
@@ -3001,7 +3001,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* tG, ecc_point* R,
                if (digidx == -1) {
                    break;
                }
-               buf    = get_digit(k, digidx);
+               buf    = mp_get_digit(k, digidx);
                bitcnt = (int) DIGIT_BIT;
                --digidx;
            }
@@ -5395,6 +5395,7 @@ static WC_INLINE void wc_ecc_reset(ecc_key* key)
     key->state = ECC_STATE_NONE;
 }
 
+
 /* create the public ECC key from a private key
  *
  * key     an initialized private key to generate public part from
@@ -5680,7 +5681,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #endif
     key->flags = (byte)flags;
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_ECC_DHE)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (key->devId != INVALID_DEVID)
     #endif
@@ -10263,7 +10264,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
         * (!WOLFSSL_SP_MATH && WOLFSSL_VALIDATE_ECC_IMPORT) */
 
 #if (FIPS_VERSION_GE(5,0) || defined(WOLFSSL_VALIDATE_ECC_KEYGEN)) && \
-    !defined(WOLFSSL_KCAPI_ECC)
+    !defined(WOLFSSL_KCAPI_ECC) && defined(HAVE_ECC_DHE)
 
 /* check privkey generator helper, creates prime needed */
 static int ecc_check_privkey_gen_helper(ecc_key* key)
@@ -10378,7 +10379,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
     return err;
 }
 #endif /* (FIPS v5 or later || WOLFSSL_VALIDATE_ECC_KEYGEN) && \
-          !WOLFSSL_KCAPI_ECC */
+          !WOLFSSL_KCAPI_ECC && HAVE_ECC_DHE */
 
 #ifndef WOLFSSL_SP_MATH
 /* validate order * pubkey = point at infinity, 0 on success */

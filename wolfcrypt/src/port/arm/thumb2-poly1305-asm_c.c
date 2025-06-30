@@ -41,15 +41,16 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void poly1305_blocks_thumb2_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
-    int notLast_p)
+WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx_p,
+    const byte* m_p, word32 len_p, int notLast_p)
 #else
-void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len,
-    int notLast)
+WC_OMIT_FRAME_POINTER void poly1305_blocks_thumb2_16(Poly1305* ctx,
+    const byte* m, word32 len, int notLast)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -301,9 +302,9 @@ XALIGNED(16) static const word32 L_poly1305_thumb2_clamp[] = {
 };
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
+WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
 #else
-void poly1305_set_key(Poly1305* ctx, const byte* key)
+WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -358,9 +359,9 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
 }
 
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void poly1305_final(Poly1305* ctx_p, byte* mac_p)
+WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx_p, byte* mac_p)
 #else
-void poly1305_final(Poly1305* ctx, byte* mac)
+WC_OMIT_FRAME_POINTER void poly1305_final(Poly1305* ctx, byte* mac)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -422,4 +423,5 @@ void poly1305_final(Poly1305* ctx, byte* mac)
 #endif /* HAVE_POLY1305 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
+
 #endif /* WOLFSSL_ARMASM_INLINE */

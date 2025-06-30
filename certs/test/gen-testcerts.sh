@@ -228,3 +228,11 @@ generate_expired_certs expired/expired-cert ../server-key.pem
 
 
 generate_test_trusted_cert ossl-trusted-cert localhost "" 1
+
+# Note on certs/empty-issuer-cert.pem:
+# OpenSSL did not like to generate this certificate with an empty CN in the
+# conf file.
+# The following commands were used to generate this certificate file:
+#     wolfssl genkey rsa -size 2048 -out mykey -outform pem -output KEY
+#     wolfssl req -new -days 36500 -key mykey.priv -out empty-issuer-cert.pem -x509
+#       (pressing enter for ean input without entering any input text)

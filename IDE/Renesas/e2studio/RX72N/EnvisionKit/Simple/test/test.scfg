@@ -11,7 +11,7 @@
             </toolchain>
         </configuration>
         <platform id="R5F572NNHxFB"/>
-        <option id="board" value="EnvisionKitRX72N (V1.12)"/>
+        <option id="board" value="EnvisionKitRX72N (V1.14)"/>
     </general>
     <tool id="Clock">
         <option enabled="true" id="vccinput" selection="textinputitem">
@@ -1166,8 +1166,8 @@
                 <gridItem id="TSIP_MD5" selectedIndex="1"/>
                 <gridItem id="TSIP_SHA_1_HMAC" selectedIndex="1"/>
                 <gridItem id="TSIP_SHA_256_HMAC" selectedIndex="1"/>
-                <gridItem id="TSIP_RSAES_1024" selectedIndex="0"/>
-                <gridItem id="TSIP_RSAES_2048" selectedIndex="0"/>
+                <gridItem id="TSIP_RSAES_1024" selectedIndex="1"/>
+                <gridItem id="TSIP_RSAES_2048" selectedIndex="1"/>
                 <gridItem id="TSIP_RSAES_3072" selectedIndex="0"/>
                 <gridItem id="TSIP_RSAES_4096" selectedIndex="0"/>
                 <gridItem id="TSIP_RSASSA_1024" selectedIndex="1"/>

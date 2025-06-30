@@ -16665,6 +16665,7 @@ int test_mldsa_pkcs8(void)
     defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1)
 
     WOLFSSL_CTX* ctx = NULL;
@@ -16685,9 +16686,15 @@ int test_mldsa_pkcs8(void)
         int oidSum;
         int keySz;
     } test_variant[] = {
+#ifndef WOLFSSL_NO_ML_DSA_44
         {WC_ML_DSA_44, ML_DSA_LEVEL2k, ML_DSA_LEVEL2_PRV_KEY_SIZE},
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
         {WC_ML_DSA_65, ML_DSA_LEVEL3k, ML_DSA_LEVEL3_PRV_KEY_SIZE},
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
         {WC_ML_DSA_87, ML_DSA_LEVEL5k, ML_DSA_LEVEL5_PRV_KEY_SIZE}
+#endif
     };
 
     (void) pemSz;

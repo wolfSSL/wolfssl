@@ -72,8 +72,10 @@ extern uint32_t     s_flash[];
 extern uint32_t     s_inst1[R_TSIP_SINST_WORD_SIZE];
 #endif
 
+#ifndef SINGLE_THREADED
 wolfSSL_Mutex       tsip_mutex;
 static int          tsip_CryptHwMutexInit_ = 0;
+#endif
 static tsip_key_data g_user_key_info;
 struct WOLFSSL_HEAP_HINT*  tsip_heap_hint = NULL;
 
@@ -2425,7 +2427,8 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
         switch (keyType) {
 
         #if !defined(NO_RSA)
-        #if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+        #if ((defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1) || \
+            (defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1))
             case TSIP_KEY_TYPE_RSA2048:
             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
                 tuc->ClientRsa2048PubKey_set = 0;
@@ -2475,6 +2478,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                 tuc->keyflgs_crypt.bits.eccpub_key_set = 0;
             #endif
                 if (keyType == TSIP_KEY_TYPE_ECDSAP256) {
+                #if defined(TSIP_ECDSA_P256) && TSIP_ECDSA_P256 == 1
                     err = R_TSIP_GenerateEccP256PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2483,8 +2487,12 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                                     &tuc->eccpub_keyIdx
                             #endif
                     );
+                #else
+                    err = NOT_COMPILED_IN;
+                #endif
                 }
                 else if (keyType == TSIP_KEY_TYPE_ECDSAP384) {
+                #if defined(TSIP_ECDSA_P384) && TSIP_ECDSA_P384 == 1
                     err = R_TSIP_GenerateEccP384PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2493,6 +2501,9 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                                     &tuc->eccpub_keyIdx
                             #endif
                     );
+                #else
+                    err = NOT_COMPILED_IN;
+                #endif
                 }
                 if (err == TSIP_SUCCESS) {
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -2618,6 +2629,7 @@ int tsip_usable(const WOLFSSL *ssl, uint8_t session_key_generated)
 }
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+#ifndef SINGLE_THREADED
 /*
 * lock hw engine.
 * this should be called before using engine.
@@ -2653,6 +2665,7 @@ void tsip_hw_unlock(void)
 {
     tsip_CryptHwMutexUnLock(&tsip_mutex);
 }
+#endif
 
 /* open TSIP driver
  * return 0 on success.
@@ -3231,15 +3244,13 @@ int wc_tsip_generateSessionKey(
             if (enc) {
                 enc->aes->ctx.keySize = ssl->specs.key_size;
                 enc->aes->ctx.setup = 1;
-                /* ready for use */
-                enc->setup = 1;
+                /* ready-for-use flag will be set when SetKeySide() is called */
             }
             /* set up key size and marked ready */
             if (dec) {
                 dec->aes->ctx.keySize = ssl->specs.key_size;
                 dec->aes->ctx.setup = 1;
-                /* ready for use */
-                dec->setup = 1;
+                /* ready-for-use flag will be set when SetKeySide() is called */
             }
 
             if (ctx->tsip_cipher ==
@@ -3706,7 +3717,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     switch (tuc->wrappedKeyType) {
-#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+#if defined(TSIP_RSASSA_1024) && TSIP_RSASSA_1024 == 1
         case TSIP_KEY_TYPE_RSA1024:
             if (tuc->keyflgs_crypt.bits.rsapri1024_key_set != 1) {
                 WOLFSSL_MSG("tsip rsa private key 1024 not set");
@@ -3714,7 +3725,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
             }
             break;
 #endif
-#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+#if defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1
         case TSIP_KEY_TYPE_RSA2048:
             if (tuc->keyflgs_crypt.bits.rsapri2048_key_set != 1) {
                 WOLFSSL_MSG("tsip rsa private key 2048 not set");
@@ -3731,9 +3742,11 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
     if (ret == 0) {
     #ifdef WOLFSSL_RENESAS_TSIP_TLS
+        /* since TSIP driver adds ASN.1 input data uses raw digest */
         hashData.pdata      = (uint8_t*)ssl->buffers.digest.buffer;
-        hashData.data_type  = 1;
-        sigData.pdata       = (uint8_t*)info->pk.rsa.in;
+        hashData.data_length= ssl->buffers.digest.length;
+        hashData.data_type  = 1; /* hashed data */
+        sigData.pdata       = (uint8_t*)info->pk.rsa.out;
         sigData.data_length = 0; /* signature size will be returned here */
     #else
         hashData.pdata      = (uint8_t*)info->pk.rsa.in;
@@ -3744,7 +3757,8 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     #endif
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
-#if defined(TSIP_RSAES_1024) && TSIP_RSAES_1024 == 1
+#if (defined(TSIP_RSASSA_1024) && TSIP_RSASSA_1024 == 1) && \
+                defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                 case TSIP_KEY_TYPE_RSA1024:
                     err = R_TSIP_RsassaPkcs1024SignatureGenerate(
                                                 &hashData, &sigData,
@@ -3757,7 +3771,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     }
                     break;
 #endif
-#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+#if defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     err = R_TSIP_RsassaPkcs2048SignatureGenerate(
                                                 &hashData, &sigData,
@@ -3849,15 +3863,18 @@ int tsip_VerifyRsaPkcsCb(
 
     if (ret == 0) {
         sigData.pdata       = (uint8_t*)sig;
+        sigData.data_length = sigSz;
+        /* Since TSITP driver handles ASN.1 internally,
+         * the expected data is raw hash.
+         */
         hashData.pdata      = (uint8_t*)ssl->buffers.digest.buffer;
         hashData.data_type  = 1;  /* hash value */
 
         if ((ret = tsip_hw_lock()) == 0) {
 
             switch (tuc->wrappedKeyType) {
-#if defined(TSIP_RSAES_2048) && TSIP_RSAES_2048 == 1
+#if defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
-                    sigData.data_length = 256;
                     err = R_TSIP_RsassaPkcs2048SignatureVerification(
                                                 &sigData, &hashData,
                                                 &tuc->Rsa2048PublicKeyIdx,

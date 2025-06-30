@@ -30,6 +30,7 @@ EXTRA_DIST += \
              certs/ecc-keyPkcs8.der \
              certs/ecc-client-key.pem \
              certs/ecc-client-keyPub.pem \
+             certs/empty-issuer-cert.pem \
              certs/client-ecc-cert.pem \
              certs/client-ca.pem \
              certs/dh2048.pem \

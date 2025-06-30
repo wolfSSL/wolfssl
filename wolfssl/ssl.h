@@ -1841,6 +1841,12 @@ WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long e);
 
 /* -------- EXTRAS BEGIN -------- */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_EXTRA)
+WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx);
+WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx);
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
 
@@ -2144,9 +2150,6 @@ WOLFSSL_API int  wolfSSL_num_locks(void);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX* ctx);
-WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx);
-WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx);
-
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
@@ -2407,6 +2410,8 @@ WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
 #endif
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname);
+
+#ifndef WOLFSSL_NO_CA_NAMES
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
         const WOLFSSL_CTX *ctx);
 /* deprecated function name */
@@ -2418,6 +2423,7 @@ WOLFSSL_API void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
                                                WOLF_STACK_OF(WOLFSSL_X509_NAME)*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl);
+#endif /* !WOLFSSL_NO_CA_NAMES */
 
 typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
                               WOLFSSL_EVP_PKEY **pkey);
@@ -3749,6 +3755,7 @@ typedef int  (*CbCrlIO)(WOLFSSL_CRL* crl, const char* url, int urlSz);
 
 #ifdef HAVE_CRL_UPDATE_CB
 typedef struct CrlInfo {
+    byte crlNumber[CRL_MAX_NUM_SZ];
     byte *issuerHash;
     word32 issuerHashLen;
     byte *lastDate;
@@ -3757,7 +3764,7 @@ typedef struct CrlInfo {
     byte *nextDate;
     word32 nextDateMaxLen;
     byte nextDateFormat;
-    sword32 crlNumber;
+    byte crlNumberSet:1;
 } CrlInfo;
 
 typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* cnew);
@@ -4617,6 +4624,11 @@ enum {
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
      *      oqs-kem-info.md
      */
+#ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
+    WOLFSSL_P256_ML_KEM_512_OLD   = 12103,
+    WOLFSSL_P384_ML_KEM_768_OLD   = 12104,
+    WOLFSSL_P521_ML_KEM_1024_OLD  = 12105,
+#endif
     WOLFSSL_P256_ML_KEM_512       = 12107,
     WOLFSSL_P384_ML_KEM_768       = 12108,
     WOLFSSL_P521_ML_KEM_1024      = 12109,

@@ -3136,7 +3136,7 @@ static void* benchmarks_do(void* args)
         }
 
         bench_buf_size = XFTELL(file);
-        if(XFSEEK(file, 0, XSEEK_SET) != 0) {
+        if(bench_buf_size < 0 || XFSEEK(file, 0, XSEEK_SET) != 0) {
             XFCLOSE(file);
             goto exit;
         }
@@ -3182,7 +3182,7 @@ static void* benchmarks_do(void* args)
         }
 
         bench_buf_size = XFTELL(file);
-        if(XFSEEK(file, 0, XSEEK_SET) != 0) {
+        if (bench_buf_size < 0 || XFSEEK(file, 0, XSEEK_SET) != 0) {
             XFCLOSE(file);
             goto exit;
         }
@@ -9876,6 +9876,7 @@ void bench_mlkem(int type)
 #endif
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
 #ifndef WOLFSSL_NO_LMS_SHA256_256
 /* WC_LMS_PARM_L2_H10_W2
  * signature length: 9300 */
@@ -10033,6 +10034,7 @@ static const byte lms_pub_L4_H5_W8[60] =
     0x74,0x24,0x12,0xC8
 };
 #endif
+#endif /* WOLFSSL_WC_LMS_SERIALIZE_STATE */
 
 static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
@@ -10050,7 +10052,11 @@ static int lms_read_key_mem(byte* priv, word32 privSz, void* context)
     XMEMCPY(priv, context, privSz);
     return WC_LMS_RC_READ_TO_MEMORY;
 }
+#ifdef WOLFSSL_WC_LMS_SERIALIZE_STATE
+static byte lms_priv[64*1024 + HSS_MAX_PRIVATE_KEY_LEN];
+#else
 static byte lms_priv[HSS_MAX_PRIVATE_KEY_LEN];
+#endif
 
 static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 {
@@ -10192,6 +10198,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
         goto exit_lms_sign_verify;
     }
 
+#ifndef WOLFSSL_WC_LMS_SERIALIZE_STATE
     switch (parm) {
 #ifndef WOLFSSL_NO_LMS_SHA256_256
     case WC_LMS_PARM_L2_H10_W2:
@@ -10283,6 +10290,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
     }
+#else
+    XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
+#endif
 
     ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
     if (ret) {

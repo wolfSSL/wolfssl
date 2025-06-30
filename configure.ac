@@ -129,8 +129,8 @@ AC_CHECK_HEADER(assert.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ASSERT_H"],[
 # check if functions of interest are linkable, but also check if
 # they're declared by the expected headers, and if not, supersede the
 # unusable positive from AC_CHECK_FUNCS().
-AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r gmtime_s inet_ntoa memset socket strftime atexit isascii])
-AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, gmtime_s, inet_ntoa, memset, socket, strftime, atexit, isascii], [], [
+AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r gmtime_s inet_ntoa memset socket strftime atexit isascii getpid getrandom])
+AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, gmtime_s, inet_ntoa, memset, socket, strftime, atexit, isascii, getpid], [], [
 if test "$(eval echo \$"$(eval 'echo ac_cv_func_${as_decl_name}')")" = "yes"
 then
     AC_MSG_NOTICE([    note: earlier check for $(eval 'echo ${as_decl_name}') superseded.])
@@ -159,6 +159,9 @@ fi
 #endif
 #ifdef HAVE_STDLIB_H
     #include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+    #include <unistd.h>
 #endif
 #ifdef HAVE_CTYPE_H
     #include <ctype.h>
@@ -213,7 +216,7 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
 AC_ARG_ENABLE([debug-code-points],
-    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-verbose messages.]) ],
+    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-debug messages.]) ],
     [ ENABLED_DEBUG_CODEPOINTS=$enableval ],
     [ ENABLED_DEBUG_CODEPOINTS=no ]
     )
@@ -1211,6 +1214,11 @@ then
         AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
     fi
 
+    if test "$enable_ppc32_asm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-ppc32-asm])
+    fi
+
     case "$host_cpu" in
         *x86_64*|*amd64*)
             if test "$enable_intelasm" = ""
@@ -1238,6 +1246,14 @@ then
                 then
                     ENABLED_SP=yes
                 fi
+            fi
+            ;;
+        *powerpc64*)
+            ;;
+        *powerpc*)
+            if test "$enable_ppc32_asm" = ""
+            then
+               enable_ppc32_asm=yes
             fi
             ;;
     esac
@@ -1307,6 +1323,7 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
@@ -1665,6 +1682,7 @@ then
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
     fi
+    ENABLED_CERTS=yes
 fi
 
 # XMSS
@@ -2138,6 +2156,12 @@ AC_ARG_ENABLE([openssh],
     [ENABLED_OPENSSH=$enableval],
     [ENABLED_OPENSSH=no])
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ERROR_CODE_OPENSSL -DWC_RNG_SEED_CB"
+fi
+
 # OpenVPN compatibility Build
 AC_ARG_ENABLE([openvpn],
     [AS_HELP_STRING([--enable-openvpn],[Enable OpenVPN compatibility build (default: disabled)])],
@@ -2249,6 +2273,11 @@ AC_ARG_ENABLE([fortress],
     [ ENABLED_FORTRESS=no ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_FORTRESS="yes"
+fi
+
 # libwebsockets Support
 AC_ARG_ENABLE([libwebsockets],
     [AS_HELP_STRING([--enable-libwebsockets],[Enable libwebsockets (default: disabled)])],
@@ -2258,14 +2287,6 @@ AC_ARG_ENABLE([libwebsockets],
 if test "$ENABLED_LIBWEBSOCKETS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LIBWEBSOCKETS -DHAVE_EX_DATA -DOPENSSL_NO_EC"
-fi
-
-
-if test "$ENABLED_OPENSSH" = "yes"
-then
-    ENABLED_FORTRESS="yes"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ERROR_CODE_OPENSSL"
 fi
 
 # net-snmp Build
@@ -2849,6 +2870,39 @@ AC_ARG_WITH([cryptoauthlib],
     ]
 )
 
+
+# TropicSquare TROPIC01
+# Example: "./configure --with-tropic01=/home/pi/libtropic"
+ENABLED_TROPIC01="no"
+trylibtropicdir=""
+AC_ARG_WITH([tropic01],
+    [AS_HELP_STRING([--with-tropic01=PATH],[PATH to  install (default /usr/)])],
+    [
+        AC_MSG_CHECKING([for libtropic])
+        if test "x$withval" != "xno" ; then
+            trylibtropicdir=$withval
+        fi
+        if test "x$withval" = "xyes" ; then
+            trylibtropicdir="libtropic"
+        fi
+        if test -e $trylibtropicdir/build/libtropic.a
+        then
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/libtropic.a"
+            LIB_STATIC_ADD="$LIB_STATIC_ADD $trylibtropicdir/build/trezor_crypto/libtrezor_crypto.a"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibtropicdir/include"
+        else
+            ENABLED_TROPIC01="no"
+            AC_MSG_ERROR([Could not find libtropic - TropicSquare library])
+        fi
+        enable_shared=no
+        enable_static=yes
+        ENABLED_TROPIC01="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TROPIC01"
+        AC_MSG_RESULT([yes])
+    ]
+)
+
+
 # NXP SE050
 # Example: "./configure --with-se050=/home/pi/simw_top"
 ENABLED_SE050="no"
@@ -3228,6 +3282,26 @@ then
             ENABLED_ARMASM_CRYPTO_SM4=yes
             ENABLED_ARMASM_PLUS=yes
             ;;
+        barrier-sb)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SB instructions only available on Aarch64 v8.5+ CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_BARRIER_SB=yes
+            ;;
+        barrier-detect)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SB instructions only available on Aarch64 v8.5+ CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_BARRIER_DETECT=yes
+            ;;
         *)
             AC_MSG_ERROR([Invalid choice of ARM asm inclusions (yes, sha512-crypto, sha3-crypto): $ENABLED_ARMASM.])
             break;;
@@ -3311,7 +3385,7 @@ then
         armv7m*)
             # QEMU doesn't work with armv7-m
             AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_THUMB2"
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
@@ -3329,7 +3403,7 @@ then
             fi
             ;;
         armv6*)
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv6 -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=6"
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_ARMASM_NEON=no
@@ -3337,7 +3411,7 @@ then
             AC_MSG_NOTICE([32bit ARMv6 found])
             ;;
         armv4*)
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=4"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv4 -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=4"
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_ARMASM_NEON=no
@@ -3369,6 +3443,12 @@ if test "$ENABLED_ARMASM_SM3" = "yes"; then
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
+fi
+if test "$ENABLED_ARMASM_BARRIER_SB" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_BARRIER_SB"
+fi
+if test "$ENABLED_ARMASM_BARRIER_DETECT" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_BARRIER_DETECT"
 fi
 if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
     ENABLED_ARMASM_CRYPTO=no
@@ -3461,6 +3541,49 @@ do
   esac
 done
 
+
+# PPC32 Assembly
+AC_ARG_ENABLE([ppc32-asm],
+    [AS_HELP_STRING([--enable-ppc32-asm],[Enable wolfSSL PowerPC 32-bit ASM support (default: disabled).])],
+    [ ENABLED_PPC32_ASM=$enableval ],
+    [ ENABLED_PPC32_ASM=no ]
+    )
+
+
+if test "$ENABLED_PPC32_ASM" != "no" && test "$ENABLED_ASM" = "yes"
+then
+    ENABLED_PPC32_ASM_OPTS=$ENABLED_PPC32_ASM
+    for v in `echo $ENABLED_PPC32_ASM_OPTS | tr "," " "`
+    do
+      case $v in
+      yes)
+        ;;
+      inline)
+        ENABLED_PPC32_ASM_INLINE=yes
+        ;;
+      small)
+        ENABLED_PPC32_ASM_SMALL=yes
+        ;;
+      *)
+        AC_MSG_ERROR([Invalid RISC-V option [yes,inline,small]: $ENABLED_PPC32_ASM.])
+        break
+        ;;
+      esac
+    done
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM"
+    AC_MSG_NOTICE([32-bit PowerPC assembly for SHA-256])
+    ENABLED_PPC32_ASM=yes
+fi
+if test "$ENABLED_PPC32_ASM_INLINE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_INLINE"
+else
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM"
+fi
+if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+fi
 
 # Xilinx hardened crypto
 AC_ARG_ENABLE([xilinx],
@@ -4382,6 +4505,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM2 -DWOLFSSL_BASE16"
+    ENABLED_CERTS=yes
 fi
 
 
@@ -4738,8 +4862,6 @@ if test "$ENABLED_TLSV12" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
 fi
-
-
 
 # STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
@@ -5353,10 +5475,23 @@ AC_ARG_ENABLE([arc4],
 
 # MD5
 AC_ARG_ENABLE([md5],
-    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
+    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: disabled)])],
     [ ENABLED_MD5=$enableval ],
-    [ ENABLED_MD5=yes ]
+    [ ENABLED_MD5=no ]
     )
+
+# Options that require MD5
+if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_HAPROXY" = "yes" || \
+    test "$ENABLED_KRB" = "yes" || test "$ENABLED_NETSNMP" = "yes" || \
+    test "$ENABLED_NGINX" = "yes" || test "$ENABLED_OPENSSH" = "yes" || \
+    test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENVPN" = "yes" || \
+    test "$ENABLED_TLSV10" = "yes" || test "$ENABLED_OLD_TLS" = "yes" || \
+    test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_LIGHTY" = "yes" || \
+    test "$ENABLED_DES3" = "yes" || test "$ENABLED_BUMP" = "yes" || \
+    test "$ENABLED_OPENSSLALL" = "yes"
+then
+    ENABLED_MD5=yes
+fi
 
 # SHA
 AC_ARG_ENABLE([sha],
@@ -6243,6 +6378,7 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE448"
     ENABLED_FE448=yes
+    ENABLED_CERTS=yes
 fi
 
 # Ed448
@@ -7119,6 +7255,9 @@ then
 
     # Requires public mp_
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+
+    # Requires allowing CA:FALSE in BasicConstraints
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_ENCODING_CA_FALSE"
 fi
 
 if test "x$ENABLED_SMIME" = "xyes"
@@ -7181,10 +7320,16 @@ then
 fi
 
 # Small Stack - Cache on object
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
+else
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=no
+fi
 AC_ARG_ENABLE([smallstackcache],
     [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
     [ ENABLED_SMALL_STACK_CACHE=$enableval ],
-    [ ENABLED_SMALL_STACK_CACHE=no ]
+    [ ENABLED_SMALL_STACK_CACHE=$ENABLED_SMALL_STACK_CACHE_DEFAULT ]
     )
 
 if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
@@ -7339,6 +7484,7 @@ then
 
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
+        ENABLED_MD5="yes"
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
     fi
@@ -7697,6 +7843,7 @@ then
     then
         ENABLED_OPENSSLALL="yes"
         ENABLED_OPENSSLEXTRA="yes"
+        ENABLED_MD5="yes"
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASIO -DASIO_USE_WOLFSSL -DWOLFSSL_KEY_GEN"
@@ -7902,6 +8049,11 @@ then
     then
         ENABLED_KEYGEN="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
+
+    if test "x$ENABLED_MD5" = "xno"
+    then
+        ENABLED_MD5="yes"
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
@@ -9103,6 +9255,8 @@ then
         # Use the smaller object size implementation
         ENABLED_AESGCM=yes
     fi
+
+    ENABLED_MD5=yes
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
@@ -9854,10 +10008,6 @@ then
     AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_ED25519"
     ENABLED_FEMATH=yes
     ENABLED_GEMATH=yes
-fi
-
-if test "$ENABLED_ED25519" != "no" || test "$ENABLED_ED448" != "no"
-then
     ENABLED_CERTS=yes
 fi
 
@@ -10062,7 +10212,7 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
-  AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
@@ -10401,6 +10551,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
+# Add HAVE_GETPID to AM_CFLAGS for inclusion in options.h
+if test "$ac_cv_func_getpid" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_GETPID=1"
+fi
+
 LIB_SOCKET_NSL
 AX_HARDEN_CC_COMPILER_FLAGS
 
@@ -10532,6 +10688,8 @@ AM_CONDITIONAL([BUILD_ARM_NONTHUMB],[test "$ENABLED_ARM_THUMB" != "yes"  || test
 AM_CONDITIONAL([BUILD_ARM_32],[test "$ENABLED_ARM_32" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_ARM_64],[test "$ENABLED_ARM_64" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC32_ASM],[test "x$ENABLED_PPC32_ASM" = "xyes"])
+AM_CONDITIONAL([BUILD_PPC32_ASM_INLINE],[test "x$ENABLED_PPC32_ASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])
 AM_CONDITIONAL([BUILD_INTELASM],[test "x$ENABLED_INTELASM" = "xyes"])
@@ -10670,6 +10828,7 @@ AM_CONDITIONAL([BUILD_QNXCAAM],[test "x$ENABLED_CAAM_QNX" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE],[test "x$ENABLED_IOTSAFE" = "xyes"])
 AM_CONDITIONAL([BUILD_IOTSAFE_HWRNG],[test "x$ENABLED_IOTSAFE_HWRNG" = "xyes"])
 AM_CONDITIONAL([BUILD_SE050],[test "x$ENABLED_SE050" = "xyes"])
+AM_CONDITIONAL([BUILD_TROPIC01],[test "x$ENABLED_TROPIC01" = "xyes"])
 AM_CONDITIONAL([BUILD_KDF],[test "x$ENABLED_KDF" = "xyes"])
 AM_CONDITIONAL([BUILD_HMAC],[test "x$ENABLED_HMAC" = "xyes"])
 AM_CONDITIONAL([BUILD_ERROR_STRINGS],[test "x$ENABLED_ERROR_STRINGS" = "xyes"])
@@ -11185,6 +11344,11 @@ echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * ARM ASM SHA512/SHA3 Crypto  $ENABLED_ARMASM_SHA3"
 echo "   * ARM ASM SM3/SM4 Crypto      $ENABLED_ARMASM_CRYPTO_SM4"
 echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
+if test "$ENABLED_PPC32_ASM_INLINE" = "yes"
+then
+    ENABLED_PPC32_ASM="inline C"
+fi
+echo "   * PPC32 ASM                   $ENABLED_PPC32_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * C89:                        $ENABLED_C89"
@@ -11198,6 +11362,7 @@ echo "   * i.MX CAAM:                  $ENABLED_CAAM"
 echo "   * IoT-Safe:                   $ENABLED_IOTSAFE"
 echo "   * IoT-Safe HWRNG:             $ENABLED_IOTSAFE_HWRNG"
 echo "   * NXP SE050:                  $ENABLED_SE050"
+echo "   * TROPIC01:                   $ENABLED_TROPIC01"
 echo "   * Maxim Integrated MAXQ10XX:  $ENABLED_MAXQ10XX"
 echo "   * PSA:                        $ENABLED_PSA"
 echo "   * System CA certs:            $ENABLED_SYS_CA_CERTS"

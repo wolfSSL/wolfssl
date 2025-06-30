@@ -1145,10 +1145,12 @@ enum Misc_ASN {
     #endif
                           /* Max total extensions, id + len + others */
 #endif
+#ifndef MAX_OID_SZ
+    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
+#endif
 #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
         defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL) || \
         defined(HAVE_OID_DECODING) || defined(HAVE_OID_ENCODING)
-    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
 #ifdef WOLFSSL_CERT_EXT
@@ -1184,6 +1186,7 @@ enum Misc_ASN {
 #endif
 
     PKCS5_SALT_SZ       = 8,
+    PKCS5V2_SALT_SZ     = 16,
 
     PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
     PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
@@ -2172,8 +2175,9 @@ WOLFSSL_ASN_API int TraditionalEnc(byte* key, word32 keySz, byte* out,
         WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
 WOLFSSL_LOCAL int EncryptContent(byte* input, word32 sz, byte* out, word32* outSz,
-        const char* password,int passwordSz, int vPKCS, int vAlgo,
-        byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
+        const char* password,int passwordSz, int vPKCS, int vAlgo, int encAlgId,
+        byte* salt, word32 saltSz, int itt, int hmacOid, WC_RNG* rng,
+        void* heap);
 WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
@@ -2200,7 +2204,7 @@ WOLFSSL_LOCAL byte GetCertNameId(int idx);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);
-WOLFSSL_LOCAL int SetShortInt(byte* input, word32* inOutIdx, word32 number,
+WOLFSSL_TEST_VIS int SetShortInt(byte* input, word32* inOutIdx, word32 number,
                               word32 maxIdx);
 
 WOLFSSL_LOCAL const char* GetSigName(int oid);
@@ -2610,6 +2614,11 @@ struct RevokedCert {
     byte         revDateFormat;
 };
 
+#ifndef CRL_MAX_NUM_SZ
+#define CRL_MAX_NUM_SZ 20 /* RFC5280 states that CRL number can be up to 20 */
+#endif                    /* octets long */
+
+
 typedef struct DecodedCRL DecodedCRL;
 
 struct DecodedCRL {
@@ -2622,6 +2631,7 @@ struct DecodedCRL {
     word32  sigParamsLength;         /* length of signature parameters   */
 #endif
     byte*   signature;               /* pointer into raw source, not owned */
+    byte    crlNumber[CRL_MAX_NUM_SZ];      /* CRL number extension */
     byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
@@ -2637,10 +2647,10 @@ struct DecodedCRL {
     int          version;            /* version of cert    */
     void*   heap;
 #ifndef NO_SKID
-    byte    extAuthKeyIdSet;
-    byte    extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID        */
+    byte        extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID */
+    WC_BITFIELD extAuthKeyIdSet:1;       /* Auth key identifier set indicator */
 #endif
-    int          crlNumber;          /* CRL number extension  */
+    WC_BITFIELD crlNumberSet:1;          /* CRL number set indicator */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL* dcrl, void* heap);

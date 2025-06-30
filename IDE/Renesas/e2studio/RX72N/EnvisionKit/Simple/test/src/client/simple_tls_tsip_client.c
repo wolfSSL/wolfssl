@@ -31,7 +31,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
-#define SIMPLE_TLSSEVER_IP       "192.168.11.5"
+#if defined(SIMPLE_TLS_TSIP_CLIENT) || defined(SIMPLE_TLS_CLIENT)
+#define SIMPLE_TLSSEVER_IP       "192.168.11.11"
 #define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
@@ -244,7 +245,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_private_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_private_key),
-                TSIP_ECCP256);
+                TSIP_KEY_TYPE_ECDSAP256);
         if (ret != 0) {
             printf("ERROR tsip_use_PrivateKey_buffer_TLS\n");
         }
@@ -254,7 +255,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_ecc256_public_key,
                 sizeof(g_key_block_data.encrypted_user_ecc256_public_key),
-                TSIP_ECCP256);
+                TSIP_KEY_TYPE_ECDSAP256);
         if (ret != 0) {
             printf("ERROR tsip_use_PublicKey_buffer_TLS\n");
         }
@@ -289,7 +290,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PrivateKey_buffer_TLS(ssl,
                (const char*)g_key_block_data.encrypted_user_rsa2048_private_key,
                sizeof(g_key_block_data.encrypted_user_rsa2048_private_key),
-                                                        TSIP_RSA2048);
+                                                        TSIP_KEY_TYPE_RSA2048);
         if (ret != 0) {
             printf("ERROR tsip_use_PrivateKey_buffer_TLS :%d\n", ret);
         }
@@ -298,7 +299,7 @@ void wolfSSL_TLS_client( )
         ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_rsa2048_public_key,
                 sizeof(g_key_block_data.encrypted_user_rsa2048_public_key),
-                                                        TSIP_RSA2048);
+                                                        TSIP_KEY_TYPE_RSA2048);
         if (ret != 0) {
             printf("ERROR tsip_use_PublicKey_buffer_TLS: %d\n", ret);
         }
@@ -360,3 +361,4 @@ void wolfSSL_TLS_client( )
 
     return;
 }
+#endif /* SIMPLE_TSIP TLS_CLIENT || SIMPLE_TLS_CLIENT */

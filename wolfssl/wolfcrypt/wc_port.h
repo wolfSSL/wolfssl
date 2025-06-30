@@ -138,6 +138,15 @@
 #endif
 #endif
 
+#ifndef WC_OMIT_FRAME_POINTER
+    #if defined(__GNUC__)
+        #define WC_OMIT_FRAME_POINTER  \
+            __attribute__((optimize("-fomit-frame-pointer")))
+    #else
+        #define WC_OMIT_FRAME_POINTER
+    #endif
+#endif
+
 /* THREADING/MUTEX SECTION */
 #if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
     /* No system headers required for build. */
@@ -1524,7 +1533,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifndef WOLFSSL_NO_FENCE
     #ifdef XFENCE
         /* use user-supplied XFENCE definition. */
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && \
+          !defined(__STDC_NO_ATOMICS__)
         #include <stdatomic.h>
         #define XFENCE() atomic_thread_fence(memory_order_seq_cst)
     #elif defined(__GNUC__) && (__GNUC__ == 4) && \
@@ -1536,8 +1546,24 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XFENCE() WC_DO_NOTHING
     #elif defined (__i386__) || defined(__x86_64__)
         #define XFENCE() XASM_VOLATILE("lfence")
-    #elif (defined (__arm__) && (__ARM_ARCH > 6)) || defined(__aarch64__)
+    #elif defined (__arm__) && (__ARM_ARCH > 6)
         #define XFENCE() XASM_VOLATILE("isb")
+    #elif defined(__aarch64__)
+        /* Change ".inst 0xd50330ff" to "sb" when compilers support it. */
+        #ifdef WOLFSSL_ARMASM_BARRIER_SB
+            #define XFENCE() XASM_VOLATILE(".inst 0xd50330ff")
+        #elif defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+            extern int aarch64_use_sb;
+            #define XFENCE()                                \
+                do {                                        \
+                    if (aarch64_use_sb)                     \
+                        XASM_VOLATILE(".inst 0xd50330ff");  \
+                    else                                    \
+                        XASM_VOLATILE("isb");               \
+                } while (0)
+        #else
+            #define XFENCE() XASM_VOLATILE("isb")
+        #endif
     #elif defined(__riscv)
         #define XFENCE() XASM_VOLATILE("fence")
     #elif defined(__PPC__) || defined(__POWERPC__)

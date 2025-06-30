@@ -18,7 +18,9 @@ jobs:
       matrix:
         config: [
           # Add new configs here
+          '--enable-intelasm --enable-sp-asm --enable-mlkem=yes,kyber,ml-kem CPPFLAGS="-DWOLFSSL_ML_KEM_USE_OLD_IDS"',
           '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
+          '--enable-smallstack --enable-smallstackcache --enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE"',
           '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy --enable-experimental --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-dual-alg-certs --disable-qt CPPFLAGS="-pedantic -Wdeclaration-after-statement -DWOLFCRYPT_TEST_LINT -DNO_WOLFSSL_CIPHER_SUITE_TEST -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE" CC=c++'
         ]
     name: make check
