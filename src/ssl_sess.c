@@ -1179,9 +1179,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
 #endif /* WOLFSSL_TLS13 */
     byte         tmpBufSet = 0;
 #endif
-#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-    WOLFSSL_X509* peer = NULL;
-#endif
     byte         bogusID[ID_LEN];
     byte         bogusIDSz = 0;
 
@@ -1447,13 +1444,6 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 
-#endif
-
-#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-    if (peer != NULL) {
-        wolfSSL_X509_free(peer);
-        peer = NULL;
-    }
 #endif
 
     return error;
