@@ -194,6 +194,7 @@ WOLFSSL_API void wc_HmacFree(Hmac* hmac);
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
 WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
+WOLFSSL_LOCAL int _HmacInitIOHashes(Hmac* hmac);
 
 #ifdef HAVE_HKDF
 
