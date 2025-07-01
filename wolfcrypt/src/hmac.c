@@ -400,6 +400,32 @@ static int HmacKeyHashUpdate(byte macType, wc_HmacHash* hash, byte* pad)
     return ret;
 }
 
+#ifdef WOLFSSL_HMAC_COPY_HASH
+int _HmacInitIOHashes(Hmac* hmac)
+{
+    int ret;
+#ifdef WOLF_CRYPTO_CB
+    int devId = hmac->devId;
+#else
+    int devId = INVALID_DEVID;
+#endif
+
+    ret = HmacKeyInitHash(&hmac->i_hash, hmac->macType, hmac->heap, devId);
+    if (ret == 0) {
+        ret = HmacKeyInitHash(&hmac->o_hash, hmac->macType, hmac->heap, devId);
+    }
+    if (ret == 0) {
+        ret = HmacKeyHashUpdate(hmac->macType, &hmac->i_hash,
+            (byte*)hmac->ipad);
+    }
+    if (ret == 0) {
+        ret = HmacKeyHashUpdate(hmac->macType, &hmac->o_hash,
+            (byte*)hmac->opad);
+    }
+
+    return ret;
+}
+#endif
 
 int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
                      int allowFlag)
@@ -761,25 +787,8 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     }
 
 #ifdef WOLFSSL_HMAC_COPY_HASH
-    if ( ret == 0) {
-    #ifdef WOLF_CRYPTO_CB
-        int devId = hmac->devId;
-    #else
-        int devId = INVALID_DEVID;
-    #endif
-
-        ret = HmacKeyInitHash(&hmac->i_hash, hmac->macType, heap, devId);
-        if (ret != 0)
-            return ret;
-        ret = HmacKeyInitHash(&hmac->o_hash, hmac->macType, heap, devId);
-        if (ret != 0)
-            return ret;
-        ret = HmacKeyHashUpdate(hmac->macType, &hmac->i_hash, ip);
-        if (ret != 0)
-            return ret;
-        ret = HmacKeyHashUpdate(hmac->macType, &hmac->o_hash, op);
-        if (ret != 0)
-            return ret;
+    if (ret == 0) {
+        ret = _HmacInitIOHashes(hmac);
     }
 #endif
 
