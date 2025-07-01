@@ -16680,6 +16680,7 @@ int test_mldsa_pkcs8(void)
     dilithium_key mldsa_key;
     WC_RNG rng;
     word32 size;
+    int ret;
 
     struct {
         int wcId;
@@ -16698,6 +16699,8 @@ int test_mldsa_pkcs8(void)
     };
 
     (void) pemSz;
+
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectNotNull(der = (byte*) XMALLOC(derMaxSz, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
@@ -16789,7 +16792,8 @@ int test_mldsa_pkcs8(void)
     }
 
     wc_dilithium_free(&mldsa_key);
-    ExpectIntEQ(wc_FreeRng(&rng), 0);
+    ret = wc_FreeRng(&rng);
+    ExpectIntEQ(ret, 0);
     wolfSSL_CTX_free(ctx);
     XFREE(temp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16821,6 +16825,7 @@ int test_mldsa_pkcs12(void)
     WC_RNG rng;
     dilithium_key mldsa_key;
     char pkcs12Passwd[] = "mldsa";
+    int ret;
 
     struct {
         int enc;
@@ -16843,6 +16848,8 @@ int test_mldsa_pkcs12(void)
         {-1, WC_ML_DSA_87, ML_DSA_LEVEL5k,
             ML_DSA_LEVEL5_PRV_KEY_SIZE, CTC_ML_DSA_LEVEL5, ML_DSA_LEVEL5_TYPE},
     };
+
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ExpectNotNull(inKey = (byte*) XMALLOC(inKeyMaxSz, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
@@ -16952,7 +16959,8 @@ int test_mldsa_pkcs12(void)
     }
 
     wc_dilithium_free(&mldsa_key);
-    ExpectIntEQ(wc_FreeRng(&rng), 0);
+    ret = wc_FreeRng(&rng);
+    ExpectIntEQ(ret, 0);
     wolfSSL_CTX_free(ctx);
     XFREE(inCert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(inKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
