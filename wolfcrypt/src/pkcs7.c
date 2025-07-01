@@ -106,6 +106,7 @@ struct PKCS7State {
     word32 currContSz;    /* size of current content */
     word32 currContRmnSz; /* remaining size of current content */
     word32 accumContSz;   /* size of accumulated content size */
+    int recipientSz; /* size of recipient set */
     byte tmpIv[MAX_CONTENT_IV_SIZE]; /* store IV if needed */
 #ifdef WC_PKCS7_STREAM_DEBUG
     word32 peakUsed; /* most bytes used for struct at any one time */
@@ -12284,8 +12285,16 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
 
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->expected = (word32)length;
+
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                 break;
+            }
+
+            /* update the stored max length */
+            if (pkcs7->stream->totalRd + pkcs7->stream->expected >
+                    pkcs7->stream->maxLen) {
+                pkcs7->stream->maxLen = pkcs7->stream->totalRd +
+                    pkcs7->stream->expected;
             }
         #endif
 
@@ -12429,14 +12438,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
             pkcs7->stream->aad = decryptedKey;
+            /* get the full recipient set */
+            pkcs7->stream->expected     = (word32)ret;
+            pkcs7->stream->recipientSz  = ret;
         #endif
             FALL_THROUGH;
 
         case WC_PKCS7_ENV_2:
         #ifndef NO_PKCS7_STREAM
             /* store up enough buffer for initial info set decode */
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_LENGTH_SZ +
-                            MAX_VERSION_SZ + ASN_TAG_SZ, &pkiMsg, &idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                    pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 return ret;
             }
         #endif
@@ -12452,7 +12464,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
+            tmpIdx = idx;
         #endif
+            pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                         decryptedKey, &decryptedKeySz,
@@ -12466,6 +12480,18 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
+            /* advance idx past recipient info set if not all recipients
+             * parsed */
+            if (pkcs7->stream->totalRd < (pkcs7->stream->recipientSz +
+                    tmpIdx)) {
+                idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
+
+                /* process additional recipients as read */
+                if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, &idx)) != 0) {
+                    break;
+                }
+            }
+
             tmpIdx               = idx;
             pkcs7->stream->aadSz = decryptedKeySz;
             pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
