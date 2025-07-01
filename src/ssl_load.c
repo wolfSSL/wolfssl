@@ -55,7 +55,13 @@
 
 #if !defined(WOLFSSL_SSL_LOAD_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning ssl_load.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                "ssl_load.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning \
+                 ssl_load.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 
@@ -952,8 +958,8 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     word32 idx;
     dilithium_key* key;
     int keyFormatTemp = 0;
-    int keyTypeTemp;
-    int keySizeTemp;
+    int keyTypeTemp = 0;
+    int keySizeTemp = 0;
 
     /* Allocate a Dilithium key to parse into. */
     key = (dilithium_key*)XMALLOC(sizeof(dilithium_key), heap,

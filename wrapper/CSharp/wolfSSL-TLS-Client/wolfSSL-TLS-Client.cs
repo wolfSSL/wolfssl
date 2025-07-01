@@ -29,6 +29,24 @@ using wolfSSL.CSharp;
 
 public class wolfSSL_TLS_Client
 {
+    // Sample listening server:
+    // See https://github.com/wolfSSL/wolfssl/tree/master/examples/server
+    //
+    // Examples disable client cert check with `-d`:
+    //   ./examples/server/server -d -p 11111 -c ./certs/server-cert.pem -k ./certs/server-key.pem
+    //   ./examples/server/server -d -p 12345
+    //
+    // Ensure the -p [port] for client matches SERVER_PORT value here:
+    //
+    public static string SERVER_NAME = "localhost"; /* or IP address: "192.168.1.73 */
+    public static int SERVER_PORT = 11111;
+    public static bool VERBOSE_DLL_LOAD = true;
+
+    // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
+    public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";
+
+    private static wolfssl.WOLFSSL_ALERT_HISTORY myHistory = new wolfssl.WOLFSSL_ALERT_HISTORY();
+
     /// <summary>
     /// Example of a logging function
     /// </summary>
@@ -39,6 +57,29 @@ public class wolfSSL_TLS_Client
         Console.WriteLine(msg);
     }
 
+    public static void show_alert_history_code(wolfssl.WOLFSSL_ALERT h, string m)
+    {
+        /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
+        if ((h.code > 0) || (h.level > 0)) {
+            Console.WriteLine(m + " code:  " + h.code.ToString());
+        }
+        if ((h.code > 0) || (h.level > 0)) {
+            Console.WriteLine(m + " level: " + h.level.ToString());
+        }
+    }
+
+    public static void show_alert_history(IntPtr ssl)
+    {
+        int ret = 0;
+        ret = wolfssl.get_alert_history(ssl, ref myHistory);
+        if (ret == wolfssl.SUCCESS) {
+            show_alert_history_code(myHistory.last_tx, "myHistory last_tx");
+            show_alert_history_code(myHistory.last_rx, "myHistory last_rx");
+        }
+        else {
+            Console.WriteLine("Failed: call to get_alert_history failed with error " + ret.ToString());
+        }
+    }
 
     private static void clean(IntPtr ssl, IntPtr ctx)
     {
@@ -92,6 +133,17 @@ public class wolfSSL_TLS_Client
         IntPtr ssl;
         Socket tcp;
         IntPtr sniHostName;
+
+        Console.WriteLine(Environment.CurrentDirectory);
+        wolfssl.SetVerbosity(true);
+        if (File.Exists("wolfssl.dll")) {
+            Console.WriteLine("Found wolfssl.dll");
+        }
+        else {
+            /* Consider copying to working directory, or adding to path */
+            Console.WriteLine("ERROR: Could not find wolfssl.dll; trying explicit load...");
+            wolfssl.LoadDLL("");
+        }
 
         /* These paths should be changed for use */
         string caCert = wolfssl.setPath("ca-cert.pem");
@@ -161,9 +213,10 @@ public class wolfSSL_TLS_Client
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
+
         /* Uncomment Section to enable specific cipher suite */
 #if false
-        ciphers = new StringBuilder("ECDHE-ECDSA-AES128-GCM-SHA256");
+        ciphers = new StringBuilder(CIPHER_SUITE);
         if (wolfssl.CTX_set_cipher_list(ctx, ciphers) != wolfssl.SUCCESS)
         {
             Console.WriteLine("ERROR CTX_set_cipher_list()");
@@ -188,7 +241,7 @@ public class wolfSSL_TLS_Client
                               ProtocolType.Tcp);
         try
         {
-            tcp.Connect("localhost", 11111);
+            tcp.Connect(SERVER_NAME, SERVER_PORT);
         }
         catch (Exception e)
         {
@@ -213,7 +266,7 @@ public class wolfSSL_TLS_Client
             return;
         }
 
-        Console.WriteLine("Connection made wolfSSL_connect ");
+        Console.WriteLine("Created new ssl object");
         if (wolfssl.set_fd(ssl, tcp) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
@@ -227,8 +280,12 @@ public class wolfSSL_TLS_Client
 
         if (wolfssl.connect(ssl) != wolfssl.SUCCESS)
         {
+            Console.WriteLine("Connection made wolfSSL_connect");
+
             /* get and print out the error */
             Console.WriteLine(wolfssl.get_error(ssl));
+            show_alert_history(ssl);
+
             tcp.Close();
             clean(ssl, ctx);
             return;
@@ -238,6 +295,8 @@ public class wolfSSL_TLS_Client
         Console.WriteLine("SSL version is " + wolfssl.get_version(ssl));
         Console.WriteLine("SSL cipher suite is " + wolfssl.get_current_cipher(ssl));
 
+        /* Optional code & level history */
+        show_alert_history(ssl);
 
         if (wolfssl.write(ssl, reply, reply.Length) != reply.Length)
         {

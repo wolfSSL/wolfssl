@@ -28,6 +28,65 @@ need to open a new solution `wolfSSL_CSharp.sln` located in `wrapper\CSharp\wolf
 Select the CPU type, configuration, and target file.
 select `Build` and either `Rebuild Solution` or `Build Solution`.
 
+The `wolfssl` project will typically need the `DLL_Debug` or `DLL_Release` configuration with `x64` platform.
+
+Check that the proper preprocessor definitions are included: `BUILDING_WOLFSSL;WOLFSSL_DLL;WOLFSSL_USER_SETTINGS`
+
+Some older versions of Visual Studio will require manually setting the Configure Type to create a DLL file:
+
+```
+Configuration Properties - General
+
+- Configuration Type: change from Static Library (.lib) - Dynamic Library (.dll)
+```
+
+For errors such as these:
+
+```
+error LNK2019: unresolved external symbol __imp__inet_pton@12 ...
+error LNK2019: unresolved external symbol __imp__htons@4 ...
+error LNK2019: unresolved external symbol __imp__recv@16 ...
+```
+
+Add `Ws2_32.lib` to Configuration Properties - Linker - ( Input || Additional Dependency)
+
+Note the `AnyCPU` Platform not work with C libraries compiled to a specific architecture.
+An error like this will likely be encountered:
+
+```
+System.DllNotFoundException
+  HResult=0x80131524
+  Message=Unable to load DLL 'wolfssl.dll': The specified module could not be found. (Exception from HRESULT: 0x8007007E)
+  Source=wolfSSL_CSharp
+  StackTrace:
+   at wolfSSL.CSharp.wolfssl.wolfSSL_SetLoggingCb(loggingCb vc)
+   at wolfSSL.CSharp.wolfssl.SetLogging(loggingCb input) in C:\workspace\wolfssl-gojimmypi\wrapper\CSharp\wolfSSL_CSharp\wolfSSL.cs:line 2716
+   at wolfSSL_TLS_Client.Main(String[] args) in C:\workspace\wolfssl-gojimmypi\wrapper\CSharp\wolfSSL-TLS-Client\wolfSSL-TLS-Client.cs:line 151
+```
+
+There's a separate `wolfSSL_CSharp-Clients.sln` solution file to allow concurrent client
+applications in Visual Studio, with server running in `wolfSSL_CSharp.sln`.
+
+Be sure to right-click and "Set as Startup Project" for whichever sample is being used.
+
+If you see this error:
+
+```
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+```
+
+Run PowerShell manually from Windows Start Icon. Output should look something like this:
+
+```
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+Loading personal and system profiles took 1026ms.
+```
+
 ## Linux (Ubuntu) using mono
 
 Prerequisites for linux:

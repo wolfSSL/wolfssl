@@ -28,6 +28,13 @@ namespace wolfSSL.CSharp
 {
     public class wolfcrypt
     {
+        /* Ensure CPU architecture of .cs files matches wolfssl.dll
+         *
+         * See the x64 wolfssl.dll file in
+         *   [WOLFSSL_ROOT]\wrapper\CSharp\Debug\x64\wolfssl.dll
+         * not AnyCPU
+         *   [WOLFSSL_ROOT]\wrapper\CSharp\DLL Debug\wolfssl.dll
+         */
         private const string wolfssl_dll = "wolfssl.dll";
 
         /********************************

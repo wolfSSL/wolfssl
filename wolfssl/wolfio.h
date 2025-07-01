@@ -920,7 +920,11 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #if defined(__MINGW64__) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
-            #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+            #if defined(_MSC_VER) && (_MSC_VER >= 1600)
+                #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+            #else
+                #define XINET_PTON(a,b,c)   InetPton((a),(PCSTR)(b),(c))
+            #endif
         #endif
     #else
         #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))

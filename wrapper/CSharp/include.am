@@ -26,6 +26,7 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/Properties/AssemblyInfo.
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/wolfSSL-Example-IOCallbacks.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/wolfSSL-Example-IOCallbacks.csproj
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp.sln
+EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp-Clients.sln
 EXTRA_DIST+= wrapper/CSharp/user_settings.h
 EXTRA_DIST+= wrapper/CSharp/wolfssl.vcxproj
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/AssemblyInfo.cs

@@ -36,6 +36,117 @@ namespace wolfSSL.CSharp
 
         /* wait for 6 seconds default on TCP socket state poll if timeout not set */
         private const int WC_WAIT = 6000000;
+        private static bool verbose = false;
+
+        public static void SetVerbosity(bool b) {
+            verbose = b;
+        }
+
+        /// <summary>
+        /// Use the SetDllDirectory from Windows kernel32.dll to set DLL location of wolfSSL
+        /// </summary>
+        /// <param name="lpPathName"></param>
+        /// <returns></returns>
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool SetDllDirectory(string lpPathName);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        public static bool LoadDLL(string wolfsslPath) {
+            string[] subDirsToCheck;
+            string baseDir = "";
+            bool ret = false;
+            if (verbose) {
+                Console.WriteLine("AppDomain.CurrentDomain.BaseDirectory: " + AppDomain.CurrentDomain.BaseDirectory);
+            }
+            bool is64Bit = (IntPtr.Size == 8);
+#if DEBUG
+            if (is64Bit) {
+                subDirsToCheck = new string[] { "Debug", "Debug\\x64" };
+            }
+            else {
+                subDirsToCheck = new string[] { "Debug", "Debug\\x86", "Debug\\Win32" };
+            }
+#elif RELEASE
+            if (is64Bit) {
+                subDirsToCheck = new string[] { "Release", "Release\\x64" };
+            }
+            else {
+                subDirsToCheck = new string[] { "Release", "Release\\x86", "Release\\Win32" };
+            }
+#else
+#pragma "Only DEBUG and RELEASE supported"
+#endif
+
+            if (wolfsslPath == "") {
+                /* wolfSSL project should have created a DLL in [WOLFSSL_ROOT]\Debug, some number of directories up from here:  */
+                /* baseDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\..\..\..\Debug")); */
+                string dir = Environment.CurrentDirectory;
+                if (verbose) {
+                    Console.WriteLine("Looking for wolfSSL in parents, starting from: " + dir);
+                }
+
+                while ((!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) || !ret) {
+                    for (int i = 0; i < subDirsToCheck.Length; i++) {
+                        string subdir = Path.Combine(dir, subDirsToCheck[i]);
+                        string candidate = Path.Combine(subdir, wolfssl_dll);
+                        if (verbose) {
+                            Console.WriteLine("Looking in: " + subdir);
+                        }
+                        if (File.Exists(candidate)) {
+                            if (verbose) {
+                                Console.WriteLine("Found wolfssl.dll: " + candidate);
+                            }
+                            /* Be sure to use path without filename in call to SetDllDirectory */
+                            baseDir = subdir;
+                            ret = true;
+                            break;
+                        }
+                    }
+
+                    if (ret) {
+                        break;
+                    }
+
+                    DirectoryInfo parent = Directory.GetParent(dir);
+                    if (parent == null)
+                        break;
+
+                    dir = parent.FullName;
+                }
+
+            }
+            else {
+                baseDir = System.IO.Path.GetDirectoryName(wolfsslPath);
+            }
+
+            if (verbose) {
+                String wolfssl_path = Path.Combine(baseDir, wolfssl_dll);
+                if (File.Exists(wolfssl_path)) {
+                    FileInfo info = new FileInfo(wolfssl_path);
+                    Console.WriteLine("Found: " + wolfssl_path);
+                    Console.WriteLine("  Size: " + info.Length + " bytes");
+                    Console.WriteLine("  Modified: " + info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                }
+                else {
+                    Console.WriteLine("File not found: " + wolfssl_path);
+                }
+            }
+
+            if (SetDllDirectory(baseDir)) {
+                if (verbose) {
+                    Console.WriteLine("Successfully SetDllDirectory to: " + baseDir);
+                }
+                ret = true;
+            }
+            else {
+                Console.WriteLine("Failed SetDllDirectory for: " + baseDir);
+            }
+            return ret;
+        }
 
         /********************************
          * Utility String Conversion functions
@@ -299,6 +410,23 @@ namespace wolfSSL.CSharp
                     this.vrf_cb.Free();
                 }
             }
+        }
+
+        /********************************
+         * The WOLFSSL_ALERT_HISTORY
+         */
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WOLFSSL_ALERT
+        {
+            public int code;
+            public int level;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WOLFSSL_ALERT_HISTORY
+        {
+            public WOLFSSL_ALERT last_rx;
+            public WOLFSSL_ALERT last_tx;
         }
 
 
@@ -575,6 +703,8 @@ namespace wolfSSL.CSharp
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_get_error(IntPtr ssl, int err);
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
         public delegate void loggingCb(int lvl, string msg);
         [DllImport(wolfssl_dll)]
         private extern static void wolfSSL_Debugging_ON();
@@ -587,6 +717,8 @@ namespace wolfSSL.CSharp
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_get_error(IntPtr ssl, int err);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void loggingCb(int lvl, StringBuilder msg);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -748,8 +880,11 @@ namespace wolfSSL.CSharp
         /// based on the platform.
         /// <returns>return the platform specific path to the certificate</returns>
         /// </summary>
-        public static string setPath(string file) {
+        public static string setPath(string file)
+        {
             PlatformID platform = Environment.OSVersion.Platform;
+            string cert_path = "./", current_dir = ".";
+            bool found_path = false;
 
 #if !WindowsCE
             if (platform == PlatformID.Unix ||
@@ -765,10 +900,32 @@ namespace wolfSSL.CSharp
                 platform == PlatformID.Win32S ||
                 platform == PlatformID.WinCE)
             {
+                current_dir = Directory.GetCurrentDirectory();
+                while (!string.IsNullOrEmpty(current_dir) && !found_path)
+                {
+                    cert_path = Path.Combine(current_dir, "certs");
+                    if (Directory.Exists(cert_path))
+                    {
+                        Console.WriteLine("Found certs folder at: " + cert_path);
+                        found_path = true;
+                    }
+
+                    if (string.IsNullOrEmpty(current_dir))
+                    {
+                        current_dir = ".\\";
+                    }
+                    else
+                    {
+                        current_dir = Directory.GetParent(current_dir).FullName;
+                    }
+                }
+
                 Console.WriteLine("Windows - " + file);
-                return @"../../../../certs/" + file;
-            } else
+                return cert_path + "\\" + file;
+            }
+            else
             {
+                Console.WriteLine("Other environment: " + platform.ToString() + ", no cert file found.");
                 return "";
             }
         }
@@ -2044,6 +2201,7 @@ namespace wolfSSL.CSharp
             catch (Exception e)
             {
                 log(ERROR_LOG, "wolfssl error " + e.ToString());
+                Console.WriteLine(e.Message);
                 return IntPtr.Zero;
             }
         }
@@ -2253,6 +2411,32 @@ namespace wolfSSL.CSharp
             {
                 log(ERROR_LOG, "wolfssl get error, error " + e.ToString());
                 return null;
+            }
+        }
+
+
+        /// <summary>
+        /// This function gets the alert history.
+        /// </summary>
+        /// <param name="ssl">SSL struct</param>
+        /// <param name="h">a pointer to a WOLFSSL_ALERT_HISTORY structure that will hold the WOLFSSL struct’s alert_history member’s value.</param>
+        /// <returns>Integer result of wolfSSL_get_alert_history SSL_SUCCESS or FAILURE</returns>
+        public static int get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h) {
+            if (ssl == IntPtr.Zero)
+                return FAILURE;
+
+            try {
+                IntPtr local_ssl = unwrap_ssl(ssl);
+                if (local_ssl == IntPtr.Zero) {
+                    log(ERROR_LOG, "wolfssl get_error error");
+                    return FAILURE;
+                }
+
+                return wolfSSL_get_alert_history(local_ssl, ref h);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl get error, error " + e.ToString());
+                return FAILURE;
             }
         }
 
@@ -2647,6 +2831,14 @@ namespace wolfSSL.CSharp
         {
             internal_log = input;
 
+            /* This is typically the first wrapper call to wolfSSL.
+             *
+             * If this error is encountered:
+             *
+             *   Unable to load DLL 'wolfssl.dll': The specified module could not be found. (Exception from HRESULT: 0x8007007E)
+             *
+             * Ensure the Build - Configuration Manager - Platform matches for all respective projects, e.g. x64
+             */
             wolfSSL_SetLoggingCb(input);
 
             return SUCCESS;
