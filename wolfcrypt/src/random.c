@@ -232,7 +232,6 @@ This library contains implementation for the random number generator.
 
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
-#define RESEED_INTERVAL   WC_RESEED_INTERVAL
 
 
 /* The security strength for the RNG is the target number of bits of
@@ -645,10 +644,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_FAILURE;
     }
 
-    if (drbg->reseedCtr == RESEED_INTERVAL) {
-#if FIPS_VERSION3_GE(6,0,0)
-        printf("Reseed triggered\n");
-#endif
+    if (drbg->reseedCtr >= WC_RESEED_INTERVAL) {
+    #if defined(DEBUG_WOLFSSL) || defined(DEBUG_DRBG_RESEEDS)
+        printf("DRBG reseed triggered, reseedCtr == %lu",
+               (unsigned long)drbg->reseedCtr);
+    #endif
         return DRBG_NEED_RESEED;
     }
     else {
