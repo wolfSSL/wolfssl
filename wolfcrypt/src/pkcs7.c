@@ -12659,8 +12659,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         case WC_PKCS7_ENV_5:
 
         #ifndef NO_PKCS7_STREAM
+
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                    wc_PKCS7_StreamGetVar(pkcs7, &encOID, NULL, NULL);
+                    wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
+                }
                 return ret;
             }
 

@@ -64461,13 +64461,15 @@ static int test_wolfSSL_SCR_after_resumption(void)
     ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
     ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
 
-    func_cb_client.ssl_ready = test_wolfSSL_SCR_after_resumption_ssl_ready;
-    func_cb_server.on_result = test_wolfSSL_SCR_after_resumption_on_result;
+    if (EXPECT_SUCCESS()) {
+        func_cb_client.ssl_ready = test_wolfSSL_SCR_after_resumption_ssl_ready;
+        func_cb_server.on_result = test_wolfSSL_SCR_after_resumption_on_result;
 
-    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
-    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+        ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+        ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+    }
 
     wolfSSL_SESSION_free(test_wolfSSL_SCR_after_resumption_session);
 
