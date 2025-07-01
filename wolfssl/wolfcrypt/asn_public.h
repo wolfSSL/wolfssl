@@ -642,9 +642,9 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 #ifdef WOLFSSL_DER_TO_PEM
     WOLFSSL_ABI
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, int type);
+                                word32 outSz, int type);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, byte *cipherIno, int type);
+                                word32 outSz, byte *cipher_info, int type);
 #endif
 
 WOLFSSL_API word32 wc_PkcsPad(byte* buf, word32 sz, word32 blockSz);

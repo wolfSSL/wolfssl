@@ -1192,7 +1192,7 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
     \sa wc_PemCertToDer
 */
 int wc_DerToPem(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, int type);
+                                word32 outSz, int type);
 
 /*!
     \ingroup ASN
@@ -1219,7 +1219,7 @@ int wc_DerToPem(const byte* der, word32 derSz, byte* output,
     formatted certificate
     \param outSz size of the buffer in which to store the pem formatted
     certificate
-    \param cipher_inf Additional cipher information.
+    \param cipher_info Additional cipher information.
     \param type the type of certificate to generate. Valid types are:
     CERT_TYPE, PRIVATEKEY_TYPE, ECC_PRIVATEKEY_TYPE, and CERTREQ_TYPE.
 
@@ -1237,7 +1237,7 @@ int wc_DerToPem(const byte* der, word32 derSz, byte* output,
     \sa wc_PemCertToDer
 */
 int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
-                                word32 outputSz, byte *cipherIno, int type);
+                                word32 outSz, byte *cipher_info, int type);
 
 /*!
     \ingroup CertsKeys
