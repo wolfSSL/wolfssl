@@ -42,6 +42,7 @@ enum wc_LogLevels {
     INFO_LOG,
     ENTER_LOG,
     LEAVE_LOG,
+    CERT_LOG,
     OTHER_LOG
 };
 
@@ -152,6 +153,28 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_TIME(n)  WC_DO_NOTHING
 #endif
 
+#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX) && \
+    (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS))
+
+    #ifndef WOLFSSL_MSG_CERT_INDENT
+    #define WOLFSSL_MSG_CERT_INDENT "\t-  "
+    #endif
+
+    #ifdef __clang__
+    /* tell clang argument 1 is format */
+    __attribute__((__format__ (__printf__, 1, 0)))
+    #endif
+    WOLFSSL_API void WOLFSSL_MSG_CERT(const char* fmt, ...);
+#else
+    #undef WOLFSSL_DEBUG_CERTS
+    #ifdef WOLF_NO_VARIADIC_MACROS
+        /* Using macro must be wrapped with #ifdef WOLFSSL_DEBUG_CERTS */
+        #define WOLFSSL_MSG_CERT()    WC_DO_NOTHING
+    #else
+        #define WOLFSSL_MSG_CERT(...) WC_DO_NOTHING
+    #endif
+#endif
+
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
     #if defined(_WIN32)
         #if defined(INTIME_RTOS)
@@ -206,7 +229,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
 
 #else
-
+    /* ! (defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)) */
     #define WOLFSSL_ENTER(m)      WC_DO_NOTHING
     #define WOLFSSL_LEAVE(m, r)   WC_DO_NOTHING
     #define WOLFSSL_STUB(m)       WC_DO_NOTHING
@@ -220,9 +243,9 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #else
         #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
     #endif
-    #define WOLFSSL_MSG(m)        WC_DO_NOTHING
-    #define WOLFSSL_BUFFER(b, l)  WC_DO_NOTHING
 
+    #define WOLFSSL_MSG(m)       WC_DO_NOTHING
+    #define WOLFSSL_BUFFER(b, l) WC_DO_NOTHING
 #endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
 
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
