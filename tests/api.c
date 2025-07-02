@@ -19598,6 +19598,9 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         a->isDynamic = 0;
         a->data = a->intData;
     }
+    /* Reset p2 to NULL. */
+    XFREE(p2, NULL, DYNAMIC_TYPE_ASN1);
+
     /* Set a to valid value. */
     ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(a, 1), WOLFSSL_SUCCESS);
     /* NULL output buffer. */
@@ -19637,7 +19640,6 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         reEncoded = NULL;
         wolfSSL_ASN1_INTEGER_free(a);
         a = NULL;
-        p2 = NULL;
     }
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
