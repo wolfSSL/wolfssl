@@ -2271,7 +2271,10 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     #endif
     #ifndef RSA_LOW_MEM
             if ((mp_count_bits(&key->p) == 1024) &&
-                                             (mp_count_bits(&key->q) == 1024)) {
+                    (mp_count_bits(&key->q) == 1024) &&
+                    (mp_count_bits(&key->dP) > 0) &&
+                    (mp_count_bits(&key->dQ) > 0) &&
+                    (mp_count_bits(&key->u) > 0)) {
                 return sp_RsaPrivate_2048(in, inLen, &key->d, &key->p, &key->q,
                                           &key->dP, &key->dQ, &key->u, &key->n,
                                           out, outLen);
@@ -2302,7 +2305,10 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     #endif
     #ifndef RSA_LOW_MEM
             if ((mp_count_bits(&key->p) == 1536) &&
-                                             (mp_count_bits(&key->q) == 1536)) {
+                    (mp_count_bits(&key->q) == 1536) &&
+                    (mp_count_bits(&key->dP) > 0) &&
+                    (mp_count_bits(&key->dQ) > 0) &&
+                    (mp_count_bits(&key->u) > 0)) {
                 return sp_RsaPrivate_3072(in, inLen, &key->d, &key->p, &key->q,
                                           &key->dP, &key->dQ, &key->u, &key->n,
                                           out, outLen);
@@ -2333,7 +2339,10 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     #endif
     #ifndef RSA_LOW_MEM
             if ((mp_count_bits(&key->p) == 2048) &&
-                                             (mp_count_bits(&key->q) == 2048)) {
+                    (mp_count_bits(&key->q) == 2048) &&
+                    (mp_count_bits(&key->dP) > 0) &&
+                    (mp_count_bits(&key->dQ) > 0) &&
+                    (mp_count_bits(&key->u) > 0)) {
                 return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
                                           &key->dP, &key->dQ, &key->u, &key->n,
                                           out, outLen);
@@ -2434,7 +2443,13 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             if (ret == 0 && mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
         #else
-            if (ret == 0) {
+            if (ret == 0 && (mp_iszero(&key->p) || mp_iszero(&key->q) ||
+                    mp_iszero(&key->dP) || mp_iszero(&key->dQ))) {
+                if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY) {
+                    ret = MP_EXPTMOD_E;
+                }
+            }
+            else if (ret == 0) {
             #ifdef WOLFSSL_SMALL_STACK
                 mp_int* tmpa;
                 mp_int* tmpb = NULL;
