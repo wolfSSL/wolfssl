@@ -40,7 +40,6 @@ jobs:
           retention-days: 5
 
   sssd_check:
-    if: github.repository_owner == 'wolfssl'
     strategy:
       fail-fast: false
       matrix:
