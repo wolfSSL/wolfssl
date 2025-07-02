@@ -1,4 +1,4 @@
-﻿/* X509.cs
+/* X509.cs
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,10 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+/* CE Not always reliably detected. Define your own WindowsCE as needed */
+#if _WIN32_WCE || WINCE || PocketPC
+    #if !WindowsCE
+        #define NEED_WINDOWS_CE
+    #endif
+#endif
+
+#if NEED_WINDOWS_CE
+    #warning "WARNING: WindowsCE should be defined in your user_settings.h file AND project"
+    #define WindowsCE
+#endif
+
+
 using System;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 
 namespace wolfSSL.CSharp
 {

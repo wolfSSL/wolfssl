@@ -854,9 +854,9 @@ public class wolfCrypt_Test_CSharp
         }
     } /* END hash_test */
 
-    public static void standard_log(int lvl, StringBuilder msg)
-    {
-        Console.WriteLine(msg);
+    public static void standard_log(int lvl, IntPtr msg) {
+        string str = Marshal.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
     public static void Main(string[] args)

@@ -19,6 +19,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+/* CE Not always reliably detected. Define your own WindowsCE as needed */
+#if _WIN32_WCE
+    #undef  WindowsCE
+    #define WindowsCE
+#endif
+
+#if WINCE
+    #undef  WindowsCE
+    #define WindowsCE
+#endif
+
+#if PocketPC
+    #undef  WindowsCE
+    #define WindowsCE
+#endif
+
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -45,19 +62,20 @@ public class wolfSSL_TLS_Client
     // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
     public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";
 
-    private static wolfssl.WOLFSSL_ALERT_HISTORY myHistory = new wolfssl.WOLFSSL_ALERT_HISTORY();
+    private static WOLFSSL_ALERT_HISTORY myHistory = new WOLFSSL_ALERT_HISTORY();
 
     /// <summary>
     /// Example of a logging function
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg)
+    public static void standard_log(int lvl, IntPtr msg)
     {
-        Console.WriteLine(msg);
+        string str = wolfssl.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
-    public static void show_alert_history_code(wolfssl.WOLFSSL_ALERT h, string m)
+    public static void show_alert_history_code(WOLFSSL_ALERT h, string m)
     {
         /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
         if ((h.code > 0) || (h.level > 0)) {
@@ -134,7 +152,12 @@ public class wolfSSL_TLS_Client
         Socket tcp;
         IntPtr sniHostName;
 
+#if WindowsCE
+       string exePath = System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
+       Console.WriteLine("Executable Path: " + exePath);
+#else
         Console.WriteLine(Environment.CurrentDirectory);
+#endif
         wolfssl.SetVerbosity(true);
         if (File.Exists("wolfssl.dll")) {
             Console.WriteLine("Found wolfssl.dll");
@@ -147,7 +170,7 @@ public class wolfSSL_TLS_Client
 
         /* These paths should be changed for use */
         string caCert = wolfssl.setPath("ca-cert.pem");
-        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        string dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem")).ToString();
 
         if (caCert == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported.");
@@ -197,7 +220,7 @@ public class wolfSSL_TLS_Client
         if (sniArg >= 0)
         {
             string sniHostNameString = args[sniArg].Trim();
-            sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
+            sniHostName = wolfssl.StringToAnsiPtr(sniHostNameString);
 
             ushort size = (ushort)sniHostNameString.Length;
 
@@ -209,9 +232,9 @@ public class wolfSSL_TLS_Client
            }
         }
 
-        StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
+        string ciphers = new String(' ', 4096);
         wolfssl.get_ciphers(ciphers, 4096);
-        Console.WriteLine("Ciphers : " + ciphers.ToString());
+        Console.WriteLine("Ciphers : " + ciphers);
 
 
         /* Uncomment Section to enable specific cipher suite */
@@ -241,7 +264,18 @@ public class wolfSSL_TLS_Client
                               ProtocolType.Tcp);
         try
         {
+#if WindowsCE
+            IPAddress[] addresses = Dns.GetHostEntry(SERVER_NAME).AddressList;
+            foreach (IPAddress addr in addresses)
+            {
+                if (addr.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    tcp.Connect(new IPEndPoint(addr, SERVER_PORT));
+                }
+            }
+#else
             tcp.Connect(SERVER_NAME, SERVER_PORT);
+#endif
         }
         catch (Exception e)
         {

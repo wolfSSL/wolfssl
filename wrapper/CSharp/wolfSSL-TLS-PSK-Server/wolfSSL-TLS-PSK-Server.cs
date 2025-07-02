@@ -129,7 +129,8 @@ public class wolfSSL_TLS_PSK_Server
         }
 
 
-        StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
+        string ciphers = new string(' ', 4096);
+
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
@@ -182,7 +183,7 @@ public class wolfSSL_TLS_PSK_Server
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM);
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {

@@ -19,10 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+/* CE Not always reliably detected. Define your own WindowsCE as needed */
+#if _WIN32_WCE || WINCE || PocketPC
+    #if !WindowsCE
+        #define NEED_WINDOWS_CE
+    #endif
+#endif
+
+#if NEED_WINDOWS_CE
+    #warning "WARNING: WindowsCE should be defined in your user_settings.h file AND project"
+    #define WindowsCE
+#endif
+
+
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace wolfSSL.CSharp
 {
@@ -518,11 +530,13 @@ namespace wolfSSL.CSharp
 #if WindowsCE
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wc_GetErrorString(int error);
-        public delegate void loggingCb(int lvl, string msg);
+        /* No Windows CE decorator for logging call-back */
+        public delegate void loggingCb(int lvl, IntPtr msg);
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_GetErrorString(int error);
-        public delegate void loggingCb(int lvl, StringBuilder msg);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void loggingCb(int lvl, IntPtr msg);
 #endif
         private static loggingCb internal_log;
 
@@ -531,25 +545,21 @@ namespace wolfSSL.CSharp
         /// </summary>
         /// <param name="lvl">Level of log message</param>
         /// <param name="msg">Message to log</param>
-#if WindowsCE
         private static void log(int lvl, string msg)
         {
             /* if log is not set then print nothing */
             if (internal_log == null)
                 return;
-            internal_log(lvl, msg);
+            IntPtr ptr = wolfssl.StringToAnsiPtr(msg);
+            try
+            {
+                internal_log(lvl, ptr);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
         }
-#else
-        private static void log(int lvl, string msg)
-        {
-            /* if log is not set then print nothing */
-            if (internal_log == null)
-                return;
-            StringBuilder ptr = new StringBuilder(msg);
-            internal_log(lvl, ptr);
-        }
-#endif
-
 
         /********************************
          * Enum types from wolfSSL library

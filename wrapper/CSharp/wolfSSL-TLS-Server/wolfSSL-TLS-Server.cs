@@ -34,9 +34,9 @@ public class wolfSSL_TLS_CSHarp
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg)
-    {
-        Console.WriteLine(msg);
+    public static void standard_log(int lvl, IntPtr msg) {
+        string str = Marshal.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
 
@@ -153,7 +153,7 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
+        string ciphers = new string(' ', 4096);
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
@@ -203,7 +203,7 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
+        if (wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting dh2048Pem");
             Console.WriteLine(wolfssl.get_error(ssl));

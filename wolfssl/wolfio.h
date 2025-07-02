@@ -50,6 +50,23 @@
     #endif
 #endif
 
+/* CE Not always reliably detected. Define your own WindowsCE as needed */
+#if defined(_WIN32_WCE) || defined(WINCE) || defined(PocketPC) || \
+   (defined(_MSC_VER) && (_MSC_VER < 1600))
+    #if !defined(WindowsCE)
+        #define NEED_WINDOWS_CE
+    #endif
+#endif
+
+#if defined(NEED_WINDOWS_CE)
+    #if defined(_MSC_VER)
+        #pragma message( \
+"Warning WindowsCE should be defined in your user_settings.h file AND project")
+    #else
+#warning WindowsCE should be defined in your user_settings.h file AND project
+    #endif
+    #define WindowsCE
+#endif
 
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 
@@ -920,7 +937,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #if defined(__MINGW64__) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
-            #if defined(_MSC_VER) && (_MSC_VER >= 1600)
+            #if (defined(_MSC_VER) && (_MSC_VER >= 1600)) || defined(WindowsCE)
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
             #else
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCSTR)(b),(c))

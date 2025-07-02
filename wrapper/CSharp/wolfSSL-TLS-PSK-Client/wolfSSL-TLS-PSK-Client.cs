@@ -107,7 +107,7 @@ public class wolfSSL_TLS_PSK_Client
         }
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
-        StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
+        string ciphers = new String(' ', 4096);
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
@@ -173,7 +173,7 @@ public class wolfSSL_TLS_PSK_Client
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM);
 
         if (wolfssl.connect(ssl) != wolfssl.SUCCESS)
         {
