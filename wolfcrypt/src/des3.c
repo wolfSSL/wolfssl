@@ -1677,7 +1677,7 @@
 
     static void DesProcessBlock(Des* des, const byte* in, byte* out)
     {
-        word32 l, r;
+        word32 l = 0, r = 0;
 
         XMEMCPY(&l, in, sizeof(l));
         XMEMCPY(&r, in + sizeof(l), sizeof(r));
@@ -1700,7 +1700,7 @@
 
     static void Des3ProcessBlock(Des3* des, const byte* in, byte* out)
     {
-        word32 l, r;
+        word32 l = 0, r = 0;
 
         XMEMCPY(&l, in, sizeof(l));
         XMEMCPY(&r, in + sizeof(l), sizeof(r));
