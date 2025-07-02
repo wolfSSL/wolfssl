@@ -4001,12 +4001,6 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_XCHACHA
 #endif
 
-#if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512) && defined(NO_AES) && \
-                                                          !defined(WOLFSSL_SHA3)
-    #undef  WOLFSSL_NO_WORD64_OPS
-    #define WOLFSSL_NO_WORD64_OPS
-#endif
-
 #if !defined(WOLFCRYPT_ONLY) && \
     (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
     #undef  WOLFSSL_HAVE_PRF
