@@ -1085,14 +1085,14 @@
         _alloc_sz;                                                         \
     })
     #ifdef HAVE_KVMALLOC
-        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_ATOMIC, NUMA_NO_NODE)
+#define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #define free(ptr) kvfree(ptr)
         void *lkm_realloc(void *ptr, size_t newsize);
         #define realloc(ptr, newsize) lkm_realloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize))
     #else
-        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_ATOMIC)
+        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)
-        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_ATOMIC)
+        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
     #endif
 
     #ifndef static_assert

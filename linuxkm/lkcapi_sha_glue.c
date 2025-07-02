@@ -966,11 +966,15 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
     return;
 }
 
+static volatile int wc_linuxkm_drbg_init_tfm_disable_vector_registers = 0;
+
 static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_tfm_ctx(tfm);
     unsigned int i;
     int ret;
+    int need_reenable_vec = 0;
+    int can_sleep = (preempt_count() == 0);
 
     ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * nr_cpu_ids);
     if (! ctx->rngs)
@@ -979,12 +983,18 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
 
     for (i = 0; i < nr_cpu_ids; ++i) {
         ctx->rngs[i].lock = 0;
+        if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
+            need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
         ret = wc_InitRng(&ctx->rngs[i].rng);
+        if (need_reenable_vec)
+            REENABLE_VECTOR_REGISTERS();
         if (ret != 0) {
             pr_warn_once("WARNING: wc_InitRng returned %d\n",ret);
             ret = -EINVAL;
             break;
         }
+        if (can_sleep)
+            cond_resched();
     }
 
     if (ret != 0) {
@@ -1349,7 +1359,7 @@ static ssize_t wc_extract_crng_user(void __user *buf, size_t nbytes) {
 
         ForceZero(block, sizeof(block));
 
-        if (total_copied == 0) {
+        if ((total_copied == 0) && (ret == 0)) {
             ret = -ECANCELED;
         }
 
@@ -1391,6 +1401,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 static int wc_crng_reseed(void) {
     struct wc_linuxkm_drbg_ctx *ctx = get_default_drbg_ctx();
     int n;
+    int can_sleep = (preempt_count() == 0);
 
     if (! ctx)
         return -EFAULT;
@@ -1398,11 +1409,17 @@ static int wc_crng_reseed(void) {
     for (n = nr_cpu_ids - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
         ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
-        /* don't actually reseed now -- running the memory entropy generator for
-         * all of the DRBGs can take so long that it triggers "rcu: INFO:
-         * rcu_sched self-detected stall on CPU".
-         */
-        put_drbg(drbg);
+        if (can_sleep) {
+            byte scratch[4];
+            int need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
+            int ret = wc_RNG_GenerateBlock(&drbg->rng, scratch, (word32)sizeof(scratch));
+            if (need_reenable_vec)
+                REENABLE_VECTOR_REGISTERS();
+            if (ret != 0)
+                pr_err("ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() for DRBG #%d returned %d.", n, ret);
+            put_drbg(drbg);
+            cond_resched();
+        }
     }
 
     return 0;
@@ -1712,22 +1729,19 @@ static int wc_linuxkm_drbg_startup(void)
     WOLFKM_INSTALL_NOTICE(wc_linuxkm_drbg);
 
 #ifdef LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    ret = crypto_del_default_rng();
-    if (ret) {
-        pr_err("ERROR: crypto_del_default_rng returned %d", ret);
-        return ret;
-    }
-
     /* for the default RNG, make sure we don't cache an underlying SHA256
      * method that uses vector insns (forbidden from irq handlers).
      */
-    ret = DISABLE_VECTOR_REGISTERS();
-    if (ret != 0) {
-        pr_err("ERROR: DISABLE_VECTOR_REGISTERS() returned %d", ret);
-        return -EINVAL;
+    wc_linuxkm_drbg_init_tfm_disable_vector_registers = 1;
+    ret = crypto_del_default_rng();
+    if (ret) {
+        wc_linuxkm_drbg_init_tfm_disable_vector_registers = 0;
+        pr_err("ERROR: crypto_del_default_rng returned %d", ret);
+        return ret;
     }
     ret = crypto_get_default_rng();
-    REENABLE_VECTOR_REGISTERS();
+
+    wc_linuxkm_drbg_init_tfm_disable_vector_registers = 0;
 
     if (ret) {
         pr_err("ERROR: crypto_get_default_rng returned %d", ret);
@@ -1747,17 +1761,16 @@ static int wc_linuxkm_drbg_startup(void)
         return -EINVAL;
     }
 
-    if (strcmp(crypto_tfm_alg_driver_name(&crypto_default_rng->base), wc_linuxkm_drbg.base.cra_driver_name) == 0) {
-        crypto_put_default_rng();
-        wc_linuxkm_drbg_default_instance_registered = 1;
-        pr_info("%s registered as systemwide default stdrng.", wc_linuxkm_drbg.base.cra_driver_name);
-        pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs");
-    }
-    else {
+    if (crypto_default_rng->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) {
         pr_err("ERROR: %s NOT registered as systemwide default stdrng -- found \"%s\".", wc_linuxkm_drbg.base.cra_driver_name, crypto_tfm_alg_driver_name(&crypto_default_rng->base));
         crypto_put_default_rng();
         return -EINVAL;
     }
+
+    crypto_put_default_rng();
+    wc_linuxkm_drbg_default_instance_registered = 1;
+    pr_info("%s registered as systemwide default stdrng.", wc_linuxkm_drbg.base.cra_driver_name);
+    pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs");
 
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
@@ -1799,6 +1812,32 @@ static int wc_linuxkm_drbg_startup(void)
 
     #else
         #error LINUXKM_DRBG_GET_RANDOM_BYTES missing installation calls.
+    #endif
+
+    #ifdef DEBUG_DRBG_RESEEDS
+    {
+        byte scratch[4];
+        ret = wc__get_random_bytes(scratch, sizeof(scratch));
+        if (ret != 0) {
+            pr_err("ERROR: wc__get_random_bytes() returned %d", ret);
+            return -EINVAL;
+        }
+        ret = wc_mix_pool_bytes(scratch, sizeof(scratch));
+        if (ret != 0) {
+            pr_err("ERROR: wc_mix_pool_bytes() returned %d", ret);
+            return -EINVAL;
+        }
+        ret = wc_crng_reseed();
+        if (ret != 0) {
+            pr_err("ERROR: wc_crng_reseed() returned %d", ret);
+            return -EINVAL;
+        }
+        ret = wc__get_random_bytes(scratch, sizeof(scratch));
+        if (ret != 0) {
+            pr_err("ERROR: wc__get_random_bytes() returned %d", ret);
+            return -EINVAL;
+        }
+    }
     #endif
 
 #endif /* LINUXKM_DRBG_GET_RANDOM_BYTES */
