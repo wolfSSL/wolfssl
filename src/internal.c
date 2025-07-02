@@ -6468,6 +6468,10 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
 
     WOLFSSL_ENTER("DhGenKeyPair");
 
+    if (ssl == NULL || dhKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */
     ret = wolfSSL_AsyncInit(ssl, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
