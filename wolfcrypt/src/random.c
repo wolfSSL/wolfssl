@@ -642,7 +642,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     wc_Sha256 sha[1];
 #endif
     byte type;
+#ifdef WORD64_AVAILABLE
+    word64 reseedCtr;
+#else
     word32 reseedCtr;
+#endif
 
     if (drbg == NULL) {
         return DRBG_FAILURE;
@@ -692,7 +696,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
                 array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
             #ifdef LITTLE_ENDIAN_ORDER
+                #ifdef WORD64_AVAILABLE
+                reseedCtr = ByteReverseWord64(reseedCtr);
+                #else
                 reseedCtr = ByteReverseWord32(reseedCtr);
+                #endif
             #endif
                 array_add(drbg->V, sizeof(drbg->V),
                                           (byte*)&reseedCtr, sizeof(reseedCtr));

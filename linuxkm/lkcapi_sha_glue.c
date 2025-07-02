@@ -1184,7 +1184,9 @@ static struct rng_alg wc_linuxkm_drbg = {
 };
 static int wc_linuxkm_drbg_loaded = 0;
 
-#if defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
+#ifdef NO_LINUXKM_DRBG_GET_RANDOM_BYTES
+    #undef LINUXKM_DRBG_GET_RANDOM_BYTES
+#elif defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) && \
     (defined(WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS) || defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES))
     #ifndef LINUXKM_DRBG_GET_RANDOM_BYTES
         #define LINUXKM_DRBG_GET_RANDOM_BYTES
@@ -1475,9 +1477,7 @@ static int wc_get_random_bytes_kprobe_installed = 0;
 
 /* note, we can't kprobe _get_random_bytes() because it's inlined. */
 
-struct wc_get_random_bytes_user_kretprobe_ctx {
-    unsigned long retval;
-};
+#ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
 
 #warning Interception of /dev/random, /dev/urandom, and getrandom() using \
     wc_get_random_bytes_user_kretprobe_enter() is known to destabilize large \
@@ -1485,6 +1485,10 @@ struct wc_get_random_bytes_user_kretprobe_ctx {
     context (uninterruptible).  In particular, cryptsetup will fail on \
     /dev/urandom reads.  When in doubt, patch your kernel, activating \
     WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS.
+
+struct wc_get_random_bytes_user_kretprobe_ctx {
+    unsigned long retval;
+};
 
 static int wc_get_random_bytes_user_kretprobe_enter(struct kretprobe_instance *p, struct pt_regs *regs)
 {
@@ -1585,6 +1589,8 @@ static struct kretprobe wc_get_random_bytes_user_kretprobe = {
     .data_size      = sizeof(struct wc_get_random_bytes_user_kretprobe_ctx)
 };
 static int wc_get_random_bytes_user_kretprobe_installed = 0;
+
+#endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
 
 #else /* !WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS && !(CONFIG_KPROBES && CONFIG_X86) */
     #error LINUXKM_DRBG_GET_RANDOM_BYTES implementation missing for target architecture/configuration.
@@ -1777,6 +1783,7 @@ static int wc_linuxkm_drbg_startup(void)
         pr_err("ERROR: wc_get_random_bytes_kprobe installation failed: %d\n", ret);
     }
 
+    #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
     ret = register_kretprobe(&wc_get_random_bytes_user_kretprobe);
     if (ret == 0) {
         wc_get_random_bytes_user_kretprobe_installed = 1;
@@ -1785,6 +1792,7 @@ static int wc_linuxkm_drbg_startup(void)
     else {
         pr_err("ERROR: wc_get_random_bytes_user_kprobe installation failed: %d\n", ret);
     }
+    #endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
 
     #else
         #error LINUXKM_DRBG_GET_RANDOM_BYTES missing installation calls.
@@ -1846,15 +1854,17 @@ static int wc_linuxkm_drbg_cleanup(void) {
             unregister_kprobe(&wc_get_random_bytes_kprobe);
             pr_info("wc_get_random_bytes_kprobe uninstalled\n");
         }
+        #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
         if (wc_get_random_bytes_user_kretprobe_installed) {
             wc_get_random_bytes_user_kretprobe_installed = 0;
             barrier();
             unregister_kretprobe(&wc_get_random_bytes_user_kretprobe);
             pr_info("wc_get_random_bytes_user_kretprobe uninstalled\n");
         }
+        #endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
 
         #else
-            #error LINUXKM_DRBG_GET_RANDOM_BYTES missing installation calls.
+            #error LINUXKM_DRBG_GET_RANDOM_BYTES missing deinstallation calls.
         #endif
 
     #endif /* LINUXKM_DRBG_GET_RANDOM_BYTES */

@@ -3625,9 +3625,6 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
-    #ifndef WOLFSSL_NO_GETPID
-        #define WOLFSSL_NO_GETPID
-    #endif /* WOLFSSL_NO_GETPID */
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
@@ -3681,6 +3678,9 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_HAVE_MAX
     #undef WOLFSSL_HAVE_ASSERT_H
     #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_GETPID
+        #define WOLFSSL_NO_GETPID
+    #endif /* WOLFSSL_NO_GETPID */
     #ifndef SIZEOF_LONG
         #define SIZEOF_LONG         8
     #endif
@@ -3729,6 +3729,18 @@ extern void uITRON4_free(void *p) ;
         #endif
         #ifndef WC_SANITIZE_ENABLE
             #define WC_SANITIZE_ENABLE() kasan_enable_current()
+        #endif
+    #endif
+
+    #if !defined(WC_RESEED_INTERVAL) && defined(LINUXKM_LKCAPI_REGISTER)
+        /* If installing handlers, use the maximum reseed interval allowed by
+         * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
+         * generation.
+         */
+        #ifdef WORD64_AVAILABLE
+            #define WC_RESEED_INTERVAL (1UL<<48UL)
+        #else
+            #define WC_RESEED_INTERVAL 0xffffffffU
         #endif
     #endif
 #endif
