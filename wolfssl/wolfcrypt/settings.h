@@ -3737,7 +3737,7 @@ extern void uITRON4_free(void *p) ;
          * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
          * generation.
          */
-        #define WC_RESEED_INTERVAL (1UL<<48UL)
+        #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
     #endif
 #endif
 

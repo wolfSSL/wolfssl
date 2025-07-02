@@ -1101,9 +1101,12 @@ retry:
             pr_warn("WARNING: reinitialized DRBG #%d after RNG_FAILURE_E.", raw_smp_processor_id());
             goto retry;
         }
+        else {
+            pr_warn_once("ERROR: reinitialization of DRBG #%d after RNG_FAILURE_E failed with ret %d.", raw_smp_processor_id(), ret);
+            ret = -EINVAL;
+        }
     }
-
-    if (ret != 0) {
+    else if (ret != 0) {
         pr_warn_once("WARNING: wc_RNG_GenerateBlock returned %d\n",ret);
         ret = -EINVAL;
     }
@@ -1748,7 +1751,7 @@ static int wc_linuxkm_drbg_startup(void)
         crypto_put_default_rng();
         wc_linuxkm_drbg_default_instance_registered = 1;
         pr_info("%s registered as systemwide default stdrng.", wc_linuxkm_drbg.base.cra_driver_name);
-        pr_info("to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs");
+        pr_info("libwolfssl: to unload module, first echo 1 > /sys/module/libwolfssl/deinstall_algs");
     }
     else {
         pr_err("ERROR: %s NOT registered as systemwide default stdrng -- found \"%s\".", wc_linuxkm_drbg.base.cra_driver_name, crypto_tfm_alg_driver_name(&crypto_default_rng->base));
@@ -1766,7 +1769,7 @@ static int wc_linuxkm_drbg_startup(void)
 
     if (ret == 0) {
         wc_get_random_bytes_callbacks_installed = 1;
-        pr_info("Kernel global random_bytes handlers installed.");
+        pr_info("libwolfssl: kernel global random_bytes handlers installed.");
     }
     else {
         pr_err("ERROR: wolfssl_linuxkm_register_random_bytes_handlers() failed: %d\n", ret);
@@ -1777,7 +1780,7 @@ static int wc_linuxkm_drbg_startup(void)
     ret = register_kprobe(&wc_get_random_bytes_kprobe);
     if (ret == 0) {
         wc_get_random_bytes_kprobe_installed = 1;
-        pr_info("wc_get_random_bytes_kprobe installed\n");
+        pr_info("libwolfssl: wc_get_random_bytes_kprobe installed\n");
     }
     else {
         pr_err("ERROR: wc_get_random_bytes_kprobe installation failed: %d\n", ret);
@@ -1787,7 +1790,7 @@ static int wc_linuxkm_drbg_startup(void)
     ret = register_kretprobe(&wc_get_random_bytes_user_kretprobe);
     if (ret == 0) {
         wc_get_random_bytes_user_kretprobe_installed = 1;
-        pr_info("wc_get_random_bytes_user_kretprobe installed\n");
+        pr_info("libwolfssl: wc_get_random_bytes_user_kretprobe installed\n");
     }
     else {
         pr_err("ERROR: wc_get_random_bytes_user_kprobe installation failed: %d\n", ret);
@@ -1842,7 +1845,7 @@ static int wc_linuxkm_drbg_cleanup(void) {
                 pr_err("ERROR: wolfssl_linuxkm_unregister_random_bytes_handlers returned %d", ret);
                 return ret;
             }
-            pr_info("wc_get_random_bytes handlers uninstalled\n");
+            pr_info("libwolfssl: kernel global random_bytes handlers uninstalled\n");
             wc_get_random_bytes_callbacks_installed = 0;
         }
 
@@ -1852,14 +1855,14 @@ static int wc_linuxkm_drbg_cleanup(void) {
             wc_get_random_bytes_kprobe_installed = 0;
             barrier();
             unregister_kprobe(&wc_get_random_bytes_kprobe);
-            pr_info("wc_get_random_bytes_kprobe uninstalled\n");
+            pr_info("libwolfssl: wc_get_random_bytes_kprobe uninstalled\n");
         }
         #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
         if (wc_get_random_bytes_user_kretprobe_installed) {
             wc_get_random_bytes_user_kretprobe_installed = 0;
             barrier();
             unregister_kretprobe(&wc_get_random_bytes_user_kretprobe);
-            pr_info("wc_get_random_bytes_user_kretprobe uninstalled\n");
+            pr_info("libwolfssl: wc_get_random_bytes_user_kretprobe uninstalled\n");
         }
         #endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
 

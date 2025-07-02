@@ -1,5 +1,5 @@
 --- ./drivers/char/random.c.dist	2020-12-13 16:41:30.000000000 -0600
-+++ ./drivers/char/random.c	2025-06-28 10:11:47.329492006 -0500
++++ ./drivers/char/random.c	2025-07-02 11:59:07.220250957 -0500
 @@ -344,6 +344,260 @@
  #include <asm/irq_regs.h>
  #include <asm/io.h>
@@ -261,22 +261,30 @@
  #define CREATE_TRACE_POINTS
  #include <trace/events/random.h>
  
-@@ -461,7 +715,13 @@ static struct crng_state primary_crng =
+@@ -461,7 +715,22 @@ static struct crng_state primary_crng =
   * its value (from 0->1->2).
   */
  static int crng_init = 0;
--#define crng_ready() (likely(crng_init > 1))
++
+ #define crng_ready() (likely(crng_init > 1))
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++    #define crng_ready_by_cb() (atomic_read(&random_bytes_cb_refcnt) && call_crng_ready_cb())
++    #define crng_ready_maybe_cb() (atomic_read(&random_bytes_cb_refcnt) ? (call_crng_ready_cb() || crng_ready()) : crng_ready())
++#else
++    #define crng_ready_maybe_cb() crng_ready()
++#endif
 +
 +#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
-+    #define crng_ready() (atomic_read(&random_bytes_cb_refcnt) ? call_crng_ready_cb() : (likely(crng_init > 1)))
++    #define crng_ready_by_cb() (atomic_read(&random_bytes_cb_refcnt) && call_crng_ready_cb())
++    #define crng_ready_maybe_cb() (atomic_read(&random_bytes_cb_refcnt) ? (call_crng_ready_cb() || crng_ready()) : crng_ready())
 +#else
-+    #define crng_ready() (likely(crng_init > 1))
++    #define crng_ready_maybe_cb() crng_ready()
 +#endif
 +
  static int crng_init_cnt = 0;
  static unsigned long crng_global_init_time = 0;
  #define CRNG_INIT_CNT_THRESH (2*CHACHA_KEY_SIZE)
-@@ -593,6 +853,11 @@ static void mix_pool_bytes(struct entrop
+@@ -593,6 +862,11 @@ static void mix_pool_bytes(struct entrop
  {
  	unsigned long flags;
  
@@ -288,7 +296,7 @@
  	trace_mix_pool_bytes(r->name, nbytes, _RET_IP_);
  	spin_lock_irqsave(&r->lock, flags);
  	_mix_pool_bytes(r, in, nbytes);
-@@ -664,6 +929,10 @@ static void credit_entropy_bits(struct e
+@@ -664,6 +938,10 @@ static void credit_entropy_bits(struct e
  	const int pool_size = r->poolinfo->poolfracbits;
  	int nfrac = nbits << ENTROPY_SHIFT;
  
@@ -299,19 +307,7 @@
  	if (!nbits)
  		return;
  
-@@ -954,6 +1223,11 @@ static void crng_reseed(struct crng_stat
- 		__u32	key[8];
- 	} buf;
- 
-+#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
-+        (void)call_crng_reseed_cb();
-+        /* fall through to reseed native crng too. */
-+#endif
-+
- 	if (r) {
- 		num = extract_entropy(r, &buf, 32, 16, 0);
- 		if (num == 0)
-@@ -1069,6 +1343,18 @@ static ssize_t extract_crng_user(void __
+@@ -1069,6 +1347,18 @@ static ssize_t extract_crng_user(void __
  	__u8 tmp[CHACHA_BLOCK_SIZE] __aligned(4);
  	int large_request = (nbytes > 256);
  
@@ -330,7 +326,16 @@
  	while (nbytes) {
  		if (large_request && need_resched()) {
  			if (signal_pending(current)) {
-@@ -1552,6 +1838,14 @@ static void _get_random_bytes(void *buf,
+@@ -1523,7 +1813,7 @@ static void _warn_unseeded_randomness(co
+ #endif
+ 
+ 	if (print_once ||
+-	    crng_ready() ||
++	    crng_ready_maybe_cb() ||
+ 	    (previous && (caller == READ_ONCE(*previous))))
+ 		return;
+ 	WRITE_ONCE(*previous, caller);
+@@ -1552,6 +1842,14 @@ static void _get_random_bytes(void *buf,
  
  	trace_get_random_bytes(nbytes, _RET_IP_);
  
@@ -345,6 +350,77 @@
  	while (nbytes >= CHACHA_BLOCK_SIZE) {
  		extract_crng(buf);
  		buf += CHACHA_BLOCK_SIZE;
+@@ -1638,12 +1936,12 @@ static void try_to_generate_entropy(void
+  */
+ int wait_for_random_bytes(void)
+ {
+-	if (likely(crng_ready()))
++	if (likely(crng_ready_maybe_cb()))
+ 		return 0;
+ 
+ 	do {
+ 		int ret;
+-		ret = wait_event_interruptible_timeout(crng_init_wait, crng_ready(), HZ);
++		ret = wait_event_interruptible_timeout(crng_init_wait, crng_ready_maybe_cb(), HZ);
+ 		if (ret)
+ 			return ret > 0 ? 0 : ret;
+ 
+@@ -1665,7 +1963,7 @@ EXPORT_SYMBOL(wait_for_random_bytes);
+  */
+ bool rng_is_initialized(void)
+ {
+-	return crng_ready();
++	return crng_ready_maybe_cb();
+ }
+ EXPORT_SYMBOL(rng_is_initialized);
+ 
+@@ -1843,7 +2141,7 @@ urandom_read(struct file *file, char __u
+ 	unsigned long flags;
+ 	static int maxwarn = 10;
+ 
+-	if (!crng_ready() && maxwarn > 0) {
++	if (!crng_ready_maybe_cb() && maxwarn > 0) {
+ 		maxwarn--;
+ 		if (__ratelimit(&urandom_warning))
+ 			pr_notice("%s: uninitialized urandom read (%zd bytes read)\n",
+@@ -1872,6 +2170,11 @@ random_poll(struct file *file, poll_tabl
+ {
+ 	__poll_t mask;
+ 
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++	if (crng_ready_by_cb())
++		return EPOLLIN | EPOLLRDNORM;
++#endif
++
+ 	poll_wait(file, &crng_init_wait, wait);
+ 	poll_wait(file, &random_write_wait, wait);
+ 	mask = 0;
+@@ -1970,6 +2273,16 @@ static long random_ioctl(struct file *f,
+ 	case RNDRESEEDCRNG:
+ 		if (!capable(CAP_SYS_ADMIN))
+ 			return -EPERM;
++#ifdef WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS
++		/* fall through to reseed native crng too. */
++		if (call_crng_reseed_cb() == 0) {
++			if (crng_init >= 2) {
++				crng_reseed(&primary_crng, &input_pool);
++				crng_global_init_time = jiffies - 1;
++                        }
++			return 0;
++		}
++#endif
+ 		if (crng_init < 2)
+ 			return -ENODATA;
+ 		crng_reseed(&primary_crng, NULL);
+@@ -2022,7 +2335,7 @@ SYSCALL_DEFINE3(getrandom, char __user *
+ 	if (count > INT_MAX)
+ 		count = INT_MAX;
+ 
+-	if (!(flags & GRND_INSECURE) && !crng_ready()) {
++	if (!(flags & GRND_INSECURE) && !crng_ready_maybe_cb()) {
+ 		if (flags & GRND_NONBLOCK)
+ 			return -EAGAIN;
+ 		ret = wait_for_random_bytes();
 --- ./include/linux/random.h.dist	2020-12-13 16:41:30.000000000 -0600
 +++ ./include/linux/random.h	2025-06-30 12:05:59.106440700 -0500
 @@ -158,4 +158,37 @@ static inline bool __init arch_get_rando

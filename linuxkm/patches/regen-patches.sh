@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# This script is an internal tool that regenerates kernel patches for
+# WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS, using full kernel sources staged
+# for development.
+
 if [[ ! -d 6.15 ]]; then
     echo "6.15 not found -- wrong working dir?" >&2
     exit 1
