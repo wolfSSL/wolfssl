@@ -1,6 +1,7 @@
 # STM Benchmarks
 
 * [STM32F437](#stm32f437)
+* [STM32F439ZI](#stm32f439zi)
 * [STM32F777](#stm32f777)
 * [STM32G071RB](#stm32g071rb)
 * [STM32H563ZI](#stm32h563zi)
@@ -674,6 +675,94 @@ ECC      256 key gen         3 ops took 1.248 sec, avg 416.000 ms, 2.404 ops/sec
 ECDHE    256 agree           4 ops took 1.662 sec, avg 415.500 ms, 2.407 ops/sec
 ECDSA    256 sign            4 ops took 1.691 sec, avg 422.750 ms, 2.365 ops/sec
 ECDSA    256 verify          4 ops took 1.091 sec, avg 272.750 ms, 3.666 ops/sec
+Benchmark complete
+Benchmark Test: Return code 0
+```
+
+
+## STM32F439ZI
+
+Cortex-M4 at 168MHz (-Os)
+Using our software based ARM Assembly speedups (no hardware crypto)
+Tested on commit: fa9e122f1cca32513611f5a24de88d07aced015b
+
+```c
+#define WOLFSSL_HAVE_SP_RSA
+#define WOLFSSL_HAVE_SP_DH
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+#define WOLFSSL_SP_SMALL
+#define SP_WORD_SIZE 32
+#define WOLFSSL_SP_384
+#define WOLFSSL_SP_521
+
+#define GCM_TABLE_4BIT
+
+#define HAVE_DILITHIUM
+#define WOLFSSL_WC_DILITHIUM
+#define WOLFSSL_DILITHIUM_SMALL
+
+#define WOLFSSL_ARMASM
+#define WOLFSSL_ARMASM_INLINE
+#define WOLFSSL_ARMASM_NO_HW_CRYPTO
+#define WOLFSSL_ARMASM_NO_NEON
+#define WOLFSSL_ARMASM_THUMB2
+#define WOLFSSL_ARM_ARCH 7
+```
+
+```
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG                        950 KiB took 1.004 seconds,  946.215 KiB/s
+AES-128-GCM-enc              1 MiB took 1.004 seconds,    1.046 MiB/s
+AES-128-GCM-dec              1 MiB took 1.004 seconds,    1.046 MiB/s
+AES-192-GCM-enc            975 KiB took 1.012 seconds,  963.439 KiB/s
+AES-192-GCM-dec            975 KiB took 1.016 seconds,  959.646 KiB/s
+AES-256-GCM-enc            875 KiB took 1.004 seconds,  871.514 KiB/s
+AES-256-GCM-dec            875 KiB took 1.004 seconds,  871.514 KiB/s
+AES-128-GCM-enc-no_AAD       1 MiB took 1.020 seconds,    1.053 MiB/s
+AES-128-GCM-dec-no_AAD       1 MiB took 1.020 seconds,    1.053 MiB/s
+AES-192-GCM-enc-no_AAD     975 KiB took 1.008 seconds,  967.262 KiB/s
+AES-192-GCM-dec-no_AAD     975 KiB took 1.007 seconds,  968.222 KiB/s
+AES-256-GCM-enc-no_AAD     900 KiB took 1.028 seconds,  875.486 KiB/s
+AES-256-GCM-dec-no_AAD     900 KiB took 1.024 seconds,  878.906 KiB/s
+GMAC Table 4-bit             3 MiB took 1.000 seconds,    2.502 MiB/s
+CHACHA                       7 MiB took 1.000 seconds,    6.665 MiB/s
+CHA-POLY                     4 MiB took 1.000 seconds,    4.248 MiB/s
+POLY1305                    24 MiB took 1.000 seconds,   24.316 MiB/s
+SHA-256                      3 MiB took 1.000 seconds,    2.637 MiB/s
+SHA3-224                     1 MiB took 1.004 seconds,    0.997 MiB/s
+SHA3-256                   975 KiB took 1.012 seconds,  963.439 KiB/s
+SHA3-384                   750 KiB took 1.011 seconds,  741.840 KiB/s
+SHA3-512                   525 KiB took 1.016 seconds,  516.732 KiB/s
+SHAKE128                     1 MiB took 1.012 seconds,    1.158 MiB/s
+SHAKE256                   975 KiB took 1.016 seconds,  959.646 KiB/s
+HMAC-SHA256                  3 MiB took 1.004 seconds,    2.602 MiB/s
+RSA     2048   public       112 ops took 1.011 sec, avg 9.027 ms, 110.781 ops/sec
+RSA     2048  private         4 ops took 1.298 sec, avg 324.500 ms, 3.082 ops/sec
+DH      2048  key gen         7 ops took 1.149 sec, avg 164.143 ms, 6.092 ops/sec
+DH      2048    agree         8 ops took 1.314 sec, avg 164.250 ms, 6.088 ops/sec
+ML-KEM 512    128  key gen       248 ops took 1.000 sec, avg 4.032 ms, 248.000 ops/sec
+ML-KEM 512    128    encap       262 ops took 1.004 sec, avg 3.832 ms, 260.956 ops/sec
+ML-KEM 512    128    decap       198 ops took 1.004 sec, avg 5.071 ms, 197.211 ops/sec
+ML-KEM 768    192  key gen       154 ops took 1.004 sec, avg 6.519 ms, 153.386 ops/sec
+ML-KEM 768    192    encap       154 ops took 1.012 sec, avg 6.571 ms, 152.174 ops/sec
+ML-KEM 768    192    decap       120 ops took 1.000 sec, avg 8.333 ms, 120.000 ops/sec
+ML-KEM 1024   256  key gen        94 ops took 1.008 sec, avg 10.723 ms, 93.254 ops/sec
+ML-KEM 1024   256    encap        94 ops took 1.016 sec, avg 10.809 ms, 92.520 ops/sec
+ML-KEM 1024   256    decap        78 ops took 1.023 sec, avg 13.115 ms, 76.246 ops/sec
+ECC   [      SECP256R1]   256  key gen       180 ops took 1.000 sec, avg 5.556 ms, 180.000 ops/sec
+ECDHE [      SECP256R1]   256    agree        86 ops took 1.012 sec, avg 11.767 ms, 84.980 ops/sec
+ECDSA [      SECP256R1]   256     sign       108 ops took 1.012 sec, avg 9.370 ms, 106.719 ops/sec
+ECDSA [      SECP256R1]   256   verify        60 ops took 1.008 sec, avg 16.800 ms, 59.524 ops/sec
+ML-DSA    44  key gen        52 ops took 1.011 sec, avg 19.442 ms, 51.434 ops/sec
+ML-DSA    44     sign        18 ops took 1.086 sec, avg 60.333 ms, 16.575 ops/sec
+ML-DSA    44   verify        46 ops took 1.008 sec, avg 21.913 ms, 45.635 ops/sec
+ML-DSA    65  key gen        30 ops took 1.035 sec, avg 34.500 ms, 28.986 ops/sec
+ML-DSA    65     sign        12 ops took 1.008 sec, avg 84.000 ms, 11.905 ops/sec
+ML-DSA    65   verify        28 ops took 1.027 sec, avg 36.679 ms, 27.264 ops/sec
+ML-DSA    87  key gen        18 ops took 1.051 sec, avg 58.389 ms, 17.127 ops/sec
+ML-DSA    87     sign         8 ops took 1.047 sec, avg 130.875 ms, 7.641 ops/sec
+ML-DSA    87   verify        16 ops took 1.000 sec, avg 62.500 ms, 16.000 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
