@@ -1009,7 +1009,7 @@ WC_MISC_STATIC WC_INLINE void ato64(const byte *in, w64wrapper *w64)
 #ifdef BIG_ENDIAN_ORDER
     XMEMCPY(&w64->n, in, sizeof(w64->n));
 #else
-    word64 _in;
+    word64 _in = 0;
     XMEMCPY(&_in, in, sizeof(_in));
     w64->n = ByteReverseWord64(_in);
 #endif /* BIG_ENDIAN_ORDER */
