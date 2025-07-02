@@ -19605,6 +19605,11 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
     wolfSSL_ASN1_INTEGER_free(a);
     a = NULL;
 
+    if (p2 != NULL) {
+        /* Reset p2 to NULL. */
+        XFREE(p2, NULL, DYNAMIC_TYPE_ASN1);
+    }
+
     for (i = 0; i < NUM_TEST_VECTORS; ++i) {
         p = testVectors[i].der;
         ExpectNotNull(a = wolfSSL_d2i_ASN1_INTEGER(&b, &p,
