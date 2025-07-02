@@ -750,7 +750,7 @@ struct WOLFSSL_EVP_PKEY_CTX {
 #ifdef HAVE_ECC
     int curveNID;
 #endif
-#ifndef NO_RSA
+#ifdef WC_RSA_PSS
     const WOLFSSL_EVP_MD* md;
     const WOLFSSL_EVP_MD* mgf1_md;
     int saltlen;
