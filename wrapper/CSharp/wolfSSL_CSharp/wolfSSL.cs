@@ -20,17 +20,14 @@
  */
 
 
-/* CE Not always reliably detected. Define your own WindowsCE as needed */
+/* CE Not always reliably detected. Define our own WindowsCE as needed. */
 #if _WIN32_WCE || WINCE || PocketPC
+    /* WindowsCE should have been defined in the Project and user_settings.h  */
     #if !WindowsCE
-        #define NEED_WINDOWS_CE
+        #define WindowsCE
     #endif
 #endif
 
-#if NEED_WINDOWS_CE
-    #warning "WARNING: WindowsCE should be defined in your user_settings.h file AND project"
-    #define WindowsCE
-#endif
 
 using System;
 using System.Runtime.InteropServices;
@@ -752,8 +749,8 @@ namespace wolfSSL.CSharp
         private extern static int wolfSSL_get_error(IntPtr ssl, int err);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
-        /* No decorator needed for loggingCb */
-        public delegate void loggingCb(int lvl, StringBuilder msg);
+        /* No decorator needed for loggingCb, Note msg is String here, not StringBuilder */
+        public delegate void loggingCb(int lvl, string msg);
         /* No decorator needed for loggingCbEx */
         public delegate void loggingCbEx(int lvl, IntPtr msg);
         [DllImport(wolfssl_dll)]
@@ -761,7 +758,10 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll)]
-        private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
+        private extern static int wolfSSL_SetLoggingCb(loggingCb vc);
+
+        /* Internal field to store the original logging callback: string msg */
+        private static loggingCb internal_log;
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
@@ -779,10 +779,11 @@ namespace wolfSSL.CSharp
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
-#endif
-        /* Internal field to store the original logging callback */
+
+        /* Internal fields to store the non-CE logging callback; StringBuilder msg */
         private static loggingCbEx internal_log_ex         = null; /* keep reference to prevent GC         */
         private static loggingCbEx internal_bridge_cb      = null; /* helper when using original loggingCb */
+#endif
 
         /********************************
          * DH
@@ -2884,14 +2885,78 @@ namespace wolfSSL.CSharp
         }
 
         /// <summary>
+        /// Clean up old callbacks if previously assigned.
+        /// </summary>
+        public static void ClearLoggingCallbacks() {
+            /* Delegates are managed objects; nulling the reference allows GC to clean up. */
+#if WindowsCE
+            internal_log = null;
+            wolfSSL_SetLoggingCb((loggingCb)null); /* call wolfSSL callback cleanup, string param */
+#else
+            internal_log_ex = null;
+            internal_bridge_cb = null;
+            wolfSSL_SetLoggingCb((loggingCbEx)null); /* call wolfSSL callback cleanup */
+#endif
+        }
+
+        /* SetLogging() and log() implementations are different for CE vs non-CE: String msg vs StringBuilder msg */
+#if WindowsCE
+        /// <summary>
+        /// Set the function to use for logging on Windows CE
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb String msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCb input)
+        {
+            /* If SetLogging was previously called, clean it up and exit if there's no new cb function */
+            if (input == null) {
+                ClearLoggingCallbacks();
+                return SetLogging((loggingCb)null);
+            }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_log != null) {
+                ClearLoggingCallbacks();
+            }
+
+            /* Set our new callback logging function */
+            internal_log = input;
+
+            wolfSSL_SetLoggingCb(input);
+
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Log a message to set logging function
+        /// </summary>
+        /// <param name="lvl">Level of log message</param>
+        /// <param name="msg">Message to log</param>
+        public static void log(int lvl, string msg)
+        {
+            /* if log is not set then print nothing */
+            if (internal_log == null) {
+                return;
+            }
+            internal_log(lvl, msg);
+        }
+#else
+        /// <summary>
         /// Set the function to use for logging
         /// </summary>
         /// <param name="input">Function that conforms as to loggingCb StringBuilder msg</param>
         /// <returns>1 on success</returns>
         public static int SetLogging(loggingCb input)
         {
+            /* If SetLogging was previously called, clean it up and exit if there's no new cb function */
             if (input == null) {
+                ClearLoggingCallbacks();
                 return SetLogging((loggingCbEx)null);
+            }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_bridge_cb != null) {
+                ClearLoggingCallbacks();
             }
 
             /* Build a bridge that routes through internal_log_ex logic */
@@ -2919,6 +2984,7 @@ namespace wolfSSL.CSharp
                 input(lvl, sb);
             });
 
+            /* return the result of SetLogging(loggingCbEx input) */
             return SetLogging(internal_bridge_cb);
         }
 
@@ -2928,11 +2994,17 @@ namespace wolfSSL.CSharp
         /// <param name="input">Function that conforms as to loggingCb for preferred IntPtr msg</param>
         /// <returns>1 on success</returns>
         public static int SetLogging(loggingCbEx input) {
-            internal_log_ex = input;
-
             if (input == null) {
-                return wolfSSL_SetLoggingCb(null);
+                ClearLoggingCallbacks();
+                return wolfSSL_SetLoggingCb((loggingCbEx)null);
             }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_log_ex != null) {
+                ClearLoggingCallbacks();
+            }
+
+            internal_log_ex = input;
 
             /* Return the result of the native call to wolfSSL */
             return wolfSSL_SetLoggingCb(input);
@@ -2960,5 +3032,7 @@ namespace wolfSSL.CSharp
                 Marshal.FreeHGlobal(ptr);
             }
         }
-    }
-}
+#endif
+
+    } /* class wolfssl */
+} /* namespace wolfSSL.CSharp */

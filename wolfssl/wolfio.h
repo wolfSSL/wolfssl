@@ -50,22 +50,12 @@
     #endif
 #endif
 
-/* CE Not always reliably detected. Define your own WindowsCE as needed */
-#if defined(_WIN32_WCE) || defined(WINCE) || defined(PocketPC) || \
-   (defined(_MSC_VER) && (_MSC_VER < 1600))
-    #if !defined(WindowsCE)
-        #define NEED_WINDOWS_CE
+/* CE Not always reliably detected. Define our own WindowsCE as needed. */
+#if _WIN32_WCE || WINCE || PocketPC
+    /* WindowsCE should have been defined in the Project and user_settings.h  */
+    #if !WindowsCE
+        #define WindowsCE
     #endif
-#endif
-
-#if defined(NEED_WINDOWS_CE)
-    #if defined(_MSC_VER)
-        #pragma message( \
-"Warning WindowsCE should be defined in your user_settings.h file AND project")
-    #else
-#warning WindowsCE should be defined in your user_settings.h file AND project
-    #endif
-    #define WindowsCE
 #endif
 
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)

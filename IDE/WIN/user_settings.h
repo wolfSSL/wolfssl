@@ -6,8 +6,9 @@
 #error This user_settings.h header is only designed for Windows
 #endif
 
-/* Optional WindowsCE, needed here for all CE configurations: */
-/* #define WindowsCE  */
+/* Optional WindowsCE, needed here for all CE configurations:
+ * It is recommended that there ALSO be project-level WindowsCE definitions. */
+/* #define WindowsCE */
 
 #define USE_WOLFSSL_IO
 #define HAVE_AESGCM

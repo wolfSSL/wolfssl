@@ -20,16 +20,12 @@
  */
 
 
-/* CE Not always reliably detected. Define your own WindowsCE as needed */
+/* CE Not always reliably detected. Define our own WindowsCE as needed. */
 #if _WIN32_WCE || WINCE || PocketPC
+    /* WindowsCE should have been defined in the Project and user_settings.h  */
     #if !WindowsCE
-        #define NEED_WINDOWS_CE
+        #define WindowsCE
     #endif
-#endif
-
-#if NEED_WINDOWS_CE
-    #warning "WARNING: WindowsCE should be defined in your user_settings.h file AND project"
-    #define WindowsCE
 #endif
 
 

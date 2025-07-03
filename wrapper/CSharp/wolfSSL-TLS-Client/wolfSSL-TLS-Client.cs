@@ -20,20 +20,12 @@
  */
 
 
-/* CE Not always reliably detected. Define your own WindowsCE as needed */
-#if _WIN32_WCE
-    #undef  WindowsCE
-    #define WindowsCE
-#endif
-
-#if WINCE
-    #undef  WindowsCE
-    #define WindowsCE
-#endif
-
-#if PocketPC
-    #undef  WindowsCE
-    #define WindowsCE
+/* CE Not always reliably detected. Define our own WindowsCE as needed. */
+#if _WIN32_WCE || WINCE || PocketPC
+    /* WindowsCE should have been defined in the Project and user_settings.h  */
+    #if !WindowsCE
+        #define WindowsCE
+    #endif
 #endif
 
 using System;
@@ -63,14 +55,29 @@ public class wolfSSL_TLS_Client
 
     private static WOLFSSL_ALERT_HISTORY myHistory = new WOLFSSL_ALERT_HISTORY();
 
+
+#if WindowsCE
     /// <summary>
-    /// Example of a logging function
+    /// Example of a logging function for Windows CE, string msg
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg) {
+    public static void standard_log(int lvl, string msg)
+    {
+        string logMsg = wolfssl.MultiByteToWideChar(msg);
+        Console.WriteLine(logMsg);
+    }
+#else
+    /// <summary>
+    /// Example of a logging function, StringBuilder msg
+    /// </summary>
+    /// <param name="lvl">level of log</param>
+    /// <param name="msg">message to log</param>
+    public static void standard_log(int lvl, StringBuilder msg)
+    {
         Console.WriteLine(msg);
     }
+#endif
 
     public static void show_alert_history_code(WOLFSSL_ALERT h, string m)
     {
