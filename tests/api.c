@@ -68246,12 +68246,13 @@ TEST_CASE testCases[] = {
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),
     TEST_DECL(test_RsaSigFailure_cm),
-#endif /* NO_CERTS */
+#endif
 
     /* PKCS8 testing */
     TEST_DECL(test_wolfSSL_no_password_cb),
