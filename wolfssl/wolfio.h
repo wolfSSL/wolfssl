@@ -51,7 +51,7 @@
 #endif
 
 /* CE Not always reliably detected. Define our own WindowsCE as needed. */
-#if _WIN32_WCE || WINCE || PocketPC
+#if defined(_WIN32_WCE) || defined(WINCE) || defined(PocketPC)
     /* WindowsCE should have been defined in the Project and user_settings.h  */
     #if !WindowsCE
         #define WindowsCE
