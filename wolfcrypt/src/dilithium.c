@@ -1386,8 +1386,8 @@ static void dilithium_encode_gamma1_19_bits(const sword32* z, byte* s)
                    ((word64)z2 << 40) | ((word64)z3 << 60);
     #else
         word32* s32p = (word32*)s;
-        s32p[0] = (word16)( z0        | (z1 << 20)             );
-        s32p[1] = (word16)((z1 >> 12) | (z2 <<  8) | (z3 << 28));
+        s32p[0] = (word32)( z0        | (z1 << 20)             );
+        s32p[1] = (word32)((z1 >> 12) | (z2 <<  8) | (z3 << 28));
     #endif
         s16p[4] = (word16)((z3 >>  4)                          );
 #else
