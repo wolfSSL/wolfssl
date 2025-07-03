@@ -3,7 +3,6 @@ ctaocrypt/src/src/
 *.lo
 *.la
 *.o
-*.patch
 *.deps
 *.d
 *.libs
@@ -246,6 +245,9 @@ linuxkm/libwolfssl.mod.c
 linuxkm/libwolfssl.lds
 linuxkm/module_exports.c
 linuxkm/linuxkm/get_thread_size
+linuxkm/linuxkm
+linuxkm/src
+linuxkm/patches/src
 *.nds
 
 # autotools generated

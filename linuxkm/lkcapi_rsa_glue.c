@@ -1255,8 +1255,8 @@ pkcs1pad_verify_out:
 #else
 
 /* Returns the rsa key size:
- *   linux kernel version <  6.16: returns key size in bytes.
- *   linux kernel version >= 6.16: returns key size in bits.
+ *   linux kernel version <  6.15.3: returns key size in bytes.
+ *   linux kernel version >= 6.15.3: returns key size in bits.
  * */
 static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm)
 {
@@ -1264,11 +1264,11 @@ static unsigned int km_pkcs1_key_size(struct crypto_sig *tfm)
 
     ctx = crypto_sig_ctx(tfm);
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 3)
     return (unsigned int) ctx->key_len * WOLFSSL_BIT_SIZE;
     #else
     return (unsigned int) ctx->key_len;
-    #endif /* linux >= 6.16 */
+    #endif /* linux >= 6.15.3 */
 }
 
 /*
@@ -3093,16 +3093,16 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
 
     {
         /* The behavior of crypto_sig_Xsize (X= max, key, digest) changed
-         * at linux kernel v6.16:
-         *   <  6.16: all three should return the same value (in bytes).
-         *   >= 6.16: keysize is in bits, maxsize and digestsize in bytes. */
+         * at linux kernel v6.15.3:
+         *   <  6.15.3: all three should return the same value (in bytes).
+         *   >= 6.15.3: keysize is in bits, maxsize and digestsize in bytes. */
         unsigned int maxsize = crypto_sig_maxsize(tfm);
         unsigned int keysize = crypto_sig_keysize(tfm);
         unsigned int digestsize = crypto_sig_digestsize(tfm);
 
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 3)
         keysize = ((keysize + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE);
-        #endif /* linux >= 6.16 */
+        #endif /* linux >= 6.15.3 */
 
         #ifdef WOLFKM_DEBUG_RSA
         pr_info("info: crypto_sig_{max, key, digest}size: "

@@ -58,14 +58,6 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <crypto/ecdh.h>
 
-/* need misc.c for ForceZero(). */
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
-
 #define WOLFKM_ECDH_DRIVER       ("ecdh-wolfcrypt")
 
 #define WOLFKM_ECDH_P192_NAME    ("ecdh-nist-p192")

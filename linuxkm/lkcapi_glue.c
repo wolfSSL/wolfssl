@@ -43,14 +43,12 @@
     #include <linux/fips.h>
 #endif
 
-#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
-    /* need misc.c for ForceZero(). */
-    #ifdef NO_INLINE
-        #include <wolfssl/wolfcrypt/misc.h>
-    #else
-        #define WOLFSSL_MISC_INCLUDED
-        #include <wolfcrypt/src/misc.c>
-    #endif
+/* need misc.c for ForceZero(). */
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
 #endif
 
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY

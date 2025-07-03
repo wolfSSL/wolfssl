@@ -647,6 +647,9 @@ const char* wc_GetErrorString(int error)
     case ASCON_AUTH_E:
         return "ASCON Authentication check fail";
 
+    case WC_ACCEL_INHIBIT_E:
+        return "Crypto acceleration is currently inhibited";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

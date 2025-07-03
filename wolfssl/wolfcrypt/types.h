@@ -1964,6 +1964,22 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #ifndef RESTORE_VECTOR_REGISTERS
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
+#ifdef WOLFSSL_NO_ASM
+    /* We define fallback no-op definitions for these only if asm is disabled,
+     * otherwise the using code must detect that these macros are undefined and
+     * provide its own non-vector implementation paths.
+     *
+     * Currently these macros are only used in WOLFSSL_LINUXKM code paths, which
+     * are always compiled either with substantive definitions from
+     * linuxkm_wc_port.h, or with WOLFSSL_NO_ASM defined.
+     */
+    #ifndef DISABLE_VECTOR_REGISTERS
+        #define DISABLE_VECTOR_REGISTERS() 0
+    #endif
+    #ifndef REENABLE_VECTOR_REGISTERS
+        #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #endif
+#endif
 
 #ifndef WC_SANITIZE_DISABLE
     #define WC_SANITIZE_DISABLE() WC_DO_NOTHING
