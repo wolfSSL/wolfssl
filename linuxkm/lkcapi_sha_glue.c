@@ -940,6 +940,7 @@ struct wc_swallow_the_semicolon
 #include <wolfssl/wolfcrypt/random.h>
 
 struct wc_linuxkm_drbg_ctx {
+    size_t n_rngs;
     struct wc_rng_inst {
         wolfSSL_Atomic_Int lock;
         WC_RNG rng;
@@ -951,7 +952,7 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
     unsigned int i;
 
     if (ctx->rngs) {
-        for (i = 0; i < nr_cpu_ids; ++i) {
+        for (i = 0; i < ctx->n_rngs; ++i) {
             if (ctx->rngs[i].lock != 0) {
                 /* better to leak than to crash. */
                 pr_err("BUG: wc_linuxkm_drbg_ctx_clear called with DRBG #%d still locked.", i);
@@ -961,6 +962,7 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
         }
         free(ctx->rngs);
         ctx->rngs = NULL;
+        ctx->n_rngs = 0;
     }
 
     return;
@@ -976,12 +978,15 @@ static int wc_linuxkm_drbg_init_tfm(struct crypto_tfm *tfm)
     int need_reenable_vec = 0;
     int can_sleep = (preempt_count() == 0);
 
-    ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * nr_cpu_ids);
-    if (! ctx->rngs)
+    ctx->n_rngs = max(4, nr_cpu_ids);
+    ctx->rngs = (struct wc_rng_inst *)malloc(sizeof(*ctx->rngs) * ctx->n_rngs);
+    if (! ctx->rngs) {
+        ctx->n_rngs = 0;
         return -ENOMEM;
-    XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * nr_cpu_ids);
+    }
+    XMEMSET(ctx->rngs, 0, sizeof(*ctx->rngs) * ctx->n_rngs);
 
-    for (i = 0; i < nr_cpu_ids; ++i) {
+    for (i = 0; i < ctx->n_rngs; ++i) {
         ctx->rngs[i].lock = 0;
         if (wc_linuxkm_drbg_init_tfm_disable_vector_registers)
             need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
@@ -1015,9 +1020,28 @@ static void wc_linuxkm_drbg_exit_tfm(struct crypto_tfm *tfm)
 
 static int wc_linuxkm_drbg_default_instance_registered = 0;
 
+/* get_drbg() uses atomic operations to get exclusive ownership of a DRBG
+ * without delay.  It expects to be called in uninterruptible context, though
+ * works fine in any context.  It starts by trying the DRBG matching the current
+ * CPU ID, and if that doesn't immediately succeed, it iterates upward until one
+ * succeeds.  The first attempt will always succeed, even under intense load,
+ * unless there is or has recently been a reseed or mix-in operation competing
+ * with generators.
+ *
+ * Note that wc_linuxkm_drbg_init_tfm() allocates at least 4 DRBGs, regardless
+ * of nominal core count, to avoid stalling generators on unicore targets.
+ */
+
 static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     int n, new_lock_value;
+
+    /* check for mismatched handler or missing instance array. */
+    if ((tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) ||
+        (ctx->rngs == NULL))
+    {
+        return NULL;
+    }
 
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
@@ -1041,7 +1065,7 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
         if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, new_lock_value, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
             return &ctx->rngs[n];
         ++n;
-        if (n >= (int)nr_cpu_ids)
+        if (n >= (int)ctx->n_rngs)
             n = 0;
         cpu_relax();
     }
@@ -1049,12 +1073,20 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
     __builtin_unreachable();
 }
 
+/* get_drbg_n() is used by bulk seed, mix-in, and reseed operations.  It expects
+ * the caller to be able to wait until the requested DRBG is available.
+ */
 static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, int n) {
+    int can_sleep = (preempt_count() == 0);
+
     for (;;) {
         int expected = 0;
         if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
             return &ctx->rngs[n];
-        cpu_relax();
+        if (can_sleep)
+            cond_resched();
+        else
+            cpu_relax();
     }
 
     __builtin_unreachable();
@@ -1078,17 +1110,18 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
                         u8 *dst, unsigned int dlen)
 {
     int ret, retried = 0;
-    /* Note, core is not necessarily locked on entry, so the actual core ID may
-     * change while executing, hence the lock.
-     *
-     * The lock is also needed to coordinate with wc_linuxkm_drbg_seed(), which
-     * seeds all instances.
-     */
+    int need_fpu_restore;
     struct wc_rng_inst *drbg = get_drbg(tfm);
+
+    if (! drbg) {
+        pr_err_once("BUG: get_drbg() failed.");
+        return -EFAULT;
+    }
+
     /* for the default RNG, make sure we don't cache an underlying SHA256
      * method that uses vector insns (forbidden from irq handlers).
      */
-    int need_fpu_restore = (tfm == crypto_default_rng) ? (DISABLE_VECTOR_REGISTERS() == 0) : 0;
+    need_fpu_restore = (tfm == crypto_default_rng) ? (DISABLE_VECTOR_REGISTERS() == 0) : 0;
 
 retry:
 
@@ -1138,6 +1171,13 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
     int ret;
     int n;
 
+    if ((tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) ||
+        (ctx->rngs == NULL))
+    {
+        pr_err_once("BUG: mismatched tfm.");
+        return -EFAULT;
+    }
+
     if (slen == 0)
         return 0;
 
@@ -1146,7 +1186,10 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
         return -ENOMEM;
     XMEMCPY(seed_copy + 2, seed, slen);
 
-    for (n = nr_cpu_ids - 1; n >= 0; --n) {
+    /* this iteration counts down, whereas the iteration in get_drbg() counts
+     * up, to assure they can't possibly phase-lock to each other.
+     */
+    for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
 
         /* perturb the seed with the CPU ID, so that no DRBG has the exact same
@@ -1249,7 +1292,13 @@ static inline struct crypto_rng *get_crypto_default_rng(void) {
 
 static inline struct wc_linuxkm_drbg_ctx *get_default_drbg_ctx(void) {
     struct crypto_rng *current_crypto_default_rng = get_crypto_default_rng();
-    return current_crypto_default_rng ? (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(current_crypto_default_rng) : NULL;
+    struct wc_linuxkm_drbg_ctx *ctx = (current_crypto_default_rng ? (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(current_crypto_default_rng) : NULL);
+    if (ctx && (! ctx->rngs)) {
+        pr_err_once("BUG: get_default_drbg_ctx() found null ctx->rngs.");
+        return NULL;
+    }
+    else
+        return ctx;
 }
 
 static int wc__get_random_bytes(void *buf, size_t len)
@@ -1259,8 +1308,9 @@ static int wc__get_random_bytes(void *buf, size_t len)
         return -EFAULT;
     else {
         int ret = crypto_rng_get_bytes(current_crypto_default_rng, buf, len);
-        if (ret)
+        if (ret) {
             pr_warn("BUG: wc_get_random_bytes falling through to native get_random_bytes with wc_linuxkm_drbg_default_instance_registered, ret=%d.", ret);
+        }
         return ret;
     }
     __builtin_unreachable();
@@ -1382,7 +1432,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     if (! (ctx = get_default_drbg_ctx()))
         return -EFAULT;
 
-    for (n = nr_cpu_ids - 1; n >= 0; --n) {
+    for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
         int V_offset = 0;
 
@@ -1406,7 +1456,7 @@ static int wc_crng_reseed(void) {
     if (! ctx)
         return -EFAULT;
 
-    for (n = nr_cpu_ids - 1; n >= 0; --n) {
+    for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
         ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
         if (can_sleep) {
@@ -1786,6 +1836,7 @@ static int wc_linuxkm_drbg_startup(void)
     }
     else {
         pr_err("ERROR: wolfssl_linuxkm_register_random_bytes_handlers() failed: %d\n", ret);
+        return ret;
     }
 
     #elif defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES)
@@ -1797,6 +1848,7 @@ static int wc_linuxkm_drbg_startup(void)
     }
     else {
         pr_err("ERROR: wc_get_random_bytes_kprobe installation failed: %d\n", ret);
+        return ret;
     }
 
     #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE
@@ -1807,6 +1859,7 @@ static int wc_linuxkm_drbg_startup(void)
     }
     else {
         pr_err("ERROR: wc_get_random_bytes_user_kprobe installation failed: %d\n", ret);
+        return ret;
     }
     #endif /* WOLFSSL_LINUXKM_USE_GET_RANDOM_USER_KRETPROBE */
 
