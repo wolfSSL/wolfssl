@@ -10737,6 +10737,25 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     cert->altSigValLen = x509->altSigValLen;
     cert->altSigValCrit = x509->altSigValCrit;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
+
+#ifdef WOLFSSL_CUSTOM_OID
+
+    if ((x509->customExtCount < 0) ||
+            (x509->customExtCount >= NUM_CUSTOM_EXT)) {
+        WOLFSSL_MSG("Bad value for customExtCount.");
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i = 0; i < x509->customExtCount; i++) {
+        if (wc_SetCustomExtension(cert, x509->custom_exts[i].crit,
+                x509->custom_exts[i].oid, x509->custom_exts[i].val,
+                x509->custom_exts[i].valSz))
+        {
+            return WOLFSSL_FAILURE;
+        }
+    }
+#endif /* WOLFSSL_CUSTOM_OID */
+
 #endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_CERT_REQ
