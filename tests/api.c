@@ -17486,7 +17486,7 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 } /* END test_wc_PKCS7_DecodeEnvelopedData_stream() */
 
 /*
- * Testing wc_PKCS7_EncodeEnvelopedData()
+ * Testing wc_PKCS7_EncodeEnvelopedData(), wc_PKCS7_DecodeEnvelopedData()
  */
 static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 {
@@ -18176,6 +18176,178 @@ static int test_wc_PKCS7_EncodeEncryptedData(void)
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
+
+
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3) && !defined(NO_RSA) && !defined(NO_SHA)
+static void build_test_EncryptedKeyPackage(byte * out, word32 * out_size, byte * in_data, word32 in_size, size_t in_content_type, size_t test_vector)
+{
+    /* EncryptedKeyPackage ContentType TLV DER */
+    static const byte ekp_oid_tlv[] = {0x06U, 10U,
+        0X60U, 0X86U, 0X48U, 0X01U, 0X65U, 0X02U, 0X01U, 0X02U, 0X4EU, 0X02U};
+    if (in_content_type == ENCRYPTED_DATA) {
+        /* EncryptedData subtype */
+        size_t ekp_content_der_size = 2U + in_size;
+        size_t ekp_content_info_size = sizeof(ekp_oid_tlv) + ekp_content_der_size;
+        /* EncryptedKeyPackage ContentType */
+        out[0] = 0x30U;
+        out[1] = ekp_content_info_size & 0x7FU;
+        /* EncryptedKeyPackage ContentInfo */
+        XMEMCPY(&out[2], ekp_oid_tlv, sizeof(ekp_oid_tlv));
+        /* EncryptedKeyPackage content [0] */
+        out[14] = 0xA0U;
+        out[15] = in_size & 0x7FU;
+        XMEMCPY(&out[16], in_data, in_size);
+        *out_size = 16U + in_size;
+        switch (test_vector)
+        {
+        case 1: out[0] = 0x20U; break;
+        case 2: out[2] = 0x01U; break;
+        case 3: out[7] = 0x42U; break;
+        case 4: out[14] = 0xA2U; break;
+        }
+    }
+    else if (in_content_type == ENVELOPED_DATA) {
+        /* EnvelopedData subtype */
+        size_t ekp_choice_der_size = 4U + in_size;
+        size_t ekp_content_der_size = 4U + ekp_choice_der_size;
+        size_t ekp_content_info_size = sizeof(ekp_oid_tlv) + ekp_content_der_size;
+        /* EncryptedKeyPackage ContentType */
+        out[0] = 0x30U;
+        out[1] = 0x82U;
+        out[2] = ekp_content_info_size >> 8U;
+        out[3] = ekp_content_info_size & 0xFFU;
+        /* EncryptedKeyPackage ContentInfo */
+        XMEMCPY(&out[4], ekp_oid_tlv, sizeof(ekp_oid_tlv));
+        /* EncryptedKeyPackage content [0] */
+        out[16] = 0xA0U;
+        out[17] = 0x82U;
+        out[18] = ekp_choice_der_size >> 8U;
+        out[19] = ekp_choice_der_size & 0xFFU;
+        /* EncryptedKeyPackage CHOICE [0] EnvelopedData */
+        out[20] = 0xA0U;
+        out[21] = 0x82U;
+        out[22] = in_size >> 8U;
+        out[23] = in_size & 0xFFU;
+        XMEMCPY(&out[24], in_data, in_size);
+        *out_size = 24U + in_size;
+        switch (test_vector)
+        {
+        case 1: out[0] = 0x20U; break;
+        case 2: out[4] = 0x01U; break;
+        case 3: out[9] = 0x42U; break;
+        case 4: out[16] = 0xA2U; break;
+        }
+    }
+}
+#endif /* HAVE_PKCS7 && USE_CERT_BUFFERS_2048 && !NO_DES3 && !NO_RSA && !NO_SHA */
+
+/*
+ * Test wc_PKCS7_DecodeEncryptedKeyPackage().
+ */
+static int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_DES3) && !defined(NO_RSA) && !defined(NO_SHA)
+    static const struct {
+        const char * msg_file_name;
+        word32 msg_content_type;
+    } test_messages[] = {
+        {"./certs/test/ktri-keyid-cms.msg", ENVELOPED_DATA},
+        {"./certs/test/encrypteddata.msg", ENCRYPTED_DATA},
+    };
+    static const int test_vectors[] = {
+        0,
+        WC_NO_ERR_TRACE(ASN_PARSE_E),
+        WC_NO_ERR_TRACE(ASN_PARSE_E),
+        WC_NO_ERR_TRACE(PKCS7_OID_E),
+        WC_NO_ERR_TRACE(ASN_PARSE_E),
+    };
+    static const byte key[] = {
+        0x01U, 0x23U, 0x45U, 0x67U, 0x89U, 0xABU, 0xCDU, 0xEFU,
+        0x00U, 0x11U, 0x22U, 0x33U, 0x44U, 0x55U, 0x66U, 0x77U,
+    };
+    size_t test_msg = 0U;
+    size_t test_vector = 0U;
+
+    for (test_msg = 0U; test_msg < (sizeof(test_messages)/sizeof(test_messages[0])); test_msg++)
+    {
+        for (test_vector = 0U; test_vector < (sizeof(test_vectors)/sizeof(test_vectors[0])); test_vector++)
+        {
+            byte * ekp_cms_der = NULL;
+            word32 ekp_cms_der_size = 0U;
+            byte * inner_cms_der = NULL;
+            word32 inner_cms_der_size = (word32)FOURK_BUF;
+            XFILE inner_cms_file = XBADFILE;
+            PKCS7 * pkcs7 = NULL;
+            byte out[15] = {0};
+            int result = 0;
+
+            ExpectNotNull(ekp_cms_der = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+            /* Check for possible previous test failure. */
+            if (ekp_cms_der == NULL) {
+                break;
+            }
+
+            ExpectNotNull(inner_cms_der = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+            ExpectTrue((inner_cms_file = XFOPEN(test_messages[test_msg].msg_file_name, "rb")) != XBADFILE);
+            ExpectTrue((inner_cms_der_size = (word32)XFREAD(inner_cms_der, 1, inner_cms_der_size, inner_cms_file)) > 0);
+            if (inner_cms_file != XBADFILE) {
+                XFCLOSE(inner_cms_file);
+            }
+            if (test_messages[test_msg].msg_content_type == ENVELOPED_DATA) {
+                /* Verify that the build_test_EncryptedKeyPackage can format as expected. */
+                ExpectIntGT(inner_cms_der_size, 127);
+            }
+            if (test_messages[test_msg].msg_content_type == ENCRYPTED_DATA) {
+                /* Verify that the build_test_EncryptedKeyPackage can format as expected. */
+                ExpectIntLT(inner_cms_der_size, 124);
+            }
+            build_test_EncryptedKeyPackage(ekp_cms_der, &ekp_cms_der_size, inner_cms_der, inner_cms_der_size, test_messages[test_msg].msg_content_type, test_vector);
+            XFREE(inner_cms_der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+            ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte *)client_cert_der_2048, sizeof_client_cert_der_2048), 0);
+            if (pkcs7 != NULL) {
+                if (test_messages[test_msg].msg_content_type == ENVELOPED_DATA) {
+                    /* To test EnvelopedData, set private key. */
+                    pkcs7->privateKey = (byte *)client_key_der_2048;
+                    pkcs7->privateKeySz = sizeof_client_key_der_2048;
+                }
+                if (test_messages[test_msg].msg_content_type == ENCRYPTED_DATA) {
+                    /* To test EncryptedData, set symmetric encryption key. */
+                    pkcs7->encryptionKey = (byte *)key;
+                    pkcs7->encryptionKeySz = sizeof(key);
+                }
+            }
+            result = wc_PKCS7_DecodeEncryptedKeyPackage(pkcs7, ekp_cms_der, ekp_cms_der_size, out, sizeof(out));
+            if (result == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
+                result = wc_PKCS7_DecodeEncryptedKeyPackage(pkcs7, ekp_cms_der, ekp_cms_der_size, out, sizeof(out));
+            }
+            if (test_vectors[test_vector] == 0U) {
+                if (test_messages[test_msg].msg_content_type == ENVELOPED_DATA) {
+                    ExpectIntGT(result, 0);
+                    ExpectIntEQ(XMEMCMP(out, "test", 4), 0);
+                }
+                if (test_messages[test_msg].msg_content_type == ENCRYPTED_DATA) {
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+                    ExpectIntGT(result, 0);
+                    ExpectIntEQ(XMEMCMP(out, "testencrypt", 11), 0);
+#else
+                    ExpectIntEQ(result, WC_NO_ERR_TRACE(ASN_PARSE_E));
+#endif
+                }
+            }
+            else {
+                ExpectIntEQ(result, test_vectors[test_vector]);
+            }
+            XFREE(ekp_cms_der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            wc_PKCS7_Free(pkcs7);
+        }
+    }
+#endif /* HAVE_PKCS7 && USE_CERT_BUFFERS_2048 && !NO_DES3 && !NO_RSA && !NO_SHA */
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeEncryptedKeyPackage() */
+
 
 /*
  * Testing wc_PKCS7_Degenerate()
@@ -67601,6 +67773,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_DecodeEnvelopedData_stream),
     TEST_DECL(test_wc_PKCS7_EncodeDecodeEnvelopedData),
     TEST_DECL(test_wc_PKCS7_EncodeEncryptedData),
+    TEST_DECL(test_wc_PKCS7_DecodeEncryptedKeyPackage),
     TEST_DECL(test_wc_PKCS7_Degenerate),
     TEST_DECL(test_wc_PKCS7_BER),
     TEST_DECL(test_wc_PKCS7_signed_enveloped),
