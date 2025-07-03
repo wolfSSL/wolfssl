@@ -1,0 +1,63 @@
+name: disable-pk-algs Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-rsa --enable-dh',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ecc',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-rsa --enable-curve25519',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ecc --enable-curve25519',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-rsa --enable-curve448',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ecc --enable-curve448',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-curve25519 --enable-ed25519',
+          '--disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-curve448 --enable-ed448',
+          '-enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-rsa',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-dh',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ecc',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-curve25519',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ed25519',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-curve448',
+          '--enable-cryptonly  --disable-rsa --disable-dh --disable-ecc --disable-curve25519 --disable-ed25519 --disable-curve448 --disable-ed448 --enable-ed448',
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL
+        run: |
+          ./autogen.sh
+          ./configure ${{ matrix.config }}
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
