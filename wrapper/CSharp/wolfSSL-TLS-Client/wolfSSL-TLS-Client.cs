@@ -69,10 +69,8 @@ public class wolfSSL_TLS_Client
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, IntPtr msg)
-    {
-        string str = wolfssl.PtrToStringAnsi(msg);
-        Console.WriteLine(str);
+    public static void standard_log(int lvl, StringBuilder msg) {
+        Console.WriteLine(msg);
     }
 
     public static void show_alert_history_code(WOLFSSL_ALERT h, string m)

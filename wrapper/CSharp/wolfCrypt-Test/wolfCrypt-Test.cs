@@ -868,7 +868,7 @@ public class wolfCrypt_Test_CSharp
             wolfcrypt.Init();
 
             /* setup logging to stdout */
-            wolfcrypt.SetLogging(standard_log);
+            wolfssl.SetLogging(standard_log);
 
             random_test();
 

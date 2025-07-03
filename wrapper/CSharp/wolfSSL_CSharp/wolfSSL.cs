@@ -32,7 +32,6 @@
     #define WindowsCE
 #endif
 
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -112,23 +111,23 @@ namespace wolfSSL.CSharp
                 Console.WriteLine("AppDomain.CurrentDomain.BaseDirectory: " + AppDomain.CurrentDomain.BaseDirectory);
             }
             bool is64Bit = (IntPtr.Size == 8);
-    #if DEBUG
+#if DEBUG
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x86", "Debug\\Win32" };
             }
-    #elif RELEASE
+#elif RELEASE
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Release", "Release\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Release", "Release\\x86", "Release\\Win32" };
             }
-    #else
-        #pragma "Only DEBUG and RELEASE supported"
-    #endif
+#else
+#pragma "Only DEBUG and RELEASE supported"
+#endif
             /* We'll search for alternative locations of a compiled wolfssl.dll only on non-CE targets */
             if (wolfsslPath == "") {
                 /* wolfSSL project should have created a DLL in [WOLFSSL_ROOT]\Debug, some number of directories up from here:  */
@@ -271,8 +270,9 @@ namespace wolfSSL.CSharp
         /// See companion PtrToStringAnsi
         /// </summary>
         public static IntPtr StringToAnsiPtr(string str) {
-            if (str == null)
+            if (str == null) {
                 return IntPtr.Zero;
+            }
 
             byte[] ansiBytes = Encoding.ASCII.GetBytes(str + '\0'); // ensure null-terminated
             IntPtr ptr = Marshal.AllocHGlobal(ansiBytes.Length);
@@ -753,13 +753,15 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
         /* No decorator needed for loggingCb */
-        public delegate void loggingCb(int lvl, IntPtr msg);
+        public delegate void loggingCb(int lvl, StringBuilder msg);
+        /* No decorator needed for loggingCbEx */
+        public delegate void loggingCbEx(int lvl, IntPtr msg);
         [DllImport(wolfssl_dll)]
         private extern static void wolfSSL_Debugging_ON();
         [DllImport(wolfssl_dll)]
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll)]
-        private extern static int wolfSSL_SetLoggingCb(loggingCb vc);
+        private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
@@ -768,15 +770,19 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void loggingCb(int lvl, IntPtr msg);
+        public delegate void loggingCb(int lvl, StringBuilder msg);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void loggingCbEx(int level, IntPtr msg);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_Debugging_ON();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_SetLoggingCb(loggingCb vc);
+        private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
 #endif
-        private static loggingCb internal_log;
+        /* Internal field to store the original logging callback */
+        private static loggingCbEx internal_log_ex         = null; /* keep reference to prevent GC         */
+        private static loggingCbEx internal_bridge_cb      = null; /* helper when using original loggingCb */
 
         /********************************
          * DH
@@ -2880,27 +2886,57 @@ namespace wolfSSL.CSharp
         /// <summary>
         /// Set the function to use for logging
         /// </summary>
-        /// <param name="input">Function that conforms as to loggingCb</param>
+        /// <param name="input">Function that conforms as to loggingCb StringBuilder msg</param>
         /// <returns>1 on success</returns>
         public static int SetLogging(loggingCb input)
         {
-            internal_log = input;
+            if (input == null) {
+                return SetLogging((loggingCbEx)null);
+            }
 
-            /* This is typically the first wrapper call to wolfSSL.
-             *
-             * If this error is encountered:
-             *
-             *   Unable to load DLL 'wolfssl.dll': The specified module could not be found. (Exception from HRESULT: 0x8007007E)
-             *
-             * Ensure the Build - Configuration Manager - Platform matches for all respective projects, e.g. x64
-             *
-             * Windows CE users may wish to copy the wolfssl.dll to the device \windows directory.
-             */
-            wolfSSL_SetLoggingCb(input);
+            /* Build a bridge that routes through internal_log_ex logic */
+            internal_bridge_cb = new loggingCbEx(delegate (int lvl, IntPtr msgPtr)
+            {
+                string msg;
 
-            return SUCCESS;
+                if (msgPtr == IntPtr.Zero) {
+                    msg = "";
+                }
+                else {
+                    int len = 0;
+                    while (Marshal.ReadByte(msgPtr, len) != 0) {
+                        len++;
+                    }
+
+                    byte[] buffer = new byte[len];
+                    Marshal.Copy(msgPtr, buffer, 0, len);
+                    msg = Encoding.ASCII.GetString(buffer, 0, buffer.Length);
+                }
+
+                StringBuilder sb = new StringBuilder();
+                sb.Append(msg);
+
+                input(lvl, sb);
+            });
+
+            return SetLogging(internal_bridge_cb);
         }
 
+        /// <summary>
+        /// Set the function to use for logging
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb for preferred IntPtr msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCbEx input) {
+            internal_log_ex = input;
+
+            if (input == null) {
+                return wolfSSL_SetLoggingCb(null);
+            }
+
+            /* Return the result of the native call to wolfSSL */
+            return wolfSSL_SetLoggingCb(input);
+        }
 
         /// <summary>
         /// Log a message to set logging function
@@ -2909,13 +2945,15 @@ namespace wolfSSL.CSharp
         /// <param name="msg">Message to log</param>
         public static void log(int lvl, string msg)
         {
-            /* if log is not set then print nothing */
-            if (internal_log == null)
+            /* if log is not set then print nothing; has SetLogging been called? */
+            if (internal_log_ex == null) {
                 return;
+            }
+
             IntPtr ptr = wolfssl.StringToAnsiPtr(msg);
             try
             {
-                internal_log(lvl, ptr);
+                internal_log_ex(lvl, ptr);
             }
             finally
             {
