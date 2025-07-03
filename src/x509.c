@@ -10738,7 +10738,8 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     cert->altSigValCrit = x509->altSigValCrit;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
-#ifdef WOLFSSL_CUSTOM_OID
+#if defined(WOLFSSL_ASN_TEMPLATE) && defined(WOLFSSL_CUSTOM_OID) && \
+    defined(HAVE_OID_ENCODING)
 
     if ((x509->customExtCount < 0) ||
             (x509->customExtCount >= NUM_CUSTOM_EXT)) {
@@ -10754,7 +10755,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             return WOLFSSL_FAILURE;
         }
     }
-#endif /* WOLFSSL_CUSTOM_OID */
+#endif /* WOLFSSL_ASN_TEMPLATE && WOLFSSL_CUSTOM_OID && HAVE_OID_ENCODING */
 
 #endif /* WOLFSSL_CERT_EXT */
 
