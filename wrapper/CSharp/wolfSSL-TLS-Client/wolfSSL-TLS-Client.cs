@@ -79,18 +79,16 @@ public class wolfSSL_TLS_Client
     }
 #endif
 
-    public static void show_alert_history_code(WOLFSSL_ALERT h, string m)
+    private static void show_alert_history_code(WOLFSSL_ALERT h, string m)
     {
         /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
         if ((h.code > 0) || (h.level > 0)) {
             Console.WriteLine(m + " code:  " + h.code.ToString());
-        }
-        if ((h.code > 0) || (h.level > 0)) {
             Console.WriteLine(m + " level: " + h.level.ToString());
         }
     }
 
-    public static void show_alert_history(IntPtr ssl)
+    private static void show_alert_history(IntPtr ssl)
     {
         int ret = 0;
         ret = wolfssl.get_alert_history(ssl, ref myHistory);
@@ -184,7 +182,7 @@ public class wolfSSL_TLS_Client
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
 
-        //example of function used for setting logging
+        /* example of function used for setting logging */
         wolfssl.SetLogging(standard_log);
 
         wolfssl.Init();
@@ -275,6 +273,7 @@ public class wolfSSL_TLS_Client
                 if (addr.AddressFamily == AddressFamily.InterNetwork)
                 {
                     tcp.Connect(new IPEndPoint(addr, SERVER_PORT));
+                    break; /* use only one connection */
                 }
             }
 #else
@@ -333,9 +332,6 @@ public class wolfSSL_TLS_Client
         Console.WriteLine("SSL version is " + wolfssl.get_version(ssl));
         Console.WriteLine("SSL cipher suite is " + wolfssl.get_current_cipher(ssl));
 
-        /* Optional code & level history */
-        show_alert_history(ssl);
-
         if (wolfssl.write(ssl, reply, reply.Length) != reply.Length)
         {
             Console.WriteLine("Error in write");
@@ -353,6 +349,9 @@ public class wolfSSL_TLS_Client
             return;
         }
         Console.WriteLine(buff);
+
+        /* Optional code & level history */
+        show_alert_history(ssl);
 
         wolfssl.shutdown(ssl);
         tcp.Close();
