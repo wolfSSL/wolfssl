@@ -383,6 +383,50 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
 #if (WOLFSSL_RENESAS_TSIP_VER >= 109)
 #ifdef WOLF_CRYPTO_CB
 
+static int _tsip_cpAesKeyIndex2AesCtx(wc_CryptoInfo* info, TsipUserCtx* cb)
+{
+    Aes* aes = NULL;
+
+    if (!info || !cb)
+        return -1;
+
+    switch(info->cipher.type) {
+    #ifdef HAVE_AESGCM
+        case WC_CIPHER_AES_GCM:
+            if (info->cipher.enc)
+                aes = info->cipher.aesgcm_enc.aes;
+            else
+                aes = info->cipher.aesgcm_dec.aes;
+            break;
+    #endif
+    #ifdef HAVE_AES_CBC
+        case WC_CIPHER_AES_CBC:
+            aes = info->cipher.aescbc.aes;
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
+        case WC_CIPHER_AES_CTR:
+            aes = info->cipher.aesctr.aes;
+            break;
+    #endif
+        default:
+            break;
+    }
+
+    if (aes && cb->user_aes256_key_set == 1) {
+        XMEMCPY(&aes->ctx.tsip_keyIdx,&cb->user_aes256_key_index,
+                    sizeof(tsip_aes_key_index_t));
+            aes->ctx.keySize = 32;
+    }else if (aes && cb->user_aes128_key_set == 1) {
+        XMEMCPY(&aes->ctx.tsip_keyIdx,&cb->user_aes128_key_index,
+                    sizeof(tsip_aes_key_index_t));
+        aes->ctx.keySize = 16;
+    } else
+        return -1;
+
+    return 0;
+}
+
 int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
@@ -404,7 +448,12 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
             && cbInfo != NULL && cbInfo->session_key_set == 1
         #endif
             ) {
-
+            ret = _tsip_cpAesKeyIndex2AesCtx(info, cbInfo);
+            if (ret != 0) {
+                WOLFSSL_MSG("Failed to copy Aes Key Index from "
+                            "UserCtx to AES Ctx");
+                return ret;
+            }
             if (info->cipher.enc) {
                 ret = wc_tsip_AesGcmEncrypt(
                         info->cipher.aesgcm_enc.aes,
@@ -443,12 +492,21 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
             && cbInfo != NULL && cbInfo->session_key_set == 1
         #endif
             ) {
-            /* encrypt and decrypt use same routine */
-            ret = wc_tsip_AesCtr(
-                info->cipher.aesctr.aes,
-                (byte*)info->cipher.aesctr.out,
-                (byte*)info->cipher.aesctr.in,
-                info->cipher.aesctr.sz);
+            int remain = (int)(info->cipher.aesctr.sz % WC_AES_BLOCK_SIZE);
+            if (remain == 0) {
+                ret = _tsip_cpAesKeyIndex2AesCtx(info, cbInfo);
+                if (ret != 0) {
+                    WOLFSSL_MSG("Failed to copy Aes Key Index from "
+                                "UserCtx to AES Ctx");
+                    return ret;
+                }
+                /* encrypt and decrypt use same routine */
+                ret = wc_tsip_AesCtr(
+                    info->cipher.aesctr.aes,
+                    (byte*)info->cipher.aesctr.out,
+                    (byte*)info->cipher.aesctr.in,
+                    info->cipher.aesctr.sz);
+            }
         }
     #endif /* WOLFSSL_AES_COUNTER */
 
@@ -458,7 +516,12 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
             && cbInfo != NULL && cbInfo->session_key_set == 1
         #endif
             ) {
-
+            ret = _tsip_cpAesKeyIndex2AesCtx(info, cbInfo);
+            if (ret != 0) {
+                WOLFSSL_MSG("Failed to copy Aes Key Index from "
+                            "UserCtx to AES Ctx");
+                return ret;
+            }
             if (info->cipher.enc) {
                 ret = wc_tsip_AesCbcEncrypt(
                     info->cipher.aescbc.aes,
