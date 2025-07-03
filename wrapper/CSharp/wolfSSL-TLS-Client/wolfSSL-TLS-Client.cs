@@ -57,7 +57,6 @@ public class wolfSSL_TLS_Client
     //
     public static string SERVER_NAME = "localhost"; /* or IP address: "192.168.1.73 */
     public static int SERVER_PORT = 11111;
-    public static bool VERBOSE_DLL_LOAD = true;
 
     // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
     public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";

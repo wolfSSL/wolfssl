@@ -126,7 +126,7 @@ namespace wolfSSL.CSharp
                 subDirsToCheck = new string[] { "Release", "Release\\x86", "Release\\Win32" };
             }
 #else
-#pragma "Only DEBUG and RELEASE supported"
+    #pragma "Only DEBUG and RELEASE supported"
 #endif
             /* We'll search for alternative locations of a compiled wolfssl.dll only on non-CE targets */
             if (wolfsslPath == "") {
