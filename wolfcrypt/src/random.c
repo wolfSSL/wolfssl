@@ -1494,13 +1494,23 @@ static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mute
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *noise = NULL;
+#else
     byte noise[MAX_NOISE_CNT];
+#endif
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
 
+#ifdef WOLFSSL_SMALL_STACK
+    noise = (byte *)XMALLOC(MAX_NOISE_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (noise == NULL)
+        return MEMORY_E;
+#endif
+
     /* Lock the mutex as collection uses globals. */
-    if (wc_LockMutex(&entropy_mutex) != 0) {
+    if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
         ret = BAD_MUTEX_E;
     }
 
@@ -1557,6 +1567,10 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(noise, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
