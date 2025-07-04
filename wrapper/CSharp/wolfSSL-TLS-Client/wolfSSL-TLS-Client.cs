@@ -53,7 +53,7 @@ public class wolfSSL_TLS_Client
     // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
     public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";
 
-    private static WOLFSSL_ALERT_HISTORY myHistory = new WOLFSSL_ALERT_HISTORY();
+    private static wolfssl.WOLFSSL_ALERT_HISTORY myHistory = new wolfssl.WOLFSSL_ALERT_HISTORY();
 
 
 #if WindowsCE
@@ -79,7 +79,7 @@ public class wolfSSL_TLS_Client
     }
 #endif
 
-    private static void show_alert_history_code(WOLFSSL_ALERT h, string m)
+    private static void show_alert_history_code(wolfssl.WOLFSSL_ALERT h, string m)
     {
         /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
         if ((h.code > 0) || (h.level > 0)) {

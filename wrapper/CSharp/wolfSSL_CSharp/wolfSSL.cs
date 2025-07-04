@@ -38,23 +38,6 @@ using System.Net.Sockets;
 
 namespace wolfSSL.CSharp
 {
-    /********************************
-     * The WOLFSSL_ALERT_HISTORY
-     */
-    [StructLayout(LayoutKind.Sequential)]
-    public struct WOLFSSL_ALERT
-    {
-        public int code;
-        public int level;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct WOLFSSL_ALERT_HISTORY
-    {
-        public WOLFSSL_ALERT last_rx;
-        public WOLFSSL_ALERT last_tx;
-    }
-
     public class wolfssl
     {
         private const string wolfssl_dll = "wolfssl.dll";
@@ -65,6 +48,23 @@ namespace wolfSSL.CSharp
 
         public static void SetVerbosity(bool b) {
             verbose = b;
+        }
+
+        /********************************
+         * The WOLFSSL_ALERT_HISTORY
+         */
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WOLFSSL_ALERT
+        {
+            public int code;
+            public int level;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WOLFSSL_ALERT_HISTORY
+        {
+            public WOLFSSL_ALERT last_rx;
+            public WOLFSSL_ALERT last_tx;
         }
 
         /// <summary>

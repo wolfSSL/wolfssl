@@ -52,11 +52,10 @@
 
 /* CE Not always reliably detected. Define our own _WIN32_WCE as needed. */
 #if defined(_WIN32_WCE) || defined(WINCE) || defined(PocketPC)
-    #if !_WIN32_WCE
+    #if !defined(_WIN32_WCE)
         #define _WIN32_WCE
     #endif
 #endif
-
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 
 #ifdef HAVE_LIBZ
@@ -923,11 +922,13 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
             #define XINET_PTON(a,b,c)   *(unsigned *)(c) = inet_addr((b))
         #endif
     #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
-        #if defined(__MINGW64__) && !defined(UNICODE)
+        #if defined(UNICODE)
+            /* Use Win API Pointer to a constant wide-character string */
+            #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+        #elif defined(__MINGW64__) && !defined(UNICODE)
             #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
         #else
-            #if (defined(_MSC_VER) && (_MSC_VER >= 1600)) || \
-                 defined(_WIN32_WCE) || defined(WINCE) || defined(PocketPC)
+            #if (defined(_MSC_VER) && (_MSC_VER >= 1600)) || defined(_WIN32_WCE)
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
             #else
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCSTR)(b),(c))

@@ -25,13 +25,32 @@ project directly.
 To successfully run and build the solution on Windows Visual Studio you will
 need to open a new solution `wolfSSL_CSharp.sln` located in `wrapper\CSharp\wolfSSL_CSharp.sln`.
 
+The default `user_settings.h` is part of the Additional Include Directories, typically in `[WOLFSSL_ROOT]/wrapper/CSharp`
+
+```
+AdditionalIncludeDirectories="./;./wrapper/CSharp"
+```
+
+
+See alse the sample Windows user_settings.h in `[WOLFSSL_ROOT]/IDE/WIN``
+
+```
+AdditionalIncludeDirectories="./;./IDE/WIN"
+```
+
+
 Select the CPU type, configuration, and target file.
 select `Build` and either `Rebuild Solution` or `Build Solution`.
 
 The `wolfssl` project will typically need the `DLL_Debug` or `DLL_Release` configuration with `x64` platform.
 
+
 Check that the proper preprocessor definitions are included: `BUILDING_WOLFSSL;WOLFSSL_DLL;WOLFSSL_USER_SETTINGS`
 
+Syntax for project file:
+```
+PreprocessorDefinitions="WOLFSSL_LIB;WOLFSSL_USER_SETTINGS"
+```
 Some older versions of Visual Studio will require manually setting the Configure Type to create a DLL file:
 
 ```
@@ -86,6 +105,11 @@ Install the latest PowerShell for new features and improvements! https://aka.ms/
 
 Loading personal and system profiles took 1026ms.
 ```
+## WindowsCE and Other Pocket PC Configurations
+
+The `WindowsCE` should be defined in each project pre-processor declarations as needed. 
+
+Also can be manually defined in the `user_settings.h` when building the native C `wolfssl.dll`.
 
 ## Linux (Ubuntu) using mono
 
