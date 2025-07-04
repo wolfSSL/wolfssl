@@ -126,6 +126,7 @@
 
     #if defined(__PIE__) && defined(CONFIG_ARM64)
         #define alt_cb_patch_nops my__alt_cb_patch_nops
+        #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
     #endif
 
     #include <linux/kernel.h>
@@ -705,20 +706,30 @@
 
         #ifdef CONFIG_ARM64
         #ifdef __PIE__
-            /* alt_cb_patch_nops defined early to allow shimming in system
-             * headers, but now we need the native one.
+            /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
+             * to allow shimming in system headers, but now we need the native
+             * ones.
              */
             #undef alt_cb_patch_nops
             typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
+            #undef queued_spin_lock_slowpath
+            typeof(my__queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #else
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
+            typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #endif
         #endif
 
         typeof(preempt_count) *preempt_count;
-        typeof(_raw_spin_lock_irqsave) *_raw_spin_lock_irqsave;
-        typeof(_raw_spin_trylock) *_raw_spin_trylock;
-        typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
+        #ifndef _raw_spin_lock_irqsave
+            typeof(_raw_spin_lock_irqsave) *_raw_spin_lock_irqsave;
+        #endif
+        #ifndef _raw_spin_trylock
+            typeof(_raw_spin_trylock) *_raw_spin_trylock;
+        #endif
+        #ifndef _raw_spin_unlock_irqrestore
+            typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
+        #endif
         typeof(_cond_resched) *_cond_resched;
 
         const void *_last_slot;
@@ -885,9 +896,19 @@
 
     #undef preempt_count /* just in case -- not a macro on x86. */
     #define preempt_count (wolfssl_linuxkm_get_pie_redirect_table()->preempt_count)
-    #define _raw_spin_lock_irqsave (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_lock_irqsave)
-    #define _raw_spin_trylock (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_trylock)
-    #define _raw_spin_unlock_irqrestore (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_unlock_irqrestore)
+
+    #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+        #ifndef _raw_spin_lock_irqsave
+            #define _raw_spin_lock_irqsave (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_lock_irqsave)
+        #endif
+        #ifndef _raw_spin_trylock
+            #define _raw_spin_trylock (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_trylock)
+        #endif
+        #ifndef _raw_spin_unlock_irqrestore
+            #define _raw_spin_unlock_irqrestore (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_unlock_irqrestore)
+        #endif
+    #endif
+
     #define _cond_resched (wolfssl_linuxkm_get_pie_redirect_table()->_cond_resched)
 
     /* this is defined in linux/spinlock.h as an inline that calls the unshimmed
@@ -991,8 +1012,8 @@
 
         static inline int wc_LockMutex(wolfSSL_Mutex* m)
         {
-            if (in_nmi() || in_hardirq() || in_softirq())
-                return BAD_STATE_E;
+            if (in_nmi() || hardirq_count() || in_softirq())
+                return -1;
             mutex_lock(m);
             return 0;
         }

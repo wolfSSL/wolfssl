@@ -658,13 +658,20 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
 
     wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
+#ifndef _raw_spin_lock_irqsave
     wolfssl_linuxkm_pie_redirect_table._raw_spin_lock_irqsave = _raw_spin_lock_irqsave;
+#endif
+#ifndef _raw_spin_trylock
     wolfssl_linuxkm_pie_redirect_table._raw_spin_trylock = _raw_spin_trylock;
+#endif
+#ifndef _raw_spin_unlock_irqrestore
     wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_irqrestore = _raw_spin_unlock_irqrestore;
+#endif
     wolfssl_linuxkm_pie_redirect_table._cond_resched = _cond_resched;
 
 #ifdef CONFIG_ARM64
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
+    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */
