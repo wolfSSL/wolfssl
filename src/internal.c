@@ -6484,9 +6484,13 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
     if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
 #endif
     {
-        PRIVATE_KEY_UNLOCK();
-        ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
-        PRIVATE_KEY_LOCK();
+        if (ssl != NULL){
+            PRIVATE_KEY_UNLOCK();
+            ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
+            PRIVATE_KEY_LOCK();
+        } else {
+            ret = BAD_FUNC_ARG;
+        }
     }
 
     /* Handle async pending response */
