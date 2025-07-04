@@ -38,6 +38,27 @@ using System.Net.Sockets;
 
 namespace wolfSSL.CSharp
 {
+
+#if WindowsCE
+    /********************************
+     * The WOLFSSL_ALERT_HISTORY, for CE limited System.Runtime.InteropServices support ONLY.
+     * Class declaration cannot be passed passed directly to a [DllImport] or Marshal method
+     */
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WOLFSSL_ALERT
+    {
+        public int code;
+        public int level;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct WOLFSSL_ALERT_HISTORY
+    {
+        public WOLFSSL_ALERT last_rx;
+        public WOLFSSL_ALERT last_tx;
+    }
+#endif // WindowsCE
+
     public class wolfssl
     {
         private const string wolfssl_dll = "wolfssl.dll";
@@ -49,6 +70,9 @@ namespace wolfSSL.CSharp
         public static void SetVerbosity(bool b) {
             verbose = b;
         }
+
+#if !WindowsCE
+        /* Only non-windowsCE code can use the public structs in external [DllImport]
 
         /********************************
          * The WOLFSSL_ALERT_HISTORY
@@ -66,6 +90,7 @@ namespace wolfSSL.CSharp
             public WOLFSSL_ALERT last_rx;
             public WOLFSSL_ALERT last_tx;
         }
+#endif // !WindowsCE
 
         /// <summary>
         /// Use the SetDllDirectory from Windows kernel32.dll to set DLL location of wolfSSL
@@ -108,23 +133,24 @@ namespace wolfSSL.CSharp
                 Console.WriteLine("AppDomain.CurrentDomain.BaseDirectory: " + AppDomain.CurrentDomain.BaseDirectory);
             }
             bool is64Bit = (IntPtr.Size == 8);
-#if DEBUG
+    #if DEBUG
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x86", "Debug\\Win32" };
             }
-#elif RELEASE
+    #elif RELEASE
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Release", "Release\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Release", "Release\\x86", "Release\\Win32" };
             }
-#else
-    #pragma "Only DEBUG and RELEASE supported"
-#endif
+    #else
+            Console.WriteLine("Only DEBUG and RELEASE supported");
+#endif // conditional wolfssl.dll search directories
+
             /* We'll search for alternative locations of a compiled wolfssl.dll only on non-CE targets */
             if (wolfsslPath == "") {
                 /* wolfSSL project should have created a DLL in [WOLFSSL_ROOT]\Debug, some number of directories up from here:  */
@@ -168,7 +194,8 @@ namespace wolfSSL.CSharp
                 baseDir = System.IO.Path.GetDirectoryName(wolfsslPath);
             }
             /* end of !WindowsCE directory search */
-#endif
+#endif // WindowsCE conditional directory search
+
             /* When in verbose mode, show the details of the wolfssl.dll file being used */
             if (verbose) {
                 String wolfssl_path = Path.Combine(baseDir, wolfssl_dll);
