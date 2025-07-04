@@ -759,9 +759,6 @@ namespace wolfSSL.CSharp
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_SetLoggingCb(loggingCb vc);
-
-        /* Internal field to store the original logging callback: string msg */
-        private static loggingCb internal_log;
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
@@ -769,20 +766,20 @@ namespace wolfSSL.CSharp
         private extern static int wolfSSL_get_error(IntPtr ssl, int err);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void loggingCb(int lvl, StringBuilder msg);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void loggingCbEx(int level, IntPtr msg);
+        //[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        //public delegate void loggingCb(int lvl, StringBuilder msg);
+        //[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        //public delegate void loggingCbEx(int level, IntPtr msg);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_Debugging_ON();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_Debugging_OFF();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
+        private extern static int wolfSSL_SetLoggingCb(wolfcrypt.loggingCbEx vc);
 
         /* Internal fields to store the non-CE logging callback; StringBuilder msg */
-        private static loggingCbEx internal_log_ex         = null; /* keep reference to prevent GC         */
-        private static loggingCbEx internal_bridge_cb      = null; /* helper when using original loggingCb */
+        //private static wolfcrypt.loggingCbEx internal_log_ex         = null; /* keep reference to prevent GC         */
+        //private static wolfcrypt.loggingCbEx internal_bridge_cb      = null; /* helper when using original loggingCb */
 #endif
 
         /********************************
@@ -2884,153 +2881,25 @@ namespace wolfSSL.CSharp
             wolfSSL_Debugging_OFF();
         }
 
-        /// <summary>
-        /// Clean up old callbacks if previously assigned.
-        /// </summary>
-        public static void ClearLoggingCallbacks() {
-            /* Delegates are managed objects; nulling the reference allows GC to clean up. */
+        /* All of the logging is implemented in wolfCrypt */
 #if WindowsCE
-            internal_log = null;
-            wolfSSL_SetLoggingCb((loggingCb)null); /* call wolfSSL callback cleanup, string param */
-#else
-            internal_log_ex = null;
-            internal_bridge_cb = null;
-            wolfSSL_SetLoggingCb((loggingCbEx)null); /* call wolfSSL callback cleanup */
-#endif
+        public static int SetLogging(wolfcrypt.loggingCb input) {
+            return wolfcrypt.SetLogging(input);
         }
-
-        /* SetLogging() and log() implementations are different for CE vs non-CE: String msg vs StringBuilder msg */
-#if WindowsCE
-        /// <summary>
-        /// Set the function to use for logging on Windows CE
-        /// </summary>
-        /// <param name="input">Function that conforms as to loggingCb String msg</param>
-        /// <returns>1 on success</returns>
-        public static int SetLogging(loggingCb input)
-        {
-            /* If SetLogging was previously called, clean it up and exit if there's no new cb function */
-            if (input == null) {
-                ClearLoggingCallbacks();
-                return SetLogging((loggingCb)null);
-            }
-
-            /* If SetLogging is called with a new logging function, clean up the old one first: */
-            if (internal_log != null) {
-                ClearLoggingCallbacks();
-            }
-
-            /* Set our new callback logging function */
-            internal_log = input;
-
-            wolfSSL_SetLoggingCb(input);
-
-            return SUCCESS;
-        }
-
-        /// <summary>
-        /// Log a message to set logging function
-        /// </summary>
-        /// <param name="lvl">Level of log message</param>
-        /// <param name="msg">Message to log</param>
-        public static void log(int lvl, string msg)
-        {
-            /* if log is not set then print nothing */
-            if (internal_log == null) {
-                return;
-            }
-            internal_log(lvl, msg);
+        public static void log(int lvl, string msg) {
+            wolfcrypt.log(lvl, msg);
         }
 #else
-        /// <summary>
-        /// Set the function to use for logging
-        /// </summary>
-        /// <param name="input">Function that conforms as to loggingCb StringBuilder msg</param>
-        /// <returns>1 on success</returns>
-        public static int SetLogging(loggingCb input)
-        {
-            /* If SetLogging was previously called, clean it up and exit if there's no new cb function */
-            if (input == null) {
-                ClearLoggingCallbacks();
-                return SetLogging((loggingCbEx)null);
-            }
-
-            /* If SetLogging is called with a new logging function, clean up the old one first: */
-            if (internal_bridge_cb != null) {
-                ClearLoggingCallbacks();
-            }
-
-            /* Build a bridge that routes through internal_log_ex logic */
-            internal_bridge_cb = new loggingCbEx(delegate (int lvl, IntPtr msgPtr)
-            {
-                string msg;
-
-                if (msgPtr == IntPtr.Zero) {
-                    msg = "";
-                }
-                else {
-                    int len = 0;
-                    while (Marshal.ReadByte(msgPtr, len) != 0) {
-                        len++;
-                    }
-
-                    byte[] buffer = new byte[len];
-                    Marshal.Copy(msgPtr, buffer, 0, len);
-                    msg = Encoding.ASCII.GetString(buffer, 0, buffer.Length);
-                }
-
-                StringBuilder sb = new StringBuilder();
-                sb.Append(msg);
-
-                input(lvl, sb);
-            });
-
-            /* return the result of SetLogging(loggingCbEx input) */
-            return SetLogging(internal_bridge_cb);
+        public static int SetLogging(wolfcrypt.loggingCb input) {
+            return wolfcrypt.SetLogging(input);
         }
 
-        /// <summary>
-        /// Set the function to use for logging
-        /// </summary>
-        /// <param name="input">Function that conforms as to loggingCb for preferred IntPtr msg</param>
-        /// <returns>1 on success</returns>
-        public static int SetLogging(loggingCbEx input) {
-            if (input == null) {
-                ClearLoggingCallbacks();
-                return wolfSSL_SetLoggingCb((loggingCbEx)null);
-            }
-
-            /* If SetLogging is called with a new logging function, clean up the old one first: */
-            if (internal_log_ex != null) {
-                ClearLoggingCallbacks();
-            }
-
-            internal_log_ex = input;
-
-            /* Return the result of the native call to wolfSSL */
-            return wolfSSL_SetLoggingCb(input);
+        public static int SetLogging(wolfcrypt.loggingCbEx input) {
+            return wolfcrypt.SetLogging(input);
         }
 
-        /// <summary>
-        /// Log a message to set logging function
-        /// </summary>
-        /// <param name="lvl">Level of log message</param>
-        /// <param name="msg">Message to log</param>
-        public static void log(int lvl, string msg)
-        {
-            /* if log is not set then print nothing; has SetLogging been called? */
-            if (internal_log_ex == null) {
-                return;
-            }
-
-            IntPtr ptr = wolfssl.StringToAnsiPtr(msg);
-            try
-            {
-                internal_log_ex(lvl, ptr);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(ptr);
-            }
+        public static void log(int lvl, string msg) {
+            wolfcrypt.log(lvl, msg);
         }
 #endif
 
