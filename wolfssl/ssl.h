@@ -2326,6 +2326,8 @@ WOLFSSL_API int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key,
         unsigned char** der);
 WOLFSSL_API int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY* key,
         unsigned char** der);
+WOLFSSL_API int wolfSSL_i2d_PrivateKey_bio(WOLFSSL_BIO* bio,
+        WOLFSSL_EVP_PKEY* key);
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 WOLFSSL_API int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                                     const WOLFSSL_EVP_PKEY* pkey,
