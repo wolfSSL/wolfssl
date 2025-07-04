@@ -644,7 +644,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "wolfCrypt init error " + e.ToString());
+                log(ERROR_LOG, "wolfCrypt init error " + e.ToString());
                 ret = EXCEPTION_E;
             }
             return ret;
@@ -663,7 +663,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "wolfCrypt cleanup error " + e.ToString());
+                log(ERROR_LOG, "wolfCrypt cleanup error " + e.ToString());
                 ret = EXCEPTION_E;
             }
             return ret;
@@ -691,7 +691,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "random new exception " + e.ToString());
+                log(ERROR_LOG, "random new exception " + e.ToString());
                 rng = IntPtr.Zero;
             }
 
@@ -738,7 +738,7 @@ namespace wolfSSL.CSharp
                     }
                     else
                     {
-                        wolfssl.log(ERROR_LOG, "random generate block error " + ret + ": " + GetError(ret));
+                        log(ERROR_LOG, "random generate block error " + ret + ": " + GetError(ret));
                     }
                     Marshal.FreeHGlobal(data);
                 }
@@ -749,7 +749,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "random generate block exception " + e.ToString());
+                log(ERROR_LOG, "random generate block exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -807,7 +807,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC make key exception " + e.ToString());
+                log(ERROR_LOG, "ECC make key exception " + e.ToString());
 
                 EccFreeKey(key);
                 key = IntPtr.Zero;
@@ -831,7 +831,7 @@ namespace wolfSSL.CSharp
                 /* Check */
                 if (key == IntPtr.Zero)
                 {
-                    wolfssl.log(ERROR_LOG, "Invalid key or rng pointer.");
+                    log(ERROR_LOG, "Invalid key or rng pointer.");
                     return MEMORY_E;
                 }
 
@@ -839,12 +839,12 @@ namespace wolfSSL.CSharp
                 ret = wc_ecc_set_rng(key, rng);
                 if (ret != 0)
                 {
-                    wolfssl.log(ERROR_LOG, "ECC set rng failed returned:" + ret);
+                    log(ERROR_LOG, "ECC set rng failed returned:" + ret);
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC set rng exception " + e.ToString());
+                log(ERROR_LOG, "ECC set rng exception " + e.ToString());
             }
 
             return ret;
@@ -881,7 +881,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC import key exception " + e.ToString());
+                log(ERROR_LOG, "ECC import key exception " + e.ToString());
                 EccFreeKey(key); /* make sure its free'd */
                 key = IntPtr.Zero;
             }
@@ -932,7 +932,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC sign exception: " + e.ToString());
+                log(ERROR_LOG, "ECC sign exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -979,7 +979,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC verify exception " + e.ToString());
+                log(ERROR_LOG, "ECC verify exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1006,19 +1006,19 @@ namespace wolfSSL.CSharp
             {
                 int bufferSize = wc_EccPrivateKeyToDer(key, null, 0);
                 if (bufferSize < 0) {
-                    wolfssl.log(ERROR_LOG, "ECC private key get size failed " + bufferSize.ToString());
+                    log(ERROR_LOG, "ECC private key get size failed " + bufferSize.ToString());
                     return bufferSize;
                 }
                 derKey = new byte[bufferSize];
                 ret = wc_EccPrivateKeyToDer(key, derKey, (uint)bufferSize);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "ECC private key to der failed " + ret.ToString());
+                    log(ERROR_LOG, "ECC private key to der failed " + ret.ToString());
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC export private exception " + e.ToString());
+                log(ERROR_LOG, "ECC export private exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -1040,19 +1040,19 @@ namespace wolfSSL.CSharp
             {
                 int bufferSize = wc_EccPublicKeyToDer(key, null, 0, includeCurve ? 1 : 0);
                 if (bufferSize < 0) {
-                    wolfssl.log(ERROR_LOG, "ECC public key get size failed " + bufferSize.ToString());
+                    log(ERROR_LOG, "ECC public key get size failed " + bufferSize.ToString());
                     return bufferSize;
                 }
                 derKey = new byte[bufferSize];
                 ret = wc_EccPublicKeyToDer(key, derKey, (uint)bufferSize, includeCurve ? 1 : 0);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "ECC public key to der failed " + ret.ToString());
+                    log(ERROR_LOG, "ECC public key to der failed " + ret.ToString());
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC export public exception " + e.ToString());
+                log(ERROR_LOG, "ECC export public exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -1085,7 +1085,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC import public key exception " + e.ToString());
+                log(ERROR_LOG, "ECC import public key exception " + e.ToString());
                 EccFreeKey(key);
                 key = IntPtr.Zero;
             }
@@ -1128,12 +1128,12 @@ namespace wolfSSL.CSharp
                 ctx = wc_ecc_ctx_new_ex(flags, rng, heap);
                 if (ctx == IntPtr.Zero)
                 {
-                    wolfssl.log(ERROR_LOG, "ECIES context creation with custom heap failed: returned IntPtr.Zero");
+                    log(ERROR_LOG, "ECIES context creation with custom heap failed: returned IntPtr.Zero");
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES context creation with custom heap failed: " + e.ToString());
+                log(ERROR_LOG, "ECIES context creation with custom heap failed: " + e.ToString());
                 return IntPtr.Zero;
             }
 
@@ -1156,7 +1156,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES context reset exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES context reset exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -1181,7 +1181,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES set algorithm exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES set algorithm exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -1203,7 +1203,7 @@ namespace wolfSSL.CSharp
                 /* Check ctx */
                 if (ctx == IntPtr.Zero)
                 {
-                    wolfssl.log(ERROR_LOG, "Invalid ECIES context pointer.");
+                    log(ERROR_LOG, "Invalid ECIES context pointer.");
                     return null;
                 }
 
@@ -1211,7 +1211,7 @@ namespace wolfSSL.CSharp
                 saltPtr = wc_ecc_ctx_get_own_salt(ctx);
                 if (saltPtr == IntPtr.Zero)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to get own salt.");
+                    log(ERROR_LOG, "Failed to get own salt.");
                     return null;
                 }
 
@@ -1221,7 +1221,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES get own salt exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES get own salt exception: " + e.ToString());
                 return null;
             }
             finally
@@ -1255,7 +1255,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES set peer salt exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES set peer salt exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1291,7 +1291,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES set own salt exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES set own salt exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1327,7 +1327,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES set KDF salt exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES set KDF salt exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1361,7 +1361,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES set info exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES set info exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1405,7 +1405,7 @@ namespace wolfSSL.CSharp
                 ret = wc_ecc_encrypt(privKey, pubKey, msgPtr, msgSz, outBufferPtr, outSz, ctx);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to encrypt message using ECIES. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to encrypt message using ECIES. Error code: " + ret);
                 }
                 /* Output actual output buffer length */
                 if (ret == 0)
@@ -1423,7 +1423,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES encryption exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES encryption exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1469,7 +1469,7 @@ namespace wolfSSL.CSharp
                 ret = wc_ecc_decrypt(privKey, pubKey, msgPtr, msgSz, outBufferPtr, outSz, ctx);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to decrypt message using ECIES. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to decrypt message using ECIES. Error code: " + ret);
                 }
                 /* Output actual output buffer length */
                 if (ret == 0)
@@ -1487,7 +1487,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECIES decryption exception: " + e.ToString());
+                log(ERROR_LOG, "ECIES decryption exception: " + e.ToString());
                 return EXCEPTION_E;
             }
             finally
@@ -1598,7 +1598,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ECC shared secret exception " + e.ToString());
+                log(ERROR_LOG, "ECC shared secret exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -1651,7 +1651,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "RSA make key exception " + e.ToString());
+                log(ERROR_LOG, "RSA make key exception " + e.ToString());
                 if (rng != IntPtr.Zero) RandomFree(rng);
                 if (key != IntPtr.Zero) RsaFreeKey(key);
                 key = IntPtr.Zero;
@@ -1696,7 +1696,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "RSA make key exception " + e.ToString());
+                log(ERROR_LOG, "RSA make key exception " + e.ToString());
                 RsaFreeKey(key); /* make sure its free'd */
                 key = IntPtr.Zero;
             }
@@ -1783,7 +1783,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "RSA verify exception: " + e.ToString());
+                log(ERROR_LOG, "RSA verify exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1894,7 +1894,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 make key exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 make key exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -1982,7 +1982,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 verify exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 verify exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -2021,7 +2021,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 private key decode exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 private key decode exception: " + e.ToString());
                 if (key != IntPtr.Zero) Ed25519FreeKey(key);
                 key = IntPtr.Zero;
             }
@@ -2055,7 +2055,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 public key decode exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 public key decode exception: " + e.ToString());
                 if (key != IntPtr.Zero) Ed25519FreeKey(key);
                 key = IntPtr.Zero;
             }
@@ -2080,7 +2080,7 @@ namespace wolfSSL.CSharp
                 int len = wc_Ed25519KeyToDer(key, null, 0);
                 if (len < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to determine length. Error code: " + len);
+                    log(ERROR_LOG, "Failed to determine length. Error code: " + len);
                     return len;
                 }
 
@@ -2089,13 +2089,13 @@ namespace wolfSSL.CSharp
 
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to export ED25519 private key to DER format. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export ED25519 private key to DER format. Error code: " + ret);
                     return ret;
                 }
             }
             catch(Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 export private key to DER exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 export private key to DER exception: " + e.ToString());
                 return EXCEPTION_E;
             }
 
@@ -2119,7 +2119,7 @@ namespace wolfSSL.CSharp
                 int len = wc_Ed25519PrivateKeyToDer(key, null, 0);
                 if (len < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to determine length. Error code: " + len);
+                    log(ERROR_LOG, "Failed to determine length. Error code: " + len);
                     return len;
                 }
 
@@ -2128,13 +2128,13 @@ namespace wolfSSL.CSharp
 
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to export ED25519 private key to DER format. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export ED25519 private key to DER format. Error code: " + ret);
                     return ret;
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 export private key to DER exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 export private key to DER exception: " + e.ToString());
                 return EXCEPTION_E;
             }
 
@@ -2159,7 +2159,7 @@ namespace wolfSSL.CSharp
                 int len = wc_Ed25519PublicKeyToDer(key, null, 0, 1);
                 if (len < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to determine length. Error code: " + len);
+                    log(ERROR_LOG, "Failed to determine length. Error code: " + len);
                     return len;
                 }
 
@@ -2167,13 +2167,13 @@ namespace wolfSSL.CSharp
                 ret = wc_Ed25519PublicKeyToDer(key, pubKey, (uint)pubKey.Length, includeAlg ? 1 : 0);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to export ED25519 public key to DER format. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export ED25519 public key to DER format. Error code: " + ret);
                     return ret;
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "ED25519 export public key to DER exception: " + e.ToString());
+                log(ERROR_LOG, "ED25519 export public key to DER exception: " + e.ToString());
                 return EXCEPTION_E;
             }
 
@@ -2421,7 +2421,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 make key exception: " + e.ToString());
+                log(ERROR_LOG, "Curve25519 make key exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -2464,7 +2464,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 private key decode exception: " + e.ToString());
+                log(ERROR_LOG, "Curve25519 private key decode exception: " + e.ToString());
                 if (key != IntPtr.Zero) Curve25519FreeKey(key);
                 key = IntPtr.Zero;
             }
@@ -2498,7 +2498,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 public key decode exception: " + e.ToString());
+                log(ERROR_LOG, "Curve25519 public key decode exception: " + e.ToString());
                 if (key != IntPtr.Zero) Curve25519FreeKey(key);
                 key = IntPtr.Zero;
             }
@@ -2523,7 +2523,7 @@ namespace wolfSSL.CSharp
                 int len = wc_Curve25519PrivateKeyToDer(key, null, 0);
                 if (len < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to determine length. Error code: " + len);
+                    log(ERROR_LOG, "Failed to determine length. Error code: " + len);
                     return len;
                 }
 
@@ -2532,13 +2532,13 @@ namespace wolfSSL.CSharp
 
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to export Curve25519 private key to DER format. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export Curve25519 private key to DER format. Error code: " + ret);
                     return ret;
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "CURVE25519 export private key to DER exception: " + e.ToString());
+                log(ERROR_LOG, "CURVE25519 export private key to DER exception: " + e.ToString());
                 return EXCEPTION_E;
             }
 
@@ -2563,7 +2563,7 @@ namespace wolfSSL.CSharp
                 int len = wc_Curve25519PublicKeyToDer(key, null, 0, 1);
                 if (len < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to determine length. Error code: " + len);
+                    log(ERROR_LOG, "Failed to determine length. Error code: " + len);
                     return len;
                 }
 
@@ -2571,12 +2571,12 @@ namespace wolfSSL.CSharp
                 ret = wc_Curve25519PublicKeyToDer(key, derKey, (uint)derKey.Length, includeAlg ? 1 : 0);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to export Curve25519 public key to DER format. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to export Curve25519 public key to DER format. Error code: " + ret);
                 }
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 export public key to DER exception: " + e.ToString());
+                log(ERROR_LOG, "Curve25519 export public key to DER exception: " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -2621,7 +2621,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 shared secret exception " + e.ToString());
+                log(ERROR_LOG, "Curve25519 shared secret exception " + e.ToString());
                 ret = EXCEPTION_E;
             }
 
@@ -2650,7 +2650,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 import private key exception " + e.ToString());
+                log(ERROR_LOG, "Curve25519 import private key exception " + e.ToString());
                 if (key != IntPtr.Zero) Marshal.FreeHGlobal(key);
                 key = IntPtr.Zero;
             }
@@ -2680,7 +2680,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Curve25519 import public key exception " + e.ToString());
+                log(ERROR_LOG, "Curve25519 import public key exception " + e.ToString());
                 if (key != IntPtr.Zero) Marshal.FreeHGlobal(key);
                 key = IntPtr.Zero;
             }
@@ -2887,7 +2887,7 @@ namespace wolfSSL.CSharp
                     ivPtr, (uint)iv.Length, authTagPtr, (uint)authTag.Length, addAuthPtr, addAuthSz);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to Encrypt data using AES-GCM. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to Encrypt data using AES-GCM. Error code: " + ret);
                 }
                 else {
                     Marshal.Copy(ciphertextPtr, ciphertext, 0, ciphertext.Length);
@@ -2897,7 +2897,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "AES-GCM Encryption failed: " + e.ToString());
+                log(ERROR_LOG, "AES-GCM Encryption failed: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -2960,7 +2960,7 @@ namespace wolfSSL.CSharp
                     ivPtr, (uint)iv.Length, authTagPtr, (uint)authTag.Length, addAuthPtr, addAuthSz);
                 if (ret < 0)
                 {
-                    wolfssl.log(ERROR_LOG, "Failed to Decrypt data using AES-GCM. Error code: " + ret);
+                    log(ERROR_LOG, "Failed to Decrypt data using AES-GCM. Error code: " + ret);
                 }
                 else {
                     Marshal.Copy(plaintextPtr, plaintext, 0, plaintext.Length);
@@ -2969,7 +2969,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "AES-GCM Decryption failed: " + e.ToString());
+                log(ERROR_LOG, "AES-GCM Decryption failed: " + e.ToString());
                 ret = EXCEPTION_E;
             }
             finally
@@ -3031,7 +3031,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "HashNew Exception: " + e.ToString());
+                log(ERROR_LOG, "HashNew Exception: " + e.ToString());
             }
 
             return hash;
@@ -3062,7 +3062,7 @@ namespace wolfSSL.CSharp
             catch (Exception e)
             {
                 /* Cleanup */
-                wolfssl.log(ERROR_LOG, "InitHash Exception: " + e.ToString());
+                log(ERROR_LOG, "InitHash Exception: " + e.ToString());
                 if (hash != IntPtr.Zero) {
                     wc_HashDelete(hash, IntPtr.Zero);
                     hash = IntPtr.Zero;
@@ -3105,7 +3105,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "HashUpdate Exception: " + e.ToString());
+                log(ERROR_LOG, "HashUpdate Exception: " + e.ToString());
             }
             finally
             {
@@ -3153,7 +3153,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "HashFinal Exception: " + e.ToString());
+                log(ERROR_LOG, "HashFinal Exception: " + e.ToString());
                 output = null;
             }
             finally
@@ -3191,7 +3191,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "HashFree Exception: " + e.ToString());
+                log(ERROR_LOG, "HashFree Exception: " + e.ToString());
             }
 
             return ret;
@@ -3236,7 +3236,7 @@ namespace wolfSSL.CSharp
             }
             catch (Exception e)
             {
-                wolfssl.log(ERROR_LOG, "Get error exception " + e.ToString());
+                log(ERROR_LOG, "Get error exception " + e.ToString());
                 return string.Empty;
             }
         }
@@ -3275,7 +3275,7 @@ namespace wolfSSL.CSharp
 #endif
         }
 
-        /* SetLogging() and wolfssl.log() implementations are different for CE vs non-CE: String msg vs StringBuilder msg */
+        /* SetLogging() and log() implementations are different for CE vs non-CE: String msg vs StringBuilder msg */
 #if WindowsCE
         /// <summary>
         /// Set the function to use for logging on Windows CE
@@ -3308,7 +3308,7 @@ namespace wolfSSL.CSharp
         /// </summary>
         /// <param name="lvl">Level of log message</param>
         /// <param name="msg">Message to log</param>
-        public static void wolfssl.log(int lvl, string msg)
+        public static void log(int lvl, string msg)
         {
             /* if log is not set then print nothing */
             if (internal_log == null) {
@@ -3390,7 +3390,7 @@ namespace wolfSSL.CSharp
         /// </summary>
         /// <param name="lvl">Level of log message</param>
         /// <param name="msg">Message to log</param>
-        public static void wolfssl.log(int lvl, string msg) {
+        public static void log(int lvl, string msg) {
             /* if log is not set then print nothing; has SetLogging been called? */
             if (internal_log_ex == null) {
                 return;
