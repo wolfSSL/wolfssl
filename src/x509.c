@@ -610,7 +610,7 @@ err:
 WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 {
     int extCount = 0, length = 0, outSz = 0, sz = 0, ret = 0;
-    int objSz = 0;
+    int objSz = 0, isSet = 0;
     const byte* rawCert;
     const byte* input;
     byte* oidBuf;
@@ -755,6 +755,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             continue;
         }
         /* extCount == loc. Now get the extension. */
+        /* Check if extension has been set */
+        isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, (int)nid);
 
         if (wolfSSL_OBJ_nid2ln((int)nid) != NULL) {
             /* This is NOT an unknown OID. */
@@ -772,6 +774,153 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         if (ext->obj) {
             ext->obj->nid = (int)nid;
+        }
+
+        switch (oid) {
+            case BASIC_CA_OID:
+            {
+                WOLFSSL_ASN1_INTEGER* a;
+                word32 dataIdx = idx;
+                word32 dummyOid;
+                int dataLen = 0;
+
+                if (!isSet)
+                    break;
+
+                /* Set pathlength */
+                a = wolfSSL_ASN1_INTEGER_new();
+
+                /* Set the data */
+                ret = GetObjectId(input, &dataIdx, &dummyOid, oidCertExtType,
+                        (word32)sz) == 0;
+                if (ret && dataIdx < (word32)sz) {
+                    /* Skip the critical information */
+                    if (input[dataIdx] == ASN_BOOLEAN) {
+                        dataIdx++;
+                        ret = GetLength(input, &dataIdx, &dataLen, sz) >= 0;
+                        dataIdx += dataLen;
+                    }
+                }
+                if (ret) {
+                    ret = GetOctetString(input, &dataIdx, &dataLen,
+                            (word32)sz) > 0;
+                }
+                if (ret) {
+                    ret = wolfSSL_ASN1_STRING_set(&ext->value, input + dataIdx,
+                            dataLen) == 1;
+                }
+
+                if (a == NULL || !ret) {
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(cert);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                #endif
+                    return NULL;
+                }
+                a->length = (int)x509->pathLength;
+
+                /* Save ASN1_INTEGER in x509 extension */
+                ext->obj->pathlen = a;
+
+                ext->obj->ca = x509->isCa;
+                break;
+            }
+
+            case AUTH_INFO_OID:
+            {
+                WOLFSSL_STACK* sk;
+
+                if (!isSet)
+                    break;
+
+                /* Create a stack to hold both the caIssuer and ocsp objects
+                    in X509_EXTENSION structure */
+                sk = wolfSSL_sk_new_asn1_obj();
+                if (sk == NULL) {
+                    WOLFSSL_MSG("Failed to malloc stack");
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(cert);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                #endif
+                    return NULL;
+                }
+
+                /* Add CaIssuers object to stack */
+                if (x509->authInfoCaIssuer != NULL &&
+                    x509->authInfoCaIssuerSz > 0)
+                {
+                    WOLFSSL_ASN1_OBJECT* obj;
+                    obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Error creating ASN1 object");
+                        wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(cert);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                    #endif
+                        return NULL;
+                    }
+                    obj->obj = (byte*)x509->authInfoCaIssuer;
+                    obj->objSz = (unsigned int)x509->authInfoCaIssuerSz;
+                    obj->grp = oidCertAuthInfoType;
+                    obj->nid = WC_NID_ad_ca_issuers;
+
+                    ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj) > 0
+                            ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+                    if (ret != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("Error pushing ASN1 object onto stack");
+                        wolfSSL_ASN1_OBJECT_free(obj);
+                        wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(cert);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                    #endif
+                        return NULL;
+                    }
+                }
+
+                /* Add OCSP object to stack */
+                if (x509->authInfo != NULL &&
+                    x509->authInfoSz > 0)
+                {
+                    WOLFSSL_ASN1_OBJECT* obj;
+                    obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Error creating ASN1 object");
+                        wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(cert);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                    #endif
+                        return NULL;
+                    }
+                    obj->obj = x509->authInfo;
+                    obj->objSz = (unsigned int)x509->authInfoSz;
+                    obj->grp = oidCertAuthInfoType;
+                    obj->nid = WC_NID_ad_OCSP;
+
+                    ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj) > 0
+                            ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+                    if (ret != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("Error pushing ASN1 object onto stack");
+                        wolfSSL_ASN1_OBJECT_free(obj);
+                        wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+                        wolfSSL_X509_EXTENSION_free(ext);
+                        FreeDecodedCert(cert);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                    #endif
+                        return NULL;
+                    }
+                }
+                ext->ext_sk = sk;
+                break;
+            }
         }
 
         /* The ASN1_OBJECT in the extension is set in the same way
