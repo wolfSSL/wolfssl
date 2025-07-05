@@ -4438,6 +4438,18 @@ extern void uITRON4_free(void *p) ;
     /* Ciphersuite check done in internal.h */
 #endif
 
+#ifdef WOLFSSL_DLL
+    #if defined(WindowsCE) && defined(PocketPC)
+        #define WOLFSSL_DLL_TAG "wolfssl.dll WindowsCE PocketPC"
+    #elif defined(WindowsCE)
+        #define WOLFSSL_DLL_TAG "wolfssl.dll WindowsCE"
+    #elif defined(PocketPC)
+        #define WOLFSSL_DLL_TAG "wolfssl.dll PocketPC"
+    #else
+        #define WOLFSSL_DLL_TAG "wolfssl.dll"
+    #endif
+#endif
+
 /* Some final sanity checks. See esp32-crypt.h for Apple HomeKit config. */
 #if defined(WOLFSSL_APPLE_HOMEKIT) || defined(CONFIG_WOLFSSL_APPLE_HOMEKIT)
     #ifndef WOLFCRYPT_HAVE_SRP

@@ -583,34 +583,40 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
 #endif
 #endif /* WOLFSSL_NO_SOCK */
 
-WOLFSSL_API int wolfSSL_BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
-WOLFSSL_API int wolfSSL_BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+#ifdef PocketPC
+    #define WOLFSSL_CALL __stdcall
+#else
+    #define WOLFSSL_CALL
+#endif
+
+WOLFSSL_API int WOLFSSL_CALL wolfSSL_BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+WOLFSSL_API int WOLFSSL_CALL wolfSSL_BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #ifndef OPENSSL_COEXIST
 /* Preserve API previously exposed */
 #define BioSend wolfSSL_BioSend
 #define BioReceive wolfSSL_BioReceive
 #endif
 
-WOLFSSL_LOCAL int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+WOLFSSL_LOCAL int WOLFSSL_CALL SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
                                      char* buf, int sz);
 #endif
-WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+WOLFSSL_LOCAL int WOLFSSL_CALL SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
-    WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
-    WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_API int WOLFSSL_CALL EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_API int WOLFSSL_CALL EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     #ifdef WOLFSSL_DTLS
         #ifdef NUCLEUS_PLUS_2_3
             #define SELECT_FUNCTION nucyassl_select
             WOLFSSL_LOCAL int nucyassl_select(INT sd, UINT32 timeout);
         #endif
-        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz,
+        WOLFSSL_API int WOLFSSL_CALL EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz,
                                          void *ctx);
-        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx);
-        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz,
+        WOLFSSL_API int WOLFSSL_CALL EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+        WOLFSSL_API int WOLFSSL_CALL EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz,
                                             void *ctx);
         #ifdef WOLFSSL_MULTICAST
             WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf,
@@ -668,8 +674,8 @@ typedef int (*WolfSSLGenericIORecvCb)(char *buf, int sz, void *ctx);
 
 
 /* I/O callbacks */
-typedef int (*CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
-typedef int (*CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+typedef int (WOLFSSL_CALL *CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
+typedef int (WOLFSSL_CALL *CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv);
 WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend);
 WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv);

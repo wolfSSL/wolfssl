@@ -36,14 +36,10 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-namespace wolfSSL.CSharp
-{
 
-#if WindowsCE
-    /********************************
-     * The WOLFSSL_ALERT_HISTORY, for CE limited System.Runtime.InteropServices support ONLY.
-     * Class declaration cannot be passed passed directly to a [DllImport] or Marshal method
-     */
+namespace wolfSSL
+{
+    /* Some global structs for use with wolfSSL_get_alert_history */
     [StructLayout(LayoutKind.Sequential)]
     public struct WOLFSSL_ALERT
     {
@@ -57,40 +53,23 @@ namespace wolfSSL.CSharp
         public WOLFSSL_ALERT last_rx;
         public WOLFSSL_ALERT last_tx;
     }
-#endif // WindowsCE
+}
+
+namespace wolfSSL.CSharp
+{
+    using wolfSSL;
 
     public class wolfssl
     {
         private const string wolfssl_dll = "wolfssl.dll";
 
         /* wait for 6 seconds default on TCP socket state poll if timeout not set */
-        private const int WC_WAIT = 6000000;
+    private const int WC_WAIT = 6000000;
         private static bool verbose = false;
 
         public static void SetVerbosity(bool b) {
             verbose = b;
         }
-
-#if !WindowsCE
-        /* Only non-windowsCE code can use the public structs in external [DllImport]
-
-        /********************************
-         * The WOLFSSL_ALERT_HISTORY
-         */
-        [StructLayout(LayoutKind.Sequential)]
-        public struct WOLFSSL_ALERT
-        {
-            public int code;
-            public int level;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct WOLFSSL_ALERT_HISTORY
-        {
-            public WOLFSSL_ALERT last_rx;
-            public WOLFSSL_ALERT last_tx;
-        }
-#endif // !WindowsCE
 
         /// <summary>
         /// Use the SetDllDirectory from Windows kernel32.dll to set DLL location of wolfSSL
@@ -133,21 +112,21 @@ namespace wolfSSL.CSharp
                 Console.WriteLine("AppDomain.CurrentDomain.BaseDirectory: " + AppDomain.CurrentDomain.BaseDirectory);
             }
             bool is64Bit = (IntPtr.Size == 8);
-    #if DEBUG
+#if DEBUG
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Debug", "Debug\\x86", "Debug\\Win32" };
             }
-    #elif RELEASE
+#elif RELEASE
             if (is64Bit) {
                 subDirsToCheck = new string[] { "Release", "Release\\x64" };
             }
             else {
                 subDirsToCheck = new string[] { "Release", "Release\\x86", "Release\\Win32" };
             }
-    #else
+#else
             Console.WriteLine("Only DEBUG and RELEASE supported");
 #endif // conditional wolfssl.dll search directories
 
@@ -225,7 +204,7 @@ namespace wolfSSL.CSharp
         /********************************
          * Utility String Conversion functions
          */
-#if WindowsCE
+#if WindowsCE || PocketPC
         /// <summary>
         /// Convert MBCS (8-bit single/multi byte) to Wide Char/Unicode (16-bit) character set
         /// </summary>
@@ -331,11 +310,31 @@ namespace wolfSSL.CSharp
             private GCHandle sni_cb;
             private GCHandle sni_arg;
             private GCHandle vrf_cb;
+
+#if _MSC_VER_LT_1900
+            /* addional helpers to avoid ESP corruption & Access violations on WindowsCE */
+
+            /// <summary>
+            /// Strong reference to the receive callback delegate to prevent it from being
+            /// garbage collected during native calls. This is essential because the delegate
+            /// is passed to unmanaged code, which may invoke it asynchronously.
+            /// </summary>
+            private CallbackIORecv_delegate recvDelegate;
+            /// <summary>
+            /// Strong reference to the send callback delegate to prevent it from being
+            /// garbage collected during native calls. This ensures the function pointer
+            /// remains valid throughout the lifetime of the connection.
+            /// </summary>
+            private CallbackIOSend_delegate sendDelegate;
+#endif
             private IntPtr ctx;
 
             public void set_receive(GCHandle input)
             {
                 this.rec_cb = input;
+#if  _MSC_VER_LT_1900
+                this.recvDelegate = (CallbackIORecv_delegate)input.Target;
+#endif
             }
             public GCHandle get_receive()
             {
@@ -345,6 +344,9 @@ namespace wolfSSL.CSharp
             public void set_send(GCHandle input)
             {
                 this.snd_cb = input;
+#if  _MSC_VER_LT_1900
+                this.sendDelegate = (CallbackIOSend_delegate)input.Target;
+#endif
             }
             public GCHandle get_send()
             {
@@ -430,7 +432,7 @@ namespace wolfSSL.CSharp
         /********************************
          * Class for keeping ssl handle alive
          */
-        [StructLayout(LayoutKind.Sequential)]
+            [StructLayout(LayoutKind.Sequential)]
         private class ssl_handle
         {
             private GCHandle fd_pin;
@@ -734,8 +736,13 @@ namespace wolfSSL.CSharp
         private extern static int wolfSSL_CTX_set_cipher_list(IntPtr ctx, string ciphers);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_set_cipher_list(IntPtr ssl, string ciphers);
+    #if PocketPC
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_get_ciphers(StringBuilder ciphers, int sz);
+    #else
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_get_ciphers(string ciphers, int sz);
+    #endif
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_get_cipher(IntPtr ssl);
         [DllImport(wolfssl_dll)]
@@ -753,7 +760,7 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_set_cipher_list(IntPtr ssl, StringBuilder ciphers);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_get_ciphers(string ciphers, int sz);
+        private extern static int wolfSSL_get_ciphers(StringBuilder ciphers, int sz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_get_cipher(IntPtr ssl);
         [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
@@ -769,7 +776,7 @@ namespace wolfSSL.CSharp
         /********************************
          * Error logging
          */
-#if WindowsCE
+#if WindowsCE || PocketPC
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
         [DllImport(wolfssl_dll)]
@@ -1307,6 +1314,9 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
+                /* If Run-Time Check Failure #0
+                 *   "The value of ESP was not properly saved across a function call"
+                 * Check compilation of wolfssl and copy wolfssl.dll file if not in path. */
                 return wolfSSL_connect(sslCtx);
             }
             catch (Exception e)
@@ -1634,15 +1644,21 @@ namespace wolfSSL.CSharp
                 io.set_ctx(ctx);
 
                 CallbackIORecv_delegate recv = new CallbackIORecv_delegate(wolfssl.wolfSSLCbIORecv);
-                io.set_receive(GCHandle.Alloc(recv));
+                /* Ensures the GCHandle remains in scope and is not immediately eligible for garbage collection, with two lines here: */
+                GCHandle recvHandle = GCHandle.Alloc(recv);
+                io.set_receive(recvHandle);
                 wolfSSL_CTX_SetIORecv(ctx, recv);
 
                 CallbackIOSend_delegate send = new CallbackIOSend_delegate(wolfssl.wolfSSLCbIOSend);
-                io.set_send(GCHandle.Alloc(send));
+                /* Ensures the GCHandle remains in scope and is not immediately eligible for garbage collection, with two lines here: */
+                GCHandle sendHandle = GCHandle.Alloc(send);
+                io.set_send(sendHandle);
                 wolfSSL_CTX_SetIOSend(ctx, send);
-
                 /* keep memory pinned */
-#if WindowsCE
+#if PocketPC
+                GCHandle ioHandle = GCHandle.Alloc(io);
+                return (IntPtr)ioHandle;
+#elif WindowsCE || _MSC_VER_LT_1900
                 return (IntPtr)GCHandle.Alloc(io, GCHandleType.Pinned);
 #else
                 return GCHandle.ToIntPtr(GCHandle.Alloc(io, GCHandleType.Pinned));
@@ -2121,12 +2137,16 @@ namespace wolfSSL.CSharp
         {
             try
             {
+#if WindowsCE && !PocketPC
                 string ciphers = new string(' ', 4096);
+#else
+                StringBuilder ciphers = new StringBuilder(4096);
+#endif
                 int ret = wolfSSL_get_ciphers(ciphers, ciphers.Length);
                 if (ret != SUCCESS)
                     return null;
 
-#if WindowsCE
+#if WindowsCE && !PocketPC
                 return wolfssl.MultiByteToWideChar(ciphers);
 #else
                 return ciphers.ToString();
@@ -2145,11 +2165,21 @@ namespace wolfSSL.CSharp
         /// <param name="list">list to fill with cipher suite names</param>
         /// <param name="sz">size of list available to fill</param>
         /// <returns>1 on success</returns>
-        public static int get_ciphers(string list, int sz)
+        public static int get_ciphers(ref string list, int sz)
         {
             try
             {
-                return wolfSSL_get_ciphers(list, sz);
+                int ret;
+#if WindowsCE && !PocketPC
+                ret = wolfSSL_get_ciphers(list, sz);
+#else
+                StringBuilder sb = new StringBuilder(sz);
+                ret = wolfSSL_get_ciphers(sb, sz);
+                if (ret >= 0) {
+                    list = sb.ToString();
+                }
+#endif
+                return ret;
             }
             catch (Exception e)
             {
@@ -2509,6 +2539,50 @@ namespace wolfSSL.CSharp
         }
 
 
+#if WindowsCE
+#if WindowsCE
+        public static int get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY h) {
+
+            if (ssl == IntPtr.Zero)
+                return FAILURE;
+
+            try {
+                IntPtr local_ssl = unwrap_ssl(ssl);
+                if (local_ssl == IntPtr.Zero) {
+                    log(ERROR_LOG, "wolfssl get_error error");
+                    return FAILURE;
+                }
+
+                return wolfSSL_get_alert_history(local_ssl, ref h);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl get error, error " + e.ToString());
+                return FAILURE;
+            }
+        }
+#else
+        public static int get_alert_history(IntPtr ssl, ref WOLFSSL_ALERT_HISTORY hist)
+        {
+            int size = Marshal.SizeOf(typeof(WOLFSSL_ALERT_HISTORY));
+            IntPtr mem = Marshal.AllocHGlobal(size);
+
+            try
+            {
+                int ret = wolfSSL_get_alert_history(ssl, mem);
+                if (ret == 0)
+                {
+                    hist = (WOLFSSL_ALERT_HISTORY)
+                        Marshal.PtrToStructure(mem, typeof(WOLFSSL_ALERT_HISTORY));
+                }
+                return ret;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(mem);
+            }
+        }
+#endif
+#else
         /// <summary>
         /// This function gets the alert history.
         /// </summary>
@@ -2533,7 +2607,7 @@ namespace wolfSSL.CSharp
                 return FAILURE;
             }
         }
-
+#endif
 
         /// <summary>
         /// Used to load in the certificate file
@@ -2585,7 +2659,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if WindowsCE && !PocketPC
                 return wolfSSL_CTX_load_verify_locations(local_ctx, wolfssl.WideCharToMultiByte(fileCert), wolfssl.WideCharToMultiByte(path));
 #else
                 return wolfSSL_CTX_load_verify_locations(local_ctx, fileCert, path);

@@ -34,6 +34,7 @@ using System.Text;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using wolfSSL;
 using wolfSSL.CSharp;
 
 public class wolfSSL_TLS_Client
@@ -53,10 +54,9 @@ public class wolfSSL_TLS_Client
     // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
     public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";
 
-    private static wolfssl.WOLFSSL_ALERT_HISTORY myHistory = new wolfssl.WOLFSSL_ALERT_HISTORY();
 
 
-#if WindowsCE
+#if WindowsCE || PocketPC
     /// <summary>
     /// Example of a logging function for Windows CE, string msg
     /// </summary>
@@ -79,7 +79,7 @@ public class wolfSSL_TLS_Client
     }
 #endif
 
-    private static void show_alert_history_code(wolfssl.WOLFSSL_ALERT h, string m)
+    private static void show_alert_history_code(WOLFSSL_ALERT h, string m)
     {
         /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
         if ((h.code > 0) || (h.level > 0)) {
@@ -90,6 +90,7 @@ public class wolfSSL_TLS_Client
 
     private static void show_alert_history(IntPtr ssl)
     {
+        WOLFSSL_ALERT_HISTORY myHistory = new WOLFSSL_ALERT_HISTORY();
         int ret = 0;
         ret = wolfssl.get_alert_history(ssl, ref myHistory);
         if (ret == wolfssl.SUCCESS) {
@@ -153,16 +154,19 @@ public class wolfSSL_TLS_Client
         IntPtr ssl;
         Socket tcp;
         IntPtr sniHostName;
+        wolfcrypt.SelfCheck();
+
 
 #if WindowsCE
        string exePath = System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
        Console.WriteLine("Executable Path: " + exePath);
 #else
-        Console.WriteLine(Environment.CurrentDirectory);
+        Console.WriteLine("Current Directory:" + Environment.CurrentDirectory);
 #endif
         wolfssl.SetVerbosity(true);
         if (File.Exists("wolfssl.dll")) {
-            Console.WriteLine("Found wolfssl.dll");
+            string fullPath = Path.GetFullPath("wolfssl.dll");
+            Console.WriteLine("Found wolfssl.dll in " + fullPath);
         }
         else {
             /* Consider copying to working directory, or adding to path */
@@ -235,8 +239,12 @@ public class wolfSSL_TLS_Client
         }
 
         string ciphers = new String(' ', 4096);
+#if WindowsCE && !PocketPC
         wolfssl.get_ciphers(ciphers, 4096);
-        Console.WriteLine("Ciphers : " + ciphers);
+#else
+        wolfssl.get_ciphers(ref ciphers, 4096);
+#endif
+        Console.WriteLine("Ciphers: " + ciphers.Trim());
 
 
         /* Uncomment Section to enable specific cipher suite */

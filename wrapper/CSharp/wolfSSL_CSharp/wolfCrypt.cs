@@ -32,11 +32,6 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-#if WindowsCE
-    using wolfSSL.CSharp;
-#else
-    using static wolfSSL.CSharp.wolfssl;
-#endif
 
 namespace wolfSSL.CSharp
 {
@@ -55,6 +50,12 @@ namespace wolfSSL.CSharp
          * Logging wolfSSL library
          */
 #if WindowsCE
+        /* wolfSSL Version & DLL Tag (see settings.h) */
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_lib_version();
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_dll_tag();
+
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
         [DllImport(wolfssl_dll)]
@@ -73,6 +74,12 @@ namespace wolfSSL.CSharp
         /* Internal field to store the original logging callback: string msg */
         private static loggingCb internal_log;
 #else
+        [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfSSL_lib_version();
+
+        [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfSSL_dll_tag();
+
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -630,6 +637,80 @@ namespace wolfSSL.CSharp
         /***********************************************************************
          * Class Public Functions
          **********************************************************************/
+        /// <summary>
+        /// Get wolfSSL Version text
+        /// </summary>
+        /// <returns>DLL Tag string from version.h</returns>
+        public static string LibVersion() {
+            string ret = "";
+#if WindowsCE
+            try {
+                ret = wolfssl.PtrToStringAnsi(wolfSSL_lib_version());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#else
+            try {
+                ret= Marshal.PtrToStringAnsi(wolfSSL_lib_version());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#endif
+            return ret;
+        }
+
+        /// <summary>
+        /// Get the DLL Tag
+        /// </summary>
+        /// <returns>DLL Tag string from settings.h</returns>
+        public static string DllTag() {
+            string ret = "";
+#if WindowsCE
+            try {
+                ret =  wolfssl.PtrToStringAnsi(wolfSSL_dll_tag());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#else
+            try {
+                ret = Marshal.PtrToStringAnsi(wolfSSL_dll_tag());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#endif
+            return ret;
+        }
+
+        public static bool SelfCheck() {
+            bool ret = false;
+            string this_DllTag = wolfcrypt.DllTag();
+            string expected_DllTag = "";
+            string this_LibVersion = wolfcrypt.LibVersion();
+
+            /* Ensure the compiled DLL is what we expect */
+#if WindowsCE && PocketPC
+            expected_DllTag = "wolfssl.dll WindowsCE PocketPC";
+#elif WindowsCE
+            expected_DllTag = "wolfssl.dll WindowsCE";
+#elif PocketPC
+            expected_DllTag = "wolfssl.dll PocketPC";
+#else
+            expected_DllTag = "wolfssl.dll";
+#endif
+            ret = (expected_DllTag == this_DllTag);
+            Console.WriteLine("WOLFSSL_VERSION:  " + this_LibVersion);
+            Console.WriteLine("WOLFSSL_DLL_TAG:  " + this_DllTag);
+            Console.WriteLine("Expected DLL_TAG: " + expected_DllTag);
+
+            if (!ret) {
+                Console.WriteLine("Warning: unexpected DLL Tag! Check wolfssl binary.");
+            }
+            return ret;
+        }
 
         /// <summary>
         /// Initialize wolfCrypt library
@@ -3298,7 +3379,19 @@ namespace wolfSSL.CSharp
             /* Set our new callback logging function */
             internal_log = input;
 
-            wolfSSL_SetLoggingCb(input);
+            try
+            {
+                wolfSSL_SetLoggingCb(input);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.StartsWith("Unable to load DLL 'wolfssl.dll': The specified module could not be found."))
+                {
+                    Console.WriteLine("Failed to load wolfssl.dll, try manually copying to Base Directory.");
+                }
+
+                throw new Exception(ex.Message);
+            }
 
             return SUCCESS;
         }
