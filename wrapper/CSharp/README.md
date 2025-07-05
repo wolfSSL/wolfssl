@@ -107,7 +107,7 @@ Loading personal and system profiles took 1026ms.
 ```
 ## WindowsCE and Other Pocket PC Configurations
 
-The `WindowsCE` should be defined in each project pre-processor declarations as needed. 
+The `WindowsCE` should be defined in each project pre-processor declarations as needed.
 
 Also can be manually defined in the `user_settings.h` when building the native C `wolfssl.dll`.
 
