@@ -21,6 +21,15 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef WOLFSSL_DLL
+    /*  Breadcrumb Tag can be helpful when debugging Binary DLL compatibility */
+    WOLFSSL_API const char* wolfSSL_dll_tag(void);
+    const char* wolfSSL_dll_tag(void)
+    {
+        return WOLFSSL_DLL_TAG;
+    }
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 /* avoid adding WANT_READ and WANT_WRITE to error queue */
 #include <wolfssl/error-ssl.h>
