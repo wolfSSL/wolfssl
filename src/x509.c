@@ -1735,10 +1735,20 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
         /* subjectKeyIdentifier */
         case WC_NID_subject_key_identifier:
+        {
+            int len;
+            word32 idx;
+
             WOLFSSL_MSG("subjectKeyIdentifier");
             asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
             if (asn1String == NULL) {
                 WOLFSSL_MSG("X509_EXTENSION_get_data() failed");
+                return NULL;
+            }
+
+            idx = 0;
+            if (GetOctetString((byte *)asn1String->data, &idx, &len, asn1String->length) < 0) {
+                WOLFSSL_MSG("GetOctetString() failed");
                 return NULL;
             }
             newString = wolfSSL_ASN1_STRING_new();
@@ -1746,8 +1756,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 return NULL;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, asn1String->data,
-                                                            asn1String->length);
+            ret = wolfSSL_ASN1_STRING_set(newString, asn1String->data+idx,
+                                                            len);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -1755,6 +1765,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             };
             newString->type = asn1String->type;
             return newString;
+        }
 
         /* authorityKeyIdentifier */
         case WC_NID_authority_key_identifier:
