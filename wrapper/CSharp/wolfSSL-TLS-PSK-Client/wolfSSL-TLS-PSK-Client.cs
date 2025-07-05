@@ -108,7 +108,11 @@ public class wolfSSL_TLS_PSK_Client
         Console.WriteLine("Finished init of ctx .... now load in cert and key");
 
         string ciphers = new String(' ', 4096);
+#if WindowsCE && !PocketPC
         wolfssl.get_ciphers(ciphers, 4096);
+#else
+        wolfssl.get_ciphers(ref ciphers, 4096);
+#endif
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
         short minDhKey = 128;

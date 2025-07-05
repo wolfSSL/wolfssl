@@ -154,7 +154,7 @@ public class wolfSSL_TLS_CSHarp
         }
 
         string ciphers = new string(' ', 4096);
-        wolfssl.get_ciphers(ciphers, 4096);
+        wolfssl.get_ciphers(ref ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
         short minDhKey = 128;

@@ -22,7 +22,7 @@
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
 #ifdef WOLFSSL_DLL
-    /*  Breadcrumb Tag can be helpful when debugging Binary DLL compatbility */
+    /*  Breadcrumb Tag can be helpful when debugging Binary DLL compatibility */
     WOLFSSL_API const char* wolfSSL_dll_tag(void);
     const char* wolfSSL_dll_tag(void)
     {

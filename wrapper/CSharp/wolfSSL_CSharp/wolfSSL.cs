@@ -312,7 +312,7 @@ namespace wolfSSL.CSharp
             private GCHandle vrf_cb;
 
 #if _MSC_VER_LT_1900
-            /* addional helpers to avoid ESP corruption & Access violations on WindowsCE */
+            /* additional helpers to avoid ESP corruption & Access violations on WindowsCE */
 
             /// <summary>
             /// Strong reference to the receive callback delegate to prevent it from being

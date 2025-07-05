@@ -32,7 +32,7 @@ AdditionalIncludeDirectories="./;./wrapper/CSharp"
 ```
 
 
-See alse the sample Windows user_settings.h in `[WOLFSSL_ROOT]/IDE/WIN``
+See also the sample Windows user_settings.h in `[WOLFSSL_ROOT]/IDE/WIN``
 
 ```
 AdditionalIncludeDirectories="./;./IDE/WIN"

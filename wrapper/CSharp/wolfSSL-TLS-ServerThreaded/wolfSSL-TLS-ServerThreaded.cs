@@ -166,7 +166,11 @@ public class wolfSSL_TLS_ServerThreaded
         }
 
         string ciphers = new string(' ', 4096);
+#if WindowsCE && !PocketPC
         wolfssl.get_ciphers(ciphers, 4096);
+#else
+        wolfssl.get_ciphers(ref ciphers, 4096);
+#endif
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
         short minDhKey = 128;
