@@ -475,21 +475,49 @@
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
         #if FIPS_VERSION3_GE(6,0,0)
+#ifndef NO_AES
             extern int wolfCrypt_FIPS_AES_sanity(void);
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
             extern int wolfCrypt_FIPS_CMAC_sanity(void);
+#endif
+#endif
+#ifndef NO_DH
             extern int wolfCrypt_FIPS_DH_sanity(void);
+#endif
+#ifdef HAVE_ECC
             extern int wolfCrypt_FIPS_ECC_sanity(void);
+#endif
+#ifdef HAVE_ED25519
             extern int wolfCrypt_FIPS_ED25519_sanity(void);
+#endif
+#ifdef HAVE_ED448
             extern int wolfCrypt_FIPS_ED448_sanity(void);
+#endif
             extern int wolfCrypt_FIPS_HMAC_sanity(void);
+#ifndef NO_KDF
             extern int wolfCrypt_FIPS_KDF_sanity(void);
+#endif
+#ifdef HAVE_PBKDF2
             extern int wolfCrypt_FIPS_PBKDF_sanity(void);
+#endif
+#ifdef HAVE_HASHDRBG
             extern int wolfCrypt_FIPS_DRBG_sanity(void);
+#endif
+#ifndef NO_RSA
             extern int wolfCrypt_FIPS_RSA_sanity(void);
+#endif
+#ifndef NO_SHA
             extern int wolfCrypt_FIPS_SHA_sanity(void);
+#endif
+#ifndef NO_SHA256
             extern int wolfCrypt_FIPS_SHA256_sanity(void);
+#endif
+#ifdef WOLFSSL_SHA512
             extern int wolfCrypt_FIPS_SHA512_sanity(void);
+#endif
+#ifdef WOLFSSL_SHA3
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
+#endif
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern int wc_RunAllCast_fips(void);
         #endif
@@ -660,21 +688,49 @@
         typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
         typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
         #if FIPS_VERSION3_GE(6,0,0)
+#ifndef NO_AES
             typeof(wolfCrypt_FIPS_AES_sanity) *wolfCrypt_FIPS_AES_sanity;
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
             typeof(wolfCrypt_FIPS_CMAC_sanity) *wolfCrypt_FIPS_CMAC_sanity;
+#endif
+#endif
+#ifndef NO_DH
             typeof(wolfCrypt_FIPS_DH_sanity) *wolfCrypt_FIPS_DH_sanity;
+#endif
+#ifdef HAVE_ECC
             typeof(wolfCrypt_FIPS_ECC_sanity) *wolfCrypt_FIPS_ECC_sanity;
+#endif
+#ifdef HAVE_ED25519
             typeof(wolfCrypt_FIPS_ED25519_sanity) *wolfCrypt_FIPS_ED25519_sanity;
+#endif
+#ifdef HAVE_ED448
             typeof(wolfCrypt_FIPS_ED448_sanity) *wolfCrypt_FIPS_ED448_sanity;
+#endif
             typeof(wolfCrypt_FIPS_HMAC_sanity) *wolfCrypt_FIPS_HMAC_sanity;
+#ifndef NO_KDF
             typeof(wolfCrypt_FIPS_KDF_sanity) *wolfCrypt_FIPS_KDF_sanity;
+#endif
+#ifdef HAVE_PBKDF2
             typeof(wolfCrypt_FIPS_PBKDF_sanity) *wolfCrypt_FIPS_PBKDF_sanity;
+#endif
+#ifdef HAVE_HASHDRBG
             typeof(wolfCrypt_FIPS_DRBG_sanity) *wolfCrypt_FIPS_DRBG_sanity;
+#endif
+#ifndef NO_RSA
             typeof(wolfCrypt_FIPS_RSA_sanity) *wolfCrypt_FIPS_RSA_sanity;
+#endif
+#ifndef NO_SHA
             typeof(wolfCrypt_FIPS_SHA_sanity) *wolfCrypt_FIPS_SHA_sanity;
+#endif
+#ifndef NO_SHA256
             typeof(wolfCrypt_FIPS_SHA256_sanity) *wolfCrypt_FIPS_SHA256_sanity;
+#endif
+#ifdef WOLFSSL_SHA512
             typeof(wolfCrypt_FIPS_SHA512_sanity) *wolfCrypt_FIPS_SHA512_sanity;
+#endif
+#ifdef WOLFSSL_SHA3
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
+#endif
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
         #endif

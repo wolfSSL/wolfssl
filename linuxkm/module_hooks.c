@@ -598,36 +598,64 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last =
         wolfCrypt_FIPS_last;
     #if FIPS_VERSION3_GE(6,0,0)
+#ifndef NO_AES
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_AES_sanity =
         wolfCrypt_FIPS_AES_sanity;
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_CMAC_sanity =
         wolfCrypt_FIPS_CMAC_sanity;
+#endif
+#endif
+#ifndef NO_DH
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DH_sanity =
         wolfCrypt_FIPS_DH_sanity;
+#endif
+#ifdef HAVE_ECC
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ECC_sanity =
         wolfCrypt_FIPS_ECC_sanity;
+#endif
+#ifdef HAVE_ED25519
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED25519_sanity =
         wolfCrypt_FIPS_ED25519_sanity;
+#endif
+#ifdef HAVE_ED448
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED448_sanity =
         wolfCrypt_FIPS_ED448_sanity;
+#endif
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_HMAC_sanity =
         wolfCrypt_FIPS_HMAC_sanity;
+#ifndef NO_KDF
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_KDF_sanity =
         wolfCrypt_FIPS_KDF_sanity;
+#endif
+#ifdef HAVE_PBKDF2
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_PBKDF_sanity =
         wolfCrypt_FIPS_PBKDF_sanity;
+#endif
+#ifdef HAVE_HASHDRBG
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DRBG_sanity =
         wolfCrypt_FIPS_DRBG_sanity;
+#endif
+#ifndef NO_RSA
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_RSA_sanity =
         wolfCrypt_FIPS_RSA_sanity;
+#endif
+#ifndef NO_SHA
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA_sanity =
         wolfCrypt_FIPS_SHA_sanity;
+#endif
+#ifndef NO_SHA256
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA256_sanity =
         wolfCrypt_FIPS_SHA256_sanity;
+#endif
+#ifdef WOLFSSL_SHA512
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA512_sanity =
         wolfCrypt_FIPS_SHA512_sanity;
+#endif
+#ifdef WOLFSSL_SHA3
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA3_sanity =
         wolfCrypt_FIPS_SHA3_sanity;
+#endif
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_FT_sanity =
         wolfCrypt_FIPS_FT_sanity;
     wolfssl_linuxkm_pie_redirect_table.wc_RunAllCast_fips =
