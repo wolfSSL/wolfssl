@@ -1839,7 +1839,13 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
         /* keyUsage */
         case WC_NID_key_usage:
+        {
+            word16 keyUsage;
+            word32 idx;
+            int len;
+
             WOLFSSL_MSG("keyUsage");
+
             /* This may need to be updated for future use. The i2v method for
                 keyUsage is not currently set. For now, return the ASN1_STRING
                 representation of KeyUsage bit string */
@@ -1848,13 +1854,32 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("X509_EXTENSION_get_data() failed");
                 return NULL;
             }
+
+
+            idx = 0;
+            if (CheckBitString((byte *)asn1String->data, &idx, &len,
+                                                  asn1String->length, 0, NULL))
+            {
+                WOLFSSL_MSG("CheckBitString() failed");
+                return NULL;
+            }
+            if (len == 0 || len > 2)
+            {
+                WOLFSSL_MSG("Invalid BIT STRING length");
+                return NULL;
+            }
+
+            keyUsage = (word16)(asn1String->data[idx]);
+            if (len == 2)
+                keyUsage |= (word16)(asn1String->data[idx+1] << 8);
+
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 return NULL;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, asn1String->data,
-                                                            asn1String->length);
+            ret = wolfSSL_ASN1_STRING_set(newString, (byte*)&keyUsage,
+                                                                sizeof(word16));
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -1862,6 +1887,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             };
             newString->type = asn1String->type;
             return newString;
+        }
 
         /* extKeyUsage */
         case WC_NID_ext_key_usage:
