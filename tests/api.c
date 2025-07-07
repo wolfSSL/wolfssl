@@ -47805,6 +47805,62 @@ static int test_wolfSSL_PKCS7_SIGNED_new(void)
 }
 
 #ifndef NO_BIO
+
+static int test_wolfSSL_PEM_write_bio_encryptedKey(void)
+{
+    EXPECT_DECLS;
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && \
+    defined(WOLFSSL_ENCRYPTED_KEYS) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_DES3)
+    RSA* rsaKey = NULL;
+    RSA* retKey = NULL;
+    const EVP_CIPHER *cipher = NULL;
+    BIO* bio = NULL;
+    BIO* retbio = NULL;
+    byte* out;
+    const char* password = "wolfssl";
+    word32 passwordSz =(word32)XSTRLEN((char*)password);
+    int membufSz = 0;
+
+#if defined(USE_CERT_BUFFERS_2048)
+    const byte* key = client_key_der_2048;
+    word32      keySz = sizeof_client_key_der_2048;
+#elif defined(USE_CERT_BUFFERS_1024)
+    const byte* key = client_key_der_1024;
+    word32      keySz = sizeof_client_key_der_1024;
+#endif
+    /* Import Rsa Key */
+    ExpectNotNull(rsaKey = wolfSSL_RSA_new());
+    ExpectIntEQ(wolfSSL_RSA_LoadDer_ex(rsaKey, key, keySz,
+                                        WOLFSSL_RSA_LOAD_PRIVATE), 1);
+
+    ExpectNotNull(cipher = EVP_des_ede3_cbc());
+    ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+    ExpectIntEQ(PEM_write_bio_RSAPrivateKey(bio, rsaKey, cipher,
+                                (byte*)password, passwordSz, NULL, NULL), 1);
+    ExpectIntGT((membufSz = BIO_get_mem_data(bio, &out)), 0);
+    ExpectNotNull(retbio = BIO_new_mem_buf(out, membufSz));
+    ExpectNotNull((retKey = PEM_read_bio_RSAPrivateKey(retbio, NULL,
+                                NULL, (void*)password)));
+    if (bio != NULL) {
+        BIO_free(bio);
+    }
+    if (retbio != NULL) {
+        BIO_free(retbio);
+    }
+    if (retKey != NULL) {
+        RSA_free(retKey);
+    }
+    if (rsaKey != NULL) {
+        RSA_free(rsaKey);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_PEM_write_bio_PKCS7(void)
 {
     EXPECT_DECLS;
@@ -67968,6 +68024,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_PKCS7_SIGNED_new),
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_PEM_write_bio_PKCS7),
+    TEST_DECL(test_wolfSSL_PEM_write_bio_encryptedKey),
 #ifdef HAVE_SMIME
     TEST_DECL(test_wolfSSL_SMIME_read_PKCS7),
     TEST_DECL(test_wolfSSL_SMIME_write_PKCS7),

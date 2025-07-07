@@ -507,12 +507,10 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     byte* cipherInfo = NULL;
     int pemSz = 0;
     int hashType = WC_HASH_TYPE_NONE;
-#if !defined(NO_SHA256)
-    hashType = WC_SHA256;
+#if !defined(NO_MD5)
+    hashType = WC_MD5;
 #elif !defined(NO_SHA)
     hashType = WC_SHA;
-#elif !defined(NO_MD5)
-    hashType = WC_MD5;
 #endif
 
     /* Macro doesn't always use it. */
