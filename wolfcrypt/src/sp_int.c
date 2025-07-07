@@ -8025,8 +8025,8 @@ static void sp_clamp_ct(sp_int* a)
             (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
                            (SP_WORD_SIZE - 1));
 #else
-        sp_int_digit zeroMask =
-            (sp_int_digit)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
+        sp_size_t zeroMask =
+            (sp_size_t)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
 #endif
         mask &= (sp_size_t)zeroMask;
         used = (sp_size_t)(used + mask);
