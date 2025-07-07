@@ -243,6 +243,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY),
         WOLFSSL_FAILURE);
     wolfSSL_OCSP_RESPONSE_free(response);
+    response = NULL;
 
     /* populate a store with root-ca-cert */
     ExpectIntEQ(test_ocsp_create_x509store(&store, root_ca_cert_pem,
@@ -261,6 +262,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
         WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
+    response = NULL;
 
     /* cert embedded, verified using store */
     ptr = (const unsigned char*)resp;
@@ -290,6 +292,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntNE(wolfSSL_OCSP_basic_verify(response, NULL, store, OCSP_NOINTERN),
         WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
+    response = NULL;
 
     /* cert not embedded, not certs */
     ptr = (const unsigned char*)resp_nocert;
@@ -298,9 +301,12 @@ int test_ocsp_basic_verify(void)
     ExpectIntNE(wolfSSL_OCSP_basic_verify(response, NULL, store, 0),
         WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
+    response = NULL;
 
     wolfSSL_sk_X509_pop_free(certs, wolfSSL_X509_free);
+    certs = NULL;
     wolfSSL_X509_STORE_free(store);
+    store = NULL;
 
     ExpectIntEQ(test_ocsp_create_x509store(&store, root_ca_cert_pem,
                     sizeof(root_ca_cert_pem)),
@@ -316,6 +322,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
         WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
+    response = NULL;
 
     /* cert in certs, cert verified on store, not authorized to verify all
      * responses */

@@ -1472,56 +1472,136 @@ int wolfSSL_HmacCopy(Hmac* dst, Hmac* src)
     #ifndef NO_MD5
         case WC_MD5:
             rc = wc_Md5Copy(&src->hash.md5, &dst->hash.md5);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Md5Copy(&src->i_hash.md5, &dst->i_hash.md5);
+            }
+            if (rc == 0) {
+                rc = wc_Md5Copy(&src->o_hash.md5, &dst->o_hash.md5);
+            }
+        #endif
             break;
     #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
         case WC_SHA:
             rc = wc_ShaCopy(&src->hash.sha, &dst->hash.sha);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_ShaCopy(&src->i_hash.sha, &dst->i_hash.sha);
+            }
+            if (rc == 0) {
+                rc = wc_ShaCopy(&src->o_hash.sha, &dst->o_hash.sha);
+            }
+        #endif
             break;
     #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
         case WC_SHA224:
             rc = wc_Sha224Copy(&src->hash.sha224, &dst->hash.sha224);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha224Copy(&src->i_hash.sha224, &dst->i_hash.sha224);
+            }
+            if (rc == 0) {
+                rc = wc_Sha224Copy(&src->o_hash.sha224, &dst->o_hash.sha224);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
         case WC_SHA256:
             rc = wc_Sha256Copy(&src->hash.sha256, &dst->hash.sha256);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha256Copy(&src->i_hash.sha256, &dst->i_hash.sha256);
+            }
+            if (rc == 0) {
+                rc = wc_Sha256Copy(&src->o_hash.sha256, &dst->o_hash.sha256);
+            }
+        #endif
             break;
     #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA384
         case WC_SHA384:
             rc = wc_Sha384Copy(&src->hash.sha384, &dst->hash.sha384);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha384Copy(&src->i_hash.sha384, &dst->i_hash.sha384);
+            }
+            if (rc == 0) {
+                rc = wc_Sha384Copy(&src->o_hash.sha384, &dst->o_hash.sha384);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case WC_SHA512:
             rc = wc_Sha512Copy(&src->hash.sha512, &dst->hash.sha512);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha512Copy(&src->i_hash.sha512, &dst->i_hash.sha512);
+            }
+            if (rc == 0) {
+                rc = wc_Sha512Copy(&src->o_hash.sha512, &dst->o_hash.sha512);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_SHA512 */
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
         case WC_SHA3_224:
             rc = wc_Sha3_224_Copy(&src->hash.sha3, &dst->hash.sha3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha3_224_Copy(&src->i_hash.sha3, &dst->i_hash.sha3);
+            }
+            if (rc == 0) {
+                rc = wc_Sha3_224_Copy(&src->o_hash.sha3, &dst->o_hash.sha3);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_NO_SHA3_224 */
     #ifndef WOLFSSL_NOSHA3_256
         case WC_SHA3_256:
             rc = wc_Sha3_256_Copy(&src->hash.sha3, &dst->hash.sha3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha3_256_Copy(&src->i_hash.sha3, &dst->i_hash.sha3);
+            }
+            if (rc == 0) {
+                rc = wc_Sha3_256_Copy(&src->o_hash.sha3, &dst->o_hash.sha3);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_NO_SHA3_256 */
     #ifndef WOLFSSL_NOSHA3_384
         case WC_SHA3_384:
             rc = wc_Sha3_384_Copy(&src->hash.sha3, &dst->hash.sha3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha3_384_Copy(&src->i_hash.sha3, &dst->i_hash.sha3);
+            }
+            if (rc == 0) {
+                rc = wc_Sha3_384_Copy(&src->o_hash.sha3, &dst->o_hash.sha3);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_NO_SHA3_384 */
     #ifndef WOLFSSL_NOSHA3_512
         case WC_SHA3_512:
             rc = wc_Sha3_512_Copy(&src->hash.sha3, &dst->hash.sha3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sha3_512_Copy(&src->i_hash.sha3, &dst->i_hash.sha3);
+            }
+            if (rc == 0) {
+                rc = wc_Sha3_512_Copy(&src->o_hash.sha3, &dst->o_hash.sha3);
+            }
+        #endif
             break;
     #endif /* WOLFSSL_NO_SHA3_512 */
 #endif /* WOLFSSL_SHA3 */
@@ -1823,12 +1903,23 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             WC_HMAC_BLOCK_SIZE);
         XMEMCPY((byte *)&ctx->hmac.opad, (byte *)&ctx->save_opad,
             WC_HMAC_BLOCK_SIZE);
-        /* Initialize the wolfSSL HMAC object. */
-        rc = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap);
+    #ifdef WOLFSSL_HMAC_COPY_HASH
+        rc = _HmacInitIOHashes(&ctx->hmac);
         if (rc != 0) {
-            WOLFSSL_MSG("hmac init error");
+            WOLFSSL_MSG("hmac init i_hash/o_hash error");
             WOLFSSL_ERROR(rc);
             ret = 0;
+        }
+        if (ret == 1)
+    #endif
+        {
+            /* Initialize the wolfSSL HMAC object. */
+            rc = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap);
+            if (rc != 0) {
+                WOLFSSL_MSG("hmac init error");
+                WOLFSSL_ERROR(rc);
+                ret = 0;
+            }
         }
     }
 

@@ -36869,7 +36869,8 @@ static const ASNItem edKeyASN[] = {
                                          /* privateKey */
 /* PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
                                              /* CurvePrivateKey */
-/* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 0 },
+/* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 2 },
+/* PKEY_MLDSASEQ  */            { 2, ASN_SEQUENCE, 1, 0, 2 },
                                          /* attributes */
 /* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
                                          /* publicKey */
@@ -36882,6 +36883,7 @@ enum {
     EDKEYASN_IDX_PKEYALGO_OID,
     EDKEYASN_IDX_PKEY,
     EDKEYASN_IDX_PKEY_CURVEPKEY,
+    EDKEYASN_IDX_PKEY_MLDSASEQ,
     EDKEYASN_IDX_ATTRS,
     EDKEYASN_IDX_PUBKEY
 };
@@ -36947,8 +36949,15 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         if (GetOctetString(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0)
-            return ASN_PARSE_E;
+        if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0) {
+            if (oid != ML_DSA_LEVEL2k && oid != ML_DSA_LEVEL3k &&
+                    oid != ML_DSA_LEVEL5k) {
+                return ASN_PARSE_E;
+            }
+            if (GetSequence(input, inOutIdx, &privSz, inSz) < 0) {
+                return ASN_PARSE_E;
+            }
+        }
 
         priv = input + *inOutIdx;
         *inOutIdx += (word32)privSz;
@@ -37026,10 +37035,23 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
                 (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
         }
     }
-    if (ret == 0) {
+    if (ret == 0 && dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length != 0) {
         /* Import private value. */
         *privKeyLen = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length;
         *privKey = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.data;
+    }
+    else if (ret == 0 &&
+             dataASN[EDKEYASN_IDX_PKEY_MLDSASEQ].data.ref.length != 0) {
+        if (*inOutKeyType != ML_DSA_LEVEL2k &&
+                *inOutKeyType != ML_DSA_LEVEL3k &&
+                *inOutKeyType != ML_DSA_LEVEL5k) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            /* Import private value. */
+            *privKeyLen = dataASN[EDKEYASN_IDX_PKEY_MLDSASEQ].data.ref.length;
+            *privKey = dataASN[EDKEYASN_IDX_PKEY_MLDSASEQ].data.ref.data;
+        }
     }
     if ((ret == 0) && dataASN[EDKEYASN_IDX_PUBKEY].tag == 0) {
         /* Set public length to 0 as not seen. */
@@ -37454,6 +37476,8 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         SetASN_Buffer(&dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY], NULL, privKeyLen);
         /* Don't write out attributes. */
         dataASN[EDKEYASN_IDX_ATTRS].noOut = 1;
+        /* Don't write sequence. */
+        dataASN[EDKEYASN_IDX_PKEY_MLDSASEQ].noOut = 1;
         if (pubKey) {
             /* Leave space for public key. */
             SetASN_Buffer(&dataASN[EDKEYASN_IDX_PUBKEY], NULL, pubKeyLen);

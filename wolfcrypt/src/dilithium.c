@@ -1386,8 +1386,8 @@ static void dilithium_encode_gamma1_19_bits(const sword32* z, byte* s)
                    ((word64)z2 << 40) | ((word64)z3 << 60);
     #else
         word32* s32p = (word32*)s;
-        s32p[0] = (word16)( z0        | (z1 << 20)             );
-        s32p[1] = (word16)((z1 >> 12) | (z2 <<  8) | (z3 << 28));
+        s32p[0] = (word32)( z0        | (z1 << 20)             );
+        s32p[1] = (word32)((z1 >> 12) | (z2 <<  8) | (z3 << 28));
     #endif
         s16p[4] = (word16)((z3 >>  4)                          );
 #else
@@ -2307,7 +2307,7 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
 #define DILITHIUM_COEFF_S_VALID_ETA2(b) \
     ((b) < DILITHIUM_ETA_2_MOD)
 
-static const char dilithium_coeff_eta2[] = {
+static const signed char dilithium_coeff_eta2[] = {
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2
@@ -9660,6 +9660,31 @@ int dilithium_get_oid_sum(dilithium_key* key, int* keyFormat) {
 
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
+/* OCT <seed of 32 bytes> OCT <private key data of more than 256 bytes> */
+#define ALT_PRIV_DER_PREFIX       (2 + 32 + 4)
+/* SEQ [ OCT <seed of 32 bytes> OCT <private key data> ] */
+#define ALT_PRIV_DER_PREFIX_SEQ   (4 + 2 + 32 + 4)
+
+/* Get the private only key size for the ML-DSA level/parameter id.
+ *
+ * @param [in] level  Level of the ML-DSA key.
+ * @return  Private key only encoding size for key level on success.
+ * @return  0 on failure.
+ */
+static word32 dilithium_get_priv_size(int level)
+{
+    switch (level) {
+        case WC_ML_DSA_44:
+            return ML_DSA_LEVEL2_KEY_SIZE;
+        case WC_ML_DSA_65:
+            return ML_DSA_LEVEL3_KEY_SIZE;
+        case WC_ML_DSA_87:
+            return ML_DSA_LEVEL5_KEY_SIZE;
+        default:
+            return 0;
+    }
+}
+
 /* Decode the DER encoded Dilithium key.
  *
  * @param [in]      input     Array holding DER encoded data.
@@ -9746,6 +9771,19 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                 ret = wc_dilithium_set_level(key, (byte)ret);
             }
         }
+        /* If it failed to decode try alternative DER encoding. */
+        else if (ret != 0) {
+            word32 levelSize = dilithium_get_priv_size(key->level);
+            privKey = input + *inOutIdx;
+            privKeyLen = inSz - *inOutIdx;
+
+            /* Check for an alternative DER encoding. */
+            if (privKeyLen == ALT_PRIV_DER_PREFIX_SEQ + levelSize) {
+                privKey += ALT_PRIV_DER_PREFIX_SEQ;
+                privKeyLen -= ALT_PRIV_DER_PREFIX_SEQ;
+                ret = 0;
+            }
+        }
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
@@ -9790,6 +9828,14 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             pubKey = privKey + ML_DSA_LEVEL5_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
+        }
+        else {
+            word32 levelSize = dilithium_get_priv_size(key->level);
+
+            if (privKeyLen == ALT_PRIV_DER_PREFIX + levelSize) {
+                privKey += ALT_PRIV_DER_PREFIX;
+                privKeyLen -= ALT_PRIV_DER_PREFIX;
+            }
         }
     }
 

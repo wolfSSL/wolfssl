@@ -15141,9 +15141,10 @@ static void Usage(void)
     e += 3;
 #endif
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
-    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -mca_final */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -mac_final */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -aead_set_key */
 #ifndef NO_RSA
-    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -ras_sign */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -rsa_sign */
     #ifdef WOLFSSL_KEY_GEN
     printf("%s", bench_Usage_msg1[lng_index][e]);    /* option -rsa-sz */
     #endif

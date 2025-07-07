@@ -26,6 +26,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/cpuid.h>
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -2210,32 +2213,7 @@ int wolfSSL_HwPkMutexUnLock(void)
     }
 #elif defined(WOLFSSL_LINUXKM)
 
-    /* Linux kernel mutex routines are voids, alas. */
-
-    int wc_InitMutex(wolfSSL_Mutex* m)
-    {
-        mutex_init(m);
-        return 0;
-    }
-
-    int wc_FreeMutex(wolfSSL_Mutex* m)
-    {
-        mutex_destroy(m);
-        return 0;
-    }
-
-    int wc_LockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_lock(m);
-        return 0;
-    }
-
-
-    int wc_UnLockMutex(wolfSSL_Mutex* m)
-    {
-        mutex_unlock(m);
-        return 0;
-    }
+    /* defined as inlines in linuxkm/linuxkm_wc_port.h */
 
 #elif defined(WOLFSSL_VXWORKS)
 
@@ -4652,5 +4630,11 @@ noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
 {
     return (wolfssl_linuxkm_get_pie_redirect_table()->
             alt_cb_patch_nops)(alt, origptr, updptr, nr_inst);
+}
+
+void my__queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
+{
+    return (wolfssl_linuxkm_get_pie_redirect_table()->
+            queued_spin_lock_slowpath)(lock, val);
 }
 #endif

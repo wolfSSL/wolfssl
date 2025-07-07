@@ -317,6 +317,10 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
         return NULL;
 
     pkcs7->len = wolfSSL_BIO_get_len(bio);
+    if (pkcs7->len < 0){
+        wolfSSL_PKCS7_free((PKCS7*)pkcs7);
+        return NULL;
+    }
     pkcs7->data = (byte*)XMALLOC(pkcs7->len, NULL, DYNAMIC_TYPE_PKCS7);
     if (pkcs7->data == NULL) {
         wolfSSL_PKCS7_free((PKCS7*)pkcs7);

@@ -23714,7 +23714,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     }
 #endif
 
-#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+#if !defined(WC_NO_RNG) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
             !defined(HAVE_SELFTEST)
     agreeSz = DH_TEST_BUF_SIZE;
     agreeSz2 = DH_TEST_BUF_SIZE;
@@ -23740,7 +23740,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     if (XMEMCMP(agree, agree2, agreeSz) != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
+#endif /* !WC_NO_RNG && (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
 
     /* Test DH key import / export */
 #if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \

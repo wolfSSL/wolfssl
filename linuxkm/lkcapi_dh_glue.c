@@ -82,14 +82,6 @@
 #include <wolfssl/wolfcrypt/dh.h>
 #include <crypto/dh.h>
 
-/* need misc.c for ForceZero(). */
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
-
 #define WOLFKM_DH_NAME    ("dh")
 #define WOLFKM_DH_DRIVER  ("dh" WOLFKM_DRIVER_FIPS \
                            "-wolfcrypt")

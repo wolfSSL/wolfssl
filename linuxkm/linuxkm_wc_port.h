@@ -126,6 +126,7 @@
 
     #if defined(__PIE__) && defined(CONFIG_ARM64)
         #define alt_cb_patch_nops my__alt_cb_patch_nops
+        #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath
     #endif
 
     #include <linux/kernel.h>
@@ -301,6 +302,9 @@
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
             #include <crypto/internal/sig.h>
         #endif /* linux ver >= 6.13 */
+        #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES
+            #include <linux/kprobes.h>
+        #endif
 
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
@@ -367,7 +371,7 @@
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
         extern __must_check int can_save_vector_registers_x86(void);
-        extern __must_check int save_vector_registers_x86(void);
+        extern __must_check int save_vector_registers_x86(int inhibit_p);
         extern void restore_vector_registers_x86(void);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -383,11 +387,11 @@
             #endif
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
-            #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
-                int _svr_ret = save_vector_registers_x86(); \
-                if (_svr_ret != 0) {                        \
-                    fail_clause                             \
-                }                                           \
+            #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
+                int _svr_ret = save_vector_registers_x86(0); \
+                if (_svr_ret != 0) {                         \
+                    fail_clause                              \
+                }                                            \
             }
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
@@ -395,15 +399,22 @@
                 #define SAVE_VECTOR_REGISTERS2() ({                    \
                     int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
                     (_fuzzer_ret == 0) ?                               \
-                     save_vector_registers_x86() :                     \
+                     save_vector_registers_x86(0) :                    \
                      _fuzzer_ret;                                      \
                 })
             #else
-                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86()
+                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86(0)
             #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
+        #endif
+
+        #ifndef DISABLE_VECTOR_REGISTERS
+            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(1)
+        #endif
+        #ifndef REENABLE_VECTOR_REGISTERS
+            #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
         #endif
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
@@ -695,15 +706,31 @@
 
         #ifdef CONFIG_ARM64
         #ifdef __PIE__
-            /* alt_cb_patch_nops defined early to allow shimming in system
-             * headers, but now we need the native one.
+            /* alt_cb_patch_nops and queued_spin_lock_slowpath are defined early
+             * to allow shimming in system headers, but now we need the native
+             * ones.
              */
             #undef alt_cb_patch_nops
             typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
+            #undef queued_spin_lock_slowpath
+            typeof(my__queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #else
             typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
+            typeof(queued_spin_lock_slowpath) *queued_spin_lock_slowpath;
         #endif
         #endif
+
+        typeof(preempt_count) *preempt_count;
+        #ifndef _raw_spin_lock_irqsave
+            typeof(_raw_spin_lock_irqsave) *_raw_spin_lock_irqsave;
+        #endif
+        #ifndef _raw_spin_trylock
+            typeof(_raw_spin_trylock) *_raw_spin_trylock;
+        #endif
+        #ifndef _raw_spin_unlock_irqrestore
+            typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
+        #endif
+        typeof(_cond_resched) *_cond_resched;
 
         const void *_last_slot;
     };
@@ -867,6 +894,28 @@
         #define dump_stack (wolfssl_linuxkm_get_pie_redirect_table()->dump_stack)
     #endif
 
+    #undef preempt_count /* just in case -- not a macro on x86. */
+    #define preempt_count (wolfssl_linuxkm_get_pie_redirect_table()->preempt_count)
+
+    #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+        #ifndef _raw_spin_lock_irqsave
+            #define _raw_spin_lock_irqsave (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_lock_irqsave)
+        #endif
+        #ifndef _raw_spin_trylock
+            #define _raw_spin_trylock (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_trylock)
+        #endif
+        #ifndef _raw_spin_unlock_irqrestore
+            #define _raw_spin_unlock_irqrestore (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_unlock_irqrestore)
+        #endif
+    #endif
+
+    #define _cond_resched (wolfssl_linuxkm_get_pie_redirect_table()->_cond_resched)
+
+    /* this is defined in linux/spinlock.h as an inline that calls the unshimmed
+     * raw_spin_unlock_irqrestore().  use a macro here to supersede it.
+     */
+    #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
+
     #endif /* __PIE__ */
 
     #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
@@ -925,9 +974,120 @@
      * above, with the bevy of warnings suppressed, and the below include will
      * be a redundant no-op.
      */
-    #include <linux/mutex.h>
-    typedef struct mutex wolfSSL_Mutex;
-    #define WOLFSSL_MUTEX_INITIALIZER(lockname) __MUTEX_INITIALIZER(lockname)
+
+    /* Copied from wc_port.h: For FIPS keep the function names the same */
+    #ifdef HAVE_FIPS
+    #define wc_InitMutex   InitMutex
+    #define wc_FreeMutex   FreeMutex
+    #define wc_LockMutex   LockMutex
+    #define wc_UnLockMutex UnLockMutex
+    #endif /* HAVE_FIPS */
+
+    #ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+        #ifdef LINUXKM_LKCAPI_REGISTER
+            /* must use spin locks when registering implementations with the
+             * kernel, because mutexes are forbidden when calling with nonzero
+             * irq_count().
+             */
+            #error WOLFSSL_LINUXKM_USE_MUTEXES is incompatible with LINUXKM_LKCAPI_REGISTER.
+        #endif
+
+        #include <linux/mutex.h>
+        typedef struct mutex wolfSSL_Mutex;
+        #define WOLFSSL_MUTEX_INITIALIZER(lockname) __MUTEX_INITIALIZER(lockname)
+
+        /* Linux kernel mutex routines are voids, alas. */
+
+        static inline int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            mutex_init(m);
+            return 0;
+        }
+
+        static inline int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            mutex_destroy(m);
+            return 0;
+        }
+
+        static inline int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            if (in_nmi() || hardirq_count() || in_softirq())
+                return -1;
+            mutex_lock(m);
+            return 0;
+        }
+
+        static inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            mutex_unlock(m);
+            return 0;
+        }
+    #else
+        typedef struct {
+            spinlock_t lock;
+            unsigned long irq_flags;
+        } wolfSSL_Mutex;
+        #define WOLFSSL_MUTEX_INITIALIZER(lockname) { .lock =__SPIN_LOCK_UNLOCKED(lockname), .irq_flags = 0 }
+
+        static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            m->lock = __SPIN_LOCK_UNLOCKED(m);
+            m->irq_flags = 0;
+
+            return 0;
+        }
+
+        static __always_inline int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            (void)m;
+            return 0;
+        }
+
+        static __always_inline int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            unsigned long irq_flags;
+            /* first, try the cheap way. */
+            if (spin_trylock_irqsave(&m->lock, irq_flags)) {
+                m->irq_flags = irq_flags;
+                return 0;
+            }
+            if (irq_count() != 0) {
+                /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
+                 * required, because in_softirq() is always true while saved,
+                 * even for WC_FPU_INHIBITED_FLAG contexts.
+                 */
+                spin_lock_irqsave(&m->lock, irq_flags);
+                m->irq_flags = irq_flags;
+                return 0;
+            }
+            else {
+                for (;;) {
+                    if (spin_trylock_irqsave(&m->lock, irq_flags)) {
+                        m->irq_flags = irq_flags;
+                        return 0;
+                    }
+                    cond_resched();
+                }
+            }
+            __builtin_unreachable();
+        }
+
+        static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            spin_unlock_irqrestore(&m->lock, m->irq_flags);
+            return 0;
+        }
+
+    #endif
+
+    /* Undo copied defines from wc_port.h, to avoid redefinition warnings. */
+    #ifdef HAVE_FIPS
+    #undef wc_InitMutex
+    #undef wc_FreeMutex
+    #undef wc_LockMutex
+    #undef wc_UnLockMutex
+    #endif /* HAVE_FIPS */
 
     /* prevent gcc's mm_malloc.h from being included, since it unconditionally
      * includes stdlib.h, which is kernel-incompatible.
@@ -946,14 +1106,14 @@
         _alloc_sz;                                                         \
     })
     #ifdef HAVE_KVMALLOC
-        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_KERNEL, NUMA_NO_NODE)
+#define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #define free(ptr) kvfree(ptr)
         void *lkm_realloc(void *ptr, size_t newsize);
         #define realloc(ptr, newsize) lkm_realloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize))
     #else
-        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), GFP_KERNEL)
+        #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)
-        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), GFP_KERNEL)
+        #define realloc(ptr, newsize) krealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
     #endif
 
     #ifndef static_assert

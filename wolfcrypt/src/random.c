@@ -189,8 +189,7 @@ This library contains implementation for the random number generator.
     {
         intel_flags = cpuid_get_flags();
     }
-    #if (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
-        !defined(WOLFSSL_LINUXKM)
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
     #ifdef HAVE_INTEL_RDRAND
@@ -232,7 +231,6 @@ This library contains implementation for the random number generator.
 
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
-#define RESEED_INTERVAL   WC_RESEED_INTERVAL
 
 
 /* The security strength for the RNG is the target number of bits of
@@ -255,7 +253,12 @@ This library contains implementation for the random number generator.
         #endif
     #elif defined(HAVE_AMD_RDSEED)
         /* This will yield a SEED_SZ of 16kb. Since nonceSz will be 0,
-         * we'll add an additional 8kb on top. */
+         * we'll add an additional 8kb on top.
+         *
+         * See "AMD RNG ESV Public Use Document".  Version 0.7 of October 24,
+         * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
+         * RDSEED output, depending on CPU family.
+         */
         #define ENTROPY_SCALE_FACTOR  (512)
     #elif defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
         /* The value of 2 applies to Intel's RDSEED which provides about
@@ -370,7 +373,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 #else
     wc_Sha256 sha[1];
 #endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
     byte* digest;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
@@ -380,7 +383,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         return DRBG_FAILURE;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
     digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
         DYNAMIC_TYPE_DIGEST);
     if (digest == NULL)
@@ -441,7 +444,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
@@ -639,16 +642,21 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
     wc_Sha256 sha[1];
 #endif
     byte type;
+#ifdef WORD64_AVAILABLE
+    word64 reseedCtr;
+#else
     word32 reseedCtr;
+#endif
 
     if (drbg == NULL) {
         return DRBG_FAILURE;
     }
 
-    if (drbg->reseedCtr == RESEED_INTERVAL) {
-#if FIPS_VERSION3_GE(6,0,0)
-        printf("Reseed triggered\n");
-#endif
+    if (drbg->reseedCtr >= WC_RESEED_INTERVAL) {
+    #if defined(DEBUG_WOLFSSL) || defined(DEBUG_DRBG_RESEEDS)
+        printf("DRBG reseed triggered, reseedCtr == %lu",
+               (unsigned long)drbg->reseedCtr);
+    #endif
         return DRBG_NEED_RESEED;
     }
     else {
@@ -688,7 +696,11 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
                 array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
             #ifdef LITTLE_ENDIAN_ORDER
+                #ifdef WORD64_AVAILABLE
+                reseedCtr = ByteReverseWord64(reseedCtr);
+                #else
                 reseedCtr = ByteReverseWord32(reseedCtr);
+                #endif
             #endif
                 array_add(drbg->V, sizeof(drbg->V),
                                           (byte*)&reseedCtr, sizeof(reseedCtr));
@@ -1482,13 +1494,23 @@ static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mute
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    byte *noise = NULL;
+#else
     byte noise[MAX_NOISE_CNT];
+#endif
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
 
+#ifdef WOLFSSL_SMALL_STACK
+    noise = (byte *)XMALLOC(MAX_NOISE_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (noise == NULL)
+        return MEMORY_E;
+#endif
+
     /* Lock the mutex as collection uses globals. */
-    if (wc_LockMutex(&entropy_mutex) != 0) {
+    if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
         ret = BAD_MUTEX_E;
     }
 
@@ -1545,6 +1567,10 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(noise, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -2573,7 +2599,6 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
     return -1;
 }
 
-#ifndef WOLFSSL_LINUXKM
 /* return 0 on success */
 static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
@@ -2604,7 +2629,6 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
-#endif
 
 #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
 
@@ -3778,15 +3802,68 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* end WOLFSSL_ESPIDF */
 
 #elif defined(WOLFSSL_LINUXKM)
+
+    /* When registering the kernel default DRBG with a native/intrinsic entropy
+     * source, fallback to get_random_bytes() isn't allowed because we replace
+     * it with our DRBG.
+     */
+
+    #if defined(HAVE_ENTROPY_MEMUSE) && \
+        defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+        return wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
+    }
+
+    #elif (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+        defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+        return wc_GenerateSeed_IntelRD(NULL, output, sz);
+    }
+
+    #else /* !((HAVE_ENTROPY_MEMUSE || HAVE_*_RDSEED) && LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) */
+
     #include <linux/random.h>
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         (void)os;
+        int ret;
+
+    #ifdef HAVE_ENTROPY_MEMUSE
+        ret = wc_Entropy_Get(MAX_ENTROPY_BITS, output, sz);
+        if (ret == 0) {
+            return 0;
+        }
+        #ifdef ENTROPY_MEMUSE_FORCE_FAILURE
+        /* Don't fallback to /dev/urandom. */
+        return ret;
+        #endif
+    #endif
+
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
+        if (IS_INTEL_RDSEED(intel_flags)) {
+            ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
+        #ifndef FORCE_FAILURE_RDSEED
+            if (ret == 0)
+        #endif
+            {
+                return ret;
+            }
+        }
+    #endif /* HAVE_INTEL_RDSEED || HAVE_AMD_RDSEED */
+
+        (void)ret;
 
         get_random_bytes(output, sz);
-
         return 0;
     }
+
+    #endif /* !(HAVE_*_RDSEED && LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT) */
 
 #elif defined(WOLFSSL_RENESAS_TSIP)
 

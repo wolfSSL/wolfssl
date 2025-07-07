@@ -64461,13 +64461,15 @@ static int test_wolfSSL_SCR_after_resumption(void)
     ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
     ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
 
-    func_cb_client.ssl_ready = test_wolfSSL_SCR_after_resumption_ssl_ready;
-    func_cb_server.on_result = test_wolfSSL_SCR_after_resumption_on_result;
+    if (EXPECT_SUCCESS()) {
+        func_cb_client.ssl_ready = test_wolfSSL_SCR_after_resumption_ssl_ready;
+        func_cb_server.on_result = test_wolfSSL_SCR_after_resumption_on_result;
 
-    test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
+        test_wolfSSL_client_server_nofail(&func_cb_client, &func_cb_server);
 
-    ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
-    ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+        ExpectIntEQ(func_cb_client.return_code, TEST_SUCCESS);
+        ExpectIntEQ(func_cb_server.return_code, TEST_SUCCESS);
+    }
 
     wolfSSL_SESSION_free(test_wolfSSL_SCR_after_resumption_session);
 
@@ -68244,12 +68246,13 @@ TEST_CASE testCases[] = {
 
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM) && \
-    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),
     TEST_DECL(test_RsaSigFailure_cm),
-#endif /* NO_CERTS */
+#endif
 
     /* PKCS8 testing */
     TEST_DECL(test_wolfSSL_no_password_cb),

@@ -20,11 +20,7 @@
  */
 
 #ifndef WOLFSSL_LICENSE
-#ifdef WOLFSSL_COMMERCIAL_LICENSE
-#define WOLFSSL_LICENSE "wolfSSL Commercial"
-#else
 #define WOLFSSL_LICENSE "GPL v2"
-#endif
 #endif
 
 #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
@@ -37,6 +33,9 @@
     #include <wolfssl/ssl.h>
 #endif
 #ifdef HAVE_FIPS
+    #ifdef USE_CONTESTMUTEX
+        #error USE_CONTESTMUTEX is incompatible with WOLFSSL_LINUXKM
+    #endif
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
 #if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
@@ -454,21 +453,13 @@ static struct task_struct *my_get_current_thread(void) {
     return get_current();
 }
 
-#if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_COMMERCIAL_LICENSE)
-
-/* ditto for fpregs_lock/fpregs_unlock */
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-static void my_fpregs_lock(void) {
-    fpregs_lock();
+/* preempt_count() is an inline function in arch/x86/include/asm/preempt.h that
+ * accesses __preempt_count, which is an int array declared with
+ * DECLARE_PER_CPU_CACHE_HOT.
+ */
+static int my_preempt_count(void) {
+    return preempt_count();
 }
-
-static void my_fpregs_unlock(void) {
-    fpregs_unlock();
-}
-
-#endif /* WOLFSSL_LINUXKM_SIMD_X86 && WOLFSSL_COMMERCIAL_LICENSE */
-
-#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     memset(
@@ -666,8 +657,21 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
 
+    wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
+#ifndef _raw_spin_lock_irqsave
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_lock_irqsave = _raw_spin_lock_irqsave;
+#endif
+#ifndef _raw_spin_trylock
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_trylock = _raw_spin_trylock;
+#endif
+#ifndef _raw_spin_unlock_irqrestore
+    wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_irqrestore = _raw_spin_unlock_irqrestore;
+#endif
+    wolfssl_linuxkm_pie_redirect_table._cond_resched = _cond_resched;
+
 #ifdef CONFIG_ARM64
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
+    wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */
