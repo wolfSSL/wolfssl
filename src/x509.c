@@ -1321,7 +1321,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
     WOLFSSL_ASN1_STRING* str;
     int nid;
     int rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-    char tmp[CTC_NAME_SIZE*2 + 1];
+    char tmp[1024];
     const int tmpSz = sizeof(tmp);
     int tmpLen = 0;
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_print");
