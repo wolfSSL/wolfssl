@@ -678,6 +678,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         if ((sigAlgs.size % 2) != 0)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+        if (sigAlgs.size > WOLFSSL_MAX_SIGALGO)
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         suites.hashSigAlgoSz = (word16)sigAlgs.size;
         XMEMCPY(suites.hashSigAlgo, sigAlgs.elements, sigAlgs.size);
         haveSA = 1;
