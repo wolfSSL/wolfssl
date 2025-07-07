@@ -1727,6 +1727,10 @@
     {
         word32 blocks = sz / DES_BLOCK_SIZE;
 
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         while (blocks--) {
             xorbuf((byte*)des->reg, in, DES_BLOCK_SIZE);
             DesProcessBlock(des, (byte*)des->reg, (byte*)des->reg);
