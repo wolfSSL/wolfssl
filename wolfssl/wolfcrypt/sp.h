@@ -28,7 +28,7 @@
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
-#ifdef _WIN32_WCE
+#if defined(_WIN32_WCE) || (defined(_MSC_VER) && (_MSC_VER < 1600))
     typedef __int8           int8_t;
     typedef __int32          int32_t;
     typedef __int64          int64_t;
