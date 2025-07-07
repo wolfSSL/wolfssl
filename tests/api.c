@@ -19598,6 +19598,9 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         a->isDynamic = 0;
         a->data = a->intData;
     }
+    /* Reset p2 to NULL. */
+    XFREE(p2, NULL, DYNAMIC_TYPE_ASN1);
+
     /* Set a to valid value. */
     ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(a, 1), WOLFSSL_SUCCESS);
     /* NULL output buffer. */
@@ -19637,7 +19640,6 @@ static int test_wolfSSL_d2i_ASN1_INTEGER(void)
         reEncoded = NULL;
         wolfSSL_ASN1_INTEGER_free(a);
         a = NULL;
-        p2 = NULL;
     }
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
@@ -38171,7 +38173,8 @@ static int test_wolfSSL_BIO_write(void)
     ExpectNotNull(bio64 = BIO_new(BIO_f_base64()));
     ExpectNotNull(bio   = BIO_push(BIO_new(BIO_f_base64()), bio64));
     if (EXPECT_FAIL()) {
-        BIO_free(bio64);
+        BIO_free_all(bio);
+        bio = NULL;
         bio64 = NULL;
     }
     ExpectNotNull(bio_mem = BIO_new(BIO_s_mem()));
@@ -38181,6 +38184,9 @@ static int test_wolfSSL_BIO_write(void)
     }
 
     /* now should convert to base64 when stored and then decode with read */
+    if (bio == NULL) {
+        ExpectNotNull(bio = BIO_new(BIO_f_base64()));
+    }
     ExpectIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
     BIO_flush(bio);
     sz = sizeof(out);
