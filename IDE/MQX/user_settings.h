@@ -59,3 +59,14 @@
 #define FREESCALE_MQX
 #define FREESCALE_NO_RNG
 
+/* FREESCALE forced-on algorithms - moved from settings.h */
+#ifndef NO_AES
+    #undef  HAVE_AESCCM
+    #define HAVE_AESCCM
+    #undef  HAVE_AESGCM
+    #define HAVE_AESGCM
+    #undef  WOLFSSL_AES_COUNTER
+    #define WOLFSSL_AES_COUNTER
+    #undef  WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
+#endif
