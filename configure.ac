@@ -8090,6 +8090,13 @@ then
     if test "x$ENABLED_ALPN" = "xno"
     then
         ENABLED_ALPN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ALPN"
+    fi
+
+    if test "x$ENABLED_EX_DATA" = "xno"
+    then
+        ENABLED_EX_DATA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
     fi
 
     if test "x$ENABLED_WOLFSSH" = "xno"
