@@ -602,6 +602,127 @@ err:
 #endif /* OPENSSL_ALL || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
+{
+    gn->type = dns->type;
+    switch (gn->type) {
+        case WOLFSSL_GEN_OTHERNAME:
+                if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
+                    WOLFSSL_MSG("OTHERNAME set failed");
+                    return WOLFSSL_FAILURE;
+                }
+            break;
+
+        case WOLFSSL_GEN_EMAIL:
+        case WOLFSSL_GEN_DNS:
+        case WOLFSSL_GEN_URI:
+        case WOLFSSL_GEN_IPADD:
+        case WOLFSSL_GEN_IA5:
+                gn->d.ia5->length = dns->len;
+                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
+                        gn->d.ia5->length) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("ASN1_STRING_set failed");
+                    return WOLFSSL_FAILURE;
+                }
+                break;
+
+
+        case WOLFSSL_GEN_DIRNAME:
+            /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
+            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+            gn->d.ia5 = NULL;
+
+            gn->d.dirn = wolfSSL_X509_NAME_new();;
+            /* @TODO extract dir name info from DNS_entry */
+            break;
+
+#ifdef WOLFSSL_RID_ALT_NAME
+        case WOLFSSL_GEN_RID:
+            /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
+            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+            gn->d.ia5 = NULL;
+
+            gn->d.registeredID = wolfSSL_ASN1_OBJECT_new();
+            if (gn->d.registeredID == NULL) {
+                return WOLFSSL_FAILURE;
+            }
+            gn->d.registeredID->obj = (const unsigned char*)XMALLOC(dns->len,
+                gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
+            if (gn->d.registeredID->obj == NULL) {
+                /* registeredID gets free'd up by caller after failure */
+                return WOLFSSL_FAILURE;
+            }
+            gn->d.registeredID->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+            XMEMCPY((byte*)gn->d.registeredID->obj, dns->ridString, dns->len);
+            gn->d.registeredID->objSz = dns->len;
+            gn->d.registeredID->grp = oidCertExtType;
+            gn->d.registeredID->nid = WC_NID_registeredAddress;
+            break;
+#endif
+
+        case WOLFSSL_GEN_X400:
+            /* Unsupported: fall through */
+        case WOLFSSL_GEN_EDIPARTY:
+            /* Unsupported: fall through */
+        default:
+            WOLFSSL_MSG("Unsupported type conversion");
+            return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
+static int wolfssl_x509_alt_names_to_gn(WOLFSSL_X509* x509,
+    WOLFSSL_X509_EXTENSION* ext)
+{
+    int ret = 0;
+    WOLFSSL_GENERAL_NAME* gn = NULL;
+    DNS_entry* dns = NULL;
+    WOLFSSL_STACK* sk;
+
+    sk = (WOLFSSL_GENERAL_NAMES*)XMALLOC(sizeof(WOLFSSL_GENERAL_NAMES), NULL,
+        DYNAMIC_TYPE_ASN1);
+    if (sk == NULL) {
+        goto err;
+    }
+    XMEMSET(sk, 0, sizeof(WOLFSSL_GENERAL_NAMES));
+    sk->type = STACK_TYPE_GEN_NAME;
+
+    if (x509->subjAltNameSet && x509->altNames != NULL) {
+        /* alt names are DNS_entry structs */
+        dns = x509->altNames;
+        /* Currently only support GEN_DNS type */
+        while (dns != NULL) {
+            gn = wolfSSL_GENERAL_NAME_new();
+            if (gn == NULL) {
+                WOLFSSL_MSG("Error creating GENERAL_NAME");
+                wolfSSL_sk_pop_free(sk, NULL);
+                goto err;
+            }
+
+            if (DNS_to_GENERAL_NAME(gn, dns) != WOLFSSL_SUCCESS) {
+                wolfSSL_GENERAL_NAME_free(gn);
+                wolfSSL_sk_pop_free(sk, NULL);
+                goto err;
+            }
+
+            if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) <= 0) {
+                WOLFSSL_MSG("Error pushing onto stack");
+                wolfSSL_GENERAL_NAME_free(gn);
+                wolfSSL_sk_pop_free(sk, NULL);
+                goto err;
+            }
+
+            dns = dns->next;
+        }
+    }
+    ext->ext_sk = sk;
+    ext->crit = x509->subjAltNameCrit;
+
+    ret = 1;
+err:
+    return ret;
+}
 
 /* Pushes a new X509_EXTENSION* ext onto the stack inside WOLFSSL_X509* x509.
  * This is currently a helper function for wolfSSL_X509_get_ext
@@ -921,6 +1042,19 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 ext->ext_sk = sk;
                 break;
             }
+
+            case ALT_NAMES_OID:
+                if (!isSet)
+                    break;
+                if (!wolfssl_x509_alt_names_to_gn(x509, ext)) {
+                    wolfSSL_X509_EXTENSION_free(ext);
+                    FreeDecodedCert(cert);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+                #endif
+                    return NULL;
+                }
+                break;
         }
 
         /* The ASN1_OBJECT in the extension is set in the same way
