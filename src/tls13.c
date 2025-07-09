@@ -6817,6 +6817,22 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(VERSION_ERROR, exit_dch);
     }
 
+#ifndef WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION
+    /* Check for TLS 1.3 version (0x0304) in legacy version field. RFC 8446
+     * Section 4.2.1 allows this action:
+     *
+     * "Servers MAY abort the handshake upon receiving a ClientHello with
+     * legacy_version 0x0304 or later."
+     *
+     * Note that if WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION is defined then the
+     * semantics of RFC 5246 Appendix E will be followed. A ServerHello with
+     * version 1.2 will be sent. */
+    if (args->pv.major == SSLv3_MAJOR && args->pv.minor >= TLSv1_3_MINOR) {
+        WOLFSSL_MSG("Legacy version field is TLS 1.3 or later. Aborting.");
+        ERROR_OUT(VERSION_ERROR, exit_dch);
+    }
+#endif /* WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION */
+
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls &&
         args->pv.major == DTLS_MAJOR && args->pv.minor > DTLSv1_2_MINOR) {
