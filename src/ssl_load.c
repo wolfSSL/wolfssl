@@ -952,8 +952,8 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     word32 idx;
     dilithium_key* key;
     int keyFormatTemp = 0;
-    int keyTypeTemp;
-    int keySizeTemp;
+    int keyTypeTemp = 0;
+    int keySizeTemp = 0;
 
     /* Allocate a Dilithium key to parse into. */
     key = (dilithium_key*)XMALLOC(sizeof(dilithium_key), heap,
