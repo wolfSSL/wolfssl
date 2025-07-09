@@ -77,8 +77,14 @@
         #define ALIGN16 __attribute__ ( (aligned (32)))
     #endif
 
-    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901, merged for 4.12.
+     * kvrealloc() added in de2860f463, merged for 5.15, backported to 5.10.137.
+     * moved to ultimate home (slab.h) in 8587ca6f34, merged for 5.16.
+
+     */
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) ||    \
+        ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 137)) && \
+         (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 90)))
         #define HAVE_KVMALLOC
     #endif
 
@@ -258,36 +264,54 @@
         #undef memmove
         #define memmove my_memmove
 
-    #endif /* CONFIG_FORTIFY_SOURCE */
+    #else /* !CONFIG_FORTIFY_SOURCE */
+
+        #include <linux/string.h>
+
+    #endif /* !CONFIG_FORTIFY_SOURCE */
+
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
+         * loaded simultaneously, and the Linux in-tree implementations have two
+         * AES key structs in each context, one for each direction.  in
+         * linuxkm/lkcapi_aes_glue.c, we do the same
+         * thing with "struct km_AesCtx".  however, wolfCrypt struct AesXts
+         * already has two AES expanded keys, the main and tweak, and the tweak
+         * is always used in the encrypt direction regardless of the main
+         * direction.  to avoid allocating and computing a duplicate second
+         * tweak encrypt key, we set
+         * WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS, which adds a second
+         * Aes slot to wolfCrypt's struct AesXts, and activates support for
+         * AES_ENCRYPTION_AND_DECRYPTION on AES-XTS.
+         */
+        #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        #endif
+    #endif /* LINUXKM_LKCAPI_REGISTER */
 
     #include <linux/init.h>
+#ifndef __PIE__
     #include <linux/module.h>
     #include <linux/delay.h>
+#endif
 
-    #ifdef __PIE__
-        /* without this, mm.h brings in static, but not inline, pmd_to_page(),
-         * with direct references to global vmem variables.
-         */
-        #undef USE_SPLIT_PMD_PTLOCKS
-        #define USE_SPLIT_PMD_PTLOCKS 0
-
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-            /* without this, static show_free_areas() mm.h brings in direct
-             * reference to unexported __show_free_areas().
-             */
-            #define __show_free_areas my__show_free_areas
-            void my__show_free_areas(
-                unsigned int flags,
-                nodemask_t *nodemask,
-                int max_zone_idx);
-        #endif
-    #endif
+#ifdef __PIE__
+    /* linux/slab.h will recursively bring in linux/page-flags.h, polluting the
+     * wolfCrypt container objects with static functions const_folio_flags() and
+     * folio_flags(), unless we kludge it off thusly.
+     */
+    #define PAGE_FLAGS_H
+#else
     #include <linux/mm.h>
+#endif
+
+    #include <linux/slab.h>
+
+#ifndef __PIE__
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
     #endif
     #include <linux/net.h>
-    #include <linux/slab.h>
 
     #ifdef LINUXKM_LKCAPI_REGISTER
         #include <linux/crypto.h>
@@ -306,29 +330,13 @@
             #include <linux/kprobes.h>
         #endif
 
-        /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
-         * loaded simultaneously, and the Linux in-tree implementations have two
-         * AES key structs in each context, one for each direction.  in
-         * linuxkm/lkcapi_aes_glue.c, we do the same
-         * thing with "struct km_AesCtx".  however, wolfCrypt struct AesXts
-         * already has two AES expanded keys, the main and tweak, and the tweak
-         * is always used in the encrypt direction regardless of the main
-         * direction.  to avoid allocating and computing a duplicate second
-         * tweak encrypt key, we set
-         * WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS, which adds a second
-         * Aes slot to wolfCrypt's struct AesXts, and activates support for
-         * AES_ENCRYPTION_AND_DECRYPTION on AES-XTS.
-         */
-        #ifndef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-            #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-        #endif
-
         #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
             #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))
         #else
             #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount)))
         #endif
     #endif
+#endif /* !__PIE__ */
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
         defined(WOLFSSL_SP_X86_64_ASM)
@@ -622,17 +630,20 @@
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
         typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+        typeof(kvrealloc_noprof) *kvrealloc_noprof;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(kvmalloc_node_noprof) *kvmalloc_node_noprof;
         typeof(kmalloc_trace_noprof) *kmalloc_trace_noprof;
+        typeof(kvrealloc_noprof) *kvrealloc_noprof;
 #else /* <6.10.0 */
         typeof(kmalloc) *kmalloc;
         typeof(krealloc) *krealloc;
         #ifdef HAVE_KVMALLOC
-        typeof(kvmalloc_node) *kvmalloc_node;
+            typeof(kvmalloc_node) *kvmalloc_node;
+            typeof(kvrealloc) *kvrealloc;
         #endif
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
             typeof(kmalloc_trace) *kmalloc_trace;
@@ -646,7 +657,6 @@
         #endif
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
-        typeof(is_vmalloc_addr) *is_vmalloc_addr;
 
         typeof(get_random_bytes) *get_random_bytes;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -854,6 +864,7 @@
     #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
     #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
     #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
+    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
@@ -861,12 +872,14 @@
     #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
     #define kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node_noprof)
     #define kmalloc_trace_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace_noprof)
+    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
 #else /* <6.10.0 */
     #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
     #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
     #define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
     #ifdef HAVE_KVMALLOC
         #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+        #define kvrealloc (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc)
     #endif
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
         #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
@@ -881,8 +894,6 @@
         #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
     #endif
     #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
-
-    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -1162,10 +1173,9 @@
         _alloc_sz;                                                         \
     })
     #ifdef HAVE_KVMALLOC
-#define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
+        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #define free(ptr) kvfree(ptr)
-        void *lkm_realloc(void *ptr, size_t newsize);
-        #define realloc(ptr, newsize) lkm_realloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize))
+        #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
     #else
         #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)

@@ -14288,8 +14288,15 @@ static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
     *((byte*)(((byte *)(cert)) + certNameSubject[(id) - 3].enc)) = (val)
 
 /* Get the string of a name component from the subject name. */
-#define GetCertNameSubjectStr(id) \
-    (certNameSubject[(id) - 3].str)
+#ifdef WOLFSSL_NAMES_STATIC
+    #define GetCertNameSubjectStr(id) \
+        ((certNameSubject[(id) - 3].strLen) ? \
+         (certNameSubject[(id) - 3].str) : \
+         NULL)
+#else
+    #define GetCertNameSubjectStr(id) \
+        (certNameSubject[(id) - 3].str)
+#endif
 /* Get the string length of a name component from the subject name. */
 #define GetCertNameSubjectStrLen(id) \
     (certNameSubject[(id) - 3].strLen)
@@ -14315,7 +14322,13 @@ static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 /* Mapping of certificate name component to useful information. */
 typedef struct CertNameData {
     /* Type string of name component. */
+#ifdef WOLFSSL_NAMES_STATIC
+    const char str[20];
+    #define EMPTY_STR { 0 }
+#else
     const char* str;
+    #define EMPTY_STR NULL
+#endif
     /* Length of type string of name component. */
     byte        strLen;
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
@@ -14497,7 +14510,7 @@ static const CertNameData certNameSubject[] = {
     },
     /* Title */
     {
-        NULL, 0,
+        EMPTY_STR, 0,
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
@@ -14514,7 +14527,7 @@ static const CertNameData certNameSubject[] = {
     },
     /* Undefined */
     {
-        NULL, 0,
+        EMPTY_STR, 0,
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
@@ -14531,7 +14544,7 @@ static const CertNameData certNameSubject[] = {
     },
     /* Undefined */
     {
-        NULL, 0,
+        EMPTY_STR, 0,
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
@@ -14565,7 +14578,7 @@ static const CertNameData certNameSubject[] = {
     },
     /* Undefined */
     {
-        NULL, 0,
+        EMPTY_STR, 0,
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
         0,
         0,
@@ -26135,102 +26148,102 @@ void wc_FreeDer(DerBuffer** pDer)
 /* Note: If items added make sure MAX_X509_HEADER_SZ is
     updated to reflect maximum length and pem_struct_min_sz
     to reflect minimum size */
-wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
-wcchar END_CERT             = "-----END CERTIFICATE-----";
+static wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
+static wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifdef WOLFSSL_CERT_REQ
-    wcchar BEGIN_CERT_REQ   = "-----BEGIN CERTIFICATE REQUEST-----";
-    wcchar END_CERT_REQ     = "-----END CERTIFICATE REQUEST-----";
+    static wcchar BEGIN_CERT_REQ   = "-----BEGIN CERTIFICATE REQUEST-----";
+    static wcchar END_CERT_REQ     = "-----END CERTIFICATE REQUEST-----";
 #endif
 #if defined(WOLFSSL_ACERT)
-    wcchar BEGIN_ACERT      = "-----BEGIN ATTRIBUTE CERTIFICATE-----";
-    wcchar END_ACERT        = "-----END ATTRIBUTE CERTIFICATE-----";
+    static wcchar BEGIN_ACERT      = "-----BEGIN ATTRIBUTE CERTIFICATE-----";
+    static wcchar END_ACERT        = "-----END ATTRIBUTE CERTIFICATE-----";
 #endif /* WOLFSSL_ACERT */
 #ifndef NO_DH
-    wcchar BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
-    wcchar END_DH_PARAM     = "-----END DH PARAMETERS-----";
-    wcchar BEGIN_X942_PARAM = "-----BEGIN X9.42 DH PARAMETERS-----";
-    wcchar END_X942_PARAM   = "-----END X9.42 DH PARAMETERS-----";
+    static wcchar BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
+    static wcchar END_DH_PARAM     = "-----END DH PARAMETERS-----";
+    static wcchar BEGIN_X942_PARAM = "-----BEGIN X9.42 DH PARAMETERS-----";
+    static wcchar END_X942_PARAM   = "-----END X9.42 DH PARAMETERS-----";
 #endif
 #ifndef NO_DSA
-    wcchar BEGIN_DSA_PARAM  = "-----BEGIN DSA PARAMETERS-----";
-    wcchar END_DSA_PARAM    = "-----END DSA PARAMETERS-----";
+    static wcchar BEGIN_DSA_PARAM  = "-----BEGIN DSA PARAMETERS-----";
+    static wcchar END_DSA_PARAM    = "-----END DSA PARAMETERS-----";
 #endif
-wcchar BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
-wcchar END_X509_CRL         = "-----END X509 CRL-----";
-wcchar BEGIN_TRUSTED_CERT   = "-----BEGIN TRUSTED CERTIFICATE-----";
-wcchar END_TRUSTED_CERT     = "-----END TRUSTED CERTIFICATE-----";
-wcchar BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
-wcchar END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
-wcchar BEGIN_RSA_PUB        = "-----BEGIN RSA PUBLIC KEY-----";
-wcchar END_RSA_PUB          = "-----END RSA PUBLIC KEY-----";
-wcchar BEGIN_PRIV_KEY       = "-----BEGIN PRIVATE KEY-----";
-wcchar END_PRIV_KEY         = "-----END PRIVATE KEY-----";
-wcchar BEGIN_ENC_PRIV_KEY   = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
-wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
+static wcchar BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
+static wcchar END_X509_CRL         = "-----END X509 CRL-----";
+static wcchar BEGIN_TRUSTED_CERT   = "-----BEGIN TRUSTED CERTIFICATE-----";
+static wcchar END_TRUSTED_CERT     = "-----END TRUSTED CERTIFICATE-----";
+static wcchar BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
+static wcchar END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
+static wcchar BEGIN_RSA_PUB        = "-----BEGIN RSA PUBLIC KEY-----";
+static wcchar END_RSA_PUB          = "-----END RSA PUBLIC KEY-----";
+static wcchar BEGIN_PRIV_KEY       = "-----BEGIN PRIVATE KEY-----";
+static wcchar END_PRIV_KEY         = "-----END PRIVATE KEY-----";
+static wcchar BEGIN_ENC_PRIV_KEY   = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
+static wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 #ifdef HAVE_ECC
-    wcchar BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
-    wcchar END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
+    static wcchar BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
+    static wcchar END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
 #ifdef OPENSSL_EXTRA
-    wcchar BEGIN_EC_PARAM   = "-----BEGIN EC PARAMETERS-----";
-    wcchar END_EC_PARAM     = "-----END EC PARAMETERS-----";
+    static wcchar BEGIN_EC_PARAM   = "-----BEGIN EC PARAMETERS-----";
+    static wcchar END_EC_PARAM     = "-----END EC PARAMETERS-----";
 #endif
 #endif
 #ifdef HAVE_PKCS7
-wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
-wcchar END_PKCS7            = "-----END PKCS7-----";
+static wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
+static wcchar END_PKCS7            = "-----END PKCS7-----";
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
                                                                 !defined(NO_DSA)
-    wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
-    wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
+    static wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
+    static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
 #ifdef OPENSSL_EXTRA
-    const char BEGIN_PRIV_KEY_PREFIX[] = "-----BEGIN";
-    const char PRIV_KEY_SUFFIX[] = "PRIVATE KEY-----";
-    const char END_PRIV_KEY_PREFIX[]   = "-----END";
+    wcchar BEGIN_PRIV_KEY_PREFIX = "-----BEGIN";
+    wcchar PRIV_KEY_SUFFIX = "PRIVATE KEY-----";
+    wcchar END_PRIV_KEY_PREFIX   = "-----END";
 #endif
-wcchar BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
-wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
+static wcchar BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
+static wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
 #if defined(HAVE_ED25519) || defined(HAVE_ED448)
-    wcchar BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
-    wcchar END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
+    static wcchar BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
+    static wcchar END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
 #if defined(HAVE_FALCON)
-    wcchar BEGIN_FALCON_LEVEL1_PRIV  = "-----BEGIN FALCON_LEVEL1 PRIVATE KEY-----";
-    wcchar END_FALCON_LEVEL1_PRIV    = "-----END FALCON_LEVEL1 PRIVATE KEY-----";
-    wcchar BEGIN_FALCON_LEVEL5_PRIV  = "-----BEGIN FALCON_LEVEL5 PRIVATE KEY-----";
-    wcchar END_FALCON_LEVEL5_PRIV    = "-----END FALCON_LEVEL5 PRIVATE KEY-----";
+    static wcchar BEGIN_FALCON_LEVEL1_PRIV  = "-----BEGIN FALCON_LEVEL1 PRIVATE KEY-----";
+    static wcchar END_FALCON_LEVEL1_PRIV    = "-----END FALCON_LEVEL1 PRIVATE KEY-----";
+    static wcchar BEGIN_FALCON_LEVEL5_PRIV  = "-----BEGIN FALCON_LEVEL5 PRIVATE KEY-----";
+    static wcchar END_FALCON_LEVEL5_PRIV    = "-----END FALCON_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM)
     #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-    wcchar BEGIN_DILITHIUM_LEVEL2_PRIV = "-----BEGIN DILITHIUM_LEVEL2 PRIVATE KEY-----";
-    wcchar END_DILITHIUM_LEVEL2_PRIV   = "-----END DILITHIUM_LEVEL2 PRIVATE KEY-----";
-    wcchar BEGIN_DILITHIUM_LEVEL3_PRIV = "-----BEGIN DILITHIUM_LEVEL3 PRIVATE KEY-----";
-    wcchar END_DILITHIUM_LEVEL3_PRIV   = "-----END DILITHIUM_LEVEL3 PRIVATE KEY-----";
-    wcchar BEGIN_DILITHIUM_LEVEL5_PRIV = "-----BEGIN DILITHIUM_LEVEL5 PRIVATE KEY-----";
-    wcchar END_DILITHIUM_LEVEL5_PRIV   = "-----END DILITHIUM_LEVEL5 PRIVATE KEY-----";
+    static wcchar BEGIN_DILITHIUM_LEVEL2_PRIV = "-----BEGIN DILITHIUM_LEVEL2 PRIVATE KEY-----";
+    static wcchar END_DILITHIUM_LEVEL2_PRIV   = "-----END DILITHIUM_LEVEL2 PRIVATE KEY-----";
+    static wcchar BEGIN_DILITHIUM_LEVEL3_PRIV = "-----BEGIN DILITHIUM_LEVEL3 PRIVATE KEY-----";
+    static wcchar END_DILITHIUM_LEVEL3_PRIV   = "-----END DILITHIUM_LEVEL3 PRIVATE KEY-----";
+    static wcchar BEGIN_DILITHIUM_LEVEL5_PRIV = "-----BEGIN DILITHIUM_LEVEL5 PRIVATE KEY-----";
+    static wcchar END_DILITHIUM_LEVEL5_PRIV   = "-----END DILITHIUM_LEVEL5 PRIVATE KEY-----";
     #endif
-    wcchar BEGIN_ML_DSA_LEVEL2_PRIV = "-----BEGIN ML_DSA_LEVEL2 PRIVATE KEY-----";
-    wcchar END_ML_DSA_LEVEL2_PRIV   = "-----END ML_DSA_LEVEL2 PRIVATE KEY-----";
-    wcchar BEGIN_ML_DSA_LEVEL3_PRIV = "-----BEGIN ML_DSA_LEVEL3 PRIVATE KEY-----";
-    wcchar END_ML_DSA_LEVEL3_PRIV   = "-----END ML_DSA_LEVEL3 PRIVATE KEY-----";
-    wcchar BEGIN_ML_DSA_LEVEL5_PRIV = "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----";
-    wcchar END_ML_DSA_LEVEL5_PRIV   = "-----END ML_DSA_LEVEL5 PRIVATE KEY-----";
+    static wcchar BEGIN_ML_DSA_LEVEL2_PRIV = "-----BEGIN ML_DSA_LEVEL2 PRIVATE KEY-----";
+    static wcchar END_ML_DSA_LEVEL2_PRIV   = "-----END ML_DSA_LEVEL2 PRIVATE KEY-----";
+    static wcchar BEGIN_ML_DSA_LEVEL3_PRIV = "-----BEGIN ML_DSA_LEVEL3 PRIVATE KEY-----";
+    static wcchar END_ML_DSA_LEVEL3_PRIV   = "-----END ML_DSA_LEVEL3 PRIVATE KEY-----";
+    static wcchar BEGIN_ML_DSA_LEVEL5_PRIV = "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----";
+    static wcchar END_ML_DSA_LEVEL5_PRIV   = "-----END ML_DSA_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_DILITHIUM */
 #if defined(HAVE_SPHINCS)
-    wcchar BEGIN_SPHINCS_FAST_LEVEL1_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
-    wcchar END_SPHINCS_FAST_LEVEL1_PRIV   = "-----END SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
-    wcchar BEGIN_SPHINCS_FAST_LEVEL3_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL3 PRIVATE KEY-----";
-    wcchar END_SPHINCS_FAST_LEVEL3_PRIV   = "-----END SPHINCS_FAST_LEVEL3 PRIVATE KEY-----";
-    wcchar BEGIN_SPHINCS_FAST_LEVEL5_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL5 PRIVATE KEY-----";
-    wcchar END_SPHINCS_FAST_LEVEL5_PRIV   = "-----END SPHINCS_FAST_LEVEL5 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_FAST_LEVEL1_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_FAST_LEVEL1_PRIV   = "-----END SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_FAST_LEVEL3_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL3 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_FAST_LEVEL3_PRIV   = "-----END SPHINCS_FAST_LEVEL3 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_FAST_LEVEL5_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL5 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_FAST_LEVEL5_PRIV   = "-----END SPHINCS_FAST_LEVEL5 PRIVATE KEY-----";
 
-    wcchar BEGIN_SPHINCS_SMALL_LEVEL1_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL1 PRIVATE KEY-----";
-    wcchar END_SPHINCS_SMALL_LEVEL1_PRIV   = "-----END SPHINCS_SMALL_LEVEL1 PRIVATE KEY-----";
-    wcchar BEGIN_SPHINCS_SMALL_LEVEL3_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL3 PRIVATE KEY-----";
-    wcchar END_SPHINCS_SMALL_LEVEL3_PRIV   = "-----END SPHINCS_SMALL_LEVEL3 PRIVATE KEY-----";
-    wcchar BEGIN_SPHINCS_SMALL_LEVEL5_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL5 PRIVATE KEY-----";
-    wcchar END_SPHINCS_SMALL_LEVEL5_PRIV   = "-----END SPHINCS_SMALL_LEVEL5 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_SMALL_LEVEL1_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL1 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_SMALL_LEVEL1_PRIV   = "-----END SPHINCS_SMALL_LEVEL1 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_SMALL_LEVEL3_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL3 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_SMALL_LEVEL3_PRIV   = "-----END SPHINCS_SMALL_LEVEL3 PRIVATE KEY-----";
+    static wcchar BEGIN_SPHINCS_SMALL_LEVEL5_PRIV = "-----BEGIN SPHINCS_SMALL_LEVEL5 PRIVATE KEY-----";
+    static wcchar END_SPHINCS_SMALL_LEVEL5_PRIV   = "-----END SPHINCS_SMALL_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_SPHINCS */
 
 const int pem_struct_min_sz = XSTR_SIZEOF("-----BEGIN X509 CRL-----"

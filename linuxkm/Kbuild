@@ -151,6 +151,8 @@ endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
+LDFLAGS_libwolfssl.o += -T $(src)/wolfcrypt.lds
+
 rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
 
 ifndef NM
@@ -186,8 +188,39 @@ ifneq "$(quiet)" "silent_"
 endif
 	cd "$(obj)" || exit $$?
 	for file in $(WOLFCRYPT_PIE_FILES); do
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt	\
+	    --rename-section .text.unlikely=.text.wolfcrypt	\
+	    --rename-section .rodata=.rodata.wolfcrypt		\
+	    --rename-section .rodata.str1.1=.rodata.wolfcrypt	\
+	    --rename-section .rodata.str1.8=.rodata.wolfcrypt	\
+	    --rename-section .data=.data.wolfcrypt		\
+	    --rename-section .data.rel.local=.data.wolfcrypt	\
+	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?
 	done
+	{ $(READELF) --syms $(WOLFCRYPT_PIE_FILES) |		\
+        $(AWK) -v obj="$(obj)" '				\
+	    /File:/ {						\
+		if (substr($$2, 1, length(obj)) == obj) {	\
+		    curfile = substr($$2, length(obj) + 2);	\
+		} else {					\
+		    curfile=$$2;				\
+		}						\
+		next;						\
+	    }							\
+	    {							\
+		if (($$4 == "SECTION") && ($$8 !~ "wolfcrypt")) {\
+		    if (! ((curfile ";" $$8) in warned_on)) {	\
+			print curfile ": " $$8 >"/dev/stderr";	\
+			warned_on[curfile ": " $$8] = 1;	\
+			++warnings;				\
+	    }}}							\
+	    END {						\
+		if (warnings) {					\
+		    exit(1);  					\
+		} else {					\
+		    exit(0);					\
+	    }}'; } ||						\
+	{ echo 'Error: section(s) missed by containerization.' >&2; exit 1; }
 ifneq "$(quiet)" "silent_"
 	echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif

@@ -591,7 +591,7 @@ static int linuxkm_lkcapi_register(void)
     * on here is for ECDH loading to be optional when fips and fips tests are
     * enabled. Failures because of !fips_allowed are skipped over.
     */
-    #if defined(CONFIG_CRYPTO_FIPS) &&                \
+    #if defined(HAVE_FIPS) && defined(CONFIG_CRYPTO_FIPS) && \
         defined(CONFIG_CRYPTO_MANAGER) &&             \
         !defined(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
         #if defined(LINUXKM_ECC192)

@@ -384,7 +384,11 @@ typedef struct wc_LmsParamsMap {
     /* Identifier of parameters. */
     enum wc_LmsParm id;
     /* String representation of identifier of parameters. */
+#ifdef WOLFSSL_NAMES_STATIC
+    const char str[32];
+#else
     const char* str;
+#endif
     /* LMS parameter set. */
     LmsParams params;
 } wc_LmsParamsMap;
