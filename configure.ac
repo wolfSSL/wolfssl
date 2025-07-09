@@ -1470,18 +1470,20 @@ ENABLED_MLKEM_DECAPSULATE=no
 for v in `echo $ENABLED_MLKEM | tr "," " "`
 do
   case $v in
-  yes|all)
+  yes)
     ENABLED_MLKEM512=yes
     ENABLED_MLKEM768=yes
     ENABLED_MLKEM1024=yes
     ENABLED_MLKEM_MAKE_KEY=yes
     ENABLED_MLKEM_ENCAPSULATE=yes
     ENABLED_MLKEM_DECAPSULATE=yes
-    if test "$v" = "all"
-    then
-        ENABLED_ML_KEM=yes
-        ENABLED_ORIGINAL=yes
-    fi
+    ;;
+  all)
+    ENABLED_MLKEM_MAKE_KEY=yes
+    ENABLED_MLKEM_ENCAPSULATE=yes
+    ENABLED_MLKEM_DECAPSULATE=yes
+    ENABLED_ML_KEM=yes
+    ENABLED_ORIGINAL=yes
     ;;
   no)
     ;;

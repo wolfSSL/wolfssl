@@ -110,6 +110,8 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();            \
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();              \
     }
+#define PRINT_HEAP_ADDRESS(p)                                        \
+    printf("Allocated address: %p", (void *)(p));
 #else
     #define PRINT_HEAP_CHECKPOINT(b, i) WC_DO_NOTHING;
     #define PRINT_HEAP_ADDRESS(p) WC_DO_NOTHING;

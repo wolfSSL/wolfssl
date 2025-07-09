@@ -6682,7 +6682,6 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                             ze += DILITHIUM_GAMMA1_17_ENC_BITS / 2 *
                                   DILITHIUM_N / 4;
                         }
-                        else
                     #endif
                     #if !defined(WOLFSSL_NO_ML_DSA_65) || \
                         !defined(WOLFSSL_NO_ML_DSA_87)
