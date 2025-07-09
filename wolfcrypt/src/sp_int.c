@@ -7600,7 +7600,7 @@ static void _sp_add_off(const sp_int* a, const sp_int* b, sp_int* r, int o)
  * @param  [in]   o  Number of digits to offset b.
  */
 static void _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r,
-    unsigned int o)
+    sp_size_t o)
 {
     sp_size_t i = 0;
     sp_size_t j;
@@ -7618,7 +7618,7 @@ static void _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r,
         }
     }
     else {
-        i = (sp_size_t)o;
+        i = o;
     }
     /* Index to add at is the offset now. */
 
