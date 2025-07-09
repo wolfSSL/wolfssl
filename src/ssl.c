@@ -23587,12 +23587,13 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* p, unsigned int p_len)
 {
-    WOLFSSL_BIO* bio;
     char* pt = NULL;
-
+    unsigned int ptIdx;
     unsigned int sz;
     unsigned int idx = 0;
     int alpn_opt = WOLFSSL_ALPN_CONTINUE_ON_MISMATCH;
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
 
     if (ssl == NULL || p_len <= 1) {
@@ -23606,8 +23607,9 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 #endif
     }
 
-    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
-    if (bio == NULL) {
+    /* Replacing leading number with trailing ',' and adding '\0'. */
+    pt = (char*)XMALLOC(p_len + 1, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+    if (pt == NULL) {
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
         /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
          * the function reverses the return value convention.
@@ -23618,6 +23620,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 #endif
     }
 
+    ptIdx = 0;
     /* convert into comma separated list */
     while (idx < p_len - 1) {
         unsigned int i;
@@ -23625,7 +23628,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         sz = p[idx++];
         if (idx + sz > p_len) {
             WOLFSSL_MSG("Bad list format");
-            wolfSSL_BIO_free(bio);
+            XFREE(pt, ssl->heap, DYNAMIC_TYPE_OPENSSL);
     #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
             /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
              * the function reverses the return value convention.
@@ -23637,27 +23640,30 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         }
         if (sz > 0) {
             for (i = 0; i < sz; i++) {
-                wolfSSL_BIO_write(bio, &p[idx++], 1);
+                pt[ptIdx++] = p[idx++];
             }
-            if (idx < p_len - 1)
-                wolfSSL_BIO_write(bio, ",", 1);
+            if (idx < p_len - 1) {
+                pt[ptIdx++] = ',';
+            }
         }
     }
-    wolfSSL_BIO_write(bio, "\0", 1);
+    pt[ptIdx++] = '\0';
 
     /* clears out all current ALPN extensions set */
     TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);
 
-    if ((sz = (unsigned int)wolfSSL_BIO_get_mem_data(bio, &pt)) > 0) {
-        wolfSSL_UseALPN(ssl, pt, sz, (byte) alpn_opt);
-    }
-    wolfSSL_BIO_free(bio);
+    ret = wolfSSL_UseALPN(ssl, pt, ptIdx, (byte)alpn_opt);
+    XFREE(pt, ssl->heap, DYNAMIC_TYPE_OPENSSL);
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     /* 0 on success in OpenSSL, non-0 on failure in OpenSSL
      * the function reverses the return value convention.
      */
+    if (ret != WOLFSSL_SUCCESS)
+        return 1;
     return 0;
 #else
+    if (ret != WOLFSSL_SUCCESS)
+        return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
 #endif
 }

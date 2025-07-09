@@ -13037,13 +13037,21 @@ static int test_wolfSSL_set_alpn_protos(void)
     server_cb.devId = testDevId;
 
     /* use CTX_alpn_protos */
-    client_cb.ctx_ready = CTX_set_alpn_protos; client_cb.ssl_ready = NULL; client_cb.on_result = NULL;
-    server_cb.ctx_ready = CTX_set_alpn_protos; server_cb.ssl_ready = NULL; server_cb.on_result = verify_alpn_matching_http1;
+    client_cb.ctx_ready = CTX_set_alpn_protos;
+    client_cb.ssl_ready = NULL;
+    client_cb.on_result = NULL;
+    server_cb.ctx_ready = CTX_set_alpn_protos;
+    server_cb.ssl_ready = NULL;
+    server_cb.on_result = verify_alpn_matching_http1;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     /* use set_alpn_protos */
-    client_cb.ctx_ready = NULL; client_cb.ssl_ready = set_alpn_protos; client_cb.on_result = NULL;
-    server_cb.ctx_ready = NULL; server_cb.ssl_ready = set_alpn_protos; server_cb.on_result = verify_alpn_matching_spdy3;
+    client_cb.ctx_ready = NULL;
+    client_cb.ssl_ready = set_alpn_protos;
+    client_cb.on_result = NULL;
+    server_cb.ctx_ready = NULL;
+    server_cb.ssl_ready = set_alpn_protos;
+    server_cb.on_result = verify_alpn_matching_spdy3;
     test_wolfSSL_client_server(&client_cb, &server_cb);
 
     res = TEST_SUCCESS;
