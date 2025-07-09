@@ -26849,6 +26849,14 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     char        beginBuf[PEM_LINE_LEN + 1]; /* add 1 for null terminator */
     char        endBuf[PEM_LINE_LEN + 1];   /* add 1 for null terminator */
 #endif
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    int hashType = WC_HASH_TYPE_NONE;
+#if !defined(NO_MD5)
+    hashType = WC_MD5;
+#elif !defined(NO_SHA)
+    hashType = WC_SHA;
+#endif
+#endif
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -27214,7 +27222,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 #endif
 
                     ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                        (byte*)password, passwordSz, WC_MD5);
+                        (byte*)password, passwordSz, hashType);
 
 #ifndef NO_WOLFSSL_SKIP_TRAILING_PAD
                 #ifndef NO_DES3
