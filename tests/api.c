@@ -18319,6 +18319,7 @@ static int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
                     pkcs7->encryptionKeySz = sizeof(key);
                 }
             }
+            ExpectIntEQ(wc_PKCS7_DecodeEncryptedKeyPackage(pkcs7, NULL, ekp_cms_der_size, out, sizeof(out)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
             result = wc_PKCS7_DecodeEncryptedKeyPackage(pkcs7, ekp_cms_der, ekp_cms_der_size, out, sizeof(out));
             if (result == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
                 result = wc_PKCS7_DecodeEncryptedKeyPackage(pkcs7, ekp_cms_der, ekp_cms_der_size, out, sizeof(out));

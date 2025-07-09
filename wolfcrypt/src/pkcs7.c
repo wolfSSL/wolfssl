@@ -14888,6 +14888,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
     int length = 0;
 
     do {
+        if (pkiMsg == NULL) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
         /* Expect a SEQUENCE header to start the EncryptedKeyPackage ContentInfo. */
         if (GetSequence_ex(pkiMsg, &pkiIndex, &length, pkiMsgSz, 1) < 0) {
             ret = ASN_PARSE_E;
