@@ -3699,6 +3699,8 @@ extern void uITRON4_free(void *p) ;
         #define WC_NO_INTERNAL_FUNCTION_POINTERS
         #define WOLFSSL_ECC_CURVE_STATIC
         #define WOLFSSL_NAMES_STATIC
+        #define WOLFSSL_NO_PUBLIC_FFDHE
+        #undef HAVE_PUBLIC_FFDHE
     #endif
 
     #ifndef NO_OLD_WC_NAMES

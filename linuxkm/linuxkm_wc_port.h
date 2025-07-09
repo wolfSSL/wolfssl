@@ -80,12 +80,15 @@
     /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901, merged for 4.12.
      * kvrealloc() added in de2860f463, merged for 5.15, backported to 5.10.137.
      * moved to ultimate home (slab.h) in 8587ca6f34, merged for 5.16.
-
+     *
+     * however, until 6.11, it took an extra argument, oldsize, that makes it
+     * incompatible with traditional libc usage patterns, so we don't try to use it.
      */
-    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) ||    \
-        ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 137)) && \
-         (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 90)))
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
         #define HAVE_KVMALLOC
+    #endif
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+        #define HAVE_KVREALLOC
     #endif
 
     /* kernel printf doesn't implement fp. */
@@ -306,6 +309,7 @@
 #endif
 
     #include <linux/slab.h>
+    #include <linux/sched.h>
 
 #ifndef __PIE__
     #ifndef SINGLE_THREADED
@@ -637,12 +641,16 @@
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(kvmalloc_node_noprof) *kvmalloc_node_noprof;
         typeof(kmalloc_trace_noprof) *kmalloc_trace_noprof;
-        typeof(kvrealloc_noprof) *kvrealloc_noprof;
+        #ifdef HAVE_KVREALLOC
+            typeof(kvrealloc_noprof) *kvrealloc_noprof;
+        #endif
 #else /* <6.10.0 */
         typeof(kmalloc) *kmalloc;
         typeof(krealloc) *krealloc;
         #ifdef HAVE_KVMALLOC
             typeof(kvmalloc_node) *kvmalloc_node;
+        #endif
+        #ifdef HAVE_KVREALLOC
             typeof(kvrealloc) *kvrealloc;
         #endif
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
@@ -879,6 +887,8 @@
     #define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
     #ifdef HAVE_KVMALLOC
         #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+    #endif
+    #ifdef HAVE_KVREALLOC
         #define kvrealloc (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc)
     #endif
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
@@ -1175,7 +1185,11 @@
     #ifdef HAVE_KVMALLOC
         #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #define free(ptr) kvfree(ptr)
-        #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+        #ifdef HAVE_KVREALLOC
+            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+        #else
+            #define realloc(ptr, newsize) ((void)(ptr), (void)(newsize), NULL)
+        #endif
     #else
         #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)
@@ -1204,7 +1218,9 @@
     #else
         #define XFREE(p, h, t)       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
     #endif
-    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+    #if defined(HAVE_KVREALLOC) || !defined(HAVE_KVMALLOC)
+        #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+    #endif
 #endif
 
     #include <linux/limits.h>

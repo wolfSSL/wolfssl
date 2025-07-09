@@ -385,7 +385,7 @@ typedef struct wc_LmsParamsMap {
     enum wc_LmsParm id;
     /* String representation of identifier of parameters. */
 #ifdef WOLFSSL_NAMES_STATIC
-    const char str[32];
+    const char str[32]; /* large enough for largest string in wc_lms_map[] */
 #else
     const char* str;
 #endif

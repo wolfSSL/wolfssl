@@ -14323,7 +14323,9 @@ static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 typedef struct CertNameData {
     /* Type string of name component. */
 #ifdef WOLFSSL_NAMES_STATIC
-    const char str[20];
+    const char str[20]; /* large enough for largest string in certNameSubject[]
+                         * below
+                         */
     #define EMPTY_STR { 0 }
 #else
     const char* str;
@@ -26192,8 +26194,7 @@ static wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 static wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
 static wcchar END_PKCS7            = "-----END PKCS7-----";
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-                                                                !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_DSA)
     static wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
     static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
@@ -35701,25 +35702,25 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     #else
     if (ret == 0) {
         /* Base X-ordinate */
-        DataToHexString(base + 1, (word32)curve->size, curve->Gx);
+        DataToHexString(base + 1, (word32)curve->size, (char *)curve->Gx);
         /* Base Y-ordinate */
-        DataToHexString(base + 1 + curve->size, (word32)curve->size, curve->Gy);
+        DataToHexString(base + 1 + curve->size, (word32)curve->size, (char *)curve->Gy);
         /* Prime */
         DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length,
-                        curve->prime);
+                        (char *)curve->prime);
         /* Parameter A */
         DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_A].data.ref.length,
-                        curve->Af);
+                        (char *)curve->Af);
         /* Parameter B */
         DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PARAM_B].data.ref.length,
-                        curve->Bf);
+                        (char *)curve->Bf);
         /* Order of curve */
         DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_ORDER].data.ref.length,
-                        curve->order);
+                        (char *)curve->order);
     }
     #endif /* WOLFSSL_ECC_CURVE_STATIC */
 

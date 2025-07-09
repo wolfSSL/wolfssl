@@ -523,6 +523,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
 #ifdef HAVE_KVMALLOC
     wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
+#endif
+#ifdef HAVE_KVREALLOC
     wolfssl_linuxkm_pie_redirect_table.kvrealloc = kvrealloc;
 #endif
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
