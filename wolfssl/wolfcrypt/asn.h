@@ -1943,7 +1943,7 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
-    word16    maxPathLen;
+    word16  maxPathLen;
     WC_BITFIELD selfSigned:1;
     const byte* publicKey;
     int     nameLen;

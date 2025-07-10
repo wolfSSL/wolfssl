@@ -2744,7 +2744,7 @@ int GetASNInt(const byte* input, word32* inOutIdx, int* len,
 }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && defined(WOLFSSL_CUSTOM_CURVES)
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 7 bits.
  *
@@ -2776,7 +2776,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 #endif /* !NO_CERTS */
 
-#if defined(WC_RSA_PSS) && !defined(NO_RSA)
+#if ((defined(WC_RSA_PSS) && !defined(NO_RSA)) || !defined(NO_CERTS))
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 16 bits.
  *
@@ -20611,7 +20611,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
         return 0;
     }
 
-    ret = GetInteger7Bit(input, &idx, (word32)sz);
+    ret = GetInteger16Bit(input, &idx, (word32)sz);
     if (ret < 0)
         return ret;
     cert->pathLength = (byte)ret;
