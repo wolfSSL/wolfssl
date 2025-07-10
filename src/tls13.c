@@ -6835,7 +6835,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          *
          * Note that if WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION is defined then the
          * semantics of RFC 5246 Appendix E will be followed. A ServerHello with
-         * version 1.2 will be sent. */
+         * version 1.2 will be sent. The same is true if TLS 1.3 is not enabled.
+         */
         if (args->pv.major == SSLv3_MAJOR && args->pv.minor >= TLSv1_3_MINOR) {
             WOLFSSL_MSG("Legacy version field is TLS 1.3 or later. Aborting.");
             ERROR_OUT(VERSION_ERROR, exit_dch);
