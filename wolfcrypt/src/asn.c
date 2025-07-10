@@ -26199,9 +26199,9 @@ static wcchar END_PKCS7            = "-----END PKCS7-----";
     static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
 #ifdef OPENSSL_EXTRA
-    wcchar BEGIN_PRIV_KEY_PREFIX = "-----BEGIN";
-    wcchar PRIV_KEY_SUFFIX = "PRIVATE KEY-----";
-    wcchar END_PRIV_KEY_PREFIX   = "-----END";
+    static wcchar BEGIN_PRIV_KEY_PREFIX = "-----BEGIN";
+    static wcchar PRIV_KEY_SUFFIX = "PRIVATE KEY-----";
+    static wcchar END_PRIV_KEY_PREFIX   = "-----END";
 #endif
 static wcchar BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
 static wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
