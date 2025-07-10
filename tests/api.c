@@ -20363,6 +20363,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_ECC
 static int test_wolfSSL_X509_STORE_CTX_ex12(void)
 {
     EXPECT_DECLS;
@@ -20400,6 +20401,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
     X509_free(ca1X509);
     return EXPECT_RESULT();
 }
+#endif
 #endif
 
 static int test_wolfSSL_X509_STORE_CTX_ex(void)
@@ -20439,7 +20441,9 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
+#ifdef HAVE_ECC
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex12(), 1);
+#endif
 
     if(testData.x509Ca) {
         X509_free(testData.x509Ca);
