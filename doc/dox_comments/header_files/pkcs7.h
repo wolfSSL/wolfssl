@@ -675,6 +675,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
 
     \return On successfully extracting the information from the message,
     returns the bytes written to output
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
     \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
     or if the wrapped content type is EncryptedData and support for
     EncryptedData is not compiled in (e.g. NO_PKCS7_ENCRYPTED_DATA is set)
