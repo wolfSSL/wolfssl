@@ -23128,10 +23128,10 @@ static const ASNItem RPKCertASN[] = {
         /* Algorithm  OBJECT IDENTIFIER */
         /* TBS_SPUBKEYINFO_ALGO_OID     */       { 2, ASN_OBJECT_ID, 0, 0, 0 },
         /* parameters   ANY defined by algorithm OPTIONAL */
-        /* TBS_SPUBKEYINFO_ALGO_NULL     */      { 2, ASN_TAG_NULL, 0, 0, 2 },
-        /* TBS_SPUBKEYINFO_ALGO_CURVEID  */      { 2, ASN_OBJECT_ID, 0, 0, 2 },
+        /* TBS_SPUBKEYINFO_ALGO_NULL     */      { 2, ASN_TAG_NULL, 0, 0, 1 },
+        /* TBS_SPUBKEYINFO_ALGO_CURVEID  */      { 2, ASN_OBJECT_ID, 0, 0, 1 },
 #ifdef WC_RSA_PSS
-        /* TBS_SPUBKEYINFO_ALGO_P_SEQ    */      { 2, ASN_SEQUENCE, 1, 0, 2 },
+        /* TBS_SPUBKEYINFO_ALGO_P_SEQ    */      { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
         /* subjectPublicKey   BIT STRING */
         /* TBS_SPUBKEYINFO_PUBKEY        */   { 1, ASN_BIT_STRING, 0, 0, 0 },
@@ -23372,6 +23372,20 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                                                                 oidCurveType);
     ret = GetASN_Items(RPKCertASN, RPKdataASN, RPKCertASN_Length, 1,
                            cert->source, &cert->srcIdx, cert->maxIdx);
+
+    if (ret == 0) {
+        if (( RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_NULL].length &&
+              RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID].length)
+#ifdef WC_RSA_PSS
+         || ( RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_P_SEQ].length &&
+            ( RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_NULL].length ||
+              RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_CURVEID].length))
+#endif
+        ) {
+            WOLFSSL_MSG("Multiple RPK algorithm parameters set.");
+            ret = ASN_PARSE_E;
+        }
+    }
     if (ret == 0) {
         cert->keyOID =
                 RPKdataASN[RPKCERTASN_IDX_SPUBKEYINFO_ALGO_OID].data.oid.sum;
