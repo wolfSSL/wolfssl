@@ -3562,6 +3562,9 @@ then
       small)
         ENABLED_PPC32_ASM_SMALL=yes
         ;;
+      spe)
+        ENABLED_PPC32_ASM_SPE=yes
+        ;;
       *)
         AC_MSG_ERROR([Invalid RISC-V option [yes,inline,small]: $ENABLED_PPC32_ASM.])
         break
@@ -3581,6 +3584,10 @@ fi
 if test "$ENABLED_PPC32_ASM_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SMALL"
+fi
+if test "$ENABLED_PPC32_ASM_SPE" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PPC32_ASM_SPE"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_PPC32_ASM_SPE"
 fi
 
 # Xilinx hardened crypto
