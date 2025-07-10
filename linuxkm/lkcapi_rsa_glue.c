@@ -719,6 +719,7 @@ static int km_direct_rsa_enc(struct akcipher_request *req)
 rsa_enc_out:
     if (enc != NULL) { free(enc); enc = NULL; }
     if (dec != NULL) { free(dec); dec = NULL; }
+
     #ifdef WOLFKM_DEBUG_RSA
     pr_info("info: exiting km_direct_rsa_enc\n");
     #endif /* WOLFKM_DEBUG_RSA */
@@ -937,9 +938,7 @@ static int km_rsa_set_pub(struct crypto_akcipher *tfm, const void *key,
 static unsigned int km_rsa_max_size(struct crypto_akcipher *tfm)
 {
     struct km_rsa_ctx * ctx = NULL;
-
     ctx = akcipher_tfm_ctx(tfm);
-
     return (unsigned int) ctx->key_len;
 }
 
@@ -1134,7 +1133,6 @@ pkcs1pad_sign_out:
     pr_info("info: exiting km_pkcs1pad_sign msg_len %d, enc_msg_len %d,"
             " sig_len %d, err %d", req->src_len, enc_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
-
     return err;
 }
 
@@ -1379,7 +1377,6 @@ pkcs1_sign_out:
     pr_info("info: exiting km_pkcs1_sign msg_len %d, enc_msg_len %d,"
             " sig_len %d, err %d", slen, enc_msg_len, sig_len, err);
     #endif /* WOLFKM_DEBUG_RSA */
-
     return err;
 }
 
@@ -2075,7 +2072,19 @@ static int linuxkm_test_rsa_driver(const char * driver, int nbits)
     }
     #endif /* WC_RSA_BLINDING */
 
-    ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+    for (;;) {
+    #endif
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+        /* Retry if not prime. */
+        if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
+            continue;
+        }
+        break;
+    }
+    #endif
+
     if (ret) {
         pr_err("error: make rsa key returned: %d\n", ret);
         goto test_rsa_end;
@@ -2431,7 +2440,19 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     }
     #endif /* WC_RSA_BLINDING */
 
-    ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+    for (;;) {
+    #endif
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+        /* Retry if not prime. */
+        if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
+            continue;
+        }
+        break;
+    }
+    #endif
+
     if (ret) {
         pr_err("error: make rsa key returned: %d\n", ret);
         test_rc = ret;
@@ -2929,7 +2950,19 @@ static int linuxkm_test_pkcs1_driver(const char * driver, int nbits,
     }
     #endif /* WC_RSA_BLINDING */
 
-    ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+    for (;;) {
+    #endif
+        ret = wc_MakeRsaKey(key, nbits, WC_RSA_EXPONENT, &rng);
+    #ifdef HAVE_FIPS
+        /* Retry if not prime. */
+        if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
+            continue;
+        }
+        break;
+    }
+    #endif
+
     if (ret) {
         pr_err("error: make rsa key returned: %d\n", ret);
         test_rc = ret;
