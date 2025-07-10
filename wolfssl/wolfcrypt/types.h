@@ -111,13 +111,7 @@ library files.
     typedef byte           word24[3];
 #endif
 
-
-/* constant pointer to a constant char */
-#ifdef WOLFSSL_NO_CONSTCHARCONST
-    typedef const char*       wcchar;
-#else
-    typedef const char* const wcchar;
-#endif
+typedef const char wcchar[];
 
 #ifndef WC_BITFIELD
     #ifdef WOLF_C89

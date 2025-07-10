@@ -149,7 +149,13 @@ static WC_INLINE void wc_xmss_state_free(XmssState* state)
  */
 typedef struct wc_XmssString {
     /* Name of algorithm as a string. */
+#ifdef WOLFSSL_NAMES_STATIC
+    const char str[32]; /* large enough for largest string in wc_xmss_alg[] or
+                         * wc_xmssmt_alg[]
+                         */
+#else
     const char* str;
+#endif
     /* OID for algorithm. */
     word32 oid;
     /* XMSS parameters. */
