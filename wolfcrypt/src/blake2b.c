@@ -356,7 +356,7 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
     }
 
     S->buflen -= BLAKE2B_BLOCKBYTES;
-    if ( S->buflen >= (BLAKE2B_BLOCKBYTES * 2) )
+    if ( S->buflen >= (BLAKE2B_BLOCKBYTES) )
       return BAD_LENGTH_E;
     XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (wolfssl_word)S->buflen );
   }
