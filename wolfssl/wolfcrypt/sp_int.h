@@ -932,7 +932,7 @@ typedef struct sp_int_minimal {
     sp_size_t    size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /** Indicates whether number is 0/positive or negative.  */
-    sp_uint8     sign;
+    sp_sign_t    sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     /** Unsigned binary (big endian) representation of number. */
