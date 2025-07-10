@@ -212,8 +212,19 @@ WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_show_ip(void);
 * Debug helpers
 ******************************************************************************/
 WOLFSSL_LOCAL esp_err_t sdk_init_meminfo(void);
+
+#ifdef DEBUG_WOLFSSL_MALLOC
 WOLFSSL_LOCAL void* wc_debug_pvPortMalloc(size_t size,
                                 const char* file, int line, const char* fname);
+WOLFSSL_LOCAL void wc_debug_pvPortFree(void *ptr,
+                                const char* file, int line, const char* fname);
+WOLFSSL_LOCAL void* wc_debug_pvPortRealloc(void* ptr, size_t size,
+                                const char* file, int line, const char* fname);
+#else
+WOLFSSL_LOCAL void* wc_pvPortMalloc(size_t size);
+WOLFSSL_LOCAL void wc_pvPortFree(void *ptr);
+WOLFSSL_LOCAL void* wc_pvPortRealloc(void* ptr, size_t size);
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */
