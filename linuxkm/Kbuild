@@ -197,6 +197,7 @@ endif
 	    --rename-section .data.rel.local=.data.wolfcrypt	\
 	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?
 	done
+	[ "$(KERNEL_ARCH_X86)" != "yes" ] ||			\
 	{ $(READELF) --syms $(WOLFCRYPT_PIE_FILES) |		\
         $(AWK) -v obj="$(obj)" '				\
 	    /File:/ {						\

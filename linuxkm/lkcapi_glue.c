@@ -64,7 +64,8 @@
     #define WOLFSSL_LINUXKM_LKCAPI_PRIORITY 100000
 #endif
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     static int disable_setkey_warnings = 0;
 #else
     #define disable_setkey_warnings 0
@@ -321,7 +322,8 @@ static int linuxkm_lkcapi_register(void)
     if (ret)
         return ret;
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     /* temporarily disable warnings around setkey failures, which are expected
      * from the crypto fuzzer in FIPS configs, and potentially in others.
      * unexpected setkey failures are fatal errors returned by the fuzzer.
@@ -692,7 +694,8 @@ static int linuxkm_lkcapi_register(void)
 #undef REGISTER_ALG
 #undef REGISTER_ALG_OPTIONAL
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+#if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
+    defined(CONFIG_CRYPTO_SELFTESTS_FULL)
     disable_setkey_warnings = 0;
 #endif
 
