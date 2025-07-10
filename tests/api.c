@@ -53706,7 +53706,7 @@ static int test_wolfSSL_PEM_write_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_MD5)
     unsigned char passwd[] = "password";
 #endif
 
@@ -53729,8 +53729,11 @@ static int test_wolfSSL_PEM_write_RSAPrivateKey(void)
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
         NULL, 0, NULL, NULL), 1);
+#ifndef NO_MD5
+    /* PKCS8 wants to use MD5 by default. */
     ExpectIntEQ(wolfSSL_PEM_write_RSAPrivateKey(stderr, rsa, EVP_aes_128_cbc(),
         passwd, sizeof(passwd) - 1, NULL, NULL), 1);
+#endif
 #endif
 
     RSA_free(rsa);
@@ -53752,7 +53755,7 @@ static int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
     size_t privDerSz = sizeof_client_key_der_2048;
 #endif
     const unsigned char* der;
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(NO_MD5)
     unsigned char passwd[] = "password";
 #endif
     unsigned char* pem = NULL;
@@ -53783,8 +53786,11 @@ static int test_wolfSSL_PEM_write_mem_RSAPrivateKey(void)
         NULL, 0, &pem, &plen), 1);
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
     pem = NULL;
+#ifndef NO_MD5
+    /* PKCS8 wants to use MD5 by default. */
     ExpectIntEQ(wolfSSL_PEM_write_mem_RSAPrivateKey(rsa, EVP_aes_128_cbc(),
         passwd, sizeof(passwd) - 1, &pem, &plen), 1);
+#endif
     XFREE(pem, NULL, DYNAMIC_TYPE_KEY);
 #endif
 
