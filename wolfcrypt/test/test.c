@@ -35305,6 +35305,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     word32 x;
     WOLFSSL_ENTER("ecc_test_buffers");
 
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((cliKey == NULL) || (servKey == NULL) || (tmpKey == NULL))
         ERROR_OUT(MEMORY_E, done);
