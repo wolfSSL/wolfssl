@@ -14880,7 +14880,7 @@ int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx)
 
 /* Unwrap and decrypt PKCS#7/CMS EncryptedKeyPackage object, return the
  * decoded size. */
-WOLFSSL_API int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
         byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz)
 {
     int ret = 0;
