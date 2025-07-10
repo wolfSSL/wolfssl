@@ -496,7 +496,6 @@ static int linuxkm_test_ecdsa_nist_p192(void)
                                         p192_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);
-
     return rc;
 }
 #endif /* LINUXKM_ECC192 */
@@ -840,7 +839,6 @@ test_ecdsa_nist_end:
     #ifdef WOLFKM_DEBUG_ECDSA
     pr_info("info: %s: self test returned: %d\n", driver, test_rc);
     #endif /* WOLFKM_DEBUG_ECDSA */
-
     return test_rc;
 }
 
