@@ -312,8 +312,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     \return 0 Returned on successfully extracting the information
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
-    \return ASN_PARSE_E Returned if there is an error parsing from the
-    given pkiMsg
+    \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
@@ -390,8 +389,7 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
     \return 0 Returned on successfully extracting the information
     from the message
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
-    \return ASN_PARSE_E Returned if there is an error parsing from the
-    given pkiMsg
+    \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
     \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
     \return MEMORY_E Returned if there is an error allocating memory
@@ -522,7 +520,7 @@ int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     ... etc.
 
     ret = wc_PKCS7_EncodeEnvelopedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
-    if ( ret != 0 ) {
+    if ( ret < 0 ) {
     	// error encoding into output buffer
     }
     \endcode
@@ -543,8 +541,7 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     \return On successfully extracting the information from the message,
     returns the bytes written to output
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
-    \return ASN_PARSE_E Returned if there is an error parsing from the
-    given pkiMsg
+    \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
     \return PKCS7_OID_E Returned if the given pkiMsg is not an enveloped
     data type
     \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 0
@@ -599,15 +596,119 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     pkcs7.privateKeySz = keySz;
 
     decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, received,
-    sizeof(received),decoded, sizeof(decoded));
-    if ( decodedSz != 0 ) {
-    	// error decoding message
+        sizeof(received),decoded, sizeof(decoded));
+    if ( decodedSz < 0 ) {
+        // error decoding message
     }
     \endcode
 
     \sa wc_PKCS7_InitWithCert
     \sa wc_PKCS7_EncodeEnvelopedData
 */
-int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
-                                          word32 pkiMsgSz, byte* output,
-                                          word32 outputSz);
+int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+        word32 pkiMsgSz, byte* output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function unwraps and decrypts a PKCS7 encrypted data content
+    type, decoding the message into output. It uses the encryption key of the
+    PKCS7 object passed in via pkcs7->encryptionKey and
+    pkcs7->encryptionKeySz to decrypt the message.
+
+    \return On successfully extracting the information from the message,
+    returns the bytes written to output
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
+    \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    \return PKCS7_OID_E Returned if the given pkiMsg is not an encrypted
+    data type
+    \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 0
+    \return MEMORY_E Returned if there is an error allocating memory
+    \return BUFFER_E Returned if the encrypted content size is invalid
+
+    \param pkcs7 pointer to the PKCS7 structure containing the encryption key with
+    which to decode the encrypted data package
+    \param pkiMsg pointer to the buffer containing the encrypted data package
+    \param pkiMsgSz size of the encrypted data package
+    \param output pointer to the buffer in which to store the decoded message
+    \param outputSz size available in the output buffer
+
+    _Example_
+    \code
+    PKCS7 pkcs7;
+    byte received[] = { }; // initialize with received encrypted data message
+    byte decoded[FOURK_BUF];
+    int decodedSz;
+
+    // initialize pkcs7 with certificate
+    // update key
+    pkcs7.encryptionKey = key;
+    pkcs7.encryptionKeySz = keySz;
+
+    decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, received,
+        sizeof(received), decoded, sizeof(decoded));
+    if ( decodedSz < 0 ) {
+        // error decoding message
+    }
+    \endcode
+
+    \sa wc_PKCS7_InitWithCert
+*/
+int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
+        word32 pkiMsgSz, byte* output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function unwraps and decrypts a PKCS7 encrypted key package
+    content type, decoding the message into output. If the wrapped content
+    type is EncryptedData, the encryption key must be set in the pkcs7 input
+    structure (via pkcs7->encryptionKey and pkcs7->encryptionKeySz). If the
+    wrapped content type is EnvelopedData, the private key must be set in the
+    pkcs7 input structure (via pkcs7->privateKey and pkcs7->privateKeySz).
+    A wrapped content type of AuthEnvelopedData is not currently supported.
+
+    This function will automatically call either wc_PKCS7_DecodeEnvelopedData()
+    or wc_PKCS7_DecodeEncryptedData() depending on the wrapped content type.
+    This function could also return any error code from either of those
+    functions in addition to the error codes listed here.
+
+    \return On successfully extracting the information from the message,
+    returns the bytes written to output
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
+    \return ASN_PARSE_E Returned if there is an error parsing the given pkiMsg
+    or if the wrapped content type is EncryptedData and support for
+    EncryptedData is not compiled in (e.g. NO_PKCS7_ENCRYPTED_DATA is set)
+    \return PKCS7_OID_E Returned if the given pkiMsg is not an encrypted
+    key package data type
+
+    \param pkcs7 pointer to the PKCS7 structure containing the private key or
+    encryption key with which to decode the encrypted key package
+    \param pkiMsg pointer to the buffer containing the encrypted key package message
+    \param pkiMsgSz size of the encrypted key package message
+    \param output pointer to the buffer in which to store the decoded output
+    \param outputSz size available in the output buffer
+
+    _Example_
+    \code
+    PKCS7 pkcs7;
+    byte received[] = { }; // initialize with received encrypted data message
+    byte decoded[FOURK_BUF];
+    int decodedSz;
+
+    // initialize pkcs7 with certificate
+    // update key for expected EnvelopedData (example)
+    pkcs7.privateKey = key;
+    pkcs7.privateKeySz = keySz;
+
+    decodedSz = wc_PKCS7_DecodeEncryptedKeyPackage(&pkcs7, received,
+        sizeof(received), decoded, sizeof(decoded));
+    if ( decodedSz < 0 ) {
+        // error decoding message
+    }
+    \endcode
+
+    \sa wc_PKCS7_InitWithCert
+*/
+int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+        byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz);

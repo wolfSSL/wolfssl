@@ -530,6 +530,10 @@ WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCb(wc_PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
+/* CMS/PKCS#7 EncryptedKeyPackage */
+WOLFSSL_API int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+        byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz);
+
 /* stream and certs */
 WOLFSSL_LOCAL int wc_PKCS7_WriteOut(wc_PKCS7* pkcs7, byte* output,
     const byte* input, word32 inputSz);

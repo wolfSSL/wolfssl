@@ -14878,6 +14878,62 @@ int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx)
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 
+/* Unwrap and decrypt PKCS#7/CMS EncryptedKeyPackage object, return the
+ * decoded size. */
+int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+        byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz)
+{
+    int ret = 0;
+    word32 pkiIndex = 0;
+    word32 contentType = 0;
+    int length = 0;
+
+    if (pkiMsg == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    /* Expect a SEQUENCE header to start the EncryptedKeyPackage
+     * ContentInfo. */
+    else if (GetSequence_ex(pkiMsg, &pkiIndex, &length, pkiMsgSz, 1) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Validate the EncryptedKeyPackage OBJECT IDENTIFIER. */
+    else if (wc_GetContentType(pkiMsg, &pkiIndex, &contentType, pkiMsgSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else if (contentType != ENCRYPTED_KEY_PACKAGE) {
+        WOLFSSL_MSG("PKCS#7 input not of type EncryptedKeyPackage");
+        ret = PKCS7_OID_E;
+    }
+    /* Expect content [0] tag */
+    else if (GetASNHeader(pkiMsg, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+                &pkiIndex, &length, pkiMsgSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    /* Check for an EncryptedKeyPackage explicit CHOICE [0] tag, indicating
+     * an EnvelopedData subtype. */
+    else if (GetASNHeader(pkiMsg, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+                &pkiIndex, &length, pkiMsgSz) >= 0) {
+        /* An explicit CHOICE [0] tag was found. pkiIndex now should point
+         * to the EnvelopedData ContentInfo object within the
+         * EncryptedKeyPackage. */
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, &pkiMsg[pkiIndex],
+                pkiMsgSz - pkiIndex, output, outputSz);
+    }
+    else {
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+        /* An explicit CHOICE [0] tag was not found. Check if we have an
+         * EncryptedData blob. */
+        ret = wc_PKCS7_DecodeEncryptedData(pkcs7, &pkiMsg[pkiIndex],
+                pkiMsgSz - pkiIndex, output, outputSz);
+#else
+        ret = ASN_PARSE_E;
+#endif
+    }
+
+    return ret;
+}
+
+
 /* set stream mode for encoding and signing
  * returns 0 on success */
 int wc_PKCS7_SetStreamMode(wc_PKCS7* pkcs7, byte flag,
