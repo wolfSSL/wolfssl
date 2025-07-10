@@ -585,7 +585,7 @@ exit:
         }
     }
     if (failedCerts) {
-        wolfSSL_sk_X509_free(failedCerts);
+        wolfSSL_sk_X509_pop_free(failedCerts, NULL);
     }
 
     /* Remove additional intermediates from init from the store */
