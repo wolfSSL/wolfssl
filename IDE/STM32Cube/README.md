@@ -25,7 +25,7 @@ If you need to manually install a Cube Pack you can do the following:
 2. Run the "STM32CubeMX" tool.
 3. Under "Manage software installations" pane on the right, click "INSTALL/REMOVE" button. This can be also found by clicking "Help" -> "Managed embedded software packages"
 4. From Local and choose "I-CUBE-wolfSSL.pack".
-5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
+5. Accept the GPLv3 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
 
 ### STM32 Cube Pack Usage
 
