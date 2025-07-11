@@ -959,6 +959,9 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     #define WOLFSSL_IP6 AF_INET6
 #endif
 
+#ifndef WOLFSSL_SOCKADDR_IN6
+    #define WOLFSSL_SOCKADDR_IN6 struct sockaddr_in6
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */
