@@ -3534,9 +3534,42 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* e,
  * RSA padding APIs
  */
 
-#if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
-        defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
+#ifdef WC_RSA_PSS
+
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
+static int rsa_pss_calc_salt(int saltLen, int hashLen, int emLen)
+{
+    /* Calculate the salt length to use for special cases. */
+    switch (saltLen) {
+        /* Negative saltLen values are treated differently. */
+        case WC_RSA_PSS_SALTLEN_DIGEST:
+            saltLen = hashLen;
+            break;
+        case WC_RSA_PSS_SALTLEN_MAX_SIGN:
+        case WC_RSA_PSS_SALTLEN_MAX:
+        #ifdef WOLFSSL_PSS_LONG_SALT
+            saltLen = emLen - hashLen - 2;
+        #else
+            saltLen = hashLen;
+            (void)emLen;
+        #endif
+            break;
+        default:
+            break;
+    }
+    if (saltLen < 0) {
+        /* log invalid salt, let wolfCrypt handle error */
+        WOLFSSL_ERROR_MSG("invalid saltLen");
+        saltLen = -3; /* for wolfCrypt to produce error must be < -2 */
+    }
+    return saltLen;
+}
+#endif /* OPENSSL_EXTRA && !HAVE_SELFTEST */
+
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+
 /* Add PKCS#1 PSS padding to hash.
  *
  *
@@ -3654,28 +3687,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
     }
 
     if (ret == 1) {
-        /* Calculate the salt length to use for special cases. */
-        /* TODO: use special case wolfCrypt values? */
-        switch (saltLen) {
-        /* Negative saltLen values are treated differently. */
-        case RSA_PSS_SALTLEN_DIGEST:
-            saltLen = hashLen;
-            break;
-        case RSA_PSS_SALTLEN_MAX_SIGN:
-        case RSA_PSS_SALTLEN_MAX:
-        #ifdef WOLFSSL_PSS_LONG_SALT
-            saltLen = emLen - hashLen - 2;
-        #else
-            saltLen = hashLen;
-        #endif
-            break;
-        default:
-            if (saltLen < 0) {
-                /* No other negative values implemented. */
-                WOLFSSL_ERROR_MSG("invalid saltLen");
-                ret = 0;
-            }
-        }
+        saltLen = rsa_pss_calc_salt(saltLen, hashLen, emLen);
     }
 
     if (ret == 1) {
@@ -3767,31 +3779,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
     }
 
     if (ret == 1) {
-        /* Calculate the salt length to use for special cases. */
-        switch (saltLen) {
-        /* Negative saltLen values are treated differently */
-        case RSA_PSS_SALTLEN_DIGEST:
-            saltLen = hashLen;
-            break;
-        case RSA_PSS_SALTLEN_AUTO:
-        #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
-            saltLen = RSA_PSS_SALT_LEN_DISCOVER;
-            break;
-        #endif
-        case RSA_PSS_SALTLEN_MAX:
-        #ifdef WOLFSSL_PSS_LONG_SALT
-            saltLen = emLen - hashLen - 2;
-        #else
-            saltLen = hashLen;
-        #endif
-            break;
-        default:
-            if (saltLen < 0) {
-                /* No other negative values implemented. */
-                WOLFSSL_ERROR_MSG("invalid saltLen");
-                ret = 0;
-            }
-        }
+        saltLen = rsa_pss_calc_salt(saltLen, hashLen, emLen);
     }
 
     if (ret == 1) {
@@ -3856,18 +3844,23 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     return wolfSSL_RSA_verify_PKCS1_PSS_mgf1(rsa, mHash, hashAlg, NULL, em,
             saltLen);
 }
-#endif /* !HAVE_FIPS || FIPS_VERSION_GT(2,0) */
-#endif /* WC_RSA_PSS && (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY ||
-        *                WOLFSSL_NGINX) */
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GT(2,0)) && \
+          (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY || WOLFSSL_NGINX) */
+#endif /* WC_RSA_PSS */
 
 /*
  * RSA sign/verify APIs
  */
 
-#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DEFAULT
+#if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
+    #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+        #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DEFAULT
+    #else
+        #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DISCOVER
+    #endif
 #else
-    #define DEF_PSS_SALT_LEN    RSA_PSS_SALT_LEN_DISCOVER
+    #define DEF_PSS_SALT_LEN 0 /* not used */
 #endif
 
 #if defined(OPENSSL_EXTRA)
@@ -3980,6 +3973,14 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
     return ret;
 }
 
+int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
+    WOLFSSL_RSA* rsa, int flag, int padding)
+{
+    return wolfSSL_RSA_sign_mgf(hashAlg, hash, hLen, sigRet, sigLen, rsa, flag,
+        padding, hashAlg, DEF_PSS_SALT_LEN);
+}
+
 /**
  * Sign a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -3998,12 +3999,14 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
  * @param [in]      padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
  *                           WC_RSA_PKCS1_PADDING are currently supported for
  *                           signing.
+ * @param [in]      mgf1Hash MGF1 Hash NID
+ * @param [in]      saltLen  Length of RSA PSS salt
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
+int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
     unsigned int hLen, unsigned char* sigRet, unsigned int* sigLen,
-    WOLFSSL_RSA* rsa, int flag, int padding)
+    WOLFSSL_RSA* rsa, int flag, int padding, int mgf1Hash, int saltLen)
 {
     int     ret        = 1;
     word32  outLen     = 0;
@@ -4020,8 +4023,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
 #endif
     unsigned int encSz = 0;
 
-
-    WOLFSSL_ENTER("wolfSSL_RSA_sign_generic_padding");
+    WOLFSSL_ENTER("wolfSSL_RSA_sign_mgf");
 
     if (flag == 0) {
         /* Only encode message. */
@@ -4088,7 +4090,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         case WC_RSA_NO_PAD:
             if ((signSz = wc_RsaDirect(encodedSig, encSz, sigRet, &outLen,
                 (RsaKey*)rsa->internal, RSA_PRIVATE_ENCRYPT, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign no pad");
+                WOLFSSL_ERROR_MSG("Bad RSA Sign no pad");
                 ret = 0;
             }
             break;
@@ -4097,17 +4099,20 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
         case WC_RSA_PKCS1_PSS_PADDING:
         {
-            enum wc_HashType hType =
-                wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
-        #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-            WOLFSSL_MSG("Using RSA-PSS with hash length salt. "
-                        "OpenSSL uses max length by default.");
-        #endif
+            RsaKey* key = (RsaKey*)rsa->internal;
+            enum wc_HashType mgf1, hType;
+            hType = wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
+            if (mgf1Hash == WC_NID_undef)
+                mgf1Hash = hashAlg;
+            mgf1 = wc_OidGetHash((int)nid2oid(mgf1Hash, oidHashType));
+            /* handle compat layer salt special cases */
+            saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
+                wolfSSL_RSA_size(rsa));
+
             /* Create RSA PSS signature. */
             if ((signSz = wc_RsaPSS_Sign_ex(encodedSig, encSz, sigRet, outLen,
-                    hType, wc_hash2mgf(hType), DEF_PSS_SALT_LEN,
-                    (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
+                hType, wc_hash2mgf(mgf1), saltLen, key, rng)) <= 0) {
+                WOLFSSL_ERROR_MSG("Bad RSA PSS Sign");
                 ret = 0;
             }
             break;
@@ -4126,13 +4131,15 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
             /* Sign (private encrypt) PKCS#1 encoded signature. */
             if ((signSz = wc_RsaSSL_Sign(encodedSig, encSz, sigRet, outLen,
                     (RsaKey*)rsa->internal, rng)) <= 0) {
-                WOLFSSL_ERROR_MSG("Bad Rsa Sign");
+                WOLFSSL_ERROR_MSG("Bad PKCS1 RSA Sign");
                 ret = 0;
             }
             break;
         }
         default:
             WOLFSSL_ERROR_MSG("Unsupported padding");
+            (void)mgf1Hash;
+            (void)saltLen;
             ret = 0;
             break;
         }
@@ -4153,7 +4160,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     XFREE(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
 #endif
 
-    WOLFSSL_LEAVE("wolfSSL_RSA_sign_generic_padding", ret);
+    WOLFSSL_LEAVE("wolfSSL_RSA_sign_mgf", ret);
     return ret;
 }
 
@@ -4177,6 +4184,14 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
         WC_RSA_PKCS1_PADDING);
 }
 
+int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
+    unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
+    WOLFSSL_RSA* rsa, int padding)
+{
+    return wolfSSL_RSA_verify_mgf(hashAlg, hash, hLen, sig, sigLen, rsa,
+        padding, hashAlg, DEF_PSS_SALT_LEN);
+}
+
 /**
  * Verify a message hash with the chosen message digest, padding, and RSA key.
  *
@@ -4191,12 +4206,14 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
  * @param [in]  padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
  *                       WC_RSA_PKCS1_PADDING are currently supported for
  *                       signing.
+ * @param [in]  mgf1Hash MGF1 Hash NID
+ * @param [in]  saltLen  Length of RSA PSS salt
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
+int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
     unsigned int hLen, const unsigned char* sig, unsigned int sigLen,
-    WOLFSSL_RSA* rsa, int padding)
+    WOLFSSL_RSA* rsa, int padding, int mgf1Hash, int saltLen)
 {
     int              ret    = 1;
 #ifdef WOLFSSL_SMALL_STACK
@@ -4211,7 +4228,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     enum wc_HashType hType = WC_HASH_TYPE_NONE;
 #endif
 
-    WOLFSSL_ENTER("wolfSSL_RSA_verify");
+    WOLFSSL_ENTER("wolfSSL_RSA_verify_mgf");
 
     /* Validate parameters. */
     if ((hash == NULL) || (sig == NULL) || (rsa == NULL)) {
@@ -4228,8 +4245,49 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
             ret = 0;
         }
     }
+    if (ret == 1 && padding == WC_RSA_PKCS1_PSS_PADDING) {
+        #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
+        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
+        RsaKey* key = (RsaKey*)rsa->internal;
+        enum wc_HashType mgf1;
+        hType = wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
+        if (mgf1Hash == WC_NID_undef)
+            mgf1Hash = hashAlg;
+        mgf1 = wc_OidGetHash((int)nid2oid(mgf1Hash, oidHashType));
+
+        /* handle compat layer salt special cases */
+        saltLen = rsa_pss_calc_salt(saltLen, wc_HashGetDigestSize(hType),
+            wolfSSL_RSA_size(rsa));
+
+        verLen = wc_RsaPSS_Verify_ex((byte*)sig, sigLen, sigDec, sigLen,
+            hType, wc_hash2mgf(mgf1), saltLen, key);
+        if (verLen > 0) {
+            /* Check PSS padding is valid. */
+            if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
+                hType, saltLen, mp_count_bits(&key->n)) != 0) {
+                WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                /* Success! Free resources and return early */
+                XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return WOLFSSL_SUCCESS;
+            }
+        }
+        else {
+            WOLFSSL_ERROR_MSG("wc_RsaPSS_Verify_ex failed!");
+            ret = WOLFSSL_FAILURE;
+        }
+    #else
+        (void)mgf1Hash;
+        (void)saltLen;
+        WOLFSSL_ERROR_MSG("RSA PSS not compiled in!");
+        ret = WOLFSSL_FAILURE;
+    #endif
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
-    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
+    if (ret == 1) {
         /* Allocate memory for encoded signature. */
         encodedSig = (unsigned char *)XMALLOC(len, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -4239,7 +4297,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         }
     }
 #endif
-    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
+    if (ret == 1) {
         /* Make encoded signature to compare with decrypted signature. */
         if (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig, &len,
                 padding) <= 0) {
@@ -4266,20 +4324,6 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     #endif
     }
     if (ret == 1) {
-    #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
-        (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1))
-        if (padding == WC_RSA_PKCS1_PSS_PADDING) {
-            /* Check PSS padding is valid. */
-            if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
-                    hType, DEF_PSS_SALT_LEN,
-                    mp_count_bits(&((RsaKey*)rsa->internal)->n)) != 0) {
-                WOLFSSL_ERROR_MSG("wc_RsaPSS_CheckPadding_ex error");
-                ret = 0;
-            }
-        }
-        else
-    #endif /* WC_RSA_PSS && !HAVE_SELFTEST && (!HAVE_FIPS ||
-            * FIPS_VERSION >= 5.1) */
         /* Compare decrypted signature to encoded signature. */
         if (((int)len != verLen) ||
                 (XMEMCMP(encodedSig, sigDec, (size_t)verLen) != 0)) {
@@ -4293,6 +4337,8 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    WOLFSSL_LEAVE("wolfSSL_RSA_verify_mgf", ret);
     return ret;
 }
 

@@ -505,6 +505,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PEM_X509_INFO_read              wolfSSL_PEM_X509_INFO_read
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 #define i2d_PublicKey                   wolfSSL_i2d_PublicKey
+#define i2d_PrivateKey_bio              wolfSSL_i2d_PrivateKey_bio
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ
 #define d2i_X509_REQ                    wolfSSL_d2i_X509_REQ
