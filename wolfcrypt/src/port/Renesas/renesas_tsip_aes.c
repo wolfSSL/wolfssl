@@ -113,7 +113,8 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
 
     WOLFSSL_ENTER("tsip_Tls13AesEncrypt");
 
-    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0)) {
+    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0) ||
+        (ssl->RenesasUserCtx == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -260,7 +261,8 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
 
     WOLFSSL_ENTER("tsip_Tls13AesDecrypt");
 
-    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0)) {
+    if ((ssl == NULL) || (input == NULL) || (output == NULL) || (sz == 0) ||
+        (ssl->RenesasUserCtx == NULL)) {
         return BAD_FUNC_ARG;
     }
 
