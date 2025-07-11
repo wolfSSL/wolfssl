@@ -348,6 +348,12 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
             (void) msg;
             return 0;
         }
+
+        int WOLFSSL_MSG_CERT_(const char* msg) {
+            /* Do nothing implementation */
+            (void) msg;
+            return 0;
+        }
     #else
         /* see macro in header */
     #endif
@@ -414,6 +420,27 @@ void WOLFSSL_MSG_EX2(const char *file, int line, const char* fmt, ...)
         __attribute__((__format__ (__printf__, 1, 0)))
         #endif
         int WOLFSSL_MSG_CERT_EX(const char* fmt, ...)
+        {
+            /* do nothing implementation */
+            (void)fmt;
+            return 0;
+        }
+
+        #ifdef __clang__
+        /* tell clang argument 1 is format */
+        __attribute__((__format__ (__printf__, 1, 0)))
+        #endif
+        void WOLFSSL_MSG_EX_(const char* fmt, ...)
+        {
+            /* do nothing implementation */
+            (void)fmt;
+        }
+
+        #ifdef __clang__
+        /* tell clang argument 1 is format */
+        __attribute__((__format__ (__printf__, 1, 0)))
+        #endif
+        int WOLFSSL_MSG_CERT_EX_(const char* fmt, ...)
         {
             /* do nothing implementation */
             (void)fmt;
