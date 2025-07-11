@@ -1895,7 +1895,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             }
 
             idx = 0;
-            if (GetOctetString((byte *)asn1String->data, &idx, &len, asn1String->length) < 0) {
+            if (GetOctetString((byte *)asn1String->data, &idx, &len,
+                        asn1String->length) < 0) {
                 WOLFSSL_MSG("GetOctetString() failed");
                 return NULL;
             }
@@ -1932,12 +1933,14 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             }
 
             idx = 0;
-            if (GetSequence((byte *)asn1String->data, &idx, &len, asn1String->length) < 0) {
+            if (GetSequence((byte *)asn1String->data, &idx, &len,
+                        asn1String->length) < 0) {
                 WOLFSSL_MSG("GetSequence() failed");
                 return NULL;
             }
 
-            if (GetASNTag((byte *)asn1String->data, &idx, &tag, asn1String->length) < 0) {
+            if (GetASNTag((byte *)asn1String->data, &idx, &tag,
+                        asn1String->length) < 0) {
                 WOLFSSL_MSG("GetASNTag() failed");
                 return NULL;
             }
@@ -1947,7 +1950,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-            if (GetLength((byte *)asn1String->data, &idx, &key_length, asn1String->length) <= 0) {
+            if (GetLength((byte *)asn1String->data, &idx, &key_length,
+                        asn1String->length) <= 0) {
                 WOLFSSL_MSG("GetLength() failed");
                 return NULL;
             }
