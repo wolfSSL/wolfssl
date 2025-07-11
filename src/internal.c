@@ -12947,6 +12947,39 @@ int CipherRequires(byte first, byte second, int requirement)
 #endif /* !NO_TLS */
 
 #ifndef NO_CERTS
+#ifdef WOLFSSL_IP_ALT_NAME
+static int MatchIPv6(const char* pattern, int patternLen,
+                     const char* str, word32 strLen)
+{
+    WOLFSSL_SOCKADDR_IN6 addr1, addr2;
+    char patBuf[WOLFSSL_MAX_IPSTR] = {0};
+    char strBuf[WOLFSSL_MAX_IPSTR] = {0};
+
+    if ((word32)patternLen >= sizeof(patBuf) || strLen >= sizeof(strBuf))
+        return 0;
+
+    XMEMSET(patBuf, 0, WOLFSSL_MAX_IPSTR);
+    XMEMSET(strBuf, 0, WOLFSSL_MAX_IPSTR);
+
+    /* Make sure strings are null-terminated and safely copied */
+    XMEMCPY(patBuf, pattern, patternLen);
+    patBuf[patternLen] = '\0';
+    XMEMCPY(strBuf, str, strLen);
+    strBuf[strLen] = '\0';
+
+    XMEMSET(&addr1, 0, sizeof(addr1));
+    XMEMSET(&addr2, 0, sizeof(addr2));
+
+    /* Try parsing both as IPv6 */
+    if (XINET_PTON(WOLFSSL_IP6, patBuf, &addr1) != 1)
+        return 0;
+    if (XINET_PTON(WOLFSSL_IP6, strBuf, &addr2) != 1)
+        return 0;
+
+    /* Compare raw address bytes */
+    return XMEMCMP(&addr1, &addr2, sizeof(WOLFSSL_SOCKADDR_IN6)) == 0;
+}
+#endif
 
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not multiple names, i.e.,
@@ -12965,6 +12998,12 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
 
     if (pattern == NULL || str == NULL || patternLen <= 0 || strLen == 0)
         return 0;
+
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* First try to match IPv6 addresses */
+    if (MatchIPv6(pattern, patternLen, str, strLen))
+        return 1;
+#endif
 
     while (patternLen > 0) {
         /* Get the next pattern char to evaluate */
