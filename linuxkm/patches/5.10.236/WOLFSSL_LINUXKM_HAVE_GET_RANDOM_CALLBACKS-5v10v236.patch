@@ -1,5 +1,5 @@
---- ./drivers/char/random.c.dist	2025-04-29 18:54:03.390121890 -0500
-+++ ./drivers/char/random.c	2025-07-02 11:57:40.176497765 -0500
+--- 5.10.236/drivers/char/random.c.dist	2025-04-29 18:54:03.390121890 -0500
++++ 5.10.236/drivers/char/random.c	2025-07-02 11:57:40.176497765 -0500
 @@ -60,6 +60,260 @@
  #include <asm/irq_regs.h>
  #include <asm/io.h>
@@ -420,8 +420,8 @@
  		if (!crng_ready())
  			return -ENODATA;
  		crng_reseed();
---- ./include/linux/random.h.dist	2025-04-29 18:54:07.595202807 -0500
-+++ ./include/linux/random.h	2025-06-30 12:03:15.263141842 -0500
+--- 5.10.236/include/linux/random.h.dist	2025-04-29 18:54:07.595202807 -0500
++++ 5.10.236/include/linux/random.h	2025-06-30 12:03:15.263141842 -0500
 @@ -138,4 +138,37 @@ int random_online_cpu(unsigned int cpu);
  extern const struct file_operations random_fops, urandom_fops;
  #endif
