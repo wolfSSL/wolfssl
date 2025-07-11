@@ -1,5 +1,5 @@
---- ./drivers/char/random.c.dist	2021-10-31 15:53:10.000000000 -0500
-+++ ./drivers/char/random.c	2025-07-02 11:49:13.836320539 -0500
+--- 5.15/drivers/char/random.c.dist	2021-10-31 15:53:10.000000000 -0500
++++ 5.15/drivers/char/random.c	2025-07-02 11:49:13.836320539 -0500
 @@ -344,6 +344,260 @@
  #include <asm/irq_regs.h>
  #include <asm/io.h>
@@ -411,8 +411,8 @@
  		if (flags & GRND_NONBLOCK)
  			return -EAGAIN;
  		ret = wait_for_random_bytes();
---- ./include/linux/random.h.dist	2021-10-31 15:53:10.000000000 -0500
-+++ ./include/linux/random.h	2025-06-28 13:09:13.392547118 -0500
+--- 5.15/include/linux/random.h.dist	2021-10-31 15:53:10.000000000 -0500
++++ 5.15/include/linux/random.h	2025-06-28 13:09:13.392547118 -0500
 @@ -158,4 +158,37 @@ static inline bool __init arch_get_rando
  }
  #endif
