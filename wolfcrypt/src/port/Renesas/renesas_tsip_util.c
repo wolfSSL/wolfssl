@@ -161,7 +161,7 @@ WOLFSSL_API int tsip_use_PrivateKey_buffer_TLS(struct WOLFSSL* ssl,
 
     WOLFSSL_ENTER("tsip_use_PrivateKey_buffer_TLS");
 
-    if (ssl == NULL || keyBuf == NULL || keyBufLen == 0 || 
+    if (ssl == NULL || keyBuf == NULL || keyBufLen == 0 ||
                                 ssl->RenesasUserCtx == NULL) {
         ret = BAD_FUNC_ARG;
     }
