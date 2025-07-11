@@ -1151,7 +1151,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             (input[tmpIdx] == ASN_BOOLEAN))
         {
             if (((tmpIdx + 2) >= (word32)sz) ||
+                /* Check bool length */
                 (input[tmpIdx+1] != 1) ||
+                /* Assert true if CRITICAL present */
                 (input[tmpIdx+2] != 0xff))
             {
                 WOLFSSL_MSG("Error decoding unknown extension data");
