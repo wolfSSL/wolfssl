@@ -12947,7 +12947,7 @@ int CipherRequires(byte first, byte second, int requirement)
 #endif /* !NO_TLS */
 
 #ifndef NO_CERTS
-#ifdef WOLFSSL_IP_ALT_NAME
+#if defined(WOLFSSL_IP_ALT_NAME) && !defined(WOLFSSL_USER_IO)
 static int MatchIPv6(const char* pattern, int patternLen,
                      const char* str, word32 strLen)
 {
@@ -12979,7 +12979,7 @@ static int MatchIPv6(const char* pattern, int patternLen,
     /* Compare raw address bytes */
     return XMEMCMP(&addr1, &addr2, sizeof(WOLFSSL_SOCKADDR_IN6)) == 0;
 }
-#endif
+#endif /* WOLFSSL_IP_ALT_NAME && !WOLFSSL_USER_IO */
 
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not multiple names, i.e.,
@@ -12999,7 +12999,7 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
     if (pattern == NULL || str == NULL || patternLen <= 0 || strLen == 0)
         return 0;
 
-#ifdef WOLFSSL_IP_ALT_NAME
+#if defined(WOLFSSL_IP_ALT_NAME) && !defined(WOLFSSL_USER_IO)
     /* First try to match IPv6 addresses */
     if (MatchIPv6(pattern, patternLen, str, strLen))
         return 1;
