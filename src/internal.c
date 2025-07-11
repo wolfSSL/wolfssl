@@ -12952,8 +12952,8 @@ static int MatchIPv6(const char* pattern, int patternLen,
                      const char* str, word32 strLen)
 {
     WOLFSSL_SOCKADDR_IN6 addr1, addr2;
-    char patBuf[WOLFSSL_MAX_IPSTR] = {0};
-    char strBuf[WOLFSSL_MAX_IPSTR] = {0};
+    char patBuf[WOLFSSL_MAX_IPSTR];
+    char strBuf[WOLFSSL_MAX_IPSTR];
 
     if ((word32)patternLen >= sizeof(patBuf) || strLen >= sizeof(strBuf))
         return 0;
