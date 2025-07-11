@@ -289,15 +289,114 @@ esp_err_t esp_sdk_mem_lib_init(void)
     return ret;
 }
 
+#if defined(DEBUG_WOLFSSL_MALLOC)
 void* wc_debug_pvPortMalloc(size_t size,
                            const char* file, int line, const char* fname) {
+#else
+void* wc_pvPortMalloc(size_t size) {
+#endif
     void* ret = NULL;
-    ret = pvPortMalloc(size);
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+    if (mc == NULL) {
+        ret = pvPortMalloc(size);
+    }
+    else {
+#if defined(XMALLOC_USER)
+        ESP_LOGW(TAG, "XMALLOC_USER not supported in wc_debug_pvPortMalloc");
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+        ret = mc(size);
+#else
+        ret = pvPortMalloc(size);
+#endif
+    }
+
+#if defined(DEBUG_WOLFSSL_MALLOC)
     if (ret == NULL) {
         ESP_LOGE("malloc", "%s:%d (%s)", file, line, fname);
         ESP_LOGE("malloc", "Failed Allocating memory of size: %d bytes", size);
     }
+#endif
     return ret;
-}
+} /* wc_debug_pvPortMalloc */
+
+#if defined(DEBUG_WOLFSSL_MALLOC)
+void wc_debug_pvPortFree(void *ptr,
+                        const char* file, int line, const char* fname) {
+#else
+void wc_pvPortFree(void *ptr) {
+#endif
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    if (ptr == NULL) {
+#ifdef DEBUG_WOLFSSL_MALLOC
+        /* It's ok to free a null pointer, and that happens quite frequently */
+        ESP_LOGV(TAG, "Attempt to free NULL pointer");
+        ESP_LOGV(TAG, "%s:%d (%s)", file, line, fname);
+#endif
+    }
+    else {
+        wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+        if (fc == NULL) {
+            vPortFree(ptr);
+        }
+        else {
+#if defined(XMALLOC_USER)
+        ESP_LOGW(TAG, "XMALLOC_USER not supported in wc_debug_pvPortFree");
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+            fc(ptr);
+#else
+            vPortFree(ptr);
+#endif
+        }
+    }
+} /* wc_debug_pvPortFree */
+
+/* see XREALLOC(p, n, h, t) */
+#if defined(DEBUG_WOLFSSL_MALLOC)
+void* wc_debug_pvPortRealloc(void* ptr, size_t size,
+                             const char* file, int line, const char* fname) {
+#else
+void* wc_pvPortRealloc(void* ptr, size_t size) {
+#endif
+    void* ret = NULL;
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+    if (mc == NULL) {
+        ret = realloc(ptr, size);
+    }
+    else {
+#if defined(XMALLOC_USER)
+        ESP_LOGW(TAG, "XMALLOC_USER not supported in wc_debug_pvPortRealloc");
+#endif
+
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+        ret = rc(ptr, size); /* (void *ptr, size_t size) */
+#else
+        ret = realloc(ptr, size);
+#endif
+    }
+
+#if defined(DEBUG_WOLFSSL_MALLOC)
+    if (ret == NULL) {
+        ESP_LOGE("realloc", "%s:%d (%s)", file, line, fname);
+        ESP_LOGE("realloc", "Failed Re-allocating memory of size: %d bytes",
+                                                                  size);
+    }
+#endif
+    return ret;
+} /* wc_debug_pvPortRealloc */
 
 #endif
