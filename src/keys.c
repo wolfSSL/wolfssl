@@ -3559,7 +3559,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             cbInfo->side = side;
         #elif defined(WOLFSSL_RENESAS_TSIP_TLS)
             TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
-            cbInfo->key_side = side;
+            _ACCESSOR(cbInfo)->key_side = side;
         #endif
         ret = ssl->ctx->EncryptKeysCb(ssl, ctx);
     }
