@@ -400,7 +400,7 @@ int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
-int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+int WOLFSSL_CALL EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     int recvd;
 #ifndef WOLFSSL_LINUXKM
@@ -424,7 +424,7 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 /* The send embedded callback
  *  return : nb bytes sent, or error
  */
-int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+int WOLFSSL_CALL EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     int sent;
 #ifndef WOLFSSL_LINUXKM
@@ -637,7 +637,7 @@ static int isDGramSock(int sfd)
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
-int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+int WOLFSSL_CALL EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int recvd;
@@ -886,7 +886,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 /* The send embedded callback
  *  return : nb bytes sent, or error
  */
-int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+int WOLFSSL_CALL EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
@@ -956,7 +956,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
-int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
+int WOLFSSL_CALL EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 {
     int sd = ssl->wfd;
     SOCKADDR_S peer;

@@ -23,7 +23,14 @@
 
 #if !defined(WOLFSSL_X509_STORE_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning x509_str.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                "x509_str.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning \
+                 x509_str.c does not need to be compiled separately from ssl.c
+        #endif
+
     #endif
 #else
 
