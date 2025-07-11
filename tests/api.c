@@ -4261,7 +4261,8 @@ static int test_wolfSSL_CRL_duplicate_extensions(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_CERTS) && \
-    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(WOLFSSL_NO_ASN_STRICT)
+    defined(HAVE_CRL) && !defined(NO_RSA) && !defined(WOLFSSL_NO_ASN_STRICT) && \
+    (defined(WC_ASN_RUNTIME_DATE_CHECK_CONTROL) || defined(NO_ASN_TIME_CHECK))
     const unsigned char crl_duplicate_akd[] =
         "-----BEGIN X509 CRL-----\n"
         "MIICCDCB8QIBATANBgkqhkiG9w0BAQsFADB5MQswCQYDVQQGEwJVUzETMBEGA1UE\n"
@@ -4280,6 +4281,8 @@ static int test_wolfSSL_CRL_duplicate_extensions(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
     int ret;
 
+    (void)wc_AsnSetSkipDateCheck(1);
+
     cm = wolfSSL_CertManagerNew();
     ExpectNotNull(cm);
 
@@ -4291,6 +4294,8 @@ static int test_wolfSSL_CRL_duplicate_extensions(void)
     ExpectIntEQ(ret, ASN_PARSE_E);
 
     wolfSSL_CertManagerFree(cm);
+
+    (void)wc_AsnSetSkipDateCheck(0);
 #endif
     return EXPECT_RESULT();
 }

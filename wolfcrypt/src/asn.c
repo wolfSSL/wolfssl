@@ -359,6 +359,30 @@ WOLFSSL_LOCAL word32 SetASNLength(word32 length, byte* output)
     return i;
 }
 
+#ifdef WC_ASN_RUNTIME_DATE_CHECK_CONTROL
+static int AsnSkipDateCheck = 0;
+int wc_AsnSetSkipDateCheck(int skip_p)
+{
+    AsnSkipDateCheck = (skip_p != 0);
+    return 0;
+}
+int wc_AsnGetSkipDateCheck(void)
+{
+    return AsnSkipDateCheck;
+}
+#else
+#define AsnSkipDateCheck 0
+int wc_AsnSetSkipDateCheck(int skip_p)
+{
+    (void)skip_p;
+    return NOT_COMPILED_IN;
+}
+int wc_AsnGetSkipDateCheck(void)
+{
+    return 0;
+}
+#endif
+
 #ifdef WOLFSSL_ASN_TEMPLATE
 /* Calculate the size of a DER encoded length value.
  *
@@ -16848,6 +16872,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 
 #ifndef NO_ASN_TIME_CHECK
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
+            (! AsnSkipDateCheck) &&
             !XVALIDATE_DATE(date, format, dateType)) {
         if (dateType == ASN_BEFORE) {
             WOLFSSL_ERROR_VERBOSE(ASN_BEFORE_DATE_E);
@@ -23301,7 +23326,7 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
 
 #ifndef NO_ASN_TIME_CHECK
     /* Check date is a valid string and ASN_BEFORE or ASN_AFTER now. */
-    if (ret == 0) {
+    if ((ret == 0) && (! AsnSkipDateCheck)) {
         if (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType)) {
             if (dateType == ASN_BEFORE) {
                 ret = ASN_BEFORE_DATE_E;
@@ -23480,7 +23505,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT;
         if ((CheckDate(&dataASN[i], ASN_BEFORE) < 0) && (verify != NO_VERIFY) &&
-                (verify != VERIFY_SKIP_DATE)) {
+                (verify != VERIFY_SKIP_DATE) && (! AsnSkipDateCheck)) {
             badDate = ASN_BEFORE_DATE_E;
         }
         /* Store reference to ASN_BEFORE date. */
@@ -23492,7 +23517,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT;
         if ((CheckDate(&dataASN[i], ASN_AFTER) < 0) && (verify != NO_VERIFY) &&
-                (verify != VERIFY_SKIP_DATE)) {
+                (verify != VERIFY_SKIP_DATE) && (! AsnSkipDateCheck)) {
             badDate = ASN_AFTER_DATE_E;
         }
         /* Store reference to ASN_AFTER date. */
@@ -25117,7 +25142,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             if (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
                 ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
                 cert->badDate = ret;
-                if (verify == VERIFY_SKIP_DATE)
+                if ((verify == VERIFY_SKIP_DATE) || AsnSkipDateCheck)
                     ret = 0;
             }
             else
@@ -25368,7 +25393,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             if (ret == WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) ||
                 ret == WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
                 cert->badDate = ret;
-                if (verify == VERIFY_SKIP_DATE)
+                if ((verify == VERIFY_SKIP_DATE) || AsnSkipDateCheck)
                     ret = 0;
             }
             else if (ret < 0) {
@@ -38154,7 +38179,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-    if (!XVALIDATE_DATE(single->status->thisDate,
+    if ((! AsnSkipDateCheck) && !XVALIDATE_DATE(single->status->thisDate,
         single->status->thisDateFormat, ASN_BEFORE))
         return ASN_BEFORE_DATE_E;
 #endif
@@ -38191,7 +38216,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-        if (!XVALIDATE_DATE(single->status->nextDate, single->status->nextDateFormat, ASN_AFTER))
+        if ((! AsnSkipDateCheck) &&
+            !XVALIDATE_DATE(single->status->nextDate,
+                            single->status->nextDateFormat, ASN_AFTER))
             return ASN_AFTER_DATE_E;
 #endif
 #endif
@@ -38264,7 +38291,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         cs->thisDateFormat = ASN_GENERALIZED_TIME;
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_BEFORE now. */
-        if (!XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE)) {
+        if ((! AsnSkipDateCheck) &&
+            !XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE))
+        {
             ret = ASN_BEFORE_DATE_E;
         }
     #endif /* !NO_ASN_TIME_CHECK && !WOLFSSL_NO_OCSP_DATE_CHECK */
@@ -38287,7 +38316,9 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         cs->nextDateFormat = ASN_GENERALIZED_TIME;
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
         /* Check date is a valid string and ASN_AFTER now. */
-        if (!XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER)) {
+        if ((! AsnSkipDateCheck) &&
+            !XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER))
+        {
             ret = ASN_AFTER_DATE_E;
         }
     #endif /* !NO_ASN_TIME_CHECK && !WOLFSSL_NO_OCSP_DATE_CHECK */
@@ -40373,6 +40404,7 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
     {
 #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
         if (verify != NO_VERIFY &&
+            (! AsnSkipDateCheck) &&
             !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
@@ -41034,6 +41066,7 @@ end:
         if (dcrl->nextDateFormat != 0) {
             /* Next date was set, so validate it. */
             if (verify != NO_VERIFY &&
+                (! AsnSkipDateCheck) &&
                  !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
                 ret = CRL_CERT_DATE_ERR;
@@ -43247,7 +43280,9 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
     /* check BEFORE date. */
     idx = ACERT_IDX_ACINFO_VALIDITY_NOTB_GT;
     if (CheckDate(&dataASN[idx], BEFORE) < 0) {
-        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE)) {
+        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
+            (! AsnSkipDateCheck))
+        {
             badDate = ASN_BEFORE_DATE_E;
         }
     }
@@ -43259,7 +43294,9 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
     /* check AFTER date. */
     idx = ACERT_IDX_ACINFO_VALIDITY_NOTA_GT;
     if (CheckDate(&dataASN[idx], AFTER) < 0) {
-        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE)) {
+        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE) &&
+            (! AsnSkipDateCheck))
+        {
             badDate = ASN_BEFORE_DATE_E;
         }
     }
