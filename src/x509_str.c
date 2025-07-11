@@ -1584,7 +1584,7 @@ static int X509StoreLoadFile(WOLFSSL_X509_STORE *str,
  * a file or directory.
  * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
  */
-WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
+int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
                                             const char *file, const char *dir)
 {
     WOLFSSL_CTX* ctx;
