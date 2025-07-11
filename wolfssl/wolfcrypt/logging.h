@@ -26,12 +26,35 @@
 
 /* submitted by eof */
 
+/*
+ * WOLFSSL_MSG
+ *   Single message parameter. Works everywhere.
+ *
+ * WOLFSSL_MSG_EX
+ *   Variable number of parameters. Should be supported nearly everywhere.
+ *
+ * WOLFSSL_MSG_EX2
+ *   Variable number of parameters. Should be supported nearly everywhere.
+ *   Special case where first two parameters are const char *file, int line
+ *
+ * Certificate Debugging: a subset of DEBUG_WOLFSSL
+ * or can be used alone WOLFSSL_DEBUG_CERTS without all the debugging noise
+ *
+ * WOLFSSL_MSG_CERT
+ *   Single message parameter. Works everywhere.
+ *
+ * WOLFSSL_MSG_CERT_EX
+ *   Variable number of parameters. Should be supported nearly everywhere.
+ *
+ * When any of the above are disabled:
+ *   With WOLF_NO_VARIADIC_MACROS a do nothing placeholder function is used.
+ *   Otherwise, a do-nothing macro. See  WC_DO_NOTHING
+ */
 
 #ifndef WOLFSSL_LOGGING_H
 #define WOLFSSL_LOGGING_H
 
 #include <wolfssl/wolfcrypt/types.h>
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -42,6 +65,7 @@ enum wc_LogLevels {
     INFO_LOG,
     ENTER_LOG,
     LEAVE_LOG,
+    CERT_LOG,
     OTHER_LOG
 };
 
@@ -152,6 +176,28 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_TIME(n)  WC_DO_NOTHING
 #endif
 
+/* Certificate Debugging: WOLFSSL_MSG_CERT */
+#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_DEBUG_CERTS) && \
+   (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS))
+    #ifndef WOLFSSL_MSG_CERT_INDENT
+        #define WOLFSSL_MSG_CERT_INDENT "\t-  "
+    #endif
+
+    WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
+    WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
+#else
+    #ifndef WOLFSSL_MSG_CERT_INDENT
+        #define WOLFSSL_MSG_CERT_INDENT ""
+    #endif
+    #ifdef WOLF_NO_VARIADIC_MACROS
+        WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
+        WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
+    #else
+        #define WOLFSSL_MSG_CERT(...)    WC_DO_NOTHING
+        #define WOLFSSL_MSG_CERT_EX(...) WC_DO_NOTHING
+    #endif
+#endif /* Certificate Debugging: WOLFSSL_MSG_CERT */
+
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
     #if defined(_WIN32)
         #if defined(INTIME_RTOS)
@@ -169,14 +215,17 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
     WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void);
+
+    /* WOLFSSL_MSG_EX may not be available. Check with HAVE_WOLFSSL_MSG_EX */
 #if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else
     #ifdef WOLF_NO_VARIADIC_MACROS
-        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+        /* We need a do-nothing function with a variable number of parameters */
+        WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #else
-        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+        #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
     #endif
 #endif
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
@@ -206,25 +255,29 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
 
 #else
-
-    #define WOLFSSL_ENTER(m)      WC_DO_NOTHING
-    #define WOLFSSL_LEAVE(m, r)   WC_DO_NOTHING
-    #define WOLFSSL_STUB(m)       WC_DO_NOTHING
+    /* ! (defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)) */
+    #define WOLFSSL_ENTER(m)          WC_DO_NOTHING
+    #define WOLFSSL_LEAVE(m, r)       WC_DO_NOTHING
+    #define WOLFSSL_STUB(m)           WC_DO_NOTHING
     #define WOLFSSL_IS_DEBUG_ON() 0
 
     #ifdef WOLF_NO_VARIADIC_MACROS
         /* note, modern preprocessors will generate errors with this definition.
          * "error: macro "WOLFSSL_MSG_EX" passed 2 arguments, but takes just 0"
-         */
-        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+         *
+         *  #define WOLFSSL_MSG_EX(a, b)  WC_DO_NOTHING
+         *
+         * We need a do-nothing function with a variable number of parameters: */
+        WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #else
-        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+        #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
     #endif
-    #define WOLFSSL_MSG(m)        WC_DO_NOTHING
-    #define WOLFSSL_BUFFER(b, l)  WC_DO_NOTHING
 
+    #define WOLFSSL_MSG(m)            WC_DO_NOTHING
+    #define WOLFSSL_BUFFER(b, l)      WC_DO_NOTHING
 #endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
 
+/* WOLFSSL_ERROR and WOLFSSL_HAVE_ERROR_QUEUE */
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
@@ -350,10 +403,20 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
 #endif
 
-#if defined(WOLFSSL_DEBUG_PRINTF_FN) && !defined(WOLFSSL_DEBUG_PRINTF) && \
-    !defined(WOLF_NO_VARIADIC_MACROS)
-    #define WOLFSSL_DEBUG_PRINTF(...) \
-        WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS __VA_ARGS__)
+#if defined(WOLFSSL_DEBUG_PRINTF_FN) && !defined(WOLFSSL_DEBUG_PRINTF)
+    #if defined(WOLF_NO_VARIADIC_MACROS)
+        #if defined(WOLFSSL_ESPIDF)
+            /* ESP-IDF supports variadic. Do not use WOLF_NO_VARIADIC_MACROS.
+             * This is only for WOLF_NO_VARIADIC_MACROS testing: */
+            #define WOLFSSL_DEBUG_PRINTF(a) \
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS, a)
+        #else
+            /* no variadic not defined for this platform */
+        #endif
+    #else
+        #define WOLFSSL_DEBUG_PRINTF(...) \
+            WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS __VA_ARGS__)
+    #endif
 #endif
 
 #ifdef __cplusplus
