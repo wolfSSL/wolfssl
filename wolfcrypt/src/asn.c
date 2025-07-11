@@ -20614,7 +20614,12 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     ret = GetInteger16Bit(input, &idx, (word32)sz);
     if (ret < 0)
         return ret;
-    cert->pathLength = (byte)ret;
+    else if (ret > WOLFSSL_MAX_PATH_LEN) {
+        WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+        return ASN_PATHLEN_SIZE_E;
+    }
+
+    cert->pathLength = (word16)ret;
     cert->pathLengthSet = 1;
 
     return 0;
