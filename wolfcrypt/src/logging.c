@@ -356,6 +356,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     }
 
     #if defined(__APPLE__) && defined(__clang__)
+        /* Only on Mac, fix for "format string is not a string literal": */
         #pragma clang diagnostic push
         #pragma clang diagnostic ignored "-Wformat-nonliteral"
     #endif
