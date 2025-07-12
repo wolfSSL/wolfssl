@@ -23,8 +23,6 @@
 
 #include "renesas-tsip-crypt.h"
 
-#define _ACCESSOR(p) (p->internal)
-
 struct TsipUserCtx_Internal {
 
     /* unique number for each session */

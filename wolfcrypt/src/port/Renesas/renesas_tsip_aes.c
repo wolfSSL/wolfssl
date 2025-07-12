@@ -447,14 +447,15 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo != NULL && _ACCESSOR(cbInfo)->session_key_set == 1
+            && cbInfo != NULL && 
+                        cbInfo->internal->session_key_set == 1
         #endif
             ) {
             /* prioritize TLS Session Key than User TSIP Aes Key */
             /* TODO : identify if Aes API is called through      */
             /* while doing TLS handshake or Crypt API            */
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            if (_ACCESSOR(cbInfo)->session_key_set == 1)
+            if (cbInfo->internal->session_key_set == 1)
                 ret = 0;
             else
         #else
@@ -500,13 +501,13 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #ifdef WOLFSSL_AES_COUNTER
         if (info->cipher.type == WC_CIPHER_AES_CTR
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo != NULL && _ACCESSOR(cbInfo)->session_key_set == 1
+            && cbInfo != NULL && cbInfo->internal->session_key_set == 1
         #endif
             ) {
             int remain = (int)(info->cipher.aesctr.sz % WC_AES_BLOCK_SIZE);
             if (remain == 0) {
             #ifdef WOLFSSL_RENESAS_TSIP_TLS
-                if (_ACCESSOR(cbInfo)->session_key_set == 1)
+                if (cbInfo->internal->session_key_set == 1)
                     ret = 0;
                 else
             #else
@@ -530,11 +531,11 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #ifdef HAVE_AES_CBC
         if (info->cipher.type == WC_CIPHER_AES_CBC
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo != NULL && _ACCESSOR(cbInfo)->session_key_set == 1
+            && cbInfo != NULL && cbInfo->internal->session_key_set == 1
         #endif
             ) {
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            if (_ACCESSOR(cbInfo)->session_key_set == 1)
+            if (cbInfo->internal->session_key_set == 1)
                 ret = 0;
             else
         #else
@@ -873,15 +874,15 @@ int wc_tsip_AesGcmEncrypt(
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         if (ret == 0 &&
-            _ACCESSOR(userCtx)->session_key_set == 1) {
+            userCtx->internal->session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
             err = R_TSIP_TlsGenerateSessionKey(
-                    _ACCESSOR(userCtx)->tsip_cipher,
-                    (uint32_t*)_ACCESSOR(userCtx)->tsip_masterSecret,
-                    (uint8_t*) _ACCESSOR(userCtx)->tsip_clientRandom,
-                    (uint8_t*) _ACCESSOR(userCtx)->tsip_serverRandom,
+                    userCtx->internal->tsip_cipher,
+                    (uint32_t*)userCtx->internal->tsip_masterSecret,
+                    (uint8_t*) userCtx->internal->tsip_clientRandom,
+                    (uint8_t*) userCtx->internal->tsip_serverRandom,
                     &iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     NULL,
                     NULL,
@@ -1072,15 +1073,15 @@ int wc_tsip_AesGcmDecrypt(
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         if (ret == 0 &&
-            _ACCESSOR(userCtx)->session_key_set == 1) {
+            userCtx->internal->session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
             err = R_TSIP_TlsGenerateSessionKey(
-                    _ACCESSOR(userCtx)->tsip_cipher,
-                    (uint32_t*)_ACCESSOR(userCtx)->tsip_masterSecret,
-                    (uint8_t*) _ACCESSOR(userCtx)->tsip_clientRandom,
-                    (uint8_t*) _ACCESSOR(userCtx)->tsip_serverRandom,
+                    userCtx->internal->tsip_cipher,
+                    (uint32_t*)userCtx->internal->tsip_masterSecret,
+                    (uint8_t*) userCtx->internal->tsip_clientRandom,
+                    (uint8_t*) userCtx->internal->tsip_serverRandom,
                     (uint8_t*)&iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     NULL,
                     NULL,

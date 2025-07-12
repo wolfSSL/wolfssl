@@ -82,7 +82,7 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
         if (tuc == NULL) {
             ret = CRYPTOCB_UNAVAILABLE;
         }
-        else if (!_ACCESSOR(tuc)->HandshakeClientTrafficKey_set) {
+        else if (!tuc->internal->HandshakeClientTrafficKey_set) {
             WOLFSSL_MSG("Client handshake traffic keys aren't created by TSIP");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -97,8 +97,8 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            err = R_TSIP_Sha256HmacGenerateInit(&(_ACCESSOR(tuc)->hmacFinished13Handle),
-                                                &(_ACCESSOR(tuc)->clientFinished13Idx));
+            err = R_TSIP_Sha256HmacGenerateInit(&(tuc->internal->hmacFinished13Handle),
+                                                &(tuc->internal->clientFinished13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateInit failed");
@@ -108,7 +108,7 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
             if (ret == 0) {
 
                 err = R_TSIP_Sha256HmacGenerateUpdate(
-                                                &(_ACCESSOR(tuc)->hmacFinished13Handle),
+                                                &(tuc->internal->hmacFinished13Handle),
                                                 (uint8_t*)hash,
                                                 WC_SHA256_DIGEST_SIZE);
 
@@ -120,7 +120,7 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
 
             if (ret == 0) {
                 err = R_TSIP_Sha256HmacGenerateFinal(
-                                            &(_ACCESSOR(tuc)->hmacFinished13Handle), mac);
+                                        &(tuc->internal->hmacFinished13Handle), mac);
                 if (err != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateFinal failed");
                     ret = WC_HW_E;
@@ -185,7 +185,7 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
 
     /* check if TSIP is used for this session */
     if (ret == 0) {
-        if (!_ACCESSOR(tuc)->Dhe_key_set) {
+        if (!tuc->internal->Dhe_key_set) {
             WOLFSSL_MSG("DH key not set.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -195,7 +195,7 @@ WOLFSSL_LOCAL int tsip_StoreMessage(struct WOLFSSL* ssl, const byte* data,
     if (ret == 0) {
         c24to32(&data[1], &messageSz);
 
-        bag = &(_ACCESSOR(tuc)->messageBag);
+        bag = &(tuc->internal->messageBag);
 
         if (bag->msgIdx +1 > MAX_MSGBAG_MESSAGES ||
             bag->buffIdx + sz > MSGBAG_SIZE) {
@@ -246,7 +246,7 @@ WOLFSSL_LOCAL int tsip_GetMessageSha256(struct WOLFSSL* ssl, byte* hash,
         if (tuc == NULL) {
             ret = CRYPTOCB_UNAVAILABLE;
         }
-        bag = &(_ACCESSOR(tuc)->messageBag);
+        bag = &(tuc->internal->messageBag);
     }
 
     if (ret == 0) {
