@@ -123,6 +123,11 @@ WOLFSSL_API wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void);
 WOLFSSL_API int  wolfSSL_Debugging_ON(void);
 /* turn logging off */
 WOLFSSL_API void wolfSSL_Debugging_OFF(void);
+/* turn cert debugging on, only if compiled in */
+WOLFSSL_API int  wolfSSL_CertDebugging_ON(void);
+/* turn cert debugging off */
+WOLFSSL_API int wolfSSL_CertDebugging_OFF(void);
+
 
 WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 
@@ -185,23 +190,37 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 
     WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
     WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
+    WOLFSSL_API int WOLFSSL_IS_CERT_DEBUG_ON(void);
 #else
     #ifndef WOLFSSL_MSG_CERT_INDENT
         #define WOLFSSL_MSG_CERT_INDENT ""
     #endif
     #ifdef WOLF_NO_VARIADIC_MACROS
         #ifdef __WATCOMC__
-        static inline int WOLFSSL_MSG_CERT(const char* msg)
-        { (void)msg; return 0; }
-        static inline int WOLFSSL_MSG_CERT_EX(const char* msg)
-        { (void)msg; return 0; }
+            WOLFSSL_API static inline int WOLFSSL_MSG_CERT(const char* msg)
+            {
+                (void)msg;
+                return NOT_COMPILED_IN;
+            }
+            WOLFSSL_API static inline int WOLFSSL_MSG_CERT_EX(const char* msg)
+            {
+                (void)msg;
+                return NOT_COMPILED_IN;
+            }
+            WOLFSSL_API static inline int WOLFSSL_IS_CERT_DEBUG_ON(void)
+            {
+                return NOT_COMPILED_IN;
+            }
         #else
-        WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
-        WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* msg);
+            WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
+            WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* msg);
+            WOLFSSL_API int WOLFSSL_IS_CERT_DEBUG_ON(void);
+
+/* remove ? */
 /*                    int WOLFSSL_MSG_CERT(const char* msg)
-                    { (void)msg; return 0; }
+                    { (void)msg; return NOT_COMPILED_IN; }
                     int WOLFSSL_MSG_CERT_EX(const char* msg)
-                    { (void)msg; return 0; } */
+                    { (void)msg; return NOT_COMPILED_IN; } */
         #endif
     #else
         #define WOLFSSL_MSG_CERT(...)    WC_DO_NOTHING
@@ -234,7 +253,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #else
     #ifdef WOLF_NO_VARIADIC_MACROS
         /* We need a do-nothing function with a variable number of parameters */
-       // static inline void WOLFSSL_MSG_EX(const char* fmt, ...);
+        /* see logging.c
+         *   static inline void WOLFSSL_MSG_EX(const char* fmt, ...); */
     #else
         #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
     #endif
@@ -434,6 +454,14 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
         #define WOLFSSL_DEBUG_PRINTF(...) \
             WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS __VA_ARGS__)
     #endif
+#endif
+
+/* Sanity Checks */
+#if defined(WOLFSSL_DEBUG_ERRORS_ONLY) && defined(DEBUG_WOLFSSL)
+    #error "Failed: WOLFSSL_DEBUG_ERRORS_ONLY and DEBUG_WOLFSSL pick one"
+#endif
+#if defined(WOLFSSL_DEBUG_ERRORS_ONLY) && defined(WOLFSSL_DEBUG_CERTS)
+    #error "Failed: Cannot WOLFSSL_DEBUG_CERTS with WOLFSSL_DEBUG_ERRORS_ONLY"
 #endif
 
 #ifdef __cplusplus

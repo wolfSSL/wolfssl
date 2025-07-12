@@ -142,6 +142,13 @@ THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
 
 #endif /* HAVE_STACK_SIZE_VERBOSE */
 
+#ifndef WOLFSSL_CERT_LOG_ENABLED_DEFAULT
+#define WOLFSSL_CERT_LOG_ENABLED_DEFAULT 0
+#endif
+
+/* Is certificate debugging enabled but unavailable? */
+static int loggingCertEnabledUnavailable = WOLFSSL_CERT_LOG_ENABLED_DEFAULT;
+
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS)
 
 /* Set these to default values initially. */
@@ -150,6 +157,7 @@ static wolfSSL_Logging_cb log_function = NULL;
 #define WOLFSSL_LOGGINGENABLED_DEFAULT 0
 #endif
 static int loggingEnabled = WOLFSSL_LOGGINGENABLED_DEFAULT;
+static int loggingCertEnabled = WOLFSSL_CERT_LOG_ENABLED_DEFAULT;
 THREAD_LS_T const char* log_prefix = NULL;
 
 #if defined(WOLFSSL_APACHE_MYNEWT)
@@ -161,15 +169,49 @@ static struct log mynewt_log;
     /* !(DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS) */
     #ifdef WOLF_NO_VARIADIC_MACROS
         #ifdef  __WATCOMC__
-            /* implementation in header */
+            /* implementation in header for OW Open Watcom V2 */
         #else
             int WOLFSSL_MSG_CERT(const char* msg)
-                        { (void)msg; return 0; }
+            {
+                (void)msg;
+                loggingCertEnabledUnavailable = 1;
+                return NOT_COMPILED_IN;
+            }
         #endif
     #else
         /* using a macro, see logging.h */
     #endif
 #endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
+
+ int wolfSSL_CertDebugging_ON(void)
+{
+    /* Certificate debuggingis also a subset of full debugging */
+#if defined(WOLFSSL_DEBUG_CERTS) || defined(DEBUG_WOLFSSL)
+    loggingCertEnabledUnavailable = 0;
+    loggingCertEnabled = 1;
+    #if defined(WOLFSSL_APACHE_MYNEWT)
+        log_register("wolfcrypt", &mynewt_log, &log_console_handler,
+                                  NULL, LOG_SYSLEVEL);
+    #endif /* WOLFSSL_APACHE_MYNEWT */
+    return 0;
+#else
+    /* Can also set loggingCertEnabledUnavailable on platforms where logging
+     * is unavailable, even though it is enabled. */
+    loggingCertEnabledUnavailable = 1;
+    return NOT_COMPILED_IN;
+#endif
+}
+
+int wolfSSL_CertDebugging_OFF(void)
+{
+#if defined(WOLFSSL_DEBUG_CERTS) || defined(DEBUG_WOLFSSL)
+    loggingCertEnabled = 0;
+    return 0;
+#else
+    loggingCertEnabledUnavailable = 1;
+    return NOT_COMPILED_IN;
+#endif
+}
 
 /* allow this to be set to NULL, so logs can be redirected to default output */
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
@@ -333,6 +375,11 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
 
 #ifndef WOLFSSL_DEBUG_ERRORS_ONLY
 
+WOLFSSL_API int WOLFSSL_IS_CERT_DEBUG_ON(void)
+{
+    /* see also loggingCertEnabledUnavailable */
+    return loggingCertEnabled;
+}
 /* Unless explicitly disabled with NO_WOLFSSL_DEBUG_CERTS
  * Certificate debugging available with either regular debugging
  * DEBUG_WOLFSSL or just certificate debugging: WOLFSSL_DEBUG_CERTS */
@@ -610,9 +657,8 @@ WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
 {
     return loggingEnabled;
 }
-#endif
+#endif /* WOLFSSL_IS_DEBUG_ON */
 #endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
-#else
 #endif /* DEBUG_WOLFSSL */
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) || defined(HAVE_MEMCACHED)
@@ -739,12 +785,17 @@ static void set_entry(struct wc_error_entry *entry, int error,
 /* Internal function that is called by wolfCrypt_Init() */
 int wc_LoggingInit(void)
 {
+    /* (Re)init breadcrumb for warning certs enabled but unavailable */
+    loggingCertEnabledUnavailable = 0;
     return 0;
 }
 
 /* internal function that is called by wolfCrypt_Cleanup */
 int wc_LoggingCleanup(void)
 {
+    /* Clear breadcrumb for warning of cert log availability. */
+    loggingCertEnabledUnavailable = 0;
+
     /* clear logging entries */
     wc_ClearErrorNodes();
     return 0;
