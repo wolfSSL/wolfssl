@@ -355,6 +355,10 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
         return 0;
     }
 
+    #if defined(__APPLE__) && defined(__clang__)
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Wformat-nonliteral"
+    #endif
     int WOLFSSL_MSG_CERT_EX(const char* fmt, ...)
     {
         /* Certificate logging output may have large messages */
@@ -368,6 +372,9 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
             wolfssl_log(INFO_LOG, NULL, 0, msg);
         return 0;
     }
+    #if defined(__APPLE__) && defined(__clang__)
+        #pragma clang diagnostic pop
+    #endif
 #else
     #ifdef WOLF_NO_VARIADIC_MACROS
         /* see do-nothing static inline functions in header */
