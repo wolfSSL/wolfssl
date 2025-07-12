@@ -190,8 +190,19 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
         #define WOLFSSL_MSG_CERT_INDENT ""
     #endif
     #ifdef WOLF_NO_VARIADIC_MACROS
+        #ifdef __WATCOMC__
+        static inline int WOLFSSL_MSG_CERT(const char* msg)
+        { (void)msg; return 0; }
+        static inline int WOLFSSL_MSG_CERT_EX(const char* msg)
+        { (void)msg; return 0; }
+        #else
         WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
-        WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
+        WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* msg);
+/*                    int WOLFSSL_MSG_CERT(const char* msg)
+                    { (void)msg; return 0; }
+                    int WOLFSSL_MSG_CERT_EX(const char* msg)
+                    { (void)msg; return 0; } */
+        #endif
     #else
         #define WOLFSSL_MSG_CERT(...)    WC_DO_NOTHING
         #define WOLFSSL_MSG_CERT_EX(...) WC_DO_NOTHING
@@ -223,7 +234,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #else
     #ifdef WOLF_NO_VARIADIC_MACROS
         /* We need a do-nothing function with a variable number of parameters */
-        WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
+       // static inline void WOLFSSL_MSG_EX(const char* fmt, ...);
     #else
         #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
     #endif
@@ -268,7 +279,13 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
          *  #define WOLFSSL_MSG_EX(a, b)  WC_DO_NOTHING
          *
          * We need a do-nothing function with a variable number of parameters: */
-        WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
+        #ifdef __WATCOMC__
+        static inline void WOLFSSL_MSG_EX(const char* fmt, ...)
+        { (void)fmt; }
+        #else
+        WOLFSSL_API  void WOLFSSL_MSG_EX(const char* fmt, ...);
+
+        #endif
     #else
         #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
     #endif

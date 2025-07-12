@@ -26175,9 +26175,7 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     alert_str = AlertTypeToString(type);
     if (alert_str != NULL)
     {
-#ifndef WOLF_NO_VARIADIC_MACROS
         WOLFSSL_MSG_EX("SendAlert: %d %s", type, alert_str);
-#endif
     }
     else
     {

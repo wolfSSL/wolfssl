@@ -33,6 +33,21 @@
  *   wolfSSL_SetLoggingCb(my_log_cb);
  */
 
+#ifdef __WATCOMC__
+    /* n/a */
+#else
+    #ifdef DEBUG_WOLFSSL
+        /* The empty function is not needed when debugging */
+    #else
+        #if defined(HAVE_WOLFSSL_MSG_EX) || defined(WOLF_NO_VARIADIC_MACROS)
+            void WOLFSSL_MSG_EX(const char* fmt, ...)
+            { (void)fmt; }
+        #else
+            /* see macro in header */
+        #endif
+    #endif
+#endif
+
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 /* avoid adding WANT_READ and WANT_WRITE to error queue */
 #include <wolfssl/error-ssl.h>
@@ -142,7 +157,19 @@ THREAD_LS_T const char* log_prefix = NULL;
 static struct log mynewt_log;
 #endif /* WOLFSSL_APACHE_MYNEWT */
 
-#endif /* DEBUG_WOLFSSL */
+#else
+    /* !(DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS) */
+    #ifdef WOLF_NO_VARIADIC_MACROS
+        #ifdef  __WATCOMC__
+            /* implementation in header */
+        #else
+            int WOLFSSL_MSG_CERT(const char* msg)
+                        { (void)msg; return 0; }
+        #endif
+    #else
+        /* using a macro, see logging.h */
+    #endif
+#endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
 
 /* allow this to be set to NULL, so logs can be redirected to default output */
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
@@ -343,19 +370,9 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     }
 #else
     #ifdef WOLF_NO_VARIADIC_MACROS
-        int WOLFSSL_MSG_CERT(const char* msg) {
-            /* Do nothing implementation */
-            (void) msg;
-            return 0;
-        }
-
-        int WOLFSSL_MSG_CERT_(const char* msg) {
-            /* Do nothing implementation */
-            (void) msg;
-            return 0;
-        }
+        /* see do-nothing static inline functions in header */
     #else
-        /* see macro in header */
+        /* see WC_DO_NOTHING macros in header */
     #endif
 #endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
 
@@ -366,7 +383,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
 #define WOLFSSL_MSG_EX_BUF_SZ 100
 #endif
 
-#ifndef WOLFSSL_MSG_EX
+#if !defined(WOLFSSL_MSG_EX) && defined(DEBUG_WOLFSSL)
 #ifdef __clang__
 /* tell clang argument 1 is format */
 __attribute__((__format__ (__printf__, 1, 0)))
@@ -405,47 +422,7 @@ void WOLFSSL_MSG_EX2(const char *file, int line, const char* fmt, ...)
 #else
     /* We need a do-nothing function when variadic macros not available */
     #ifdef WOLF_NO_VARIADIC_MACROS
-        #ifdef __clang__
-        /* tell clang argument 1 is format */
-        __attribute__((__format__ (__printf__, 1, 0)))
-        #endif
-        void WOLFSSL_MSG_EX(const char* fmt, ...)
-        {
-            /* do nothing implementation */
-            (void)fmt;
-        }
 
-        #ifdef __clang__
-        /* tell clang argument 1 is format */
-        __attribute__((__format__ (__printf__, 1, 0)))
-        #endif
-        int WOLFSSL_MSG_CERT_EX(const char* fmt, ...)
-        {
-            /* do nothing implementation */
-            (void)fmt;
-            return 0;
-        }
-
-        #ifdef __clang__
-        /* tell clang argument 1 is format */
-        __attribute__((__format__ (__printf__, 1, 0)))
-        #endif
-        void WOLFSSL_MSG_EX_(const char* fmt, ...)
-        {
-            /* do nothing implementation */
-            (void)fmt;
-        }
-
-        #ifdef __clang__
-        /* tell clang argument 1 is format */
-        __attribute__((__format__ (__printf__, 1, 0)))
-        #endif
-        int WOLFSSL_MSG_CERT_EX_(const char* fmt, ...)
-        {
-            /* do nothing implementation */
-            (void)fmt;
-            return 0;
-        }
     #else
         /* See header for same-name, do nothing macros */
     #endif
@@ -614,8 +591,9 @@ void WOLFSSL_LEAVE2(const char *file, int line, const char* msg, int ret)
     #define WOLFSSL_ENTER(msg) WOLFSSL_ENTER2(__FILE__, __LINE__, msg)
     #define WOLFSSL_LEAVE(msg, ret) WOLFSSL_LEAVE2(__FILE__, __LINE__, msg, ret)
     #ifdef XVSNPRINTF
-        #define WOLFSSL_MSG_EX(fmt, args...) \
+/*        #define WOLFSSL_MSG_EX(fmt, args...) \
                 WOLFSSL_MSG_EX2(__FILE__, __LINE__, fmt, ## args)
+    */
     #endif
 #endif
 
@@ -626,6 +604,7 @@ WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
 }
 #endif
 #endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
+#else
 #endif /* DEBUG_WOLFSSL */
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) || defined(HAVE_MEMCACHED)
