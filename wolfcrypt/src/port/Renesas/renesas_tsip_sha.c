@@ -97,8 +97,9 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            err = R_TSIP_Sha256HmacGenerateInit(&(tuc->internal->hmacFinished13Handle),
-                                                &(tuc->internal->clientFinished13Idx));
+            err = R_TSIP_Sha256HmacGenerateInit(
+                    &(tuc->internal->hmacFinished13Handle),
+                    &(tuc->internal->clientFinished13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateInit failed");
@@ -108,9 +109,9 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
             if (ret == 0) {
 
                 err = R_TSIP_Sha256HmacGenerateUpdate(
-                                                &(tuc->internal->hmacFinished13Handle),
-                                                (uint8_t*)hash,
-                                                WC_SHA256_DIGEST_SIZE);
+                                        &(tuc->internal->hmacFinished13Handle),
+                                        (uint8_t*)hash,
+                                        WC_SHA256_DIGEST_SIZE);
 
                 if (err != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateUpdate failed");
@@ -120,7 +121,7 @@ WOLFSSL_LOCAL int tsip_Tls13GetHmacMessages(struct WOLFSSL* ssl, byte* mac)
 
             if (ret == 0) {
                 err = R_TSIP_Sha256HmacGenerateFinal(
-                                        &(tuc->internal->hmacFinished13Handle), mac);
+                                &(tuc->internal->hmacFinished13Handle), mac);
                 if (err != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_Sha256HmacGenerateFinal failed");
                     ret = WC_HW_E;

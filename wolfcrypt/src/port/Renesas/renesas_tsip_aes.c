@@ -271,7 +271,8 @@ WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
     }
 
     /* get user context for TSIP */
-    tuc = (TsipUserCtx_Internal*)((TsipUserCtx*)(ssl->RenesasUserCtx))->internal;
+    tuc = (TsipUserCtx_Internal*)
+            ((TsipUserCtx*)(ssl->RenesasUserCtx))->internal;
     if (tuc == NULL) {
         WOLFSSL_MSG("TsipUserCtx hasn't been set to ssl.");
         return CRYPTOCB_UNAVAILABLE;
@@ -447,7 +448,7 @@ int wc_tsip_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
 #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM
         #ifdef WOLFSSL_RENESAS_TSIP_TLS
-            && cbInfo != NULL && 
+            && cbInfo != NULL &&
                         cbInfo->internal->session_key_set == 1
         #endif
             ) {
