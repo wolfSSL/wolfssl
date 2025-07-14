@@ -23,7 +23,9 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
-#define WOLFSSL_LICENSE "GPL v2"
+#ifndef WOLFSSL_LICENSE
+    #define WOLFSSL_LICENSE "GPL"
+#endif
 
 #ifdef WOLFCRYPT_ONLY
     #include <wolfssl/version.h>
@@ -424,7 +426,18 @@ static void wolfssl_exit(void)
 
 module_exit(wolfssl_exit);
 
-MODULE_LICENSE(WOLFSSL_LICENSE);
+#if defined(LINUXKM_LKCAPI_REGISTER) || !defined(WOLFSSL_NO_ASM)
+    /* When registering algorithms with crypto_register_skcipher() and friends,
+     * or using kernel_fpu_begin_mask() and _end() to wrap vector register
+     * usage, we use a "GPL" license unconditionally here to meet the GPL-only
+     * requirements for those calls, satisfying license_is_gpl_compatible() (see
+     * /usr/src/linux/include/linux/license.h).
+     */
+    MODULE_LICENSE("GPL");
+#else
+    MODULE_LICENSE(WOLFSSL_LICENSE);
+#endif
+
 MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
