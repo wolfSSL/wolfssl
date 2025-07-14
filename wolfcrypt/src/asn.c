@@ -36991,6 +36991,7 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
 /* ASN.1 template for a general asymmetric private key: Ed25519, Ed448,
  * falcon, dilithium, etc.
  * RFC 8410, 7 - Private Key Format (but public value is EXPLICIT OCTET_STRING)
+ * Check draft-ietf-lamps-dilithium-certificates of draft RFC also.
  */
 static const ASNItem privateKeyASN[] = {
 /* SEQ            */    { 0, ASN_SEQUENCE, 1, 1, 0 },
@@ -37001,9 +37002,13 @@ static const ASNItem privateKeyASN[] = {
 /* PKEYALGO_OID   */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
                                          /* privateKey */
 /* PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-                                             /* CurvePrivateKey */
+                                         /* CurvePrivateKey */
 /* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 2 },
-/* PKEY_MLDSASEQ  */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+/* PKEY_SEED_ONLY */            { 2, ASN_CONTEXT_SPECIFIC | ASN_PKEY_SEED,
+                                    0, 0, 2 },
+/* PKEY_BOTH_SEQ  */            { 2, ASN_SEQUENCE, 1, 1, 2 },
+/* PKEY_BOTH_SEED */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
+/* PKEY_BOTH_KEY  */                { 3, ASN_OCTET_STRING, 0, 0, 0 },
                                          /* attributes */
 /* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
                                          /* publicKey */
@@ -37016,7 +37021,10 @@ enum {
     PRIVKEYASN_IDX_PKEYALGO_OID,
     PRIVKEYASN_IDX_PKEY,
     PRIVKEYASN_IDX_PKEY_CURVEPKEY,
-    PRIVKEYASN_IDX_PKEY_MLDSASEQ,
+    PRIVKEYASN_IDX_PKEY_SEED_ONLY,
+    PRIVKEYASN_IDX_PKEY_BOTH_SEQ,
+    PRIVKEYASN_IDX_PKEY_BOTH_SEED,
+    PRIVKEYASN_IDX_PKEY_BOTH_KEY,
     PRIVKEYASN_IDX_ATTRS,
     PRIVKEYASN_IDX_PUBKEY
 };
@@ -37033,9 +37041,11 @@ enum {
 
 
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
+    const byte** seed, word32* seedLen,
     const byte** privKey, word32* privKeyLen,
     const byte** pubKey, word32* pubKeyLen, int* inOutKeyType)
 {
+    int allowSeed = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 oid;
     int version, length, endKeyIdx, privSz, pubSz;
@@ -37048,14 +37058,27 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #endif
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
-        privKey == NULL || privKeyLen == NULL || inOutKeyType == NULL) {
+        privKey == NULL || privKeyLen == NULL ||
+        pubKey == NULL || pubKeyLen == NULL ||
+        inOutKeyType == NULL) {
     #ifdef WOLFSSL_ASN_TEMPLATE
         FREE_ASNGETDATA(dataASN, NULL);
     #endif
         return BAD_FUNC_ARG;
     }
+    if ((seed == NULL && seedLen != NULL) ||
+        (seed != NULL && seedLen == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    allowSeed = (seed != NULL && seedLen != NULL);
 
 #ifndef WOLFSSL_ASN_TEMPLATE
+    /* The seed can't be parsed without WOLF_ASN_TEMPLATE */
+    if (allowSeed) {
+        return ASN_PARSE_E;
+    }
+
     if (GetSequence(input, inOutIdx, &length, inSz) >= 0) {
         endKeyIdx = (int)*inOutIdx + length;
 
@@ -37083,13 +37106,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
             return ASN_PARSE_E;
 
         if (GetOctetString(input, inOutIdx, &privSz, inSz) < 0) {
-            if (oid != ML_DSA_LEVEL2k && oid != ML_DSA_LEVEL3k &&
-                    oid != ML_DSA_LEVEL5k) {
-                return ASN_PARSE_E;
-            }
-            if (GetSequence(input, inOutIdx, &privSz, inSz) < 0) {
-                return ASN_PARSE_E;
-            }
+            return ASN_PARSE_E;
         }
 
         priv = input + *inOutIdx;
@@ -37150,53 +37167,69 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         }
 
         /* Parse full private key. */
-        ret = GetASN_Items(privateKeyASN, dataASN, privateKeyASN_Length, 1, input,
-                inOutIdx, inSz);
-        if (ret != 0) {
-            /* Parse just the OCTET_STRING. */
+        ret = GetASN_Items(privateKeyASN, dataASN, privateKeyASN_Length, 1,
+                input, inOutIdx, inSz);
+        if (ret == 0) {
+            /* Store detected OID if requested */
+            if (ret == 0 && *inOutKeyType == ANONk) {
+                *inOutKeyType =
+                    (int)dataASN[PRIVKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
+            }
+        }
+        /* Parse traditional format (a part of full private key). */
+        else if (ret != 0) {
             ret = GetASN_Items(&privateKeyASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY],
-                    &dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY], 1, 0, input,
-                    inOutIdx, inSz);
+                    &dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY],
+                    PRIVKEYASN_IDX_ATTRS - PRIVKEYASN_IDX_PKEY_CURVEPKEY, 0,
+                    input, inOutIdx, inSz);
             if (ret != 0) {
                 ret = ASN_PARSE_E;
             }
         }
-
-        /* Store detected OID if requested */
-        if (ret == 0 && *inOutKeyType == ANONk) {
-            *inOutKeyType =
-                (int)dataASN[PRIVKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
+    }
+    if (ret == 0) {
+        /* priv-only */
+        if (dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length != 0) {
+            if (allowSeed) {
+               *seedLen = 0;
+               *seed = NULL;
+            }
+            *privKeyLen
+                = dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length;
+            *privKey = dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.data;
         }
-    }
-    if (ret == 0 && dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length != 0) {
-        /* Import private value. */
-        *privKeyLen = dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length;
-        *privKey = dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY].data.ref.data;
-    }
-    else if (ret == 0 &&
-             dataASN[PRIVKEYASN_IDX_PKEY_MLDSASEQ].data.ref.length != 0) {
-        if (*inOutKeyType != ML_DSA_LEVEL2k &&
-                *inOutKeyType != ML_DSA_LEVEL3k &&
-                *inOutKeyType != ML_DSA_LEVEL5k) {
-            ret = ASN_PARSE_E;
+        /* seed-only */
+        else if (allowSeed &&
+            dataASN[PRIVKEYASN_IDX_PKEY_SEED_ONLY].data.ref.length != 0) {
+            *seedLen = dataASN[PRIVKEYASN_IDX_PKEY_SEED_ONLY].data.ref.length;
+            *seed = dataASN[PRIVKEYASN_IDX_PKEY_SEED_ONLY].data.ref.data;
+            *privKeyLen = 0;
+            *privKey = NULL;
+        }
+        /* seed-priv */
+        else if (allowSeed &&
+            dataASN[PRIVKEYASN_IDX_PKEY_BOTH_SEQ].data.ref.length != 0) {
+            *seedLen = dataASN[PRIVKEYASN_IDX_PKEY_BOTH_SEED].data.ref.length;
+            *seed = dataASN[PRIVKEYASN_IDX_PKEY_BOTH_SEED].data.ref.data;
+            *privKeyLen = dataASN[PRIVKEYASN_IDX_PKEY_BOTH_KEY].data.ref.length;
+            *privKey = dataASN[PRIVKEYASN_IDX_PKEY_BOTH_KEY].data.ref.data;
         }
         else {
-            /* Import private value. */
-            *privKeyLen = dataASN[PRIVKEYASN_IDX_PKEY_MLDSASEQ].data.ref.length;
-            *privKey = dataASN[PRIVKEYASN_IDX_PKEY_MLDSASEQ].data.ref.data;
+            ret = ASN_PARSE_E;
         }
     }
-    if ((ret == 0) && dataASN[PRIVKEYASN_IDX_PUBKEY].tag == 0) {
-        /* Set public length to 0 as not seen. */
-        if (pubKeyLen != NULL)
-            *pubKeyLen = 0;
-    }
-    else if (ret == 0) {
-        /* Import public value. */
-        if (pubKeyLen != NULL)
+
+    if (ret == 0) {
+        if (dataASN[PRIVKEYASN_IDX_PUBKEY].data.ref.length != 0) {
+            /* Import public value. */
             *pubKeyLen = dataASN[PRIVKEYASN_IDX_PUBKEY].data.ref.length;
-        if (pubKey != NULL && pubKeyLen != NULL)
             *pubKey = dataASN[PRIVKEYASN_IDX_PUBKEY].data.ref.data;
+        }
+        else {
+            /* Set public length to 0 as not seen. */
+            *pubKeyLen = 0;
+            *pubKey = NULL;
+        }
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
@@ -37219,8 +37252,8 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     }
 
     if (ret == 0) {
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKeyPtr,
-            &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, &keyType);
+        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, NULL, NULL,
+            &privKeyPtr, &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, &keyType);
     }
     if ((ret == 0) && (privKeyPtrLen > *privKeyLen)) {
         ret = BUFFER_E;
@@ -37606,10 +37639,11 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
                    oidKeyType);
         /* Leave space for private key. */
         SetASN_Buffer(&dataASN[PRIVKEYASN_IDX_PKEY_CURVEPKEY], NULL, privKeyLen);
+        /* Don't write ML-DSA specific things. */
+        SetASNItem_NoOut(dataASN, PRIVKEYASN_IDX_PKEY_SEED_ONLY,
+            PRIVKEYASN_IDX_ATTRS);
         /* Don't write out attributes. */
         dataASN[PRIVKEYASN_IDX_ATTRS].noOut = 1;
-        /* Don't write sequence. */
-        dataASN[PRIVKEYASN_IDX_PKEY_MLDSASEQ].noOut = 1;
         if (pubKey) {
             /* Leave space for public key. */
             SetASN_Buffer(&dataASN[PRIVKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
