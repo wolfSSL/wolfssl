@@ -48,7 +48,13 @@
  *
  * When any of the above are disabled:
  *   With WOLF_NO_VARIADIC_MACROS a do nothing placeholder function is used.
- *   Otherwise, a do-nothing macro. See  WC_DO_NOTHING
+ *   Otherwise, a do-nothing macro. See WC_DO_NOTHING
+ *
+ * To disable certificate debugging:
+ *   Do not define WOLFSSL_DEBUG_CERTS when used without DEBUG_WOLFSSL
+ *      or
+ *   Define NO_WOLFSSL_DEBUG_CERTS when DEBUG_WOLFSSL is enabled
+ *
  */
 
 #ifndef WOLFSSL_LOGGING_H
@@ -182,20 +188,22 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #endif
 
 /* Certificate Debugging: WOLFSSL_MSG_CERT */
-#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_DEBUG_CERTS) && \
-   (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS))
+#if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_DEBUG_CERTS) && (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS))
+    #define HAVE_WOLFSSL_DEBUG_CERTS
     #ifndef WOLFSSL_MSG_CERT_INDENT
         #define WOLFSSL_MSG_CERT_INDENT "\t-  "
     #endif
 
     WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
     WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
-    WOLFSSL_API int WOLFSSL_IS_CERT_DEBUG_ON(void);
 #else
+    /* No Certificate Debugging */
     #ifndef WOLFSSL_MSG_CERT_INDENT
         #define WOLFSSL_MSG_CERT_INDENT ""
     #endif
     #ifdef WOLF_NO_VARIADIC_MACROS
+        /* The issue is variadic macros, not function parameters. e.g Watcom
+         * Additionally, Watcom needs the empty declaration here: */
         #ifdef __WATCOMC__
             WOLFSSL_API static inline int WOLFSSL_MSG_CERT(const char* msg)
             {
@@ -207,22 +215,12 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
                 (void)msg;
                 return NOT_COMPILED_IN;
             }
-            WOLFSSL_API static inline int WOLFSSL_IS_CERT_DEBUG_ON(void)
-            {
-                return NOT_COMPILED_IN;
-            }
         #else
             WOLFSSL_API int WOLFSSL_MSG_CERT(const char* msg);
-            WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* msg);
-            WOLFSSL_API int WOLFSSL_IS_CERT_DEBUG_ON(void);
-
-/* remove ? */
-/*                    int WOLFSSL_MSG_CERT(const char* msg)
-                    { (void)msg; return NOT_COMPILED_IN; }
-                    int WOLFSSL_MSG_CERT_EX(const char* msg)
-                    { (void)msg; return NOT_COMPILED_IN; } */
+            WOLFSSL_API int WOLFSSL_MSG_CERT_EX(const char* fmt, ...);
         #endif
     #else
+        /* Nearly all compilers will support variadic macros */
         #define WOLFSSL_MSG_CERT(...)    WC_DO_NOTHING
         #define WOLFSSL_MSG_CERT_EX(...) WC_DO_NOTHING
     #endif
