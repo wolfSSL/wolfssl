@@ -20559,100 +20559,23 @@ enum {
  * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
  *          non-zero length.
  */
-static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
+static int DecodeBasicCaConstraintInternal(const byte* input, int sz, DecodedCert* cert)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0;
-    int length = 0;
     int ret;
-
-    WOLFSSL_ENTER("DecodeBasicCaConstraint");
-
-    if (GetSequence(input, &idx, &length, (word32)sz) < 0) {
-        WOLFSSL_MSG("\tfail: bad SEQUENCE");
-        return ASN_PARSE_E;
-    }
-
-    if (length == 0)
-        return 0;
-
-    /* If the basic ca constraint is false, this extension may be named, but
-     * left empty. So, if the length is 0, just return. */
-
-    ret = GetBoolean(input, &idx, (word32)sz);
-
-    /* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
-     * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
-     * When CA Boolean not asserted use the default value "False" */
-    if (ret < 0) {
-        WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
-        ret = 0;
-    }
-
-    cert->isCA = ret ? 1 : 0;
-
-    /* If there isn't any more data, return. */
-    if (idx >= (word32)sz) {
-        return 0;
-    }
-
-    ret = GetInteger7Bit(input, &idx, (word32)sz);
-    if (ret < 0)
+    byte isCa = 0;
+    byte pathLength = 0;
+    byte pathLengthSet = 0;
+    ret = DecodeBasicCaConstraint(input, sz, &isCa, &pathLength, &pathLengthSet);
+    if (ret != 0)
         return ret;
-    cert->pathLength = (byte)ret;
-    cert->pathLengthSet = 1;
+
+    cert->isCA = isCa ? 1 : 0;
+    if (pathLengthSet) {
+        cert->pathLength = pathLength;
+        cert->pathLengthSet = pathLengthSet;
+    }
 
     return 0;
-#else
-    DECL_ASNGETDATA(dataASN, basicConsASN_Length);
-    int ret = 0;
-    word32 idx = 0;
-    byte isCA = 0;
-
-    WOLFSSL_ENTER("DecodeBasicCaConstraint");
-
-    CALLOC_ASNGETDATA(dataASN, basicConsASN_Length, ret, cert->heap);
-
-    if (ret == 0) {
-        /* Get the CA boolean and path length when present. */
-        GetASN_Boolean(&dataASN[BASICCONSASN_IDX_CA], &isCA);
-        GetASN_Int8Bit(&dataASN[BASICCONSASN_IDX_PLEN], &cert->pathLength);
-
-        ret = GetASN_Items(basicConsASN, dataASN, basicConsASN_Length, 1, input,
-                           &idx, (word32)sz);
-    }
-
-    /* Empty SEQUENCE is OK - nothing to store. */
-    if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
-        /* Bad encoding when CA Boolean is false
-         * (default when not present). */
-#if !defined(ASN_TEMPLATE_SKIP_ISCA_CHECK) && \
-    !defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE)
-        if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!isCA)) {
-            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-            ret = ASN_PARSE_E;
-        }
-#endif
-        /* Path length must be a 7-bit value. */
-        if ((ret == 0) && (cert->pathLength >= (1 << 7))) {
-            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-            ret = ASN_PARSE_E;
-        }
-        if ((ret == 0) && cert->pathLength > WOLFSSL_MAX_PATH_LEN) {
-            WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
-            ret = ASN_PATHLEN_SIZE_E;
-        }
-        /* Store CA boolean and whether a path length was seen. */
-        if (ret == 0) {
-            /* isCA in certificate is a 1 bit of a byte. */
-            cert->isCA = isCA ? 1 : 0;
-            cert->pathLengthSet = (dataASN[BASICCONSASN_IDX_PLEN].length > 0);
-        }
-    }
-
-    FREE_ASNGETDATA(dataASN, cert->heap);
-    return ret;
-#endif
 }
 
 
@@ -22609,7 +22532,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case BASIC_CA_OID:
             VERIFY_AND_SET_OID(cert->extBasicConstSet);
             cert->extBasicConstCrit = critical ? 1 : 0;
-            if (DecodeBasicCaConstraint(input, (int)length, cert) < 0) {
+            if (DecodeBasicCaConstraintInternal(input, (int)length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -23683,6 +23606,125 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 int DecodeCert(DecodedCert* cert, int verify, int* criticalExt)
 {
     return DecodeCertInternal(cert, verify, criticalExt, NULL, 0, 0);
+}
+
+/* Decode basic constraints extension
+ *
+ * X.509: RFC 5280, 4.2.1.9 - BasicConstraints.
+ *
+ * @param [in]      input          Buffer holding data.
+ * @param [in]      sz             Size of data in buffer.
+ * @param [out]     isCa           Whether it is a CA.
+ * @param [out]     pathLength     CA path length.
+ * @param [out]     pathLengthSet  Whether pathLength is valid on return.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ * @return  ASN_PARSE_E when CA boolean is present and false (default is false).
+ * @return  ASN_PARSE_E when CA boolean is not present unless
+ *          WOLFSSL_X509_BASICCONS_INT is defined. Only a CA extension.
+ * @return  ASN_PARSE_E when path length more than 7 bits.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
+ *          non-zero length.
+ */
+WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
+                            byte *isCa, byte *pathLength, byte *pathLengthSet)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    int length = 0;
+    int ret;
+
+    WOLFSSL_ENTER("DecodeBasicCaConstraint");
+
+    if (GetSequence(input, &idx, &length, (word32)sz) < 0) {
+        WOLFSSL_MSG("\tfail: bad SEQUENCE");
+        return ASN_PARSE_E;
+    }
+
+    if (length == 0)
+        return 0;
+
+    /* If the basic ca constraint is false, this extension may be named, but
+     * left empty. So, if the length is 0, just return. */
+
+    ret = GetBoolean(input, &idx, (word32)sz);
+
+    /* Removed logic for WOLFSSL_X509_BASICCONS_INT which was mistreating the
+     * pathlen value as if it were the CA Boolean value 7/2/2021 - KH.
+     * When CA Boolean not asserted use the default value "False" */
+    if (ret < 0) {
+        WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN, set default FALSE");
+        ret = 0;
+    }
+
+    *isCa = ret ? 1 : 0;
+
+    /* If there isn't any more data, return. */
+    if (idx >= (word32)sz) {
+        return 0;
+    }
+
+    ret = GetInteger7Bit(input, &idx, (word32)sz);
+    if (ret < 0)
+        return ret;
+    *pathLength = (byte)ret;
+    *pathLengthSet = 1;
+
+    return 0;
+#else
+    DECL_ASNGETDATA(dataASN, basicConsASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+    byte innerIsCA = 0;
+
+    WOLFSSL_ENTER("DecodeBasicCaConstraint");
+
+    CALLOC_ASNGETDATA(dataASN, basicConsASN_Length, ret, NULL);
+
+    if (ret == 0) {
+        /* Get the CA boolean and path length when present. */
+        GetASN_Boolean(&dataASN[BASICCONSASN_IDX_CA], &innerIsCA);
+        GetASN_Int8Bit(&dataASN[BASICCONSASN_IDX_PLEN], pathLength);
+
+        ret = GetASN_Items(basicConsASN, dataASN, basicConsASN_Length, 1, input,
+                           &idx, (word32)sz);
+    }
+
+    /* Empty SEQUENCE is OK - nothing to store. */
+    if ((ret == 0) && (dataASN[BASICCONSASN_IDX_SEQ].length != 0)) {
+        /* Bad encoding when CA Boolean is false
+         * (default when not present). */
+#if !defined(ASN_TEMPLATE_SKIP_ISCA_CHECK) && \
+    !defined(WOLFSSL_ALLOW_ENCODING_CA_FALSE)
+        if ((dataASN[BASICCONSASN_IDX_CA].length != 0) && (!innerIsCA)) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            ret = ASN_PARSE_E;
+        }
+#endif
+        /* Path length must be a 7-bit value. */
+        if ((ret == 0) && (*pathLength >= (1 << 7))) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            ret = ASN_PARSE_E;
+        }
+        if ((ret == 0) && *pathLength > WOLFSSL_MAX_PATH_LEN) {
+            WOLFSSL_ERROR_VERBOSE(ASN_PATHLEN_SIZE_E);
+            ret = ASN_PATHLEN_SIZE_E;
+        }
+        /* Store CA boolean and whether a path length was seen. */
+        if (ret == 0) {
+            /* isCA in certificate is a 1 bit of a byte. */
+            *isCa = innerIsCA ? 1 : 0;
+            *pathLengthSet = (dataASN[BASICCONSASN_IDX_PLEN].length > 0);
+        }
+    }
+
+    FREE_ASNGETDATA(dataASN, NULL);
+    return ret;
+#endif
+
 }
 
 #ifdef WOLFSSL_CERT_REQ
