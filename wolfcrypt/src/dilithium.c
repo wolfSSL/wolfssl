@@ -9708,8 +9708,10 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     dilithium_key* key, word32 inSz)
 {
     int ret = 0;
+    const byte* seed = NULL;
     const byte* privKey = NULL;
     const byte* pubKey = NULL;
+    word32 seedLen = 0;
     word32 privKeyLen = 0;
     word32 pubKeyLen = 0;
     int keyType = 0;
@@ -9757,6 +9759,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
+                                   &seed, &seedLen,
                                    &privKey, &privKeyLen,
                                    &pubKey, &pubKeyLen, &keyType);
         if (ret == 0
@@ -9841,17 +9844,20 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     if (ret == 0) {
         /* Check whether public key data was found. */
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
-        if (pubKeyLen == 0)
+        if (pubKeyLen == 0 && privKeyLen != 0)
 #endif
         {
             /* No public key data, only import private key data. */
             ret = wc_dilithium_import_private(privKey, privKeyLen, key);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
-        else {
+        else if (pubKeyLen != 0 && privKeyLen != 0) {
             /* Import private and public key data. */
             ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key);
+        }
+        else if (seedLen == 32) {
+            ret = wc_dilithium_make_key_from_seed(key, seed);
         }
 #endif
     }

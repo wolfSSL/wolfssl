@@ -16811,7 +16811,7 @@ int test_mldsa_pkcs8_import(void)
     WOLFSSL_CTX* ctx = NULL;
     FILE* fp = NULL;
 
-    ExpectNotNull(fp = XFOPEN("certs/mldsa/mldsa33_seed-only.der", "rb"));
+    ExpectNotNull(fp = XFOPEN("certs/mldsa/mldsa44_seed-only.der", "rb"));
     ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
     ExpectIntEQ(XFCLOSE(fp), 0);
 
