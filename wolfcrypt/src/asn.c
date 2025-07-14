@@ -36906,7 +36906,11 @@ static const ASNItem edKeyASN[] = {
 /* PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
                                              /* CurvePrivateKey */
 /* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 2 },
-/* PKEY_MLDSASEQ  */            { 2, ASN_SEQUENCE, 1, 0, 2 },
+/* PKEY_SEED  */                { 2, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_SEED,
+                                    0, 0, 2 },
+/* PKEY_BOTH_SEQ  */            { 2, ASN_SEQUENCE, 1, 1, 2 },
+/* PKEY_BOTH_SEED */                { 3, ASN_SEQUENCE, 0, 0, 0 },
+/* PKEY_BOTH_KEY  */                { 3, ASN_SEQUENCE, 0, 0, 0 },
                                          /* attributes */
 /* ATTRS          */        { 1, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_ATTRS, 1, 1, 1 },
                                          /* publicKey */
@@ -36919,7 +36923,10 @@ enum {
     EDKEYASN_IDX_PKEYALGO_OID,
     EDKEYASN_IDX_PKEY,
     EDKEYASN_IDX_PKEY_CURVEPKEY,
-    EDKEYASN_IDX_PKEY_MLDSASEQ,
+    EDKEYASN_IDX_PKEY_SEED,
+    EDKEYASN_IDX_PKEY_BOTH_SEQ,
+    EDKEYASN_IDX_PKEY_BOTH_SEED,
+    EDKEYASN_IDX_PKEY_BOTH_KEY,
     EDKEYASN_IDX_ATTRS,
     EDKEYASN_IDX_PUBKEY
 };
