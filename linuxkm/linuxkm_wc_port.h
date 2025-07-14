@@ -337,6 +337,10 @@
 #endif
     #include <linux/slab.h>
     #include <linux/sched.h>
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+        /* for signal_pending() */
+        #include <linux/sched/signal.h>
+    #endif
     #include <linux/random.h>
 
     #ifdef LINUXKM_LKCAPI_REGISTER
