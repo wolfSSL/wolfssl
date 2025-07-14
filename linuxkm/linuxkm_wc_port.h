@@ -113,6 +113,20 @@
 
     #ifdef BUILDING_WOLFSSL
 
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0) && defined(CONFIG_X86)
+        /* linux/slab.h recursively brings in linux/page-flags.h, bringing in
+         * non-inline implementations of functions folio_flags() and
+         * const_folio_flags().  but we can retrofit the attribute.
+         */
+        struct folio;
+        static __always_inline unsigned long *folio_flags(
+            struct folio *folio, unsigned n);
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+            static __always_inline const unsigned long *const_folio_flags(
+                const struct folio *folio, unsigned n);
+        #endif
+    #endif
+
     #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
         /* __ZBOOT__ disables some unhelpful macros around the mem*() funcs in
          * legacy arch/mips/include/asm/string.h
@@ -287,15 +301,6 @@
         #include <linux/string.h>
 
     #endif /* !CONFIG_FORTIFY_SOURCE */
-
-#if defined(__PIE__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)) && \
-    defined(CONFIG_X86)
-    /* linux/slab.h will recursively bring in linux/page-flags.h, polluting the
-     * wolfCrypt container objects with static functions const_folio_flags() and
-     * folio_flags(), unless we kludge it off thusly.
-     */
-    #define PAGE_FLAGS_H
-#endif
 
     #include <linux/init.h>
     #include <linux/module.h>
