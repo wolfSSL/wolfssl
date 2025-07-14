@@ -2136,6 +2136,9 @@ WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
 WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
                             byte *isCa, byte *pathLength, byte *pathLengthSet);
 
+WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
+                            const byte **extSubjKeyId, word32 *extSubjKeyIdSz);
+
 WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 

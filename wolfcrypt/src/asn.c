@@ -21144,27 +21144,28 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
  *          invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeSubjKeyIdInternal(const byte* input, word32 sz,
+                                   DecodedCert* cert)
 {
-    word32 idx = 0;
-    int length = 0;
     int ret = 0;
+    const byte *extSubjKeyId = NULL;
+    word32 extSubjKeyIdSz = 0;
 
-    WOLFSSL_ENTER("DecodeSubjKeyId");
+    ret = DecodeSubjKeyId(input, sz, &extSubjKeyId, &extSubjKeyIdSz);
+    if (ret != 0)
+        return ret;
 
-    ret = GetOctetString(input, &idx, &length, sz);
-    if (ret > 0) {
-        cert->extSubjKeyIdSz = (word32)length;
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        cert->extSubjKeyIdSrc = &input[idx];
-    #endif /* OPENSSL_EXTRA */
+    cert->extSubjKeyIdSz = extSubjKeyIdSz;
 
-        /* Get the hash or hash of the hash if wrong size. */
-        ret = GetHashId(input + idx, length, cert->extSubjKeyId,
-            HashIdAlg(cert->signatureOID));
-    }
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    cert->extSubjKeyIdSrc = extSubjKeyId;
+#endif /* OPENSSL_EXTRA */
 
-    return ret;
+    /* Get the hash or hash of the hash if wrong size. */
+    ret = GetHashId(extSubjKeyId, extSubjKeyIdSz, cert->extSubjKeyId,
+        HashIdAlg(cert->signatureOID));
+
+    return 0;
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -22610,7 +22611,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
             }
         #endif
 
-            if ((ret == 0) && (DecodeSubjKeyId(input, length, cert) < 0)) {
+            if ((ret == 0) && (DecodeSubjKeyIdInternal(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -23725,6 +23726,37 @@ WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
     return ret;
 #endif
 
+}
+
+/* Decode subject key id extension.
+ *
+ * X.509: RFC 5280, 4.2.1.2 - Subject Key Identifier.
+ *
+ * @param [in]   input          Buffer holding data.
+ * @param [in]   sz             Size of data in buffer.
+ * @param [out]  extSubjKeyId   Beginning of the ID.
+ * @param [out]  extSubjKeyIdSz Size of data in extSubjKeyId.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when the OCTET_STRING tag is not found or length is
+ *          invalid.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
+                            const byte **extSubjKeyId, word32 *extSubjKeyIdSz)
+{
+    word32 idx = 0;
+    int length = 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("DecodeSubjKeyId");
+
+    ret = GetOctetString(input, &idx, &length, sz);
+    if (ret < 0)
+        return ret;
+
+    *extSubjKeyIdSz = (word32)length;
+    *extSubjKeyId = &input[idx];
+    return 0;
 }
 
 #ifdef WOLFSSL_CERT_REQ
