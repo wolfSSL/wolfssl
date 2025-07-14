@@ -152,4 +152,5 @@ include certs/dilithium/include.am
 include certs/sphincs/include.am
 include certs/rpk/include.am
 include certs/acert/include.am
+include certs/mldsa/include.am
 
