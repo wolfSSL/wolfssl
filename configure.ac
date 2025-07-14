@@ -9560,8 +9560,9 @@ fi
 AC_ARG_ENABLE([linuxkm-lkcapi-register],
     [AS_HELP_STRING([--enable-linuxkm-lkcapi-register],[Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.
     Possible values are "none" or a comma-separated combination of "all", "all-kconfig", "sysfs-nodes-only", "cbc(aes)", "cfb(aes)",
-    "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "sha1", "sha2", "sha3", "hmac(sha1)", "hmac(sha2)",
-    "hmac(sha3)", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", and negations of the foregoing algorithms by prefixing "-".
+    "gcm(aes)", "rfc4106(gcm(aes))", "xts(aes)", "ctr(aes)", "ofb(aes)", "ecb(aes)", "all-aes", "sha1", "sha2", "sha3", "all-sha",
+    "hmac(sha1)", "hmac(sha2)", "hmac(sha3)", "all-hmac", "stdrng", "stdrng-default", "ecdsa", "ecdh", "rsa", "dh", and negations of
+    the foregoing algorithms by prefixing "-".
     (default: none)])],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=$enableval],
     [ENABLED_LINUXKM_LKCAPI_REGISTER=no]
@@ -9603,6 +9604,8 @@ then
         'ofb(aes)') test "$ENABLED_AESOFB" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES-OFB implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESOFB" ;;
         'ecb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AESECB -DHAVE_AES_ECB" ;;
+        'all-aes') test "$ENABLED_AES" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: AES is disabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_AES_ALL" ;;
         'sha1')     test "$ENABLED_SHA" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-1 implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA1" ;;
         'sha2')     test "$ENABLED_SHA224" != "no" || test "$ENABLED_SHA256" != "no" || test "$ENABLED_SHA384" != "no" || test "$ENABLED_SHA512" != "no" || \
@@ -9610,13 +9613,16 @@ then
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA2" ;;
         'sha3')     test "$ENABLED_SHA3" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-3 implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA3" ;;
-        'hmac(sha1)')     test "$ENABLED_SHA" != "no" && test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-1 HMAC implementation not enabled.])
+        'all-sha') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA1 -DLINUXKM_LKCAPI_REGISTER_SHA2 -DLINUXKM_LKCAPI_REGISTER_SHA3" ;;
+        'hmac(sha1)') test "$ENABLED_SHA" != "no" && test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-1 HMAC implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA1_HMAC" ;;
         'hmac(sha2)') (test "$ENABLED_SHA224" != "no" || test "$ENABLED_SHA256" != "no" || test "$ENABLED_SHA384" != "no" || test "$ENABLED_SHA512" != "no") && \
                     test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: No SHA-2 HMAC implementations are enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA2_HMAC" ;;
         'hmac(sha3)') test "$ENABLED_SHA3" != "no" && test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: SHA-3 HMAC implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA3_HMAC" ;;
+        'all-hmac') test "$ENABLED_HMAC" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HMAC implementation not enabled.])
+                    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_SHA1_HMAC -DLINUXKM_LKCAPI_REGISTER_SHA2_HMAC -DLINUXKM_LKCAPI_REGISTER_SHA3_HMAC" ;;
         'stdrng') test "$ENABLED_HASHDRBG" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
                     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_REGISTER_HASH_DRBG" ;;
         'stdrng-default') test "$ENABLED_HASHDRBG" != "no" || AC_MSG_ERROR([linuxkm-lkcapi-register ${lkcapi_alg}: HASHDRBG implementation not enabled.])
@@ -9638,12 +9644,15 @@ then
         '-ctr(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESCTR" ;;
         '-ofb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESOFB" ;;
         '-ecb(aes)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AESECB" ;;
+        '-all-aes') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_AES_ALL" ;;
         '-sha1')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA1" ;;
         '-sha2')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA2" ;;
         '-sha3')     AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA3" ;;
+        '-all-sha')  AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA1 -DLINUXKM_LKCAPI_DONT_REGISTER_SHA2 -DLINUXKM_LKCAPI_DONT_REGISTER_SHA3" ;;
         '-hmac(sha1)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC" ;;
         '-hmac(sha2)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA2_HMAC" ;;
         '-hmac(sha3)') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA3_HMAC" ;;
+        '-all-hmac') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC -DLINUXKM_LKCAPI_DONT_REGISTER_SHA2_HMAC -DLINUXKM_LKCAPI_DONT_REGISTER_SHA3_HMAC" ;;
         '-stdrng')   AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG" ;;
         '-stdrng-default') AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT" ;;
         '-ecdsa')    AM_CFLAGS="$AM_CFLAGS -DLINUXKM_LKCAPI_DONT_REGISTER_ECDSA" ;;
