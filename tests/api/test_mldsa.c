@@ -16802,6 +16802,26 @@ int test_mldsa_pkcs8(void)
     return EXPECT_RESULT();
 }
 
+int test_mldsa_pkcs8_import(void)
+{
+    EXPECT_DECLS;
+
+    byte der[8192]; // Max size will be 4962. Need to get the precise size.
+    size_t derSz = 0;
+    WOLFSSL_CTX* ctx = NULL;
+    FILE* fp = NULL;
+
+    ExpectNotNull(fp = XFOPEN("certs/mldsa/mldsa33_seed-only.der", "rb"));
+    ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+    ExpectIntEQ(XFCLOSE(fp), 0);
+
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+
 int test_mldsa_pkcs12(void)
 {
     EXPECT_DECLS;
