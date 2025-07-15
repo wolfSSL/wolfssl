@@ -132,6 +132,11 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
 WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf,
         WOLFSSL_X509V3_CTX *ctx, const char *section, WOLFSSL_X509 *cert);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509v3_get_ext(
+        const WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk, int loc);
+WOLFSSL_API int wolfSSL_X509v3_get_ext_by_NID(
+        const WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk, int nid, int lastpos);
+
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 
 #ifndef OPENSSL_COEXIST
@@ -218,6 +223,8 @@ typedef struct WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb
 #define X509v3_get_ext_count      wolfSSL_sk_num
+#define X509v3_get_ext_by_NID     wolfSSL_X509v3_get_ext_by_NID
+#define X509v3_get_ext            wolfSSL_X509v3_get_ext
 
 #endif /* !OPENSSL_COEXIST */
 
