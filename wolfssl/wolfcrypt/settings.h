@@ -356,6 +356,12 @@
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
+/* Ensure WOLFSSL_DEBUG_CERTS is always set when WOLFSSL_DEBUG is enabled */
+#ifdef WOLFSSL_DEBUG
+    #undef  WOLFSSL_DEBUG_CERTS
+    #define WOLFSSL_DEBUG_CERTS
+#endif
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 /*------------------------------------------------------------*/
@@ -562,6 +568,9 @@
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
     #endif
+
+    /* Debug message do not need an additional LF for ESP_LOG */
+    #define WOLFSSL_DEBUG_LINE_ENDING ""
 
     /* Parse any Kconfig / menuconfig items into wolfSSL macro equivalents.
      * Macros may or may not be defined. If defined, they may have a value of
