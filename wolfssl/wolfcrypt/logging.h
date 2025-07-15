@@ -27,6 +27,14 @@
 /* submitted by eof */
 
 /*
+ * Enable wolfSSL debugging with DEBUG_WOLFSSL
+ *
+ * Certificate debugging is a subset of DEBUG_WOLFSSL but can be enabled
+ * exclusively with WOLFSSL_DEBUG_CERTS.
+ *
+ * When DEBUG_WOLFSSL is enabled, but the subset of certificate debugging
+ * is not desired, disabled with NO_WOLFSSL_DEBUG_CERTS
+ *
  * WOLFSSL_MSG
  *   Single message parameter. Works everywhere.
  *
@@ -50,10 +58,27 @@
  *   With WOLF_NO_VARIADIC_MACROS a do nothing placeholder function is used.
  *   Otherwise, a do-nothing macro. See WC_DO_NOTHING
  *
+ * Optional user callbacks:
+ *   wolfSSL_SetLoggingCb(my_log_cb);
+ *
  * To disable certificate debugging:
  *   Do not define WOLFSSL_DEBUG_CERTS when used without DEBUG_WOLFSSL
  *      or
  *   Define NO_WOLFSSL_DEBUG_CERTS when DEBUG_WOLFSSL is enabled
+ *
+ * At runtime with debugging enabled:
+ *
+ * Display debug messages:
+ *  int  wolfSSL_Debugging_ON(void)
+ *  int  wolfSSL_CertDebugging_ON(void)
+ *
+ * Disable debug messages until re-enabled at runtime:
+ *  void wolfSSL_Debugging_OFF(void);
+ *  int  wolfSSL_CertDebugging_OFF(void)
+ *
+ * See also:
+ *  int WOLFSSL_IS_DEBUG_ON(void)
+ *
  *
  */
 
@@ -61,6 +86,8 @@
 #define WOLFSSL_LOGGING_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -132,7 +159,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 /* turn cert debugging on, only if compiled in */
 WOLFSSL_API int  wolfSSL_CertDebugging_ON(void);
 /* turn cert debugging off */
-WOLFSSL_API int wolfSSL_CertDebugging_OFF(void);
+WOLFSSL_API int  wolfSSL_CertDebugging_OFF(void);
 
 
 WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
@@ -298,11 +325,12 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
          *
          * We need a do-nothing function with a variable number of parameters: */
         #ifdef __WATCOMC__
-        static inline void WOLFSSL_MSG_EX(const char* fmt, ...)
-        { (void)fmt; }
+            static inline void WOLFSSL_MSG_EX(const char* fmt, ...)
+                {
+                    (void)fmt;
+                }
         #else
-        WOLFSSL_API  void WOLFSSL_MSG_EX(const char* fmt, ...);
-
+            WOLFSSL_API  void WOLFSSL_MSG_EX(const char* fmt, ...);
         #endif
     #else
         #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING

@@ -5869,9 +5869,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #endif
     DerBuffer*   der = *pDer;
 #ifdef WOLFSSL_DEBUG_CERTS
-    const char*  msg;
-    #ifdef WOLF_NO_VARIADIC_MACROS
-        (void) msg;
+    const char*  err_msg;
+    #if defined(WOLF_NO_VARIADIC_MACROS) || defined(NO_WOLFSSL_DEBUG_CERTS)
+        (void) err_msg;
     #endif
 #endif
     WOLFSSL_MSG("Adding a CA");
@@ -5921,9 +5921,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         else {
             WOLFSSL_MSG_CERT(
                 WOLFSSL_MSG_CERT_INDENT "Failed during parse of new CA");
-            msg = wc_GetErrorString(ret);
+            err_msg = wc_GetErrorString(ret);
             WOLFSSL_MSG_CERT_EX(WOLFSSL_MSG_CERT_INDENT "error ret: %d; %s",
-                ret, msg);
+                ret, err_msg);
         }
     }
 #endif /* WOLFSSL_DEBUG_CERTS */
