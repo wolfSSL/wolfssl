@@ -16805,6 +16805,10 @@ int test_mldsa_pkcs8(void)
 int test_mldsa_pkcs8_import(void)
 {
     EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
 
     byte der[8192]; // Max size will be 4962. Need to get the precise size.
     size_t derSz = 0;
@@ -16815,9 +16819,15 @@ int test_mldsa_pkcs8_import(void)
     ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
     ExpectIntEQ(XFCLOSE(fp), 0);
 
+#ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif /* NO_WOLFSSL_SERVER */
+
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
         WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
 
     return EXPECT_RESULT();
 }
