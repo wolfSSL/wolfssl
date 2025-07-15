@@ -19251,6 +19251,7 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
         (byte*)ca_cert_der_2048, sizeof_ca_cert_der_2048, NULL
     };
     char pkcs12Passwd[] = "test_wc_PKCS12_create";
+
     WC_PKCS12* pkcs12Export = NULL;
     WC_PKCS12* pkcs12Import = NULL;
     byte* pkcs12Der = NULL;
