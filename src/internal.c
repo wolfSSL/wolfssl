@@ -28814,10 +28814,6 @@ int SetSuitesHashSigAlgo(Suites* suites, const char* list)
 
     do {
         if (*list == '+') {
-            if (mac_alg != 0) {
-                ret = 0;
-                break;
-            }
             sig_alg = GetSigAlgFromName(s, (int)(list - s));
             if (sig_alg == 0) {
                 ret = 0;
