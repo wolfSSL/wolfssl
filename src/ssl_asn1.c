@@ -3549,7 +3549,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str,
         }
     }
 
-    if ((!err) && (str_len != -1)) {
+    if ((!err) && (str_len >= 0)) {
         /* Include any characters written for type. */
         str_len += type_len;
     }
