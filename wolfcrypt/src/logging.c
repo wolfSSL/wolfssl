@@ -198,7 +198,9 @@ int wolfSSL_Debugging_ON(void)
 {
 #ifdef DEBUG_WOLFSSL
     loggingEnabled = 1;
-    loggingCertEnabled = 1;
+    #ifndef NO_WOLFSSL_DEBUG_CERTS
+        loggingCertEnabled = 1;
+    #endif
 #if defined(WOLFSSL_APACHE_MYNEWT)
     log_register("wolfcrypt", &mynewt_log, &log_console_handler, NULL, LOG_SYSLEVEL);
 #endif /* WOLFSSL_APACHE_MYNEWT */
@@ -213,7 +215,9 @@ void wolfSSL_Debugging_OFF(void)
 {
 #ifdef DEBUG_WOLFSSL
     loggingEnabled = 0;
-    loggingCertEnabled = 0;
+    #ifndef NO_WOLFSSL_DEBUG_CERTS
+        loggingCertEnabled = 0;
+    #endif
 #endif
 }
 
@@ -648,7 +652,7 @@ WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
      */
     #ifdef WOLF_NO_VARIADIC_MACROS
         #ifdef __WATCOMC__
-            /* see logging.h for no-op Watcom implmentation */
+            /* see logging.h for no-op Watcom implementation */
         #else
             int WOLFSSL_MSG_CERT(const char* msg)
             {

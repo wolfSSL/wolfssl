@@ -19247,13 +19247,10 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
     const word32 inKeySz= sizeof_server_key_der_2048;
     byte* inCert = (byte*) server_cert_der_2048;
     const word32 inCertSz = sizeof_server_cert_der_2048;
-    WC_DerCertList inCa;
-    inCa.buffer   = (byte*)ca_cert_der_2048;
-    inCa.bufferSz = sizeof_ca_cert_der_2048;
-    inCa.next     = NULL;
-    char pkcs12Passwd[sizeof("test_wc_PKCS12_create")];
-    memcpy(pkcs12Passwd, "test_wc_PKCS12_create", sizeof(pkcs12Passwd));
-
+    WC_DerCertList inCa = {
+        (byte*)ca_cert_der_2048, sizeof_ca_cert_der_2048, NULL
+    };
+    char pkcs12Passwd[] = "test_wc_PKCS12_create";
     WC_PKCS12* pkcs12Export = NULL;
     WC_PKCS12* pkcs12Import = NULL;
     byte* pkcs12Der = NULL;
