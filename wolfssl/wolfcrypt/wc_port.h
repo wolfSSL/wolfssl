@@ -91,7 +91,7 @@
           defined(__clang__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
     #elif defined(__WATCOMC__)
-          #define WC_DEPRECATED(msg)
+          #define WC_DEPRECATED(msg) /* null expansion */
     #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
           defined(_WIN32_WCE)
         #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
