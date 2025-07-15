@@ -19251,7 +19251,8 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
     inCa.buffer   = (byte*)ca_cert_der_2048;
     inCa.bufferSz = sizeof_ca_cert_der_2048;
     inCa.next     = NULL;
-    char pkcs12Passwd[] = "test_wc_PKCS12_create";
+    char pkcs12Passwd[sizeof("test_wc_PKCS12_create")];
+    memcpy(pkcs12Passwd, "test_wc_PKCS12_create", sizeof(pkcs12Passwd));
 
     WC_PKCS12* pkcs12Export = NULL;
     WC_PKCS12* pkcs12Import = NULL;
