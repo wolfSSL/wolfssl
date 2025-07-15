@@ -3536,7 +3536,8 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* e,
 
 #ifdef WC_RSA_PSS
 
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
 static int rsa_pss_calc_salt(int saltLen, int hashLen, int emLen)
 {
     /* Calculate the salt length to use for special cases. */
