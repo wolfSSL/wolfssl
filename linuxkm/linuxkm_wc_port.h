@@ -111,9 +111,17 @@
         #define WOLFSSL_NO_FLOAT_FMT
     #endif
 
+#ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+    struct wolfSSL_Mutex;
+    extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+#endif
+
     #ifdef BUILDING_WOLFSSL
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0) && defined(CONFIG_X86)
+    #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+         (defined(RHEL_MAJOR) &&                                    \
+          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))) && \
+        defined(CONFIG_X86)
         /* linux/slab.h recursively brings in linux/page-flags.h, bringing in
          * non-inline implementations of functions folio_flags() and
          * const_folio_flags().  but we can retrofit the attribute.
@@ -302,39 +310,32 @@
 
     #endif /* !CONFIG_FORTIFY_SOURCE */
 
-    #include <linux/init.h>
-    #include <linux/module.h>
-    #include <linux/delay.h>
+    #ifndef __PIE__
+        #include <linux/init.h>
+        #include <linux/module.h>
+        #include <linux/delay.h>
+    #endif
 
-    #ifdef __PIE__
-        /* without this, mm.h brings in static, but not inline, pmd_to_page(),
+    #if defined(HAVE_KVMALLOC) && \
+        (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)) && \
+        !(defined(RHEL_MAJOR) && ((RHEL_MAJOR > 9) || \
+                                  ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
+        /* before 5.16, the kvmalloc_node() and kvfree() prototypes were in
+         * mm.h.  however, mm.h brings in static, but not inline, pmd_to_page(),
          * with direct references to global vmem variables.
          */
-        #undef USE_SPLIT_PMD_PTLOCKS
-        #define USE_SPLIT_PMD_PTLOCKS 0
-
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-            /* without this, static show_free_areas() mm.h brings in direct
-             * reference to unexported __show_free_areas().
-             */
-            #define __show_free_areas my__show_free_areas
-            void my__show_free_areas(
-                unsigned int flags,
-                nodemask_t *nodemask,
-                int max_zone_idx);
+        #ifdef __PIE__
+            #include <linux/mm_types.h>
+            static __always_inline struct page *pmd_to_page(pmd_t *pmd);
         #endif
+        #include <linux/mm.h>
     #endif
 
-#if !defined(__PIE__) || (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
-    #include <linux/mm.h>
-#endif
-
-    #ifndef SINGLE_THREADED
-        #include <linux/kthread.h>
-    #endif
 #ifndef __PIE__
+    #include <linux/kthread.h>
     #include <linux/net.h>
 #endif
+
     #include <linux/slab.h>
     #include <linux/sched.h>
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
@@ -424,16 +425,21 @@
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
         defined(CONFIG_X86)
 
+        enum wc_svr_flags {
+            WC_SVR_FLAG_INHIBIT = 1,
+        };
+
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
         extern __must_check int can_save_vector_registers_x86(void);
-        extern __must_check int save_vector_registers_x86(int inhibit_p);
+        extern __must_check int save_vector_registers_x86(enum wc_svr_flags flags);
         extern void restore_vector_registers_x86(void);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
+            #include <crypto/internal/simd.h>
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
@@ -467,7 +473,7 @@
         #endif
 
         #ifndef DISABLE_VECTOR_REGISTERS
-            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(1)
+            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
             #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -658,7 +664,9 @@
     #endif
         typeof(kstrtoll) *kstrtoll;
 
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+        #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+            (defined(RHEL_MAJOR) && \
+             ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
             typeof(_printk) *_printk;
         #else
             typeof(printk) *printk;
@@ -697,7 +705,9 @@
         #ifdef HAVE_KVREALLOC
             typeof(kvrealloc) *kvrealloc;
         #endif
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
+            (defined(RHEL_MAJOR) &&                                    \
+             ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
             typeof(kmalloc_trace) *kmalloc_trace;
         #else
             typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
@@ -849,6 +859,9 @@
             typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
         #endif
         typeof(_cond_resched) *_cond_resched;
+        #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+        typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        #endif
 
         const void *_last_slot;
     };
@@ -895,7 +908,9 @@
     #endif
     #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define _printk (wolfssl_linuxkm_get_pie_redirect_table()->_printk)
     #else
         #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
@@ -935,7 +950,9 @@
     #ifdef HAVE_KVREALLOC
         #define kvrealloc (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc)
     #endif
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
+        (defined(RHEL_MAJOR) &&                                    \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
     #else
         #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
@@ -1059,7 +1076,9 @@
      */
     #define key_update wc_key_update
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define lkm_printf(format, args...) _printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
     #else
         #define lkm_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
@@ -1091,11 +1110,6 @@
 
     #endif /* BUILDING_WOLFSSL */
 
-    /* if BUILDING_WOLFSSL, mutex.h will have already been included recursively
-     * above, with the bevy of warnings suppressed, and the below include will
-     * be a redundant no-op.
-     */
-
     /* Copied from wc_port.h: For FIPS keep the function names the same */
     #ifdef HAVE_FIPS
     #define wc_InitMutex   InitMutex
@@ -1113,6 +1127,10 @@
             #error WOLFSSL_LINUXKM_USE_MUTEXES is incompatible with LINUXKM_LKCAPI_REGISTER.
         #endif
 
+        /* if BUILDING_WOLFSSL, mutex.h will have already been included
+         * recursively above, with the bevy of warnings suppressed, and the
+         * below include will be a redundant no-op.
+         */
         #include <linux/mutex.h>
         typedef struct mutex wolfSSL_Mutex;
         #define WOLFSSL_MUTEX_INITIALIZER(lockname) __MUTEX_INITIALIZER(lockname)
@@ -1145,10 +1163,11 @@
             return 0;
         }
     #else
-        typedef struct {
+        typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;
         } wolfSSL_Mutex;
+
         #define WOLFSSL_MUTEX_INITIALIZER(lockname) { .lock =__SPIN_LOCK_UNLOCKED(lockname), .irq_flags = 0 }
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
@@ -1165,34 +1184,23 @@
             return 0;
         }
 
-        static __always_inline int wc_LockMutex(wolfSSL_Mutex* m)
+        #ifdef __PIE__
+        /* wc_lkm_LockMutex() can't be used inline in __PIE__ objects, due to
+         * direct access to pv_ops.
+         */
+        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
-            unsigned long irq_flags;
-            /* first, try the cheap way. */
-            if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-                m->irq_flags = irq_flags;
-                return 0;
-            }
-            if (irq_count() != 0) {
-                /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
-                 * required, because in_softirq() is always true while saved,
-                 * even for WC_FPU_INHIBITED_FLAG contexts.
-                 */
-                spin_lock_irqsave(&m->lock, irq_flags);
-                m->irq_flags = irq_flags;
-                return 0;
-            }
-            else {
-                for (;;) {
-                    if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-                        m->irq_flags = irq_flags;
-                        return 0;
-                    }
-                    cond_resched();
-                }
-            }
-            __builtin_unreachable();
+            return (wolfssl_linuxkm_get_pie_redirect_table()->wc_lkm_LockMutex)(m);
         }
+
+        #else /* !__PIE__ */
+
+        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
+        {
+            return wc_lkm_LockMutex(m);
+        }
+
+        #endif /* !__PIE__ */
 
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
