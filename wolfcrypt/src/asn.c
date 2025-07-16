@@ -21164,49 +21164,9 @@ enum {
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeKeyUsageInternal(const byte* input, word32 sz, DecodedCert* cert)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0;
-    int length;
-    int ret;
-    WOLFSSL_ENTER("DecodeKeyUsage");
-
-    ret = CheckBitString(input, &idx, &length, sz, 0, NULL);
-    if (ret != 0)
-        return ret;
-
-    if (length == 0 || length > 2)
-        return ASN_PARSE_E;
-
-    cert->extKeyUsage = (word16)(input[idx]);
-    if (length == 2)
-        cert->extKeyUsage |= (word16)(input[idx+1] << 8);
-
-    return 0;
-#else
-    ASNGetData dataASN[keyUsageASN_Length];
-    word32 idx = 0;
-    byte keyUsage[2];
-    word32 keyUsageSz = sizeof(keyUsage);
-    int ret;
-    WOLFSSL_ENTER("DecodeKeyUsage");
-
-    /* Clear dynamic data and set where to store extended key usage. */
-    XMEMSET(dataASN, 0, sizeof(dataASN));
-    XMEMSET(keyUsage, 0, sizeof(keyUsage));
-    GetASN_Buffer(&dataASN[KEYUSAGEASN_IDX_STR], keyUsage, &keyUsageSz);
-    /* Parse key usage. */
-    ret = GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
-                        &idx, sz);
-    if (ret == 0) {
-        /* Decode the bit string number as LE */
-        cert->extKeyUsage = (word16)(keyUsage[0]);
-        if (keyUsageSz == 2)
-            cert->extKeyUsage |= (word16)(keyUsage[1] << 8);
-    }
-    return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
+    return DecodeKeyUsage(input, sz, &cert->extKeyUsage);
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -22609,7 +22569,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case KEY_USAGE_OID:
             VERIFY_AND_SET_OID(cert->extKeyUsageSet);
             cert->extKeyUsageCrit = critical ? 1 : 0;
-            if (DecodeKeyUsage(input, length, cert) < 0) {
+            if (DecodeKeyUsageInternal(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -23849,6 +23809,64 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
 #endif /* WOLFSSL_AKID_NAME */
 
     FREE_ASNGETDATA(dataASN, NULL);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
+/* Decode key usage extension in a certificate.
+ *
+ * X.509: RFC 5280, 4.2.1.3 - Key Usage.
+ *
+ * @param [in]      input        Buffer holding data.
+ * @param [in]      sz           Size of data in buffer.
+ * @param [out]     extKeyUsage  Key usage bitfield.
+ * @return  0 on success.
+ * @return  ASN_BITSTR_E when the expected BIT_STRING tag is not found.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    int length;
+    int ret;
+    WOLFSSL_ENTER("DecodeKeyUsage");
+
+    ret = CheckBitString(input, &idx, &length, sz, 0, NULL);
+    if (ret != 0)
+        return ret;
+
+    if (length == 0 || length > 2)
+        return ASN_PARSE_E;
+
+    *extKeyUsage = (word16)(input[idx]);
+    if (length == 2)
+        *extKeyUsage |= (word16)(input[idx+1] << 8);
+
+    return 0;
+#else
+    ASNGetData dataASN[keyUsageASN_Length];
+    word32 idx = 0;
+    byte keyUsage[2];
+    word32 keyUsageSz = sizeof(keyUsage);
+    int ret;
+    WOLFSSL_ENTER("DecodeKeyUsage");
+
+    /* Clear dynamic data and set where to store extended key usage. */
+    XMEMSET(dataASN, 0, sizeof(dataASN));
+    XMEMSET(keyUsage, 0, sizeof(keyUsage));
+    GetASN_Buffer(&dataASN[KEYUSAGEASN_IDX_STR], keyUsage, &keyUsageSz);
+    /* Parse key usage. */
+    ret = GetASN_Items(keyUsageASN, dataASN, keyUsageASN_Length, 0, input,
+                        &idx, sz);
+    if (ret == 0) {
+        /* Decode the bit string number as LE */
+        *extKeyUsage = (word16)(keyUsage[0]);
+        if (keyUsageSz == 2)
+            *extKeyUsage |= (word16)(keyUsage[1] << 8);
+    }
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
