@@ -9831,14 +9831,6 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
-        else {
-            word32 levelSize = dilithium_get_priv_size(key->level);
-
-            if (privKeyLen == ALT_PRIV_DER_PREFIX + levelSize) {
-                privKey += ALT_PRIV_DER_PREFIX;
-                privKeyLen -= ALT_PRIV_DER_PREFIX;
-            }
-        }
     }
 
     if (ret == 0) {

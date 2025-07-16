@@ -16815,18 +16815,25 @@ int test_mldsa_pkcs8_import(void)
     WOLFSSL_CTX* ctx = NULL;
     FILE* fp = NULL;
 
-    ExpectNotNull(fp = XFOPEN("certs/mldsa/mldsa44_seed-only.der", "rb"));
-    ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
-    ExpectIntEQ(XFCLOSE(fp), 0);
+    const char* derFiles[] = {
+        "certs/mldsa/mldsa44_seed-only.der",
+        "certs/mldsa/mldsa44_seed-priv.der"
+    };
+
+    for (size_t i = 0; i < sizeof(derFiles)/sizeof(derFiles[0]); ++i) {
+        ExpectNotNull(fp = XFOPEN(derFiles[i], "rb"));
+        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+        ExpectIntEQ(XFCLOSE(fp), 0);
 
 #ifndef NO_WOLFSSL_SERVER
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif /* NO_WOLFSSL_SERVER */
 
-    ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
-        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    }
 #endif
 
     return EXPECT_RESULT();
