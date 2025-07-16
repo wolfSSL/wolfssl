@@ -172,7 +172,7 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
-WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
+void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
 {
     if (info == NULL)
         return;

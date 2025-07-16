@@ -1378,7 +1378,7 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
  * Given a DhKey with set params and a priv key, generate the corresponding
  * public key. If fips, does pub key validation.
  * */
-WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     byte* pub, word32* pubSz)
 {
     int ret = 0;

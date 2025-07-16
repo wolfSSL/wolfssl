@@ -290,7 +290,7 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
 }
 
 /* session is a private struct, return if it is setup or not */
-WOLFSSL_API int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
+int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
 {
     if (session != NULL)
         return session->isSetup;
