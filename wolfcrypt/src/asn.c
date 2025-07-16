@@ -21022,74 +21022,51 @@ enum {
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
  */
-static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeAuthKeyIdInternal(const byte* input, word32 sz, DecodedCert* cert)
 {
+    int ret;
+    const byte *extAuthKeyId = NULL;
+    word32 extAuthKeyIdSz = 0;
+    const byte *extAuthKeyIdIssuer = NULL;
+    word32 extAuthKeyIdIssuerSz = 0;
+    const byte *extAuthKeyIdIssuerSN = NULL;
+    word32 extAuthKeyIdIssuerSNSz = 0;
+
+    ret = DecodeAuthKeyId(input, sz, &extAuthKeyId, &extAuthKeyIdSz,
+            &extAuthKeyIdIssuer, &extAuthKeyIdIssuerSz, &extAuthKeyIdIssuerSN,
+            &extAuthKeyIdIssuerSNSz);
+
+    if (ret != 0)
+        return ret;
+
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0;
-    int length = 0;
-    byte tag;
 
-    WOLFSSL_ENTER("DecodeAuthKeyId");
-
-    if (GetSequence(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-        return ASN_PARSE_E;
-    }
-
-    if (GetASNTag(input, &idx, &tag, sz) < 0) {
-        return ASN_PARSE_E;
-    }
-
-    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
-        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
-        cert->extAuthKeyIdSet = 0;
-        return 0;
-    }
-
-    if (GetLength(input, &idx, &length, sz) <= 0) {
-        WOLFSSL_MSG("\tfail: extension data length");
-        return ASN_PARSE_E;
-    }
-
-    cert->extAuthKeyIdSz = length;
+    cert->extAuthKeyIdSz = extAuthKeyIdSz;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_AKID_NAME
     cert->extRawAuthKeyIdSrc = input;
     cert->extRawAuthKeyIdSz = sz;
 #endif
-    cert->extAuthKeyIdSrc = &input[idx];
+    cert->extAuthKeyIdSrc = extAuthKeyId;
 #endif /* OPENSSL_EXTRA */
 
-    return GetHashId(input + idx, length, cert->extAuthKeyId,
+    return GetHashId(extAuthKeyId, extAuthKeyIdSz, cert->extAuthKeyId,
         HashIdAlg(cert->signatureOID));
 #else
-    DECL_ASNGETDATA(dataASN, authKeyIdASN_Length);
-    int ret = 0;
 
-    WOLFSSL_ENTER("DecodeAuthKeyId");
-
-    CALLOC_ASNGETDATA(dataASN, authKeyIdASN_Length, ret, cert->heap);
-
-    if (ret == 0) {
-        /* Parse an authority key identifier. */
-        word32 idx = 0;
-        ret = GetASN_Items(authKeyIdASN, dataASN, authKeyIdASN_Length, 1, input,
-                           &idx, sz);
-    }
     /* Each field is optional */
-    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
+    if (extAuthKeyIdSz > 0) {
 #ifdef OPENSSL_EXTRA
-        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID],
-                &cert->extAuthKeyIdSrc, &cert->extAuthKeyIdSz);
+        cert->extAuthKeyIdSrc = extAuthKeyId;
+        cert->extAuthKeyIdSz = extAuthKeyIdSz;
 #endif /* OPENSSL_EXTRA */
         /* Get the hash or hash of the hash if wrong size. */
-        ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
-                    (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
-                    cert->extAuthKeyId, HashIdAlg(cert->signatureOID));
+        ret = GetHashId(extAuthKeyId, (int)extAuthKeyIdSz, cert->extAuthKeyId,
+                        HashIdAlg(cert->signatureOID));
     }
 #ifdef WOLFSSL_AKID_NAME
-    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
+    if (ret == 0 && extAuthKeyIdIssuerSz > 0) {
         /* We only support using one (first) name. Parse the name to perform
          * a sanity check. */
         word32 idx = 0;
@@ -21099,24 +21076,16 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
         GetASN_Choice(&nameASN[ALTNAMEASN_IDX_GN], generalNameChoice);
         /* Decode a GeneralName choice. */
         ret = GetASN_Items(altNameASN, nameASN, altNameASN_Length, 0,
-                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
-                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
+                extAuthKeyIdIssuer, &idx, extAuthKeyIdIssuerSz);
 
         if (ret == 0) {
             GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
                     &cert->extAuthKeyIdIssuer, &cert->extAuthKeyIdIssuerSz);
         }
     }
-    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
-        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
-                &cert->extAuthKeyIdIssuerSN, &cert->extAuthKeyIdIssuerSNSz);
-    }
-    if (ret == 0) {
-        if ((cert->extAuthKeyIdIssuerSz > 0) ^
-                (cert->extAuthKeyIdIssuerSNSz > 0)) {
-            WOLFSSL_MSG("authorityCertIssuer and authorityCertSerialNumber MUST"
-                       " both be present or both be absent");
-        }
+    if (ret == 0 && extAuthKeyIdIssuerSNSz > 0) {
+        cert->extAuthKeyIdIssuerSN = extAuthKeyIdIssuerSN;
+        cert->extAuthKeyIdIssuerSNSz = extAuthKeyIdIssuerSNSz;
     }
 #endif /* WOLFSSL_AKID_NAME */
     if (ret == 0) {
@@ -21127,7 +21096,6 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
 #endif /* OPENSSL_EXTRA */
     }
 
-    FREE_ASNGETDATA(dataASN, cert->heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
@@ -22590,7 +22558,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
                 ret = ASN_CRIT_EXT_E;
             }
         #endif
-            if ((ret == 0) && (DecodeAuthKeyId(input, length, cert) < 0)) {
+            if ((ret == 0) && (DecodeAuthKeyIdInternal(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -23757,6 +23725,132 @@ WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
     *extSubjKeyIdSz = (word32)length;
     *extSubjKeyId = &input[idx];
     return 0;
+}
+
+/* Decode authority key identifier extension.
+ *
+ * X.509: RFC 5280, 4.2.1.1 - Authority Key Identifier.
+ *
+ * @param [in]   input                   Buffer holding data.
+ * @param [in]   sz                      Size of data in buffer.
+ * @param [out]  extAuthKeyId            Beginning of the ID. NULL if not
+ *                                       present.
+ * @param [out]  extAuthKeyIdSz          Size of data in extAuthKeyId. 0 if not
+ *                                       present.
+ * @param [out]  extAuthKeyIdIssuer      Beginning of the Issuer. NULL if not
+ *                                       present.
+ * @param [out]  extAuthKeyIdIssuerSz    Size of data in extAuthKeyIdIssuer. 0
+ *                                       if not present.
+ * @param [out]  extAuthKeyIdIssuerSN    Beginning of the Issuer Serial. NULL
+ *                                       if not present.
+ * @param [out]  extAuthKeyIdIssuerSNSz  Size of data in extAuthKeyIdIssuerSN.
+ *                                       0 if not present.
+ * @return  0 on success.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ */
+WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
+            const byte **extAuthKeyId, word32 *extAuthKeyIdSz,
+            const byte **extAuthKeyIdIssuer, word32 *extAuthKeyIdIssuerSz,
+            const byte **extAuthKeyIdIssuerSN, word32 *extAuthKeyIdIssuerSNSz)
+{
+    *extAuthKeyId = NULL;
+    *extAuthKeyIdSz = 0;
+
+    *extAuthKeyIdIssuer = NULL;
+    *extAuthKeyIdIssuerSz = 0;
+
+    *extAuthKeyIdIssuerSN = NULL;
+    *extAuthKeyIdIssuerSNSz = 0;
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    int length = 0;
+    byte tag;
+
+    WOLFSSL_ENTER("DecodeAuthKeyId");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+        return ASN_PARSE_E;
+    }
+
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
+        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
+        return 0;
+    }
+
+    if (GetLength(input, &idx, &length, sz) <= 0) {
+        WOLFSSL_MSG("\tfail: extension data length");
+        return ASN_PARSE_E;
+    }
+
+    *extAuthKeyIdSz = length;
+    *extAuthKeyId = &input[length];
+    return 0;
+
+#else
+    DECL_ASNGETDATA(dataASN, authKeyIdASN_Length);
+    int ret = 0;
+
+    WOLFSSL_ENTER("DecodeAuthKeyId");
+
+    CALLOC_ASNGETDATA(dataASN, authKeyIdASN_Length, ret, NULL);
+
+    if (ret == 0) {
+        /* Parse an authority key identifier. */
+        word32 idx = 0;
+        ret = GetASN_Items(authKeyIdASN, dataASN, authKeyIdASN_Length, 1, input,
+                           &idx, sz);
+    }
+    /* Each field is optional */
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
+#ifdef OPENSSL_EXTRA
+        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID],
+                extAuthKeyId, extAuthKeyIdSz);
+#endif /* OPENSSL_EXTRA */
+    }
+#ifdef WOLFSSL_AKID_NAME
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
+        /* We only support using one (first) name. Parse the name to perform
+         * a sanity check. */
+        word32 idx = 0;
+        ASNGetData nameASN[altNameASN_Length];
+        XMEMSET(nameASN, 0, sizeof(nameASN));
+        /* Parse GeneralName with the choices supported. */
+        GetASN_Choice(&nameASN[ALTNAMEASN_IDX_GN], generalNameChoice);
+        /* Decode a GeneralName choice. */
+        ret = GetASN_Items(altNameASN, nameASN, altNameASN_Length, 0,
+                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
+                dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
+
+        if (ret == 0) {
+            GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
+                    extAuthKeyIdIssuer, extAuthKeyIdIssuerSz);
+        }
+    }
+    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
+        GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
+                extAuthKeyIdIssuerSN, extAuthKeyIdIssuerSNSz);
+    }
+    if (ret == 0) {
+        if ((*extAuthKeyIdIssuerSz > 0) ^
+                (*extAuthKeyIdIssuerSNSz > 0)) {
+            WOLFSSL_MSG("authorityCertIssuer and authorityCertSerialNumber MUST"
+                       " both be present or both be absent");
+        }
+    }
+#endif /* WOLFSSL_AKID_NAME */
+
+    FREE_ASNGETDATA(dataASN, NULL);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
 #ifdef WOLFSSL_CERT_REQ
