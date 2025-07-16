@@ -1887,8 +1887,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* subjectKeyIdentifier */
         case WC_NID_subject_key_identifier:
         {
-            int len;
-            word32 idx;
+            const byte *extSubjKeyId = NULL;
+            word32 extSubjKeyIdSz = 0;
 
             WOLFSSL_MSG("subjectKeyIdentifier");
             asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
@@ -1896,20 +1896,18 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("X509_EXTENSION_get_data() failed");
                 return NULL;
             }
-
-            idx = 0;
-            if (GetOctetString((byte *)asn1String->data, &idx, &len,
-                        asn1String->length) < 0) {
-                WOLFSSL_MSG("GetOctetString() failed");
+            if (DecodeSubjKeyId((const byte *)asn1String->data,
+                    asn1String->length, &extSubjKeyId, &extSubjKeyIdSz) != 0) {
                 return NULL;
             }
+
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 return NULL;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, asn1String->data+idx,
-                                                            len);
+            ret = wolfSSL_ASN1_STRING_set(newString, extSubjKeyId,
+                                          extSubjKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -1922,10 +1920,12 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* authorityKeyIdentifier */
         case WC_NID_authority_key_identifier:
         {
-            int len;
-            word32 idx;
-            byte tag;
-            int key_length;
+            const byte *extAuthKeyId = NULL;
+            word32 extAuthKeyIdSz = 0;
+            const byte *extAuthKeyIdIssuer = NULL;
+            word32 extAuthKeyIdIssuerSz = 0;
+            const byte *extAuthKeyIdIssuerSN = NULL;
+            word32 extAuthKeyIdIssuerSNSz = 0;
 
             WOLFSSL_MSG("AuthorityKeyIdentifier");
 
@@ -1935,27 +1935,10 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-            idx = 0;
-            if (GetSequence((byte *)asn1String->data, &idx, &len,
-                        asn1String->length) < 0) {
-                WOLFSSL_MSG("GetSequence() failed");
-                return NULL;
-            }
-
-            if (GetASNTag((byte *)asn1String->data, &idx, &tag,
-                        asn1String->length) < 0) {
-                WOLFSSL_MSG("GetASNTag() failed");
-                return NULL;
-            }
-
-            if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
-                WOLFSSL_MSG("No keyIdentifier");
-                return NULL;
-            }
-
-            if (GetLength((byte *)asn1String->data, &idx, &key_length,
-                        asn1String->length) <= 0) {
-                WOLFSSL_MSG("GetLength() failed");
+            if (DecodeAuthKeyId((const byte *)asn1String->data,
+                        asn1String->length, &extAuthKeyId, &extAuthKeyIdSz,
+                        &extAuthKeyIdIssuer, &extAuthKeyIdIssuerSz,
+                        &extAuthKeyIdIssuerSN, &extAuthKeyIdIssuerSNSz) != 0) {
                 return NULL;
             }
 
@@ -1976,8 +1959,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-            ret = wolfSSL_ASN1_STRING_set(akey->keyid, asn1String->data+idx,
-                                                            key_length);
+            ret = wolfSSL_ASN1_STRING_set(akey->keyid, extAuthKeyId,
+                                                            extAuthKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_AUTHORITY_KEYID_free(akey);
@@ -1996,8 +1979,6 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         case WC_NID_key_usage:
         {
             word16 keyUsage;
-            word32 idx;
-            int len;
 
             WOLFSSL_MSG("keyUsage");
 
@@ -2010,23 +1991,10 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-
-            idx = 0;
-            if (CheckBitString((byte *)asn1String->data, &idx, &len,
-                                                  asn1String->length, 0, NULL))
-            {
-                WOLFSSL_MSG("CheckBitString() failed");
+            if (DecodeKeyUsage((const byte *)asn1String->data,
+                               asn1String->length, &keyUsage) != 0) {
                 return NULL;
             }
-            if (len == 0 || len > 2)
-            {
-                WOLFSSL_MSG("Invalid BIT STRING length");
-                return NULL;
-            }
-
-            keyUsage = (word16)(asn1String->data[idx]);
-            if (len == 2)
-                keyUsage |= (word16)(asn1String->data[idx+1] << 8);
 
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
