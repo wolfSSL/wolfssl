@@ -6,14 +6,7 @@
 #error This user_settings.h header is only designed for Windows
 #endif
 
-/* Optionally use custom IO, uncomment this line: */
-/* #define WOLFSSL_USER_IO */
-#ifdef WOLFSSL_USER_IO
-    #define WOLFSSL_NO_SOCK
-#else
-    #define USE_WOLFSSL_IO
-#endif
-
+#define USE_WOLFSSL_IO
 #define HAVE_AESGCM
 #define WOLFSSL_TLS13
 #define HAVE_HKDF

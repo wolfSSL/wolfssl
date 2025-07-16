@@ -1132,9 +1132,6 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #endif
     #endif
     #ifndef SOCKET_INVALID
-        #ifndef INVALID_SOCKET
-            #define INVALID_SOCKET ((SOCKET_T)(-1))
-        #endif
         #define SOCKET_INVALID INVALID_SOCKET
     #endif
 #else
