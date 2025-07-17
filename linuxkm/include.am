@@ -21,6 +21,7 @@ EXTRA_DIST += m4/ax_linuxkm.m4 \
 	      linuxkm/lkcapi_ecdsa_glue.c \
 	      linuxkm/lkcapi_ecdh_glue.c \
 	      linuxkm/lkcapi_rsa_glue.c \
+	      linuxkm/wolfcrypt.lds \
 	      linuxkm/patches/5.10.17/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v17.patch \
 	      linuxkm/patches/5.10.236/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v10v236.patch \
 	      linuxkm/patches/5.15/WOLFSSL_LINUXKM_HAVE_GET_RANDOM_CALLBACKS-5v15.patch \
