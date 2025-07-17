@@ -308,8 +308,10 @@ int tsip_TlsCleanup(struct WOLFSSL* ssl)
     /* free stored messages */
     tsipFlushMessages(ssl);
     /* free internal structure */
-    XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    tuc->internal = NULL;
+    if (tuc->internal) {
+        XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        tuc->internal = NULL;
+    }
 
     /* zero clear */
     ForceZero(tuc, sizeof(TsipUserCtx));
