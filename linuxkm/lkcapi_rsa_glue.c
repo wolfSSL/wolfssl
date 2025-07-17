@@ -2386,6 +2386,11 @@ static int linuxkm_test_pkcs1pad_driver(const char * driver, int nbits,
     int                       n_diff = 0;
     uint8_t                   skipped = 0;
 
+    #ifdef LINUXKM_AKCIPHER_NO_SIGNVERIFY
+    (void)hash_oid;
+    (void)hash_len;
+    #endif
+
     #if !defined(LINUXKM_AKCIPHER_NO_SIGNVERIFY)
     hash = malloc(hash_len);
     if (! hash) {

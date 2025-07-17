@@ -21,22 +21,6 @@
 
 /* included by wolfcrypt/src/memory.c */
 
-#if defined(__PIE__) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
-/* needed in 6.1+ because show_free_areas() static definition in mm.h calls
- * __show_free_areas(), which isn't exported (neither was show_free_areas()).
- */
-void my__show_free_areas(
-    unsigned int flags,
-    nodemask_t *nodemask,
-    int max_zone_idx)
-{
-    (void)flags;
-    (void)nodemask;
-    (void)max_zone_idx;
-    return;
-}
-#endif
-
 #if defined(__PIE__) && defined(CONFIG_FORTIFY_SOURCE)
 /* needed because FORTIFY_SOURCE inline implementations call fortify_panic(). */
 void __my_fortify_panic(const char *name) {

@@ -132,6 +132,37 @@ static int updateFipsHash(void);
 extern int wolfcrypt_benchmark_main(int argc, char** argv);
 #endif /* WOLFSSL_LINUXKM_BENCHMARKS */
 
+#ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+int wc_lkm_LockMutex(wolfSSL_Mutex* m)
+{
+    unsigned long irq_flags;
+    /* first, try the cheap way. */
+    if (spin_trylock_irqsave(&m->lock, irq_flags)) {
+        m->irq_flags = irq_flags;
+        return 0;
+    }
+    if (irq_count() != 0) {
+        /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
+         * required, because in_softirq() is always true while saved,
+         * even for WC_FPU_INHIBITED_FLAG contexts.
+         */
+        spin_lock_irqsave(&m->lock, irq_flags);
+        m->irq_flags = irq_flags;
+        return 0;
+    }
+    else {
+        for (;;) {
+            if (spin_trylock_irqsave(&m->lock, irq_flags)) {
+                m->irq_flags = irq_flags;
+                return 0;
+            }
+            cond_resched();
+        }
+    }
+    __builtin_unreachable();
+}
+#endif
+
 WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_install_node(struct kobj_attribute *node, int *installed_flag)
 {
     if ((installed_flag == NULL) || (! *installed_flag)) {
@@ -503,7 +534,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #endif
     wolfssl_linuxkm_pie_redirect_table.kstrtoll = kstrtoll;
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         wolfssl_linuxkm_pie_redirect_table._printk = _printk;
     #else
         wolfssl_linuxkm_pie_redirect_table.printk = printk;
@@ -540,7 +573,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef HAVE_KVREALLOC
     wolfssl_linuxkm_pie_redirect_table.kvrealloc = kvrealloc;
 #endif
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
+        (defined(RHEL_MAJOR) &&                                    \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         wolfssl_linuxkm_pie_redirect_table.kmalloc_trace =
             kmalloc_trace;
     #else
@@ -696,6 +731,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table._raw_spin_unlock_irqrestore = _raw_spin_unlock_irqrestore;
 #endif
     wolfssl_linuxkm_pie_redirect_table._cond_resched = _cond_resched;
+
+#ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+    wolfssl_linuxkm_pie_redirect_table.wc_lkm_LockMutex = wc_lkm_LockMutex;
+#endif
 
 #ifdef CONFIG_ARM64
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;

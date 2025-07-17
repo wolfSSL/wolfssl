@@ -104,7 +104,17 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
     PIE_SUPPORT_FLAGS := -DUSE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ifeq "$(KERNEL_ARCH_X86)" "yes"
-        PIE_FLAGS += -mcmodel=small -mindirect-branch=keep -mfunction-return=keep
+        PIE_FLAGS += -mcmodel=small
+        ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
+            PIE_FLAGS += -mfunction-return=thunk-inline
+        else
+            PIE_FLAGS += -mfunction-return=keep
+        endif
+        ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
+            PIE_FLAGS += -mindirect-branch=thunk-inline
+        else
+            PIE_FLAGS += -mindirect-branch=keep
+        endif
     endif
     ifeq "$(KERNEL_ARCH)" "mips"
         PIE_FLAGS += -mabicalls
@@ -193,35 +203,85 @@ endif
 	    --rename-section .rodata=.rodata.wolfcrypt		\
 	    --rename-section .rodata.str1.1=.rodata.wolfcrypt	\
 	    --rename-section .rodata.str1.8=.rodata.wolfcrypt	\
+	    --rename-section .rodata.cst16=.rodata.wolfcrypt	\
 	    --rename-section .data=.data.wolfcrypt		\
-	    --rename-section .data.rel.local=.data.wolfcrypt	\
+	    --rename-section .data.rel.local=.data.wolfcrypt    \
 	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?
 	done
 	[ "$(KERNEL_ARCH_X86)" != "yes" ] ||			\
-	{ $(READELF) --syms $(WOLFCRYPT_PIE_FILES) |		\
-        $(AWK) -v obj="$(obj)" '				\
-	    /File:/ {						\
-		if (substr($$2, 1, length(obj)) == obj) {	\
-		    curfile = substr($$2, length(obj) + 2);	\
-		} else {					\
-		    curfile=$$2;				\
-		}						\
-		next;						\
-	    }							\
-	    {							\
-		if (($$4 == "SECTION") && ($$8 !~ "wolfcrypt")) {\
-		    if (! ((curfile ";" $$8) in warned_on)) {	\
-			print curfile ": " $$8 >"/dev/stderr";	\
-			warned_on[curfile ": " $$8] = 1;	\
-			++warnings;				\
-	    }}}							\
-	    END {						\
-		if (warnings) {					\
-		    exit(1);  					\
-		} else {					\
-		    exit(0);					\
-	    }}'; } ||						\
-	{ echo 'Error: section(s) missed by containerization.' >&2; exit 1; }
+	{ $(READELF) --sections --syms --wide $(WOLFCRYPT_PIE_FILES) |	\
+	$(AWK) -v obj="$(obj)" '					\
+	    /^File:/ {							\
+		phase = 0;						\
+		delete wolfcrypt_data_sections;				\
+		delete wolfcrypt_text_sections;				\
+		delete other_sections;					\
+		if (substr($$2, 1, length(obj)) == obj) {		\
+		    curfile = substr($$2, length(obj) + 2);		\
+		} else {						\
+		    curfile=$$2;					\
+		}							\
+		next;							\
+	    }								\
+	    /^Section Headers:/ {					\
+		phase = 1;						\
+		next;							\
+	    }								\
+	    /^Symbol table / {						\
+		phase = 2;						\
+		next;							\
+	    }								\
+	    {								\
+		if (phase == 1) {					\
+		    if (match($$0, "^ *\\[ *([0-9]+)\\] +([^ ]+) ", a)) {\
+			switch (a[2]) {					\
+			case ".text.wolfcrypt":				\
+			{						\
+			    wolfcrypt_text_sections[a[1]] = a[2];	\
+			    next;					\
+			}						\
+			case /^\.(data|rodata|bss)\.wolfcrypt$$/:	\
+			{						\
+			    wolfcrypt_data_sections[a[1]] = a[2];	\
+			    next;					\
+			}						\
+			default:					\
+			{						\
+			    other_sections[a[1]] = a[2];		\
+			}						\
+			}						\
+			next;						\
+		    }							\
+		    next;						\
+		}							\
+		else if (phase == 2) {					\
+		    if ($$4 == "FUNC") {				\
+			if (! ($$7 in wolfcrypt_text_sections)) {	\
+			    print curfile ": " $$4 " " $$8 " " other_sections[$$7] >"/dev/stderr"; \
+			    ++warnings;					\
+			}						\
+			next;						\
+		    }							\
+		    else if ($$4 == "OBJECT") {				\
+			if (! ($$7 in wolfcrypt_data_sections)) {	\
+			    if ((other_sections[$$7] == ".printk_index") || \
+				(($$8 ~ /^_entry\.[0-9]+$$|^kernel_read_file_str$$/) &&		\
+				 (other_sections[$$7] == ".data.rel.ro.local"))) \
+				next;					\
+			    print curfile ": " $$4 " " $$8 " " other_sections[$$7] >"/dev/stderr"; \
+			    ++warnings;					\
+			}						\
+			next;						\
+		    }							\
+		}							\
+	    }								\
+	    END {							\
+		if (warnings) {						\
+		    exit(1);						\
+		} else {						\
+		    exit(0);						\
+	    }}'; } || \
+	{ echo 'Error: symbol(s) missed by containerization.' >&2; exit 1; }
 ifneq "$(quiet)" "silent_"
 	echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif
