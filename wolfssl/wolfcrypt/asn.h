@@ -2146,6 +2146,10 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
 
 WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage);
 
+WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
+        const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
+        word32 *extExtKeyUsageCount, byte *extExtKeyUsage, byte *extExtKeyUsageSsh);
+
 WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 

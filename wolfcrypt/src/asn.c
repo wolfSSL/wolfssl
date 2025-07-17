@@ -21197,144 +21197,32 @@ enum {
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeExtKeyUsage(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeExtKeyUsageInternal(const byte* input, word32 sz, DecodedCert* cert)
 {
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0, oid;
-    int length, ret;
+    int ret = 0;
+    const byte *extExtKeyUsageSrc = NULL;
+    word32 extExtKeyUsageSz = 0;
+    word32 extExtKeyUsageCount = 0;
+    byte extExtKeyUsage = 0;
+    byte extExtKeyUsageSsh = 0;
 
-    WOLFSSL_ENTER("DecodeExtKeyUsage");
+    ret = DecodeExtKeyUsage(input, sz, &extExtKeyUsageSrc, &extExtKeyUsageSz,
+            &extExtKeyUsageCount, &extExtKeyUsage, &extExtKeyUsageSsh);
+    if (ret != 0)
+        return ret;
 
-    if (GetSequence(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-        return ASN_PARSE_E;
-    }
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    cert->extExtKeyUsageSrc = input + idx;
-    cert->extExtKeyUsageSz = length;
-#endif
-
-    while (idx < (word32)sz) {
-        ret = GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz);
-        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E))
-            continue;
-        else if (ret < 0)
-            return ret;
-
-        switch (oid) {
-            case EKU_ANY_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_ANY;
-                break;
-            case EKU_SERVER_AUTH_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
-                break;
-            case EKU_CLIENT_AUTH_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
-                break;
-            case EKU_CODESIGNING_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_CODESIGN;
-                break;
-            case EKU_EMAILPROTECT_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_EMAILPROT;
-                break;
-            case EKU_TIMESTAMP_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_TIMESTAMP;
-                break;
-            case EKU_OCSP_SIGN_OID:
-                cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
-                break;
-            #ifdef WOLFSSL_WOLFSSH
-            case EKU_SSH_CLIENT_AUTH_OID:
-                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_CLIENT_AUTH;
-                break;
-            case EKU_SSH_MSCL_OID:
-                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_MSCL;
-                break;
-            case EKU_SSH_KP_CLIENT_AUTH_OID:
-                cert->extExtKeyUsageSsh |= EXTKEYUSE_SSH_KP_CLIENT_AUTH;
-                break;
-            #endif /* WOLFSSL_WOLFSSH */
-            default:
-                break;
-        }
+    cert->extExtKeyUsageSrc = extExtKeyUsageSrc;
+    cert->extExtKeyUsageSz = extExtKeyUsageSz;
+    cert->extExtKeyUsage = extExtKeyUsage;
+    #ifdef WOLFSSL_WOLFSSH
+    cert->extExtKeyUsageSsh = extExtKeyUsageSsh;
+    #endif /* WOLFSSL_WOLFSSH */
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        cert->extExtKeyUsageCount++;
+    cert->extExtKeyUsageCount = extExtKeyUsageCount;
     #endif
-    }
 
     return 0;
-#else
-    word32 idx = 0;
-    int length;
-    int ret = 0;
-
-    WOLFSSL_ENTER("DecodeExtKeyUsage");
-
-    /* Strip SEQUENCE OF and expect to account for all the data. */
-    if (GetASN_Sequence(input, &idx, &length, sz, 1) < 0) {
-        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-        ret = ASN_PARSE_E;
-    }
-
-    if (ret == 0) {
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        /* Keep reference for WOLFSSL_X509. */
-        cert->extExtKeyUsageSrc = input + idx;
-        cert->extExtKeyUsageSz = (word32)length;
-    #endif
-    }
-
-    /* Check all OIDs. */
-    while ((ret == 0) && (idx < (word32)sz)) {
-        ASNGetData dataASN[keyPurposeIdASN_Length];
-
-        /* Clear dynamic data items and set OID type expected. */
-        XMEMSET(dataASN, 0, sizeof(dataASN));
-        GetASN_OID(&dataASN[KEYPURPOSEIDASN_IDX_OID], oidIgnoreType);
-        /* Decode KeyPurposeId. */
-        ret = GetASN_Items(keyPurposeIdASN, dataASN, keyPurposeIdASN_Length, 0,
-                           input, &idx, sz);
-        /* Skip unknown OIDs. */
-        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) {
-            ret = 0;
-        }
-        else if (ret == 0) {
-            /* Store the bit for the OID. */
-            switch (dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum) {
-                case EKU_ANY_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_ANY;
-                    break;
-                case EKU_SERVER_AUTH_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
-                    break;
-                case EKU_CLIENT_AUTH_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
-                    break;
-                case EKU_CODESIGNING_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_CODESIGN;
-                    break;
-                case EKU_EMAILPROTECT_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_EMAILPROT;
-                    break;
-                case EKU_TIMESTAMP_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_TIMESTAMP;
-                    break;
-                case EKU_OCSP_SIGN_OID:
-                    cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
-                    break;
-            }
-
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            /* Keep count for WOLFSSL_X509. */
-            cert->extExtKeyUsageCount++;
-        #endif
-        }
-    }
-
-    return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
 #ifndef IGNORE_NETSCAPE_CERT_TYPE
@@ -22578,7 +22466,7 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
         case EXT_KEY_USAGE_OID:
             VERIFY_AND_SET_OID(cert->extExtKeyUsageSet);
             cert->extExtKeyUsageCrit = critical ? 1 : 0;
-            if (DecodeExtKeyUsage(input, length, cert) < 0) {
+            if (DecodeExtKeyUsageInternal(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -23867,6 +23755,171 @@ WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsa
         if (keyUsageSz == 2)
             *extKeyUsage |= (word16)(keyUsage[1] << 8);
     }
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
+/* Decode extended key usage extension.
+ *
+ * X.509: RFC 5280, 4.2.1.12 - Extended Key Usage.
+ *
+ * @param [in]  input  Buffer holding data.
+ * @param [in]  sz     Size of data in buffer.
+ * @param [out] extExtKeyUsageSrc   Begining of the OIDs.
+ * @param [out] extExtKeyUsageSz    Size of data in extExtKeyUsageSrc.
+ * @param [out] extExtKeyUsageCount Number of usages read.
+ * @param [out] extExtKeyUsage      Usages read.
+ * @param [out] extExtKeyUsageSsh   SSH usages read.
+ * @return  0 on success.
+ * @return  ASN_BITSTR_E when the expected BIT_STRING tag is not found.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  MEMORY_E on dynamic memory allocation failure.
+ */
+WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
+        const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
+        word32 *extExtKeyUsageCount, byte *extExtKeyUsage, byte *extExtKeyUsageSsh)
+{
+    *extExtKeyUsageSrc = NULL;
+    *extExtKeyUsageSz = 0;
+    *extExtKeyUsageCount = 0;
+    *extExtKeyUsage = 0;
+    *extExtKeyUsageSsh = 0;
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0, oid;
+    int length, ret;
+
+    WOLFSSL_ENTER("DecodeExtKeyUsage");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+        return ASN_PARSE_E;
+    }
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    *extExtKeyUsageSrc = input + idx;
+    *extExtKeyUsageSz = length;
+#endif
+
+    while (idx < (word32)sz) {
+        ret = GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz);
+        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E))
+            continue;
+        else if (ret < 0)
+            return ret;
+
+        switch (oid) {
+            case EKU_ANY_OID:
+                *extExtKeyUsage |= EXTKEYUSE_ANY;
+                break;
+            case EKU_SERVER_AUTH_OID:
+                *extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
+                break;
+            case EKU_CLIENT_AUTH_OID:
+                *extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
+                break;
+            case EKU_CODESIGNING_OID:
+                *extExtKeyUsage |= EXTKEYUSE_CODESIGN;
+                break;
+            case EKU_EMAILPROTECT_OID:
+                *extExtKeyUsage |= EXTKEYUSE_EMAILPROT;
+                break;
+            case EKU_TIMESTAMP_OID:
+                *extExtKeyUsage |= EXTKEYUSE_TIMESTAMP;
+                break;
+            case EKU_OCSP_SIGN_OID:
+                *extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
+                break;
+            #ifdef WOLFSSL_WOLFSSH
+            case EKU_SSH_CLIENT_AUTH_OID:
+                *extExtKeyUsageSsh |= EXTKEYUSE_SSH_CLIENT_AUTH;
+                break;
+            case EKU_SSH_MSCL_OID:
+                *extExtKeyUsageSsh |= EXTKEYUSE_SSH_MSCL;
+                break;
+            case EKU_SSH_KP_CLIENT_AUTH_OID:
+                *extExtKeyUsageSsh |= EXTKEYUSE_SSH_KP_CLIENT_AUTH;
+                break;
+            #endif /* WOLFSSL_WOLFSSH */
+            default:
+                break;
+        }
+
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        (*extExtKeyUsageCount)++;
+    #endif
+    }
+
+    return 0;
+#else
+    word32 idx = 0;
+    int length;
+    int ret = 0;
+
+    WOLFSSL_ENTER("DecodeExtKeyUsage");
+
+    /* Strip SEQUENCE OF and expect to account for all the data. */
+    if (GetASN_Sequence(input, &idx, &length, sz, 1) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+        ret = ASN_PARSE_E;
+    }
+
+    if (ret == 0) {
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        /* Keep reference for WOLFSSL_X509. */
+        *extExtKeyUsageSrc = input + idx;
+        *extExtKeyUsageSz = (word32)length;
+    #endif
+    }
+
+    /* Check all OIDs. */
+    while ((ret == 0) && (idx < (word32)sz)) {
+        ASNGetData dataASN[keyPurposeIdASN_Length];
+
+        /* Clear dynamic data items and set OID type expected. */
+        XMEMSET(dataASN, 0, sizeof(dataASN));
+        GetASN_OID(&dataASN[KEYPURPOSEIDASN_IDX_OID], oidIgnoreType);
+        /* Decode KeyPurposeId. */
+        ret = GetASN_Items(keyPurposeIdASN, dataASN, keyPurposeIdASN_Length, 0,
+                           input, &idx, sz);
+        /* Skip unknown OIDs. */
+        if (ret == WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E)) {
+            ret = 0;
+        }
+        else if (ret == 0) {
+            /* Store the bit for the OID. */
+            switch (dataASN[KEYPURPOSEIDASN_IDX_OID].data.oid.sum) {
+                case EKU_ANY_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_ANY;
+                    break;
+                case EKU_SERVER_AUTH_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_SERVER_AUTH;
+                    break;
+                case EKU_CLIENT_AUTH_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
+                    break;
+                case EKU_CODESIGNING_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_CODESIGN;
+                    break;
+                case EKU_EMAILPROTECT_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_EMAILPROT;
+                    break;
+                case EKU_TIMESTAMP_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_TIMESTAMP;
+                    break;
+                case EKU_OCSP_SIGN_OID:
+                    *extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
+                    break;
+            }
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            /* Keep count for WOLFSSL_X509. */
+            (*extExtKeyUsageCount)++;
+        #endif
+        }
+    }
+
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
