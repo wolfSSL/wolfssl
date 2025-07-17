@@ -1251,7 +1251,6 @@ int wc_fspsm_TlsCleanup(WOLFSSL* ssl)
     /* zero clear */
     ForceZero(tuc, sizeof(FSPSM_ST));
     ssl->RenesasUserCtx = NULL;
-    
     return ret;
 }
 /* Set callback contexts needed for sce TLS api handling */
