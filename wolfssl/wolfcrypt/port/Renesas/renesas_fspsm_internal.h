@@ -154,7 +154,7 @@ typedef enum {
 
 struct WOLFSSL;
 struct Aes;
-WOLFSSL_LOCAL void wc_fspsm_TlsCleanup(struct WOLFSSL* ssl);
+WOLFSSL_LOCAL int wc_fspsm_TlsCleanup(struct WOLFSSL* ssl);
 WOLFSSL_LOCAL int     wc_fspsm_Open();
 WOLFSSL_LOCAL void    wc_fspsm_Close();
 WOLFSSL_LOCAL int     wc_fspsm_hw_lock();

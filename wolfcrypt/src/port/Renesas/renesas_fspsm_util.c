@@ -224,7 +224,7 @@ static int fspsm_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl,
                                    uint32_t sigSz, void* ctx)
 {
     int ret = WOLFSSL_FAILURE;
-    FSPSM_ST* cbInfo;
+    FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
     byte qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES];
     byte *peerkey = NULL;
 
@@ -232,10 +232,9 @@ static int fspsm_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl,
     (void) sigSz;
 
     /* sanity check */
-    if (ssl == NULL || sig == NULL || ctx == NULL)
+    if (ssl == NULL || sig == NULL || cbInfo == NULL ||
+            cbInfo->internal == NULL)
         return ret;
-
-    cbInfo = (FSPSM_ST*)ctx;
 
     /* export public peer public key */
     ret = wc_ecc_export_public_raw(ssl->peerEccKey, qx, &qxLen, qy, &qyLen);
@@ -246,7 +245,8 @@ static int fspsm_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl,
     }
     /* make peer ecc key data for SCE */
     /* 0padding(24bit) || 04(8bit) || Qx(256bit) || Qy(256bit) */
-    peerkey = (byte*)XMALLOC((3 + 1 + qxLen + qyLen), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    peerkey = (byte*)XMALLOC((3 + 1 + qxLen + qyLen), NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
     if (peerkey == NULL) {
         WOLFSSL_MSG("failed to malloc ecc key");
         return WOLFSSL_FAILURE;
@@ -404,7 +404,8 @@ int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* sanity check */
     if (ssl == NULL || pubKeyDer == NULL || pubKeySz == NULL ||
-        out == NULL || outlen == NULL || ctx == NULL)
+        out == NULL || outlen == NULL || cbInfo == NULL||
+        cbInfo->internal == NULL)
       return WOLFSSL_FAILURE;
 
     WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
@@ -738,7 +739,7 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
     uint32_t sceCS = GetSceCipherSuite(ssl->options.cipherSuite0,
                                          ssl->options.cipherSuite);
 
-    if (ssl== NULL || cbInfo == NULL)
+    if (ssl== NULL || cbInfo == NULL || cbInfo->internal == NULL)
       return BAD_FUNC_ARG;
 
 
@@ -1227,19 +1228,20 @@ WOLFSSL_API void wc_fspsm_set_callbacks(WOLFSSL_CTX* ctx)
 /*
 * Clean up Renesas Ctx
 * ssl WOLFSSL object
-* return none
+* return 0 successful
 */
-void wc_fspsm_TlsCleanup(WOLFSSL* ssl)
+int wc_fspsm_TlsCleanup(WOLFSSL* ssl)
 {
+    int ret = 0;
     FSPSM_ST* tuc = NULL;
 
     if (ssl == NULL)
-        return;
+        return ret;
 
     tuc = ssl->RenesasUserCtx;
 
     if (tuc == NULL)
-        return;
+        return ret;
     /* free internal structure */
     if (tuc->internal) {
         XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1249,6 +1251,8 @@ void wc_fspsm_TlsCleanup(WOLFSSL* ssl)
     /* zero clear */
     ForceZero(tuc, sizeof(FSPSM_ST));
     ssl->RenesasUserCtx = NULL;
+    
+    return ret;
 }
 /* Set callback contexts needed for sce TLS api handling */
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)

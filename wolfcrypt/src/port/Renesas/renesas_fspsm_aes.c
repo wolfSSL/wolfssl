@@ -823,7 +823,7 @@ WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info,
 
     WOLFSSL_ENTER("wc_fspsm_AesCipher");
 
-    if (info == NULL || ctx == NULL) {
+    if (info == NULL || cbInfo == NULL || cbInfo->internal == NULL) {
         return BAD_FUNC_ARG;
     }
 
