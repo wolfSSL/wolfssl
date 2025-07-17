@@ -39,13 +39,19 @@ extern FSPSM_CONFIG     gFSPSM_cfg;
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_fspsm_internal.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #include <stdio.h>
 
@@ -55,18 +61,16 @@ extern FSPSM_CONFIG     gFSPSM_cfg;
     #define WOLFSSL_PKMSG(_f_, ...) WC_DO_NOTHING
 #endif
 
-#if defined(WOLFSSL_RENESAS_FSPSM_ECC)
-WC_THREADSHARED FSPSM_ST_PKC gPKCbInfo;
-#endif
-
-
 #ifdef WOLFSSL_RENESAS_FSPSM_TLS
 static const byte*  ca_cert_sig;
 static fspsm_key_data g_user_key_info;
 
 static uint32_t     g_encrypted_publicCA_key[HW_SCE_SINST_WORD_SIZE];
 extern uint32_t     g_CAscm_Idx;          /* index of CM table    */
-static uint32_t     fspsm_sess_idx = 0;
+//#define USE_GLOBAL_INTERNAL
+#if !defined(USE_GLOBAL_INTERNAL)
+FSPSM_ST_Internal   g_internal;
+#endif
 #endif
 
 #endif /* WOLFSSL_RENESAS_FSPSM*/
@@ -95,7 +99,7 @@ static int fspsm_CryptHwMutexUnLock(wolfSSL_Mutex* mutex)
 * lock hw engine
 * this should be called before using engine.
 */
-WOLFSSL_LOCAL int wc_fspsm_hw_lock()
+int wc_fspsm_hw_lock()
 {
     int ret = 0;
 
@@ -122,13 +126,13 @@ WOLFSSL_LOCAL int wc_fspsm_hw_lock()
 /*
 * release hw engine
 */
-WOLFSSL_LOCAL void wc_fspsm_hw_unlock(void)
+void wc_fspsm_hw_unlock(void)
 {
     fspsm_CryptHwMutexUnLock(&fspsm_mutex);
 }
 
 /* Open sce driver for use */
-WOLFSSL_LOCAL int wc_fspsm_Open()
+int wc_fspsm_Open()
 {
     WOLFSSL_ENTER("wc_fspsm_Open");
     int ret;
@@ -167,7 +171,7 @@ WOLFSSL_LOCAL int wc_fspsm_Open()
 }
 
 /* close SCE driver */
-WOLFSSL_LOCAL void wc_fspsm_Close()
+void wc_fspsm_Close()
 {
     WOLFSSL_ENTER("sce Close");
     int ret;
@@ -188,7 +192,7 @@ WOLFSSL_LOCAL void wc_fspsm_Close()
 }
 
 #define RANDGEN_WORDS  4
-WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
+int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
 {
     /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
     int ret = 0;
@@ -201,7 +205,7 @@ WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
             len = sz;
         }
         /* return 4 words random number*/
-        ret = R_RANDOM_GEN((uint8_t* const)fspbuf);
+        ret = R_RANDOM_GEN((uint32_t*)fspbuf);
         if(ret == FSP_SUCCESS) {
             XMEMCPY(output, &fspbuf, len);
             output += len;
@@ -266,15 +270,15 @@ static int fspsm_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl,
             (uint8_t*) peerkey,
             (uint8_t*) sig,
             (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
-            (uint32_t*)cbInfo->encrypted_ephemeral_ecdh_public_key);
+            (uint32_t*)cbInfo->internal->encrypted_ephemeral_ecdh_public_key);
 
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("failed R_fspsm_TLS_ServerKeyExchangeVerify");
-            cbInfo->keyflgs_tls.bits.pk_key_set = 0;
+            cbInfo->internal->keyflgs_tls.bits.pk_key_set = 0;
         }
         else {
             ret = WOLFSSL_SUCCESS;
-            cbInfo->keyflgs_tls.bits.pk_key_set = 1;
+            cbInfo->internal->keyflgs_tls.bits.pk_key_set = 1;
         }
     }
     else {
@@ -288,7 +292,7 @@ static int fspsm_ServerKeyExVerify(uint32_t type, WOLFSSL* ssl,
     return ret;
 }
 /* Callback for Rsa Verify */
-WOLFSSL_LOCAL int wc_fspsm_RsaVerifyTLS(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
+int wc_fspsm_RsaVerifyTLS(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
         uint8_t** out, const byte* key, uint32_t keySz, void* ctx)
 {
     int ret = WOLFSSL_FAILURE;
@@ -311,7 +315,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaVerifyTLS(WOLFSSL* ssl, byte* sig, uint32_t sigSz,
     return ret;
 }
 /* Callback for Ecc Verify */
-WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
+int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
         uint32_t sigSz,  const uint8_t* hash, uint32_t hashSz,
         const uint8_t* key, uint32_t keySz, int* result, void* ctx)
 {
@@ -389,7 +393,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
     defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 
 /* Callback for ECC shared secret */
-WOLFSSL_LOCAL int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
+int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         uint8_t* pubKeyDer, unsigned int* pubKeySz,
         uint8_t* out, unsigned int* outlen, int side, void* ctx)
 {
@@ -410,35 +414,39 @@ WOLFSSL_LOCAL int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 
-    if (cbInfo->keyflgs_tls.bits.pk_key_set == 1) {
+    if (cbInfo->internal->keyflgs_tls.bits.pk_key_set == 1) {
         if ((ret = wc_fspsm_hw_lock()) == 0) {
             /* Generate ECC PUblic key pair */
             ret = FSPSM_TLS_ECCS256R1_KPG(
-                &cbInfo->ecc_p256_wrapped_key,
-                (uint8_t*)&cbInfo->ecc_ecdh_public_key/* Qx 32 bytes and Qy 32 bytes*/ );
+                &cbInfo->internal->ecc_p256_wrapped_key,
+                /* Qx 32 bytes and Qy 32 bytes*/
+                (uint8_t*)&cbInfo->internal->ecc_ecdh_public_key );
             if (ret != FSP_SUCCESS) {
-                WOLFSSL_PKMSG("Failed secp256r1_EphemeralWrappedKeyPairGenerate %d\n", ret);
+                WOLFSSL_PKMSG("Failed secp256r1_EphemeralWrappedKeyPairGenerate"
+                                " %d\n", ret);
                 return ret;
             }
 
             /* copy generated ecdh public key into buffer */
             pubKeyDer[0] = ECC_POINT_UNCOMP;
-            *pubKeySz = 1 + sizeof(cbInfo->ecc_ecdh_public_key);
-            XMEMCPY(&pubKeyDer[1], &cbInfo->ecc_ecdh_public_key,
-                        sizeof(cbInfo->ecc_ecdh_public_key));
+            *pubKeySz = 1 + sizeof(cbInfo->internal->ecc_ecdh_public_key);
+            XMEMCPY(&pubKeyDer[1], &cbInfo->internal->ecc_ecdh_public_key,
+                        sizeof(cbInfo->internal->ecc_ecdh_public_key));
 
             /* Generate Premaster Secret */
             ret = FSPSM_TLS_PREMASTERGEN(
-                        (uint32_t*)&cbInfo->encrypted_ephemeral_ecdh_public_key,
-                        &cbInfo->ecc_p256_wrapped_key,
-                        (uint32_t*)out/* pre-master secret 64 bytes */);
+                (uint32_t*)
+                    &cbInfo->internal->encrypted_ephemeral_ecdh_public_key,
+                    &cbInfo->internal->ecc_p256_wrapped_key,
+                    (uint32_t*)out/* pre-master secret 64 bytes */);
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_PKMSG("Failed PreMasterSecretGenerateForECC_secp256r1 %d\n", ret);
                 return ret;
             }
             else {
                 /* set master secret generation callback for use */
-                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, Renesas_cmn_genMasterSecret);
+                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, 
+                                                Renesas_cmn_genMasterSecret);
                 wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
             }
         }
@@ -450,7 +458,8 @@ WOLFSSL_LOCAL int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         wc_fspsm_hw_unlock();
 
         *outlen = 64;
-        WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n", ret, *pubKeySz, *outlen);
+        WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n", 
+                                                ret, *pubKeySz, *outlen);
     }
 
     return ret;
@@ -523,7 +532,7 @@ static uint32_t GetSceCipherSuite(
 /* ssl     : a pointer to WOLFSSL object                       */
 /* session_key_generated : if session key has been generated   */
 /* return  1 for usable, 0 for unusable                        */
-WOLFSSL_LOCAL int wc_fspsm_usable(const WOLFSSL *ssl,
+int wc_fspsm_usable(const WOLFSSL *ssl,
                                                 uint8_t session_key_generated)
 {
     WOLFSSL_ENTER("fspsm_usable");
@@ -575,7 +584,7 @@ WOLFSSL_LOCAL int wc_fspsm_usable(const WOLFSSL *ssl,
 }
 
 /* Generate Hmac by sha256*/
-WOLFSSL_LOCAL int wc_fspsm_Sha256GenerateHmac(const WOLFSSL *ssl,
+int wc_fspsm_Sha256GenerateHmac(const WOLFSSL *ssl,
                 const uint8_t* myInner, uint32_t innerSz,const uint8_t* in,
                 uint32_t sz, byte* digest)
 {
@@ -627,7 +636,7 @@ WOLFSSL_LOCAL int wc_fspsm_Sha256GenerateHmac(const WOLFSSL *ssl,
 }
 
 /* Verify hmac */
-WOLFSSL_LOCAL int wc_fspsm_Sha256VerifyHmac(const WOLFSSL *ssl,
+int wc_fspsm_Sha256VerifyHmac(const WOLFSSL *ssl,
         const uint8_t* message, uint32_t messageSz,
         uint32_t macSz, uint32_t content)
 {
@@ -649,7 +658,7 @@ WOLFSSL_LOCAL int wc_fspsm_Sha256VerifyHmac(const WOLFSSL *ssl,
     }
 
     wolfSSL_SetTlsHmacInner((WOLFSSL*)ssl, myInner,
-                                                        (word32)messageSz, (int)content, 1);
+                        (word32)messageSz, (int)content, 1);
 
     ret = FSPSM_S256HMAC_VInt(
                 &_handle,
@@ -684,7 +693,7 @@ WOLFSSL_LOCAL int wc_fspsm_Sha256VerifyHmac(const WOLFSSL *ssl,
 }
 
 /* generate Verify Data based on master secret */
-WOLFSSL_LOCAL int wc_fspsm_generateVerifyData(
+int wc_fspsm_generateVerifyData(
                             const uint8_t *ms, /* master secret */
                             const uint8_t *side, const uint8_t *handshake_hash,
                             uint8_t *hashes /* out */)
@@ -717,7 +726,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateVerifyData(
 }
 
 /* generate keys for TLS communication */
-WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
+int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                 FSPSM_ST* cbInfo, int devId)
 {
     WOLFSSL_MSG("fspsm_generateSessionKey()");
@@ -843,8 +852,10 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                 /* ready-for-use flag will be set when SetKeySide() is called */
             }
 
-            if (cbInfo->cipher == SCE_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
-               cbInfo->cipher == SCE_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
+            if (cbInfo->internal->cipher == 
+                    SCE_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
+                cbInfo->internal->cipher == 
+                    SCE_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
                 enc->aes->nonceSz = AEAD_MAX_IMP_SZ;
                 dec->aes->nonceSz = AEAD_MAX_IMP_SZ;
              }
@@ -852,7 +863,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
              dec->aes->devId = devId;
 
             /* marked as session key is set */
-            cbInfo->keyflgs_tls.bits.session_key_set = 1;
+            cbInfo->internal->keyflgs_tls.bits.session_key_set = 1;
         }
 
         XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
@@ -871,7 +882,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
 }
 
 /* generate master secret based on pre-master which is generated by SCE */
-WOLFSSL_LOCAL int wc_fspsm_generateMasterSecret(
+int wc_fspsm_generateMasterSecret(
         uint8_t        cipherSuiteFirst,
         uint8_t        cipherSuite,
         const uint8_t *pr, /* pre-master    */
@@ -909,7 +920,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateMasterSecret(
 }
 
 /* generate pre-Master secrete by SCE */
-WOLFSSL_LOCAL int wc_fspsm_generatePremasterSecret(uint8_t *premaster,
+int wc_fspsm_generatePremasterSecret(uint8_t *premaster,
                                                         uint32_t preSz)
 {
     WOLFSSL_ENTER("fspsm_generatePremasterSecret");
@@ -940,7 +951,7 @@ WOLFSSL_LOCAL int wc_fspsm_generatePremasterSecret(uint8_t *premaster,
 /*
 * generate encrypted pre-Master secrete by SCE
 */
-WOLFSSL_LOCAL int wc_fspsm_generateEncryptPreMasterSecret(
+int wc_fspsm_generateEncryptPreMasterSecret(
         WOLFSSL*    ssl,
         uint8_t*       out,
         uint32_t*     outSz)
@@ -983,7 +994,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateEncryptPreMasterSecret(
 
 
 /* Certificate verification by SCE */
-WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
+int wc_fspsm_tls_CertVerify(
         const uint8_t* cert,       uint32_t certSz,
         const uint8_t* signature,  uint32_t sigSz,
         uint32_t      key_n_start,uint32_t key_n_len,
@@ -1080,7 +1091,7 @@ WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
 }
 
 /* Root Certificate verification */
-WOLFSSL_LOCAL int wc_fspsm_tls_RootCertVerify(
+int wc_fspsm_tls_RootCertVerify(
         const uint8_t* cert,        uint32_t cert_len,
         uint32_t      key_n_start,    uint32_t key_n_len,
         uint32_t      key_e_start,    uint32_t key_e_len,
@@ -1130,23 +1141,27 @@ WOLFSSL_LOCAL int wc_fspsm_tls_RootCertVerify(
 /*  store elements for session key generation into ssl->keys.
  *  return 0 on success, negative value on failure
  */
-WOLFSSL_LOCAL int wc_fspsm_storeKeyCtx(WOLFSSL* ssl, FSPSM_ST* info)
+int wc_fspsm_storeKeyCtx(WOLFSSL* ssl, FSPSM_ST* info)
 {
     int ret = 0;
 
     WOLFSSL_ENTER("fspsm_storeKeyCtx");
 
-    if (ssl == NULL || info == NULL)
+    if (ssl == NULL || info == NULL || info->internal == NULL)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        XMEMCPY(info->masterSecret, ssl->arrays->fspsm_masterSecret,
-                                                FSPSM_TLS_MASTERSECRET_SIZE);
-        XMEMCPY(info->clientRandom, ssl->arrays->clientRandom, 32);
-        XMEMCPY(info->serverRandom, ssl->arrays->serverRandom, 32);
+        XMEMCPY(info->internal->masterSecret, 
+                        ssl->arrays->fspsm_masterSecret,
+                        FSPSM_TLS_MASTERSECRET_SIZE);
+        XMEMCPY(info->internal->clientRandom, 
+                        ssl->arrays->clientRandom, 32);
+        XMEMCPY(info->internal->serverRandom, 
+                        ssl->arrays->serverRandom, 32);
 
-        info->cipher = (uint8_t)GetSceCipherSuite(ssl->options.cipherSuite0,
-                               ssl->options.cipherSuite);
+        info->internal->cipher = (uint8_t)GetSceCipherSuite(
+                                ssl->options.cipherSuite0,
+                                ssl->options.cipherSuite);
     }
     WOLFSSL_LEAVE("fspsm_storeKeyCtx", ret);
     return ret;
@@ -1213,6 +1228,36 @@ WOLFSSL_API void wc_fspsm_set_callbacks(WOLFSSL_CTX* ctx)
     /* reset callbacks */
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, NULL);
 }
+/*
+* Clean up Renesas Ctx
+* ssl WOLFSSL object
+* return none
+*/
+void wc_fspsm_TlsCleanup(WOLFSSL* ssl)
+{
+    FSPSM_ST* tuc = NULL;
+
+    if (ssl == NULL)
+        return;
+
+    tuc = ssl->RenesasUserCtx;
+
+    if (tuc == NULL)
+        return;
+    /* free internal structure */
+    if (tuc->internal) {
+#if !defined(USE_GLOBAL_INTERNAL)
+        XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        tuc->internal = NULL;
+#else
+        ForceZero(tuc->internal, sizeof(FSPSM_ST_Internal));
+#endif
+    }
+
+    /* zero clear */
+    ForceZero(tuc, sizeof(FSPSM_ST));
+    ssl->RenesasUserCtx = NULL;
+}
 /* Set callback contexts needed for sce TLS api handling */
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
 WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
@@ -1220,14 +1265,29 @@ WOLFSSL_API int wc_sce_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 WOLFSSL_API int wc_fspsm_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 #endif
 {
-    if (fspsm_sess_idx > MAX_FSPSM_CBINDEX) {
-        WOLFSSL_MSG("exceeds maximum session index");
-        return -1;
+    FSPSM_ST* uCtx = (FSPSM_ST*)user_ctx;
+
+    if (ssl == NULL || user_ctx == NULL) {
+        return BAD_FUNC_ARG;
     }
-    gPKCbInfo.user_PKCbInfo[fspsm_sess_idx] = (FSPSM_ST*)user_ctx;
-    gPKCbInfo.user_PKCbInfo[fspsm_sess_idx]->keyflgs_tls.bits.pk_key_set = 0;
-    gPKCbInfo.user_PKCbInfo[fspsm_sess_idx]->keyflgs_tls.bits.session_key_set
-                                                                            = 0;
+
+    ForceZero(uCtx, sizeof(FSPSM_ST));
+#if !defined(USE_GLOBAL_INTERNAL)
+    uCtx->internal = (FSPSM_ST_Internal*)XMALLOC(sizeof(FSPSM_ST_Internal),
+                                        ssl->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    printf("sizeof (FSPSM_ST_Internal) = %d\n", sizeof(FSPSM_ST_Internal));
+    uCtx->internal = &g_internal;
+#endif
+    if (!uCtx->internal) {
+        WOLFSSL_MSG("Failed to allocate memory for user ctx internal");
+        return MEMORY_E;
+    }
+
+    ForceZero(uCtx->internal, sizeof(FSPSM_ST_Internal));
+
+    ssl->RenesasUserCtx = user_ctx;     /* ssl doesn't own user_ctx */
 
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
     wolfSSL_SetRsaEncCtx(ssl, user_ctx);
@@ -1238,8 +1298,6 @@ WOLFSSL_API int wc_fspsm_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 
     /* set up crypt callback */
     wc_CryptoCb_CryptInitRenesasCmn(ssl, user_ctx);
-
-    gPKCbInfo.num_session = ++fspsm_sess_idx;
 
     return 0;
 }

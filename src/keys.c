@@ -3556,7 +3556,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
         void* ctx = wolfSSL_GetEncryptKeysCtx(ssl);
         #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
             FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
-            cbInfo->side = side;
+            cbInfo->internal->side = side;
         #elif defined(WOLFSSL_RENESAS_TSIP_TLS)
             TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
             cbInfo->key_side = side;

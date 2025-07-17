@@ -35,7 +35,7 @@
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_fspsm_internal.h>
 
 #if defined(WOLFSSL_RENESAS_RSIP)
 extern FSPSM_INSTANCE   gFSPSM_ctrl;

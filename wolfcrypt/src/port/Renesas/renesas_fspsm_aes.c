@@ -30,6 +30,8 @@
      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)
 
+#include "wolfssl/wolfcrypt/port/Renesas/renesas_fspsm_internal.h"
+
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/internal.h>
@@ -37,7 +39,6 @@
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
-#include "wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h"
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -243,7 +244,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     (void) key_server_aes;
 
     /* sanity check */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || ctx == NULL) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || info == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -296,7 +297,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
 
       #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
        if (ret == 0 &&
-           info->keyflgs_tls.bits.session_key_set == 1) {
+           info->internal->keyflgs_tls.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -312,10 +313,10 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             }
 
             ret = FSPSM_SESSIONKEY_GEN_FUNC(
-                    info->cipher,
-                    (uint32_t*)info->masterSecret,
-                    (uint8_t*) info->clientRandom,
-                    (uint8_t*) info->serverRandom,
+                    info->internal->cipher,
+                    (uint32_t*)info->internal->masterSecret,
+                    (uint8_t*) info->internal->clientRandom,
+                    (uint8_t*) info->internal->serverRandom,
                     &iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     &key_client_mac,
                     &key_server_mac,
@@ -397,10 +398,10 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
-        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+        if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_client_aes != NULL)
             XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
-        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+        if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_server_aes != NULL)
             XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
         wc_fspsm_hw_unlock();
@@ -452,7 +453,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     FSPSM_AES_PWKEY      key_server_aes = NULL;
     (void) key_client_aes;
     /* sanity check */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || ctx == NULL) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || info == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -500,7 +501,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
         }
        #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
         if (ret == 0 &&
-            info->keyflgs_tls.bits.session_key_set == 1) {
+            info->internal->keyflgs_tls.bits.session_key_set == 1) {
             /* generate AES-GCM session key. The key stored in
              * Aes.ctx.tsip_keyIdx is not used here.
              */
@@ -516,10 +517,10 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
             }
 
             ret = FSPSM_SESSIONKEY_GEN_FUNC(
-                    info->cipher,
-                    (uint32_t*)info->masterSecret,
-                    (uint8_t*) info->clientRandom,
-                    (uint8_t*) info->serverRandom,
+                    info->internal->cipher,
+                    (uint32_t*)info->internal->masterSecret,
+                    (uint8_t*) info->internal->clientRandom,
+                    (uint8_t*) info->internal->serverRandom,
                     (uint8_t*)&iv[AESGCM_IMP_IV_SZ], /* use exp_IV */
                     &key_client_mac,
                     &key_server_mac,
@@ -537,7 +538,6 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
        #endif
             if (info->keyflgs_crypt.bits.aes256_installedkey_set == 1 ||
                 info->keyflgs_crypt.bits.aes128_installedkey_set == 1) {
-
                 key_server_aes = aes->ctx.wrapped_key;
                 iv_l = iv;
                 ivSz_l = ivSz;
@@ -596,10 +596,10 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
         XFREE(aTagBuf,   aes->heap, DYNAMIC_TYPE_AES);
         XFREE(plainBuf,  aes->heap, DYNAMIC_TYPE_AES);
         XFREE(cipherBuf, aes->heap, DYNAMIC_TYPE_AES);
-        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+        if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_client_aes != NULL)
             XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
-        if (info->keyflgs_tls.bits.session_key_set == 1 &&
+        if (info->internal->keyflgs_tls.bits.session_key_set == 1 &&
             key_server_aes != NULL)
             XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
         wc_fspsm_hw_unlock();
@@ -811,6 +811,92 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     return wc_AesSetIV(aes, iv);
 }
 #endif
+
+WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
+    (void)devIdArg;
+
+    WOLFSSL_ENTER("wc_fspsm_AesCipher");
+    
+    if (info == NULL || ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    #if !defined(NO_AES)
+    #ifdef HAVE_AESGCM
+        if (info->cipher.type == WC_CIPHER_AES_GCM) {
+            if (info->cipher.enc &&
+                (cbInfo->internal->keyflgs_tls.bits.session_key_set == 1 ||
+                 (cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
+                  info->cipher.aesgcm_enc.aes->keylen == 32) ||
+                 (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
+                  info->cipher.aesgcm_enc.aes->keylen == 16))) {
+
+                ret = wc_fspsm_AesGcmEncrypt(
+                        info->cipher.aesgcm_enc.aes,
+                        (byte*)info->cipher.aesgcm_enc.out,
+                        (byte*)info->cipher.aesgcm_enc.in,
+                        info->cipher.aesgcm_enc.sz,
+                        (byte*)info->cipher.aesgcm_enc.iv,
+                        info->cipher.aesgcm_enc.ivSz,
+                        (byte*)info->cipher.aesgcm_enc.authTag,
+                        info->cipher.aesgcm_enc.authTagSz,
+                        (byte*)info->cipher.aesgcm_enc.authIn,
+                        info->cipher.aesgcm_enc.authInSz,
+                        (void*)ctx);
+
+            }
+            else if (cbInfo->internal->keyflgs_tls.bits.session_key_set == 1 ||
+                    (cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
+                       info->cipher.aesgcm_dec.aes->keylen == 32) ||
+                    (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
+                       info->cipher.aesgcm_dec.aes->keylen == 16)) {
+
+                ret = wc_fspsm_AesGcmDecrypt(
+                        info->cipher.aesgcm_dec.aes,
+                        (byte*)info->cipher.aesgcm_dec.out,
+                        (byte*)info->cipher.aesgcm_dec.in,
+                        info->cipher.aesgcm_dec.sz,
+                        (byte*)info->cipher.aesgcm_dec.iv,
+                        info->cipher.aesgcm_dec.ivSz,
+                        (byte*)info->cipher.aesgcm_dec.authTag,
+                        info->cipher.aesgcm_dec.authTagSz,
+                        (byte*)info->cipher.aesgcm_dec.authIn,
+                        info->cipher.aesgcm_dec.authInSz,
+                        (void*)ctx);
+            }
+        }
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AES_CBC
+        if ((info->cipher.type == WC_CIPHER_AES_CBC) &&
+            (cbInfo->internal->keyflgs_tls.bits.session_key_set == 1 ||
+            (cbInfo->keyflgs_crypt.bits.aes256_installedkey_set == 1 &&
+                info->cipher.aescbc.aes->keylen == 32) ||
+            (cbInfo->keyflgs_crypt.bits.aes128_installedkey_set == 1 &&
+                info->cipher.aescbc.aes->keylen == 16))) {
+                if (info->cipher.enc) {
+                    ret = wc_fspsm_AesCbcEncrypt(
+                        info->cipher.aescbc.aes,
+                        (byte*)info->cipher.aescbc.out,
+                        (byte*)info->cipher.aescbc.in,
+                        info->cipher.aescbc.sz);
+                }
+                else {
+                    ret = wc_fspsm_AesCbcDecrypt(
+                        info->cipher.aescbc.aes,
+                        (byte*)info->cipher.aescbc.out,
+                        (byte*)info->cipher.aescbc.in,
+                        info->cipher.aescbc.sz);
+                }
+        }
+    #endif /* HAVE_AES_CBC */
+    #endif /* !NO_AES */
+    (void)cbInfo;
+    WOLFSSL_LEAVE("wc_fspsm_AesCipher", ret);
+    return ret;
+}
 #endif /* WOLFSSL_RENESAS_FSPSM_TLS
           WOLFSSL_RENESAS_FSPSM_CRYPTONLY
           NO_WOLFSSL_RENESAS_FSPSM_AES */
