@@ -1289,11 +1289,23 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return ASN_PARSE_E;
             }
+            else if (zeroPadded && len == 2 && (input[idx] & 0x80U) != 0U) {
+                /* Value is >= 0x8000 which is too large for a sword16. */
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Value too large for sword16");
+            #endif
+                return ASN_PARSE_E;
+            }
             /* Fill number with all of data. */
-            *data->data.u16 = 0;
-            for (i = 0; i < len; i++) {
-                *data->data.u16 = (word16)(*data->data.u16 << 8U);
-                *data->data.u16 = (word16)(*data->data.u16 | input[idx + (word32)i]);
+            else {
+                sword16 v = 0;
+                if (!zeroPadded && (input[idx] & 0x80U) != 0U) {
+                    v = -1;
+                }
+                for (i = 0; i < len; i++) {
+                    v = (sword16)(v << 8U) | (sword16)(word16)input[idx + (word32)i];
+                }
+                *data->data.u16 = (word16)v;
             }
             break;
         case ASN_DATA_TYPE_WORD32:
@@ -1304,11 +1316,23 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return ASN_PARSE_E;
             }
+            else if (zeroPadded && len == 4 && (input[idx] & 0x80U) != 0U) {
+                /* Value is >= 0x8000_0000 which is too large for a sword32. */
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Value too large for sword32");
+            #endif
+                return ASN_PARSE_E;
+            }
             /* Fill number with all of data. */
-            *data->data.u32 = 0;
-            for (i = 0; i < len; i++) {
-                *data->data.u32 <<= 8;
-                *data->data.u32 |= input[idx + (word32)i] ;
+            else {
+                sword32 v = 0;
+                if (!zeroPadded && (input[idx] & 0x80U) != 0U) {
+                    v = -1;
+                }
+                for (i = 0; i < len; i++) {
+                    v = (sword32)(v << 8U) | (sword32)(word32)input[idx + (word32)i];
+                }
+                *data->data.u32 = (word32)v;
             }
             break;
 
@@ -3211,14 +3235,13 @@ int GetMyVersion(const byte* input, word32* inOutIdx,
  * @return  BUFFER_E when data in buffer is too small.
  * @return  ASN_EXPECT_0_E when the most significant bit is set.
  */
-int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
+int GetShortInt(const byte* input, word32* inOutIdx, sword32 * number,
+        word32 maxIdx)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = *inOutIdx;
     word32 len;
     byte   tag;
-
-    *number = 0;
 
     /* check for type and length bytes */
     if ((idx + 2) > maxIdx)
@@ -3237,13 +3260,20 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
     if (len + idx > maxIdx)
         return ASN_PARSE_E;
 
+    if (input[idx] >= 0x80U) {
+        *number = -1;
+    }
+    else {
+        *number = 0;
+    }
+
     while (len--) {
         *number  = *number << 8 | input[idx++];
     }
 
     *inOutIdx = idx;
 
-    return *number;
+    return 0;
 #else
     ASNGetData dataASN[intASN_Length];
     int ret;
@@ -3256,9 +3286,8 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
     ret = GetASN_Items(intASN, dataASN, intASN_Length, 0, input, inOutIdx,
                        maxIdx);
     if (ret == 0) {
-        /* Return number through variable and return value. */
-        *number = (int)num;
-        ret = (int)num;
+        /* Return integer value through out pointer. */
+        *number = (sword32)num;
     }
     return ret;
 #endif
@@ -3271,43 +3300,30 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
      defined(HAVE_PKCS12)
 /* Set small integer, 32 bits or less. DER encoding with no leading 0s
  * returns total amount written including ASN tag and length byte on success */
-int SetShortInt(byte* output, word32* inOutIdx, word32 number, word32 maxIdx)
+int SetShortInt(byte* output, word32* inOutIdx, sword32 number, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
     word32 len;
-    int    i;
-    word32 extraByte = 0;
+    sword32 strip = 0;
 
-    if (number == 0)
-        len = 1;
-    else
-        len = BytePrecision(number);
+    if (number < 0)
+        strip = 0x1FF;
 
-    /* clarify the len range to prepare for the next right bit shifting */
-    if (len < 1 || len > sizeof(number)) {
-        return ASN_PARSE_E;
-    }
-    if (number >> (WOLFSSL_BIT_SIZE * len - 1)) {
-        /* Need one byte of zero value not to be negative number */
-        extraByte = 1;
+    /* Determine value length. */
+    for (len = 4; len > 1; len--) {
+        if (((number >> ((len - 1) * WOLFSSL_BIT_SIZE - 1)) & 0x1FF) != strip)
+            break;
     }
 
     /* check for room for type and length bytes. */
-    if ((idx + 2 + extraByte + len) > maxIdx)
+    if ((idx + 2 + len) > maxIdx)
         return BUFFER_E;
 
-    /* check that MAX_SHORT_SZ allows this size of ShortInt. */
-    if (2 + extraByte + len > MAX_SHORT_SZ)
-        return ASN_PARSE_E;
-
     output[idx++] = ASN_INTEGER;
-    output[idx++] = (byte)(len + extraByte);
-    if (extraByte) {
-        output[idx++] = 0x00;
-    }
+    output[idx++] = (byte)len;
 
-    for (i = (int)len - 1; i >= 0; --i)
-        output[idx++] = (byte)(number >> (i * WOLFSSL_BIT_SIZE));
+    for (; len > 0; len--)
+        output[idx++] = (byte)(number >> ((len - 1) * WOLFSSL_BIT_SIZE));
 
     len = idx - *inOutIdx;
     *inOutIdx = idx;
@@ -9632,7 +9648,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
     if (ret == 0) {
         padSz = (word32)((blockSz - ((int)keySz & (blockSz - 1))) &
             (blockSz - 1));
-        ret = SetShortInt(tmpShort, &tmpIdx, (word32)itt, MAX_SHORT_SZ);
+        ret = SetShortInt(tmpShort, &tmpIdx, itt, MAX_SHORT_SZ);
         if (ret > 0) {
             /* inner = OCT salt INT itt */
             innerLen = 2 + saltSz + (word32)ret;
@@ -9734,7 +9750,7 @@ int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out, word32* outSz,
         idx += SetSequence(innerLen, out + idx);
         idx += SetOctetString(saltSz, out + idx);
         XMEMCPY(out + idx, salt, saltSz); idx += saltSz;
-        ret = SetShortInt(out, &idx, (word32)itt, *outSz);
+        ret = SetShortInt(out, &idx, itt, *outSz);
         if (ret > 0)
             ret = 0;
         if (version == PKCS5v2) {
@@ -9961,7 +9977,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
     int    ret = 0, first, second, length = 0, version, saltSz, id = 0;
-    int    iterations = 0, keySz = 0;
+    sword32 iterations = 0, keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  salt = NULL;
     byte*  cbcIv = NULL;
@@ -10604,7 +10620,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     seqSz += sz;
 
     tmpIdx = 0;
-    ret = SetShortInt(shr, &tmpIdx, (word32)itt, maxShr);
+    ret = SetShortInt(shr, &tmpIdx, itt, maxShr);
     if (ret >= 0) {
         seqSz += (word32)ret;
     }
@@ -10658,7 +10674,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     inOutIdx += saltSz;
 
     /* place iteration setting in buffer */
-    ret = SetShortInt(out, &inOutIdx, (word32)itt, *outSz);
+    ret = SetShortInt(out, &inOutIdx, itt, *outSz);
     if (ret < 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
