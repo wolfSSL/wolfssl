@@ -9773,19 +9773,26 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
                 ret = wc_dilithium_set_level(key, (byte)ret);
             }
         }
+
+        (void) dilithium_get_priv_size;
         /* If it failed to decode try alternative DER encoding. */
+        /* This should be done within DecodeAsymKey_Assign */
+        /*
         else if (ret != 0) {
             word32 levelSize = dilithium_get_priv_size(key->level);
             privKey = input + *inOutIdx;
             privKeyLen = inSz - *inOutIdx;
+        */
 
             /* Check for an alternative DER encoding. */
+        /*
             if (privKeyLen == ALT_PRIV_DER_PREFIX_SEQ + levelSize) {
                 privKey += ALT_PRIV_DER_PREFIX_SEQ;
                 privKeyLen -= ALT_PRIV_DER_PREFIX_SEQ;
                 ret = 0;
             }
         }
+        */
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
@@ -9834,24 +9841,27 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
 
     if (ret == 0) {
-        /* Check whether public key data was found. */
-#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
-        if (pubKeyLen == 0 && privKeyLen != 0)
-#endif
-        {
-            /* No public key data, only import private key data. */
-            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
+        /* Generate a key pair if seed exists and decoded key pair is ignored */
+        if (seedLen == 32) {
+            ret = wc_dilithium_make_key_from_seed(key, seed);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+        /* Check whether public key data was found. */
         else if (pubKeyLen != 0 && privKeyLen != 0) {
             /* Import private and public key data. */
             ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key);
         }
-        else if (seedLen == 32) {
-            ret = wc_dilithium_make_key_from_seed(key, seed);
-        }
 #endif
+        else if (pubKeyLen == 0 && privKeyLen != 0)
+        {
+            /* No public key data, only import private key data. */
+            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
+        }
+        else {
+            /* Not a problem of ASN.1 structure, but the contents is invalid */
+            ret = ASN_PARSE_E;
+        }
     }
 
     (void)pubKey;

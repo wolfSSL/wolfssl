@@ -16811,19 +16811,24 @@ int test_mldsa_pkcs8_import(void)
     !defined(WOLFSSL_DILITHIUM_NO_ASN1)
 
     byte der[8192]; // Max size will be 4962. Need to get the precise size.
+    //size_t derSz = 0;
     size_t derSz = 0;
     WOLFSSL_CTX* ctx = NULL;
     FILE* fp = NULL;
+    word32 inOutIdx = 0;
+    int pkeySz = 0;
 
-    const char* derFiles[] = {
+    const char* readableDers[] = {
+        "certs/mldsa/mldsa44_oqskeypair.der",
+        "certs/mldsa/mldsa44_priv-only.der",
         "certs/mldsa/mldsa44_seed-only.der",
         "certs/mldsa/mldsa44_seed-priv.der"
     };
 
-    for (size_t i = 0; i < sizeof(derFiles)/sizeof(derFiles[0]); ++i) {
-        ExpectNotNull(fp = XFOPEN(derFiles[i], "rb"));
-        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
-        ExpectIntEQ(XFCLOSE(fp), 0);
+    const char* unreadableDers[] = {
+        "certs/mldsa/mldsa44_bare-seed.der",
+        "certs/mldsa/mldsa44_bare-priv.der"
+    };
 
 #ifndef NO_WOLFSSL_SERVER
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -16831,9 +16836,39 @@ int test_mldsa_pkcs8_import(void)
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #endif /* NO_WOLFSSL_SERVER */
 
+    for (size_t i = 0; i < sizeof(readableDers)/sizeof(readableDers[0]); ++i) {
+        ExpectNotNull(fp = XFOPEN(readableDers[i], "rb"));
+        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+        ExpectIntEQ(XFCLOSE(fp), 0);
+
         ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+        /* Test decoding traditional format */
+        inOutIdx = 0;
+        ExpectIntGT(pkeySz = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
+            (word32)derSz), 0);
+        printf("readbleDers[%zu]=%s: pkey offset=%u pkey size=%d\n",
+            i, readableDers[i], inOutIdx, pkeySz);
+        for(int j = 0; j < 32; ++j) {
+            printf(" %02x", der[inOutIdx+j]);
+        }
+        printf("\n");
+        /* Fixing this test
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der + inOutIdx,
+            pkeySz, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        */
     }
+
+    for (size_t i = 0; i < sizeof(unreadableDers)/sizeof(unreadableDers[0]); ++i) {
+        ExpectNotNull(fp = XFOPEN(unreadableDers[i], "rb"));
+        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+        ExpectIntEQ(XFCLOSE(fp), 0);
+
+        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+            WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILE);
+    }
+
 #endif
 
     return EXPECT_RESULT();

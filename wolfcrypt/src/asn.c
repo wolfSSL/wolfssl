@@ -36904,7 +36904,7 @@ static const ASNItem edKeyASN[] = {
 /* PKEYALGO_OID   */            { 2, ASN_OBJECT_ID, 0, 0, 1 },
                                          /* privateKey */
 /* PKEY           */        { 1, ASN_OCTET_STRING, 0, 1, 0 },
-                                             /* CurvePrivateKey */
+                                         /* CurvePrivateKey */
 /* PKEY_CURVEPKEY */            { 2, ASN_OCTET_STRING, 0, 0, 2 },
 /* PKEY_SEED_ONLY */            { 2, ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_SEED,
                                     0, 0, 2 },
@@ -37071,31 +37071,34 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         /* Parse full private key. */
         ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
                 inOutIdx, inSz);
-        if (ret != 0) {
-            /* Parse just the OCTET_STRING. */
+        if (ret == 0) {
+            /* The seed is supported only with ML-DSA */
+            if ((dataASN[EDKEYASN_IDX_PKEY_SEED_ONLY].data.ref.length != 0 ||
+                dataASN[EDKEYASN_IDX_PKEY_BOTH_SEQ].data.ref.length != 0) &&
+                dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL2k &&
+                dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL3k &&
+                dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL5k)
+            {
+                ret = ASN_PARSE_E;
+            }
+
+            /* Store detected OID if requested */
+            if (ret == 0 && *inOutKeyType == ANONk) {
+                *inOutKeyType =
+                    (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
+            }
+        }
+        /* Parse just the OCTET_STRING. */
+        else if (ret != 0) {
             ret = GetASN_Items(&edKeyASN[EDKEYASN_IDX_PKEY_CURVEPKEY],
-                    &dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY], 1, 0, input,
+                    &dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY],
+                    EDKEYASN_IDX_ATTRS - EDKEYASN_IDX_PKEY_CURVEPKEY, 0, input,
                     inOutIdx, inSz);
+            printf("2nd GetASN_Items()=%d\n", ret);
             if (ret != 0) {
                 ret = ASN_PARSE_E;
             }
-        }
-
-        /* The seed is supported only with ML-DSA */
-        if ((ret == 0) &&
-            (dataASN[EDKEYASN_IDX_PKEY_SEED_ONLY].data.ref.length != 0 ||
-            dataASN[EDKEYASN_IDX_PKEY_BOTH_SEQ].data.ref.length != 0) &&
-            dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL2k &&
-            dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL3k &&
-            dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum != ML_DSA_LEVEL5k)
-        {
-            ret = ASN_PARSE_E;
-        }
-
-        /* Store detected OID if requested */
-        if (ret == 0 && *inOutKeyType == ANONk) {
-            *inOutKeyType =
-                (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
+            /* Need to detect inOutKeyType */
         }
     }
     if(ret == 0) {
