@@ -7217,8 +7217,8 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
         if (ret == WOLFSSL_SUCCESS && altDevId != INVALID_DEVID) {
             /* We have to decode the public key first */
             word32 idx = 0;
-            /* Dilithium has the largest public key at the moment */
-            word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
+            /* Default to max pub key size. */
+            word32 pubKeyLen = MAX_PUBLIC_KEY_SZ;
             byte* decodedPubKey = (byte*)XMALLOC(pubKeyLen, heap,
                                             DYNAMIC_TYPE_PUBLIC_KEY);
             if (decodedPubKey == NULL) {
