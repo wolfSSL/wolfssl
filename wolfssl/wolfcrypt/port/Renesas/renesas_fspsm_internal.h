@@ -180,7 +180,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                           const byte* authTag, word32 authTagSz,
                           const byte* authIn, word32 authInSz,
                           void* ctx);
-                          
+
 WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, struct wc_CryptoInfo* info,
                                                                     void* ctx);
 WOLFSSL_LOCAL int     wc_fspsm_tls_RootCertVerify(

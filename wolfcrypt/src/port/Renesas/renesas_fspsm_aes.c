@@ -244,7 +244,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     (void) key_server_aes;
 
     /* sanity check */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || info == NULL) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 ||
+        info == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -453,7 +454,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     FSPSM_AES_PWKEY      key_server_aes = NULL;
     (void) key_client_aes;
     /* sanity check */
-    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 || info == NULL) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE || ivSz == 0 ||
+        info == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -812,14 +814,15 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 }
 #endif
 
-WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info, void* ctx)
+WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info,
+                                                                    void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
     (void)devIdArg;
 
     WOLFSSL_ENTER("wc_fspsm_AesCipher");
-    
+
     if (info == NULL || ctx == NULL) {
         return BAD_FUNC_ARG;
     }

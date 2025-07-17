@@ -67,10 +67,6 @@ static fspsm_key_data g_user_key_info;
 
 static uint32_t     g_encrypted_publicCA_key[HW_SCE_SINST_WORD_SIZE];
 extern uint32_t     g_CAscm_Idx;          /* index of CM table    */
-//#define USE_GLOBAL_INTERNAL
-#if !defined(USE_GLOBAL_INTERNAL)
-FSPSM_ST_Internal   g_internal;
-#endif
 #endif
 
 #endif /* WOLFSSL_RENESAS_FSPSM*/
@@ -445,7 +441,7 @@ int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
             }
             else {
                 /* set master secret generation callback for use */
-                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx, 
+                wolfSSL_CTX_SetGenMasterSecretCb(ssl->ctx,
                                                 Renesas_cmn_genMasterSecret);
                 wolfSSL_SetGenMasterSecretCtx(ssl, cbInfo);
             }
@@ -458,7 +454,7 @@ int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         wc_fspsm_hw_unlock();
 
         *outlen = 64;
-        WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n", 
+        WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n",
                                                 ret, *pubKeySz, *outlen);
     }
 
@@ -852,9 +848,9 @@ int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                 /* ready-for-use flag will be set when SetKeySide() is called */
             }
 
-            if (cbInfo->internal->cipher == 
+            if (cbInfo->internal->cipher ==
                     SCE_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
-                cbInfo->internal->cipher == 
+                cbInfo->internal->cipher ==
                     SCE_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
                 enc->aes->nonceSz = AEAD_MAX_IMP_SZ;
                 dec->aes->nonceSz = AEAD_MAX_IMP_SZ;
@@ -1151,12 +1147,12 @@ int wc_fspsm_storeKeyCtx(WOLFSSL* ssl, FSPSM_ST* info)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        XMEMCPY(info->internal->masterSecret, 
+        XMEMCPY(info->internal->masterSecret,
                         ssl->arrays->fspsm_masterSecret,
                         FSPSM_TLS_MASTERSECRET_SIZE);
-        XMEMCPY(info->internal->clientRandom, 
+        XMEMCPY(info->internal->clientRandom,
                         ssl->arrays->clientRandom, 32);
-        XMEMCPY(info->internal->serverRandom, 
+        XMEMCPY(info->internal->serverRandom,
                         ssl->arrays->serverRandom, 32);
 
         info->internal->cipher = (uint8_t)GetSceCipherSuite(
@@ -1246,12 +1242,8 @@ void wc_fspsm_TlsCleanup(WOLFSSL* ssl)
         return;
     /* free internal structure */
     if (tuc->internal) {
-#if !defined(USE_GLOBAL_INTERNAL)
         XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         tuc->internal = NULL;
-#else
-        ForceZero(tuc->internal, sizeof(FSPSM_ST_Internal));
-#endif
     }
 
     /* zero clear */
@@ -1272,14 +1264,9 @@ WOLFSSL_API int wc_fspsm_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
     }
 
     ForceZero(uCtx, sizeof(FSPSM_ST));
-#if !defined(USE_GLOBAL_INTERNAL)
     uCtx->internal = (FSPSM_ST_Internal*)XMALLOC(sizeof(FSPSM_ST_Internal),
                                         ssl->heap,
                                         DYNAMIC_TYPE_TMP_BUFFER);
-#else
-    printf("sizeof (FSPSM_ST_Internal) = %d\n", sizeof(FSPSM_ST_Internal));
-    uCtx->internal = &g_internal;
-#endif
     if (!uCtx->internal) {
         WOLFSSL_MSG("Failed to allocate memory for user ctx internal");
         return MEMORY_E;
