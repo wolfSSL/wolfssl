@@ -1,6 +1,22 @@
 /*!
     \ingroup PKCS7
 
+    \brief Callback used for a custom AES key wrap/unwrap operation.
+
+    key/keySz specify the key to use.
+    in/inSz specify the input data to wrap/unwrap.
+    out/outSz specify the output buffer.
+
+    The size of the wrapped/unwrapped key written to the output buffer should
+    be returned on success. A 0 return value or error code (< 0) indicates a
+    failure.
+*/
+typedef int (*CallbackAESKeyWrap)(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, byte* out, word32 outSz);
+
+/*!
+    \ingroup PKCS7
+
     \brief This function initializes a PKCS7 structure with a DER-formatted
     certificate. To initialize an empty PKCS7 structure, one can pass in a NULL
     cert and 0 for certSz.
@@ -476,6 +492,38 @@ int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
 int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief Set the callback function to be used to perform a custom AES key
+    wrap operation.
+
+    \retval 0 Callback function was set successfully
+    \retval BAD_FUNC_ARG Parameter pkcs7 is NULL
+
+    \param pkcs7 pointer to the PKCS7 structure
+    \param aesKeyWrapCb pointer to custom AES key wrap function
+
+    \sa wc_PKCS7_SetAESKeyUnwrapCb
+*/
+int wc_PKCS7_SetAESKeyWrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrap aesKeyWrapCb);
+
+/*!
+    \ingroup PKCS7
+
+    \brief Set the callback function to be used to perform a custom AES key
+    unwrap operation.
+
+    \retval 0 Callback function was set successfully
+    \retval BAD_FUNC_ARG Parameter pkcs7 is NULL
+
+    \param pkcs7 pointer to the PKCS7 structure
+    \param aesKeyUnwrapCb pointer to custom AES key unwrap function
+
+    \sa wc_PKCS7_SetAESKeyWrapCb
+*/
+int wc_PKCS7_SetAESKeyUnwrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrap aesKeyUnwrapCb);
 
 /*!
     \ingroup PKCS7
