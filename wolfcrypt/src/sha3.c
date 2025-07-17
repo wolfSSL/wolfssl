@@ -739,17 +739,19 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         blocks = 0;
     }
     #endif
-    for (; blocks > 0; blocks--) {
-        for (i = 0; i < p; i++) {
-            sha3->s[i] ^= Load64Unaligned(data + 8 * i);
+    if (blocks >= 1) {
+        for (; blocks > 0; blocks--) {
+            for (i = 0; i < p; i++) {
+                sha3->s[i] ^= Load64Unaligned(data + 8 * i);
+            }
+        #ifdef SHA3_FUNC_PTR
+            (*SHA3_BLOCK)(sha3->s);
+        #else
+            BlockSha3(sha3->s);
+        #endif
+            len -= p * 8U;
+            data += p * 8U;
         }
-    #ifdef SHA3_FUNC_PTR
-        (*SHA3_BLOCK)(sha3->s);
-    #else
-        BlockSha3(sha3->s);
-    #endif
-        len -= p * 8U;
-        data += p * 8U;
     }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2)
