@@ -9715,6 +9715,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     word32 privKeyLen = 0;
     word32 pubKeyLen = 0;
     int keyType = 0;
+    int autoKeyType = ANONk;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
@@ -9761,39 +9762,39 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
                                    &seed, &seedLen,
                                    &privKey, &privKeyLen,
-                                   &pubKey, &pubKeyLen, &keyType);
-        if (ret == 0
-#ifdef WOLFSSL_WC_DILITHIUM
-            && key->params == NULL
-#endif
-        ) {
+                                   &pubKey, &pubKeyLen, &autoKeyType);
+    }
+
+    (void) dilithium_get_priv_size;
+
+    if (ret == 0) {
+//#ifdef WOLFSSL_WC_DILITHIUM
+        if(keyType == ANONk && autoKeyType != ANONk) {
+//#endif
             /* Set the security level based on the decoded key. */
-            ret = mapOidToSecLevel(keyType);
+            ret = mapOidToSecLevel(autoKeyType);
             if (ret > 0) {
                 ret = wc_dilithium_set_level(key, (byte)ret);
             }
         }
-
-        (void) dilithium_get_priv_size;
-        /* If it failed to decode try alternative DER encoding. */
-        /* This should be done within DecodeAsymKey_Assign */
-        /*
-        else if (ret != 0) {
-            word32 levelSize = dilithium_get_priv_size(key->level);
-            privKey = input + *inOutIdx;
-            privKeyLen = inSz - *inOutIdx;
-        */
-
-            /* Check for an alternative DER encoding. */
-        /*
-            if (privKeyLen == ALT_PRIV_DER_PREFIX_SEQ + levelSize) {
-                privKey += ALT_PRIV_DER_PREFIX_SEQ;
-                privKeyLen -= ALT_PRIV_DER_PREFIX_SEQ;
+        else if(keyType != ANONk && autoKeyType != ANONk) {
+            if(keyType == autoKeyType)
                 ret = 0;
-            }
+            else
+                ret = ASN_PARSE_E;
         }
-        */
+        else if(keyType != ANONk && autoKeyType == ANONk) {
+            ret = 0;
+        }
+        else { /* keyType == ANONk && autoKeyType == ANONk */
+            /*
+             * When decoding traditional format, not specifying the level will
+             * cause this error.
+             */
+            ret = ASN_PARSE_E;
+        }
     }
+
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
