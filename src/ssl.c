@@ -7216,7 +7216,6 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
 #ifdef WOLF_PRIVATE_KEY_ID
         if (ret == WOLFSSL_SUCCESS && altDevId != INVALID_DEVID) {
             /* We have to decode the public key first */
-            word32 idx = 0;
             /* Default to max pub key size. */
             word32 pubKeyLen = MAX_PUBLIC_KEY_SZ;
             byte* decodedPubKey = (byte*)XMALLOC(pubKeyLen, heap,
@@ -7232,9 +7231,14 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
                     ret = 0;
                 }
                 else {
+                #if defined(WC_ENABLE_ASYM_KEY_IMPORT)
+                    word32 idx = 0;
                     ret = DecodeAsymKeyPublic(der->sapkiDer, &idx,
                                               der->sapkiLen, decodedPubKey,
                                               &pubKeyLen, der->sapkiOID);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif /* WC_ENABLE_ASYM_KEY_IMPORT */
                 }
             }
             if (ret == 0) {
