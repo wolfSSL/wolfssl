@@ -34,8 +34,6 @@
 #ifdef OPENSSL_EXTRA
 static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                             WOLFSSL_STACK *certs, WOLFSSL_X509 *x);
-static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
-                                          WOLFSSL_X509* x509, int type);
 #endif
 
 /* Based on OpenSSL default max depth */
@@ -1323,6 +1321,28 @@ int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER || WOLFSSL_WPAS_SMALL */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+int X509StoreAddCa(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509, int type)
+{
+    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    DerBuffer* derCert = NULL;
+
+    WOLFSSL_ENTER("X509StoreAddCa");
+    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
+        result = AllocDer(&derCert, x509->derCert->length,
+            x509->derCert->type, NULL);
+        if (result == 0) {
+            /* AddCA() frees the buffer. */
+            XMEMCPY(derCert->buffer,
+                            x509->derCert->buffer, x509->derCert->length);
+            result = AddCA(store->cm, &derCert, type, VERIFY);
+        }
+    }
+
+    return result;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
 #ifdef OPENSSL_EXTRA
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
@@ -1367,27 +1387,6 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
     /* store a type to know which method wants to be used for */
     store->lookup.type = m->type;
     return &store->lookup;
-}
-
-static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
-                                          WOLFSSL_X509* x509, int type)
-{
-    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
-    DerBuffer* derCert = NULL;
-
-    WOLFSSL_ENTER("X509StoreAddCa");
-    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
-        result = AllocDer(&derCert, x509->derCert->length,
-            x509->derCert->type, NULL);
-        if (result == 0) {
-            /* AddCA() frees the buffer. */
-            XMEMCPY(derCert->buffer,
-                            x509->derCert->buffer, x509->derCert->length);
-            result = AddCA(store->cm, &derCert, type, VERIFY);
-        }
-    }
-
-    return result;
 }
 
 
