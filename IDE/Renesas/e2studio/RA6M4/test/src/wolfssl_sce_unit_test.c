@@ -798,10 +798,8 @@ int sce_crypt_test()
         /* sets wrapped rsa 1024 bits key */
         gCbInfo.wrapped_key_rsapri1024 =
                 &g_wrapped_pair_1024key.priv_key;
-        gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
         gCbInfo.wrapped_key_rsapub1024 =
                 &g_wrapped_pair_1024key.pub_key;
-        gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
     }
 
     err = R_SCE_RSA2048_WrappedKeyPairGenerate(&g_wrapped_pair_2048key);
@@ -809,11 +807,8 @@ int sce_crypt_test()
         /* sets wrapped rsa 1024 bits key */
         gCbInfo.wrapped_key_rsapri2048 =
                 &g_wrapped_pair_2048key.priv_key;
-        gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
-
         gCbInfo.wrapped_key_rsapub2048 =
-                &g_wrapped_pair_2048key.pub_key;
-        gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
+                &g_wrapped_pair_2048key.pub_key;;
     }
 
     /* Key generation for multi testing */
@@ -834,6 +829,10 @@ int sce_crypt_test()
 
     if (ret == 0) {
         printf(" sce_rsa_test(1024)");
+        gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
+        gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
+        gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 0;
+        gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 0;
         ret = sce_rsa_test(1, 1024);
         RESULT_STR(ret)
     }
@@ -846,6 +845,10 @@ int sce_crypt_test()
 
     if (ret == 0) {
         printf(" sce_rsa_test(2048)");
+        gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 0;
+        gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 0;
+        gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
+        gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
         ret = sce_rsa_test(1, 2048);
         RESULT_STR(ret)
     }

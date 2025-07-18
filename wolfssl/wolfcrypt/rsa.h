@@ -90,7 +90,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #if defined(WOLFSSL_RENESAS_FSPSM)
-    #include <wolfssl/wolfcrypt/port/renesas/renesas-fspsm-crypt.h>
+    #include <wolfssl/wolfcrypt/port/renesas/renesas_fspsm_internal.h>
 #endif
 
 #ifdef __cplusplus
