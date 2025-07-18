@@ -142,7 +142,7 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_RENESAS_TSIP)
     /* for wc_tsip_GenerateRandBlock */
-    #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h"
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
 #elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
