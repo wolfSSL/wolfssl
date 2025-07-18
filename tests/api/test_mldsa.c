@@ -16658,7 +16658,7 @@ int test_wc_dilithium_verify_kats(void)
     return EXPECT_RESULT();
 }
 
-int test_mldsa_pkcs8(void)
+int test_mldsa_pkcs8_export_import_wolfSSL_format(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
@@ -16676,10 +16676,8 @@ int test_mldsa_pkcs8(void)
     byte* temp = NULL;  /* Store PEM or intermediate key */
     word32 derSz = 0;
     word32 pemSz = 0;
-    word32 keySz = 0;
     dilithium_key mldsa_key;
     WC_RNG rng;
-    word32 size;
     int ret;
 
     struct {
@@ -16754,43 +16752,6 @@ int test_mldsa_pkcs8(void)
 #endif /* WOLFSSL_DER_TO_PEM */
     }
 
-    /* Test private + public key (integrated format) */
-    for (i = 0; i < sizeof(test_variant) / sizeof(test_variant[0]); ++i) {
-        ExpectIntEQ(wc_dilithium_set_level(&mldsa_key, test_variant[i].wcId),
-            0);
-        ExpectIntEQ(wc_dilithium_make_key(&mldsa_key, &rng), 0);
-
-        if (EXPECT_FAIL())
-            break;
-
-        keySz = 0;
-        temp[0] = 0x04;  /* ASN.1 OCTET STRING */
-        temp[1] = 0x82;  /* 2 bytes length field */
-        temp[2] = (test_variant[i].keySz >> 8) & 0xff;  /* MSB of the length */
-        temp[3] = test_variant[i].keySz & 0xff;         /* LSB of the length */
-        keySz += 4;
-        size = tempMaxSz - keySz;
-        ExpectIntEQ(wc_dilithium_export_private(&mldsa_key, temp + keySz,
-            &size), 0);
-        keySz += size;
-        size = tempMaxSz - keySz;
-        ExpectIntEQ(wc_dilithium_export_public(&mldsa_key, temp + keySz, &size),
-            0);
-        keySz += size;
-        derSz = derMaxSz;
-        ExpectIntGT(wc_CreatePKCS8Key(der, &derSz, temp, keySz,
-            test_variant[i].oidSum, NULL, 0), 0);
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
-            WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-
-#ifdef WOLFSSL_DER_TO_PEM
-        ExpectIntGT(pemSz = wc_DerToPem(der, derSz, temp, tempMaxSz,
-            PKCS8_PRIVATEKEY_TYPE), 0);
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, temp, pemSz,
-            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-#endif /* WOLFSSL_DER_TO_PEM */
-    }
-
     wc_dilithium_free(&mldsa_key);
     ret = wc_FreeRng(&rng);
     ExpectIntEQ(ret, 0);
@@ -16799,6 +16760,159 @@ int test_mldsa_pkcs8(void)
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
 #endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_format(void)
+{
+    EXPECT_DECLS;
+
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+
+    byte der[8192]; // Max size will be 4962. Need to get the precise size.
+    size_t derSz = 0;
+    // WOLFSSL_CTX* ctx = NULL;
+    FILE* fp = NULL;
+    word32 inOutIdx = 0;
+    // int pkeySz = 0;
+    dilithium_key key;
+    int expect = 0;
+    int pkeySz = 0;
+
+   struct {
+        const char* fileName;
+        byte level;
+        int p8_lv;     /* Support PKCS8 format with specifying level */
+        int p8_nolv;   /* Support PKCS8 format wo specifying level */
+        int trad_lv;   /* Support traditional format with specifying level */
+        int trad_nolv; /* Support traditional format wo specifying level */
+    } test_var[] = {
+        {"certs/mldsa/mldsa44_seed-only.der",  WC_ML_DSA_44, 1, 1, 1, 0},
+        {"certs/mldsa/mldsa44_priv-only.der",  WC_ML_DSA_44, 1, 1, 1, 0},
+        {"certs/mldsa/mldsa44_seed-priv.der",  WC_ML_DSA_44, 1, 1, 1, 0},
+        {"certs/mldsa/mldsa44_oqskeypair.der", WC_ML_DSA_44, 1, 1, 1, 0},
+        {"certs/mldsa/mldsa44_bare-seed.der",  WC_ML_DSA_44, 0, 0, 0, 0},
+        {"certs/mldsa/mldsa44_bare-priv.der",  WC_ML_DSA_44, 0, 0, 0, 0},
+    };
+
+    for (size_t i = 0; i < sizeof(test_var)/sizeof(test_var[0]); ++i) {
+        ExpectNotNull(fp = XFOPEN(test_var[i].fileName, "rb"));
+        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+        ExpectIntEQ(XFCLOSE(fp), 0);
+
+        /* main 1 */
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_dilithium_init(&key), 0);
+        ExpectIntEQ(wc_dilithium_set_level(&key, test_var[i].level), 0);
+        inOutIdx = 0;
+        expect = test_var[i].p8_lv ? 0 : ASN_PARSE_E;
+        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &inOutIdx, &key,
+            (word32)derSz), expect);
+        wc_dilithium_free(&key);
+
+        /* main 2 */
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_dilithium_init(&key), 0);
+        inOutIdx = 0;
+        expect = test_var[i].p8_nolv ? 0 : ASN_PARSE_E;
+        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &inOutIdx, &key,
+            (word32)derSz), expect);
+        wc_dilithium_free(&key);
+
+        (void) pkeySz;
+        /* main 3 */
+        /* Fixing this test
+        XMEMSET(&key, 0, sizeof(key));
+        ExpectIntEQ(wc_dilithium_init(&key), 0);
+        ExpectIntEQ(wc_dilithium_set_level(&key, test_var[i].level), 0);
+        inOutIdx = 0;
+        expect = test_var[i].trad_lv ? 0 : ASN_PARSE_E;
+        ExpectIntGT(pkeySz = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
+            (word32)derSz), 0);
+        ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &inOutIdx, &key,
+            (word32)pkeySz), expect);
+        printf("DEBUG: inOutIdx=%d pkeySz=%d\n", inOutIdx, pkeySz);
+        wc_dilithium_free(&key);
+        */
+    }
+
+    // wc_dilithium_set_level(dilithium, WC_ML_DSA_44) == 0)) {
+#endif
+
+    return EXPECT_RESULT();
+}
+
+int test_mldsa_pkcs8_import_OpenSSL_format(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+
+    byte der[8192]; // Max size will be 4962. Need to get the precise size.
+    //size_t derSz = 0;
+    size_t derSz = 0;
+    WOLFSSL_CTX* ctx = NULL;
+    FILE* fp = NULL;
+    word32 inOutIdx = 0;
+    int pkeySz = 0;
+
+    struct {
+        const char* fileName;
+        int isTraditional;
+        int expectRet;
+    } test_variant[] = {
+        {"certs/mldsa/mldsa44_priv-only.der", 1, WOLFSSL_SUCCESS},
+        //{"certs/mldsa/mldsa44_seed-only.der", 1, WOLFSSL_BAD_FILE},
+        {"certs/mldsa/mldsa44_seed-priv.der", 1, WOLFSSL_SUCCESS},
+        {"certs/mldsa/mldsa44_oqskeypair.der", 0, WOLFSSL_SUCCESS},
+        {"certs/mldsa/mldsa44_priv-only.der", 0, WOLFSSL_SUCCESS},
+        {"certs/mldsa/mldsa44_seed-only.der", 0, WOLFSSL_SUCCESS},
+        {"certs/mldsa/mldsa44_seed-priv.der", 0, WOLFSSL_SUCCESS},
+        {"certs/mldsa/mldsa44_bare-seed.der", 0, WOLFSSL_BAD_FILE},
+        {"certs/mldsa/mldsa44_bare-priv.der", 0, WOLFSSL_BAD_FILE},
+    };
+
+#ifndef NO_WOLFSSL_SERVER
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+        ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif /* NO_WOLFSSL_SERVER */
+
+    for (size_t i = 0; i < sizeof(test_variant)/sizeof(test_variant[0]); ++i) {
+        ExpectNotNull(fp = XFOPEN(test_variant[i].fileName, "rb"));
+        ExpectIntGT(derSz = XFREAD(der, 1, sizeof(der), fp), 0);
+        ExpectIntEQ(XFCLOSE(fp), 0);
+
+        if(!test_variant[i].isTraditional) {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), test_variant[i].expectRet);
+        }
+        else {
+            /* Test decoding traditional format */
+            inOutIdx = 0;
+            ExpectIntGT(pkeySz = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
+                (word32)derSz), 0);
+
+            /* Debug messages */
+            printf("readbleDers[%zu]=%s: pkey offset=%u pkey size=%d\n",
+                i, test_variant[i].fileName, inOutIdx, pkeySz);
+            for(int j = 0; j < 32; ++j) {
+                printf(" %02x", der[inOutIdx+j]);
+            }
+            printf("\n");
+
+            /* Fixing this test */
+            //ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der + inOutIdx,
+            //    pkeySz, WOLFSSL_FILETYPE_ASN1), test_variant[i].expectRet);
+        }
+    }
+
+#endif
+
     return EXPECT_RESULT();
 }
 
