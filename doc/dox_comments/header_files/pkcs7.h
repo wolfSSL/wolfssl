@@ -712,3 +712,97 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
 */
 int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
         byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a SymmetricKeyPackage attribute.
+
+    \param[in] skp Input buffer containing the SymmetricKeyPackage object.
+    \param[in] skpSz Size of the SymmetricKeyPackage object.
+    \param[in] index Index of the attribute to access.
+    \param[out] attr Buffer in which to store the pointer to the requested
+    attribute object.
+    \param[out] attrSz Buffer in which to store the size of the requested
+    attribute object.
+
+    \retval 0 The requested attribute has been successfully located.
+    attr and attrSz output variables are populated with the address and size of
+    the attribute. The attribute will be in the same buffer passed in via the
+    skp input pointer.
+    \retval BAD_FUNC_ARG One of the input parameters is invalid.
+    \retval ASN_PARSE_E An error was encountered parsing the input object.
+    \retval BAD_INDEX_E The requested attribute index was invalid.
+*/
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(byte const * skp,
+        word32 skpSz, size_t index, byte const ** attr, word32 * attrSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a SymmetricKeyPackage key.
+
+    \param[in] skp Input buffer containing the SymmetricKeyPackage object.
+    \param[in] skpSz Size of the SymmetricKeyPackage object.
+    \param[in] index Index of the key to access.
+    \param[out] key Buffer in which to store the pointer to the requested
+    key object.
+    \param[out] keySz Buffer in which to store the size of the requested
+    key object.
+
+    \retval 0 The requested key has been successfully located.
+    key and keySz output variables are populated with the address and size of
+    the key. The key will be in the same buffer passed in via the
+    skp input pointer.
+    \retval BAD_FUNC_ARG One of the input parameters is invalid.
+    \retval ASN_PARSE_E An error was encountered parsing the input object.
+    \retval BAD_INDEX_E The requested key index was invalid.
+*/
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(byte const * skp,
+        word32 skpSz, size_t index, byte const ** key, word32 * keySz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a OneSymmetricKey attribute.
+
+    \param[in] osk Input buffer containing the OneSymmetricKey object.
+    \param[in] oskSz Size of the OneSymmetricKey object.
+    \param[in] index Index of the attribute to access.
+    \param[out] attr Buffer in which to store the pointer to the requested
+    attribute object.
+    \param[out] attrSz Buffer in which to store the size of the requested
+    attribute object.
+
+    \retval 0 The requested attribute has been successfully located.
+    attr and attrSz output variables are populated with the address and size of
+    the attribute. The attribute will be in the same buffer passed in via the
+    osk input pointer.
+    \retval BAD_FUNC_ARG One of the input parameters is invalid.
+    \retval ASN_PARSE_E An error was encountered parsing the input object.
+    \retval BAD_INDEX_E The requested attribute index was invalid.
+*/
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
+        word32 oskSz, size_t index, byte const ** attr, word32 * attrSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a OneSymmetricKey key.
+
+    \param[in] osk Input buffer containing the OneSymmetricKey object.
+    \param[in] oskSz Size of the OneSymmetricKey object.
+    \param[out] key Buffer in which to store the pointer to the requested
+    key object.
+    \param[out] keySz Buffer in which to store the size of the requested
+    key object.
+
+    \retval 0 The requested key has been successfully located.
+    key and keySz output variables are populated with the address and size of
+    the key. The key will be in the same buffer passed in via the
+    osk input pointer.
+    \retval BAD_FUNC_ARG One of the input parameters is invalid.
+    \retval ASN_PARSE_E An error was encountered parsing the input object.
+*/
+int wc_PKCS7_DecodeOneSymmetricKeyKey(byte const * osk,
+        word32 oskSz, byte const ** key, word32 * keySz);
