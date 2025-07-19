@@ -2570,6 +2570,61 @@ int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                         maxIdx, check);
 }
 
+/**
+ * Index a SEQUENCE OF object to get to a specific element.
+ *
+ * @param[in] seqOf Buffer holding DER/BER SEQUENCE OF object.
+ * @param[in] seqOfSz Size of the seqOf SEQUENCE OF object.
+ * @param[in] seqIndex Index of the SEQUENCE OF element being requested.
+ * @param[out] out Buffer in which to store pointer to the <seqIndex>th element
+ * of the SEQUENCE OF object.
+ * @param[out] outSz Buffer in which to store the length of the <seqIndex>th
+ * element of the SEQUENCE OF object.
+ *
+ * @retval 0 on success.
+ * @retval BUFFER_E when there is not enough data to parse.
+ * @retval BAD_INDEX_E when the given seqIndex is out of range.
+ * @retval ASN_PARSE_E when the seqOf is not in the expected format.
+ */
+int IndexSequenceOf(byte const * seqOf, word32 seqOfSz, size_t seqIndex,
+        byte const ** out, word32 * outSz)
+{
+    int length;
+    word32 seqOfIdx = 0U;
+    byte tagFound;
+    size_t i;
+    word32 elementIdx = 0U;
+
+    /* Validate the SEQUENCE OF header. */
+    if (GetSequence(seqOf, &seqOfIdx, &length, seqOfSz) < 0)
+        return ASN_PARSE_E;
+
+    seqOfSz = seqOfIdx + (word32)length;
+
+    for (i = 0U; i <= seqIndex; i++) {
+        if (seqOfIdx >= seqOfSz)
+            return BAD_INDEX_E;
+
+        elementIdx = seqOfIdx;
+
+        /* Validate the element tag. */
+        if (GetASNTag(seqOf, &seqOfIdx, &tagFound, seqOfSz) != 0)
+            return ASN_PARSE_E;
+
+        /* Validate and get the element's encoded length. */
+        if (GetLength(seqOf, &seqOfIdx, &length, seqOfSz) < 0)
+            return ASN_PARSE_E;
+
+        seqOfIdx += (word32)length;
+    }
+
+    /* If the tag and length checks above passed then we've found the requested
+     * element and validated it fits within seqOfSz. */
+    *out = &seqOf[elementIdx];
+    *outSz = (seqOfIdx - elementIdx);
+    return 0;
+}
+
 /* Decode the header of a BER/DER encoded SET.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.
