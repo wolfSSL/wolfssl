@@ -13171,7 +13171,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
         0x24, 0xe7, 0x3d, 0x6f
     };
 
-    word64 s3 = 0x000000ffffffffff;
+    word64 s3 = W64LIT(0x000000ffffffffff);
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
