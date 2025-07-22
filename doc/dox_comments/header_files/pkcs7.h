@@ -734,8 +734,8 @@ int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
     \param[out] attrSz Buffer in which to store the size of the requested
     attribute object.
 */
-int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(byte const * skp,
-        word32 skpSz, size_t index, byte const ** attr, word32 * attrSz);
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz);
 
 /*!
     \ingroup PKCS7
@@ -758,8 +758,8 @@ int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(byte const * skp,
     \param[out] keySz Buffer in which to store the size of the requested
     key object.
 */
-int wc_PKCS7_DecodeSymmetricKeyPackageKey(byte const * skp,
-        word32 skpSz, size_t index, byte const ** key, word32 * keySz);
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz);
 
 /*!
     \ingroup PKCS7
@@ -782,8 +782,8 @@ int wc_PKCS7_DecodeSymmetricKeyPackageKey(byte const * skp,
     \param[out] attrSz Buffer in which to store the size of the requested
     attribute object.
 */
-int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
-        word32 oskSz, size_t index, byte const ** attr, word32 * attrSz);
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz);
 
 /*!
     \ingroup PKCS7
@@ -804,5 +804,5 @@ int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
     \param[out] keySz Buffer in which to store the size of the requested
     key object.
 */
-int wc_PKCS7_DecodeOneSymmetricKeyKey(byte const * osk,
-        word32 oskSz, byte const ** key, word32 * keySz);
+int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz);

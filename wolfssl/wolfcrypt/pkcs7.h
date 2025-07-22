@@ -552,14 +552,14 @@ WOLFSSL_API int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
                                               word32 outputSz);
 #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
-WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(byte const * skp,
-        word32 skpSz, size_t index, byte const ** attr, word32 * attrSz);
-WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageKey(byte const * skp,
-        word32 skpSz, size_t index, byte const ** key, word32 * keySz);
-WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
-        word32 oskSz, size_t index, byte const ** attr, word32 * attrSz);
-WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyKey(byte const * osk,
-        word32 oskSz, byte const ** key, word32 * keySz);
+WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz);
+WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz);
+WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz);
+WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz);
 
 #ifdef __cplusplus
     } /* extern "C" */

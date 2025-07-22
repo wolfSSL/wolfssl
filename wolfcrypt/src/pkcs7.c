@@ -15305,8 +15305,8 @@ int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
 
 #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
-static int wc_PKCS7_DecodeSymmetricKeyPackage(byte const * skp, word32 skpSz,
-        size_t index, byte const ** out, word32 * outSz, int getKey)
+static int wc_PKCS7_DecodeSymmetricKeyPackage(const byte * skp, word32 skpSz,
+        size_t index, const byte ** out, word32 * outSz, int getKey)
 {
     word32 skpIndex = 0;
     int length = 0;
@@ -15335,7 +15335,8 @@ static int wc_PKCS7_DecodeSymmetricKeyPackage(byte const * skp, word32 skpSz,
         }
         else {
             /* sKeyPkgAttrs is present at &skp[skpIndex], length in length */
-            return IndexSequenceOf(&skp[skpIndex], (word32)length, index, out, outSz);
+            return IndexSequenceOf(&skp[skpIndex], (word32)length, index, out,
+                    outSz);
         }
     }
 
@@ -15348,20 +15349,21 @@ static int wc_PKCS7_DecodeSymmetricKeyPackage(byte const * skp, word32 skpSz,
     return IndexSequenceOf(&skp[skpIndex], skpSz - skpIndex, index, out, outSz);
 }
 
-int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(byte const * skp,
-        word32 skpSz, size_t index, byte const ** attr, word32 * attrSz)
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz)
 {
-    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, attr, attrSz, 0);
+    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, attr, attrSz,
+            0);
 }
 
-int wc_PKCS7_DecodeSymmetricKeyPackageKey(byte const * skp,
-        word32 skpSz, size_t index, byte const ** key, word32 * keySz)
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz)
 {
     return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, key, keySz, 1);
 }
 
-int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
-        word32 oskSz, size_t index, byte const ** attr, word32 * attrSz)
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz)
 {
     word32 oskIndex = 0;
     word32 tmpIndex;
@@ -15382,11 +15384,12 @@ int wc_PKCS7_DecodeOneSymmetricKeyAttribute(byte const * osk,
     }
 
     /* Index the sKeyAttrs SEQUENCE OF object with the given index. */
-    return IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr, attrSz);
+    return IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr,
+            attrSz);
 }
 
-int wc_PKCS7_DecodeOneSymmetricKeyKey(byte const * osk,
-        word32 oskSz, byte const ** key, word32 * keySz)
+int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz)
 {
     word32 oskIndex = 0;
     int length = 0;
