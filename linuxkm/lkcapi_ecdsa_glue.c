@@ -7,7 +7,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -496,7 +496,6 @@ static int linuxkm_test_ecdsa_nist_p192(void)
                                         p192_pub, pub_len,
                                         sig, sig_len,
                                         hash, hash_len);
-
     return rc;
 }
 #endif /* LINUXKM_ECC192 */
@@ -840,7 +839,6 @@ test_ecdsa_nist_end:
     #ifdef WOLFKM_DEBUG_ECDSA
     pr_info("info: %s: self test returned: %d\n", driver, test_rc);
     #endif /* WOLFKM_DEBUG_ECDSA */
-
     return test_rc;
 }
 

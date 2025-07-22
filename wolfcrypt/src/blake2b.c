@@ -18,7 +18,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -356,7 +356,9 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
     }
 
     S->buflen -= BLAKE2B_BLOCKBYTES;
-    XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (wolfssl_word)S->buflen );
+    if ( S->buflen > BLAKE2B_BLOCKBYTES )
+      return BAD_LENGTH_E;
+    XMEMMOVE( S->buf, S->buf + BLAKE2B_BLOCKBYTES, (wolfssl_word)S->buflen );
   }
 
   blake2b_increment_counter( S, S->buflen );

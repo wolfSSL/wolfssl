@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
     #include <wolfssl/internal.h>
     #include <wolfssl/error-ssl.h>
 #endif
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 
 #include <stdio.h>
@@ -132,13 +132,13 @@ WOLFSSL_API int tsip_use_PublicKey_buffer_TLS(WOLFSSL* ssl,
     WOLFSSL_ENTER("tsip_use_PublicKey_buffer_TLS");
 
     if (ssl == NULL
-    || keyBuf == NULL || keyBufLen == 0) {
+    || keyBuf == NULL || keyBufLen == 0 || ssl->RenesasUserCtx == NULL) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0){
         tuc = ssl->RenesasUserCtx;
-        tuc->wrappedPublicKey  = (uint8_t*)keyBuf;
+        tuc->internal->wrappedPublicKey  = (uint8_t*)keyBuf;
         tuc->wrappedKeyType    = keyType;
     }
 
@@ -161,18 +161,20 @@ WOLFSSL_API int tsip_use_PrivateKey_buffer_TLS(struct WOLFSSL* ssl,
 
     WOLFSSL_ENTER("tsip_use_PrivateKey_buffer_TLS");
 
-    if (ssl == NULL || keyBuf == NULL || keyBufLen == 0 ) {
+    if (ssl == NULL || keyBuf == NULL || keyBufLen == 0 ||
+                                ssl->RenesasUserCtx == NULL) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0){
         tuc = ssl->RenesasUserCtx;
 
-        tuc->wrappedPrivateKey = (uint8_t*)keyBuf;
+        tuc->internal->wrappedPrivateKey = (uint8_t*)keyBuf;
         tuc->wrappedKeyType    = keyType;
 
         /* store keyType as Id since Id capacity is 32 bytes */
         ret = wolfSSL_use_PrivateKey_Id(ssl,
-                                (const unsigned char*)keyBuf, 32, tuc->devId);
+                                (const unsigned char*)keyBuf, 32,
+                                                tuc->internal->devId);
         if (ret == WOLFSSL_SUCCESS) {
             ret = 0;
         }
@@ -197,7 +199,6 @@ WOLFSSL_API int tsip_use_PublicKey_buffer_crypt(TsipUserCtx *uc,
                                 const char* keyBuf, int keyBufLen, int keyType)
 {
     int ret = 0;
-    TsipUserCtx* tuc = NULL;
 
     WOLFSSL_ENTER("tsip_use_PublicKey_buffer_crypt");
 
@@ -206,9 +207,8 @@ WOLFSSL_API int tsip_use_PublicKey_buffer_crypt(TsipUserCtx *uc,
     }
 
     if (ret == 0){
-        tuc = uc;
-        tuc->wrappedPublicKey  = (uint8_t*)keyBuf;
-        tuc->wrappedKeyType    = keyType;
+        uc->internal->wrappedPublicKey  = (uint8_t*)keyBuf;
+        uc->wrappedKeyType    = keyType;
     }
 
     WOLFSSL_LEAVE("tsip_use_PublicKey_buffer_crypt", ret);
@@ -226,7 +226,6 @@ WOLFSSL_API int tsip_use_PrivateKey_buffer_crypt(TsipUserCtx *uc,
                                 const char* keyBuf, int keyBufLen, int keyType)
 {
     int ret = 0;
-    TsipUserCtx* tuc = NULL;
 
     WOLFSSL_ENTER("tsip_use_PrivateKey_buffer_crypt");
 
@@ -234,10 +233,8 @@ WOLFSSL_API int tsip_use_PrivateKey_buffer_crypt(TsipUserCtx *uc,
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0){
-        tuc = uc;
-
-        tuc->wrappedPrivateKey = (uint8_t*)keyBuf;
-        tuc->wrappedKeyType    = keyType;
+        uc->internal->wrappedPrivateKey = (uint8_t*)keyBuf;
+        uc->wrappedKeyType    = keyType;
     }
 
     WOLFSSL_LEAVE("tsip_use_PrivateKey_buffer_crypt", ret);
@@ -287,7 +284,7 @@ static void tsipFlushMessages(struct WOLFSSL* ssl)
         return;
     }
 
-    bag = &(tuc->messageBag);
+    bag = &(tuc->internal->messageBag);
 
     ForceZero(bag, sizeof(MsgBag));
 
@@ -310,6 +307,14 @@ int tsip_TlsCleanup(struct WOLFSSL* ssl)
 
     /* free stored messages */
     tsipFlushMessages(ssl);
+    /* free internal structure */
+    if (tuc->internal) {
+        XFREE(tuc->internal, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        tuc->internal = NULL;
+    }
+
+    /* zero clear */
+    ForceZero(tuc, sizeof(TsipUserCtx));
 
     return ret;
 }
@@ -401,19 +406,19 @@ int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->Dhe_key_set  =0;
+            tuc->internal->Dhe_key_set  =0;
 
             err = R_TSIP_GenerateTls13P256EccKeyIndex(
-                            &(tuc->handle13),
-                            TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                            &(tuc->EcdhPrivKey13Idx),    /* private key index */
-                            &(kse->pubKey[1]));       /* generated public key */
+                    &(tuc->internal->handle13),
+                    TSIP_TLS13_MODE_FULL_HANDSHAKE,
+                    &(tuc->internal->EcdhPrivKey13Idx),/* private key index */
+                    &(kse->pubKey[1]));              /* generated public key */
 
             if (err != TSIP_SUCCESS){ret = WC_HW_E;}
 
             if (ret == 0) {
                 WOLFSSL_MSG("ECDH private key-index is stored by TSIP");
-                tuc->Dhe_key_set  =1;
+                tuc->internal->Dhe_key_set  =1;
             }
 
             tsip_hw_unlock();
@@ -483,7 +488,7 @@ int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        if (!tuc->Dhe_key_set) {
+        if (!tuc->internal->Dhe_key_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -492,15 +497,15 @@ int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->SharedSecret_set = 0;
+            tuc->internal->SharedSecret_set = 0;
             pubkeyraw = kse->ke + 1;        /* peer's raw public key data */
 
             /* derive shared secret */
             err = R_TSIP_Tls13GenerateEcdheSharedSecret(
-                        TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                        pubkeyraw,                 /* peer's ECDHE public key */
-                        &(tuc->EcdhPrivKey13Idx),  /*(out) own ECDHE priv key */
-                        &(tuc->sharedSecret13Idx));   /*(out) PreMasterSecret */
+                TSIP_TLS13_MODE_FULL_HANDSHAKE,
+                pubkeyraw,                 /* peer's ECDHE public key */
+                &(tuc->internal->EcdhPrivKey13Idx),/*(out) own ECDHE priv key */
+                &(tuc->internal->sharedSecret13Idx)); /*(out) PreMasterSecret */
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Tls13GenerateEcdheSharedSecret error");
@@ -508,7 +513,7 @@ int tsip_Tls13GenSharedSecret(struct WOLFSSL* ssl,
             }
             if (ret == 0) {
                 /* set flag for later tsip operations */
-                tuc->SharedSecret_set = 1;
+                tuc->internal->SharedSecret_set = 1;
             }
 
             tsip_hw_unlock();
@@ -539,7 +544,7 @@ int tsip_Tls13DeriveEarlySecret(struct WOLFSSL* ssl)
             ret = CRYPTOCB_UNAVAILABLE;
         }
         else {
-            tuc->EarlySecret_set = 1;
+            tuc->internal->EarlySecret_set = 1;
         }
     }
 
@@ -588,7 +593,7 @@ int tsip_Tls13DeriveHandshakeSecret(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* check if pre-master secret is generated by tsip */
-        if (!tuc->SharedSecret_set) {
+        if (!tuc->internal->SharedSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -597,18 +602,18 @@ int tsip_Tls13DeriveHandshakeSecret(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->HandshakeSecret_set = 0;
+            tuc->internal->HandshakeSecret_set = 0;
 
             err = R_TSIP_Tls13GenerateHandshakeSecret(
-                        &(tuc->sharedSecret13Idx),
-                        &(tuc->handshakeSecret13Idx));
+                        &(tuc->internal->sharedSecret13Idx),
+                        &(tuc->internal->handshakeSecret13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Tls13GenerateHandshakeSecret error");
                 ret = WC_HW_E;
             }
             if (ret == 0) {
-                tuc->HandshakeSecret_set = 1;
+                tuc->internal->HandshakeSecret_set = 1;
             }
             tsip_hw_unlock();
         }
@@ -655,7 +660,7 @@ static int tsipTls13DeriveClientHandshakeKeys(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* make sure client handshake secret is generated by tsip */
-        if (!tuc->HandshakeSecret_set) {
+        if (!tuc->internal->HandshakeSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -669,15 +674,15 @@ static int tsipTls13DeriveClientHandshakeKeys(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->HandshakeClientTrafficKey_set = 0;
+            tuc->internal->HandshakeClientTrafficKey_set = 0;
 
             err = R_TSIP_Tls13GenerateClientHandshakeTrafficKey(
-                    &(tuc->handle13),
+                    &(tuc->internal->handle13),
                     TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                    &(tuc->handshakeSecret13Idx),
+                    &(tuc->internal->handshakeSecret13Idx),
                     hash,
-                    &(tuc->clientWriteKey13Idx),
-                    &(tuc->clientFinished13Idx));
+                    &(tuc->internal->clientWriteKey13Idx),
+                    &(tuc->internal->clientFinished13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG(
@@ -687,7 +692,7 @@ static int tsipTls13DeriveClientHandshakeKeys(struct WOLFSSL* ssl)
 
             /* key derivation succeeded */
             if (ret == 0) {
-                tuc->HandshakeClientTrafficKey_set = 1;
+                tuc->internal->HandshakeClientTrafficKey_set = 1;
             }
 
             tsip_hw_unlock();
@@ -735,7 +740,7 @@ static int tsipTls13DeriveServerHandshakeKeys(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* make sure client handshake secret is generated by tsip */
-        if (!tuc->HandshakeSecret_set) {
+        if (!tuc->internal->HandshakeSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -749,15 +754,15 @@ static int tsipTls13DeriveServerHandshakeKeys(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->HandshakeServerTrafficKey_set = 0;
+            tuc->internal->HandshakeServerTrafficKey_set = 0;
 
             err = R_TSIP_Tls13GenerateServerHandshakeTrafficKey(
-                        &(tuc->handle13),
+                        &(tuc->internal->handle13),
                         TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                        &(tuc->handshakeSecret13Idx),
+                        &(tuc->internal->handshakeSecret13Idx),
                         hash,
-                        &(tuc->serverWriteKey13Idx),
-                        &(tuc->serverFinished13Idx));
+                        &(tuc->internal->serverWriteKey13Idx),
+                        &(tuc->internal->serverFinished13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG(
@@ -767,7 +772,7 @@ static int tsipTls13DeriveServerHandshakeKeys(struct WOLFSSL* ssl)
 
             /* key derivation succeeded */
             if (ret == 0) {
-                tuc->HandshakeServerTrafficKey_set = 1;
+                tuc->internal->HandshakeServerTrafficKey_set = 1;
             }
 
             tsip_hw_unlock();
@@ -815,7 +820,7 @@ static int tsipTls13DeriveTrafficKeys(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* make sure master secret is generated by tsip */
-        if (!tuc->MasterSecret_set) {
+        if (!tuc->internal->MasterSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -829,20 +834,20 @@ static int tsipTls13DeriveTrafficKeys(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->ServerTrafficSecret_set   = 0;
-            tuc->ClientTrafficSecret_set   = 0;
-            tuc->ServerWriteTrafficKey_set = 0;
-            tuc->ClientWriteTrafficKey_set = 0;
+            tuc->internal->ServerTrafficSecret_set   = 0;
+            tuc->internal->ClientTrafficSecret_set   = 0;
+            tuc->internal->ServerWriteTrafficKey_set = 0;
+            tuc->internal->ClientWriteTrafficKey_set = 0;
 
             err = R_TSIP_Tls13GenerateApplicationTrafficKey(
-                        &(tuc->handle13),
+                        &(tuc->internal->handle13),
                         TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                        &(tuc->masterSecret13Idx),
+                        &(tuc->internal->masterSecret13Idx),
                         (uint8_t*)hash,
-                        &(tuc->serverAppTraffic13Secret),
-                        &(tuc->clientAppTraffic13Secret),
-                        &(tuc->serverAppWriteKey13Idx),
-                        &(tuc->clientAppWriteKey13Idx));
+                        &(tuc->internal->serverAppTraffic13Secret),
+                        &(tuc->internal->clientAppTraffic13Secret),
+                        &(tuc->internal->serverAppWriteKey13Idx),
+                        &(tuc->internal->clientAppWriteKey13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG(
@@ -852,10 +857,10 @@ static int tsipTls13DeriveTrafficKeys(struct WOLFSSL* ssl)
 
             /* key derivation succeeded */
             if (ret == 0) {
-                tuc->ServerTrafficSecret_set   = 1;
-                tuc->ClientTrafficSecret_set   = 1;
-                tuc->ServerWriteTrafficKey_set = 1;
-                tuc->ClientWriteTrafficKey_set = 1;
+                tuc->internal->ServerTrafficSecret_set   = 1;
+                tuc->internal->ClientTrafficSecret_set   = 1;
+                tuc->internal->ServerWriteTrafficKey_set = 1;
+                tuc->internal->ClientWriteTrafficKey_set = 1;
             }
 
             tsip_hw_unlock();
@@ -902,7 +907,7 @@ static int tsipTls13UpdateClientTrafficKeys(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* make sure application secret is generated by tsip */
-        if (!tuc->ClientTrafficSecret_set) {
+        if (!tuc->internal->ClientTrafficSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -910,21 +915,21 @@ static int tsipTls13UpdateClientTrafficKeys(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->ClientWriteTrafficKey_set = 0;
+            tuc->internal->ClientWriteTrafficKey_set = 0;
 
             err = R_TSIP_Tls13UpdateApplicationTrafficKey(
-                        &(tuc->handle13),
+                        &(tuc->internal->handle13),
                         TSIP_TLS13_MODE_FULL_HANDSHAKE,
                         TSIP_TLS13_UPDATE_CLIENT_KEY,
-                        &(tuc->clientAppTraffic13Secret),
-                        &(tuc->clientAppTraffic13Secret),
-                        &(tuc->clientAppWriteKey13Idx));
+                        &(tuc->internal->clientAppTraffic13Secret),
+                        &(tuc->internal->clientAppTraffic13Secret),
+                        &(tuc->internal->clientAppWriteKey13Idx));
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Tls13UpdateApplicationTrafficKey error");
                 ret = WC_HW_E;
             }
             else {
-                tuc->ClientWriteTrafficKey_set = 1;
+                tuc->internal->ClientWriteTrafficKey_set = 1;
             }
             tsip_hw_unlock();
         }
@@ -970,7 +975,7 @@ static int tsipTls13UpdateServerTrafficKeys(struct WOLFSSL* ssl)
 
     if (ret == 0) {
         /* make sure application secret is generated by tsip */
-        if (!tuc->ServerTrafficSecret_set) {
+        if (!tuc->internal->ServerTrafficSecret_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -978,21 +983,21 @@ static int tsipTls13UpdateServerTrafficKeys(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->ServerWriteTrafficKey_set = 0;
+            tuc->internal->ServerWriteTrafficKey_set = 0;
 
             err = R_TSIP_Tls13UpdateApplicationTrafficKey(
-                        &(tuc->handle13),
+                        &(tuc->internal->handle13),
                         TSIP_TLS13_MODE_FULL_HANDSHAKE,
                         TSIP_TLS13_UPDATE_SERVER_KEY,
-                        &(tuc->serverAppTraffic13Secret),
-                        &(tuc->serverAppTraffic13Secret),
-                        &(tuc->serverAppWriteKey13Idx));
+                        &(tuc->internal->serverAppTraffic13Secret),
+                        &(tuc->internal->serverAppTraffic13Secret),
+                        &(tuc->internal->serverAppWriteKey13Idx));
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG("R_TSIP_Tls13UpdateApplicationTrafficKey error");
                 ret = WC_HW_E;
             }
             else {
-                tuc->ServerWriteTrafficKey_set = 1;
+                tuc->internal->ServerWriteTrafficKey_set = 1;
             }
             tsip_hw_unlock();
         }
@@ -1131,8 +1136,8 @@ int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
     }
     if (ret == 0) {
         /* make sure handshake secret and verify data has been set by TSIP */
-        if (!tuc->HandshakeSecret_set ||
-            !tuc->HandshakeVerifiedData_set) {
+        if (!tuc->internal->HandshakeSecret_set ||
+            !tuc->internal->HandshakeVerifiedData_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -1140,14 +1145,14 @@ int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->MasterSecret_set = 0;
+            tuc->internal->MasterSecret_set = 0;
 
             err = R_TSIP_Tls13GenerateMasterSecret(
-                        &(tuc->handle13),
+                        &(tuc->internal->handle13),
                         TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                        &(tuc->handshakeSecret13Idx),
-                        (uint32_t*)tuc->verifyData13Idx,
-                        &(tuc->masterSecret13Idx));
+                        &(tuc->internal->handshakeSecret13Idx),
+                        (uint32_t*)tuc->internal->verifyData13Idx,
+                        &(tuc->internal->masterSecret13Idx));
 
             if (err != TSIP_SUCCESS) {
                 WOLFSSL_MSG(
@@ -1156,7 +1161,7 @@ int tsip_Tls13DeriveMasterSecret(struct WOLFSSL* ssl)
             }
 
             if (ret == 0) {
-                tuc->MasterSecret_set = 1;
+                tuc->internal->MasterSecret_set = 1;
             }
 
             tsip_hw_unlock();
@@ -1210,7 +1215,7 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
 
     if (ret == 0) {
         /* make sure handshake secret is generated by tsip */
-        if (!tuc->HandshakeServerTrafficKey_set) {
+        if (!tuc->internal->HandshakeServerTrafficKey_set) {
             WOLFSSL_MSG("TSIP wasn't involved in the key-exchange.");
             ret = CRYPTOCB_UNAVAILABLE;
         }
@@ -1223,14 +1228,14 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
     if (ret == 0) {
         if ((ret = tsip_hw_lock()) == 0) {
 
-            tuc->HandshakeVerifiedData_set = 0;
+            tuc->internal->HandshakeVerifiedData_set = 0;
 
             err = R_TSIP_Tls13ServerHandshakeVerification(
-                                        TSIP_TLS13_MODE_FULL_HANDSHAKE,
-                                        &(tuc->serverFinished13Idx),
-                                        (uint8_t*)msgHash,
-                                        (uint8_t*)hash,
-                                        (uint32_t*)(tuc->verifyData13Idx));
+                                TSIP_TLS13_MODE_FULL_HANDSHAKE,
+                                &(tuc->internal->serverFinished13Idx),
+                                (uint8_t*)msgHash,
+                                (uint8_t*)hash,
+                                (uint32_t*)(tuc->internal->verifyData13Idx));
 
             if (err == TSIP_ERR_VERIFICATION_FAIL) {
                 WOLFSSL_MSG("Handshake verification error");
@@ -1242,7 +1247,7 @@ static int tsipTls13VerifyHandshake(struct WOLFSSL* ssl,
             }
             if (ret == 0) {
                 WOLFSSL_MSG("Verified handshake");
-                tuc->HandshakeVerifiedData_set = 1;
+                tuc->internal->HandshakeVerifiedData_set = 1;
             }
 
             tsip_hw_unlock();
@@ -1545,10 +1550,10 @@ int tsip_Tls13CertificateVerify(struct WOLFSSL* ssl,
 
     if (ret == 0) {
         /* create sign data */
-        sigData = tuc->sigDataCertVerify;
+        sigData = tuc->internal->sigDataCertVerify;
 
         idx = 0;
-        ForceZero(sigData, sizeof(tuc->sigDataCertVerify));
+        ForceZero(sigData, sizeof(tuc->internal->sigDataCertVerify));
         XMEMSET(sigData, TSIP_SIGNING_DATA_PREFIX_BYTE,
                                                 TSIP_SIGNING_DATA_PREFIX_SZ);
 
@@ -1686,12 +1691,12 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 
     if (ret == 0) {
         if (isRsa) {
-            if (!tuc->ClientRsa2048PrivKey_set) {
+            if (!tuc->internal->ClientRsa2048PrivKey_set) {
                 ret = NO_PRIVATE_KEY;
             }
         }
         else {
-            if (!tuc->ClientEccPrivKey_set) {
+            if (!tuc->internal->ClientEccPrivKey_set) {
                 ret = NO_PRIVATE_KEY;
             }
         }
@@ -1724,7 +1729,7 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
         if ((ret = tsip_hw_lock()) == 0) {
             if (isRsa) {
                 err = R_TSIP_Tls13CertificateVerifyGenerate(
-                            (uint32_t*)&(tuc->Rsa2048PrivateKeyIdx),
+                            (uint32_t*)&(tuc->internal->Rsa2048PrivateKeyIdx),
                             TSIP_TLS13_SIGNATURE_SCHEME_RSA_PSS_RSAE_SHA256,
                                                 hash,
                                                 message + HANDSHAKE_HEADER_SZ,
@@ -1732,7 +1737,7 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
             }
             else {
                 err = R_TSIP_Tls13CertificateVerifyGenerate(
-                            (uint32_t*)&(tuc->EcdsaPrivateKeyIdx),
+                            (uint32_t*)&(tuc->internal->EcdsaPrivateKeyIdx),
                             TSIP_TLS13_SIGNATURE_SCHEME_ECDSA_SECP256R1_SHA256,
                                                 hash,
                                                 message + HANDSHAKE_HEADER_SZ,
@@ -1762,7 +1767,7 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 
     if (ret == 0) {
         if (isRsa) {
-            if (!tuc->ClientRsa2048PubKey_set) {
+            if (!tuc->internal->ClientRsa2048PubKey_set) {
                 ret = NO_PRIVATE_KEY;
             }
         }
@@ -1776,10 +1781,10 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
     }
 
     if (ret == 0) {
-        sigData = tuc->sigDataCertVerify;
+        sigData = tuc->internal->sigDataCertVerify;
 
         idx = 0;
-        ForceZero(sigData, sizeof(tuc->sigDataCertVerify));
+        ForceZero(sigData, sizeof(tuc->internal->sigDataCertVerify));
         XMEMSET(sigData, TSIP_SIGNING_DATA_PREFIX_BYTE,
                                                 TSIP_SIGNING_DATA_PREFIX_SZ);
 
@@ -1822,7 +1827,7 @@ int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 
                 err = R_TSIP_RsassaPss2048SignatureVerification(
                             &rsa_sig, &rsa_hash,
-                            &tuc->Rsa2048PublicKeyIdx,
+                            &(tuc->internal)->Rsa2048PublicKeyIdx,
                             R_TSIP_RSA_HASH_SHA256);
                 WOLFSSL_MSG("Perform self-verify for rsa signature");
             }
@@ -2009,7 +2014,7 @@ static int tsip_ServerKeyExVerify(
             (uint8_t*) peerkey,
             (uint8_t*) sig,
             (uint32_t*)ssl->peerSceTsipEncRsaKeyIndex,
-            (uint32_t*)userCtx->encrypted_ephemeral_ecdh_public_key);
+            (uint32_t*)userCtx->internal->encrypted_ephemeral_ecdh_public_key);
 
         if (ret !=TSIP_SUCCESS) {
             WOLFSSL_MSG("R_TSIP_TlsServersEphemeralEcdhPublicKeyRetrieves failed");
@@ -2166,22 +2171,22 @@ int wc_tsip_EccSharedSecret(
     if ((ret = tsip_hw_lock()) == 0) {
         /* Generate ECC public key for key exchange */
         ret = R_TSIP_GenerateTlsP256EccKeyIndex(
-                    &usrCtx->ecc_p256_wrapped_key,
-                    (uint8_t*)&usrCtx->ecc_ecdh_public_key);
+                    &(usrCtx->internal->ecc_p256_wrapped_key),
+                    (uint8_t*)&(usrCtx->internal->ecc_ecdh_public_key));
 
         if (ret == TSIP_SUCCESS) {
 
             /* copy generated ecdh public key into buffer */
             pubKeyDer[0] = ECC_POINT_UNCOMP;
-            *pubKeySz = 1 + sizeof(usrCtx->ecc_ecdh_public_key);
-            XMEMCPY(&pubKeyDer[1], &usrCtx->ecc_ecdh_public_key,
-                        sizeof(usrCtx->ecc_ecdh_public_key));
+            *pubKeySz = 1 + sizeof(usrCtx->internal->ecc_ecdh_public_key);
+            XMEMCPY(&pubKeyDer[1], &(usrCtx->internal->ecc_ecdh_public_key),
+                        sizeof(usrCtx->internal->ecc_ecdh_public_key));
 
             /* Generate Premaster Secret */
             ret = R_TSIP_TlsGeneratePreMasterSecretWithEccP256Key(
-                        (uint32_t*)&usrCtx->encrypted_ephemeral_ecdh_public_key,
-                        &usrCtx->ecc_p256_wrapped_key,
-                        (uint32_t*)out/* pre-master secret 64 bytes */);
+            (uint32_t*)&(usrCtx->internal->encrypted_ephemeral_ecdh_public_key),
+            &(usrCtx->internal->ecc_p256_wrapped_key),
+            (uint32_t*)out/* pre-master secret 64 bytes */);
         }
         if (ret == TSIP_SUCCESS) {
             *outlen = 64;
@@ -2242,14 +2247,28 @@ WOLFSSL_API int tsip_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 
     TsipUserCtx* uCtx = (TsipUserCtx*)user_ctx;
     if (user_ctx == NULL) {
-        WOLFSSL_LEAVE("tsip_set_callback_ctx", 0);
-        return 0;
+        WOLFSSL_MSG("user ctx is null");
+        return BAD_FUNC_ARG;
     }
+
     ForceZero(uCtx, sizeof(TsipUserCtx));
-    uCtx->ssl  = ssl;
-    uCtx->ctx  = ssl->ctx;
-    uCtx->heap = ssl->heap;
-    uCtx->side = ssl->ctx->method->side;
+
+    uCtx->internal =
+        (TsipUserCtx_Internal*)XMALLOC(sizeof(TsipUserCtx_Internal),
+                                        ssl->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (!uCtx->internal) {
+        printf("Failed to allocate memory for user ctx internal");
+        return MEMORY_E;
+    }
+
+    ForceZero(uCtx->internal, sizeof(TsipUserCtx_Internal));
+
+    uCtx->internal->ssl  = ssl;
+    uCtx->internal->ctx  = ssl->ctx;
+    uCtx->internal->heap = ssl->heap;
+    uCtx->internal->side = ssl->ctx->method->side;
 
     ssl->RenesasUserCtx = user_ctx;     /* ssl doesn't own user_ctx */
 
@@ -2316,7 +2335,7 @@ int tsip_ImportPrivateKey(TsipUserCtx* tuc, int keyType)
     if (tuc == NULL)
         return BAD_FUNC_ARG;
 
-    encPrivKey = tuc->wrappedPrivateKey;
+    encPrivKey = tuc->internal->wrappedPrivateKey;
 
     if (encPrivKey == NULL || provisioning_key == NULL || iv == NULL) {
         WOLFSSL_MSG("Missing some key materials used for import" );
@@ -2336,12 +2355,12 @@ int tsip_ImportPrivateKey(TsipUserCtx* tuc, int keyType)
             #if !defined(NO_RSA)
             case TSIP_KEY_TYPE_RSA2048:
 
-                tuc->ClientRsa2048PrivKey_set = 0;
+                tuc->internal->ClientRsa2048PrivKey_set = 0;
                 err = R_TSIP_GenerateRsa2048PrivateKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPrivKey,
-                                    &(tuc->Rsa2048PrivateKeyIdx));
+                                    &(tuc->internal->Rsa2048PrivateKeyIdx));
                 if (err == TSIP_SUCCESS) {
-                    tuc->ClientRsa2048PrivKey_set = 1;
+                    tuc->internal->ClientRsa2048PrivKey_set = 1;
                 }
                 else {
                     ret = WC_HW_E;
@@ -2357,12 +2376,12 @@ int tsip_ImportPrivateKey(TsipUserCtx* tuc, int keyType)
             #if defined(HAVE_ECC)
             case TSIP_KEY_TYPE_ECDSAP256:
 
-                tuc->ClientEccPrivKey_set = 0;
+                tuc->internal->ClientEccPrivKey_set = 0;
                 err = R_TSIP_GenerateEccP256PrivateKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPrivKey,
-                                    &(tuc->EcdsaPrivateKeyIdx));
+                                    &(tuc->internal->EcdsaPrivateKeyIdx));
                 if (err == TSIP_SUCCESS) {
-                    tuc->ClientEccPrivKey_set = 1;
+                    tuc->internal->ClientEccPrivKey_set = 1;
                 }
                 else {
                     ret = WC_HW_E;
@@ -2409,7 +2428,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
         return BAD_FUNC_ARG;
     }
 
-    encPubKey = tuc->wrappedPublicKey;
+    encPubKey = tuc->internal->wrappedPublicKey;
 
     if (encPubKey == NULL || provisioning_key == NULL || iv == NULL) {
         WOLFSSL_MSG("Missing some key materials used for import" );
@@ -2431,7 +2450,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
             (defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1))
             case TSIP_KEY_TYPE_RSA2048:
             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                tuc->ClientRsa2048PubKey_set = 0;
+                tuc->internal->ClientRsa2048PubKey_set = 0;
             #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                 XFREE(tuc->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 tuc->keyflgs_crypt.bits.rsapub2048_key_set = 0;
@@ -2446,14 +2465,14 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                 err = R_TSIP_GenerateRsa2048PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                                 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                                     &(tuc->Rsa2048PublicKeyIdx)
+                                     &(tuc->internal->Rsa2048PublicKeyIdx)
                                 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                                      tuc->rsa2048pub_keyIdx
                                 #endif
                                     );
                 if (err == TSIP_SUCCESS) {
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                    tuc->ClientRsa2048PubKey_set = 1;
+                    tuc->internal->ClientRsa2048PubKey_set = 1;
                 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                     tuc->keyflgs_crypt.bits.rsapub2048_key_set = 1;
                 #endif
@@ -2473,7 +2492,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
             case TSIP_KEY_TYPE_ECDSAP256:
             case TSIP_KEY_TYPE_ECDSAP384:
             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                tuc->ClientEccPubKey_set = 0;
+                tuc->internal->ClientEccPubKey_set = 0;
             #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                 tuc->keyflgs_crypt.bits.eccpub_key_set = 0;
             #endif
@@ -2482,7 +2501,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                     err = R_TSIP_GenerateEccP256PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                                    &(tuc->EcdsaPublicKeyIdx)
+                                    &(tuc->internal->EcdsaPublicKeyIdx)
                             #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                                     &tuc->eccpub_keyIdx
                             #endif
@@ -2496,7 +2515,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                     err = R_TSIP_GenerateEccP384PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
                             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                                    &(tuc->EcdsaPublicKeyIdx)
+                                    &(tuc->internal->EcdsaPublicKeyIdx)
                             #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                                     &tuc->eccpub_keyIdx
                             #endif
@@ -2507,7 +2526,7 @@ int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType)
                 }
                 if (err == TSIP_SUCCESS) {
                 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-                    tuc->ClientEccPubKey_set = 1;
+                    tuc->internal->ClientEccPubKey_set = 1;
                 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
                     tuc->keyflgs_crypt.bits.eccpub_key_set = 1;
                 #endif
@@ -3253,9 +3272,9 @@ int wc_tsip_generateSessionKey(
                 /* ready-for-use flag will be set when SetKeySide() is called */
             }
 
-            if (ctx->tsip_cipher ==
+            if (ctx->internal->tsip_cipher ==
                             R_TSIP_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 ||
-                ctx->tsip_cipher ==
+                ctx->internal->tsip_cipher ==
                             R_TSIP_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) {
                 enc->aes->nonceSz = AEAD_MAX_IMP_SZ;
                 dec->aes->nonceSz = AEAD_MAX_IMP_SZ;
@@ -3264,7 +3283,7 @@ int wc_tsip_generateSessionKey(
             enc->aes->devId = devId;
             dec->aes->devId = devId;
 
-            ctx->session_key_set = 1;
+            ctx->internal->session_key_set = 1;
         }
         /* unlock hw */
         tsip_hw_unlock();
@@ -3367,14 +3386,15 @@ int wc_tsip_storeKeyCtx(WOLFSSL* ssl, TsipUserCtx* userCtx)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        XMEMCPY(userCtx->tsip_masterSecret, ssl->arrays->tsip_masterSecret,
-                                                TSIP_TLS_MASTERSECRET_SIZE);
-        XMEMCPY(userCtx->tsip_clientRandom, ssl->arrays->clientRandom,
-                                                TSIP_TLS_CLIENTRANDOM_SZ);
-        XMEMCPY(userCtx->tsip_serverRandom, ssl->arrays->serverRandom,
-                                                TSIP_TLS_SERVERRANDOM_SZ);
-        userCtx->tsip_cipher = GetTsipCipherSuite(ssl->options.cipherSuite0,
-                                                ssl->options.cipherSuite);
+        XMEMCPY(userCtx->internal->tsip_masterSecret,
+                ssl->arrays->tsip_masterSecret, TSIP_TLS_MASTERSECRET_SIZE);
+        XMEMCPY(userCtx->internal->tsip_clientRandom,
+                ssl->arrays->clientRandom, TSIP_TLS_CLIENTRANDOM_SZ);
+        XMEMCPY(userCtx->internal->tsip_serverRandom,
+                ssl->arrays->serverRandom, TSIP_TLS_SERVERRANDOM_SZ);
+        userCtx->internal->tsip_cipher = GetTsipCipherSuite(
+                                ssl->options.cipherSuite0,
+                                ssl->options.cipherSuite);
     }
 
     WOLFSSL_LEAVE("tsip_storeKeyCtx", ret);
@@ -3671,7 +3691,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
     if (info == NULL || tuc == NULL
     #ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
-    || tuc->ssl == NULL
+    || tuc->internal->ssl == NULL
     #endif
     ) {
             ret = BAD_FUNC_ARG;
@@ -3679,7 +3699,7 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     if (ret == 0) {
-        ssl = tuc->ssl;
+        ssl = tuc->internal->ssl;
 
         if (ssl->version.major == SSLv3_MAJOR &&
             ssl->version.minor == TLSv1_3_MINOR) {
@@ -3776,9 +3796,9 @@ int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     err = R_TSIP_RsassaPkcs2048SignatureGenerate(
                                                 &hashData, &sigData,
                                    #ifdef WOLFSSL_RENESAS_TSIP_TLS
-                                                &tuc->Rsa2048PrivateKeyIdx,
+                                    &(tuc->internal->Rsa2048PrivateKeyIdx),
                                    #else
-                                       (tsip_rsa2048_private_key_index_t*)
+                                    (tsip_rsa2048_private_key_index_t*)
                                                 tuc->rsa2048pri_keyIdx,
                                    #endif
                                                 tsip_hash_type);
@@ -3876,9 +3896,9 @@ int tsip_VerifyRsaPkcsCb(
 #if defined(TSIP_RSASSA_2048) && TSIP_RSASSA_2048 == 1
                 case TSIP_KEY_TYPE_RSA2048:
                     err = R_TSIP_RsassaPkcs2048SignatureVerification(
-                                                &sigData, &hashData,
-                                                &tuc->Rsa2048PublicKeyIdx,
-                                                tsip_hash_type);
+                                        &sigData, &hashData,
+                                        &(tuc->internal->Rsa2048PublicKeyIdx),
+                                        tsip_hash_type);
 
                     if (err == TSIP_ERR_AUTHENTICATION) {
                         ret = VERIFY_CERT_ERROR;
@@ -3949,7 +3969,7 @@ int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     if (ret == 0) {
-        ssl = tuc->ssl;
+        ssl = tuc->internal->ssl;
 
         if (ssl->version.major == SSLv3_MAJOR &&
             ssl->version.minor == TLSv1_3_MINOR) {
@@ -3983,8 +4003,8 @@ int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     sigData.pdata = (uint8_t*)info->pk.eccsign.out +
                                                             offsetForWork;
                     err = R_TSIP_EcdsaP256SignatureGenerate(
-                                                &hashData, &sigData,
-                                                &tuc->EcdsaPrivateKeyIdx);
+                                        &hashData, &sigData,
+                                        &(tuc->internal->EcdsaPrivateKeyIdx));
                     if (err != TSIP_SUCCESS) {
                         ret = WC_HW_E;
                         break;

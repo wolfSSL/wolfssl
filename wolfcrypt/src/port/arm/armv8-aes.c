@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -22274,7 +22274,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R]    \n"
                 "CMP r12, #10 \n"
-                "B.EQ 1f    \n"
+                "BEQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22283,7 +22283,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESE.8 q0, q2\n"
 
                 "CMP r12, #12 \n"
-                "B.EQ 1f    \n"
+                "BEQ 1f    \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22350,7 +22350,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 "MOV r12, %[R] \n"
                 "CMP r12, #10  \n"
-                "B.EQ 1f \n"
+                "BEQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22359,7 +22359,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "AESD.8 q0, q2\n"
 
                 "CMP r12, #12  \n"
-                "B.EQ 1f \n"
+                "BEQ 1f \n"
                 "VLD1.32 {q1}, [%[Key]]!  \n"
                 "AESIMC.8 q0, q0\n"
                 "VLD1.32 {q2}, [%[Key]]!  \n"
@@ -22462,7 +22462,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22529,7 +22529,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VST1.32 {q0}, [%[out]]!   \n"
 
                 "CMP r11, #0   \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22603,7 +22603,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "SUB %[Key], %[Key], #16   \n"
 
                 "CMP r11, #0   \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q12}, [%[input]]! \n"
                 "B 1b \n"
 
@@ -22701,7 +22701,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q13, q12        \n"
 
                 "CMP r11, #0 \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b      \n"
 
@@ -22770,7 +22770,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 
@@ -22846,7 +22846,7 @@ int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in, word32 sz,
                 "VMOV.32 q14, q15        \n"
 
                 "CMP r11, #0 \n"
-                "B.EQ 2f \n"
+                "BEQ 2f \n"
                 "VLD1.32 {q0}, [%[input]]!  \n"
                 "B 1b \n"
 

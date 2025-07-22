@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1901,21 +1901,6 @@ extern void uITRON4_free(void *p) ;
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
-    #undef  HAVE_ECC
-    #ifndef WOLFCRYPT_FIPS_RAND
-    #define HAVE_ECC
-    #endif
-    #ifndef NO_AES
-        #undef  HAVE_AESCCM
-        #define HAVE_AESCCM
-        #undef  HAVE_AESGCM
-        #define HAVE_AESGCM
-        #undef  WOLFSSL_AES_COUNTER
-        #define WOLFSSL_AES_COUNTER
-        #undef  WOLFSSL_AES_DIRECT
-        #define WOLFSSL_AES_DIRECT
-    #endif
-
     #ifdef FREESCALE_KSDK_1_3
         #include "fsl_device_registers.h"
     #elif !defined(FREESCALE_MQX)
@@ -3694,8 +3679,13 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_SP_DIV_WORD_HALF
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
-    #ifdef __PIE__
+
+    #ifdef HAVE_LINUXKM_PIE_SUPPORT
         #define WC_NO_INTERNAL_FUNCTION_POINTERS
+        #define WOLFSSL_ECC_CURVE_STATIC
+        #define WOLFSSL_NAMES_STATIC
+        #define WOLFSSL_NO_PUBLIC_FFDHE
+        #undef HAVE_PUBLIC_FFDHE
     #endif
 
     #ifndef NO_OLD_WC_NAMES
@@ -4089,7 +4079,6 @@ extern void uITRON4_free(void *p) ;
 #if defined(__IAR_SYSTEMS_ICC__) && defined(__ROPI__)
     #define WOLFSSL_ECC_CURVE_STATIC
     #define WOLFSSL_NAMES_STATIC
-    #define WOLFSSL_NO_CONSTCHARCONST
 #endif
 
 /* FIPS v1 does not support TLS v1.3 (requires RSA PSS and HKDF) */

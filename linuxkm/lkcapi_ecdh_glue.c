@@ -7,7 +7,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -534,7 +534,6 @@ ecdh_gen_pub_end:
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: exiting km_ecdh_gen_pub: %d", err);
     #endif /* WOLFKM_DEBUG_ECDH */
-
     return err;
 }
 
@@ -717,7 +716,6 @@ static int linuxkm_test_ecdh_nist_p192(void)
                                        b_pub, expected_a_pub, sizeof(b_pub),
                                        secret, sizeof(secret),
                                        shared_secret, sizeof(shared_secret));
-
     return rc;
 }
 #endif /* LINUXKM_ECC192 */
@@ -777,7 +775,6 @@ static int linuxkm_test_ecdh_nist_p256(void)
                                        b_pub, expected_a_pub, sizeof(b_pub),
                                        secret, sizeof(secret),
                                        shared_secret, sizeof(shared_secret));
-
     return rc;
 }
 
@@ -849,7 +846,6 @@ static int linuxkm_test_ecdh_nist_p384(void)
                                        b_pub, expected_a_pub, sizeof(b_pub),
                                        secret, sizeof(secret),
                                        shared_secret, sizeof(shared_secret));
-
     return rc;
 }
 
@@ -991,7 +987,6 @@ test_ecdh_nist_end:
     #ifdef WOLFKM_DEBUG_ECDH
     pr_info("info: %s: self test returned: %d\n", driver, test_rc);
     #endif /* WOLFKM_DEBUG_ECDH */
-
     return test_rc;
 }
 

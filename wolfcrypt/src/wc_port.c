@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -60,7 +60,7 @@
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP)
-    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h>
 #endif
 #if defined(WOLFSSL_RENESAS_FSPSM)
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>

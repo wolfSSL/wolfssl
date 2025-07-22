@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -505,6 +505,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PEM_X509_INFO_read              wolfSSL_PEM_X509_INFO_read
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 #define i2d_PublicKey                   wolfSSL_i2d_PublicKey
+#define i2d_PrivateKey_bio              wolfSSL_i2d_PrivateKey_bio
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ
 #define d2i_X509_REQ                    wolfSSL_d2i_X509_REQ

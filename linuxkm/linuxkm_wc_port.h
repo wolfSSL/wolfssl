@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -77,9 +77,33 @@
         #define ALIGN16 __attribute__ ( (aligned (32)))
     #endif
 
-    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901, merged for 4.12.
+     * kvrealloc() added in de2860f463, merged for 5.15, backported to 5.10.137.
+     * moved to ultimate home (slab.h) in 8587ca6f34, merged for 5.16.
+     *
+     * however, until 6.11, it took an extra argument, oldsize, that makes it
+     * incompatible with traditional libc usage patterns, so we don't try to use it.
+     */
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
         #define HAVE_KVMALLOC
+    #endif
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+        #define HAVE_KVREALLOC
+    #endif
+
+    #ifdef WOLFCRYPT_ONLY
+        #ifdef HAVE_KVMALLOC
+            #define USE_KVMALLOC
+        #endif
+        #ifdef HAVE_KVREALLOC
+            #define USE_KVREALLOC
+        #endif
+    #else
+        /* functioning realloc() is needed for the TLS stack. */
+        #if defined(HAVE_KVMALLOC) && defined(HAVE_KVREALLOC)
+            #define USE_KVMALLOC
+            #define USE_KVREALLOC
+        #endif
     #endif
 
     /* kernel printf doesn't implement fp. */
@@ -87,7 +111,29 @@
         #define WOLFSSL_NO_FLOAT_FMT
     #endif
 
+#ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+    struct wolfSSL_Mutex;
+    extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
+#endif
+
     #ifdef BUILDING_WOLFSSL
+
+    #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+         (defined(RHEL_MAJOR) &&                                    \
+          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))) && \
+        defined(CONFIG_X86)
+        /* linux/slab.h recursively brings in linux/page-flags.h, bringing in
+         * non-inline implementations of functions folio_flags() and
+         * const_folio_flags().  but we can retrofit the attribute.
+         */
+        struct folio;
+        static __always_inline unsigned long *folio_flags(
+            struct folio *folio, unsigned n);
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+            static __always_inline const unsigned long *const_folio_flags(
+                const struct folio *folio, unsigned n);
+        #endif
+    #endif
 
     #if defined(CONFIG_MIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
         /* __ZBOOT__ disables some unhelpful macros around the mem*() funcs in
@@ -258,54 +304,47 @@
         #undef memmove
         #define memmove my_memmove
 
-    #endif /* CONFIG_FORTIFY_SOURCE */
+    #else /* !CONFIG_FORTIFY_SOURCE */
 
-    #include <linux/init.h>
-    #include <linux/module.h>
-    #include <linux/delay.h>
+        #include <linux/string.h>
 
-    #ifdef __PIE__
-        /* without this, mm.h brings in static, but not inline, pmd_to_page(),
+    #endif /* !CONFIG_FORTIFY_SOURCE */
+
+    #ifndef __PIE__
+        #include <linux/init.h>
+        #include <linux/module.h>
+        #include <linux/delay.h>
+    #endif
+
+    #if defined(HAVE_KVMALLOC) && \
+        (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)) && \
+        !(defined(RHEL_MAJOR) && ((RHEL_MAJOR > 9) || \
+                                  ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
+        /* before 5.16, the kvmalloc_node() and kvfree() prototypes were in
+         * mm.h.  however, mm.h brings in static, but not inline, pmd_to_page(),
          * with direct references to global vmem variables.
          */
-        #undef USE_SPLIT_PMD_PTLOCKS
-        #define USE_SPLIT_PMD_PTLOCKS 0
-
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-            /* without this, static show_free_areas() mm.h brings in direct
-             * reference to unexported __show_free_areas().
-             */
-            #define __show_free_areas my__show_free_areas
-            void my__show_free_areas(
-                unsigned int flags,
-                nodemask_t *nodemask,
-                int max_zone_idx);
+        #ifdef __PIE__
+            #include <linux/mm_types.h>
+            static __always_inline struct page *pmd_to_page(pmd_t *pmd);
         #endif
+        #include <linux/mm.h>
     #endif
-    #include <linux/mm.h>
-    #ifndef SINGLE_THREADED
-        #include <linux/kthread.h>
-    #endif
+
+#ifndef __PIE__
+    #include <linux/kthread.h>
     #include <linux/net.h>
+#endif
+
     #include <linux/slab.h>
+    #include <linux/sched.h>
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+        /* for signal_pending() */
+        #include <linux/sched/signal.h>
+    #endif
+    #include <linux/random.h>
 
     #ifdef LINUXKM_LKCAPI_REGISTER
-        #include <linux/crypto.h>
-        #include <linux/scatterlist.h>
-        #include <crypto/scatterwalk.h>
-        #include <crypto/internal/aead.h>
-        #include <crypto/internal/hash.h>
-        #include <crypto/internal/rng.h>
-        #include <crypto/internal/skcipher.h>
-        #include <crypto/internal/akcipher.h>
-        #include <crypto/internal/kpp.h>
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
-            #include <crypto/internal/sig.h>
-        #endif /* linux ver >= 6.13 */
-        #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES
-            #include <linux/kprobes.h>
-        #endif
-
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
          * AES key structs in each context, one for each direction.  in
@@ -323,12 +362,30 @@
             #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #endif
 
-        #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
-            #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))
-        #else
-            #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount)))
-        #endif
-    #endif
+        #ifndef __PIE__
+            #include <linux/crypto.h>
+            #include <linux/scatterlist.h>
+            #include <crypto/scatterwalk.h>
+            #include <crypto/internal/aead.h>
+            #include <crypto/internal/hash.h>
+            #include <crypto/internal/rng.h>
+            #include <crypto/internal/skcipher.h>
+            #include <crypto/internal/akcipher.h>
+            #include <crypto/internal/kpp.h>
+            #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+                #include <crypto/internal/sig.h>
+            #endif /* linux ver >= 6.13 */
+            #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES
+                #include <linux/kprobes.h>
+            #endif
+
+            #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
+                #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))
+            #else
+                #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount)))
+            #endif
+        #endif /* !__PIE__ */
+    #endif /* LINUXKM_LKCAPI_REGISTER */
 
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
         defined(WOLFSSL_SP_X86_64_ASM)
@@ -368,16 +425,21 @@
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
         defined(CONFIG_X86)
 
+        enum wc_svr_flags {
+            WC_SVR_FLAG_INHIBIT = 1,
+        };
+
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
         extern __must_check int can_save_vector_registers_x86(void);
-        extern __must_check int save_vector_registers_x86(int inhibit_p);
+        extern __must_check int save_vector_registers_x86(enum wc_svr_flags flags);
         extern void restore_vector_registers_x86(void);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
+            #include <crypto/internal/simd.h>
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
@@ -411,7 +473,7 @@
         #endif
 
         #ifndef DISABLE_VECTOR_REGISTERS
-            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(1)
+            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
             #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
@@ -475,21 +537,49 @@
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
         #if FIPS_VERSION3_GE(6,0,0)
+#ifndef NO_AES
             extern int wolfCrypt_FIPS_AES_sanity(void);
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
             extern int wolfCrypt_FIPS_CMAC_sanity(void);
+#endif
+#endif
+#ifndef NO_DH
             extern int wolfCrypt_FIPS_DH_sanity(void);
+#endif
+#ifdef HAVE_ECC
             extern int wolfCrypt_FIPS_ECC_sanity(void);
+#endif
+#ifdef HAVE_ED25519
             extern int wolfCrypt_FIPS_ED25519_sanity(void);
+#endif
+#ifdef HAVE_ED448
             extern int wolfCrypt_FIPS_ED448_sanity(void);
+#endif
             extern int wolfCrypt_FIPS_HMAC_sanity(void);
+#ifndef NO_KDF
             extern int wolfCrypt_FIPS_KDF_sanity(void);
+#endif
+#ifdef HAVE_PBKDF2
             extern int wolfCrypt_FIPS_PBKDF_sanity(void);
+#endif
+#ifdef HAVE_HASHDRBG
             extern int wolfCrypt_FIPS_DRBG_sanity(void);
+#endif
+#ifndef NO_RSA
             extern int wolfCrypt_FIPS_RSA_sanity(void);
+#endif
+#ifndef NO_SHA
             extern int wolfCrypt_FIPS_SHA_sanity(void);
+#endif
+#ifndef NO_SHA256
             extern int wolfCrypt_FIPS_SHA256_sanity(void);
+#endif
+#ifdef WOLFSSL_SHA512
             extern int wolfCrypt_FIPS_SHA512_sanity(void);
+#endif
+#ifdef WOLFSSL_SHA3
             extern int wolfCrypt_FIPS_SHA3_sanity(void);
+#endif
             extern int wolfCrypt_FIPS_FT_sanity(void);
             extern int wc_RunAllCast_fips(void);
         #endif
@@ -574,7 +664,9 @@
     #endif
         typeof(kstrtoll) *kstrtoll;
 
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+        #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+            (defined(RHEL_MAJOR) && \
+             ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
             typeof(_printk) *_printk;
         #else
             typeof(printk) *printk;
@@ -594,19 +686,28 @@
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
         typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+        typeof(kvrealloc_noprof) *kvrealloc_noprof;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(kvmalloc_node_noprof) *kvmalloc_node_noprof;
         typeof(kmalloc_trace_noprof) *kmalloc_trace_noprof;
+        #ifdef HAVE_KVREALLOC
+            typeof(kvrealloc_noprof) *kvrealloc_noprof;
+        #endif
 #else /* <6.10.0 */
         typeof(kmalloc) *kmalloc;
         typeof(krealloc) *krealloc;
         #ifdef HAVE_KVMALLOC
-        typeof(kvmalloc_node) *kvmalloc_node;
+            typeof(kvmalloc_node) *kvmalloc_node;
         #endif
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+        #ifdef HAVE_KVREALLOC
+            typeof(kvrealloc) *kvrealloc;
+        #endif
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
+            (defined(RHEL_MAJOR) &&                                    \
+             ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
             typeof(kmalloc_trace) *kmalloc_trace;
         #else
             typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
@@ -618,7 +719,6 @@
         #endif
         typeof(kfree) *kfree;
         typeof(ksize) *ksize;
-        typeof(is_vmalloc_addr) *is_vmalloc_addr;
 
         typeof(get_random_bytes) *get_random_bytes;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -660,21 +760,49 @@
         typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
         typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
         #if FIPS_VERSION3_GE(6,0,0)
+#ifndef NO_AES
             typeof(wolfCrypt_FIPS_AES_sanity) *wolfCrypt_FIPS_AES_sanity;
+#if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
             typeof(wolfCrypt_FIPS_CMAC_sanity) *wolfCrypt_FIPS_CMAC_sanity;
+#endif
+#endif
+#ifndef NO_DH
             typeof(wolfCrypt_FIPS_DH_sanity) *wolfCrypt_FIPS_DH_sanity;
+#endif
+#ifdef HAVE_ECC
             typeof(wolfCrypt_FIPS_ECC_sanity) *wolfCrypt_FIPS_ECC_sanity;
+#endif
+#ifdef HAVE_ED25519
             typeof(wolfCrypt_FIPS_ED25519_sanity) *wolfCrypt_FIPS_ED25519_sanity;
+#endif
+#ifdef HAVE_ED448
             typeof(wolfCrypt_FIPS_ED448_sanity) *wolfCrypt_FIPS_ED448_sanity;
+#endif
             typeof(wolfCrypt_FIPS_HMAC_sanity) *wolfCrypt_FIPS_HMAC_sanity;
+#ifndef NO_KDF
             typeof(wolfCrypt_FIPS_KDF_sanity) *wolfCrypt_FIPS_KDF_sanity;
+#endif
+#ifdef HAVE_PBKDF2
             typeof(wolfCrypt_FIPS_PBKDF_sanity) *wolfCrypt_FIPS_PBKDF_sanity;
+#endif
+#ifdef HAVE_HASHDRBG
             typeof(wolfCrypt_FIPS_DRBG_sanity) *wolfCrypt_FIPS_DRBG_sanity;
+#endif
+#ifndef NO_RSA
             typeof(wolfCrypt_FIPS_RSA_sanity) *wolfCrypt_FIPS_RSA_sanity;
+#endif
+#ifndef NO_SHA
             typeof(wolfCrypt_FIPS_SHA_sanity) *wolfCrypt_FIPS_SHA_sanity;
+#endif
+#ifndef NO_SHA256
             typeof(wolfCrypt_FIPS_SHA256_sanity) *wolfCrypt_FIPS_SHA256_sanity;
+#endif
+#ifdef WOLFSSL_SHA512
             typeof(wolfCrypt_FIPS_SHA512_sanity) *wolfCrypt_FIPS_SHA512_sanity;
+#endif
+#ifdef WOLFSSL_SHA3
             typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
+#endif
             typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
             typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
         #endif
@@ -731,6 +859,9 @@
             typeof(_raw_spin_unlock_irqrestore) *_raw_spin_unlock_irqrestore;
         #endif
         typeof(_cond_resched) *_cond_resched;
+        #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
+        typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
+        #endif
 
         const void *_last_slot;
     };
@@ -777,7 +908,9 @@
     #endif
     #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define _printk (wolfssl_linuxkm_get_pie_redirect_table()->_printk)
     #else
         #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
@@ -798,6 +931,7 @@
     #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
     #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
     #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
+    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
@@ -805,6 +939,7 @@
     #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
     #define kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node_noprof)
     #define kmalloc_trace_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace_noprof)
+    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
 #else /* <6.10.0 */
     #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
     #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
@@ -812,7 +947,12 @@
     #ifdef HAVE_KVMALLOC
         #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
     #endif
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    #ifdef HAVE_KVREALLOC
+        #define kvrealloc (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc)
+    #endif
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
+        (defined(RHEL_MAJOR) &&                                    \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
     #else
         #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
@@ -825,8 +965,6 @@
         #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
     #endif
     #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
-
-    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -938,7 +1076,9 @@
      */
     #define key_update wc_key_update
 
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
+        (defined(RHEL_MAJOR) && \
+         ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
         #define lkm_printf(format, args...) _printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
     #else
         #define lkm_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
@@ -970,11 +1110,6 @@
 
     #endif /* BUILDING_WOLFSSL */
 
-    /* if BUILDING_WOLFSSL, mutex.h will have already been included recursively
-     * above, with the bevy of warnings suppressed, and the below include will
-     * be a redundant no-op.
-     */
-
     /* Copied from wc_port.h: For FIPS keep the function names the same */
     #ifdef HAVE_FIPS
     #define wc_InitMutex   InitMutex
@@ -992,6 +1127,10 @@
             #error WOLFSSL_LINUXKM_USE_MUTEXES is incompatible with LINUXKM_LKCAPI_REGISTER.
         #endif
 
+        /* if BUILDING_WOLFSSL, mutex.h will have already been included
+         * recursively above, with the bevy of warnings suppressed, and the
+         * below include will be a redundant no-op.
+         */
         #include <linux/mutex.h>
         typedef struct mutex wolfSSL_Mutex;
         #define WOLFSSL_MUTEX_INITIALIZER(lockname) __MUTEX_INITIALIZER(lockname)
@@ -1024,10 +1163,11 @@
             return 0;
         }
     #else
-        typedef struct {
+        typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;
         } wolfSSL_Mutex;
+
         #define WOLFSSL_MUTEX_INITIALIZER(lockname) { .lock =__SPIN_LOCK_UNLOCKED(lockname), .irq_flags = 0 }
 
         static __always_inline int wc_InitMutex(wolfSSL_Mutex* m)
@@ -1044,34 +1184,23 @@
             return 0;
         }
 
-        static __always_inline int wc_LockMutex(wolfSSL_Mutex* m)
+        #ifdef __PIE__
+        /* wc_lkm_LockMutex() can't be used inline in __PIE__ objects, due to
+         * direct access to pv_ops.
+         */
+        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
-            unsigned long irq_flags;
-            /* first, try the cheap way. */
-            if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-                m->irq_flags = irq_flags;
-                return 0;
-            }
-            if (irq_count() != 0) {
-                /* Note, this catches calls while SAVE_VECTOR_REGISTERS()ed as
-                 * required, because in_softirq() is always true while saved,
-                 * even for WC_FPU_INHIBITED_FLAG contexts.
-                 */
-                spin_lock_irqsave(&m->lock, irq_flags);
-                m->irq_flags = irq_flags;
-                return 0;
-            }
-            else {
-                for (;;) {
-                    if (spin_trylock_irqsave(&m->lock, irq_flags)) {
-                        m->irq_flags = irq_flags;
-                        return 0;
-                    }
-                    cond_resched();
-                }
-            }
-            __builtin_unreachable();
+            return (wolfssl_linuxkm_get_pie_redirect_table()->wc_lkm_LockMutex)(m);
         }
+
+        #else /* !__PIE__ */
+
+        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
+        {
+            return wc_lkm_LockMutex(m);
+        }
+
+        #endif /* !__PIE__ */
 
         static __always_inline int wc_UnLockMutex(wolfSSL_Mutex* m)
         {
@@ -1094,6 +1223,13 @@
      */
     #define _MM_MALLOC_H_INCLUDED
 
+    #ifndef BUILDING_WOLFSSL
+        #include <linux/slab.h>
+        #if defined(USE_KVMALLOC) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0))
+            #include <linux/mm.h>
+        #endif
+    #endif
+
     /* fun fact: since linux commit 59bb47985c, kmalloc with power-of-2 size is
      * aligned to the size.
      */
@@ -1105,11 +1241,14 @@
               ((sizeof(_alloc_sz) * 8UL) - __builtin_clzl(_alloc_sz - 1)); \
         _alloc_sz;                                                         \
     })
-    #ifdef HAVE_KVMALLOC
-#define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
+    #ifdef USE_KVMALLOC
+        #define malloc(size) kvmalloc_node(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC), NUMA_NO_NODE)
         #define free(ptr) kvfree(ptr)
-        void *lkm_realloc(void *ptr, size_t newsize);
-        #define realloc(ptr, newsize) lkm_realloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize))
+        #ifdef USE_KVREALLOC
+            #define realloc(ptr, newsize) kvrealloc(ptr, WC_LINUXKM_ROUND_UP_P_OF_2(newsize), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
+        #else
+            #define realloc(ptr, newsize) ((void)(ptr), (void)(newsize), NULL)
+        #endif
     #else
         #define malloc(size) kmalloc(WC_LINUXKM_ROUND_UP_P_OF_2(size), (preempt_count() == 0 ? GFP_KERNEL : GFP_ATOMIC))
         #define free(ptr) kfree(ptr)
@@ -1132,13 +1271,17 @@
     #endif
     #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); wolfSSL_Realloc(p, n);})
 #else
-    #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); malloc(s);})
-    #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-        #define XFREE(p, h, t)       ({(void)(h); (void)(t); free(p);})
-    #else
-        #define XFREE(p, h, t)       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
-    #endif
-    #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+    #if !defined(XMALLOC_USER) && !defined(XMALLOC_OVERRIDE)
+        #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); malloc(s);})
+        #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
+            #define XFREE(p, h, t)       ({(void)(h); (void)(t); free(p);})
+        #else
+            #define XFREE(p, h, t)       ({void* _xp; (void)(h); (void)(t); _xp = (p); if(_xp) free(_xp);})
+        #endif
+        #if defined(USE_KVREALLOC) || !defined(USE_KVMALLOC)
+            #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); realloc(p, n);})
+        #endif
+    #endif /* !XMALLOC_USER && !XMALLOC_OVERRIDE */
 #endif
 
     #include <linux/limits.h>

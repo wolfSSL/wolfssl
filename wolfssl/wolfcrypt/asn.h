@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1642,8 +1642,8 @@ struct DecodedCert {
     const byte* extAuthKeyIdIssuerSN; /* Authority Key ID authorityCertSerialNumber */
     word32  extAuthKeyIdIssuerSNSz;   /* Authority Key ID authorityCertSerialNumber length */
 #endif
-    byte    pathLength;              /* CA basic constraint path length  */
-    byte    maxPathLen;              /* max_path_len see RFC 5280 section
+    word16    pathLength;              /* CA basic constraint path length  */
+    word16    maxPathLen;              /* max_path_len see RFC 5280 section
                                       * 6.1.2 "Initialization" - (k) for
                                       * description of max_path_len */
     byte    policyConstSkip;         /* Policy Constraints skip certs value */
@@ -1943,7 +1943,7 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
-    byte    maxPathLen;
+    word16  maxPathLen;
     WC_BITFIELD selfSigned:1;
     const byte* publicKey;
     int     nameLen;
@@ -2134,7 +2134,7 @@ WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
 #endif
 
 WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
-                            byte *isCa, byte *pathLength, byte *pathLengthSet);
+                            byte *isCa, word16 *pathLength, byte *pathLengthSet);
 
 WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
                             const byte **extSubjKeyId, word32 *extSubjKeyIdSz);
@@ -2211,6 +2211,8 @@ WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_TEST_VIS int wc_AsnSetSkipDateCheck(int skip_p);
+WOLFSSL_LOCAL int wc_AsnGetSkipDateCheck(void);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
@@ -2357,14 +2359,18 @@ WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
 WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
 WOLFSSL_LOCAL int DecodeAsymKeyPublic_Assign(const byte* input,
     word32* inOutIdx, word32 inSz, const byte** pubKey, word32* pubKeyLen,
     int* keyType);
 
 WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx,
     word32 inSz, byte* pubKey, word32* pubKeyLen, int keyType);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
 
 #ifndef NO_CERTS
 

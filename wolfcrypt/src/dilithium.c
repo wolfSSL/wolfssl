@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -6682,7 +6682,6 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                             ze += DILITHIUM_GAMMA1_17_ENC_BITS / 2 *
                                   DILITHIUM_N / 4;
                         }
-                        else
                     #endif
                     #if !defined(WOLFSSL_NO_ML_DSA_65) || \
                         !defined(WOLFSSL_NO_ML_DSA_87)

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -2538,9 +2538,11 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
     if (ctx == NULL) return NULL;
     XMEMSET(ctx, 0, sizeof(WOLFSSL_EVP_PKEY_CTX));
     ctx->pkey = pkey;
-#if !defined(NO_RSA)
+#ifndef NO_RSA
     ctx->padding = WC_RSA_PKCS1_PADDING;
     ctx->md = NULL;
+    ctx->mgf1_md = NULL;
+    ctx->saltlen = 0;
 #endif
 #ifdef HAVE_ECC
     if (pkey->ecc && pkey->ecc->group) {
@@ -2587,6 +2589,42 @@ int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_signature_md");
 #ifndef NO_RSA
     ctx->md = md;
+#else
+    (void)md;
+#endif
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+    const WOLFSSL_EVP_MD *md)
+{
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, WC_RSA_PKCS1_OAEP_PADDING);
+    return wolfSSL_EVP_PKEY_CTX_set_signature_md(ctx, md);
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                             int saltlen)
+{
+    if (ctx == NULL) return 0;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen");
+    wolfSSL_EVP_PKEY_CTX_set_rsa_padding(ctx, WC_RSA_PKCS1_PSS_PADDING);
+#ifndef NO_RSA
+    ctx->saltlen = saltlen;
+#else
+    (void)saltlen;
+#endif
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx,
+                                         const WOLFSSL_EVP_MD *md)
+{
+    if (ctx == NULL) return 0;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md");
+#ifndef NO_RSA
+    /* Hash digest algorithm used with Mask Generation Function 1 (MGF1) for
+     * RSA-PSS and RSA-OAEP. */
+    ctx->mgf1_md = md;
 #else
     (void)md;
 #endif
@@ -3278,7 +3316,7 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
     (void)tbslen;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA)
+#ifndef NO_RSA
     case WC_EVP_PKEY_RSA: {
         unsigned int usiglen = (unsigned int)*siglen;
         if (!sig) {
@@ -3291,17 +3329,17 @@ int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *sig,
             *siglen = (size_t)len;
             return WOLFSSL_SUCCESS;
         }
-        /* wolfSSL_RSA_sign_generic_padding performs a check that the output
-         * sig buffer is large enough */
-        if (wolfSSL_RSA_sign_generic_padding(wolfSSL_EVP_MD_type(ctx->md), tbs,
-                (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1,
-                ctx->padding) != WOLFSSL_SUCCESS) {
+
+        if (wolfSSL_RSA_sign_mgf(wolfSSL_EVP_MD_type(ctx->md), tbs,
+            (unsigned int)tbslen, sig, &usiglen, ctx->pkey->rsa, 1,
+            ctx->padding, wolfSSL_EVP_MD_type(ctx->mgf1_md), ctx->saltlen
+        ) != WOLFSSL_SUCCESS) {
             return WOLFSSL_FAILURE;
         }
         *siglen = (size_t)usiglen;
         return WOLFSSL_SUCCESS;
     }
-#endif /* NO_RSA */
+#endif /* !NO_RSA */
 
 #ifndef NO_DSA
     case WC_EVP_PKEY_DSA: {
@@ -3434,12 +3472,12 @@ int wolfSSL_EVP_PKEY_verify(WOLFSSL_EVP_PKEY_CTX *ctx, const unsigned char *sig,
         return WOLFSSL_FAILURE;
 
     switch (ctx->pkey->type) {
-#if !defined(NO_RSA)
+#ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
-        return wolfSSL_RSA_verify_ex(wolfSSL_EVP_MD_type(ctx->md), tbs,
+        return wolfSSL_RSA_verify_mgf(wolfSSL_EVP_MD_type(ctx->md), tbs,
             (unsigned int)tbslen, sig, (unsigned int)siglen, ctx->pkey->rsa,
-            ctx->padding);
-#endif /* NO_RSA */
+            ctx->padding, wolfSSL_EVP_MD_type(ctx->mgf1_md), ctx->saltlen);
+#endif /* !NO_RSA */
 
 #ifndef NO_DSA
      case WC_EVP_PKEY_DSA: {
@@ -10193,8 +10231,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return WC_NID_undef;
     }
 
-    for( ent = md_tbl; ent->name != NULL; ent++){
-        if(XSTRCMP((const char *)type, ent->name) == 0) {
+    for (ent = md_tbl; ent->name != NULL; ent++) {
+        if (XSTRCMP((const char *)type, ent->name) == 0) {
             return ent->nid;
         }
     }

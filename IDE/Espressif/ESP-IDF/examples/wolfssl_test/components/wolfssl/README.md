@@ -154,7 +154,7 @@ Have a specific request or questions? We'd love to hear from you! Please contact
 
 ## Licensing and Support
 
-wolfSSL (formerly known as CyaSSL) and wolfCrypt are either licensed for use under the GPLv2 (or at your option any later version) or a standard commercial license. For our users who cannot use wolfSSL under GPLv2 (or any later version), a commercial license to wolfSSL and wolfCrypt is available.
+wolfSSL (formerly known as CyaSSL) and wolfCrypt are either licensed for use under the GPLv3 (or at your option any later version) or a standard commercial license. For our users who cannot use wolfSSL under GPLv3 (or any later version), a commercial license to wolfSSL and wolfCrypt is available.
 
 See the LICENSE.txt, visit wolfssl.com/license, contact us at licensing@wolfssl.com or call +1 425 245 8247
 

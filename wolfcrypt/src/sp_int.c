@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -5102,7 +5102,7 @@ static void _sp_init_size(sp_int* a, unsigned int size)
 #endif
     _sp_zero((sp_int*)am);
 
-    a->size = (sp_size_t)size;
+    am->size = (sp_size_t)size;
 }
 
 /* Initialize the multi-precision number to be zero with a given max size.
@@ -7600,7 +7600,7 @@ static void _sp_add_off(const sp_int* a, const sp_int* b, sp_int* r, int o)
  * @param  [in]   o  Number of digits to offset b.
  */
 static void _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r,
-    unsigned int o)
+    sp_size_t o)
 {
     sp_size_t i = 0;
     sp_size_t j;
@@ -7618,7 +7618,7 @@ static void _sp_sub_off(const sp_int* a, const sp_int* b, sp_int* r,
         }
     }
     else {
-        i = (sp_size_t)o;
+        i = o;
     }
     /* Index to add at is the offset now. */
 
@@ -8025,8 +8025,8 @@ static void sp_clamp_ct(sp_int* a)
             (sp_int_digit)((sp_int_sdigit)(negVal & minusOne) >>
                            (SP_WORD_SIZE - 1));
 #else
-        sp_int_digit zeroMask =
-            (sp_int_digit)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
+        sp_size_t zeroMask =
+            (sp_size_t)((((sp_int_sword)a->dp[i]) - 1) >> SP_WORD_SIZE);
 #endif
         mask &= (sp_size_t)zeroMask;
         used = (sp_size_t)(used + mask);

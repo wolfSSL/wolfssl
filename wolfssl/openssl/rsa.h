@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -42,6 +42,17 @@
 #define WC_RSA_PKCS1_OAEP_PADDING 1
 #define WC_RSA_PKCS1_PSS_PADDING  2
 
+/* RSA PSS Salt special cases */
+/* Salt length same as digest length */
+#define WC_RSA_PSS_SALTLEN_DIGEST   (-1)
+/* Old max salt length */
+#define WC_RSA_PSS_SALTLEN_MAX_SIGN (-2)
+/* Verification only value to indicate to discover salt length. */
+#define WC_RSA_PSS_SALTLEN_AUTO     (-2)
+/* Max salt length */
+#define WC_RSA_PSS_SALTLEN_MAX      (-3)
+
+
 #ifndef OPENSSL_COEXIST
 
 /* Padding types */
@@ -60,14 +71,10 @@
 #define RSA_FLAG_NO_BLINDING            (1 << 7)
 #define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
-/* Salt length same as digest length */
-#define RSA_PSS_SALTLEN_DIGEST   (-1)
-/* Old max salt length */
-#define RSA_PSS_SALTLEN_MAX_SIGN (-2)
-/* Verification only value to indicate to discover salt length. */
-#define RSA_PSS_SALTLEN_AUTO     (-2)
-/* Max salt length */
-#define RSA_PSS_SALTLEN_MAX      (-3)
+#define RSA_PSS_SALTLEN_DIGEST   WC_RSA_PSS_SALTLEN_DIGEST
+#define RSA_PSS_SALTLEN_MAX_SIGN WC_RSA_PSS_SALTLEN_MAX_SIGN
+#define RSA_PSS_SALTLEN_AUTO     WC_RSA_PSS_SALTLEN_AUTO
+#define RSA_PSS_SALTLEN_MAX      WC_RSA_PSS_SALTLEN_MAX
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* !OPENSSL_COEXIST */
@@ -140,21 +147,34 @@ WOLFSSL_API int wolfSSL_RSA_bits(const WOLFSSL_RSA* rsa);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA* rsa);
-WOLFSSL_API int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
-                               unsigned int mLen, unsigned char* sigRet,
-                               unsigned int* sigLen, WOLFSSL_RSA* rsa,
-                               int flag);
-WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
-                               unsigned int mLen, unsigned char* sigRet,
-                               unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag,
-                               int padding);
-WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
-                               unsigned int mLen, const unsigned char* sig,
-                               unsigned int sigLen, WOLFSSL_RSA* rsa);
-WOLFSSL_API int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
-                               unsigned int mLen, const unsigned char* sig,
-                               unsigned int sigLen, WOLFSSL_RSA* rsa,
-                               int padding);
+WOLFSSL_API int wolfSSL_RSA_sign_ex(int hashAlg,
+                               const unsigned char* hash, unsigned int hLen,
+                               unsigned char* sigRet, unsigned int* sigLen,
+                               WOLFSSL_RSA* rsa, int flag);
+WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int hashAlg,
+                               const unsigned char* hash, unsigned int hLen,
+                               unsigned char* sigRet, unsigned int* sigLen,
+                               WOLFSSL_RSA* rsa, int flag, int padding);
+
+WOLFSSL_LOCAL int wolfSSL_RSA_sign_mgf(int hashAlg,
+                                const unsigned char* hash, unsigned int hLen,
+                                unsigned char* sigRet, unsigned int* sigLen,
+                                WOLFSSL_RSA* rsa, int flag, int padding,
+                                int mgf1Hash, int saltLen);
+
+WOLFSSL_API int wolfSSL_RSA_verify(int hashAlg,
+                               const unsigned char* hash, unsigned int hLen,
+                               const unsigned char* sig, unsigned int sigLen,
+                               WOLFSSL_RSA* rsa);
+WOLFSSL_API int wolfSSL_RSA_verify_ex(int hashAlg,
+                               const unsigned char* hash, unsigned int hLen,
+                               const unsigned char* sig, unsigned int sigLen,
+                               WOLFSSL_RSA* rsa, int padding);
+WOLFSSL_LOCAL int wolfSSL_RSA_verify_mgf(int hashAlg,
+                                const unsigned char* hash, unsigned int hLen,
+                                const unsigned char* sig, unsigned int sigLen,
+                                WOLFSSL_RSA* rsa, int padding,
+                                int mgf1Hash, int saltLen);
 WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                unsigned char* to, WOLFSSL_RSA* rsa, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa);

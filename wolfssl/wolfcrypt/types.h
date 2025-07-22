@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -111,13 +111,7 @@ library files.
     typedef byte           word24[3];
 #endif
 
-
-/* constant pointer to a constant char */
-#ifdef WOLFSSL_NO_CONSTCHARCONST
-    typedef const char*       wcchar;
-#else
-    typedef const char* const wcchar;
-#endif
+typedef const char wcchar[];
 
 #ifndef WC_BITFIELD
     #ifdef WOLF_C89
@@ -2035,7 +2029,12 @@ enum Max_ASN {
 #elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
-#ifdef WOLFSSL_HAPROXY
+#if defined(USE_FAST_MATH) && defined(FP_MAX_BITS)
+    MAX_ENCODED_SIG_SZ  = FP_MAX_BITS / 8,
+#elif (defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)) && \
+    defined(SP_INT_BITS)
+    MAX_ENCODED_SIG_SZ  = (SP_INT_BITS + 7) / 8,
+#elif defined(WOLFSSL_HAPROXY)
     MAX_ENCODED_SIG_SZ  = 1024,    /* Supports 8192 bit keys */
 #else
     MAX_ENCODED_SIG_SZ  = 512,     /* Supports 4096 bit keys */

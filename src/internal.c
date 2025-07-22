@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -4849,7 +4849,7 @@ void FreeX509(WOLFSSL_X509* x509)
     }
     #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
         wolfSSL_RefFree(&x509->ref);
     #endif
 }
@@ -6467,6 +6467,10 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
     int ret;
 
     WOLFSSL_ENTER("DhGenKeyPair");
+
+    if (ssl == NULL || dhKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* initialize event */

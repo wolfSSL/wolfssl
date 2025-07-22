@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -23,6 +23,7 @@
 
 #include <tests/api/test_asn.h>
 
+#ifndef NO_ASN
 static int test_SetShortInt_once(word32 val, byte* valDer, word32 valDerSz)
 {
     EXPECT_DECLS;
@@ -52,11 +53,13 @@ static int test_SetShortInt_once(word32 val, byte* valDer, word32 valDerSz)
 
     return EXPECT_RESULT();
 }
+#endif
 
 int test_SetShortInt(void)
 {
     EXPECT_DECLS;
 
+#ifndef NO_ASN
     byte valDer[MAX_SHORT_SZ] = {0};
 
     /* Corner tests for input size */
@@ -170,6 +173,7 @@ int test_SetShortInt(void)
         valDer[0] = 0x01;
         EXPECT_TEST(test_SetShortInt_once(0x01, valDer, 1));
     }
+#endif
 
     return EXPECT_RESULT();
 }

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -50,9 +50,8 @@
     #endif
 #endif
 
-
-#if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
-
+#if defined(USE_WOLFSSL_IO) || defined(WOLFSSL_USER_IO) || \
+    defined(HAVE_HTTP_CLIENT)
 #ifdef HAVE_LIBZ
     #include "zlib.h"
 #endif
@@ -82,6 +81,8 @@
         #include <netinet/in.h>
     #endif
 #elif defined(USE_WINDOWS_API)
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
 #else
     #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
         /* lwIP needs to be configured to use sockets API in this mode */
@@ -219,7 +220,6 @@
     #if defined(WOLFSSL_EMBOS)
         #include <errno.h>
     #endif
-
 #endif /* USE_WINDOWS_API */
 
 #ifdef __sun

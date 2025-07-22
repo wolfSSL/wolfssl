@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -384,7 +384,11 @@ typedef struct wc_LmsParamsMap {
     /* Identifier of parameters. */
     enum wc_LmsParm id;
     /* String representation of identifier of parameters. */
+#ifdef WOLFSSL_NAMES_STATIC
+    const char str[32]; /* large enough for largest string in wc_lms_map[] */
+#else
     const char* str;
+#endif
     /* LMS parameter set. */
     LmsParams params;
 } wc_LmsParamsMap;

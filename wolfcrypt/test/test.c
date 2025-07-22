@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -110,6 +110,8 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();            \
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();              \
     }
+#define PRINT_HEAP_ADDRESS(p)                                        \
+    printf("Allocated address: %p", (void *)(p));
 #else
     #define PRINT_HEAP_CHECKPOINT(b, i) WC_DO_NOTHING;
     #define PRINT_HEAP_ADDRESS(p) WC_DO_NOTHING;
@@ -1073,6 +1075,15 @@ static WC_MAYBE_UNUSED int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
+    #elif defined(HAVE_DILITHIUM)
+        #if defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) && \
+            defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) && \
+            defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM) && \
+            defined(WOLFSSL_DILITHIUM_VERIFY_ONLY)
+            static byte gTestMemory[192*1024];  /* Dilithium low mem */
+        #else
+            static byte gTestMemory[576*1024];  /* Dilithium full mem */
+        #endif
     #elif defined(BENCH_EMBEDDED)
         static byte gTestMemory[14000];
     #elif defined(WOLFSSL_CERT_EXT)
@@ -13160,7 +13171,7 @@ static wc_test_ret_t aes_xts_sector_test(void)
         0x24, 0xe7, 0x3d, 0x6f
     };
 
-    word64 s3 = 0x000000ffffffffff;
+    word64 s3 = W64LIT(0x000000ffffffffff);
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -35293,6 +35304,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     int verify = 0;
     word32 x;
     WOLFSSL_ENTER("ecc_test_buffers");
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((cliKey == NULL) || (servKey == NULL) || (tmpKey == NULL))

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -92,6 +92,30 @@
  * to our rng_alg.generate() implementation.
  */
 #define WOLFKM_STDRNG_DRIVER ("sha2-256-drbg-nopr" WOLFKM_SHA_DRIVER_SUFFIX)
+
+#ifdef LINUXKM_LKCAPI_REGISTER_SHA_ALL
+    #define LINUXKM_LKCAPI_REGISTER_SHA1
+    #define LINUXKM_LKCAPI_REGISTER_SHA2
+    #define LINUXKM_LKCAPI_REGISTER_SHA3
+#endif
+
+#ifdef LINUXKM_LKCAPI_DONT_REGISTER_SHA_ALL
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA1
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA2
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3
+#endif
+
+#ifdef LINUXKM_LKCAPI_REGISTER_HMAC_ALL
+    #define LINUXKM_LKCAPI_REGISTER_SHA1_HMAC
+    #define LINUXKM_LKCAPI_REGISTER_SHA2_HMAC
+    #define LINUXKM_LKCAPI_REGISTER_SHA3_HMAC
+#endif
+
+#ifdef LINUXKM_LKCAPI_DONT_REGISTER_HMAC_ALL
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA1_HMAC
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA2_HMAC
+    #define LINUXKM_LKCAPI_DONT_REGISTER_SHA3_HMAC
+#endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER_SHA2
     #define LINUXKM_LKCAPI_REGISTER_SHA2_224
@@ -1083,8 +1107,11 @@ static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, in
         int expected = 0;
         if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
             return &ctx->rngs[n];
-        if (can_sleep)
+        if (can_sleep) {
+            if (signal_pending(current))
+                return NULL;
             cond_resched();
+        }
         else
             cpu_relax();
     }
@@ -1191,6 +1218,11 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
      */
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+
+        if (! drbg) {
+            ret = -EINTR;
+            break;
+        }
 
         /* perturb the seed with the CPU ID, so that no DRBG has the exact same
          * seed.
@@ -1425,6 +1457,7 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
     struct wc_linuxkm_drbg_ctx *ctx;
     size_t i;
     int n;
+    int can_sleep = (preempt_count() == 0);
 
     if (len == 0)
         return 0;
@@ -1434,15 +1467,23 @@ static int wc_mix_pool_bytes(const void *buf, size_t len) {
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
-        int V_offset = 0;
+        int V_offset;
 
-        for (i = 0; i < len; ++i) {
+        if (! drbg)
+            return -EINTR;
+
+        for (i = 0, V_offset = 0; i < len; ++i) {
             ((struct DRBG_internal *)drbg->rng.drbg)->V[V_offset++] += ((byte *)buf)[i];
             if (V_offset == (int)sizeof ((struct DRBG_internal *)drbg->rng.drbg)->V)
                 V_offset = 0;
         }
 
         put_drbg(drbg);
+        if (can_sleep) {
+            if (signal_pending(current))
+                return -EINTR;
+            cond_resched();
+        }
     }
 
     return 0;
@@ -1458,7 +1499,12 @@ static int wc_crng_reseed(void) {
 
     for (n = ctx->n_rngs - 1; n >= 0; --n) {
         struct wc_rng_inst *drbg = get_drbg_n(ctx, n);
+
+        if (! drbg)
+            return -EINTR;
+
         ((struct DRBG_internal *)drbg->rng.drbg)->reseedCtr = WC_RESEED_INTERVAL;
+
         if (can_sleep) {
             byte scratch[4];
             int need_reenable_vec = (DISABLE_VECTOR_REGISTERS() == 0);
@@ -1468,7 +1514,12 @@ static int wc_crng_reseed(void) {
             if (ret != 0)
                 pr_err("ERROR: wc_crng_reseed() wc_RNG_GenerateBlock() for DRBG #%d returned %d.", n, ret);
             put_drbg(drbg);
+            if (signal_pending(current))
+                return -EINTR;
             cond_resched();
+        }
+        else {
+            put_drbg(drbg);
         }
     }
 

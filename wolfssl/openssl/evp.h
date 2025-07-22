@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -752,7 +752,9 @@ struct WOLFSSL_EVP_PKEY_CTX {
 #endif
 #ifndef NO_RSA
     const WOLFSSL_EVP_MD* md;
-#endif
+    const WOLFSSL_EVP_MD* mgf1_md;
+    int saltlen;
+#endif /* !NO_RSA */
 };
 
 struct WOLFSSL_ASN1_PCTX {
@@ -947,6 +949,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, 
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_signature_md(WOLFSSL_EVP_PKEY_CTX *ctx,
     const WOLFSSL_EVP_MD* md);
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen(WOLFSSL_EVP_PKEY_CTX *ctx, int saltlen);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md(WOLFSSL_EVP_PKEY_CTX *ctx, const WOLFSSL_EVP_MD *md);
+WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md(WOLFSSL_EVP_PKEY_CTX *ctx, const WOLFSSL_EVP_MD *md);
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY *peer);
@@ -1363,6 +1368,9 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_CTX_set_signature_md  wolfSSL_EVP_PKEY_CTX_set_signature_md
 #define EVP_PKEY_CTX_new_id            wolfSSL_EVP_PKEY_CTX_new_id
 #define EVP_PKEY_CTX_set_rsa_keygen_bits wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits
+#define EVP_PKEY_CTX_set_rsa_mgf1_md   wolfSSL_EVP_PKEY_CTX_set_rsa_mgf1_md
+#define EVP_PKEY_CTX_set_rsa_pss_saltlen wolfSSL_EVP_PKEY_CTX_set_rsa_pss_saltlen
+#define EVP_PKEY_CTX_set_rsa_oaep_md   wolfSSL_EVP_PKEY_CTX_set_rsa_oaep_md
 #define EVP_PKEY_derive_init           wolfSSL_EVP_PKEY_derive_init
 #define EVP_PKEY_derive_set_peer       wolfSSL_EVP_PKEY_derive_set_peer
 #define EVP_PKEY_derive                wolfSSL_EVP_PKEY_derive

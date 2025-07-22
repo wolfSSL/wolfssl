@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -677,6 +677,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         if (sigAlgs.size != tlsx.size - OPAQUE16_LEN)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         if ((sigAlgs.size % 2) != 0)
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+        if (sigAlgs.size > WOLFSSL_MAX_SIGALGO)
             ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
         suites.hashSigAlgoSz = (word16)sigAlgs.size;
         XMEMCPY(suites.hashSigAlgo, sigAlgs.elements, sigAlgs.size);

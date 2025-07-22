@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -932,7 +932,7 @@ typedef struct sp_int_minimal {
     sp_size_t    size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /** Indicates whether number is 0/positive or negative.  */
-    sp_uint8     sign;
+    sp_sign_t    sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     /** Unsigned binary (big endian) representation of number. */

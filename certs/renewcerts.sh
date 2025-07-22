@@ -792,6 +792,8 @@ run_renewcerts(){
     cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
     echo "test" | openssl cms -encrypt -binary -keyid -out ktri-keyid-cms.msg -outform der -recip ../client-cert.pem -nocerts
     check_result $? "generate ktri-keyid-cms.msg"
+    echo "testencrypt" | openssl cms -EncryptedData_encrypt -binary -keyid -aes-128-cbc -secretkey 0123456789ABCDEF0011223344556677 -out encrypteddata.msg -outform der -recip ../client-cert.pem -nocerts
+    check_result $? "generate encrypteddata.msg"
     cd ../ || exit 1
     echo "End of section"
     echo "---------------------------------------------------------------------"

@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -28,8 +28,8 @@
 extern "C" {
 #endif
 
-#define LIBWOLFSSL_VERSION_STRING "5.8.0"
-#define LIBWOLFSSL_VERSION_HEX 0x05008000
+#define LIBWOLFSSL_VERSION_STRING "5.8.2"
+#define LIBWOLFSSL_VERSION_HEX 0x05008002
 
 #ifdef __cplusplus
 }

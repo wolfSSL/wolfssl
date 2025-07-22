@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -1685,7 +1685,9 @@ enum PKCS7_TYPES {
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x10,0x01,0x10  */
     FIRMWARE_PKG_DATA           = 685,         /* 1.2.840.113549.1.9.16.1.16 */
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x10,0x01,0x17  */
-    AUTH_ENVELOPED_DATA         = 692          /* 1.2.840.113549.1.9.16.1.23 */
+    AUTH_ENVELOPED_DATA         = 692,         /* 1.2.840.113549.1.9.16.1.23 */
+    /* 0x60,0x86,0x48,0x01,0x65,0x02,0x01,0x02,0x4E,0x02 */
+    ENCRYPTED_KEY_PACKAGE       = 489          /* 2.16.840.1.101.2.1.2.78.2 */
 #else
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x07  */
     PKCS7_MSG                   = 0x01498bdd,  /* 1.2.840.113549.1.7 */
@@ -1706,7 +1708,9 @@ enum PKCS7_TYPES {
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x10,0x01,0x10  */
     FIRMWARE_PKG_DATA           = 0x70a68a32,  /* 1.2.840.113549.1.9.16.1.16 */
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x09,0x10,0x01,0x17  */
-    AUTH_ENVELOPED_DATA         = 0x70a18a32   /* 1.2.840.113549.1.9.16.1.23 */
+    AUTH_ENVELOPED_DATA         = 0x70a18a32,  /* 1.2.840.113549.1.9.16.1.23 */
+    /* 0x60,0x86,0x48,0x01,0x65,0x02,0x01,0x02,0x4E,0x02 */
+    ENCRYPTED_KEY_PACKAGE       = 0x034986B4   /* 2.16.840.1.101.2.1.2.78.2 */
 #endif
 };
 

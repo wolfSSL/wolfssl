@@ -6,7 +6,7 @@
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * wolfSSL is distributed in the hope that it will be useful,
@@ -529,6 +529,10 @@ WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCb(wc_PKCS7* pkcs7,
         CallbackDecryptContent decryptionCb);
 WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+/* CMS/PKCS#7 EncryptedKeyPackage */
+WOLFSSL_API int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
+        byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz);
 
 /* stream and certs */
 WOLFSSL_LOCAL int wc_PKCS7_WriteOut(wc_PKCS7* pkcs7, byte* output,
