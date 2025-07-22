@@ -189,7 +189,8 @@ int sdk_log_meminfo(enum sdk_memory_segment m, void* start, void* end)
 }
 
 /* Show all known linker memory segment names, starting & ending addresses. */
-int sdk_init_meminfo(void) {
+int sdk_init_meminfo(void)
+{
     void* sample_heap_var;
     int sample_stack_var = 0;
 
@@ -241,7 +242,8 @@ int sdk_init_meminfo(void) {
 }
 
 /* Returns ESP_OK if found in known memory map, ESP_FAIL otherwise */
-esp_err_t sdk_var_whereis(const char* v_name, void* v) {
+esp_err_t sdk_var_whereis(const char* v_name, void* v)
+{
     esp_err_t ret = ESP_FAIL;
 
     for (enum sdk_memory_segment m = 0 ;m < SDK_MEMORY_SEGMENT_COUNT; m++) {
@@ -289,15 +291,110 @@ esp_err_t esp_sdk_mem_lib_init(void)
     return ret;
 }
 
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
 void* wc_debug_pvPortMalloc(size_t size,
-                           const char* file, int line, const char* fname) {
+                           const char* file, int line, const char* fname)
+#else
+void* wc_pvPortMalloc(size_t size)
+#endif
+{
     void* ret = NULL;
-    ret = pvPortMalloc(size);
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+    if (mc == NULL) {
+        ret = pvPortMalloc(size);
+    }
+    else {
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+        ret = mc(size);
+#else
+        ret = pvPortMalloc(size);
+#endif
+    }
+
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
     if (ret == NULL) {
         ESP_LOGE("malloc", "%s:%d (%s)", file, line, fname);
         ESP_LOGE("malloc", "Failed Allocating memory of size: %d bytes", size);
     }
+#endif
     return ret;
-}
+} /* wc_debug_pvPortMalloc */
+
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
+void wc_debug_pvPortFree(void *ptr,
+                        const char* file, int line, const char* fname)
+#else
+void wc_pvPortFree(void *ptr)
+#endif
+{
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    if (ptr == NULL) {
+#ifdef DEBUG_WOLFSSL_MALLOC
+        /* It's ok to free a null pointer, and that happens quite frequently */
+#endif
+    }
+    else {
+        wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+        if (fc == NULL) {
+            vPortFree(ptr);
+        }
+        else {
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+            fc(ptr);
+#else
+            vPortFree(ptr);
+#endif
+        }
+    }
+} /* wc_debug_pvPortFree */
+
+#ifndef WOLFSSL_NO_REALLOC
+/* see XREALLOC(p, n, h, t) */
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
+void* wc_debug_pvPortRealloc(void* ptr, size_t size,
+                             const char* file, int line, const char* fname)
+#else
+void* wc_pvPortRealloc(void* ptr, size_t size)
+#endif
+{
+    void* ret = NULL;
+    wolfSSL_Malloc_cb  mc;
+    wolfSSL_Free_cb    fc;
+    wolfSSL_Realloc_cb rc;
+    wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+    if (mc == NULL) {
+        ret = realloc(ptr, size);
+    }
+    else {
+#if defined(USE_WOLFSSL_MEMORY) && !defined(NO_WOLFSSL_MEMORY)
+        if (rc != NULL) {
+            ret = rc(ptr, size); /* (void *ptr, size_t size) */
+        }
+        else {
+            ret = realloc(ptr, size);
+        }
+#else
+        ret = realloc(ptr, size);
+#endif
+    }
+
+#if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
+    if (ret == NULL) {
+        ESP_LOGE("realloc", "%s:%d (%s)", file, line, fname);
+        ESP_LOGE("realloc", "Failed Re-allocating memory of size: %d bytes",
+                                                                  size);
+    }
+#endif
+    return ret;
+} /* wc_debug_pvPortRealloc */
+#endif /* WOLFSSL_NO_REALLOC */
 
 #endif
