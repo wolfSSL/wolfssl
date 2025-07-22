@@ -15311,22 +15311,23 @@ static int wc_PKCS7_DecodeSymmetricKeyPackage(const byte * skp, word32 skpSz,
     word32 skpIndex = 0;
     int length = 0;
     int version = 0;
+    int ret = 0;
 
     if (skp == NULL || out == NULL || outSz == NULL)
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
 
     /* Expect a SEQUENCE header to start the SymmetricKeyPackage object. */
-    if (GetSequence(skp, &skpIndex, &length, skpSz) < 0)
-        return ASN_PARSE_E;
+    if (ret == 0 && GetSequence(skp, &skpIndex, &length, skpSz) < 0)
+        ret = ASN_PARSE_E;
 
     /* Expect version v1 */
-    if (GetMyVersion(skp, &skpIndex, &version, skpSz) < 0)
-        return ASN_PARSE_E;
+    if (ret == 0 && GetMyVersion(skp, &skpIndex, &version, skpSz) < 0)
+        ret = ASN_PARSE_E;
 
-    if (version != 1)
-        return ASN_PARSE_E;
+    if (ret == 0 && version != 1)
+        ret = ASN_PARSE_E;
 
-    if (GetASNHeader(skp, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+    if (ret == 0 && GetASNHeader(skp, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
             &skpIndex, &length, skpSz) >= 0) {
         /* sKeyPkgAttrs [0] tag found so there are attributes present. */
         if (getKey != 0) {
@@ -15335,19 +15336,22 @@ static int wc_PKCS7_DecodeSymmetricKeyPackage(const byte * skp, word32 skpSz,
         }
         else {
             /* sKeyPkgAttrs is present at &skp[skpIndex], length in length */
-            return wc_IndexSequenceOf(&skp[skpIndex], (word32)length, index,
+            ret = wc_IndexSequenceOf(&skp[skpIndex], (word32)length, index,
                     out, outSz);
         }
     }
-
-    if (getKey == 0) {
+    else if (ret == 0 && getKey == 0) {
         /* An attribute was requested, but none are present. */
-        return BAD_INDEX_E;
+        ret = BAD_INDEX_E;
     }
 
-    /* sKeys is present at &skp[skpIndex]. */
-    return wc_IndexSequenceOf(&skp[skpIndex], skpSz - skpIndex, index,
-            out, outSz);
+    if (ret == 0 && getKey != 0) {
+        /* sKeys is present at &skp[skpIndex]. */
+        ret = wc_IndexSequenceOf(&skp[skpIndex], skpSz - skpIndex, index,
+                out, outSz);
+    }
+
+    return ret;
 }
 
 int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
@@ -15369,24 +15373,28 @@ int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
     word32 oskIndex = 0;
     word32 tmpIndex;
     int length = 0;
+    int ret = 0;
 
     if (osk == NULL || attr == NULL || attrSz == NULL)
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
 
     /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
-    if (GetSequence(osk, &oskIndex, &length, oskSz) < 0)
-        return ASN_PARSE_E;
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
 
     tmpIndex = oskIndex;
 
-    if (GetSequence(osk, &tmpIndex, &length, oskSz) < 0) {
+    if (ret == 0 && GetSequence(osk, &tmpIndex, &length, oskSz) < 0) {
         /* sKeyAttrs is not present. */
-        return BAD_INDEX_E;
+        ret = BAD_INDEX_E;
     }
 
     /* Index the sKeyAttrs SEQUENCE OF object with the given index. */
-    return wc_IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr,
+    if (ret == 0)
+        ret = wc_IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr,
             attrSz);
+
+    return ret;
 }
 
 int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
@@ -15394,25 +15402,30 @@ int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
 {
     word32 oskIndex = 0;
     int length = 0;
+    int ret = 0;
 
     if (osk == NULL || key == NULL || keySz == NULL)
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
 
     /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
-    if (GetSequence(osk, &oskIndex, &length, oskSz) < 0)
-        return ASN_PARSE_E;
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
 
-    if (GetSequence(osk, &oskIndex, &length, oskSz) >= 0) {
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) >= 0) {
         /* sKeyAttrs is present. Skip it. */
         oskIndex += (word32)length;
     }
 
-    if (GetASNHeader(osk, ASN_OCTET_STRING, &oskIndex, &length, oskSz) < 0)
-        return ASN_PARSE_E;
+    if (ret == 0 && GetASNHeader(osk, ASN_OCTET_STRING, &oskIndex, &length,
+                oskSz) < 0)
+        ret = ASN_PARSE_E;
 
-    *key = &osk[oskIndex];
-    *keySz = (word32)length;
-    return 0;
+    if (ret == 0) {
+        *key = &osk[oskIndex];
+        *keySz = (word32)length;
+    }
+
+    return ret;
 }
 
 #else  /* HAVE_PKCS7 */
