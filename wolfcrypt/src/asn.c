@@ -2581,10 +2581,10 @@ int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
  * @param[out] outSz Buffer in which to store the length of the <seqIndex>th
  * element of the SEQUENCE OF object.
  *
- * @retval 0 on success.
- * @retval BUFFER_E when there is not enough data to parse.
- * @retval BAD_INDEX_E when the given seqIndex is out of range.
- * @retval ASN_PARSE_E when the seqOf is not in the expected format.
+ * @return 0 on success.
+ * @return BUFFER_E when there is not enough data to parse.
+ * @return BAD_INDEX_E when the given seqIndex is out of range.
+ * @return ASN_PARSE_E when the seqOf is not in the expected format.
  */
 int IndexSequenceOf(byte const * seqOf, word32 seqOfSz, size_t seqIndex,
         byte const ** out, word32 * outSz)
