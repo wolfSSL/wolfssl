@@ -213,8 +213,8 @@ typedef int (*CallbackWrapCEK)(wc_PKCS7* pkcs7, byte* cek, word32 cekSz,
                                   byte* originKey, word32 originKeySz,
                                   byte* out, word32 outSz,
                                   int keyWrapAlgo, int type, int dir);
-typedef int (*CallbackAESKeyWrap)(const byte* key, word32 keySz,
-        const byte* in, word32 inSz, byte* out, word32 outSz);
+typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, int wrap, byte* out, word32 outSz);
 
 /* Callbacks for supporting different stream cases */
 typedef int (*CallbackGetContent)(wc_PKCS7* pkcs7, byte** content, void* ctx);
@@ -373,8 +373,7 @@ struct wc_PKCS7 {
     } decryptKey;
 #endif
 
-    CallbackAESKeyWrap aesKeyWrapCb;
-    CallbackAESKeyWrap aesKeyUnwrapCb;
+    CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
@@ -503,10 +502,8 @@ WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(wc_PKCS7* pkcs7, CallbackOriEncrypt c
                                            int options);
 WOLFSSL_API int  wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7,
         CallbackWrapCEK wrapCEKCb);
-WOLFSSL_API int  wc_PKCS7_SetAESKeyWrapCb(wc_PKCS7* pkcs7,
-        CallbackAESKeyWrap aesKeyWrapCb);
-WOLFSSL_API int  wc_PKCS7_SetAESKeyUnwrapCb(wc_PKCS7* pkcs7,
-        CallbackAESKeyWrap aesKeyUnwrapCb);
+WOLFSSL_API int  wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
+        CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb);
 
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
 WOLFSSL_API int  wc_PKCS7_SetRsaSignRawDigestCb(wc_PKCS7* pkcs7,

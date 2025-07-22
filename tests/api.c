@@ -17999,25 +17999,16 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 static int wasAESKeyWrapCbCalled = 0;
 static int wasAESKeyUnwrapCbCalled = 0;
 
-static int testAESKeyWrapCb(const byte* key, word32 keySz,
-        const byte* in, word32 inSz, byte* out, word32 outSz)
+static int testAESKeyWrapUnwrapCb(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, int wrap, byte* out, word32 outSz)
 {
     (void)key;
     (void)keySz;
-    wasAESKeyWrapCbCalled = 1;
-    XMEMSET(out, 0xEE, outSz);
-    if (inSz <= outSz) {
-        XMEMCPY(out, in, inSz);
-    }
-    return inSz;
-}
-
-static int testAESKeyUnwrapCb(const byte* key, word32 keySz,
-        const byte* in, word32 inSz, byte* out, word32 outSz)
-{
-    (void)key;
-    (void)keySz;
-    wasAESKeyUnwrapCbCalled = 1;
+    (void)wrap;
+    if (wrap)
+        wasAESKeyWrapCbCalled = 1;
+    else
+        wasAESKeyUnwrapCbCalled = 1;
     XMEMSET(out, 0xEE, outSz);
     if (inSz <= outSz) {
         XMEMCPY(out, in, inSz);
@@ -18104,8 +18095,7 @@ static int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
     }
 
     /* Test custom AES key wrap/unwrap callback */
-    ExpectIntEQ(wc_PKCS7_SetAESKeyWrapCb(pkcs7, testAESKeyWrapCb), 0);
-    ExpectIntEQ(wc_PKCS7_SetAESKeyUnwrapCb(pkcs7, testAESKeyUnwrapCb), 0);
+    ExpectIntEQ(wc_PKCS7_SetAESKeyWrapUnwrapCb(pkcs7, testAESKeyWrapUnwrapCb), 0);
 
     ExpectIntGE(wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output)), 0);

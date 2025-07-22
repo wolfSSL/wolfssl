@@ -6838,9 +6838,9 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, byte const * cek,
     #endif
 
             if (direction == AES_ENCRYPTION) {
-                if (pkcs7->aesKeyWrapCb != NULL) {
-                    ret = pkcs7->aesKeyWrapCb(kek, kekSz, cek, cekSz,
-                                              out, outSz);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 1,
+                                                    out, outSz);
                 }
                 else {
                     ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
@@ -6848,9 +6848,9 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, byte const * cek,
                 }
 
             } else if (direction == AES_DECRYPTION) {
-                if (pkcs7->aesKeyUnwrapCb != NULL) {
-                    ret = pkcs7->aesKeyUnwrapCb(kek, kekSz, cek, cekSz,
-                                                out, outSz);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 0,
+                                                    out, outSz);
                 }
                 else {
                     ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
@@ -11094,27 +11094,16 @@ int wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7, CallbackWrapCEK cb)
 
 
 /* return 0 on success */
-int wc_PKCS7_SetAESKeyWrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrap aesKeyWrapCb)
+int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
-    pkcs7->aesKeyWrapCb = aesKeyWrapCb;
+    pkcs7->aesKeyWrapUnwrapCb = aesKeyWrapUnwrapCb;
 
     return 0;
 }
 
-
-/* return 0 on success */
-int  wc_PKCS7_SetAESKeyUnwrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrap aesKeyUnwrapCb)
-{
-    if (pkcs7 == NULL)
-        return BAD_FUNC_ARG;
-
-    pkcs7->aesKeyUnwrapCb = aesKeyUnwrapCb;
-
-    return 0;
-}
 
 /* Decrypt ASN.1 OtherRecipientInfo (ori), as defined by:
  *
