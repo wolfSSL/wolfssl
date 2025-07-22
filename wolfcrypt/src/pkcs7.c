@@ -6816,8 +6816,8 @@ static int PKCS7_GenerateContentEncryptionKey(wc_PKCS7* pkcs7, word32 len)
 
 /* wrap CEK (content encryption key) with KEK, returns output size (> 0) on
  * success, < 0 on error */
-static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, byte const * cek,
-        word32 cekSz, byte const * kek, word32 kekSz, byte * out, word32 outSz,
+static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
+        word32 cekSz, const byte * kek, word32 kekSz, byte * out, word32 outSz,
         int keyWrapAlgo, int direction)
 {
     int ret = 0;
