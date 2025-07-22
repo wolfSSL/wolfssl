@@ -16820,7 +16820,10 @@ int test_mldsa_pkcs12(void)
     const word32 inKeyMaxSz = inKeyHeaderSz + DILITHIUM_MAX_PRV_KEY_SIZE;
     const word32 certConstSz = 412;
     const word32 inCertMaxSz =
-        certConstSz + DILITHIUM_MAX_SIG_SIZE + DILITHIUM_MAX_PUB_KEY_SIZE;
+        certConstSz + DILITHIUM_MAX_PUB_KEY_SIZE +
+        WOLFSSL_ASN_MAX_LENGTH_SZ + DILITHIUM_MAX_SIG_SIZE;
+        /* max signature size + ASN1 encoding */
+
     const word32 pkcs8HeaderSz = 24;
     WC_RNG rng;
     dilithium_key mldsa_key;
@@ -16913,7 +16916,7 @@ int test_mldsa_pkcs12(void)
         XSTRNCPY((char*)cert.beforeDate, "\x18\x0f""20250101000000Z",
             CTC_DATE_SIZE);
         cert.beforeDateSz = 17;
-        XSTRNCPY((char*)cert.afterDate, "\x18\x0f""20493112115959Z",
+        XSTRNCPY((char*)cert.afterDate, "\x18\x0f""20491231115959Z",
             CTC_DATE_SIZE);
         cert.afterDateSz = 17;
         cert.selfSigned = 1;
