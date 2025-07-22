@@ -101,7 +101,9 @@ $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    PIE_FLAGS := -fPIE -fno-toplevel-reorder
+    # note, we need -fno-stack-protector to avoid references to
+    # "__stack_chk_fail" from the wolfCrypt container.
+    PIE_FLAGS := -fPIE -fno-stack-protector -fno-toplevel-reorder
     PIE_SUPPORT_FLAGS := -DUSE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ifeq "$(KERNEL_ARCH_X86)" "yes"
         PIE_FLAGS += -mcmodel=small
