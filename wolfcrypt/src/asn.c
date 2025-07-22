@@ -21041,6 +21041,12 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz, DecodedCert* ce
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 
+    if (extAuthKeyIdSz == 0)
+    {
+        cert->extAuthKeyIdSet = 0;
+        return 0;
+    }
+
     cert->extAuthKeyIdSz = extAuthKeyIdSz;
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -21211,16 +21217,16 @@ static int DecodeExtKeyUsageInternal(const byte* input, word32 sz, DecodedCert* 
     if (ret != 0)
         return ret;
 
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     cert->extExtKeyUsageSrc = extExtKeyUsageSrc;
     cert->extExtKeyUsageSz = extExtKeyUsageSz;
+    cert->extExtKeyUsageCount = extExtKeyUsageCount;
+    #endif
+
     cert->extExtKeyUsage = extExtKeyUsage;
     #ifdef WOLFSSL_WOLFSSH
     cert->extExtKeyUsageSsh = extExtKeyUsageSsh;
     #endif /* WOLFSSL_WOLFSSH */
-
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    cert->extExtKeyUsageCount = extExtKeyUsageCount;
-    #endif
 
     return 0;
 }
@@ -23640,7 +23646,7 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
     }
 
     *extAuthKeyIdSz = length;
-    *extAuthKeyId = &input[length];
+    *extAuthKeyId = &input[idx];
     return 0;
 
 #else
@@ -23659,10 +23665,8 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
     }
     /* Each field is optional */
     if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
-#ifdef OPENSSL_EXTRA
         GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID],
                 extAuthKeyId, extAuthKeyIdSz);
-#endif /* OPENSSL_EXTRA */
     }
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data != NULL) {
