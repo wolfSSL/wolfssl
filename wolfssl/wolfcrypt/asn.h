@@ -2341,14 +2341,18 @@ WOLFSSL_LOCAL int StoreDSAParams(byte*, word32*, const mp_int*, const mp_int*,
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
+#ifdef WC_ENABLE_ASYM_KEY_EXPORT
 WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader);
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT */
+#ifdef WC_ENABLE_ASYM_KEY_IMPORT
 WOLFSSL_LOCAL int DecodeAsymKeyPublic_Assign(const byte* input,
     word32* inOutIdx, word32 inSz, const byte** pubKey, word32* pubKeyLen,
     int* keyType);
 
 WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx,
     word32 inSz, byte* pubKey, word32* pubKeyLen, int keyType);
+#endif /* WC_ENABLE_ASYM_KEY_IMPORT */
 
 #ifndef NO_CERTS
 
