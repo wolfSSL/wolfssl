@@ -179,7 +179,7 @@ int test_SetShortInt(void)
 }
 
 
-int test_IndexSequenceOf(void)
+int test_wc_IndexSequenceOf(void)
 {
     EXPECT_DECLS;
 
@@ -200,23 +200,23 @@ int test_IndexSequenceOf(void)
     const byte * element;
     word32 elementSz;
 
-    ExpectIntEQ(IndexSequenceOf(int_seq, sizeof(int_seq), 0U, &element, &elementSz), 0);
+    ExpectIntEQ(wc_IndexSequenceOf(int_seq, sizeof(int_seq), 0U, &element, &elementSz), 0);
     ExpectPtrEq(element, &int_seq[2]);
     ExpectIntEQ(elementSz, 3);
 
-    ExpectIntEQ(IndexSequenceOf(int_seq, sizeof(int_seq), 1U, &element, &elementSz), 0);
+    ExpectIntEQ(wc_IndexSequenceOf(int_seq, sizeof(int_seq), 1U, &element, &elementSz), 0);
     ExpectPtrEq(element, &int_seq[5]);
     ExpectIntEQ(elementSz, 4);
 
-    ExpectIntEQ(IndexSequenceOf(int_seq, sizeof(int_seq), 2U, &element, &elementSz), 0);
+    ExpectIntEQ(wc_IndexSequenceOf(int_seq, sizeof(int_seq), 2U, &element, &elementSz), 0);
     ExpectPtrEq(element, &int_seq[9]);
     ExpectIntEQ(elementSz, 3);
 
-    ExpectIntEQ(IndexSequenceOf(int_seq, sizeof(int_seq), 3U, &element, &elementSz), WC_NO_ERR_TRACE(BAD_INDEX_E));
+    ExpectIntEQ(wc_IndexSequenceOf(int_seq, sizeof(int_seq), 3U, &element, &elementSz), WC_NO_ERR_TRACE(BAD_INDEX_E));
 
-    ExpectIntEQ(IndexSequenceOf(bad_seq, sizeof(bad_seq), 0U, &element, &elementSz), WC_NO_ERR_TRACE(ASN_PARSE_E));
+    ExpectIntEQ(wc_IndexSequenceOf(bad_seq, sizeof(bad_seq), 0U, &element, &elementSz), WC_NO_ERR_TRACE(ASN_PARSE_E));
 
-    ExpectIntEQ(IndexSequenceOf(empty_seq, sizeof(empty_seq), 0U, &element, &elementSz), WC_NO_ERR_TRACE(BAD_INDEX_E));
+    ExpectIntEQ(wc_IndexSequenceOf(empty_seq, sizeof(empty_seq), 0U, &element, &elementSz), WC_NO_ERR_TRACE(BAD_INDEX_E));
 #endif
 
     return EXPECT_RESULT();

@@ -2219,7 +2219,7 @@ WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                              word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check);
-WOLFSSL_TEST_VIS int IndexSequenceOf(byte const * seqOf, word32 seqOfSz,
+WOLFSSL_TEST_VIS int wc_IndexSequenceOf(byte const * seqOf, word32 seqOfSz,
         size_t seqIndex, byte const ** out, word32 * outSz);
 WOLFSSL_LOCAL int GetOctetString(const byte* input, word32* inOutIdx, int* len,
                          word32 maxIdx);

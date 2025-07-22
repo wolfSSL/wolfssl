@@ -25,10 +25,10 @@
 #include <tests/api/api_decl.h>
 
 int test_SetShortInt(void);
-int test_IndexSequenceOf(void);
+int test_wc_IndexSequenceOf(void);
 
 #define TEST_ASN_DECLS                                              \
     TEST_DECL_GROUP("asn", test_SetShortInt),                       \
-    TEST_DECL_GROUP("asn", test_IndexSequenceOf)
+    TEST_DECL_GROUP("asn", test_wc_IndexSequenceOf)
 
 #endif /* WOLFCRYPT_TEST_ASN_H */
