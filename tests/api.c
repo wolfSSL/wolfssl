@@ -47339,7 +47339,7 @@ static int test_sk_X509_CRL(void)
 #endif
     WOLFSSL_X509_REVOKED revoked;
     WOLFSSL_ASN1_INTEGER* asnInt = NULL;
-    const WOLFSSL_ASN1_INTEGER* sn;
+    const WOLFSSL_ASN1_INTEGER* sn = NULL;
 
 #if (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)) || \
     !defined(NO_BIO)
@@ -56468,7 +56468,7 @@ static int test_wolfSSL_EC_KEY_private_key(void)
     WOLFSSL_EC_KEY* key = NULL;
     WOLFSSL_BIGNUM* priv = NULL;
     WOLFSSL_BIGNUM* priv2 = NULL;
-    WOLFSSL_BIGNUM* bn;
+    WOLFSSL_BIGNUM* bn = NULL;
 
     ExpectNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     ExpectNotNull(priv = wolfSSL_BN_new());
