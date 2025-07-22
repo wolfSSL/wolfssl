@@ -40,7 +40,7 @@
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
-    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h>
     #define cmn_hw_lock    tsip_hw_lock
     #define cmn_hw_unlock  tsip_hw_unlock
 
@@ -494,7 +494,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         if (gdevId < 0) {
             gdevId = INITIAL_DEVID;
         }
-        cbInfo->devId = gdevId++;
+        cbInfo->internal->devId = gdevId++;
         cmn_hw_unlock();
     }
     else {
@@ -502,7 +502,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         return INVALID_DEVID;
     }
 
-    if (wc_CryptoCb_RegisterDevice(cbInfo->devId,
+    if (wc_CryptoCb_RegisterDevice(cbInfo->internal->devId,
                             Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
         /* undo devId number */
         gdevId--;
@@ -513,12 +513,12 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
        !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY) && \
        !defined(HAVE_RENESAS_SYNC)
     if (ssl)
-        wolfSSL_SetDevId(ssl, cbInfo->devId);
+        wolfSSL_SetDevId(ssl, cbInfo->internal->devId);
    #endif
 
-    gCbCtx[cbInfo->devId - INITIAL_DEVID] = (void*)cbInfo;
+    gCbCtx[cbInfo->internal->devId - INITIAL_DEVID] = (void*)cbInfo;
 
-    return cbInfo->devId;
+    return cbInfo->internal->devId;
 }
 
 /* Renesas Security Library Common Method
@@ -764,8 +764,8 @@ static int Renesas_cmn_EncryptKeys(WOLFSSL* ssl, void* ctx)
  #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
 
-    if (cbInfo->session_key_set == 1) {
-        switch(cbInfo->key_side) {
+    if (cbInfo->internal->session_key_set == 1) {
+        switch(cbInfo->internal->key_side) {
  #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
 
@@ -820,7 +820,8 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
     WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
     if (Renesas_cmn_usable(ssl, 0)) {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-        ret = wc_tsip_generateSessionKey(ssl, cbInfo, cbInfo->devId);
+        ret = wc_tsip_generateSessionKey(ssl, cbInfo,
+                                                cbInfo->internal->devId);
 #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
         ret = wc_fspsm_generateSessionKey(ssl, ctx, cbInfo->devId);
 #endif

@@ -52,7 +52,7 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h>
 #endif
 
 #include <wolfssl/wolfcrypt/hpke.h>
