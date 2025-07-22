@@ -1017,7 +1017,9 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
         ret = BAD_FUNC_ARG;
     }
 
-    if ((inLen != ED448_PUB_KEY_SIZE) && (inLen != ED448_PUB_KEY_SIZE + 1)) {
+    if ((inLen != ED448_PUB_KEY_SIZE) &&
+        (inLen != ED448_PUB_KEY_SIZE + 1) &&
+        (inLen != 2 * ED448_PUB_KEY_SIZE + 1)) {
         ret = BAD_FUNC_ARG;
     }
 
