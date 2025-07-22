@@ -145,7 +145,8 @@ Blinding enabled by default in PR https://github.com/wolfSSL/wolfssl/pull/8736
 * Implemented distro fix for the Linux Kernel Module. (PR #8994)
 * Fixed page-flags-h in the Linux Kernel Module. (PR #9001)
 * Added MODULE_LICENSE for the Linux Kernel Module. (PR #9005)
-* Post-Quantum Cryptography (PQC) & Asymmetric Algorithms
+
+### Post-Quantum Cryptography (PQC) & Asymmetric Algorithms
 * Kyber has been updated to the MLKEM ARM file for Zephyr (PR #8781)
 * Backward compatibility has been implemented for ML_KEM IDs (PR #8827)
 * ASN.1 is now ensured to be enabled when only building PQ algorithms (PR #8884)
