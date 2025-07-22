@@ -12958,9 +12958,6 @@ static int MatchIPv6(const char* pattern, int patternLen,
     if ((word32)patternLen >= sizeof(patBuf) || strLen >= sizeof(strBuf))
         return 0;
 
-    XMEMSET(patBuf, 0, WOLFSSL_MAX_IPSTR);
-    XMEMSET(strBuf, 0, WOLFSSL_MAX_IPSTR);
-
     /* Make sure strings are null-terminated and safely copied */
     XMEMCPY(patBuf, pattern, patternLen);
     patBuf[patternLen] = '\0';
