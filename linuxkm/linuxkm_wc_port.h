@@ -867,136 +867,145 @@
     };
 
     extern const struct wolfssl_linuxkm_pie_redirect_table *wolfssl_linuxkm_get_pie_redirect_table(void);
+    extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
+
+    #if defined(CONFIG_X86)
+        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_pie_redirect_table.x)
+    #elif defined(CONFIG_ARM64)
+        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_get_pie_redirect_table()->x)
+    #else
+        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_get_pie_redirect_table()->x)
+    #endif
 
     #ifdef __PIE__
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
-        #define memcmp (wolfssl_linuxkm_get_pie_redirect_table()->memcmp)
+        #define memcmp WC_LKM_INDIRECT_SYM(memcmp)
     #endif
     #ifndef __ARCH_MEMCPY_NO_REDIRECT
-        #define memcpy (wolfssl_linuxkm_get_pie_redirect_table()->memcpy)
+        #define memcpy WC_LKM_INDIRECT_SYM(memcpy)
     #endif
     #ifndef __ARCH_MEMSET_NO_REDIRECT
-        #define memset (wolfssl_linuxkm_get_pie_redirect_table()->memset)
+        #define memset WC_LKM_INDIRECT_SYM(memset)
     #endif
     #ifndef __ARCH_MEMMOVE_NO_REDIRECT
-        #define memmove (wolfssl_linuxkm_get_pie_redirect_table()->memmove)
+        #define memmove WC_LKM_INDIRECT_SYM(memmove)
     #endif
     #ifndef __ARCH_STRCMP_NO_REDIRECT
-        #define strcmp (wolfssl_linuxkm_get_pie_redirect_table()->strcmp)
+        #define strcmp WC_LKM_INDIRECT_SYM(strcmp)
     #endif
     #ifndef __ARCH_STRNCMP_NO_REDIRECT
-        #define strncmp (wolfssl_linuxkm_get_pie_redirect_table()->strncmp)
+        #define strncmp WC_LKM_INDIRECT_SYM(strncmp)
     #endif
     #ifndef __ARCH_STRCASECMP_NO_REDIRECT
-        #define strcasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strcasecmp)
+        #define strcasecmp WC_LKM_INDIRECT_SYM(strcasecmp)
     #endif
     #ifndef __ARCH_STRNCASECMP_NO_REDIRECT
-        #define strncasecmp (wolfssl_linuxkm_get_pie_redirect_table()->strncasecmp)
+        #define strncasecmp WC_LKM_INDIRECT_SYM(strncasecmp)
     #endif
     #ifndef __ARCH_STRLEN_NO_REDIRECT
-        #define strlen (wolfssl_linuxkm_get_pie_redirect_table()->strlen)
+        #define strlen WC_LKM_INDIRECT_SYM(strlen)
     #endif
     #ifndef __ARCH_STRSTR_NO_REDIRECT
-        #define strstr (wolfssl_linuxkm_get_pie_redirect_table()->strstr)
+        #define strstr WC_LKM_INDIRECT_SYM(strstr)
     #endif
     #ifndef __ARCH_STRNCPY_NO_REDIRECT
-        #define strncpy (wolfssl_linuxkm_get_pie_redirect_table()->strncpy)
+        #define strncpy WC_LKM_INDIRECT_SYM(strncpy)
     #endif
     #ifndef __ARCH_STRNCAT_NO_REDIRECT
-        #define strncat (wolfssl_linuxkm_get_pie_redirect_table()->strncat)
+        #define strncat WC_LKM_INDIRECT_SYM(strncat)
     #endif
-    #define kstrtoll (wolfssl_linuxkm_get_pie_redirect_table()->kstrtoll)
+    #define kstrtoll WC_LKM_INDIRECT_SYM(kstrtoll)
 
     #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) || \
         (defined(RHEL_MAJOR) && \
          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
-        #define _printk (wolfssl_linuxkm_get_pie_redirect_table()->_printk)
+        #define _printk WC_LKM_INDIRECT_SYM(_printk)
     #else
-        #define printk (wolfssl_linuxkm_get_pie_redirect_table()->printk)
+        #define printk WC_LKM_INDIRECT_SYM(printk)
     #endif
 
     #ifdef CONFIG_FORTIFY_SOURCE
-        #define __warn_printk (wolfssl_linuxkm_get_pie_redirect_table()->__warn_printk)
+        #define __warn_printk WC_LKM_INDIRECT_SYM(__warn_printk)
     #endif
 
-    #define snprintf (wolfssl_linuxkm_get_pie_redirect_table()->snprintf)
+    #define snprintf WC_LKM_INDIRECT_SYM(snprintf)
 
-    #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
+    #define _ctype WC_LKM_INDIRECT_SYM(_ctype)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
-    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
-    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
-    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
-    #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
-    #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
-    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
+    #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
+    #define krealloc_noprof WC_LKM_INDIRECT_SYM(krealloc_noprof)
+    #define kzalloc_noprof WC_LKM_INDIRECT_SYM(kzalloc_noprof)
+    #define __kvmalloc_node_noprof WC_LKM_INDIRECT_SYM(__kvmalloc_node_noprof)
+    #define __kmalloc_cache_noprof WC_LKM_INDIRECT_SYM(__kmalloc_cache_noprof)
+    #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
-    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
-    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
-    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
-    #define kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node_noprof)
-    #define kmalloc_trace_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace_noprof)
-    #define kvrealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc_noprof)
+    #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
+    #define krealloc_noprof WC_LKM_INDIRECT_SYM(krealloc_noprof)
+    #define kzalloc_noprof WC_LKM_INDIRECT_SYM(kzalloc_noprof)
+    #define kvmalloc_node_noprof WC_LKM_INDIRECT_SYM(kvmalloc_node_noprof)
+    #define kmalloc_trace_noprof WC_LKM_INDIRECT_SYM(kmalloc_trace_noprof)
+    #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
 #else /* <6.10.0 */
-    #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
-    #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
+    #define kmalloc WC_LKM_INDIRECT_SYM(kmalloc)
+    #define krealloc WC_LKM_INDIRECT_SYM(krealloc)
     #define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
     #ifdef HAVE_KVMALLOC
-        #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
+        #define kvmalloc_node WC_LKM_INDIRECT_SYM(kvmalloc_node)
     #endif
     #ifdef HAVE_KVREALLOC
-        #define kvrealloc (wolfssl_linuxkm_get_pie_redirect_table()->kvrealloc)
+        #define kvrealloc WC_LKM_INDIRECT_SYM(kvrealloc)
     #endif
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || \
         (defined(RHEL_MAJOR) &&                                    \
          ((RHEL_MAJOR > 9) || ((RHEL_MAJOR == 9) && (RHEL_MINOR >= 5))))
-        #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
+        #define kmalloc_trace WC_LKM_INDIRECT_SYM(kmalloc_trace)
     #else
-        #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
-        #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
+        #define kmem_cache_alloc_trace WC_LKM_INDIRECT_SYM(kmem_cache_alloc_trace)
+        #define kmalloc_order_trace WC_LKM_INDIRECT_SYM(kmalloc_order_trace)
     #endif
 #endif /* <6.10.0 */
 
-    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
+    #define kfree WC_LKM_INDIRECT_SYM(kfree)
     #ifdef HAVE_KVMALLOC
-        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+        #define kvfree WC_LKM_INDIRECT_SYM(kvfree)
     #endif
-    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
+    #define ksize WC_LKM_INDIRECT_SYM(ksize)
 
-    #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
+    #define get_random_bytes WC_LKM_INDIRECT_SYM(get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        #define getnstimeofday (wolfssl_linuxkm_get_pie_redirect_table()->getnstimeofday)
+        #define getnstimeofday WC_LKM_INDIRECT_SYM(getnstimeofday)
     #elif LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-        #define current_kernel_time64 (wolfssl_linuxkm_get_pie_redirect_table()->current_kernel_time64)
+        #define current_kernel_time64 WC_LKM_INDIRECT_SYM(current_kernel_time64)
     #else
-        #define ktime_get_coarse_real_ts64 (wolfssl_linuxkm_get_pie_redirect_table()->ktime_get_coarse_real_ts64)
+        #define ktime_get_coarse_real_ts64 WC_LKM_INDIRECT_SYM(ktime_get_coarse_real_ts64)
     #endif
 
     #undef get_current
-    #define get_current (wolfssl_linuxkm_get_pie_redirect_table()->get_current)
+    #define get_current WC_LKM_INDIRECT_SYM(get_current)
 
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
-        #define allocate_wolfcrypt_linuxkm_fpu_states (wolfssl_linuxkm_get_pie_redirect_table()->allocate_wolfcrypt_linuxkm_fpu_states)
-        #define can_save_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->can_save_vector_registers_x86)
-        #define free_wolfcrypt_linuxkm_fpu_states (wolfssl_linuxkm_get_pie_redirect_table()->free_wolfcrypt_linuxkm_fpu_states)
-        #define restore_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->restore_vector_registers_x86)
-        #define save_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->save_vector_registers_x86)
+        #define allocate_wolfcrypt_linuxkm_fpu_states WC_LKM_INDIRECT_SYM(allocate_wolfcrypt_linuxkm_fpu_states)
+        #define can_save_vector_registers_x86 WC_LKM_INDIRECT_SYM(can_save_vector_registers_x86)
+        #define free_wolfcrypt_linuxkm_fpu_states WC_LKM_INDIRECT_SYM(free_wolfcrypt_linuxkm_fpu_states)
+        #define restore_vector_registers_x86 WC_LKM_INDIRECT_SYM(restore_vector_registers_x86)
+        #define save_vector_registers_x86 WC_LKM_INDIRECT_SYM(save_vector_registers_x86)
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
-    #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
+    #define __mutex_init WC_LKM_INDIRECT_SYM(__mutex_init)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        #define mutex_lock_nested (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock_nested)
+        #define mutex_lock_nested WC_LKM_INDIRECT_SYM(mutex_lock_nested)
     #else
-        #define mutex_lock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_lock)
+        #define mutex_lock WC_LKM_INDIRECT_SYM(mutex_lock)
     #endif
-    #define mutex_unlock (wolfssl_linuxkm_get_pie_redirect_table()->mutex_unlock)
+    #define mutex_unlock WC_LKM_INDIRECT_SYM(mutex_unlock)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-        #define mutex_destroy (wolfssl_linuxkm_get_pie_redirect_table()->mutex_destroy)
+        #define mutex_destroy WC_LKM_INDIRECT_SYM(mutex_destroy)
     #endif
 
     /* per linux/ctype.h, tolower() and toupper() are macros bound to static inlines
@@ -1009,45 +1018,45 @@
     #define toupper(c) (isupper(c) ? (c) : ((c) - ('a'-'A')))
 
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
-        #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
+        #define GetCA WC_LKM_INDIRECT_SYM(GetCA)
         #ifndef NO_SKID
-            #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+            #define GetCAByName WC_LKM_INDIRECT_SYM(GetCAByName)
             #ifdef HAVE_OCSP
-                #define GetCAByKeyHash (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByKeyHash)
+                #define GetCAByKeyHash WC_LKM_INDIRECT_SYM(GetCAByKeyHash)
             #endif /* HAVE_OCSP */
         #endif /* NO_SKID */
         #ifdef WOLFSSL_AKID_NAME
-            #define GetCAByAKID (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByAKID)
+            #define GetCAByAKID WC_LKM_INDIRECT_SYM(GetCAByAKID)
         #endif
 
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            #define wolfSSL_X509_NAME_add_entry_by_NID (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_add_entry_by_NID)
-            #define wolfSSL_X509_NAME_free (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_free)
-            #define wolfSSL_X509_NAME_new_ex (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_new_ex)
+            #define wolfSSL_X509_NAME_add_entry_by_NID WC_LKM_INDIRECT_SYM(wolfSSL_X509_NAME_add_entry_by_NID)
+            #define wolfSSL_X509_NAME_free WC_LKM_INDIRECT_SYM(wolfSSL_X509_NAME_free)
+            #define wolfSSL_X509_NAME_new_ex WC_LKM_INDIRECT_SYM(wolfSSL_X509_NAME_new_ex)
         #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
-        #define dump_stack (wolfssl_linuxkm_get_pie_redirect_table()->dump_stack)
+        #define dump_stack WC_LKM_INDIRECT_SYM(dump_stack)
     #endif
 
     #undef preempt_count /* just in case -- not a macro on x86. */
-    #define preempt_count (wolfssl_linuxkm_get_pie_redirect_table()->preempt_count)
+    #define preempt_count WC_LKM_INDIRECT_SYM(preempt_count)
 
     #ifndef WOLFSSL_LINUXKM_USE_MUTEXES
         #ifndef _raw_spin_lock_irqsave
-            #define _raw_spin_lock_irqsave (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_lock_irqsave)
+            #define _raw_spin_lock_irqsave WC_LKM_INDIRECT_SYM(_raw_spin_lock_irqsave)
         #endif
         #ifndef _raw_spin_trylock
-            #define _raw_spin_trylock (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_trylock)
+            #define _raw_spin_trylock WC_LKM_INDIRECT_SYM(_raw_spin_trylock)
         #endif
         #ifndef _raw_spin_unlock_irqrestore
-            #define _raw_spin_unlock_irqrestore (wolfssl_linuxkm_get_pie_redirect_table()->_raw_spin_unlock_irqrestore)
+            #define _raw_spin_unlock_irqrestore WC_LKM_INDIRECT_SYM(_raw_spin_unlock_irqrestore)
         #endif
     #endif
 
-    #define _cond_resched (wolfssl_linuxkm_get_pie_redirect_table()->_cond_resched)
+    #define _cond_resched WC_LKM_INDIRECT_SYM(_cond_resched)
 
     /* this is defined in linux/spinlock.h as an inline that calls the unshimmed
      * raw_spin_unlock_irqrestore().  use a macro here to supersede it.
@@ -1190,7 +1199,7 @@
          */
         static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
-            return (wolfssl_linuxkm_get_pie_redirect_table()->wc_lkm_LockMutex)(m);
+            return WC_LKM_INDIRECT_SYM(wc_lkm_LockMutex)(m);
         }
 
         #else /* !__PIE__ */
