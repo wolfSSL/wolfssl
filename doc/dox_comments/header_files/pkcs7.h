@@ -3,13 +3,16 @@
 
     \brief Callback used for a custom AES key wrap/unwrap operation.
 
-    key/keySz specify the key to use.
-    in/inSz specify the input data to wrap/unwrap.
-    out/outSz specify the output buffer.
+    \return The size of the wrapped/unwrapped key written to the output buffer
+    should be returned on success. A 0 return value or error code (< 0)
+    indicates a failure.
 
-    The size of the wrapped/unwrapped key written to the output buffer should
-    be returned on success. A 0 return value or error code (< 0) indicates a
-    failure.
+    \param[in] key Specify the key to use.
+    \param[in] keySz Size of the key to use.
+    \param[in] in Specify the input data to wrap/unwrap.
+    \param[in] inSz Size of the input data.
+    \param[out] out Specify the output buffer.
+    \param[out] outSz Size of the output buffer.
 */
 typedef int (*CallbackAESKeyWrap)(const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32 outSz);
