@@ -869,12 +869,32 @@
     extern const struct wolfssl_linuxkm_pie_redirect_table *wolfssl_linuxkm_get_pie_redirect_table(void);
     extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 
-    #if defined(CONFIG_X86)
-        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_pie_redirect_table.x)
+
+    #if defined(WC_LKM_INDIRECT_SYM)
+        /* keep user-supplied override definition. */
+    #elif defined(WC_LKM_INDIRECT_SYM_BY_FUNC_ONLY) || \
+        defined(WC_LKM_INDIRECT_SYM_BY_DIRECT_TABLE_READ)
+        /* keep user-supplied override method. */
+    #elif defined(CONFIG_X86)
+        #define WC_LKM_INDIRECT_SYM_BY_DIRECT_TABLE_READ
     #elif defined(CONFIG_ARM64)
-        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_get_pie_redirect_table()->x)
+        /* direct access to wolfssl_linuxkm_pie_redirect_table.x on aarch64
+         * produces GOT relocations, e.g. R_AARCH64_LD64_GOT_LO12_NC.
+         */
+        #define WC_LKM_INDIRECT_SYM_BY_FUNC_ONLY
     #else
+        /* for other archs, by default use the safe way. */
+        #define WC_LKM_INDIRECT_SYM_BY_FUNC_ONLY
+    #endif
+
+    #if defined(WC_LKM_INDIRECT_SYM)
+        /* keep user-supplied override definition. */
+    #elif defined(WC_LKM_INDIRECT_SYM_BY_FUNC_ONLY)
         #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_get_pie_redirect_table()->x)
+    #elif defined(WC_LKM_INDIRECT_SYM_BY_DIRECT_TABLE_READ)
+        #define WC_LKM_INDIRECT_SYM(x) (wolfssl_linuxkm_pie_redirect_table.x)
+    #else
+        #error no WC_LKM_INDIRECT_SYM method defined.
     #endif
 
     #ifdef __PIE__
