@@ -25,7 +25,7 @@
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
 
-/* flsgas related to TLS */
+/* Wrapped TLS FSP Key Set Flags */
 struct FSPSM_tls_flg_ST {
     uint8_t pk_key_set:1;
     uint8_t session_key_set:1;

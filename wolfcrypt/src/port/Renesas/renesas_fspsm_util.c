@@ -192,7 +192,7 @@ int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
 {
     /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
     int ret = 0;
-    word32 fspbuf[RANDGEN_WORDS];
+    uint32_t fspbuf[RANDGEN_WORDS];
 
     while (sz > 0) {
         word32 len = sizeof(buffer);
@@ -201,8 +201,8 @@ int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
             len = sz;
         }
         /* return 4 words random number*/
-        ret = R_RANDOM_GEN((uint32_t*)fspbuf);
-        if(ret == FSP_SUCCESS) {
+        ret = R_RANDOM_GEN(fspbuf);
+        if (ret == FSP_SUCCESS) {
             XMEMCPY(output, &fspbuf, len);
             output += len;
             sz -= len;
@@ -404,7 +404,7 @@ int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* sanity check */
     if (ssl == NULL || pubKeyDer == NULL || pubKeySz == NULL ||
-        out == NULL || outlen == NULL || cbInfo == NULL||
+        out == NULL || outlen == NULL || cbInfo == NULL ||
         cbInfo->internal == NULL)
       return WOLFSSL_FAILURE;
 
@@ -1251,6 +1251,7 @@ int wc_fspsm_TlsCleanup(WOLFSSL* ssl)
     /* zero clear */
     ForceZero(tuc, sizeof(FSPSM_ST));
     ssl->RenesasUserCtx = NULL;
+
     return ret;
 }
 /* Set callback contexts needed for sce TLS api handling */

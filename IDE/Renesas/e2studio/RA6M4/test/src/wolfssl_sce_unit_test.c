@@ -808,7 +808,7 @@ int sce_crypt_test()
         gCbInfo.wrapped_key_rsapri2048 =
                 &g_wrapped_pair_2048key.priv_key;
         gCbInfo.wrapped_key_rsapub2048 =
-                &g_wrapped_pair_2048key.pub_key;;
+                &g_wrapped_pair_2048key.pub_key;
     }
 
     /* Key generation for multi testing */
