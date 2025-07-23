@@ -2586,8 +2586,8 @@ int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
  * @return BAD_INDEX_E when the given seqIndex is out of range.
  * @return ASN_PARSE_E when the seqOf is not in the expected format.
  */
-int wc_IndexSequenceOf(byte const * seqOf, word32 seqOfSz, size_t seqIndex,
-        byte const ** out, word32 * outSz)
+int wc_IndexSequenceOf(const byte * seqOf, word32 seqOfSz, size_t seqIndex,
+        const byte ** out, word32 * outSz)
 {
     int length;
     word32 seqOfIdx = 0U;
