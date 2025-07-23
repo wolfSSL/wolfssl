@@ -28,7 +28,13 @@
 
 #if !defined(WOLFSSL_SSL_ASN1_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning ssl_asn1.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                "ssl_asn1.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning \
+                 ssl_asn1.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 

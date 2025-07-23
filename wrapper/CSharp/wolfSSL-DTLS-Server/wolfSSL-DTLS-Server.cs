@@ -38,9 +38,9 @@ public class wolfSSL_DTLS_Server
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg)
-    {
-        Console.WriteLine(msg);
+    public static void standard_log(int lvl, IntPtr msg) {
+        string str = Marshal.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
 
@@ -60,7 +60,7 @@ public class wolfSSL_DTLS_Server
         /* These paths should be changed for use */
         string fileCert = wolfssl.setPath("server-cert.pem");
         string fileKey = wolfssl.setPath(@"server-key.pem");
-        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        string dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem")).ToString();
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
