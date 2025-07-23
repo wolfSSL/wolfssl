@@ -22384,9 +22384,8 @@ static int DecodeAltSigVal(const byte* input, int sz, DecodedCert* cert)
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  Other negative values on error.
  */
-static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
-                               byte critical, DecodedCert* cert,
-                               int *isUnknownExt)
+int DecodeExtensionType(const byte* input, word32 length, word32 oid,
+                        byte critical, DecodedCert* cert, int *isUnknownExt)
 {
     int ret = 0;
     word32 idx = 0;
