@@ -15382,10 +15382,10 @@ const char* wolfSSL_user_settings_tag(void)
     #ifdef WOLFSSL_USER_SETTINGS_TAG
         return WOLFSSL_USER_SETTINGS_TAG;
     #else
-        return "unknown or WOLFSSL_USER_SETTINGS_TAG not set"
+        return "unknown or WOLFSSL_USER_SETTINGS_TAG not set";
     #endif
 #else
-    return "WOLFSSL_USER_SETTINGS not defined, assuming options.h build"
+    return "WOLFSSL_USER_SETTINGS not defined, assuming options.h build";
 #endif
 }
 
