@@ -18474,10 +18474,10 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 
     {
         const byte one_key[] = {
-            0x30, 0x08,
-              0x02, 0x01, 0x01,
-              0x30, 0x03,
-                0x02, 0x01, 0x01,
+            0x30, 0x08,             /* SymmetricKeyPackage SEQUENCE header  */
+              0x02, 0x01, 0x01,     /* version v1 */
+              0x30, 0x03,           /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01,   /* INTEGER standin for OneSymmetricKey */
         };
         /* NULL input data pointer */
         ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
@@ -18520,7 +18520,7 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
     /* Invalid SKP SEQUENCE header. */
     {
         const byte bad_seq_header[] = {
-            0x02, 0x01, 0x42,
+            0x02, 0x01, 0x42, /* Invalid SymmetricKeyPackage SEQUENCE header */
         };
         ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
                 bad_seq_header, sizeof(bad_seq_header), 0, &item, &itemSz);
@@ -18530,9 +18530,9 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
     /* Missing version object */
     {
         const byte missing_version[] = {
-            0x30, 0x05,
-              0x30, 0x03,
-                0x02, 0x01, 0x01,
+            0x30, 0x05, /* SymmetricKeyPackage SEQUENCE header */
+              0x30, 0x03, /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01, /* INTEGER standin for OneSymmetricKey */
         };
         ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
                 missing_version, sizeof(missing_version), 0, &item, &itemSz);
@@ -18542,10 +18542,10 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
     /* Invalid version number */
     {
         const byte bad_version[] = {
-            0x30, 0x08,
-              0x02, 0x01, 0x00,
-              0x30, 0x03,
-                0x02, 0x01, 0x01,
+            0x30, 0x08, /* SymmetricKeyPackage SEQUENCE header */
+              0x02, 0x01, 0x00, /* version 0 (invalid) */
+              0x30, 0x03, /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01, /* INTEGER standin for OneSymmetricKey */
         };
         ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
                 bad_version, sizeof(bad_version), 0, &item, &itemSz);
@@ -18554,16 +18554,16 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 
     {
         const byte key3_attr2[] = {
-            0x30, 0x18,
-              0x02, 0x01, 0x01,
-              0xA0, 0x08,
-                0x30, 0x06,
-                  0x02, 0x01, 0x40,
-                  0x02, 0x01, 0x41,
-              0x30, 0x09,
-                0x02, 0x01, 0x0A,
-                0x02, 0x01, 0x0B,
-                0x02, 0x01, 0x0C,
+            0x30, 0x18, /* SymmetricKeyPackage SEQUENCE header */
+              0x02, 0x01, 0x01, /* version v1 */
+              0xA0, 0x08, /* sKeyPkgAttrs EXPLICIT [0] header */
+                0x30, 0x06, /* sKeyPkgAttrs SEQUENCE OF header */
+                  0x02, 0x01, 0x40, /* INTEGER standin for Attribute 0 */
+                  0x02, 0x01, 0x41, /* INTEGER standin for Attribute 1 */
+              0x30, 0x09, /* sKeys SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for OneSymmetricKey 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for OneSymmetricKey 1 */
+                0x02, 0x01, 0x0C, /* INTEGER standin for OneSymmetricKey 2 */
         };
 
         /* Valid attribute index 0 extraction */
@@ -18629,11 +18629,11 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
 
     {
         const byte key1_attr2[] = {
-            0x30, 0x0E,
-              0x30, 0x06,
-                0x02, 0x01, 0x0A,
-                0x02, 0x01, 0x0B,
-              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD
+            0x30, 0x0E, /* OneSymmetricKey SEQUENCE header */
+              0x30, 0x06, /* sKeyAttrs SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for Attribute 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for Attribute 1 */
+              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD /* sKey OCTET STRING */
         };
 
         /* NULL input data pointer */
@@ -18680,8 +18680,8 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
 
     {
         const byte no_attrs[] = {
-            0x30, 0x06,
-              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD
+            0x30, 0x06, /* OneSymmetricKey SEQUENCE header */
+              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD /* sKey OCTET STRING */
         };
 
         /* Attribute index 0 out of range */
@@ -18699,10 +18699,10 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
 
     {
         const byte key0_attr2[] = {
-            0x30, 0x08,
-              0x30, 0x06,
-                0x02, 0x01, 0x0A,
-                0x02, 0x01, 0x0B,
+            0x30, 0x08, /* OneSymmetricKey SEQUENCE header */
+              0x30, 0x06, /* sKeyAttrs SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for Attribute 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for Attribute 1 */
         };
 
         /* Valid attribute 0 access */
