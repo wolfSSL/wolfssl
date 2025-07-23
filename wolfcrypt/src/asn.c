@@ -2594,35 +2594,47 @@ int wc_IndexSequenceOf(const byte * seqOf, word32 seqOfSz, size_t seqIndex,
     byte tagFound;
     size_t i;
     word32 elementIdx = 0U;
+    int ret = 0;
 
     /* Validate the SEQUENCE OF header. */
-    if (GetSequence(seqOf, &seqOfIdx, &length, seqOfSz) < 0)
-        return ASN_PARSE_E;
+    if (GetSequence(seqOf, &seqOfIdx, &length, seqOfSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else {
+        seqOfSz = seqOfIdx + (word32)length;
 
-    seqOfSz = seqOfIdx + (word32)length;
+        for (i = 0U; i <= seqIndex; i++) {
+            if (seqOfIdx >= seqOfSz) {
+                ret = BAD_INDEX_E;
+                break;
+            }
 
-    for (i = 0U; i <= seqIndex; i++) {
-        if (seqOfIdx >= seqOfSz)
-            return BAD_INDEX_E;
+            elementIdx = seqOfIdx;
 
-        elementIdx = seqOfIdx;
+            /* Validate the element tag. */
+            if (GetASNTag(seqOf, &seqOfIdx, &tagFound, seqOfSz) != 0) {
+                ret = ASN_PARSE_E;
+                break;
+            }
 
-        /* Validate the element tag. */
-        if (GetASNTag(seqOf, &seqOfIdx, &tagFound, seqOfSz) != 0)
-            return ASN_PARSE_E;
+            /* Validate and get the element's encoded length. */
+            if (GetLength(seqOf, &seqOfIdx, &length, seqOfSz) < 0) {
+                ret = ASN_PARSE_E;
+                break;
+            }
 
-        /* Validate and get the element's encoded length. */
-        if (GetLength(seqOf, &seqOfIdx, &length, seqOfSz) < 0)
-            return ASN_PARSE_E;
-
-        seqOfIdx += (word32)length;
+            seqOfIdx += (word32)length;
+        }
     }
 
     /* If the tag and length checks above passed then we've found the requested
      * element and validated it fits within seqOfSz. */
-    *out = &seqOf[elementIdx];
-    *outSz = (seqOfIdx - elementIdx);
-    return 0;
+    if (ret == 0) {
+        *out = &seqOf[elementIdx];
+        *outSz = (seqOfIdx - elementIdx);
+    }
+
+    return ret;
 }
 
 /* Decode the header of a BER/DER encoded SET.
