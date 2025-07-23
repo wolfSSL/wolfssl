@@ -18179,6 +18179,131 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 } /* END test_wc_PKCS7_EncodeDecodeEnvelopedData() */
 
 
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+static int wasAESKeyWrapCbCalled = 0;
+static int wasAESKeyUnwrapCbCalled = 0;
+
+static int testAESKeyWrapUnwrapCb(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, int wrap, byte* out, word32 outSz)
+{
+    (void)key;
+    (void)keySz;
+    (void)wrap;
+    if (wrap)
+        wasAESKeyWrapCbCalled = 1;
+    else
+        wasAESKeyUnwrapCbCalled = 1;
+    XMEMSET(out, 0xEE, outSz);
+    if (inSz <= outSz) {
+        XMEMCPY(out, in, inSz);
+    }
+    return inSz;
+}
+#endif
+
+
+/*
+ * Test custom AES key wrap/unwrap callback
+ */
+static int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+    static const char input[] = "Test input for AES key wrapping";
+    PKCS7 * pkcs7 = NULL;
+    byte * eccCert = NULL;
+    byte * eccPrivKey = NULL;
+    word32 eccCertSz = 0;
+    word32 eccPrivKeySz = 0;
+    byte output[ONEK_BUF];
+    byte decoded[sizeof(input)/sizeof(char)];
+    int decodedSz = 0;
+#ifdef ECC_TIMING_RESISTANT
+    WC_RNG rng;
+#endif
+
+    /* Load test certs */
+    #ifdef USE_CERT_BUFFERS_256
+        ExpectNotNull(eccCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        /* Init buffer. */
+        eccCertSz = (word32)sizeof_cliecc_cert_der_256;
+        if (eccCert != NULL) {
+            XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
+        }
+        ExpectNotNull(eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
+        if (eccPrivKey != NULL) {
+            XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
+        }
+    #else /* File system. */
+        ExpectTrue((certFile = XFOPEN(eccClientCert, "rb")) != XBADFILE);
+        eccCertSz = (word32)FOURK_BUF;
+        ExpectNotNull(eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectTrue((eccCertSz = (word32)XFREAD(eccCert, 1, eccCertSz,
+            certFile)) > 0);
+        if (certFile != XBADFILE) {
+            XFCLOSE(certFile);
+        }
+        ExpectTrue((keyFile = XFOPEN(eccClientKey, "rb")) != XBADFILE);
+        eccPrivKeySz = (word32)FOURK_BUF;
+        ExpectNotNull(eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectTrue((eccPrivKeySz = (word32)XFREAD(eccPrivKey, 1, eccPrivKeySz,
+            keyFile)) > 0);
+        if (keyFile != XBADFILE) {
+            XFCLOSE(keyFile);
+        }
+    #endif /* USE_CERT_BUFFERS_256 */
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, eccCert, eccCertSz), 0);
+    if (pkcs7 != NULL) {
+        pkcs7->content = (byte*)input;
+        pkcs7->contentSz = sizeof(input);
+        pkcs7->contentOID = DATA;
+        pkcs7->encryptOID = AES256CBCb;
+        pkcs7->keyWrapOID = AES256_WRAP;
+        pkcs7->keyAgreeOID = dhSinglePass_stdDH_sha256kdf_scheme;
+        pkcs7->privateKey = eccPrivKey;
+        pkcs7->privateKeySz = eccPrivKeySz;
+        pkcs7->singleCert = eccCert;
+        pkcs7->singleCertSz = (word32)eccCertSz;
+#ifdef ECC_TIMING_RESISTANT
+        XMEMSET(&rng, 0, sizeof(WC_RNG));
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        pkcs7->rng = &rng;
+#endif
+    }
+
+    /* Test custom AES key wrap/unwrap callback */
+    ExpectIntEQ(wc_PKCS7_SetAESKeyWrapUnwrapCb(pkcs7, testAESKeyWrapUnwrapCb), 0);
+
+    ExpectIntGE(wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output)), 0);
+
+    decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded));
+    ExpectIntGE(decodedSz, 0);
+    /* Verify the size of each buffer. */
+    ExpectIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
+
+    ExpectIntEQ(wasAESKeyWrapCbCalled, 1);
+    ExpectIntEQ(wasAESKeyUnwrapCbCalled, 1);
+
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+    XFREE(eccCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef ECC_TIMING_RESISTANT
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
 /*
  * Testing wc_PKCS7_EncodeEncryptedData()
  */
@@ -68016,6 +68141,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_VerifySignedData_ECC),
     TEST_DECL(test_wc_PKCS7_DecodeEnvelopedData_stream),
     TEST_DECL(test_wc_PKCS7_EncodeDecodeEnvelopedData),
+    TEST_DECL(test_wc_PKCS7_SetAESKeyWrapUnwrapCb),
     TEST_DECL(test_wc_PKCS7_EncodeEncryptedData),
     TEST_DECL(test_wc_PKCS7_DecodeEncryptedKeyPackage),
     TEST_DECL(test_wc_PKCS7_Degenerate),

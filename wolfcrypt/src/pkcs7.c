@@ -6814,14 +6814,15 @@ static int PKCS7_GenerateContentEncryptionKey(wc_PKCS7* pkcs7, word32 len)
 }
 
 
-/* wrap CEK (content encryption key) with KEK, 0 on success, < 0 on error */
-static int wc_PKCS7_KeyWrap(byte* cek, word32 cekSz, byte* kek,
-                            word32 kekSz, byte* out, word32 outSz,
-                            int keyWrapAlgo, int direction)
+/* wrap CEK (content encryption key) with KEK, returns output size (> 0) on
+ * success, < 0 on error */
+static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
+        word32 cekSz, const byte * kek, word32 kekSz, byte * out, word32 outSz,
+        int keyWrapAlgo, int direction)
 {
     int ret = 0;
 
-    if (cek == NULL || kek == NULL || out == NULL)
+    if (pkcs7 == NULL || cek == NULL || kek == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
     switch (keyWrapAlgo) {
@@ -6837,14 +6838,24 @@ static int wc_PKCS7_KeyWrap(byte* cek, word32 cekSz, byte* kek,
     #endif
 
             if (direction == AES_ENCRYPTION) {
-
-                ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
-                                    out, outSz, NULL);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 1,
+                                                    out, outSz);
+                }
+                else {
+                    ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
+                                        out, outSz, NULL);
+                }
 
             } else if (direction == AES_DECRYPTION) {
-
-                ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
-                                      out, outSz, NULL);
+                if (pkcs7->aesKeyWrapUnwrapCb != NULL) {
+                    ret = pkcs7->aesKeyWrapUnwrapCb(kek, kekSz, cek, cekSz, 0,
+                                                    out, outSz);
+                }
+                else {
+                    ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
+                                          out, outSz, NULL);
+                }
             } else {
                 WOLFSSL_MSG("Bad key un/wrap direction");
                 return BAD_FUNC_ARG;
@@ -7548,7 +7559,7 @@ int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
     }
 
     /* encrypt CEK with KEK */
-    keySz = wc_PKCS7_KeyWrap(pkcs7->cek, pkcs7->cekSz, kari->kek,
+    keySz = wc_PKCS7_KeyWrap(pkcs7, pkcs7->cek, pkcs7->cekSz, kari->kek,
                              kari->kekSz, encryptedKey, encryptedKeySz,
                              keyWrapOID, direction);
     if (keySz <= 0) {
@@ -9630,9 +9641,8 @@ int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
         direction = DES_ENCRYPTION;
     #endif
 
-    encryptedKeySz = wc_PKCS7_KeyWrap(pkcs7->cek, pkcs7->cekSz, kek, kekSz,
-                               encryptedKey, (word32)encryptedKeySz, keyWrapOID,
-                               direction);
+    encryptedKeySz = wc_PKCS7_KeyWrap(pkcs7, pkcs7->cek, pkcs7->cekSz, kek,
+            kekSz, encryptedKey, (word32)encryptedKeySz, keyWrapOID, direction);
     if (encryptedKeySz < 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -11082,6 +11092,19 @@ int wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7, CallbackWrapCEK cb)
     return 0;
 }
 
+
+/* return 0 on success */
+int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7, CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->aesKeyWrapUnwrapCb = aesKeyWrapUnwrapCb;
+
+    return 0;
+}
+
+
 /* Decrypt ASN.1 OtherRecipientInfo (ori), as defined by:
  *
  *   OtherRecipientInfo ::= SEQUENCE {
@@ -11529,10 +11552,9 @@ static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                     (int)PKCS7_KEKRI, direction);
             }
             else {
-                keySz = wc_PKCS7_KeyWrap(pkiMsg + *idx, (word32)length,
-                                    pkcs7->privateKey, pkcs7->privateKeySz,
-                                    decryptedKey, *decryptedKeySz,
-                                    (int)keyWrapOID, direction);
+                keySz = wc_PKCS7_KeyWrap(pkcs7, pkiMsg + *idx, (word32)length,
+                        pkcs7->privateKey, pkcs7->privateKeySz, decryptedKey,
+                        *decryptedKeySz, (int)keyWrapOID, direction);
             }
             if (keySz <= 0)
                 return keySz;
@@ -11795,9 +11817,10 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 }
 
                 /* decrypt CEK with KEK */
-                keySz = wc_PKCS7_KeyWrap(encryptedKey, (word32)encryptedKeySz,
-                    kari->kek, kari->kekSz, decryptedKey, *decryptedKeySz,
-                    (int)keyWrapOID, direction);
+                keySz = wc_PKCS7_KeyWrap(pkcs7, encryptedKey,
+                        (word32)encryptedKeySz, kari->kek, kari->kekSz,
+                        decryptedKey, *decryptedKeySz, (int)keyWrapOID,
+                        direction);
             }
             if (keySz <= 0) {
                 wc_PKCS7_KariFree(kari);
