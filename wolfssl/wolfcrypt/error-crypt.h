@@ -305,14 +305,13 @@ enum wolfCrypt_ErrorCodes {
     DEADLOCK_AVERTED_E  = -1000, /* Deadlock averted -- retry the call */
     ASCON_AUTH_E        = -1001, /* ASCON Authentication check failure */
     WC_ACCEL_INHIBIT_E  = -1002, /* Crypto acceleration is currently inhibited */
+    BAD_INDEX_E         = -1003, /* Bad index */
 
-    WC_SPAN2_LAST_E     = -1002, /* Update to indicate last used error code */
+    WC_SPAN2_LAST_E     = -1003, /* Update to indicate last used error code */
+    WC_LAST_E           = -1003, /* the last code used either here or in
+                                  * error-ssl.h */
+
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
-
-    WC_LAST_E           = -1002, /* the last code used either here or in
-                                  * error-ssl.h
-                                  */
-
     MIN_CODE_E          = -1999  /* the last code allocated either here or in
                                   * error-ssl.h
                                   */

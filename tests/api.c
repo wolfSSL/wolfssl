@@ -18668,6 +18668,268 @@ static int test_wc_PKCS7_DecodeEncryptedKeyPackage(void)
 
 
 /*
+ * Test wc_PKCS7_DecodeSymmetricKeyPackage().
+ */
+static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    const byte * item;
+    word32 itemSz;
+    int ret;
+
+    {
+        const byte one_key[] = {
+            0x30, 0x08,             /* SymmetricKeyPackage SEQUENCE header  */
+              0x02, 0x01, 0x01,     /* version v1 */
+              0x30, 0x03,           /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01,   /* INTEGER standin for OneSymmetricKey */
+        };
+        /* NULL input data pointer */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                NULL, sizeof(one_key), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* NULL output item pointer */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                one_key, sizeof(one_key), 0, NULL, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* NULL output size pointer */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                one_key, sizeof(one_key), 0, &item, NULL);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Valid key index 0 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                one_key, sizeof(one_key), 0, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &one_key[7]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Key index 1 out of range */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                one_key, sizeof(one_key), 1, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+
+        /* Attribute index 0 out of range */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageAttribute(
+                one_key, sizeof(one_key), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+
+        /* Attribute index 1 out of range */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageAttribute(
+                one_key, sizeof(one_key), 1, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+    }
+
+    /* Invalid SKP SEQUENCE header. */
+    {
+        const byte bad_seq_header[] = {
+            0x02, 0x01, 0x42, /* Invalid SymmetricKeyPackage SEQUENCE header */
+        };
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                bad_seq_header, sizeof(bad_seq_header), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    /* Missing version object */
+    {
+        const byte missing_version[] = {
+            0x30, 0x05, /* SymmetricKeyPackage SEQUENCE header */
+              0x30, 0x03, /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01, /* INTEGER standin for OneSymmetricKey */
+        };
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                missing_version, sizeof(missing_version), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    /* Invalid version number */
+    {
+        const byte bad_version[] = {
+            0x30, 0x08, /* SymmetricKeyPackage SEQUENCE header */
+              0x02, 0x01, 0x00, /* version 0 (invalid) */
+              0x30, 0x03, /* sKeys SEQUENCE OF */
+                0x02, 0x01, 0x01, /* INTEGER standin for OneSymmetricKey */
+        };
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                bad_version, sizeof(bad_version), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+    {
+        const byte key3_attr2[] = {
+            0x30, 0x18, /* SymmetricKeyPackage SEQUENCE header */
+              0x02, 0x01, 0x01, /* version v1 */
+              0xA0, 0x08, /* sKeyPkgAttrs EXPLICIT [0] header */
+                0x30, 0x06, /* sKeyPkgAttrs SEQUENCE OF header */
+                  0x02, 0x01, 0x40, /* INTEGER standin for Attribute 0 */
+                  0x02, 0x01, 0x41, /* INTEGER standin for Attribute 1 */
+              0x30, 0x09, /* sKeys SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for OneSymmetricKey 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for OneSymmetricKey 1 */
+                0x02, 0x01, 0x0C, /* INTEGER standin for OneSymmetricKey 2 */
+        };
+
+        /* Valid attribute index 0 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageAttribute(
+                key3_attr2, sizeof(key3_attr2), 0, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key3_attr2[9]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Valid attribute index 1 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageAttribute(
+                key3_attr2, sizeof(key3_attr2), 1, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key3_attr2[12]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Attribute index 2 out of range */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageAttribute(
+                key3_attr2, sizeof(key3_attr2), 2, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+
+        /* Valid key index 0 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                key3_attr2, sizeof(key3_attr2), 0, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key3_attr2[17]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Valid key index 1 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                key3_attr2, sizeof(key3_attr2), 1, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key3_attr2[20]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Valid key index 2 extraction */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                key3_attr2, sizeof(key3_attr2), 2, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key3_attr2[23]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Key index 3 out of range */
+        ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
+                key3_attr2, sizeof(key3_attr2), 3, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+    }
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeSymmetricKeyPackage() */
+
+
+/*
+ * Test wc_PKCS7_DecodeOneSymmetricKey().
+ */
+static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    const byte * item;
+    word32 itemSz;
+    int ret;
+
+    {
+        const byte key1_attr2[] = {
+            0x30, 0x0E, /* OneSymmetricKey SEQUENCE header */
+              0x30, 0x06, /* sKeyAttrs SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for Attribute 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for Attribute 1 */
+              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD /* sKey OCTET STRING */
+        };
+
+        /* NULL input data pointer */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                NULL, sizeof(key1_attr2), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* NULL output pointer */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key1_attr2, sizeof(key1_attr2), 0, NULL, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* NULL output size pointer */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key1_attr2, sizeof(key1_attr2), 0, &item, NULL);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+        /* Valid attribute 0 access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key1_attr2, sizeof(key1_attr2), 0, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key1_attr2[4]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Valid attribute 1 access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key1_attr2, sizeof(key1_attr2), 1, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key1_attr2[7]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Attribute index 2 out of range */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key1_attr2, sizeof(key1_attr2), 2, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+
+        /* Valid key access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyKey(
+                key1_attr2, sizeof(key1_attr2), &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key1_attr2[12]);
+        ExpectIntEQ(itemSz, 4);
+    }
+
+    {
+        const byte no_attrs[] = {
+            0x30, 0x06, /* OneSymmetricKey SEQUENCE header */
+              0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD /* sKey OCTET STRING */
+        };
+
+        /* Attribute index 0 out of range */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                no_attrs, sizeof(no_attrs), 0, &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_INDEX_E));
+
+        /* Valid key access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyKey(
+                no_attrs, sizeof(no_attrs), &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &no_attrs[4]);
+        ExpectIntEQ(itemSz, 4);
+    }
+
+    {
+        const byte key0_attr2[] = {
+            0x30, 0x08, /* OneSymmetricKey SEQUENCE header */
+              0x30, 0x06, /* sKeyAttrs SEQUENCE OF header */
+                0x02, 0x01, 0x0A, /* INTEGER standin for Attribute 0 */
+                0x02, 0x01, 0x0B, /* INTEGER standin for Attribute 1 */
+        };
+
+        /* Valid attribute 0 access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyAttribute(
+                key0_attr2, sizeof(key0_attr2), 0, &item, &itemSz);
+        ExpectIntEQ(ret, 0);
+        ExpectPtrEq(item, &key0_attr2[4]);
+        ExpectIntEQ(itemSz, 3);
+
+        /* Invalid key access */
+        ret = wc_PKCS7_DecodeOneSymmetricKeyKey(
+                key0_attr2, sizeof(key0_attr2), &item, &itemSz);
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_PARSE_E));
+    }
+
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_DecodeOneSymmetricKey() */
+
+
+/*
  * Testing wc_PKCS7_Degenerate()
  */
 static int test_wc_PKCS7_Degenerate(void)
@@ -68144,6 +68406,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_SetAESKeyWrapUnwrapCb),
     TEST_DECL(test_wc_PKCS7_EncodeEncryptedData),
     TEST_DECL(test_wc_PKCS7_DecodeEncryptedKeyPackage),
+    TEST_DECL(test_wc_PKCS7_DecodeSymmetricKeyPackage),
+    TEST_DECL(test_wc_PKCS7_DecodeOneSymmetricKey),
     TEST_DECL(test_wc_PKCS7_Degenerate),
     TEST_DECL(test_wc_PKCS7_BER),
     TEST_DECL(test_wc_PKCS7_signed_enveloped),

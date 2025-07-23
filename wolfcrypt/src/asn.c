@@ -2570,6 +2570,73 @@ int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                         maxIdx, check);
 }
 
+/**
+ * Index a SEQUENCE OF object to get to a specific element.
+ *
+ * @param[in] seqOf Buffer holding DER/BER SEQUENCE OF object.
+ * @param[in] seqOfSz Size of the seqOf SEQUENCE OF object.
+ * @param[in] seqIndex Index of the SEQUENCE OF element being requested.
+ * @param[out] out Buffer in which to store pointer to the <seqIndex>th element
+ * of the SEQUENCE OF object.
+ * @param[out] outSz Buffer in which to store the length of the <seqIndex>th
+ * element of the SEQUENCE OF object.
+ *
+ * @return 0 on success.
+ * @return BUFFER_E when there is not enough data to parse.
+ * @return BAD_INDEX_E when the given seqIndex is out of range.
+ * @return ASN_PARSE_E when the seqOf is not in the expected format.
+ */
+int wc_IndexSequenceOf(const byte * seqOf, word32 seqOfSz, size_t seqIndex,
+        const byte ** out, word32 * outSz)
+{
+    int length;
+    word32 seqOfIdx = 0U;
+    byte tagFound;
+    size_t i;
+    word32 elementIdx = 0U;
+    int ret = 0;
+
+    /* Validate the SEQUENCE OF header. */
+    if (GetSequence(seqOf, &seqOfIdx, &length, seqOfSz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else {
+        seqOfSz = seqOfIdx + (word32)length;
+
+        for (i = 0U; i <= seqIndex; i++) {
+            if (seqOfIdx >= seqOfSz) {
+                ret = BAD_INDEX_E;
+                break;
+            }
+
+            elementIdx = seqOfIdx;
+
+            /* Validate the element tag. */
+            if (GetASNTag(seqOf, &seqOfIdx, &tagFound, seqOfSz) != 0) {
+                ret = ASN_PARSE_E;
+                break;
+            }
+
+            /* Validate and get the element's encoded length. */
+            if (GetLength(seqOf, &seqOfIdx, &length, seqOfSz) < 0) {
+                ret = ASN_PARSE_E;
+                break;
+            }
+
+            seqOfIdx += (word32)length;
+        }
+    }
+
+    /* If the tag and length checks above passed then we've found the requested
+     * element and validated it fits within seqOfSz. */
+    if (ret == 0) {
+        *out = &seqOf[elementIdx];
+        *outSz = (seqOfIdx - elementIdx);
+    }
+
+    return ret;
+}
+
 /* Decode the header of a BER/DER encoded SET.
  *
  * @param [in]      input     Buffer holding DER/BER encoded data.

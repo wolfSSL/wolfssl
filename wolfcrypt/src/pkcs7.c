@@ -15328,6 +15328,129 @@ int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
 
 #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
+static int wc_PKCS7_DecodeSymmetricKeyPackage(const byte * skp, word32 skpSz,
+        size_t index, const byte ** out, word32 * outSz, int getKey)
+{
+    word32 skpIndex = 0;
+    int length = 0;
+    int version = 0;
+    int ret = 0;
+
+    if (skp == NULL || out == NULL || outSz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the SymmetricKeyPackage object. */
+    if (ret == 0 && GetSequence(skp, &skpIndex, &length, skpSz) < 0)
+        ret = ASN_PARSE_E;
+
+    /* Expect version v1 */
+    if (ret == 0 && GetMyVersion(skp, &skpIndex, &version, skpSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && version != 1)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && GetASNHeader(skp, ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED,
+            &skpIndex, &length, skpSz) >= 0) {
+        /* sKeyPkgAttrs [0] tag found so there are attributes present. */
+        if (getKey != 0) {
+            /* Key was requested, not attribute, so skip the attributes. */
+            skpIndex += (word32)length;
+        }
+        else {
+            /* sKeyPkgAttrs is present at &skp[skpIndex], length in length */
+            ret = wc_IndexSequenceOf(&skp[skpIndex], (word32)length, index,
+                    out, outSz);
+        }
+    }
+    else if (ret == 0 && getKey == 0) {
+        /* An attribute was requested, but none are present. */
+        ret = BAD_INDEX_E;
+    }
+
+    if (ret == 0 && getKey != 0) {
+        /* sKeys is present at &skp[skpIndex]. */
+        ret = wc_IndexSequenceOf(&skp[skpIndex], skpSz - skpIndex, index,
+                out, outSz);
+    }
+
+    return ret;
+}
+
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz)
+{
+    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, attr, attrSz,
+            0);
+}
+
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz)
+{
+    return wc_PKCS7_DecodeSymmetricKeyPackage(skp, skpSz, index, key, keySz, 1);
+}
+
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz)
+{
+    word32 oskIndex = 0;
+    word32 tmpIndex;
+    int length = 0;
+    int ret = 0;
+
+    if (osk == NULL || attr == NULL || attrSz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    tmpIndex = oskIndex;
+
+    if (ret == 0 && GetSequence(osk, &tmpIndex, &length, oskSz) < 0) {
+        /* sKeyAttrs is not present. */
+        ret = BAD_INDEX_E;
+    }
+
+    /* Index the sKeyAttrs SEQUENCE OF object with the given index. */
+    if (ret == 0)
+        ret = wc_IndexSequenceOf(&osk[oskIndex], oskSz - oskIndex, index, attr,
+            attrSz);
+
+    return ret;
+}
+
+int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz)
+{
+    word32 oskIndex = 0;
+    int length = 0;
+    int ret = 0;
+
+    if (osk == NULL || key == NULL || keySz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* Expect a SEQUENCE header to start the OneSymmetricKey object. */
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0 && GetSequence(osk, &oskIndex, &length, oskSz) >= 0) {
+        /* sKeyAttrs is present. Skip it. */
+        oskIndex += (word32)length;
+    }
+
+    if (ret == 0 && GetASNHeader(osk, ASN_OCTET_STRING, &oskIndex, &length,
+                oskSz) < 0)
+        ret = ASN_PARSE_E;
+
+    if (ret == 0) {
+        *key = &osk[oskIndex];
+        *keySz = (word32)length;
+    }
+
+    return ret;
+}
+
 #else  /* HAVE_PKCS7 */
 
 
@@ -15338,4 +15461,3 @@ int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
 
 
 #endif /* HAVE_PKCS7 */
-
