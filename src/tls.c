@@ -8654,9 +8654,6 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
         XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         kse->pubKey = NULL;
     #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
-        #ifdef WOLFSSL_SMALL_STACK
-        XFREE(kem, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        #endif
         if (privKey) {
             ForceZero(privKey, privSz);
             XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
