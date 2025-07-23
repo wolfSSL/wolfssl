@@ -99,7 +99,7 @@
             !defined(DONT_USE_KVMALLOC) && !defined(USE_KVMALLOC)
             #define USE_KVMALLOC
         #endif
-        #ifdef HAVE_KVREALLOC && \
+        #if defined(HAVE_KVREALLOC) && \
             !defined(DONT_USE_KVREALLOC) && !defined(USE_KVREALLOC)
             #define USE_KVREALLOC
         #endif
@@ -690,13 +690,15 @@
 
         const unsigned char *_ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
         typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
         typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
-        typeof(kvrealloc_noprof) *kvrealloc_noprof;
+        #ifdef HAVE_KVREALLOC
+            typeof(kvrealloc_noprof) *kvrealloc_noprof;
+        #endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
@@ -963,14 +965,16 @@
 
     #define _ctype WC_LKM_INDIRECT_SYM(_ctype)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
     #define krealloc_noprof WC_LKM_INDIRECT_SYM(krealloc_noprof)
     #define kzalloc_noprof WC_LKM_INDIRECT_SYM(kzalloc_noprof)
     #define __kvmalloc_node_noprof WC_LKM_INDIRECT_SYM(__kvmalloc_node_noprof)
     #define __kmalloc_cache_noprof WC_LKM_INDIRECT_SYM(__kmalloc_cache_noprof)
-    #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
+    #ifdef HAVE_KVREALLOC
+        #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
+    #endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
@@ -978,7 +982,9 @@
     #define kzalloc_noprof WC_LKM_INDIRECT_SYM(kzalloc_noprof)
     #define kvmalloc_node_noprof WC_LKM_INDIRECT_SYM(kvmalloc_node_noprof)
     #define kmalloc_trace_noprof WC_LKM_INDIRECT_SYM(kmalloc_trace_noprof)
-    #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
+    #ifdef HAVE_KVREALLOC
+        #define kvrealloc_noprof WC_LKM_INDIRECT_SYM(kvrealloc_noprof)
+    #endif
 #else /* <6.10.0 */
     #define kmalloc WC_LKM_INDIRECT_SYM(kmalloc)
     #define krealloc WC_LKM_INDIRECT_SYM(krealloc)

@@ -17,7 +17,8 @@ jobs:
     strategy:
       matrix:
         config: [
-          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --enable-sp-asm --enable-crypttests --enable-reproducible-build CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096" --with-max-rsa-bits=16384'
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --enable-sp-asm --enable-crypttests CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096" --with-max-rsa-bits=16384',
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --enable-sp-asm --enable-crypttests CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096" --with-max-rsa-bits=16384'
         ]
     name: build module
     if: github.repository_owner == 'wolfssl'
@@ -27,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         name: Checkout wolfSSL
 
-      - name: Build libwolfssl.ko, targeting GitHub ubuntu-latest, with --enable-all, PQC, and smallstack and stack depth warnings
+      - name: Prepare target kernel for module builds
         run: |
           echo "updating linux-headers"
           sudo apt-get update || $(exit 2)
@@ -38,8 +39,14 @@ jobs:
           sudo make -j 4 oldconfig || $(exit 7)
           sudo make M="$(pwd)" modules_prepare || $(exit 8)
           popd >/dev/null
+
+      - name: autogen.sh
+        run: |
           ./autogen.sh || $(exit 9)
-          echo "running ./configure ... ${{ matrix.config }}"
+
+      - name: Build libwolfssl.ko, targeting GitHub ubuntu-latest, with --enable-all, PQC, and smallstack and stack depth warnings
+        run: |
+          echo "running ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }}"
           ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }} || $(exit 10)
           # try to remove profiling (-pg) because it leads to "_mcleanup: gmon.out: Permission denied"
           make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 11)
