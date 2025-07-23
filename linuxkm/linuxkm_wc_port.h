@@ -81,28 +81,38 @@
      * kvrealloc() added in de2860f463, merged for 5.15, backported to 5.10.137.
      * moved to ultimate home (slab.h) in 8587ca6f34, merged for 5.16.
      *
-     * however, until 6.11, it took an extra argument, oldsize, that makes it
-     * incompatible with traditional libc usage patterns, so we don't try to use it.
+     * however, until 6.12 (commit 590b9d576c), it took an extra argument,
+     * oldsize, that makes it incompatible with traditional libc usage patterns,
+     * so we don't try to use it.
      */
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0) && \
+        !defined(DONT_HAVE_KVMALLOC) && !defined(HAVE_KVMALLOC)
         #define HAVE_KVMALLOC
     #endif
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) && \
+        !defined(DONT_HAVE_KVREALLOC) && !defined(HAVE_KVREALLOC)
         #define HAVE_KVREALLOC
     #endif
 
     #ifdef WOLFCRYPT_ONLY
-        #ifdef HAVE_KVMALLOC
+        #if defined(HAVE_KVMALLOC) && \
+            !defined(DONT_USE_KVMALLOC) && !defined(USE_KVMALLOC)
             #define USE_KVMALLOC
         #endif
-        #ifdef HAVE_KVREALLOC
+        #ifdef HAVE_KVREALLOC && \
+            !defined(DONT_USE_KVREALLOC) && !defined(USE_KVREALLOC)
             #define USE_KVREALLOC
         #endif
     #else
         /* functioning realloc() is needed for the TLS stack. */
-        #if defined(HAVE_KVMALLOC) && defined(HAVE_KVREALLOC)
-            #define USE_KVMALLOC
-            #define USE_KVREALLOC
+        #if defined(HAVE_KVMALLOC) && defined(HAVE_KVREALLOC) && \
+            !defined(DONT_USE_KVMALLOC) && !defined(DONT_USE_KVREALLOC)
+            #ifndef USE_KVMALLOC
+                #define USE_KVMALLOC
+            #endif
+            #ifndef USE_KVREALLOC
+                #define USE_KVREALLOC
+            #endif
         #endif
     #endif
 
@@ -680,7 +690,7 @@
 
         const unsigned char *_ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
@@ -953,7 +963,7 @@
 
     #define _ctype WC_LKM_INDIRECT_SYM(_ctype)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
     #define krealloc_noprof WC_LKM_INDIRECT_SYM(krealloc_noprof)
