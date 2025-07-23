@@ -214,9 +214,9 @@ int test_wc_HashInit(void)
 
     for (i = 0; i < notSupportedHashLen; i++) {
         /* check for null ptr */
-        ExpectIntEQ(wc_HashInit(NULL, supportedHash[i]),
+        ExpectIntEQ(wc_HashInit(NULL, notSupportedHash[i]),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashInit_ex(NULL, supportedHash[i], HEAP_HINT,
+        ExpectIntEQ(wc_HashInit_ex(NULL, notSupportedHash[i], HEAP_HINT,
             INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
         ExpectIntEQ(wc_HashInit(&hash, notSupportedHash[i]),
