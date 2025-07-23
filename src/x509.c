@@ -1910,6 +1910,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     WOLFSSL_AUTHORITY_KEYID* akey;
     WOLFSSL_ASN1_STRING* asn1String, *newString;
     WOLFSSL_STACK* sk;
+    DecodedCert cert;
 
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
 
@@ -1958,17 +1959,18 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* subjectKeyIdentifier */
         case WC_NID_subject_key_identifier:
         {
-            const byte *extSubjKeyId = NULL;
-            word32 extSubjKeyIdSz = 0;
-
             WOLFSSL_MSG("subjectKeyIdentifier");
+
             asn1String = wolfSSL_X509_EXTENSION_get_data_internal(ext);
             if (asn1String == NULL) {
                 WOLFSSL_MSG("X509_EXTENSION_get_data() failed");
                 return NULL;
             }
-            if (DecodeSubjKeyId((const byte *)asn1String->data,
-                    asn1String->length, &extSubjKeyId, &extSubjKeyIdSz) != 0) {
+
+            ret = DecodeExtensionType((const byte*)asn1String->data,
+                     asn1String->length, object->type, ext->crit, &cert, NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
             }
 
@@ -1977,8 +1979,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 return NULL;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, extSubjKeyId,
-                                          extSubjKeyIdSz);
+            ret = wolfSSL_ASN1_STRING_set(newString, cert.extSubjKeyId,
+                                          cert.extSubjKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -1991,13 +1993,6 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* authorityKeyIdentifier */
         case WC_NID_authority_key_identifier:
         {
-            const byte *extAuthKeyId = NULL;
-            word32 extAuthKeyIdSz = 0;
-            const byte *extAuthKeyIdIssuer = NULL;
-            word32 extAuthKeyIdIssuerSz = 0;
-            const byte *extAuthKeyIdIssuerSN = NULL;
-            word32 extAuthKeyIdIssuerSNSz = 0;
-
             WOLFSSL_MSG("AuthorityKeyIdentifier");
 
             asn1String = wolfSSL_X509_EXTENSION_get_data_internal(ext);
@@ -2006,10 +2001,10 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-            if (DecodeAuthKeyId((const byte *)asn1String->data,
-                        asn1String->length, &extAuthKeyId, &extAuthKeyIdSz,
-                        &extAuthKeyIdIssuer, &extAuthKeyIdIssuerSz,
-                        &extAuthKeyIdIssuerSN, &extAuthKeyIdIssuerSNSz) != 0) {
+            ret = DecodeExtensionType((const byte*)asn1String->data,
+                     asn1String->length, object->type, ext->crit, &cert, NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
             }
 
@@ -2030,8 +2025,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
-            ret = wolfSSL_ASN1_STRING_set(akey->keyid, extAuthKeyId,
-                                                            extAuthKeyIdSz);
+            ret = wolfSSL_ASN1_STRING_set(akey->keyid, cert.extAuthKeyId,
+                                          cert.extAuthKeyIdSz);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_AUTHORITY_KEYID_free(akey);
@@ -2049,30 +2044,30 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* keyUsage */
         case WC_NID_key_usage:
         {
-            word16 keyUsage;
-
             WOLFSSL_MSG("keyUsage");
 
-            /* This may need to be updated for future use. The i2v method for
-                keyUsage is not currently set. For now, return the ASN1_STRING
-                representation of KeyUsage bit string */
             asn1String = wolfSSL_X509_EXTENSION_get_data_internal(ext);
             if (asn1String == NULL) {
                 WOLFSSL_MSG("X509_EXTENSION_get_data() failed");
                 return NULL;
             }
 
-            if (DecodeKeyUsage((const byte *)asn1String->data,
-                               asn1String->length, &keyUsage) != 0) {
+            ret = DecodeExtensionType((const byte*)asn1String->data,
+                     asn1String->length, object->type, ext->crit, &cert, NULL);
+            if (ret != 0) {
+                WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
             }
 
+            /* This may need to be updated for future use. The i2v method for
+                keyUsage is not currently set. For now, return the ASN1_STRING
+                representation of KeyUsage bit string */
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                 return NULL;
             }
-            ret = wolfSSL_ASN1_STRING_set(newString, (byte*)&keyUsage,
+            ret = wolfSSL_ASN1_STRING_set(newString, (byte*)&cert.extKeyUsage,
                                                                 sizeof(word16));
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
