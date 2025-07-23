@@ -98,6 +98,9 @@ else
 endif
 
 libwolfssl.ko.signed: libwolfssl.ko
+ifdef FORCE_NO_MODULE_SIG
+	@echo 'Skipping module signature operation because FORCE_NO_MODULE_SIG.'
+else
 	@cd '$(KERNEL_ROOT)' || exit $$?;							\
 	while read configline; do								\
 		case "$$configline" in								\
@@ -127,6 +130,7 @@ libwolfssl.ko.signed: libwolfssl.ko
 			echo "  Module $@ signed by $${CONFIG_MODULE_SIG_KEY}.";		\
 		fi										\
 	fi
+endif
 
 
 .PHONY: install modules_install
