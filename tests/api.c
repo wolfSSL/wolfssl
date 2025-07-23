@@ -18468,12 +18468,12 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
-    byte const * item;
+    const byte * item;
     word32 itemSz;
     int ret;
 
     {
-        static const byte one_key[] = {
+        const byte one_key[] = {
             0x30, 0x08,
               0x02, 0x01, 0x01,
               0x30, 0x03,
@@ -18519,7 +18519,7 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 
     /* Invalid SKP SEQUENCE header. */
     {
-        static const byte bad_seq_header[] = {
+        const byte bad_seq_header[] = {
             0x02, 0x01, 0x42,
         };
         ret = wc_PKCS7_DecodeSymmetricKeyPackageKey(
@@ -18529,7 +18529,7 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 
     /* Missing version object */
     {
-        static const byte missing_version[] = {
+        const byte missing_version[] = {
             0x30, 0x05,
               0x30, 0x03,
                 0x02, 0x01, 0x01,
@@ -18541,7 +18541,7 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
 
     /* Invalid version number */
     {
-        static const byte bad_version[] = {
+        const byte bad_version[] = {
             0x30, 0x08,
               0x02, 0x01, 0x00,
               0x30, 0x03,
@@ -18553,7 +18553,7 @@ static int test_wc_PKCS7_DecodeSymmetricKeyPackage(void)
     }
 
     {
-        static const byte key3_attr2[] = {
+        const byte key3_attr2[] = {
             0x30, 0x18,
               0x02, 0x01, 0x01,
               0xA0, 0x08,
@@ -18623,12 +18623,12 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS7)
-    byte const * item;
+    const byte * item;
     word32 itemSz;
     int ret;
 
     {
-        static const byte key1_attr2[] = {
+        const byte key1_attr2[] = {
             0x30, 0x0E,
               0x30, 0x06,
                 0x02, 0x01, 0x0A,
@@ -18679,7 +18679,7 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
     }
 
     {
-        static const byte no_attrs[] = {
+        const byte no_attrs[] = {
             0x30, 0x06,
               0x04, 0x04, 0xAA, 0xBB, 0xCC, 0xDD
         };
@@ -18698,7 +18698,7 @@ static int test_wc_PKCS7_DecodeOneSymmetricKey(void)
     }
 
     {
-        static const byte key0_attr2[] = {
+        const byte key0_attr2[] = {
             0x30, 0x08,
               0x30, 0x06,
                 0x02, 0x01, 0x0A,
