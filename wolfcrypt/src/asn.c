@@ -23668,6 +23668,13 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
             const byte **extAuthKeyIdIssuer, word32 *extAuthKeyIdIssuerSz,
             const byte **extAuthKeyIdIssuerSN, word32 *extAuthKeyIdIssuerSNSz)
 {
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    int length = 0;
+    byte tag;
+
+    WOLFSSL_ENTER("DecodeAuthKeyId");
+
     *extAuthKeyId = NULL;
     *extAuthKeyIdSz = 0;
 
@@ -23676,13 +23683,6 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
 
     *extAuthKeyIdIssuerSN = NULL;
     *extAuthKeyIdIssuerSNSz = 0;
-
-#ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0;
-    int length = 0;
-    byte tag;
-
-    WOLFSSL_ENTER("DecodeAuthKeyId");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -23712,6 +23712,15 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
     int ret = 0;
 
     WOLFSSL_ENTER("DecodeAuthKeyId");
+
+    *extAuthKeyId = NULL;
+    *extAuthKeyIdSz = 0;
+
+    *extAuthKeyIdIssuer = NULL;
+    *extAuthKeyIdIssuerSz = 0;
+
+    *extAuthKeyIdIssuerSN = NULL;
+    *extAuthKeyIdIssuerSNSz = 0;
 
     CALLOC_ASNGETDATA(dataASN, authKeyIdASN_Length, ret, NULL);
 
@@ -23842,17 +23851,17 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
         word32 *extExtKeyUsageCount, byte *extExtKeyUsage, byte *extExtKeyUsageSsh)
 {
-    *extExtKeyUsageSrc = NULL;
-    *extExtKeyUsageSz = 0;
-    *extExtKeyUsageCount = 0;
-    *extExtKeyUsage = 0;
-    *extExtKeyUsageSsh = 0;
-
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0, oid;
     int length, ret;
 
     WOLFSSL_ENTER("DecodeExtKeyUsage");
+
+    *extExtKeyUsageSrc = NULL;
+    *extExtKeyUsageSz = 0;
+    *extExtKeyUsageCount = 0;
+    *extExtKeyUsage = 0;
+    *extExtKeyUsageSsh = 0;
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -23920,6 +23929,12 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
     int ret = 0;
 
     WOLFSSL_ENTER("DecodeExtKeyUsage");
+
+    *extExtKeyUsageSrc = NULL;
+    *extExtKeyUsageSz = 0;
+    *extExtKeyUsageCount = 0;
+    *extExtKeyUsage = 0;
+    *extExtKeyUsageSsh = 0;
 
     /* Strip SEQUENCE OF and expect to account for all the data. */
     if (GetASN_Sequence(input, &idx, &length, sz, 1) < 0) {
