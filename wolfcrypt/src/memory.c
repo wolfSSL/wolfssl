@@ -1376,7 +1376,9 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 WOLFSSL_MSG("Error IO memory was not large enough");
                 res = NULL; /* return NULL in error case */
             }
-            res = pt->buffer;
+            else {
+                res = pt->buffer;
+            }
         }
         else
     #endif
