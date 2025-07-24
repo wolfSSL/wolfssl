@@ -43,7 +43,12 @@
 
 #if !defined(WOLFSSL_PK_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning pk.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                    "pk.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning pk.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 

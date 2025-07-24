@@ -19,16 +19,100 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+/* CE Not always reliably detected. Define our own WindowsCE as needed. */
+#if _WIN32_WCE || WINCE || PocketPC
+    /* WindowsCE should have been defined in the Project and user_settings.h  */
+    #if !WindowsCE
+        #define WindowsCE
+    #endif
+#endif
+
+
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace wolfSSL.CSharp
 {
     public class wolfcrypt
     {
+        /* Ensure CPU architecture of all .cs projects matches wolfssl.dll
+         *
+         * For example: See the x64 wolfssl.dll file in
+         *   [WOLFSSL_ROOT]\wrapper\CSharp\Debug\x64\wolfssl.dll
+         * not AnyCPU
+         *   [WOLFSSL_ROOT]\wrapper\CSharp\DLL Debug\wolfssl.dll
+         *
+         * For DLL debugging, see:
+         *   wolfSSL_user_settings_tag() in wolfssl library: ssl.h
+         *   wolfSSL_dll_tag() in wolfssl library: wolfcrypt/logging.h
+         */
         private const string wolfssl_dll = "wolfssl.dll";
+
+        /********************************
+         * Logging wolfSSL library
+         */
+#if WindowsCE
+        /* wolfSSL Version & DLL Tag (see settings.h) */
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_lib_version();
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_user_settings_tag();
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_dll_tag();
+
+        [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_get_error(IntPtr ssl, int err);
+        /* No decorator needed for loggingCb, Note msg is String here, not StringBuilder */
+        public delegate void loggingCb(int lvl, string msg);
+        /* No decorator needed for loggingCbEx */
+        public delegate void loggingCbEx(int lvl, IntPtr msg);
+        [DllImport(wolfssl_dll)]
+        private extern static void wolfSSL_Debugging_ON();
+        [DllImport(wolfssl_dll)]
+        private extern static void wolfSSL_Debugging_OFF();
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_SetLoggingCb(loggingCb vc);
+
+        /* Internal field to store the original logging callback: string msg */
+        private static loggingCb internal_log;
+#else
+        [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfSSL_lib_version();
+        [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfSSL_user_settings_tag();
+
+        [DllImport(wolfssl_dll, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfSSL_dll_tag();
+
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        private extern static IntPtr wolfSSL_ERR_reason_error_string(uint err);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_get_error(IntPtr ssl, int err);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void loggingCb(int lvl, StringBuilder msg);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void loggingCbExs(int lvl, string msg);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void loggingCbEx(int level, IntPtr msg);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_Debugging_ON();
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_Debugging_OFF();
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_SetLoggingCb(loggingCbEx vc);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_SetLoggingCb(loggingCbExs vc);
+
+        /* Internal fields to store the non-CE logging callback; StringBuilder msg */
+        private static loggingCbEx  internal_log_ex    = null; /* keep reference to prevent GC         */
+        private static loggingCbExs internal_log_exs   = null; /* helper when using string loggingCb   */
+        private static loggingCbEx  internal_bridge_cb = null; /* helper when using original loggingCb */
+#endif
 
         /********************************
          * Init wolfSSL library
@@ -511,38 +595,11 @@ namespace wolfSSL.CSharp
 #if WindowsCE
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wc_GetErrorString(int error);
-        public delegate void loggingCb(int lvl, string msg);
+        /* No Windows CE decorator for logging call-back */
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wc_GetErrorString(int error);
-        public delegate void loggingCb(int lvl, StringBuilder msg);
 #endif
-        private static loggingCb internal_log;
-
-        /// <summary>
-        /// Log a message to set logging function
-        /// </summary>
-        /// <param name="lvl">Level of log message</param>
-        /// <param name="msg">Message to log</param>
-#if WindowsCE
-        private static void log(int lvl, string msg)
-        {
-            /* if log is not set then print nothing */
-            if (internal_log == null)
-                return;
-            internal_log(lvl, msg);
-        }
-#else
-        private static void log(int lvl, string msg)
-        {
-            /* if log is not set then print nothing */
-            if (internal_log == null)
-                return;
-            StringBuilder ptr = new StringBuilder(msg);
-            internal_log(lvl, ptr);
-        }
-#endif
-
 
         /********************************
          * Enum types from wolfSSL library
@@ -594,6 +651,164 @@ namespace wolfSSL.CSharp
         /***********************************************************************
          * Class Public Functions
          **********************************************************************/
+        /// <summary>
+        /// Get wolfSSL Version text
+        /// </summary>
+        /// <returns>DLL Tag string from version.h</returns>
+        public static string LibVersion() {
+            string ret = "";
+#if WindowsCE
+            try {
+                ret = wolfssl.PtrToStringAnsi(wolfSSL_lib_version());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#else
+            try {
+                ret= Marshal.PtrToStringAnsi(wolfSSL_lib_version());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#endif
+            return ret;
+        }
+
+        /// <summary>
+        /// Get wolfSSL Version text
+        /// </summary>
+        /// <returns>DLL Tag string from version.h</returns>
+        public static string UserSettingsTag()
+        {
+            string ret = "";
+#if WindowsCE
+            try {
+                ret = wolfssl.PtrToStringAnsi(wolfSSL_user_settings_tag());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#else
+            try
+            {
+                ret = Marshal.PtrToStringAnsi(wolfSSL_user_settings_tag());
+            }
+            catch (global::System.Exception ex)
+            {
+                ret = ex.Message;
+            }
+#endif
+            return ret;
+        }
+
+        /// <summary>
+        /// Get the full text of DLL Tag
+        /// </summary>
+        /// <returns>DLL Tag string from settings.h</returns>
+        public static string DllTagFull() {
+            string ret = "";
+#if WindowsCE
+            try {
+                ret =  wolfssl.PtrToStringAnsi(wolfSSL_dll_tag());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#else
+            try {
+                ret = Marshal.PtrToStringAnsi(wolfSSL_dll_tag());
+            }
+            catch (global::System.Exception ex) {
+                ret = ex.Message;
+            }
+#endif
+            return ret;
+        }
+
+        /// <summary>
+        /// Get the partial text of DLL Tag, to be used for runtime checks.
+        /// </summary>
+        /// <returns>DLL Tag string from settings.h</returns>
+        public static string DllTag() {
+            string ret = DllTagFull();
+            int i = -1;
+
+            if (ret == null) {
+                ret = string.Empty;
+            }
+            else {
+                i = ret.IndexOf(';');
+                if (i >= 0) {
+                    ret = ret.Substring(0, i);
+                }
+            }
+            return ret;
+        }
+
+        /// <summary>
+        /// Debugging tool to display various interesting DLL attributes.
+        /// </summary>
+        /// <returns>DLL Tag string from settings.h</returns>
+        public static bool SelfCheck() {
+            bool ret = false;
+            string this_DllTagFull = wolfcrypt.DllTagFull();
+            string this_DllTag = wolfcrypt.DllTag(); /* excludes dynamic text after semicolon */
+            string expected_DllTag = "";
+            string this_LibVersion = wolfcrypt.LibVersion();
+            string this_user_settings_tag = wolfcrypt.UserSettingsTag();
+
+            /* Ensure the compiled DLL is what we expect: wolfssl.dll, then alhpabretical order macros  */
+#if WindowsCE && PocketPC
+            expected_DllTag = "wolfssl.dll PocketPC WindowsCE";
+#elif WindowsCE
+            expected_DllTag = "wolfssl.dll WindowsCE";
+#elif PocketPC
+            expected_DllTag = "wolfssl.dll PocketPC";
+#else
+            expected_DllTag = "wolfssl.dll";
+#endif
+            ret = (expected_DllTag == this_DllTag);
+            Console.WriteLine("user settings tag: " + this_user_settings_tag);
+            Console.WriteLine("WOLFSSL_VERSION:   " + this_LibVersion);
+            Console.WriteLine("WOLFSSL_DLL_TAG:   " + this_DllTagFull);
+            Console.WriteLine("DLL Tag Check:     " + this_DllTag);
+            Console.WriteLine("Expected DLL_TAG:  " + expected_DllTag);
+
+            if (!ret) {
+                Console.WriteLine("");
+                Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                Console.WriteLine("Warning: unexpected DLL Tag! Check wolfssl binary.");
+                Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                Console.WriteLine("");
+                Console.WriteLine("App Info:");
+                Console.WriteLine("  AppDomain.CurrentDomain.FriendlyName: " + AppDomain.CurrentDomain.FriendlyName);
+
+                Console.WriteLine("\nEnvironment Info:");
+                Console.WriteLine("  Environment.Version: " + Environment.Version);
+                Console.WriteLine("  OS Version: " + Environment.OSVersion);
+                Console.WriteLine("  Is 64-bit OS: " + (IntPtr.Size == 8).ToString());
+
+#if WindowsCE
+                /* TODO: find equivalent Machine / User / Process values */
+#else
+                Console.WriteLine("  Machine Name: " + Environment.MachineName);
+                Console.WriteLine("  User Name: " + Environment.UserName);
+    #if _WIN64
+                Console.WriteLine("  Is 64-bit Process: " + Environment.Is64BitProcess);
+    #endif
+#endif
+                Console.WriteLine("\nAssembly Info:");
+                Assembly asm = Assembly.GetExecutingAssembly();
+                Console.WriteLine("  Full Name: " + asm.FullName);
+#if _MSC_VER
+                Console.WriteLine("This _MSC_VER: " + _MSC_VER.tostring;
+#else
+                Console.WriteLine("No _MSC_VER found");
+#endif
+            }
+            return ret;
+        }
 
         /// <summary>
         /// Initialize wolfCrypt library
@@ -3186,21 +3401,6 @@ namespace wolfSSL.CSharp
         /* END HASH */
 
 
-        /***********************************************************************
-        * Logging / Other
-        **********************************************************************/
-
-        /// <summary>
-        /// Set the function to use for logging
-        /// </summary>
-        /// <param name="input">Function that conforms as to loggingCb</param>
-        /// <returns>0 on success</returns>
-        public static int SetLogging(loggingCb input)
-        {
-            internal_log = input;
-            return SUCCESS;
-        }
-
         /// <summary>
         /// Get error string for wolfCrypt error codes
         /// </summary>
@@ -3238,7 +3438,214 @@ namespace wolfSSL.CSharp
             }
             return true;
         }
-    }
+
+        /// <summary>
+        /// Clean up old callbacks if previously assigned.
+        /// </summary>
+        private static int ClearLoggingCallbacks() {
+            /* Delegates are managed objects; nulling the reference allows GC to clean up. */
+            int ret;
+#if WindowsCE
+            internal_log = null;
+            ret = wolfSSL_SetLoggingCb((loggingCb)null); /* call wolfSSL callback cleanup, string param */
+#else
+            internal_log_ex = null;
+            internal_log_exs = null;
+            internal_bridge_cb = null;
+            ret = wolfSSL_SetLoggingCb((loggingCbEx)null); /* call wolfSSL callback cleanup */
+#endif
+            return ret;
+        }
+
+        /// <summary>
+        /// Public clear callback.
+        /// </summary>
+        /// <returns>1 on success</returns>
+        public static int ClearLogging() {
+            /* Note that for non-CE there are two possible types: loggingCb amd loggingCbEx */
+            return SetLogging((loggingCb)null);
+        }
+
+        /* SetLogging() and log() implementations are different for CE vs non-CE: String msg vs StringBuilder msg */
+#if WindowsCE
+        /// <summary>
+        /// Set the function to use for logging on Windows CE
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb String msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCb input)
+        {
+            int ret = 1;
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_log != null)
+            {
+                ret = ClearLoggingCallbacks();
+            }
+
+            /* Exit if there's no new cb function */
+            if (input == null) {
+                return ret;
+            }
+
+            /* Set our new callback logging function */
+            internal_log = input;
+
+            try
+            {
+                wolfSSL_SetLoggingCb(input);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.StartsWith("Unable to load DLL 'wolfssl.dll': The specified module could not be found."))
+                {
+                    Console.WriteLine("Failed to load wolfssl.dll, try manually copying to Base Directory.");
+                }
+
+                throw new Exception(ex.Message);
+            }
+
+            return SUCCESS;
+        }
+
+        /// <summary>
+        /// Log a message to set logging function
+        /// </summary>
+        /// <param name="lvl">Level of log message</param>
+        /// <param name="msg">Message to log</param>
+        public static void log(int lvl, string msg)
+        {
+            /* if log is not set then print nothing */
+            if (internal_log == null) {
+                return;
+            }
+            internal_log(lvl, msg);
+        }
+#else
+        /// <summary>
+        /// Set the function to use for logging
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb StringBuilder msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCb input) {
+            /* If SetLogging was previously called, clean it up and exit if there's no new cb function */
+            if (input == null) {
+                ClearLoggingCallbacks();
+                return SetLogging((loggingCbEx)null);
+            }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_bridge_cb != null) {
+                ClearLoggingCallbacks();
+            }
+
+            /* Build a bridge that routes through internal_log_ex logic */
+            internal_bridge_cb = new loggingCbEx(delegate (int lvl, IntPtr msgPtr)
+            {
+                string msg;
+
+                if (msgPtr == IntPtr.Zero) {
+                    msg = "";
+                }
+                else {
+                    int len = 0;
+                    while (Marshal.ReadByte(msgPtr, len) != 0) {
+                        len++;
+                    }
+
+                    byte[] buffer = new byte[len];
+                    Marshal.Copy(msgPtr, buffer, 0, len);
+                    msg = Encoding.ASCII.GetString(buffer, 0, buffer.Length);
+                }
+
+                StringBuilder sb = new StringBuilder();
+                sb.Append(msg);
+
+                input(lvl, sb);
+            });
+
+            /* return the result of SetLogging(loggingCbEx input) */
+            return SetLogging(internal_bridge_cb);
+        }
+
+        /// <summary>
+        /// Set the function to use for logging
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb for preferred IntPtr msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCbEx input) {
+            if (input == null) {
+                ClearLoggingCallbacks();
+                return wolfSSL_SetLoggingCb((loggingCbEx)null);
+            }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_log_ex != null) {
+                ClearLoggingCallbacks();
+            }
+
+            internal_log_ex = input;
+
+            /* Return the result of the native call to wolfSSL */
+            return wolfSSL_SetLoggingCb(input);
+        }
+
+        /// <summary>
+        /// Set the function to use for logging
+        /// </summary>
+        /// <param name="input">Function that conforms as to loggingCb for preferred string msg</param>
+        /// <returns>1 on success</returns>
+        public static int SetLogging(loggingCbExs input)
+        {
+            if (input == null)
+            {
+                ClearLoggingCallbacks();
+                return wolfSSL_SetLoggingCb((loggingCbEx)null);
+            }
+
+            /* If SetLogging is called with a new logging function, clean up the old one first: */
+            if (internal_log_exs != null)
+            {
+                ClearLoggingCallbacks();
+            }
+
+            internal_log_exs = input;
+
+            return wolfSSL_SetLoggingCb(input);
+        }
+
+        /// <summary>
+        /// Log a message to set logging function
+        /// </summary>
+        /// <param name="lvl">Level of log message</param>
+        /// <param name="msg">Message to log</param>
+        public static void log(int lvl, string msg) {
+            IntPtr ptr = wolfssl.StringToAnsiPtr(msg);
+            try {
+                /* if log is not set then print nothing; has SetLogging been called? */
+                if (internal_log_ex != null) {
+                    internal_log_ex(lvl, ptr);
+                }
+                else if (internal_log_exs != null) {
+                    internal_log_exs(lvl, msg);
+                }
+            }
+            finally {
+                Marshal.FreeHGlobal(ptr);
+            }
+        }
+
+        /// <summary>
+        /// Log a message to set logging function,  StringBuilder msg
+        /// </summary>
+        /// <param name="lvl"></param>
+        /// <param name="msg"></param>
+        public static void log(int lvl, StringBuilder msg)
+        {
+            log(lvl, msg.ToString());
+        }
+#endif
+
+    } /* public class wolfcrypt */
 }
 
 

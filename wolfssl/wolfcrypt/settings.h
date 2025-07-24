@@ -4429,6 +4429,92 @@ extern void uITRON4_free(void *p) ;
     /* Ciphersuite check done in internal.h */
 #endif
 
+/* Generate a space-delimited, alphabetical breadcrumb string for wolfssl.dll
+ * Example expected strings to be detected at runtime:
+ *
+ * Standard:
+ *
+ * Special cases:
+ *    wolfssl.dll PocketPC; MSC_VER=1944 Debug
+ *
+ * See wolfcrypt.SelfCheck();
+ */
+#ifdef WOLFSSL_DLL
+    #define WOLFSSL_DLL_TAG_TMP ""
+    /* Concatenate string */
+    #define WOLFSSL_DLL_TAG_HELPER(a, b) a b
+    /* Get numeric Microsoft Compiler as a string */
+    #ifdef _MSC_VER
+        #define MSC_VER_STR_HELPER(x) #x
+        #define MSC_VER_STR(x) MSC_VER_STR_HELPER(x)
+    #else
+        #define MSC_VER_STR(x) "UNKNOWN_MSCVER"
+    #endif
+
+    /* For old compiler compatibility, we'll build the string in stages */
+
+    /* Stage 1: Base */
+    #define WOLFSSL_DLL_TAG_1 "wolfssl.dll"
+
+    /* Stage 2: Add PocketPC if defined */
+    #ifdef PocketPC
+        #define WOLFSSL_DLL_TAG_2 \
+               WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_1, " PocketPC")
+    #else
+        #define WOLFSSL_DLL_TAG_2 WOLFSSL_DLL_TAG_1
+    #endif
+
+    /* Stage 3: Add WindowsCE if defined */
+    #ifdef WindowsCE
+        #define WOLFSSL_DLL_TAG_3 \
+                WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_2, " WindowsCE")
+    #else
+        #define WOLFSSL_DLL_TAG_3 WOLFSSL_DLL_TAG_2
+    #endif
+
+    /* End fixed macro check */
+
+    /* Add semicolon break between expected config and other dynamic macros */
+    #define WOLFSSL_DLL_TAG_DELIM_1 \
+            WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_3, ";")
+
+    /* Delim 2: Add _MSC_VER string, the version of Microsoft compiler used */
+    #ifdef _MSC_VER
+        #define WOLFSSL_DLL_TAG_DELIM_2 \
+                WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_DELIM_1, " MSC_VER=" \
+                                                          MSC_VER_STR(_MSC_VER))
+    #else
+        #define WOLFSSL_DLL_TAG_DELIM_2 WOLFSSL_DLL_TAG_DELIM_1
+    #endif
+
+    /* Delim 3: Add Debug or Release Configuration */
+    #if defined(_DEBUG) || defined(DEBUG)
+        #define WOLFSSL_DLL_TAG_DELIM_3 \
+                WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_DELIM_2, " Debug")
+    #else
+        /* _RELEASE and RELEASE typically not defined */
+        #define WOLFSSL_DLL_TAG_DELIM_3 \
+                WOLFSSL_DLL_TAG_HELPER(WOLFSSL_DLL_TAG_DELIM_2, " Release")
+    #endif
+
+    /* Final tag */
+    #define WOLFSSL_DLL_TAG WOLFSSL_DLL_TAG_DELIM_3
+#else
+    /* ensure there's no WOLFSSL_DLL_TAG if we did not build with WOLFSSL_DLL */
+    #undef  WOLFSSL_DLL_TAG
+#endif
+
+/* Breadcrub to identify user_settings.h file */
+#ifdef WOLFSSL_USER_SETTINGS
+    #ifdef WOLFSSL_USER_SETTINGS_TAG
+        /* found a value, probably in in user_settings.h or -D build option */
+    #else
+        #define WOLFSSL_USER_SETTINGS_TAG "WOLFSSL_USER_SETTINGS_TAG not set"
+    #endif
+#else
+    #define WOLFSSL_USER_SETTINGS_TAG "WOLFSSL_USER_SETTINGS not defined"
+#endif
+
 /* Some final sanity checks. See esp32-crypt.h for Apple HomeKit config. */
 #if defined(WOLFSSL_APPLE_HOMEKIT) || defined(CONFIG_WOLFSSL_APPLE_HOMEKIT)
     #ifndef WOLFCRYPT_HAVE_SRP
