@@ -6843,8 +6843,12 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
                                                     out, outSz);
                 }
                 else {
+                #ifdef HAVE_AES_KEYWRAP
                     ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
                                         out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
                 }
 
             } else if (direction == AES_DECRYPTION) {
@@ -6853,8 +6857,12 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
                                                     out, outSz);
                 }
                 else {
+                #ifdef HAVE_AES_KEYWRAP
                     ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
                                           out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
                 }
             } else {
                 WOLFSSL_MSG("Bad key un/wrap direction");
