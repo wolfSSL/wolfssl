@@ -1969,7 +1969,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
             InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
-                     asn1String->length, object->type, ext->crit, &cert, NULL);
+                asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
@@ -2004,7 +2004,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
             InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
-                     asn1String->length, object->type, ext->crit, &cert, NULL);
+                asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
@@ -2056,7 +2056,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
             InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
-                     asn1String->length, object->type, ext->crit, &cert, NULL);
+                asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
                 return NULL;
