@@ -523,6 +523,11 @@ run_renewcerts(){
     openssl x509 -in client-ecc-cert.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem client-ecc-cert.pem
+
+    # Extract the Subject Key Identifier from the generated certificate
+    # for unit test use.
+    openssl x509 -in client-ecc-cert.pem -noout -text | grep -A1 'Subject Key Identifier' | tail -n +2 | sed -e 's/[ :]//g' > test/client-ecc-cert-ski.hex
+    check_result $? "Step 4"
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -792,6 +797,9 @@ run_renewcerts(){
     cd ./test || { echo "Failed to switch to dir ./test"; exit 1; }
     echo "test" | openssl cms -encrypt -binary -keyid -out ktri-keyid-cms.msg -outform der -recip ../client-cert.pem -nocerts
     check_result $? "generate ktri-keyid-cms.msg"
+    # Generate an EnvelopedData with KARI recipient for testing.
+    echo "testkari" | openssl cms -encrypt -binary -keyid -out kari-keyid-cms.msg -outform der -recip ../client-ecc-cert.pem -nocerts
+    check_result $? "generate kari-keyid-cms.msg"
     echo "testencrypt" | openssl cms -EncryptedData_encrypt -binary -keyid -aes-128-cbc -secretkey 0123456789ABCDEF0011223344556677 -out encrypteddata.msg -outform der -recip ../client-cert.pem -nocerts
     check_result $? "generate encrypteddata.msg"
     cd ../ || exit 1

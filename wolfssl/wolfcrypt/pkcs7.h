@@ -516,6 +516,8 @@ WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
+WOLFSSL_API int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
+        byte * out, word32 * outSz);
 
 /* CMS/PKCS#7 AuthEnvelopedData */
 WOLFSSL_API int  wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7,

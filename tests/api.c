@@ -18305,6 +18305,72 @@ static int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
 }
 
 /*
+ * Testing wc_PKCS7_GetEnvelopedDataKariRid().
+ */
+static int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+#if defined(HAVE_ECC) && (!defined(NO_AES) || (!defined(NO_SHA) || \
+     !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
+    byte rid[256];
+    byte cms[1024];
+    XFILE cmsFile = XBADFILE;
+    int ret;
+    word32 ridSz = sizeof(rid);
+    XFILE skiHexFile = XBADFILE;
+    byte skiHex[256];
+    word32 cmsSz;
+    word32 skiHexSz;
+    size_t i;
+    const word32 ridKeyIdentifierOffset = 4;
+
+    cmsFile = XFOPEN("./certs/test/kari-keyid-cms.msg", "rb");
+    ExpectTrue(cmsFile != XBADFILE);
+    cmsSz = (word32)XFREAD(cms, 1, sizeof(cms), cmsFile);
+    ExpectTrue(cmsSz > 0);
+    if (cmsFile != XBADFILE)
+        XFCLOSE(cmsFile);
+
+    skiHexFile = XFOPEN("./certs/test/client-ecc-cert-ski.hex", "rb");
+    ExpectTrue(skiHexFile != XBADFILE);
+    skiHexSz = (word32)XFREAD(skiHex, 1, sizeof(skiHex), skiHexFile);
+    ExpectTrue(skiHexSz > 0);
+    if (skiHexFile != XBADFILE)
+        XFCLOSE(skiHexFile);
+
+    ret = wc_PKCS7_GetEnvelopedDataKariRid(cms, cmsSz, rid, &ridSz);
+    ExpectIntEQ(ret, 0);
+    ExpectIntGT(ridSz, ridKeyIdentifierOffset);
+    /* The Subject Key Identifier hex file should have 2 hex characters for each
+     * byte of the key identifier in the returned recipient ID (rid), plus a
+     * terminating new line character. */
+    ExpectIntGE(skiHexSz, ((ridSz - ridKeyIdentifierOffset) * 2) + 1);
+    for (i = 0; i < (ridSz - ridKeyIdentifierOffset); i++)
+    {
+        size_t j;
+        byte ridKeyIdByte = rid[ridKeyIdentifierOffset + i];
+        byte skiByte = 0;
+        for (j = 0; j <= 1; j++)
+        {
+            byte hexChar = skiHex[i * 2 + j];
+            skiByte = skiByte << 4;
+            if ('0' <= hexChar && hexChar <= '9')
+                skiByte |= (hexChar - '0');
+            else if ('A' <= hexChar && hexChar <= 'F')
+                skiByte |= (hexChar - 'A' + 10);
+            else
+                ExpectTrue(0);
+        }
+        ExpectIntEQ(ridKeyIdByte, skiByte);
+    }
+#endif
+#endif /* HAVE_PKCS7 */
+    return EXPECT_RESULT();
+} /* END test_wc_PKCS7_GetEnvelopedDataKariRid() */
+
+
+/*
  * Testing wc_PKCS7_EncodeEncryptedData()
  */
 static int test_wc_PKCS7_EncodeEncryptedData(void)
@@ -68404,6 +68470,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_DecodeEnvelopedData_stream),
     TEST_DECL(test_wc_PKCS7_EncodeDecodeEnvelopedData),
     TEST_DECL(test_wc_PKCS7_SetAESKeyWrapUnwrapCb),
+    TEST_DECL(test_wc_PKCS7_GetEnvelopedDataKariRid),
     TEST_DECL(test_wc_PKCS7_EncodeEncryptedData),
     TEST_DECL(test_wc_PKCS7_DecodeEncryptedKeyPackage),
     TEST_DECL(test_wc_PKCS7_DecodeSymmetricKeyPackage),
