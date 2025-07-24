@@ -1967,6 +1967,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
+            InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
                      asn1String->length, object->type, ext->crit, &cert, NULL);
             if (ret != 0) {
@@ -2001,6 +2002,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
+            InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
                      asn1String->length, object->type, ext->crit, &cert, NULL);
             if (ret != 0) {
@@ -2052,6 +2054,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 return NULL;
             }
 
+            InitDecodedCert(&cert, NULL, 0, NULL);
             ret = DecodeExtensionType((const byte*)asn1String->data,
                      asn1String->length, object->type, ext->crit, &cert, NULL);
             if (ret != 0) {
