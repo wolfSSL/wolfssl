@@ -21117,21 +21117,8 @@ static int DecodeAuthKeyIdInternal(const byte* input, word32 sz, DecodedCert* ce
     }
 #ifdef WOLFSSL_AKID_NAME
     if (ret == 0 && extAuthKeyIdIssuerSz > 0) {
-        /* We only support using one (first) name. Parse the name to perform
-         * a sanity check. */
-        word32 idx = 0;
-        ASNGetData nameASN[altNameASN_Length];
-        XMEMSET(nameASN, 0, sizeof(nameASN));
-        /* Parse GeneralName with the choices supported. */
-        GetASN_Choice(&nameASN[ALTNAMEASN_IDX_GN], generalNameChoice);
-        /* Decode a GeneralName choice. */
-        ret = GetASN_Items(altNameASN, nameASN, altNameASN_Length, 0,
-                extAuthKeyIdIssuer, &idx, extAuthKeyIdIssuerSz);
-
-        if (ret == 0) {
-            GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
-                    &cert->extAuthKeyIdIssuer, &cert->extAuthKeyIdIssuerSz);
-        }
+        cert->extAuthKeyIdIssuer = extAuthKeyIdIssuer;
+        cert->extAuthKeyIdIssuerSz = extAuthKeyIdIssuerSz;
     }
     if (ret == 0 && extAuthKeyIdIssuerSNSz > 0) {
         cert->extAuthKeyIdIssuerSN = extAuthKeyIdIssuerSN;
