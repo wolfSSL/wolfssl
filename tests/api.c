@@ -18338,30 +18338,34 @@ static int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
     if (skiHexFile != XBADFILE)
         XFCLOSE(skiHexFile);
 
-    ret = wc_PKCS7_GetEnvelopedDataKariRid(cms, cmsSz, rid, &ridSz);
+    if (EXPECT_SUCCESS()) {
+        ret = wc_PKCS7_GetEnvelopedDataKariRid(cms, cmsSz, rid, &ridSz);
+    }
     ExpectIntEQ(ret, 0);
     ExpectIntGT(ridSz, ridKeyIdentifierOffset);
     /* The Subject Key Identifier hex file should have 2 hex characters for each
      * byte of the key identifier in the returned recipient ID (rid), plus a
      * terminating new line character. */
     ExpectIntGE(skiHexSz, ((ridSz - ridKeyIdentifierOffset) * 2) + 1);
-    for (i = 0; i < (ridSz - ridKeyIdentifierOffset); i++)
-    {
-        size_t j;
-        byte ridKeyIdByte = rid[ridKeyIdentifierOffset + i];
-        byte skiByte = 0;
-        for (j = 0; j <= 1; j++)
+    if (EXPECT_SUCCESS()) {
+        for (i = 0; i < (ridSz - ridKeyIdentifierOffset); i++)
         {
-            byte hexChar = skiHex[i * 2 + j];
-            skiByte = skiByte << 4;
-            if ('0' <= hexChar && hexChar <= '9')
-                skiByte |= (hexChar - '0');
-            else if ('A' <= hexChar && hexChar <= 'F')
-                skiByte |= (hexChar - 'A' + 10);
-            else
-                ExpectTrue(0);
+            size_t j;
+            byte ridKeyIdByte = rid[ridKeyIdentifierOffset + i];
+            byte skiByte = 0;
+            for (j = 0; j <= 1; j++)
+            {
+                byte hexChar = skiHex[i * 2 + j];
+                skiByte = skiByte << 4;
+                if ('0' <= hexChar && hexChar <= '9')
+                    skiByte |= (hexChar - '0');
+                else if ('A' <= hexChar && hexChar <= 'F')
+                    skiByte |= (hexChar - 'A' + 10);
+                else
+                    ExpectTrue(0);
+            }
+            ExpectIntEQ(ridKeyIdByte, skiByte);
         }
-        ExpectIntEQ(ridKeyIdByte, skiByte);
     }
 #endif
 #endif /* HAVE_PKCS7 */
