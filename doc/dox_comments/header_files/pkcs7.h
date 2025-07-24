@@ -573,6 +573,13 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     type, decoding the message into output. It uses the private key of the
     PKCS7 object passed in to decrypt the message.
 
+    Note that if the EnvelopedData is encrypted using an ECC key and the
+    KeyAgreementRecipientInfo structure, then either the HAVE_AES_KEYWRAP
+    build option should be enabled to enable the wolfcrypt built-in AES key
+    wrap/unwrap functionality, or a custom AES key wrap/unwrap callback should
+    be set with wc_PKCS7_SetAESKeyWrapUnwrapCb(). If neither of these is true,
+    decryption will fail.
+
     \return On successfully extracting the information from the message,
     returns the bytes written to output
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
