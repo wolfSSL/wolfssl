@@ -8537,7 +8537,11 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     int ret = 0;
     int type = 0;
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
-    KyberKey kem[1];
+    #ifdef WOLFSSL_SMALL_STACK
+        KyberKey *kem = NULL;
+    #else
+        KyberKey kem[1];
+    #endif
     byte* privKey = NULL;
     word32 privSz = 0;
 #else
@@ -8559,6 +8563,18 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
+
+    #ifdef WOLFSSL_SMALL_STACK
+    if (ret == 0) {
+        kem = (KyberKey *)XMALLOC(sizeof(*kem), ssl->heap,
+                                  DYNAMIC_TYPE_PRIVATE_KEY);
+        if (kem == NULL) {
+            WOLFSSL_MSG("KEM memory allocation failure");
+            ret = MEMORY_ERROR;
+        }
+    }
+    #endif /* WOLFSSL_SMALL_STACK */
+
     if (ret == 0) {
         ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
         if (ret != 0) {
@@ -8657,6 +8673,11 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
         kse->key = kem;
     #endif
     }
+
+    #if !defined(WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ) && \
+        defined(WOLFSSL_SMALL_STACK)
+    XFREE(kem, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    #endif
 
     return ret;
 }
