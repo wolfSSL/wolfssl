@@ -634,7 +634,8 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
 #endif
 
 
-#if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY))
+#if defined(WOLFSSL_NO_CT_OPS) && (!defined(NO_RSA) || !defined(WOLFCRYPT_ONLY)) \
+    && (!defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* constant time operations with mask are required for RSA and TLS operations */
 #warning constant time operations required unless using NO_RSA & WOLFCRYPT_ONLY
 #endif
