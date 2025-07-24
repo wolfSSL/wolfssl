@@ -108,10 +108,10 @@
     #define WC_USE_DEVID 7890
     #define NO_AES_192
     #define NO_SW_BENCH
-#endif
-
-#if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
+    /* Use SCE RSAES-PKCS1-V1_5 RSA Function */
+    #define WOLF_CRYPTO_CB_RSA_PAD
     #define WOLFSSL_KEY_GEN
+    #define RSA_MIN_SIZE 512
 #endif
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
