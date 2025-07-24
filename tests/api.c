@@ -18325,17 +18325,16 @@ static int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
     size_t i;
     const word32 ridKeyIdentifierOffset = 4;
 
-    cmsFile = XFOPEN("./certs/test/kari-keyid-cms.msg", "rb");
-    ExpectTrue(cmsFile != XBADFILE);
-    cmsSz = (word32)XFREAD(cms, 1, sizeof(cms), cmsFile);
-    ExpectTrue(cmsSz > 0);
+    ExpectTrue((cmsFile = XFOPEN("./certs/test/kari-keyid-cms.msg", "rb"))
+            != XBADFILE);
+    ExpectTrue((cmsSz = (word32)XFREAD(cms, 1, sizeof(cms), cmsFile)) > 0);
     if (cmsFile != XBADFILE)
         XFCLOSE(cmsFile);
 
-    skiHexFile = XFOPEN("./certs/test/client-ecc-cert-ski.hex", "rb");
-    ExpectTrue(skiHexFile != XBADFILE);
-    skiHexSz = (word32)XFREAD(skiHex, 1, sizeof(skiHex), skiHexFile);
-    ExpectTrue(skiHexSz > 0);
+    ExpectTrue((skiHexFile = XFOPEN("./certs/test/client-ecc-cert-ski.hex",
+                    "rb")) != XBADFILE);
+    ExpectTrue((skiHexSz = (word32)XFREAD(skiHex, 1, sizeof(skiHex),
+                    skiHexFile)) > 0);
     if (skiHexFile != XBADFILE)
         XFCLOSE(skiHexFile);
 
