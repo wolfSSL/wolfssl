@@ -25085,7 +25085,7 @@ int wc_CertGetPubKey(const byte* cert, word32 certSz,
  * @return BAD_FUNC_ARG if certDer is NULL, certSz is 0, or pubKeyDerSz is NULL
  * @return BUFFER_E if the provided buffer is too small
  */
-WOLFSSL_API int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
+int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
                                                    word32 certDerSz,
                                                    byte* pubKeyDer,
                                                    word32* pubKeyDerSz)

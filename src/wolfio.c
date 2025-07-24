@@ -2121,7 +2121,7 @@ static const char* ocspAppStrList[] = {
     NULL
 };
 
-WOLFSSL_API int wolfIO_HttpProcessResponseOcspGenericIO(
+int wolfIO_HttpProcessResponseOcspGenericIO(
     WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, unsigned char** respBuf,
     unsigned char* httpBuf, int httpBufSz, void* heap)
 {

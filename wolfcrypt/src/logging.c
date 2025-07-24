@@ -176,7 +176,7 @@ void wolfSSL_Debugging_OFF(void)
 #endif
 }
 
-WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix)
+void wolfSSL_SetLoggingPrefix(const char* prefix)
 {
 #ifdef DEBUG_WOLFSSL
     log_prefix = prefix;
@@ -490,7 +490,7 @@ void WOLFSSL_LEAVE2(const char *file, int line, const char* msg, int ret)
     #endif
 #endif
 
-WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
+int WOLFSSL_IS_DEBUG_ON(void)
 {
     return loggingEnabled;
 }
