@@ -657,6 +657,12 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_CTX_new(IntPtr method);
         [DllImport(wolfssl_dll)]
+        private extern static IntPtr wolfSSL_CTX_get_options(IntPtr ctx);
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_CTX_set_options(IntPtr ctx, long opt);
+        [DllImport(wolfssl_dll)]
+        private extern static int wolfSSL_CTX_clear_options(IntPtr ctx, long opt);
+        [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_CTX_use_certificate_file(IntPtr ctx, string file, int type);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_CTX_load_verify_locations(IntPtr ctx, string file, string path);
@@ -669,6 +675,12 @@ namespace wolfSSL.CSharp
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_CTX_new(IntPtr method);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_get_options(IntPtr ctx);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_set_options(IntPtr ctx, long opt);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_clear_options(IntPtr ctx, long opt);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_use_certificate_file(IntPtr ctx, string file, int type);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -1713,6 +1725,72 @@ namespace wolfSSL.CSharp
             }
         }
 
+        /// <summary>
+        /// Get CTX options mask
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <returns>(long)ctx->mask</returns>
+        public static long CTX_get_options(IntPtr ctx)
+        {
+            long opts = 0;
+            try {
+                IntPtr local_ctx = unwrap_ctx(ctx);
+                if (local_ctx == IntPtr.Zero) {
+                    log(ERROR_LOG, "CTX get options unwrap error");
+                    return FAILURE;
+                }
+                opts = wolfSSL_CTX_get_options(local_ctx);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl CTX_get_options error: " + e.ToString());
+            }
+
+            return opts;
+        }
+
+        /// <summary>
+        /// Set CTX options mask
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <returns>(long)ctx->mask</returns>
+        public static long CTX_set_options(IntPtr ctx, long opt) {
+            long opts = 0;
+            try {
+                IntPtr local_ctx = unwrap_ctx(ctx);
+                if (local_ctx == IntPtr.Zero) {
+                    log(ERROR_LOG, "CTX get options unwrap error");
+                    return FAILURE;
+                }
+                opts = wolfSSL_CTX_set_options(local_ctx, opt);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl CTX_get_options error: " + e.ToString());
+            }
+
+            return opts;
+        }
+
+        /// <summary>
+        /// Clear CTX options mask from opt
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <returns>(long)ctx->mask</returns>
+        public static long CTX_clear_options(IntPtr ctx, long opt) {
+            long opts = 0;
+            try {
+                IntPtr local_ctx = unwrap_ctx(ctx);
+                if (local_ctx == IntPtr.Zero) {
+                    log(ERROR_LOG, "CTX get options unwrap error");
+                    return FAILURE;
+                }
+                opts = wolfSSL_CTX_clear_options(local_ctx, opt);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl CTX_clear_options error: " + e.ToString());
+            }
+
+            return opts;
+        }
 
         /// <summary>
         /// Create a new CTX structure for a DTLS connection

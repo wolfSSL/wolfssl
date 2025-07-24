@@ -28,6 +28,9 @@
     #endif
 #endif
 
+// Optionally set explicit cipher, see CIPHER_SUITE and wolfssl.CTX_set_cipher_list()
+#define USE_SPECIFIED_CIPHER
+
 using System;
 using System.IO;
 using System.Net;
@@ -52,10 +55,8 @@ public class wolfSSL_TLS_Client
     public static int SERVER_PORT = 11111;
     private static int byte_ct = 0; /* How many byte sent / received  */
 
-    // Optionally set explicit cipher, see wolfssl.CTX_set_cipher_list()
-    // #define USE_SPECIFIED_CIPHER
-    public static string CIPHER_SUITE = "ECDHE-ECDSA-AES128-GCM-SHA256";
-
+    // public static string CIPHER_SUITE = "DHE-RSA-AES256-GCM-SHA384"; /* TLS 1.2 TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 */
+    public static string CIPHER_SUITE = "TLS13-AES256-GCM-SHA384";
 
     public static void standard_log(int lvl, string msg) {
         Console.WriteLine(msg);
@@ -194,7 +195,7 @@ public class wolfSSL_TLS_Client
         }
 
         StringBuilder buff = new StringBuilder(1024);
-        StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
+        StringBuilder tx_msg = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
 
         /* example of function used for setting logging */
         wolfssl.SetLogging(standard_log);
@@ -205,12 +206,27 @@ public class wolfSSL_TLS_Client
         wolfssl.Init();
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
+
+        /* Use any version of TLS */
+        // ctx = wolfssl.CTX_new(wolfssl.usev23_client());
+
+        /* Only TLS 1.3 */
         ctx = wolfssl.CTX_new(wolfssl.useTLSv1_3_client());
         if (ctx == IntPtr.Zero)
         {
             Console.WriteLine("Error in creating ctx structure");
             return;
         }
+
+        foreach (var version in new[] {
+            wolfssl.TLSV1, wolfssl.TLSV1_1, wolfssl.TLSV1_2, wolfssl.TLSV1_3
+        }) {
+            int result = wolfssl.CTX_SetMinVersion(ctx, version);
+            Console.WriteLine($"MinVersion set to {version}: {(result == 1 ? "OK" : "Not Supported")}");
+        }
+
+        long opts = wolfssl.CTX_get_options(ctx);
+
         Console.WriteLine("Finished init of ctx .... now load in CA");
 
         if (!File.Exists(caCert))
@@ -342,7 +358,9 @@ public class wolfSSL_TLS_Client
         }
 
         wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
-
+        opts = wolfssl.CTX_get_options(ctx);
+        opts = wolfssl.CTX_set_options(ctx, 1);
+        opts = wolfssl.CTX_clear_options(ctx, 1);
         if (wolfssl.connect(ssl) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Connection fsailed wolfssl.connect(ssl)");
@@ -360,9 +378,9 @@ public class wolfSSL_TLS_Client
         Console.WriteLine("SSL version is " + wolfssl.get_version(ssl));
         Console.WriteLine("SSL cipher suite is " + wolfssl.get_current_cipher(ssl));
 
-        Console.WriteLine("Writing data to server...");
-        byte_ct = wolfssl.write(ssl, reply, reply.Length);
-        if (byte_ct != reply.Length)
+        Console.WriteLine("Writing message to server: " + tx_msg);
+        byte_ct = wolfssl.write(ssl, tx_msg, tx_msg.Length);
+        if (byte_ct != tx_msg.Length)
         {
             Console.WriteLine("Error in write");
             Console.WriteLine("Bytes sent: " + byte_ct.ToString());
@@ -370,6 +388,7 @@ public class wolfSSL_TLS_Client
             clean(ssl, ctx);
             return;
         }
+        Console.WriteLine("Sent " + byte_ct.ToString() + " bytes to server!");
 
         Console.WriteLine("Reading server response...");
         byte_ct = wolfssl.read(ssl, buff, 1023);
@@ -381,6 +400,7 @@ public class wolfSSL_TLS_Client
             clean(ssl, ctx);
             return;
         }
+        Console.WriteLine("Read " + byte_ct.ToString() + " byte reply from server!");
         Console.WriteLine(buff);
 
         /* Optional code & level history */
