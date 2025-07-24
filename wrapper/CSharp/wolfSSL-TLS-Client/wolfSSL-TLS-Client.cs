@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+// TODO WIP
 
 /* CE Not always reliably detected. Define our own WindowsCE as needed. */
 #if _WIN32_WCE || WINCE || PocketPC
