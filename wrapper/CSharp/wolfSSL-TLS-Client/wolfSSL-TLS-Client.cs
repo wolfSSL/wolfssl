@@ -223,7 +223,7 @@ public class wolfSSL_TLS_Client
             wolfssl.TLSV1, wolfssl.TLSV1_1, wolfssl.TLSV1_2, wolfssl.TLSV1_3
         }) {
             int result = wolfssl.CTX_SetMinVersion(ctx, version);
-            Console.WriteLine($"MinVersion set to {version}: {(result == 1 ? "OK" : "Not Supported")}");
+            Console.WriteLine($"MinVersion set to {version}: {(result == wolfssl.SUCCESS ? "OK" : "Not Supported")}");
         }
 
         long opts = wolfssl.CTX_get_options(ctx);

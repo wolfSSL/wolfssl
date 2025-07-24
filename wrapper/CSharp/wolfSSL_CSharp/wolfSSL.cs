@@ -657,6 +657,8 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_CTX_new(IntPtr method);
         [DllImport(wolfssl_dll)]
+        private extern static int wolfssl_CTX_SetMinVersion(IntPtr ctx, int version);
+        [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_CTX_get_options(IntPtr ctx);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_CTX_set_options(IntPtr ctx, long opt);
@@ -675,6 +677,8 @@ namespace wolfSSL.CSharp
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_CTX_new(IntPtr method);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_SetMinVersion(IntPtr ctx, int version);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_get_options(IntPtr ctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -981,6 +985,18 @@ namespace wolfSSL.CSharp
         public static readonly int WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE     = 0x00000010;
         public static readonly int WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS     = WOLFSSL_LOAD_FLAG_NONE;
 
+        public static readonly int SSLV3 = 0;
+        public static readonly int TLSV1 = 1;
+        public static readonly int TLSV1_1 = 2;
+        public static readonly int TLSV1_2 = 3;
+        public static readonly int TLSV1_3 = 4;
+        public static readonly int _DTLSV1 = 5;
+        public static readonly int DTLSV1_2 = 6;
+        public static readonly int DTLSV1_3 = 7;
+
+        public static readonly int USER_CA = 1;   /* user added as trusted */
+        public static readonly int CHAIN_CA = 2;  /* added to cache from trusted chain */
+        public static readonly int TEMP_CA = 3;   /* Temp intermediate CA, only for use by X509_STORE */
 
         private static IntPtr unwrap_ctx(IntPtr ctx)
         {
@@ -1724,6 +1740,24 @@ namespace wolfSSL.CSharp
                 return IntPtr.Zero;
             }
         }
+
+        public static int CTX_SetMinVersion(IntPtr ctx, int version) {
+            int ret = 0;
+            try {
+                IntPtr local_ctx = unwrap_ctx(ctx);
+                if (local_ctx == IntPtr.Zero) {
+                    log(ERROR_LOG, "CTX set min version ctx unwrap error");
+                    return FAILURE;
+                }
+                ret = wolfSSL_CTX_SetMinVersion(ctx, version);
+            }
+            catch (Exception e) {
+                log(ERROR_LOG, "wolfssl CTX_get_options error: " + e.ToString());
+            }
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Get CTX options mask
