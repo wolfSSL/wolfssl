@@ -18322,9 +18322,9 @@ static int test_wc_PKCS7_GetEnvelopedDataKariRid(void)
     word32 ridSz = sizeof(rid);
     XFILE skiHexFile = XBADFILE;
     byte skiHex[256];
-    word32 cmsSz;
-    word32 skiHexSz;
-    size_t i;
+    word32 cmsSz = 0;
+    word32 skiHexSz = 0;
+    size_t i = 0;
     const word32 ridKeyIdentifierOffset = 4;
 
     ExpectTrue((cmsFile = XFOPEN("./certs/test/kari-keyid-cms.msg", "rb"))
