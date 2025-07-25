@@ -7372,16 +7372,16 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
             return BAD_FUNC_ARG;
     };
 
+#ifdef HAVE_X963_KDF
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
-    if (ret != 0) {
-        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-        return ret;
-    }
+#else
+    (void)kdfType;
+    ret = NOT_COMPILED_IN;
+#endif
 
     XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-
-    return 0;
+    return ret;
 }
 
 
