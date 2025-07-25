@@ -126,6 +126,15 @@
     extern int wc_lkm_LockMutex(struct wolfSSL_Mutex* m);
 #endif
 
+    #ifndef WC_LINUXKM_INTR_SIGNALS
+        #define WC_LINUXKM_INTR_SIGNALS { SIGKILL, SIGABRT, SIGHUP, SIGINT }
+    #endif
+    extern int wc_linuxkm_check_for_intr_signals(void);
+    #ifndef WC_LINUXKM_MAX_NS_WITHOUT_YIELD
+        #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD 1000000000
+    #endif
+    extern void wc_linuxkm_relax_long_loop(void);
+
     #ifdef BUILDING_WOLFSSL
 
     #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
@@ -351,6 +360,8 @@
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
         /* for signal_pending() */
         #include <linux/sched/signal.h>
+        /* for sched_clock_cpu() */
+        #include <linux/sched/clock.h>
     #endif
     #include <linux/random.h>
 
@@ -422,6 +433,13 @@
         #ifndef WOLFSSL_NO_ASM
             #define WOLFSSL_NO_ASM
         #endif
+    #endif
+
+    #ifndef WC_CHECK_FOR_INTR_SIGNALS
+        #define WC_CHECK_FOR_INTR_SIGNALS() wc_linuxkm_check_for_intr_signals()
+    #endif
+    #ifndef WC_RELAX_LONG_LOOP
+        #define WC_RELAX_LONG_LOOP() wc_linuxkm_relax_long_loop()
     #endif
 
     /* benchmarks.c uses floating point math, so needs a working
@@ -527,6 +545,7 @@
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+        #define RESTORE_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP();
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     _Pragma("GCC diagnostic pop");
@@ -875,6 +894,9 @@
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
         #endif
 
+        typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
+        typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
+
         const void *_last_slot;
     };
 
@@ -1098,6 +1120,9 @@
      * raw_spin_unlock_irqrestore().  use a macro here to supersede it.
      */
     #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
+
+    #define wc_linuxkm_check_for_intr_signals WC_LKM_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
+    #define wc_linuxkm_relax_long_loop WC_LKM_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
 
     #endif /* __PIE__ */
 

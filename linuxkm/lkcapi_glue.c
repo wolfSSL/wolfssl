@@ -310,6 +310,7 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     return 0;
 }
 
+static volatile int linuxkm_lkcapi_registering_now = 0;
 static int linuxkm_lkcapi_registered = 0;
 static int linuxkm_lkcapi_n_registered = 0;
 
@@ -318,9 +319,11 @@ static int linuxkm_lkcapi_register(void)
     int ret = -1;
     int seen_err = 0;
 
+    linuxkm_lkcapi_registering_now = 1;
+
     ret = linuxkm_lkcapi_sysfs_install();
     if (ret)
-        return ret;
+        goto out;
 
 #if defined(CONFIG_CRYPTO_MANAGER_EXTRA_TESTS) || \
     defined(CONFIG_CRYPTO_SELFTESTS_FULL)
@@ -704,11 +707,14 @@ static int linuxkm_lkcapi_register(void)
 
     if (ret == -1) {
         /* no installations occurred */
-        if (linuxkm_lkcapi_registered)
-            return -EEXIST;
+        if (linuxkm_lkcapi_registered) {
+            ret = -EEXIST;
+            goto out;
+        }
         else {
             linuxkm_lkcapi_registered = 1;
-            return 0;
+            ret = 0;
+            goto out;
         }
     }
     else {
@@ -716,8 +722,15 @@ static int linuxkm_lkcapi_register(void)
          * occurred.
          */
         linuxkm_lkcapi_registered = 1;
-        return seen_err;
+        ret = seen_err;
+        goto out;
     }
+
+out:
+
+    linuxkm_lkcapi_registering_now = 0;
+
+    return ret;
 }
 
 static int linuxkm_lkcapi_unregister(void)

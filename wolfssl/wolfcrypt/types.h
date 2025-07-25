@@ -1935,8 +1935,32 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
 #endif
 
+#ifndef WC_RELAX_LONG_LOOP
+    #define WC_RELAX_LONG_LOOP() WC_DO_NOTHING
+#endif
+#ifndef WC_CHECK_FOR_INTR_SIGNALS
+    #define WC_CHECK_FOR_INTR_SIGNALS() 0
+    #ifndef SAVE_NO_VECTOR_REGISTERS
+        #define SAVE_NO_VECTOR_REGISTERS(fail_clause) WC_RELAX_LONG_LOOP()
+    #endif
+#else
+    #ifndef SAVE_NO_VECTOR_REGISTERS
+        #define SAVE_NO_VECTOR_REGISTERS(fail_clause) {     \
+                int _svr_ret = WC_CHECK_FOR_INTR_SIGNALS(); \
+                if (_svr_ret != 0) { fail_clause }          \
+                WC_RELAX_LONG_LOOP();                       \
+            }
+    #endif
+#endif
+#ifndef SAVE_NO_VECTOR_REGISTERS2
+    #define SAVE_NO_VECTOR_REGISTERS2() 0
+#endif
+#ifndef RESTORE_NO_VECTOR_REGISTERS
+    #define RESTORE_NO_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP()
+#endif
+
 #ifndef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
 #endif
 #ifndef SAVE_VECTOR_REGISTERS2
     #define SAVE_VECTOR_REGISTERS2() 0
@@ -1956,8 +1980,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
 #endif
 #ifndef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
+
 #ifdef WOLFSSL_NO_ASM
     /* We define fallback no-op definitions for these only if asm is disabled,
      * otherwise the using code must detect that these macros are undefined and
