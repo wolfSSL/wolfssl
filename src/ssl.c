@@ -6142,7 +6142,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
-/* Removes the CA with the passed in subject hash from the cert manager's CA cert store. */
+/* Removes the CA with the passed in subject hash from the
+   cert manager's CA cert store. */
 int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
 {
     Signer* current;
