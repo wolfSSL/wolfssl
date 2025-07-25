@@ -21170,7 +21170,7 @@ static int DecodeSubjKeyIdInternal(const byte* input, word32 sz,
     ret = GetHashId(extSubjKeyId, (int)extSubjKeyIdSz, cert->extSubjKeyId,
         HashIdAlg(cert->signatureOID));
 
-    return 0;
+    return ret;
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
