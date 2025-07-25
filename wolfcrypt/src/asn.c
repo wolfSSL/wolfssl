@@ -20616,7 +20616,7 @@ static int DecodeBasicCaConstraintInternal(const byte* input, int sz, DecodedCer
     cert->isCA = isCa ? 1 : 0;
     if (pathLengthSet) {
         cert->pathLength = pathLength;
-        cert->pathLengthSet = pathLengthSet;
+        cert->pathLengthSet = pathLengthSet ? 1 : 0;
     }
 
     return 0;
@@ -21167,7 +21167,7 @@ static int DecodeSubjKeyIdInternal(const byte* input, word32 sz,
 #endif /* OPENSSL_EXTRA */
 
     /* Get the hash or hash of the hash if wrong size. */
-    ret = GetHashId(extSubjKeyId, extSubjKeyIdSz, cert->extSubjKeyId,
+    ret = GetHashId(extSubjKeyId, (int)extSubjKeyIdSz, cert->extSubjKeyId,
         HashIdAlg(cert->signatureOID));
 
     return 0;
