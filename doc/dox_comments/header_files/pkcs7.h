@@ -646,6 +646,31 @@ int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 /*!
     \ingroup PKCS7
 
+    \brief This function extracts the KeyAgreeRecipientIdentifier object from
+    an EnvelopedData package containing a KeyAgreeRecipientInfo RecipientInfo
+    object. Only the first KeyAgreeRecipientIdentifer found in the first
+    RecipientInfo is copied. This function does not support multiple
+    RecipientInfo objects or multiple RecipientEncryptedKey objects within an
+    KeyAgreeRecipientInfo.
+
+    \return Returns 0 on success.
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid.
+    \return ASN_PARSE_E Returned if there is an error parsing the input message.
+    \return PKCS7_OID_E Returned if the input message is not an enveloped
+    data type.
+    \return BUFFER_E Returned if there is not enough room in the output buffer.
+
+    \param[in] in Input buffer containing the EnvelopedData ContentInfo message.
+    \param[in] inSz Size of the input buffer.
+    \param[out] out Output buffer.
+    \param[in,out] outSz Output buffer size on input, Size written on output.
+*/
+int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
+        byte * out, word32 * outSz);
+
+/*!
+    \ingroup PKCS7
+
     \brief This function unwraps and decrypts a PKCS7 encrypted data content
     type, decoding the message into output. It uses the encryption key of the
     PKCS7 object passed in via pkcs7->encryptionKey and
