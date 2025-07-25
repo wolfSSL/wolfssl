@@ -35414,14 +35414,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         switch (group) {
         #ifndef WOLFSSL_NO_ML_KEM
-            case WOLFSSL_P256_ML_KEM_768:
-            case WOLFSSL_X25519_ML_KEM_768:
-            case WOLFSSL_P384_ML_KEM_1024:
-            case WOLFSSL_P256_ML_KEM_512:
-            case WOLFSSL_P384_ML_KEM_768:
-            case WOLFSSL_P521_ML_KEM_1024:
-            case WOLFSSL_X25519_ML_KEM_512:
-            case WOLFSSL_X448_ML_KEM_768:
+            case WOLFSSL_SECP256R1MLKEM768:
+            case WOLFSSL_X25519MLKEM768:
+            case WOLFSSL_SECP384R1MLKEM1024:
+            case WOLFSSL_SECP256R1MLKEM512:
+            case WOLFSSL_SECP384R1MLKEM768:
+            case WOLFSSL_SECP521R1MLKEM1024:
+            case WOLFSSL_X25519MLKEM512:
+            case WOLFSSL_X448MLKEM768:
 #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
             case WOLFSSL_P256_ML_KEM_512_OLD:
             case WOLFSSL_P384_ML_KEM_768_OLD:
