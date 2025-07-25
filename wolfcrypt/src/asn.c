@@ -24126,7 +24126,7 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
  *
  * @param [in]  input  Buffer holding data.
  * @param [in]  sz     Size of data in buffer.
- * @param [out] extExtKeyUsageSrc   Begining of the OIDs.
+ * @param [out] extExtKeyUsageSrc   Beginning of the OIDs.
  * @param [out] extExtKeyUsageSz    Size of data in extExtKeyUsageSrc.
  * @param [out] extExtKeyUsageCount Number of usages read.
  * @param [out] extExtKeyUsage      Usages read.
