@@ -4618,9 +4618,9 @@ enum {
      * https://github.com/post-quantum-cryptography/
      *      draft-kwiatkowski-tls-ecdhe-mlkem/
      */
-    WOLFSSL_P256_ML_KEM_768       = 4587,
-    WOLFSSL_X25519_ML_KEM_768     = 4588,
-    WOLFSSL_P384_ML_KEM_1024      = 4589,
+    WOLFSSL_SECP256R1MLKEM768     = 4587,
+    WOLFSSL_X25519MLKEM768        = 4588,
+    WOLFSSL_SECP384R1MLKEM1024    = 4589,
 
     /* Taken from OQS's openssl provider, see:
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
@@ -4631,11 +4631,11 @@ enum {
     WOLFSSL_P384_ML_KEM_768_OLD   = 12104,
     WOLFSSL_P521_ML_KEM_1024_OLD  = 12105,
 #endif
-    WOLFSSL_P256_ML_KEM_512       = 12107,
-    WOLFSSL_P384_ML_KEM_768       = 12108,
-    WOLFSSL_P521_ML_KEM_1024      = 12109,
-    WOLFSSL_X25519_ML_KEM_512     = 12214,
-    WOLFSSL_X448_ML_KEM_768       = 12215,
+    WOLFSSL_SECP256R1MLKEM512     = 12107,
+    WOLFSSL_SECP384R1MLKEM768     = 12108,
+    WOLFSSL_SECP521R1MLKEM1024    = 12109,
+    WOLFSSL_X25519MLKEM512        = 12214,
+    WOLFSSL_X448MLKEM768          = 12215,
 #endif /* WOLFSSL_NO_ML_KEM */
 #endif /* HAVE_PQC */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)

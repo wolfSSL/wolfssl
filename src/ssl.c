@@ -3715,14 +3715,14 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_ML_KEM_768:
         case WOLFSSL_ML_KEM_1024:
     #if defined(WOLFSSL_WC_MLKEM) || defined(HAVE_LIBOQS)
-        case WOLFSSL_P256_ML_KEM_512:
-        case WOLFSSL_P384_ML_KEM_768:
-        case WOLFSSL_P521_ML_KEM_1024:
-        case WOLFSSL_P384_ML_KEM_1024:
-        case WOLFSSL_X25519_ML_KEM_512:
-        case WOLFSSL_X448_ML_KEM_768:
-        case WOLFSSL_X25519_ML_KEM_768:
-        case WOLFSSL_P256_ML_KEM_768:
+        case WOLFSSL_SECP256R1MLKEM512:
+        case WOLFSSL_SECP384R1MLKEM768:
+        case WOLFSSL_SECP521R1MLKEM1024:
+        case WOLFSSL_SECP384R1MLKEM1024:
+        case WOLFSSL_X25519MLKEM512:
+        case WOLFSSL_X448MLKEM768:
+        case WOLFSSL_X25519MLKEM768:
+        case WOLFSSL_SECP256R1MLKEM768:
     #endif
 #endif /* !WOLFSSL_NO_ML_KEM */
 #ifdef WOLFSSL_MLKEM_KYBER
@@ -15616,48 +15616,48 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     #ifndef WOLFSSL_NO_ML_KEM_512
         case WOLFSSL_ML_KEM_512:
             return "ML_KEM_512";
-        case WOLFSSL_P256_ML_KEM_512:
-            return "P256_ML_KEM_512";
+        case WOLFSSL_SECP256R1MLKEM512:
+            return "SecP256r1MLKEM512";
 #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
         case WOLFSSL_P256_ML_KEM_512_OLD:
             return "P256_ML_KEM_512_OLD";
 #endif
         #ifdef HAVE_CURVE25519
-        case WOLFSSL_X25519_ML_KEM_512:
-            return "X25519_ML_KEM_512";
+        case WOLFSSL_X25519MLKEM512:
+            return "X25519MLKEM512";
         #endif
     #endif
     #ifndef WOLFSSL_NO_ML_KEM_768
         case WOLFSSL_ML_KEM_768:
             return "ML_KEM_768";
-        case WOLFSSL_P384_ML_KEM_768:
-            return "P384_ML_KEM_768";
+        case WOLFSSL_SECP384R1MLKEM768:
+            return "SecP384r1MLKEM768";
 #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
         case WOLFSSL_P384_ML_KEM_768_OLD:
             return "P384_ML_KEM_768_OLD";
 #endif
-        case WOLFSSL_P256_ML_KEM_768:
-            return "P256_ML_KEM_768";
+        case WOLFSSL_SECP256R1MLKEM768:
+            return "SecP256r1MLKEM768";
         #ifdef HAVE_CURVE25519
-        case WOLFSSL_X25519_ML_KEM_768:
-            return "X25519_ML_KEM_768";
+        case WOLFSSL_X25519MLKEM768:
+            return "X25519MLKEM768";
         #endif
         #ifdef HAVE_CURVE448
-        case WOLFSSL_X448_ML_KEM_768:
-            return "X448_ML_KEM_768";
+        case WOLFSSL_X448MLKEM768:
+            return "X448MLKEM768";
         #endif
     #endif
     #ifndef WOLFSSL_NO_ML_KEM_1024
         case WOLFSSL_ML_KEM_1024:
             return "ML_KEM_1024";
-        case WOLFSSL_P521_ML_KEM_1024:
-            return "P521_ML_KEM_1024";
+        case WOLFSSL_SECP521R1MLKEM1024:
+            return "SecP521r1MLKEM1024";
 #ifdef WOLFSSL_ML_KEM_USE_OLD_IDS
         case WOLFSSL_P521_ML_KEM_1024_OLD:
             return "P521_ML_KEM_1024_OLD";
 #endif
-        case WOLFSSL_P384_ML_KEM_1024:
-            return "P384_ML_KEM_1024";
+        case WOLFSSL_SECP384R1MLKEM1024:
+            return "SecP384r1MLKEM1024";
     #endif
 #elif defined(HAVE_LIBOQS)
         case WOLFSSL_ML_KEM_512:
@@ -15666,25 +15666,25 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "ML_KEM_768";
         case WOLFSSL_ML_KEM_1024:
             return "ML_KEM_1024";
-        case WOLFSSL_P256_ML_KEM_512:
-            return "P256_ML_KEM_512";
-        case WOLFSSL_P384_ML_KEM_768:
-            return "P384_ML_KEM_768";
-        case WOLFSSL_P256_ML_KEM_768:
-            return "P256_ML_KEM_768";
-        case WOLFSSL_P521_ML_KEM_1024:
-            return "P521_ML_KEM_1024";
-        case WOLFSSL_P384_ML_KEM_1024:
-            return "P384_ML_KEM_1024";
+        case WOLFSSL_SECP256R1MLKEM512:
+            return "SecP256r1MLKEM512";
+        case WOLFSSL_SECP384R1MLKEM768:
+            return "SecP384r1MLKEM768";
+        case WOLFSSL_SECP256R1MLKEM768:
+            return "SecP256r1MLKEM768";
+        case WOLFSSL_SECP521R1MLKEM1024:
+            return "SecP521r1MLKEM1024";
+        case WOLFSSL_SECP384R1MLKEM1024:
+            return "SecP384r1MLKEM1024";
     #ifdef HAVE_CURVE25519
-        case WOLFSSL_X25519_ML_KEM_512:
-            return "X25519_ML_KEM_512";
-        case WOLFSSL_X25519_ML_KEM_768:
-            return "X25519_ML_KEM_768";
+        case WOLFSSL_X25519MLKEM512:
+            return "X25519MLKEM512";
+        case WOLFSSL_X25519MLKEM768:
+            return "X25519MLKEM768";
     #endif
     #ifdef HAVE_CURVE448
-        case WOLFSSL_X448_ML_KEM_768:
-            return "X448_ML_KEM_768";
+        case WOLFSSL_X448MLKEM768:
+            return "X448MLKEM768";
     #endif
 #endif /* WOLFSSL_WC_MLKEM */
 #endif /* WOLFSSL_NO_ML_KEM */
@@ -23260,22 +23260,22 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {CURVE_NAME("ML_KEM_768"), WOLFSSL_ML_KEM_768, WOLFSSL_ML_KEM_768},
     {CURVE_NAME("ML_KEM_1024"), WOLFSSL_ML_KEM_1024, WOLFSSL_ML_KEM_1024},
 #if (defined(WOLFSSL_WC_MLKEM) || defined(HAVE_LIBOQS)) && defined(HAVE_ECC)
-    {CURVE_NAME("P256_ML_KEM_512"), WOLFSSL_P256_ML_KEM_512,
-     WOLFSSL_P256_ML_KEM_512},
-    {CURVE_NAME("P384_ML_KEM_768"), WOLFSSL_P384_ML_KEM_768,
-     WOLFSSL_P384_ML_KEM_768},
-    {CURVE_NAME("P256_ML_KEM_768"), WOLFSSL_P256_ML_KEM_768,
-     WOLFSSL_P256_ML_KEM_768},
-    {CURVE_NAME("P521_ML_KEM_1024"), WOLFSSL_P521_ML_KEM_1024,
-     WOLFSSL_P521_ML_KEM_1024},
-    {CURVE_NAME("P384_ML_KEM_1024"), WOLFSSL_P384_ML_KEM_1024,
-     WOLFSSL_P384_ML_KEM_1024},
-    {CURVE_NAME("X25519_ML_KEM_512"), WOLFSSL_X25519_ML_KEM_512,
-     WOLFSSL_X25519_ML_KEM_512},
-    {CURVE_NAME("X448_ML_KEM_768"), WOLFSSL_X448_ML_KEM_768,
-     WOLFSSL_X448_ML_KEM_768},
-    {CURVE_NAME("X25519_ML_KEM_768"), WOLFSSL_X25519_ML_KEM_768,
-     WOLFSSL_X25519_ML_KEM_768},
+    {CURVE_NAME("SecP256r1MLKEM512"), WOLFSSL_SECP256R1MLKEM512,
+     WOLFSSL_SECP256R1MLKEM512},
+    {CURVE_NAME("SecP384r1MLKEM768"), WOLFSSL_SECP384R1MLKEM768,
+     WOLFSSL_SECP384R1MLKEM768},
+    {CURVE_NAME("SecP256r1MLKEM768"), WOLFSSL_SECP256R1MLKEM768,
+     WOLFSSL_SECP256R1MLKEM768},
+    {CURVE_NAME("SecP521r1MLKEM1024"), WOLFSSL_SECP521R1MLKEM1024,
+     WOLFSSL_SECP521R1MLKEM1024},
+    {CURVE_NAME("SecP384r1MLKEM1024"), WOLFSSL_SECP384R1MLKEM1024,
+     WOLFSSL_SECP384R1MLKEM1024},
+    {CURVE_NAME("X25519MLKEM512"), WOLFSSL_X25519MLKEM512,
+     WOLFSSL_X25519MLKEM512},
+    {CURVE_NAME("X448MLKEM768"), WOLFSSL_X448MLKEM768,
+     WOLFSSL_X448MLKEM768},
+    {CURVE_NAME("X25519MLKEM768"), WOLFSSL_X25519MLKEM768,
+     WOLFSSL_X25519MLKEM768},
 #endif
 #endif /* !WOLFSSL_NO_ML_KEM */
 #ifdef WOLFSSL_MLKEM_KYBER
