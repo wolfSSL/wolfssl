@@ -9814,8 +9814,17 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Generate a key pair if seed exists and decoded key pair is ignored */
-        if (seedLen == DILITHIUM_SEED_SZ) {
-            ret = wc_dilithium_make_key_from_seed(key, seed);
+        if (seedLen != 0) {
+#if defined(WOLFSSL_WC_DILITHIUM)
+            if(seedLen == DILITHIUM_SEED_SZ) {
+                ret = wc_dilithium_make_key_from_seed(key, seed);
+            }
+            else {
+                ret = ASN_PARSE_E;
+            }
+#else
+            ret = NOT_COMPILED_IN;
+#endif
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         /* Check whether public key data was found. */

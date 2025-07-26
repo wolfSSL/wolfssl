@@ -16764,7 +16764,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
 }
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 static struct {
     const char* fileName;
@@ -16825,7 +16825,7 @@ int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void)
     EXPECT_DECLS;
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
     byte* der = NULL;
@@ -16917,8 +16917,9 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(HAVE_DILITHIUM) && !defined(NO_TLS) && \
+    defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
 
     byte* der = NULL;
