@@ -2246,7 +2246,7 @@ WOLFSSL_API int tsip_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
     WOLFSSL_ENTER("tsip_set_callback_ctx");
 
     TsipUserCtx* uCtx = (TsipUserCtx*)user_ctx;
-    if (user_ctx == NULL) {
+    if (user_ctx == NULL || ssl == NULL) {
         WOLFSSL_MSG("user ctx is null");
         return BAD_FUNC_ARG;
     }

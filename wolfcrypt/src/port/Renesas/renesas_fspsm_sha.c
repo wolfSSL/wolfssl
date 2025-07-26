@@ -43,52 +43,148 @@ extern FSPSM_INSTANCE   gFSPSM_ctrl;
 /* wrapper for RSIP SHA1 Init */
 static fsp_err_t _R_RSIP_SHA1_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA1);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA1 );
+   #endif
 }
 /* wrapper for RSIP SHA224 Init */
 static fsp_err_t _R_RSIP_SHA224_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA224);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA224 );
+   #endif
 }
 /* wrapper for RSIP SHA256 Init */
 static fsp_err_t _R_RSIP_SHA256_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA256);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA256 );
+   #endif
 }
 /* wrapper for RSIP SHA384 Init */
 static fsp_err_t _R_RSIP_SHA384_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA384);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA384 );
+   #endif
 }
 /* wrapper for RSIP SHA512 Init */
 static fsp_err_t _R_RSIP_SHA512_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA512);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA512 );
+   #endif
 }
 /* wrapper for RSIP SHA512_224 Init */
 static fsp_err_t _R_RSIP_SHA512_224_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA512_224);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA512_224 );
+   #endif
 }
 /* wrapper for RSIP SHA512_256 Init */
 static fsp_err_t _R_RSIP_SHA512_256_GenerateInit(FSPSM_SHA_HANDLE* h)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Init(&gFSPSM_ctrl, RSIP_HASH_TYPE_SHA512_256);
+   #else
     return R_RSIP_SHA_GenerateInit(&gFSPSM_ctrl, h, RSIP_HASH_TYPE_SHA512_256 );
+   #endif
 }
 /* wrapper for RSIP SHA Update */
 static fsp_err_t _R_RSIP_SHA_GenerateUpdate(FSPSM_SHA_HANDLE* h,
                                             uint8_t* m, uint32_t len)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Update(&gFSPSM_ctrl, m, len);
+   #else
     return R_RSIP_SHA_GenerateUpdate(&gFSPSM_ctrl, h, m, len );
+   #endif
 }
 /* wrapper for RSIP SHA Final */
 static fsp_err_t _R_RSIP_SHA_GenerateFinal(FSPSM_SHA_HANDLE* h,
                                                 uint8_t* d, uint32_t *sz)
 {
     (void) sz;
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_SHA_Finish(&gFSPSM_ctrl, d);
+   #else
     return R_RSIP_SHA_GenerateFinal(&gFSPSM_ctrl, h, d);
+   #endif
 }
 #endif /* WOLFSSL_RENESAS_RSIP */
+
+#if defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+static int FSPSM_FuncGet(uint32_t sha_type, void** Init,
+                                        void** Update, void** Final)
+{
+    (void)Init;
+    (void)Update;
+    (void)Final;
+
+    switch(sha_type) {
+    case FSPSM_SHA1:
+        *Init = FSPSM_SHA1_Init;
+        *Update = FSPSM_SHA1_Up;
+        *Final = FSPSM_SHA1_Final;
+        break;
+    case FSPSM_SHA256:
+        *Init = FSPSM_SHA256_Init;
+        *Update = FSPSM_SHA256_Up;
+        *Final = FSPSM_SHA256_Final;
+        break;
+    case FSPSM_SHA224:
+        *Init = FSPSM_SHA224_Init;
+        *Update = FSPSM_SHA224_Up;
+        *Final = FSPSM_SHA224_Final;
+        break;
+    case FSPSM_SHA384:
+        *Init = FSPSM_SHA384_Init;
+        *Update = FSPSM_SHA384_Up;
+        *Final = FSPSM_SHA384_Final;
+        break;
+    case FSPSM_SHA512:
+        *Init = FSPSM_SHA512_Init;
+        *Update = FSPSM_SHA512_Up;
+        *Final = FSPSM_SHA512_Final;
+        break;
+    case FSPSM_SHA512_224:
+        *Init = FSPSM_SHA512_224_Init;
+        *Update = FSPSM_SHA512_224_Up;
+        *Final = FSPSM_SHA512_224_Final;
+        break;
+    case FSPSM_SHA512_256:
+        *Init = FSPSM_SHA512_256_Init;
+        *Update = FSPSM_SHA512_256_Up;
+        *Final = FSPSM_SHA512_256_Final;
+        break;
+    default:
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+#endif
 /* Free up allocation for msg
  *
  * hash    The FSPSM Hash object.
@@ -99,7 +195,8 @@ static void FSPSM_HashFree(wolfssl_FSPSM_Hash* hash)
     if (hash == NULL)
         return;
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
     hash->msg = NULL;
 #endif
@@ -114,7 +211,8 @@ static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
 
     XMEMCPY(dst, src, sizeof(wolfssl_FSPSM_Hash));
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     if (src->len > 0 && src->msg != NULL) {
         dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (dst->msg == NULL) {
@@ -135,7 +233,7 @@ static int FSPSM_HashCopy(wolfssl_FSPSM_Hash* src, wolfssl_FSPSM_Hash* dst)
 static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     word32 sha_type)
 {
-#if defined(WOLFSSL_RENESAS_RSIP)
+#if defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER < 220)
     int ret;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
 #endif
@@ -148,7 +246,8 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     hash->sha_type = sha_type;
     hash->heap = heap;
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;
@@ -199,7 +298,7 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
 static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
                                                 const byte* data, word32 sz)
 {
-#if defined(WOLFSSL_RENESAS_RSIP)
+#if defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER < 220)
     int ret;
     fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
 #endif
@@ -208,7 +307,8 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     if (hash->len < hash->used + sz) {
         if (hash->msg == NULL) {
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
@@ -292,7 +392,8 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     void* heap;
     (void) outSz;
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     FSPSM_SHA_HANDLE handle;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
     fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
@@ -300,14 +401,21 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-
+ #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (hash->sha_type == FSPSM_SHA256) {
         Init = FSPSM_SHA256_Init;
         Update = FSPSM_SHA256_Up;
         Final = FSPSM_SHA256_Final;
     } else
         return BAD_FUNC_ARG;
-
+ #else
+    Init = NULL;
+    Update = NULL;
+    Final = NULL;
+    ret = FSPSM_FuncGet(hash->sha_type, (void**)&Init,
+                            (void**)&Update, (void**)&Final);
+    if (ret != 0) return ret;
+ #endif
     wc_fspsm_hw_lock();
 
     if (Init(&handle) == FSP_SUCCESS) {
@@ -379,7 +487,8 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     uint32_t sz = 0;
     (void) outSz;
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     FSPSM_SHA_HANDLE handle;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
     fsp_err_t (*Update)(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t);
@@ -392,14 +501,23 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
+ #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     if (hash->sha_type == FSPSM_SHA256) {
         Init = FSPSM_SHA256_Init;
         Update = FSPSM_SHA256_Up;
         Final = FSPSM_SHA256_Final;
     } else
         return BAD_FUNC_ARG;
-
+ #else
+    Init = NULL;
+    Update = NULL;
+    Final = NULL;
+    ret = FSPSM_FuncGet(hash->sha_type, (void**)&Init,
+                            (void**)&Update, (void**)&Final);
+    if (ret != 0) return ret;
+ #endif
     wc_fspsm_hw_lock();
     if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);

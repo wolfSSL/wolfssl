@@ -81,7 +81,7 @@ int rsip_crypt_sha_multitest();
 int rsip_crypt_test();
 
 void Clr_CallbackCtx(FSPSM_ST *g);
-
+void RSIP_KeyGeneration(FSPSM_ST *g);
 FSPSM_ST gCbInfo;
 FSPSM_ST gCbInfo_a; /* for multi testing */
 
@@ -656,7 +656,6 @@ static int rsip_rsa_test(int prnt, int keySize)
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
-    word32 out_actual_len = 0;
     byte *in = NULL;
     byte *in2 = NULL;
     byte *out= NULL;
@@ -738,6 +737,7 @@ static int rsip_rsa_SignVerify_test(int prnt, int keySize)
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
+    (void)sigSz;
 
     byte *in = NULL;
     byte *in2 = NULL;
@@ -1179,7 +1179,7 @@ int rsip_crypt_test()
     /* Generate AES sce Key */
 
     if (rsip_error_code == FSP_SUCCESS) {
-       #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+    #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
         /* set up Crypt Call back */
         Clr_CallbackCtx(&gCbInfo);
         Clr_CallbackCtx(&gCbInfo_a);
@@ -1207,40 +1207,51 @@ int rsip_crypt_test()
             devId1 = ret;
             ret = 0;
         }
-
+    #if RSA_MIN_SIZE < 1024
         if (ret == 0) {
             printf(" rsip_rsa_test(512)(this will be done"
             " by SW because RSIP doesn't support 512 bits key size.)");
+            gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 0;
             ret = rsip_rsa_test(1, 512);
             RESULT_STR(ret)
         }
-
+    #endif
+    #if RSA_MIN_SIZE <= 1024
         if (ret == 0) {
             printf(" rsip_rsa_test(1024)");
+            gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 1;
+            gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
+            gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 0;
             ret = rsip_rsa_test(1, 1024);
             RESULT_STR(ret)
         }
-
-        if (ret == 0) {
-            printf(" rsip_rsa_test(2048)");
-            ret = rsip_rsa_test(1, 2048);
-            RESULT_STR(ret)
-        }
-
         if (ret == 0) {
             gCbInfo.hash_type = RSIP_HASH_TYPE_SHA256 ;
             printf(" rsip_rsa_SignVerify_test(1024)");
             ret = rsip_rsa_SignVerify_test(1, 1024);
             RESULT_STR(ret)
         }
-
+    #endif
+        if (ret == 0) {
+            printf(" rsip_rsa_test(2048)");
+            gCbInfo.keyflgs_crypt.bits.rsapri1024_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 0;
+            gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
+            gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
+            ret = rsip_rsa_test(1, 2048);
+            RESULT_STR(ret)
+        }
         if (ret == 0 && rsip_error_code == FSP_SUCCESS) {
             printf(" rsip_rsa_SignVerify_test(2048)");
             ret = rsip_rsa_SignVerify_test(1, 2048);
             RESULT_STR(ret)
         }
 
-       #endif /* WOLFSSL_RENESAS_RSIP_CRYPTONLY */
+   #endif /* WOLFSSL_RENESAS_RSIP_CRYPTONLY */
 
    #ifndef NO_SHA256
         printf(" sha256_test()");
@@ -1293,7 +1304,7 @@ int rsip_crypt_test()
         }
 
         if (ret == 0) {
-            printf("rsip_crypt_Sha_AesCbcGcm_multitest\n");
+            printf(" multi Sha AesCbcGcm thread test\n");
             ret = rsip_crypt_Sha_AesCbcGcm_multitest();
         }
 

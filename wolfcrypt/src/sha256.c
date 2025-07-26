@@ -2303,7 +2303,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
     ((defined(WOLFSSL_RENESAS_TSIP_TLS) || \
       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) || \
-    (defined(WOLFSSL_RENESAS_SCEPROTECT) && \
+    ((defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))) && \
     !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)) || \
     defined(WOLFSSL_RENESAS_RX64_HASH) || \
     defined(WOLFSSL_HASH_KEEP)
