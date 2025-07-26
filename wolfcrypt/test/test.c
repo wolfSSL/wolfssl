@@ -52135,7 +52135,7 @@ static wc_test_ret_t pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     };
 
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
-    defined(HAVE_ECC) && defined(WOLFSSL_SHA512)
+    defined(HAVE_ECC) && defined(HAVE_X963_KDF) && defined(WOLFSSL_SHA512)
     byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
@@ -52243,7 +52243,7 @@ static wc_test_ret_t pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
 
         /* key agreement key encryption technique*/
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_X963_KDF)
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
         ADD_PKCS7ENVELOPEDVECTOR(
@@ -52751,7 +52751,7 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
         0x72,0x6c,0x64
     };
     byte senderNonce[PKCS7_NONCE_SZ + 2];
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_X963_KDF)
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
     #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
     WOLFSSL_SMALL_STACK_STATIC const byte senderNonceOid[] =
@@ -52768,7 +52768,7 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
 #endif
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && defined(HAVE_ECC) && \
-    defined(WOLFSSL_SHA512) && defined(HAVE_AESGCM)
+    defined(HAVE_X963_KDF) && defined(WOLFSSL_SHA512) && defined(HAVE_AESGCM)
     WOLFSSL_SMALL_STACK_STATIC const byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
@@ -52880,7 +52880,7 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer
 #endif
 
         /* key agreement key encryption technique*/
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_X963_KDF)
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
         ADD_PKCS7AUTHENVELOPEDVECTOR(
@@ -53394,6 +53394,236 @@ static const byte p7AltKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
 };
 
+/* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
+of wolfssl_words, placing the result in <*r>. */
+static void myXorWords(wolfssl_word** r, const wolfssl_word** a,
+                                       word32 n)
+{
+    const wolfssl_word *e = *a + n;
+
+    while (*a < e)
+        *((*r)++) ^= *((*a)++);
+}
+
+/* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
+counts, placing the result in <*buf>. */
+
+static void myxorbuf(void* buf, const void* mask, word32 count)
+{
+    byte*       b = (byte*)buf;
+    const byte* m = (const byte*)mask;
+
+    /* type-punning helpers */
+    union {
+        byte* bp;
+        wolfssl_word* wp;
+    } tpb;
+    union {
+        const byte* bp;
+        const wolfssl_word* wp;
+    } tpm;
+
+    if ((((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) == 0) &&
+        (((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)) == 0))
+    {
+        /* Both buffers are already aligned.  Possible to XOR by words without
+         * fixup.
+         */
+
+        tpb.bp = b;
+        tpm.bp = m;
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        myXorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+    else if (((wc_ptr_t)buf & (WOLFSSL_WORD_SIZE - 1)) ==
+             ((wc_ptr_t)mask & (WOLFSSL_WORD_SIZE - 1)))
+    {
+        /* Alignment can be fixed up to allow XOR by words. */
+
+        /* Perform bytewise xor until pointers are aligned to
+         * WOLFSSL_WORD_SIZE.
+         */
+        while ((((wc_ptr_t)b & (WOLFSSL_WORD_SIZE - 1)) != 0) && (count > 0))
+        {
+            *(b++) ^= *(m++);
+            count--;
+        }
+
+        tpb.bp = b;
+        tpm.bp = m;
+        /* Work around false positives from linuxkm CONFIG_FORTIFY_SOURCE. */
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_PUSH;
+            PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+        #endif
+        myXorWords(&tpb.wp, &tpm.wp, count >> WOLFSSL_WORD_SIZE_LOG2);
+        #if defined(WOLFSSL_LINUXKM) && defined(CONFIG_FORTIFY_SOURCE)
+            PRAGMA_GCC_DIAG_POP;
+        #endif
+        b = tpb.bp;
+        m = tpm.bp;
+        count &= (WOLFSSL_WORD_SIZE - 1);
+    }
+
+    while (count > 0) {
+        *b++ ^= *m++;
+        count--;
+    }
+}
+
+static void myInitKeyWrapCounter(byte* inOutCtr, word32 value)
+{
+    word32 i;
+    word32 bytes;
+
+    bytes = sizeof(word32);
+    for (i = 0; i < sizeof(word32); i++) {
+        inOutCtr[i+sizeof(word32)] = (byte)(value >> ((bytes - 1) * 8));
+        bytes--;
+    }
+}
+
+static void myDecrementKeyWrapCounter(byte* inOutCtr)
+{
+    int i;
+
+    for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
+        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
+            return;
+    }
+}
+
+static int myAesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    byte* r;
+    word32 i, n;
+    int j;
+    int ret = 0;
+
+    byte t[KEYWRAP_BLOCK_SIZE];
+    byte tmp[WC_AES_BLOCK_SIZE];
+
+    const byte* expIv;
+    const byte defaultIV[] = {
+        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
+    };
+
+    if (aes == NULL || in == NULL || inSz < 3 * KEYWRAP_BLOCK_SIZE ||
+        out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
+        return BAD_FUNC_ARG;
+
+    /* input must be multiple of 64-bits */
+    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
+        return BAD_FUNC_ARG;
+
+    /* user IV optional */
+    if (iv != NULL)
+        expIv = iv;
+    else
+        expIv = defaultIV;
+
+    /* A = C[0], R[i] = C[i] */
+    XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
+    XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
+    XMEMSET(t, 0, sizeof(t));
+
+    /* initialize counter to 6n */
+    n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
+    myInitKeyWrapCounter(t, 6 * n);
+
+    for (j = 5; j >= 0; j--) {
+        for (i = n; i >= 1; i--) {
+
+            /* calculate A */
+            myxorbuf(tmp, t, KEYWRAP_BLOCK_SIZE);
+            myDecrementKeyWrapCounter(t);
+
+            /* load R[i], starting at end of R */
+            r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
+            XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+        #if !defined(HAVE_SELFTEST) && \
+            (defined(WOLFSSL_LINUXKM) || \
+             !defined(HAVE_FIPS) || \
+             (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+            ret = wc_AesDecryptDirect(aes, tmp, tmp);
+            if (ret != 0)
+                break;
+        #else
+            wc_AesDecryptDirect(aes, tmp, tmp);
+        #endif
+
+            /* save R[i] */
+            XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+        }
+        if (ret != 0)
+            break;
+    }
+
+    if (ret != 0)
+        return ret;
+
+    /* verify IV */
+    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+        return BAD_KEYWRAP_IV_E;
+
+    return (int)(inSz - KEYWRAP_BLOCK_SIZE);
+}
+
+static int myAesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
+                    byte* out, word32 outSz, const byte* iv)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    int ret;
+
+    (void)iv;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        goto out;
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = myAesKeyUnWrap_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+
 static int myCEKwrapFunc(wc_PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
         word32 keyIdSz, byte* orginKey, word32 orginKeySz,
         byte* out, word32 outSz, int keyWrapAlgo, int type, int direction)
@@ -53418,7 +53648,7 @@ static int myCEKwrapFunc(wc_PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 
     switch (keyWrapAlgo) {
         case AES256_WRAP:
-            ret = wc_AesKeyUnWrap(p7DefKey, sizeof(p7DefKey), cek, cekSz,
+            ret = myAesKeyUnWrap(p7DefKey, sizeof(p7DefKey), cek, cekSz,
                                       out, outSz, NULL);
             if (ret <= 0)
                 return (int)ret;

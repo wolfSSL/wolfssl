@@ -532,6 +532,8 @@ int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
     number generator for encryption
     \return DRBG_FAILED Returned if there is an error generating numbers with
     the random number generator used for encryption
+    \return NOT_COMPILED_IN may be returned if using an ECC key and wolfssl was
+    built without HAVE_X963_KDF support
 
     \param pkcs7 pointer to the PKCS7 structure to encode
     \param output pointer to the buffer in which to store the encoded
@@ -573,6 +575,13 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     type, decoding the message into output. It uses the private key of the
     PKCS7 object passed in to decrypt the message.
 
+    Note that if the EnvelopedData is encrypted using an ECC key and the
+    KeyAgreementRecipientInfo structure, then either the HAVE_AES_KEYWRAP
+    build option should be enabled to enable the wolfcrypt built-in AES key
+    wrap/unwrap functionality, or a custom AES key wrap/unwrap callback should
+    be set with wc_PKCS7_SetAESKeyWrapUnwrapCb(). If neither of these is true,
+    decryption will fail.
+
     \return On successfully extracting the information from the message,
     returns the bytes written to output
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
@@ -610,6 +619,8 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     verification
     \return MP_MEM may be returned if there is an error during signature
     verification
+    \return NOT_COMPILED_IN may be returned if the EnvelopedData is encrypted
+    using an ECC key and wolfssl was built without HAVE_X963_KDF support
 
     \param pkcs7 pointer to the PKCS7 structure containing the private key with
     which to decode the enveloped data package

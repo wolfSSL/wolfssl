@@ -6843,8 +6843,12 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
                                                     out, outSz);
                 }
                 else {
+                #ifdef HAVE_AES_KEYWRAP
                     ret = wc_AesKeyWrap(kek, kekSz, cek, cekSz,
                                         out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
                 }
 
             } else if (direction == AES_DECRYPTION) {
@@ -6853,8 +6857,12 @@ static int wc_PKCS7_KeyWrap(const wc_PKCS7 * pkcs7, const byte * cek,
                                                     out, outSz);
                 }
                 else {
+                #ifdef HAVE_AES_KEYWRAP
                     ret = wc_AesKeyUnWrap(kek, kekSz, cek, cekSz,
                                           out, outSz, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
                 }
             } else {
                 WOLFSSL_MSG("Bad key un/wrap direction");
@@ -7364,16 +7372,16 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
             return BAD_FUNC_ARG;
     };
 
+#ifdef HAVE_X963_KDF
     ret = wc_X963_KDF(kdfType, secret, secretSz, kari->sharedInfo,
                       kari->sharedInfoSz, kari->kek, kari->kekSz);
-    if (ret != 0) {
-        XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-        return ret;
-    }
+#else
+    (void)kdfType;
+    ret = NOT_COMPILED_IN;
+#endif
 
     XFREE(secret, kari->heap, DYNAMIC_TYPE_PKCS7);
-
-    return 0;
+    return ret;
 }
 
 
