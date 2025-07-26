@@ -360,7 +360,7 @@
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
         /* for signal_pending() */
         #include <linux/sched/signal.h>
-        /* for sched_clock_cpu() */
+        /* for local_clock() */
         #include <linux/sched/clock.h>
     #endif
     #include <linux/random.h>
@@ -545,7 +545,6 @@
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
-        #define RESTORE_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP();
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     _Pragma("GCC diagnostic pop");
