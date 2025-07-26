@@ -372,6 +372,14 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
         __builtin_unreachable();
     }
 
+    {
+        int ret = WC_CHECK_FOR_INTR_SIGNALS();
+        if (ret)
+            return ret;
+    }
+
+    WC_RELAX_LONG_LOOP();
+
     if (flags & WC_SVR_FLAG_INHIBIT) {
         if ((preempt_count() != 0) && !may_use_simd())
             return WC_ACCEL_INHIBIT_E; /* not an error here, just a
@@ -506,6 +514,8 @@ void restore_vector_registers_x86(void)
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     migrate_enable();
     #endif
+
+    WC_RELAX_LONG_LOOP();
 
     return;
 }

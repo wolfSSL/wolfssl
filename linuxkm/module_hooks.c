@@ -198,6 +198,66 @@ WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attri
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+int wc_linuxkm_check_for_intr_signals(void) {
+    static const int intr_signals[] = WC_LINUXKM_INTR_SIGNALS;
+    if (preempt_count() != 0)
+        return 0;
+
+#if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER)
+    /* ignore signals during FIPS startup sequence -- failed alg tests cause
+     * kernel panics on FIPS kernels.
+     */
+    if (linuxkm_lkcapi_registering_now)
+        return 0;
+#endif
+    if (signal_pending(current)) {
+        int i;
+        for (i = 0;
+             i < (int)sizeof(intr_signals) / (int)sizeof(intr_signals[0]);
+             ++i)
+        {
+            if (sigismember(&current->pending.signal, intr_signals[i])) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                pr_err("INFO: wc_linuxkm_check_for_intr_signals returning "
+                       "INTERRUPTED_E on signal %d\n", intr_signals[i]);
+#endif
+                return INTERRUPTED_E;
+            }
+        }
+    }
+    return 0;
+}
+
+void wc_linuxkm_relax_long_loop(void) {
+    #if WC_LINUXKM_MAX_NS_WITHOUT_YIELD >= 0
+    if (preempt_count() == 0) {
+        #if (WC_LINUXKM_MAX_NS_WITHOUT_YIELD == 0) || !defined(CONFIG_SCHED_INFO)
+        cond_resched();
+        #else
+        /* note that local_clock() wraps a local_clock_noinstr() in a
+         * preempt_disable_notrace(), which sounds expensive but isn't --
+         * preempt_disable_notrace() is actually just a nonlocking integer
+         * increment of current_thread_info()->preempt.count, protected only by
+         * various compiler optimizer barriers.
+         */
+        u64 now = local_clock();
+        u64 current_last_arrival = current->sched_info.last_arrival;
+        s64 delta = (s64)(now - current_last_arrival);
+        if (delta > WC_LINUXKM_MAX_NS_WITHOUT_YIELD) {
+            cond_resched();
+            /* if nothing else is runnable, cond_resched() is a no-op and
+             * doesn't even update .last_arrival.  we could force update by
+             * sleeping, but there's no need.  we've been nice enough by just
+             * cond_resched()ing, and it's actually preferable to call
+             * cond_resched() frequently once computation has looped
+             * continuously for longer than WC_LINUXKM_MAX_NS_WITHOUT_YIELD.
+             */
+        }
+        #endif
+    }
+    #endif
+}
+
 #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
@@ -744,6 +804,9 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
     wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
+
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
 
     /* runtime assert that the table has no null slots after initialization. */
     {
