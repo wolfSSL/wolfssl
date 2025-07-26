@@ -1,0 +1,23 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+		 certs/mldsa/mldsa44_seed-only.der \
+		 certs/mldsa/mldsa44_priv-only.der \
+		 certs/mldsa/mldsa44_seed-priv.der \
+		 certs/mldsa/mldsa44_oqskeypair.der \
+		 certs/mldsa/mldsa44_bare-seed.der \
+		 certs/mldsa/mldsa44_bare-priv.der \
+		 certs/mldsa/mldsa65_seed-only.der \
+		 certs/mldsa/mldsa65_priv-only.der \
+		 certs/mldsa/mldsa65_seed-priv.der \
+		 certs/mldsa/mldsa65_oqskeypair.der \
+		 certs/mldsa/mldsa65_bare-seed.der \
+		 certs/mldsa/mldsa65_bare-priv.der \
+		 certs/mldsa/mldsa87_seed-only.der \
+		 certs/mldsa/mldsa87_priv-only.der \
+		 certs/mldsa/mldsa87_seed-priv.der \
+		 certs/mldsa/mldsa87_oqskeypair.der \
+		 certs/mldsa/mldsa87_bare-seed.der \
+		 certs/mldsa/mldsa87_bare-priv.der
