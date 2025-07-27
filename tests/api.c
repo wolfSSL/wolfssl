@@ -17538,6 +17538,149 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
 }
 
 
+static void myInitKeyWrapCounter(byte* inOutCtr, word32 value)
+{
+    word32 i;
+    word32 bytes;
+
+    bytes = sizeof(word32);
+    for (i = 0; i < sizeof(word32); i++) {
+        inOutCtr[i+sizeof(word32)] = (byte)(value >> ((bytes - 1) * 8));
+        bytes--;
+    }
+}
+
+static void myDecrementKeyWrapCounter(byte* inOutCtr)
+{
+    int i;
+
+    for (i = KEYWRAP_BLOCK_SIZE - 1; i >= 0; i--) {
+        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
+            return;
+    }
+}
+
+static int myAesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
+        word32 outSz, const byte* iv)
+{
+    byte* r;
+    word32 i, n;
+    int j;
+    int ret = 0;
+
+    byte t[KEYWRAP_BLOCK_SIZE];
+    byte tmp[WC_AES_BLOCK_SIZE];
+
+    const byte* expIv;
+    const byte defaultIV[] = {
+        0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
+    };
+
+    if (aes == NULL || in == NULL || inSz < 3 * KEYWRAP_BLOCK_SIZE ||
+        out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
+        return BAD_FUNC_ARG;
+
+    /* input must be multiple of 64-bits */
+    if (inSz % KEYWRAP_BLOCK_SIZE != 0)
+        return BAD_FUNC_ARG;
+
+    /* user IV optional */
+    if (iv != NULL)
+        expIv = iv;
+    else
+        expIv = defaultIV;
+
+    /* A = C[0], R[i] = C[i] */
+    XMEMCPY(tmp, in, KEYWRAP_BLOCK_SIZE);
+    XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
+    XMEMSET(t, 0, sizeof(t));
+
+    /* initialize counter to 6n */
+    n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
+    myInitKeyWrapCounter(t, 6 * n);
+
+    for (j = 5; j >= 0; j--) {
+        for (i = n; i >= 1; i--) {
+
+            /* calculate A */
+            xorbuf(tmp, t, KEYWRAP_BLOCK_SIZE);
+            myDecrementKeyWrapCounter(t);
+
+            /* load R[i], starting at end of R */
+            r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
+            XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
+        #if !defined(HAVE_SELFTEST) && \
+            (defined(WOLFSSL_LINUXKM) || \
+             !defined(HAVE_FIPS) || \
+             (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+            ret = wc_AesDecryptDirect(aes, tmp, tmp);
+            if (ret != 0)
+                break;
+        #else
+            wc_AesDecryptDirect(aes, tmp, tmp);
+        #endif
+
+            /* save R[i] */
+            XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
+        }
+        if (ret != 0)
+            break;
+    }
+
+    if (ret != 0)
+        return ret;
+
+    /* verify IV */
+    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
+        return BAD_KEYWRAP_IV_E;
+
+    return (int)(inSz - KEYWRAP_BLOCK_SIZE);
+}
+
+static int myAesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
+                    byte* out, word32 outSz, const byte* iv)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    int ret;
+
+    (void)iv;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        goto out;
+
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
+    if (ret != 0) {
+        wc_AesFree(aes);
+        goto out;
+    }
+
+    ret = myAesKeyUnWrap_ex(aes, in, inSz, out, outSz, iv);
+
+    wc_AesFree(aes);
+
+  out:
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+
 /* returns key size on success */
 static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
         word32 keyIdSz, byte* orginKey, word32 orginKeySz,
@@ -17568,7 +17711,7 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
         case AES256_WRAP:
             /* simulate setting a handle for later decryption but use key
              * as handle in the test case here */
-            ret = wc_AesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
+            ret = myAesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
                                       aesHandle, sizeof(aesHandle), NULL);
             if (ret < 0)
                 return ret;
