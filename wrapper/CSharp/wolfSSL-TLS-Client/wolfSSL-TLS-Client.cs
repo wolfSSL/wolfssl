@@ -19,15 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-// TODO WIP
-
-/* CE Not always reliably detected. Define our own WindowsCE as needed. */
-#if _WIN32_WCE || WINCE || PocketPC
-    /* WindowsCE should have been defined in the Project and user_settings.h  */
-    #if !WindowsCE
-        #define WindowsCE
-    #endif
-#endif
 
 // Optionally set explicit cipher, see CIPHER_SUITE and wolfssl.CTX_set_cipher_list()
 #define USE_SPECIFIED_CIPHER
@@ -219,11 +210,15 @@ public class wolfSSL_TLS_Client
             return;
         }
 
-        foreach (var version in new[] {
-            wolfssl.TLSV1, wolfssl.TLSV1_1, wolfssl.TLSV1_2, wolfssl.TLSV1_3
-        }) {
-            int result = wolfssl.CTX_SetMinVersion(ctx, version);
-            Console.WriteLine($"MinVersion set to {version}: {(result == wolfssl.SUCCESS ? "OK" : "Not Supported")}");
+        foreach (TLSVersion v in wolfssl.TLSVersions) {
+            int result = wolfssl.CTX_SetMinVersion(ctx, v.Value);
+            Console.Write("MinVersion set to " + v.Value.ToString() + " " + v.Name );
+            if (result == wolfssl.SUCCESS) {
+                Console.WriteLine(" OK");
+            }
+            else {
+                Console.WriteLine(" Not supported for this build configuration");
+            }
         }
 
         long opts = wolfssl.CTX_get_options(ctx);
@@ -287,7 +282,7 @@ public class wolfSSL_TLS_Client
         /* Uncomment Section to enable specific cipher suite */
 #if USE_SPECIFIED_CIPHER
         ciphers = new StringBuilder(CIPHER_SUITE);
-        if (wolfssl.CTX_set_cipher_list(ctx, ciphers) != wolfssl.SUCCESS)
+        if (wolfssl.CTX_set_cipher_list(ctx, ciphers.ToString()) != wolfssl.SUCCESS)
         {
             Console.WriteLine("ERROR CTX_set_cipher_list()");
             wolfssl.CTX_free(ctx);
@@ -311,7 +306,7 @@ public class wolfSSL_TLS_Client
                               ProtocolType.Tcp);
         try
         {
-#if WindowsCE
+#if WindowsCE || PocketPC
             IPAddress[] addresses = Dns.GetHostEntry(SERVER_NAME).AddressList;
             foreach (IPAddress addr in addresses)
             {

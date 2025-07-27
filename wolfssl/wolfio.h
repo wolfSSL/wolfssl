@@ -925,25 +925,29 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     #if defined(__WATCOMC__)
         #if defined(__OS2__) || defined(__NT__) && \
                 (NTDDI_VERSION >= NTDDI_VISTA)
-            #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+            #define XINET_PTON(a,b,c)       inet_pton((a),(b),(c))
         #else
-            #define XINET_PTON(a,b,c)   *(unsigned *)(c) = inet_addr((b))
+            #define XINET_PTON(a,b,c)       *(unsigned *)(c) = inet_addr((b))
         #endif
     #elif defined(USE_WINDOWS_API) /* Windows-friendly definition */
         #if defined(UNICODE)
             /* Use Win API Pointer to a constant wide-character string */
-            #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
+            #define XINET_PTON(a,b,c)       InetPton((a),(PCWSTR)(b),(c))
         #elif defined(__MINGW64__) && !defined(UNICODE)
-            #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
+            #define XINET_PTON(a,b,c)       InetPton((a),(b),(c))
+        #elif defined(PocketPC)
+			#define XINET_PTON(a,b,c)       InetPton((a),(PCSTR)(b),(c))
         #else
             #if (defined(_MSC_VER) && (_MSC_VER >= 1600)) || defined(_WIN32_WCE)
+				/* Visual Studio 10.0 (aka VS 2010) and newer, or CE use wide chars */
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCWSTR)(b),(c))
             #else
+				/* otherwise assume byte chars */
                 #define XINET_PTON(a,b,c)   InetPton((a),(PCSTR)(b),(c))
             #endif
         #endif
     #else
-        #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
+        #define XINET_PTON(a,b,c)           inet_pton((a),(b),(c))
     #endif
 #endif
 

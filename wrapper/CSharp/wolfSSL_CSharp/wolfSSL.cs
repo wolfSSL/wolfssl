@@ -22,12 +22,19 @@
  */
 
 
-/* CE Not always reliably detected. Define our own WindowsCE as needed. */
+/* Define our own WindowsCE as needed. */
 #if _WIN32_WCE || WINCE || PocketPC
     /* WindowsCE should have been defined in the Project and user_settings.h  */
     #if !WindowsCE
         #define WindowsCE
     #endif
+#endif
+
+/* Although PocketPC is considered a CE device, it does not require special string treatment */
+#if WindowsCE && !PocketPC
+    /* See WideCharToMultiByte:
+     * Convert Unicode/Wide Char (16-bit) to MBCS (8-bit single/multi byte) character set */
+    #define FORCE_MULTIBYTE_STRING
 #endif
 
 
@@ -38,10 +45,14 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-
+/* the mixed-case wolfSSL contains some global types, used by lowercase wolfssl */
 namespace wolfSSL
 {
     /* Some global structs for use with wolfSSL_get_alert_history */
+
+    /// <summary>
+    /// wolfSSL_get_alert_history struct
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct WOLFSSL_ALERT
     {
@@ -49,17 +60,36 @@ namespace wolfSSL
         public int level;
     }
 
+    /// <summary>
+    /// wolfSSL_get_alert_history struct
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct WOLFSSL_ALERT_HISTORY
     {
         public WOLFSSL_ALERT last_rx;
         public WOLFSSL_ALERT last_tx;
     }
-}
+
+    /// <summary>
+    ///  Helper to convert TLS enum values to text descriptions
+    /// </summary>
+    public struct TLSVersion
+    {
+        /* No StructLayout needed as this helper is not passed to wolfSSL unmanaged code */
+        public int Value;
+        public string Name;
+
+        public TLSVersion(int value, string name) {
+            Value = value;
+            Name = name;
+        }
+    }
+} /* namespace wolfSSL */
+
 
 namespace wolfSSL.CSharp
 {
-    using wolfSSL;
+    using wolfSSL; /* some global structs */
 
     public class wolfssl
     {
@@ -279,6 +309,7 @@ namespace wolfSSL.CSharp
         /// </summary>
         public static string WideCharToMultiByte(string msg)
         {
+            /* Typically only used for CE. See FORCE_MULTIBYTE_STRING */
             if (msg == null)
                 return null;
             /* Get length and round up to even for multibyte / unicode */
@@ -657,13 +688,13 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll)]
         private extern static IntPtr wolfSSL_CTX_new(IntPtr method);
         [DllImport(wolfssl_dll)]
-        private extern static int wolfssl_CTX_SetMinVersion(IntPtr ctx, int version);
+        private extern static int wolfSSL_CTX_SetMinVersion(IntPtr ctx, int version);
         [DllImport(wolfssl_dll)]
-        private extern static IntPtr wolfSSL_CTX_get_options(IntPtr ctx);
+        private extern static long wolfSSL_CTX_get_options(IntPtr ctx);
         [DllImport(wolfssl_dll)]
-        private extern static int wolfSSL_CTX_set_options(IntPtr ctx, long opt);
+        private extern static long wolfSSL_CTX_set_options(IntPtr ctx, long opt);
         [DllImport(wolfssl_dll)]
-        private extern static int wolfSSL_CTX_clear_options(IntPtr ctx, long opt);
+        private extern static long wolfSSL_CTX_clear_options(IntPtr ctx, long opt);
         [DllImport(wolfssl_dll)]
         private extern static int wolfSSL_CTX_use_certificate_file(IntPtr ctx, string file, int type);
         [DllImport(wolfssl_dll)]
@@ -724,7 +755,7 @@ namespace wolfSSL.CSharp
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_CTX_set_psk_client_callback(IntPtr ctx, psk_client_delegate psk_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_CTX_use_psk_identity_hint(IntPtr ctx, StringBuilder identity);
+        private extern static int wolfSSL_CTX_use_psk_identity_hint(IntPtr ctx, string identity);
 #endif
 
         /********************************
@@ -825,9 +856,9 @@ namespace wolfSSL.CSharp
 #else
         /* only supports full name from cipher_name[] delimited by : */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_CTX_set_cipher_list(IntPtr ctx, StringBuilder ciphers);
+        private extern static int wolfSSL_CTX_set_cipher_list(IntPtr ctx, string ciphers);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_set_cipher_list(IntPtr ssl, StringBuilder ciphers);
+        private extern static int wolfSSL_set_cipher_list(IntPtr ssl, string ciphers);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_get_ciphers(StringBuilder ciphers, int sz);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -997,6 +1028,18 @@ namespace wolfSSL.CSharp
         public static readonly int USER_CA = 1;   /* user added as trusted */
         public static readonly int CHAIN_CA = 2;  /* added to cache from trusted chain */
         public static readonly int TEMP_CA = 3;   /* Temp intermediate CA, only for use by X509_STORE */
+
+        /// <summary>
+        ///  Define TLSVersions: pseudo Key Value Pair that works on every version of VS,
+        ///  with wolfSSL values & text descriptions.
+        /// </summary>
+        public static readonly TLSVersion[] TLSVersions = new TLSVersion[] {
+            /* Ensure these are listed AFTER declarations; otherwise no error, but not values */
+            new TLSVersion(wolfssl.TLSV1,   "TLSv1.0"),
+            new TLSVersion(wolfssl.TLSV1_1, "TLSv1.1"),
+            new TLSVersion(wolfssl.TLSV1_2, "TLSv1.2"),
+            new TLSVersion(wolfssl.TLSV1_3, "TLSv1.3")
+        };
 
         private static IntPtr unwrap_ctx(IntPtr ctx)
         {
@@ -1994,11 +2037,7 @@ namespace wolfSSL.CSharp
         /// <param name="ctx">pointer to structure of ctx to set hint in</param>
         /// <param name="hint">hint to use</param>
         /// <returns>1 on success</returns>
-#if WindowsCE
         public static int CTX_use_psk_identity_hint(IntPtr ctx, string hint)
-#else
-        public static int CTX_use_psk_identity_hint(IntPtr ctx, StringBuilder hint)
-#endif
         {
             try
             {
@@ -2009,7 +2048,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_use_psk_identity_hint(local_ctx, wolfssl.WideCharToMultiByte(hint));
 #else
                 return wolfSSL_CTX_use_psk_identity_hint(local_ctx, hint);
@@ -2022,6 +2061,19 @@ namespace wolfSSL.CSharp
             }
         }
 
+#if WindowsCE
+        /* Ambiguities in marshaling (e.g. string and StringBuilder both as LPWSTR)
+         * may cause runtime errors or ambiguous match exceptions.
+         * So suffix this StringBuilder param function with '_sb' */
+        public static int CTX_use_psk_identity_hint_sb(IntPtr ctx, StringBuilder hint) {
+            return CTX_use_psk_identity_hint(ctx, hint.ToString());
+        }
+#else
+        public static int CTX_use_psk_identity_hint(IntPtr ctx, StringBuilder hint)
+        {
+            return CTX_use_psk_identity_hint(ctx, hint.ToString());
+        }
+#endif
 
         /// <summary>
         /// Set the function to use for PSK connections
@@ -2556,11 +2608,7 @@ namespace wolfSSL.CSharp
         /// <param name="ctx">CTX structure to set</param>
         /// <param name="list">List full of ciphers suites</param>
         /// <returns>1 on success</returns>
-#if WindowsCE
         public static int CTX_set_cipher_list(IntPtr ctx, string list)
-#else
-        public static int CTX_set_cipher_list(IntPtr ctx, StringBuilder list)
-#endif
         {
             try
             {
@@ -2571,7 +2619,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_set_cipher_list(local_ctx, wolfssl.WideCharToMultiByte(list));
 #else
                 return wolfSSL_CTX_set_cipher_list(local_ctx, list);
@@ -2584,6 +2632,16 @@ namespace wolfSSL.CSharp
             }
         }
 
+#if WindowsCE
+        /* Ambiguities in marshaling (e.g. string and StringBuilder both as LPWSTR) may cause runtime errors or ambiguous match exceptions. */
+        public static int CTX_set_cipher_list_cb(IntPtr ctx, StringBuilder list) {
+            return CTX_set_cipher_list(ctx, list.ToString());
+        }
+#else
+        public static int CTX_set_cipher_list(IntPtr ctx, StringBuilder list) {
+            return CTX_set_cipher_list(ctx, list.ToString());
+        }
+#endif
 
         /// <summary>
         /// Set available cipher suite in local connection
@@ -2591,11 +2649,7 @@ namespace wolfSSL.CSharp
         /// <param name="ssl">Structure to set cipher suite in</param>
         /// <param name="list">List of cipher suites</param>
         /// <returns>1 on success</returns>
-#if WindowsCE
         public static int set_cipher_list(IntPtr ssl, string list)
-#else
-        public static int set_cipher_list(IntPtr ssl, StringBuilder list)
-#endif
         {
             try
             {
@@ -2606,7 +2660,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_set_cipher_list(sslCtx, wolfssl.WideCharToMultiByte(list));
 #else
                 return wolfSSL_set_cipher_list(sslCtx, list);
@@ -2618,6 +2672,21 @@ namespace wolfSSL.CSharp
                 return FAILURE;
             }
         }
+
+#if WindowsCE
+        /* Ambiguities in marshaling (e.g. string and StringBuilder both as LPWSTR) may cause runtime errors or ambiguous match exceptions.
+         * So give the CE version a different name: /
+        public static int set_cipher_list_sb(IntPtr ctx, StringBuilder list)
+        {
+            return set_cipher_list(ssl, list.ToString());
+        }
+#else
+        /* Only non-CE versions will have the overloaded methods */
+        public static int set_cipher_list(IntPtr ssl, StringBuilder list)
+        {
+            return set_cipher_list(ssl, list.ToString());
+        }
+#endif
 
 
         /// <summary>
@@ -2774,7 +2843,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_use_certificate_file(local_ctx, wolfssl.WideCharToMultiByte(fileCert), type);
 #else
                 return wolfSSL_CTX_use_certificate_file(local_ctx, fileCert, type);
@@ -2806,7 +2875,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE && !PocketPC
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_load_verify_locations(local_ctx, wolfssl.WideCharToMultiByte(fileCert), wolfssl.WideCharToMultiByte(path));
 #else
                 return wolfSSL_CTX_load_verify_locations(local_ctx, fileCert, path);
@@ -2837,7 +2906,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_use_PrivateKey_file(local_ctx, wolfssl.WideCharToMultiByte(fileKey), type);
 #else
                 return wolfSSL_CTX_use_PrivateKey_file(local_ctx, fileKey, type);
@@ -2869,7 +2938,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_SetTmpDH_file(sslCtx, wolfssl.WideCharToMultiByte(dhparam), file_type);
 #else
                 return wolfSSL_SetTmpDH_file(sslCtx, dhparam, file_type);
@@ -2900,7 +2969,7 @@ namespace wolfSSL.CSharp
                     return FAILURE;
                 }
 
-#if WindowsCE
+#if FORCE_MULTIBYTE_STRING
                 return wolfSSL_CTX_SetTmpDH_file(local_ctx, wolfssl.WideCharToMultiByte(dhparam), file_type);
 #else
                 return wolfSSL_CTX_SetTmpDH_file(local_ctx, dhparam, file_type);

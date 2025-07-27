@@ -20,7 +20,7 @@
  */
 
 
-/* CE Not always reliably detected. Define our own WindowsCE as needed. */
+/* Define our own WindowsCE as needed. */
 #if _WIN32_WCE || WINCE || PocketPC
     /* WindowsCE should have been defined in the Project and user_settings.h  */
     #if !WindowsCE
@@ -805,6 +805,12 @@ namespace wolfSSL.CSharp
                 Console.WriteLine("This _MSC_VER: " + _MSC_VER.tostring;
 #else
                 Console.WriteLine("No _MSC_VER found");
+#endif
+
+#if _WIN32_WCE
+                Console.WriteLine("This _WIN32_WCE: " + _WIN32_WCE.tostring;
+#else
+                Console.WriteLine("No _WIN32_WCE found");
 #endif
             }
             return ret;
@@ -3400,6 +3406,9 @@ namespace wolfSSL.CSharp
         }
         /* END HASH */
 
+        /***********************************************************************
+        * Logging / Other
+        **********************************************************************/
 
         /// <summary>
         /// Get error string for wolfCrypt error codes
