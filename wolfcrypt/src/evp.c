@@ -23,7 +23,12 @@
 
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning evp.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                    "evp.c does not need to be compiled separately from ssl.c")
+        #else \
+            #warning evp.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #elif defined(WOLFCRYPT_ONLY)
 #else

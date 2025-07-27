@@ -6,6 +6,8 @@
 #error This user_settings.h header is only designed for Windows
 #endif
 
+#define WOLFSSL_USER_SETTINGS_TAG "wolfssl v5.8.0 for IDE/WIN example config"
+
 #define USE_WOLFSSL_IO
 #define HAVE_AESGCM
 #define WOLFSSL_TLS13

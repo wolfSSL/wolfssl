@@ -28,7 +28,12 @@
 
 #if !defined(WOLFSSL_BIO_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning bio.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                    "bio.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning bio.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 
