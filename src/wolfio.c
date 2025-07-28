@@ -1347,7 +1347,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     char strPort[6];
 #else
     /* use gethostbyname */
-#if !defined(WOLFSSL_USE_POPEN_HOST)
 #if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
     !defined(SINGLE_THREADED)
     HOSTENT entry_buf, *entry = NULL;
@@ -1356,7 +1355,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #else
     HOSTENT *entry;
 #endif
-#endif /* !WOLFSSL_USE_POPEN_HOST */
 #ifdef WOLFSSL_IPV6
     SOCKADDR_IN6 *sin;
 #else
@@ -1405,67 +1403,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     sockaddr_len = answer->ai_addrlen;
     XMEMCPY(&addr, answer->ai_addr, (size_t)sockaddr_len);
     freeaddrinfo(answer);
-#elif defined(WOLFSSL_USE_POPEN_HOST) && !defined(WOLFSSL_IPV6)
-    {
-        char host_ipaddr[4] = { 127, 0, 0, 1 };
-        int found = 1;
-
-        if ((XSTRNCMP(ip, "localhost", 10) != 0) &&
-            (XSTRNCMP(ip, "127.0.0.1", 10) != 0)) {
-            FILE* fp;
-            char host_out[100];
-            char cmd[100];
-
-            XSTRNCPY(cmd, "host ", 6);
-            XSTRNCAT(cmd, ip, 99 - XSTRLEN(cmd));
-            found = 0;
-            fp = popen(cmd, "r");
-            if (fp != NULL) {
-                while (fgets(host_out, sizeof(host_out), fp) != NULL) {
-                    int i;
-                    int j = 0;
-                    for (j = 0; host_out[j] != '\0'; j++) {
-                        if ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            break;
-                        }
-                    }
-                    found = (host_out[j] >= '0') && (host_out[j] <= '9');
-                    if (!found) {
-                        continue;
-                    }
-
-                    for (i = 0; i < 4; i++) {
-                        host_ipaddr[i] = atoi(host_out + j);
-                        while ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            j++;
-                        }
-                        if (host_out[j] == '.') {
-                            j++;
-                            found &= (i != 3);
-                        }
-                        else {
-                            found &= (i == 3);
-                            break;
-                        }
-                    }
-                    if (found) {
-                        break;
-                    }
-                }
-                pclose(fp);
-            }
-        }
-        if (found) {
-            sin = (SOCKADDR_IN *)&addr;
-            sin->sin_family = AF_INET;
-            sin->sin_port = XHTONS(port);
-            XMEMCPY(&sin->sin_addr.s_addr, host_ipaddr, sizeof(host_ipaddr));
-        }
-        else {
-            WOLFSSL_MSG("no addr info for responder");
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
 #else
 #if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
     !defined(SINGLE_THREADED)
