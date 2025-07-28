@@ -3004,8 +3004,13 @@ int test_wc_dilithium_der(void)
 
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
         0                     ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
+        0                     ), BAD_FUNC_ARG);
+#else
     ExpectIntGT(wc_Dilithium_PrivateKeyToDer(key , NULL,
         0                     ), 0);
+#endif
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, der ,
         0                     ), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
@@ -3015,13 +3020,23 @@ int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , der ,
         0                     ), WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
+        DILITHIUM_MAX_DER_SIZE), BAD_FUNC_ARG);
+#else
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
         DILITHIUM_MAX_DER_SIZE), privDerLen);
+#endif
 
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, 0                     ),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
+        BAD_FUNC_ARG);
+#else
     ExpectIntGT(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
         0           );
+#endif
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , 0                     ),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, DILITHIUM_MAX_DER_SIZE),
@@ -3031,8 +3046,13 @@ int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , der , 0                     ),
         WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
+        BAD_FUNC_ARG);
+#else
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
         keyDerLen);
+#endif
 
     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, NULL, NULL, 0        ),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -3081,15 +3101,25 @@ int test_wc_dilithium_der(void)
     idx = 0;
     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, len), 0);
 
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(len = wc_Dilithium_PrivateKeyToDer(key, der,
+        DILITHIUM_MAX_DER_SIZE), BAD_FUNC_ARG);
+#else
     ExpectIntEQ(len = wc_Dilithium_PrivateKeyToDer(key, der,
         DILITHIUM_MAX_DER_SIZE), privDerLen);
     idx = 0;
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
+#endif
 
+#ifndef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(len = wc_Dilithium_KeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
+        BAD_FUNC_ARG);
+#else
     ExpectIntEQ(len = wc_Dilithium_KeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
         keyDerLen);
     idx = 0;
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
+#endif
 
 
     wc_dilithium_free(key);
@@ -3097,6 +3127,8 @@ int test_wc_dilithium_der(void)
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    (void)keyDerLen;
 #endif
     return EXPECT_RESULT();
 }
@@ -16878,7 +16910,7 @@ int test_mldsa_pkcs8_export_import_wolfSSL_form(void)
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
     WOLFSSL_CTX* ctx = NULL;
     size_t i;
