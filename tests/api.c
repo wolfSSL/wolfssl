@@ -17487,7 +17487,7 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
 
 
 #if defined(HAVE_PKCS7) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
-    defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_AES_256) && defined(HAVE_AES_KEYWRAP)
 static const byte defKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -17495,6 +17495,7 @@ static const byte defKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
 };
 static byte aesHandle[32]; /* simulated hardware key handle */
+
 
 /* return 0 on success */
 static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
@@ -17585,7 +17586,8 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
             return BAD_KEYWRAP_ALG_E;
     };
 }
-#endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 */
+#endif /* HAVE_PKCS7 && !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 &&
+          HAVE_AES_KEYWRAP */
 
 
 #if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
@@ -17691,8 +17693,10 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG      rng;
 #endif
+#ifdef HAVE_AES_KEYWRAP
     word32      tempWrd32   = 0;
     byte*       tmpBytePtr = NULL;
+#endif
     const char  input[] = "Test data to encode.";
     int         i;
     int         testSz = 0;
@@ -17842,7 +17846,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, DES3b, 0, 0,
             rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
     #endif /* NO_DES3 */
-    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_KEYWRAP)
         #ifdef WOLFSSL_AES_128
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
@@ -17859,7 +17863,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
 
 #endif /* NO_RSA */
 #if defined(HAVE_ECC)
-    #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+    #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_KEYWRAP)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA,
                 AES128CBCb, AES128_WRAP, dhSinglePass_stdDH_sha1kdf_scheme,
@@ -17875,7 +17879,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
                 AES256CBCb, AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme,
                 eccCert, eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-    #endif /* NO_AES && HAVE_AES_CBC*/
+    #endif /* NO_AES && HAVE_AES_CBC && HAVE_AES_KEYWRAP */
 #endif /* END HAVE_ECC */
     }; /* END pkcs7EnvelopedVector */
 
@@ -18031,7 +18035,8 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output, 0, decoded,
         (word32)sizeof(decoded)), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Should get a return of BAD_FUNC_ARG with structure data. Order matters.*/
-#if defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if defined(HAVE_ECC) && !defined(NO_AES) && defined(HAVE_AES_CBC) && \
+    defined(HAVE_AES_KEYWRAP)
     /* only a failure for KARI test cases */
     if (pkcs7 != NULL) {
         tempWrd32 = pkcs7->singleCertSz;
@@ -18069,11 +18074,11 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         pkcs7->singleCert = tmpBytePtr;
     }
 #endif
+#ifdef HAVE_AES_KEYWRAP
     if (pkcs7 != NULL) {
         tempWrd32 = pkcs7->privateKeySz;
         pkcs7->privateKeySz = 0;
     }
-
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -18089,11 +18094,13 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
     if (pkcs7 != NULL) {
         pkcs7->privateKey = tmpBytePtr;
     }
+#endif
 
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256) && \
+    defined(HAVE_AES_KEYWRAP)
     /* test of decrypt callback with KEKRI enveloped data */
     {
         int envelopedSz = 0;
@@ -18124,7 +18131,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
     }
-#endif /* !NO_AES && WOLFSSL_AES_256 */
+#endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_256 && HAVE_AES_KEYWRAP */
 
 #ifndef NO_RSA
     XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
