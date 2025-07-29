@@ -2071,7 +2071,6 @@ enum Max_ASN {
 #else
     MAX_ENCODED_SIG_SZ  =  64,
 #endif
-    MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_LENGTH_SZ       = WOLFSSL_ASN_MAX_LENGTH_SZ, /* Max length size for DER encoding */
     MAX_SHORT_SZ        = (1 + 1 + 5), /* asn int + byte len + 5 byte length */
@@ -2127,6 +2126,8 @@ enum Max_ASN {
 #ifndef WC_MAX_BLOCK_SIZE
 #define WC_MAX_BLOCK_SIZE  128
 #endif
+
+#define MAX_SIG_SZ MAX_ENCODED_SIG_SZ
 
 #ifdef WOLFSSL_CERT_GEN
     /* Used in asn.c MakeSignature for ECC and RSA non-blocking/async */

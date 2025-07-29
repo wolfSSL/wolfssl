@@ -1386,7 +1386,7 @@ struct SignatureCtx {
 #endif
 #if !defined(NO_RSA) || !defined(NO_DSA)
     #ifdef WOLFSSL_NO_MALLOC
-    byte  sigCpy[MAX_SIG_SZ];
+    byte  sigCpy[MAX_ENCODED_SIG_SZ];
     #else
     byte* sigCpy;
     #endif
