@@ -204,7 +204,10 @@ enum ASN_Tags {
 
     /* OneAsymmetricKey Fields */
     ASN_ASYMKEY_ATTRS     = 0x00,
-    ASN_ASYMKEY_PUBKEY    = 0x01
+    ASN_ASYMKEY_PUBKEY    = 0x01,
+
+    /* PKEY Fields */
+    ASN_PKEY_SEED         = 0x00
 };
 
 /* NOTE: If ASN_UTC_TIME_SIZE or ASN_GENERALIZED_TIME_SIZE are ever modified
@@ -2727,8 +2730,9 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
 WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
-    word32 inSz, const byte** privKey, word32* privKeyLen, const byte** pubKey,
-    word32* pubKeyLen, int* inOutKeyType);
+    word32 inSz, const byte** seed, word32* seedLen, const byte** privKey,
+    word32* privKeyLen, const byte** pubKey, word32* pubKeyLen,
+    int* inOutKeyType);
 
 WOLFSSL_LOCAL int DecodeAsymKey(const byte* input, word32* inOutIdx,
     word32 inSz, byte* privKey, word32* privKeyLen, byte* pubKey,
