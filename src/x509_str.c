@@ -1466,8 +1466,11 @@ static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
         wc_InitDecodedCert(dCert, x509->derCert->buffer,
                            x509->derCert->length, NULL);
         result = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, store->cm);
-        if (result)
+        if (result) {
+            wc_FreeDecodedCert(dCert);
+            XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
             return WOLFSSL_FATAL_ERROR;
+        }
 
         result = RemoveCA(store->cm, dCert->extSubjKeyId, type);
     }
