@@ -102,3 +102,27 @@ And run the server with the `-S` flag:
 ```
 mono server.exe -S
 ```
+
+## PQC Support
+
+To enable ML-KEM / ML-DSA API, add following options.
+
+for `wolfssl` project:
+
+```
+HAVE_MLKEM
+WOLFSSL_WC_MLKEM
+WOLFSSL_HAVE_MLKEM
+WOLFSSL_DTLS_CH_FRAG
+HAVE_DILITHIUM
+WOLFSSL_WC_DILITHIUM
+WOLFSSL_SHAKE128
+WOLFSSL_SHAKE256
+```
+
+for `wolfCrypt-Test` project:
+
+```
+HAVE_MLKEM
+HAVE_MLDSA
+```
