@@ -600,7 +600,7 @@ int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
         } else {
             XMEMSET(dCert, 0, sizeof(DecodedCert));
             wc_InitDecodedCert(dCert, buff,
-                            sz, cm->heap);
+                            (word32)sz, cm->heap);
             ret = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, NULL);
             if (ret) {
                 ret = WOLFSSL_FATAL_ERROR;
