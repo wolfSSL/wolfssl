@@ -37074,7 +37074,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     allowSeed = (seed != NULL && seedLen != NULL);
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-    /* The seed can't be parsed without WOLFSSL_ASN_TEMPLATE */
+    /* The seed can't be parsed without WOLF_ASN_TEMPLATE */
     if (allowSeed) {
         return ASN_PARSE_E;
     }
