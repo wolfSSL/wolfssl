@@ -9659,6 +9659,31 @@ int dilithium_get_oid_sum(dilithium_key* key, int* keyFormat) {
 
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
+/* OCT <seed of 32 bytes> OCT <private key data of more than 256 bytes> */
+#define ALT_PRIV_DER_PREFIX       (2 + 32 + 4)
+/* SEQ [ OCT <seed of 32 bytes> OCT <private key data> ] */
+#define ALT_PRIV_DER_PREFIX_SEQ   (4 + 2 + 32 + 4)
+
+/* Get the private only key size for the ML-DSA level/parameter id.
+ *
+ * @param [in] level  Level of the ML-DSA key.
+ * @return  Private key only encoding size for key level on success.
+ * @return  0 on failure.
+ */
+static word32 dilithium_get_priv_size(int level)
+{
+    switch (level) {
+        case WC_ML_DSA_44:
+            return ML_DSA_LEVEL2_KEY_SIZE;
+        case WC_ML_DSA_65:
+            return ML_DSA_LEVEL3_KEY_SIZE;
+        case WC_ML_DSA_87:
+            return ML_DSA_LEVEL5_KEY_SIZE;
+        default:
+            return 0;
+    }
+}
+
 /* Decode the DER encoded Dilithium key.
  *
  * @param [in]      input     Array holding DER encoded data.
@@ -9683,14 +9708,11 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     dilithium_key* key, word32 inSz)
 {
     int ret = 0;
-    const byte* seed = NULL;
     const byte* privKey = NULL;
     const byte* pubKey = NULL;
-    word32 seedLen = 0;
     word32 privKeyLen = 0;
     word32 pubKeyLen = 0;
     int keyType = 0;
-    int autoKeyType = ANONk;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
@@ -9734,45 +9756,34 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
-#ifndef WOLFSSL_ASN_TEMPLATE
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
-                                   NULL, NULL,
                                    &privKey, &privKeyLen,
-                                   &pubKey, &pubKeyLen, &autoKeyType);
-#else
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
-                                   &seed, &seedLen,
-                                   &privKey, &privKeyLen,
-                                   &pubKey, &pubKeyLen, &autoKeyType);
-#endif /* WOLFSSL_ASN_TEMPLATE */
-    }
-
-    if (ret == 0) {
-        if (keyType == ANONk && autoKeyType != ANONk) {
+                                   &pubKey, &pubKeyLen, &keyType);
+        if (ret == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+            && key->params == NULL
+#endif
+        ) {
             /* Set the security level based on the decoded key. */
-            ret = mapOidToSecLevel(autoKeyType);
+            ret = mapOidToSecLevel(keyType);
             if (ret > 0) {
                 ret = wc_dilithium_set_level(key, (byte)ret);
             }
         }
-        else if (keyType != ANONk && autoKeyType != ANONk) {
-            if (keyType == autoKeyType)
+        /* If it failed to decode try alternative DER encoding. */
+        else if (ret != 0) {
+            word32 levelSize = dilithium_get_priv_size(key->level);
+            privKey = input + *inOutIdx;
+            privKeyLen = inSz - *inOutIdx;
+
+            /* Check for an alternative DER encoding. */
+            if (privKeyLen == ALT_PRIV_DER_PREFIX_SEQ + levelSize) {
+                privKey += ALT_PRIV_DER_PREFIX_SEQ;
+                privKeyLen -= ALT_PRIV_DER_PREFIX_SEQ;
                 ret = 0;
-            else
-                ret = ASN_PARSE_E;
-        }
-        else if (keyType != ANONk && autoKeyType == ANONk) {
-            ret = 0;
-        }
-        else { /* keyType == ANONk && autoKeyType == ANONk */
-            /*
-             * When decoding traditional format with not specifying a level will
-             * cause this error.
-             */
-            ret = ASN_PARSE_E;
+            }
         }
     }
-
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
@@ -9817,39 +9828,32 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
+        else {
+            word32 levelSize = dilithium_get_priv_size(key->level);
+
+            if (privKeyLen == ALT_PRIV_DER_PREFIX + levelSize) {
+                privKey += ALT_PRIV_DER_PREFIX;
+                privKeyLen -= ALT_PRIV_DER_PREFIX;
+            }
+        }
     }
 
     if (ret == 0) {
-        /* Generate a key pair if seed exists and decoded key pair is ignored */
-        if (seedLen != 0) {
-#if defined(WOLFSSL_WC_DILITHIUM)
-            if (seedLen == DILITHIUM_SEED_SZ) {
-                ret = wc_dilithium_make_key_from_seed(key, seed);
-            }
-            else {
-                ret = ASN_PARSE_E;
-            }
-#else
-            ret = NOT_COMPILED_IN;
+        /* Check whether public key data was found. */
+#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+        if (pubKeyLen == 0)
 #endif
+        {
+            /* No public key data, only import private key data. */
+            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
-        /* Check whether public key data was found. */
-        else if (pubKeyLen != 0 && privKeyLen != 0) {
+        else {
             /* Import private and public key data. */
             ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key);
         }
 #endif
-        else if (pubKeyLen == 0 && privKeyLen != 0)
-        {
-            /* No public key data, only import private key data. */
-            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
-        }
-        else {
-            /* Not a problem of ASN.1 structure, but the contents is invalid */
-            ret = ASN_PARSE_E;
-        }
     }
 
     (void)pubKey;
