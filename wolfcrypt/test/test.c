@@ -43481,6 +43481,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 #endif
 #endif
+    MlKemKey *tmpKey = NULL;
     int key_inited = 0;
     static const int testData[][4] = {
 #ifndef WOLFSSL_NO_ML_KEM
@@ -43629,6 +43630,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
         if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 #endif
+        tmpKey = wc_MlKemKey_New(testData[i][0], HEAP_HINT, INVALID_DEVID);
+        if (tmpKey == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        ret = wc_MlKemKey_Delete(tmpKey, &tmpKey);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
     }
 
     wc_FreeRng(&rng);
@@ -46865,6 +46872,7 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     int res = 0;
 #endif
+    dilithium_key* tmpKey = NULL;
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -46909,6 +46917,14 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
 #endif
 #endif
+
+    tmpKey = wc_dilithium_new(HEAP_HINT, INVALID_DEVID);
+    if (tmpKey == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_dilithium_delete(tmpKey, &tmpKey);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
     wc_dilithium_free(key);
