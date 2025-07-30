@@ -6142,6 +6142,49 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
+/* Sets the CA with the passed in subject hash
+   to the provided type. */
+int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
+{
+    Signer* current;
+    int     ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    word32  row;
+
+    WOLFSSL_MSG_EX("Setting CA to type %d", type);
+
+    if (cm == NULL || hash == NULL ||
+        type < WOLFSSL_USER_CA || type > WOLFSSL_USER_INTER) {
+        return ret;
+    }
+
+    row = HashSigner(hash);
+
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        return ret;
+    }
+    current = cm->caTable[row];
+    while (current) {
+        byte* subjectHash;
+
+    #ifndef NO_SKID
+        subjectHash = current->subjectKeyIdHash;
+    #else
+        subjectHash = current->subjectNameHash;
+    #endif
+
+        if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
+            current->type = type;
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+        current = current->next;
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    WOLFSSL_LEAVE("SetCAType", ret);
+
+    return ret;
+}
 #endif /* !NO_CERTS */
 
 

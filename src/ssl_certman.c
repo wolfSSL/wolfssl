@@ -453,7 +453,7 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-static int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+int wolfSSL_CertManagerUnloadIntermediateCertsEx(
                                 WOLFSSL_CERT_MANAGER* cm, byte type)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -544,17 +544,25 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
  *                          WOLFSSL_LOAD_FLAG_PEM_CA_ONLY,
  *                          WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR, and
  *                          WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE.
+ * @param [in] type       The CA cert's type, used in the internal CA
+                            table.  Defaults to WOLFSSL_USER_CA, passing
+                            in WOLFSSL_USER_CA = noop.  Recommended to
+                            set to WOLFSSL_USER_INTER when loading
+                            intermediate certs to allow unloading via
+                            wolfSSL_CertManagerUnloadIntermediateCertsEx.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FATAL_ERROR when cm is NULL or failed create WOLFSSL_CTX.
  * @return  Other values on loading failure.
  */
-int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
-    const unsigned char* buff, long sz, int format, int userChain, word32 flags)
+int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
+    const unsigned char* buff, long sz, int format, int userChain,
+    word32 flags, int type)
 {
     int ret = WOLFSSL_SUCCESS;
     WOLFSSL_CTX* tmp = NULL;
+    DecodedCert* dCert = NULL;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer_ex");
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer_ex2");
 
     /* Validate parameters. */
     if (cm == NULL) {
@@ -583,10 +591,59 @@ int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
         /* Clear certificate manager in WOLFSSL_CTX so it won't be freed. */
         tmp->cm = NULL;
     }
+    if (ret == WOLFSSL_SUCCESS && type != WOLFSSL_USER_CA) {
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                DYNAMIC_TYPE_DCERT);
+
+        if (dCert == NULL) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            XMEMSET(dCert, 0, sizeof(DecodedCert));
+            wc_InitDecodedCert(dCert, buff,
+                            sz, cm->heap);
+            ret = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, NULL);
+            if (ret) {
+                ret = WOLFSSL_FATAL_ERROR;
+            } else {
+                ret = SetCAType(cm, dCert->extSubjKeyId, type);
+            }
+
+            if (dCert) {
+                wc_FreeDecodedCert(dCert);
+                XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+            }
+        }
+    }
 
     /* Dispose of temporary WOLFSSL_CTX. */
     wolfSSL_CTX_free(tmp);
     return ret;
+
+}
+
+/* Load certificate/s from buffer with flags.
+ *
+ * @param [in] cm         Certificate manager.
+ * @param [in] buff       Buffer holding encoding of certificate.
+ * @param [in] sz         Length in bytes of data in buffer.
+ * @param [in] format     Format of encoding. Valid values:
+ *                          WOLFSSL_FILETYPE_ASN1, WOLFSSL_FILETYPE_PEM.
+ * @param [in] userChain  Indicates buffer holds chain of certificates.
+ * @param [in] flags      Flags to modify behaviour of loading. Valid flags:
+ *                          WOLFSSL_LOAD_FLAG_IGNORE_ERR,
+ *                          WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY,
+ *                          WOLFSSL_LOAD_FLAG_PEM_CA_ONLY,
+ *                          WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR, and
+ *                          WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FATAL_ERROR when cm is NULL or failed create WOLFSSL_CTX.
+ * @return  Other values on loading failure.
+ */
+int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
+    const unsigned char* buff, long sz, int format, int userChain, word32 flags)
+{
+    return wolfSSL_CertManagerLoadCABuffer_ex2(cm, buff, sz, format, userChain,
+        flags, WOLFSSL_USER_CA);
 }
 
 /* Load certificate/s from buffer into table.
