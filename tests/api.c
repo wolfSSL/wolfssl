@@ -18229,41 +18229,46 @@ static int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
     WC_RNG rng;
 #endif
 
-    /* Load test certs */
-    #ifdef USE_CERT_BUFFERS_256
-        ExpectNotNull(eccCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER));
-        /* Init buffer. */
-        eccCertSz = (word32)sizeof_cliecc_cert_der_256;
-        if (eccCert != NULL) {
-            XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
-        }
-        ExpectNotNull(eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER));
-        eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
-        if (eccPrivKey != NULL) {
-            XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
-        }
-    #else /* File system. */
-        ExpectTrue((certFile = XFOPEN(eccClientCert, "rb")) != XBADFILE);
-        eccCertSz = (word32)FOURK_BUF;
-        ExpectNotNull(eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER));
-        ExpectTrue((eccCertSz = (word32)XFREAD(eccCert, 1, eccCertSz,
-            certFile)) > 0);
-        if (certFile != XBADFILE) {
-            XFCLOSE(certFile);
-        }
-        ExpectTrue((keyFile = XFOPEN(eccClientKey, "rb")) != XBADFILE);
-        eccPrivKeySz = (word32)FOURK_BUF;
-        ExpectNotNull(eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER));
-        ExpectTrue((eccPrivKeySz = (word32)XFREAD(eccPrivKey, 1, eccPrivKeySz,
-            keyFile)) > 0);
-        if (keyFile != XBADFILE) {
-            XFCLOSE(keyFile);
-        }
-    #endif /* USE_CERT_BUFFERS_256 */
+#ifdef ECC_TIMING_RESISTANT
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+#endif
+
+/* Load test certs */
+#ifdef USE_CERT_BUFFERS_256
+    ExpectNotNull(eccCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    /* Init buffer. */
+    eccCertSz = (word32)sizeof_cliecc_cert_der_256;
+    if (eccCert != NULL) {
+        XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
+    }
+    ExpectNotNull(eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
+    if (eccPrivKey != NULL) {
+        XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
+    }
+#else /* File system. */
+    ExpectTrue((certFile = XFOPEN(eccClientCert, "rb")) != XBADFILE);
+    eccCertSz = (word32)FOURK_BUF;
+    ExpectNotNull(eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((eccCertSz = (word32)XFREAD(eccCert, 1, eccCertSz,
+        certFile)) > 0);
+    if (certFile != XBADFILE) {
+        XFCLOSE(certFile);
+    }
+    ExpectTrue((keyFile = XFOPEN(eccClientKey, "rb")) != XBADFILE);
+    eccPrivKeySz = (word32)FOURK_BUF;
+    ExpectNotNull(eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue((eccPrivKeySz = (word32)XFREAD(eccPrivKey, 1, eccPrivKeySz,
+        keyFile)) > 0);
+    if (keyFile != XBADFILE) {
+        XFCLOSE(keyFile);
+    }
+#endif /* USE_CERT_BUFFERS_256 */
 
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, eccCert, eccCertSz), 0);
@@ -18279,8 +18284,6 @@ static int test_wc_PKCS7_SetAESKeyWrapUnwrapCb(void)
         pkcs7->singleCert = eccCert;
         pkcs7->singleCertSz = (word32)eccCertSz;
 #ifdef ECC_TIMING_RESISTANT
-        XMEMSET(&rng, 0, sizeof(WC_RNG));
-        ExpectIntEQ(wc_InitRng(&rng), 0);
         pkcs7->rng = &rng;
 #endif
     }
