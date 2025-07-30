@@ -49521,11 +49521,11 @@ static int test_tls13_apis(void)
     #endif
 #else
     #ifndef WOLFSSL_NO_KYBER512
-            ":P256_ML_KEM_512"
+            ":SecP256r1MLKEM512"
     #elif !defined(WOLFSSL_NO_KYBER768)
-            ":P256_ML_KEM_768"
+            ":SecP384r1MLKEM768"
     #else
-            ":P256_ML_KEM_1024"
+            ":SecP521r1MLKEM1024"
     #endif
 #endif
 #endif
