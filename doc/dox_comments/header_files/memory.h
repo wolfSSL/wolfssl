@@ -442,7 +442,7 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned in
 
     // load in memory for use with custom bucket sizes
 
-    ret = wc_LoadStaticMemory_ex(&hint, memory, memorySz, flag, 0, 
+    ret = wc_LoadStaticMemory_ex(&hint, memory, memorySz, flag, 0,
                                  bucket_sizes, bucket_count);
     if (ret != SSL_SUCCESS) {
         // handle error case
@@ -543,7 +543,7 @@ WOLFSSL_HEAP_HINT* wolfSSL_GetGlobalHeapHint(void);
     static void debug_memory_cb(const char* func, const char* file, int line,
                                 void* ptr, size_t size, int type)
     {
-        printf("Memory %s: %s:%d ptr=%p size=%zu type=%d\n", 
+        printf("Memory %s: %s:%d ptr=%p size=%zu type=%d\n",
                func, file, line, ptr, size, type);
     }
     ...
