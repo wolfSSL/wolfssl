@@ -37583,11 +37583,6 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-    if (privKeyLen >= 128 || pubKeyLen >= 128) {
-        /* privKeyLen and pubKeyLen are assumed to be less than 128 */
-        return BAD_FUNC_ARG;
-    }
-
     /* calculate size */
     if (pubKey) {
         pubSz = 2 + pubKeyLen;
