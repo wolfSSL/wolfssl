@@ -16513,7 +16513,7 @@ static int ValidateGmtime(struct tm* inTime)
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && (defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7))
 /* Set current time string, either UTC or GeneralizedTime.
- * (void*) tm should be a pointer to time_t, output is placed in buf.
+ * (void*) currTime should be a pointer to time_t, output is placed in buf.
  *
  * Return time string length placed in buf on success, negative on error */
 int GetAsnTimeString(void* currTime, byte* buf, word32 len)
