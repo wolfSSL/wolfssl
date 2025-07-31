@@ -1356,6 +1356,15 @@ then
         test "$enable_aessiv" = "" && enable_aessiv=yes
         test "$enable_aeseax" = "" && enable_aeseax=yes
 
+        test "$enable_kyber" = "" && test "$enable_mlkem" = "" && enable_mlkem=yes
+        test "$enable_lms" = "" && enable_lms='yes,sha256-192'
+        test "$enable_xmss" = "" && enable_xmss=yes
+
+        if test "$ENABLED_EXPERIMENTAL" = "yes"
+        then
+            test "$enable_dilithium" = "" && enable_dilithium=yes
+        fi
+
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
             test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
