@@ -6173,7 +6173,7 @@ int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
     #endif
 
         if (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0) {
-            current->type = type;
+            current->type = (byte)type;
             ret = WOLFSSL_SUCCESS;
             break;
         }
