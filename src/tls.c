@@ -5285,14 +5285,16 @@ static int tlsx_ffdhe_find_group(WOLFSSL* ssl, SupportedCurve* clientGroup,
             if (serverGroup->name != group->name)
                 continue;
 
-            wc_DhGetNamedKeyParamSize(serverGroup->name, &p_len, NULL, NULL);
-            if (p_len == 0) {
-                ret = BAD_FUNC_ARG;
-                break;
-            }
-            if (p_len >= ssl->options.minDhKeySz &&
-                                             p_len <= ssl->options.maxDhKeySz) {
-                break;
+            ret = wc_DhGetNamedKeyParamSize(serverGroup->name, &p_len, NULL, NULL);
+            if (ret == 0) {
+                if (p_len == 0) {
+                    ret = BAD_FUNC_ARG;
+                    break;
+                }
+                if (p_len >= ssl->options.minDhKeySz &&
+                                                p_len <= ssl->options.maxDhKeySz) {
+                    break;
+                }
             }
         }
 
