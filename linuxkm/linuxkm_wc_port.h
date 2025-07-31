@@ -135,6 +135,10 @@
     #endif
     extern void wc_linuxkm_relax_long_loop(void);
 
+    enum wc_svr_flags {
+        WC_SVR_FLAG_INHIBIT = 1,
+    };
+
     #ifdef BUILDING_WOLFSSL
 
     #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
@@ -452,10 +456,6 @@
 
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
         defined(CONFIG_X86)
-
-        enum wc_svr_flags {
-            WC_SVR_FLAG_INHIBIT = 1,
-        };
 
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
@@ -1179,6 +1179,28 @@
 
     #endif /* BUILDING_WOLFSSL */
 
+    #if !defined(BUILDING_WOLFSSL)
+        /* some caller code needs these. */
+        #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+            #ifdef CONFIG_X86
+                extern __must_check int save_vector_registers_x86(enum wc_svr_flags flags);
+                #ifndef DISABLE_VECTOR_REGISTERS
+                    #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+                #endif
+                #ifndef REENABLE_VECTOR_REGISTERS
+                    #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
+                #endif
+            #endif /* CONFIG_X86 */
+        #else /* !WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
+            #ifndef DISABLE_VECTOR_REGISTERS
+                #define DISABLE_VECTOR_REGISTERS() NOT_COMPILED_IN
+            #endif
+            #ifndef REENABLE_VECTOR_REGISTERS
+                #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
+            #endif
+        #endif
+    #endif /* !BUILDING_WOLFSSL */
+
     /* Copied from wc_port.h: For FIPS keep the function names the same */
     #ifdef HAVE_FIPS
     #define wc_InitMutex   InitMutex
@@ -1232,6 +1254,12 @@
             return 0;
         }
     #else
+        /* if BUILDING_WOLFSSL, spinlock.h will have already been included
+         * recursively above, with the bevy of warnings suppressed, and the
+         * below include will be a redundant no-op.
+         */
+        #include <linux/spinlock.h>
+
         typedef struct wolfSSL_Mutex {
             spinlock_t lock;
             unsigned long irq_flags;

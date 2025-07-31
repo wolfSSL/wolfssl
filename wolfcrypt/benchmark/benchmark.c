@@ -2543,6 +2543,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 
     total = current_time(0) - start;
 
+    WC_RELAX_LONG_LOOP();
+
 #if defined(WOLFSSL_ESPIDF) && defined(DEBUG_WOLFSSL_BENCHMARK_TIMING)
     ESP_LOGI(TAG, "%s total_cycles = %llu", desc, total_cycles);
 #endif
@@ -2772,6 +2774,8 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     XMEMSET(msg, 0, sizeof(msg));
 
     total = current_time(0) - start;
+
+    WC_RELAX_LONG_LOOP();
 
 #ifdef LINUX_RUSAGE_UTIME
     check_for_excessive_stime(algo, strength, desc, desc_extra);
@@ -5010,7 +5014,13 @@ static void bench_aesecb_internal(int useDeviceID,
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
+                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    ret = wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
+                    if (ret != 0)
+                        goto exit_aes_enc;
+                    #else
                     wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
+                    #endif
                 #else
                     wc_AesEcbEncrypt(enc[i], bench_cipher, bench_plain,
                         benchSz);
@@ -5061,7 +5071,13 @@ exit_aes_enc:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
+                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    ret = wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
+                    if (ret != 0)
+                        goto exit_aes_dec;
+                    #else
                     wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
+                    #endif
                 #else
                     wc_AesEcbDecrypt(enc[i], bench_plain, bench_cipher,
                         benchSz);
