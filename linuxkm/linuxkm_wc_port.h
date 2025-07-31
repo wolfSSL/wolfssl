@@ -139,6 +139,33 @@
         WC_SVR_FLAG_INHIBIT = 1,
     };
 
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
+        defined(WOLFSSL_SP_X86_64_ASM)
+        #ifndef CONFIG_X86
+            #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
+        #endif
+        #define WOLFSSL_LINUXKM_SIMD
+        #define WOLFSSL_LINUXKM_SIMD_X86
+        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+        #endif
+    #elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
+          defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) ||\
+          defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
+        #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
+            #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
+        #endif
+        #define WOLFSSL_LINUXKM_SIMD
+        #define WOLFSSL_LINUXKM_SIMD_ARM
+        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+        #endif
+    #else
+        #ifndef WOLFSSL_NO_ASM
+            #define WOLFSSL_NO_ASM
+        #endif
+    #endif
+
     #ifdef BUILDING_WOLFSSL
 
     #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
@@ -412,33 +439,6 @@
         #endif /* !__PIE__ */
     #endif /* LINUXKM_LKCAPI_REGISTER */
 
-    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || \
-        defined(WOLFSSL_SP_X86_64_ASM)
-        #ifndef CONFIG_X86
-            #error X86 SIMD extensions requested, but CONFIG_X86 is not set.
-        #endif
-        #define WOLFSSL_LINUXKM_SIMD
-        #define WOLFSSL_LINUXKM_SIMD_X86
-        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-        #endif
-    #elif defined(WOLFSSL_ARMASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
-          defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM_THUMB_ASM) ||\
-          defined(WOLFSSL_SP_ARM_CORTEX_M_ASM)
-        #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
-            #error ARM SIMD extensions requested, but CONFIG_ARM* is not set.
-        #endif
-        #define WOLFSSL_LINUXKM_SIMD
-        #define WOLFSSL_LINUXKM_SIMD_ARM
-        #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-            #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-        #endif
-    #else
-        #ifndef WOLFSSL_NO_ASM
-            #define WOLFSSL_NO_ASM
-        #endif
-    #endif
-
     #ifndef WC_CHECK_FOR_INTR_SIGNALS
         #define WC_CHECK_FOR_INTR_SIGNALS() wc_linuxkm_check_for_intr_signals()
     #endif
@@ -459,9 +459,9 @@
 
         extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
-        extern __must_check int can_save_vector_registers_x86(void);
-        extern __must_check int save_vector_registers_x86(enum wc_svr_flags flags);
-        extern void restore_vector_registers_x86(void);
+        WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
+        WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
+        WOLFSSL_API void wc_restore_vector_registers_x86(void);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
@@ -471,14 +471,14 @@
         #endif
         #ifndef CAN_SAVE_VECTOR_REGISTERS
             #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
-                #define CAN_SAVE_VECTOR_REGISTERS() (can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
+                #define CAN_SAVE_VECTOR_REGISTERS() (wc_can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
             #else
-                #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_x86()
+                #define CAN_SAVE_VECTOR_REGISTERS() wc_can_save_vector_registers_x86()
             #endif
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
-                int _svr_ret = save_vector_registers_x86(0); \
+                int _svr_ret = wc_save_vector_registers_x86(0); \
                 if (_svr_ret != 0) {                         \
                     fail_clause                              \
                 }                                            \
@@ -489,22 +489,22 @@
                 #define SAVE_VECTOR_REGISTERS2() ({                    \
                     int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
                     (_fuzzer_ret == 0) ?                               \
-                     save_vector_registers_x86(0) :                    \
+                     wc_save_vector_registers_x86(0) :                    \
                      _fuzzer_ret;                                      \
                 })
             #else
-                #define SAVE_VECTOR_REGISTERS2() save_vector_registers_x86(0)
+                #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(0)
             #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
+            #define RESTORE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
         #endif
 
         #ifndef DISABLE_VECTOR_REGISTERS
-            #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+            #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
-            #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
+            #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
         #endif
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
@@ -544,7 +544,7 @@
         #endif
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
-        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     _Pragma("GCC diagnostic pop");
@@ -765,12 +765,12 @@
 
             #ifdef CONFIG_X86
                 typeof(allocate_wolfcrypt_linuxkm_fpu_states) *allocate_wolfcrypt_linuxkm_fpu_states;
-                typeof(can_save_vector_registers_x86) *can_save_vector_registers_x86;
+                typeof(wc_can_save_vector_registers_x86) *wc_can_save_vector_registers_x86;
                 typeof(free_wolfcrypt_linuxkm_fpu_states) *free_wolfcrypt_linuxkm_fpu_states;
-                typeof(restore_vector_registers_x86) *restore_vector_registers_x86;
-                typeof(save_vector_registers_x86) *save_vector_registers_x86;
+                typeof(wc_restore_vector_registers_x86) *wc_restore_vector_registers_x86;
+                typeof(wc_save_vector_registers_x86) *wc_save_vector_registers_x86;
             #else /* !CONFIG_X86 */
-                #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+                #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
             #endif /* arch */
 
         #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
@@ -1046,12 +1046,12 @@
 
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
         #define allocate_wolfcrypt_linuxkm_fpu_states WC_LKM_INDIRECT_SYM(allocate_wolfcrypt_linuxkm_fpu_states)
-        #define can_save_vector_registers_x86 WC_LKM_INDIRECT_SYM(can_save_vector_registers_x86)
+        #define wc_can_save_vector_registers_x86 WC_LKM_INDIRECT_SYM(wc_can_save_vector_registers_x86)
         #define free_wolfcrypt_linuxkm_fpu_states WC_LKM_INDIRECT_SYM(free_wolfcrypt_linuxkm_fpu_states)
-        #define restore_vector_registers_x86 WC_LKM_INDIRECT_SYM(restore_vector_registers_x86)
-        #define save_vector_registers_x86 WC_LKM_INDIRECT_SYM(save_vector_registers_x86)
+        #define wc_restore_vector_registers_x86 WC_LKM_INDIRECT_SYM(wc_restore_vector_registers_x86)
+        #define wc_save_vector_registers_x86 WC_LKM_INDIRECT_SYM(wc_save_vector_registers_x86)
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
-        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     #define __mutex_init WC_LKM_INDIRECT_SYM(__mutex_init)
@@ -1182,23 +1182,20 @@
     #if !defined(BUILDING_WOLFSSL)
         /* some caller code needs these. */
         #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
-            #ifdef CONFIG_X86
-                extern __must_check int save_vector_registers_x86(enum wc_svr_flags flags);
+            #if defined(CONFIG_X86)
+                WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
+                WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
+                WOLFSSL_API void wc_restore_vector_registers_x86(void);
                 #ifndef DISABLE_VECTOR_REGISTERS
-                    #define DISABLE_VECTOR_REGISTERS() save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
+                    #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
                 #ifndef REENABLE_VECTOR_REGISTERS
-                    #define REENABLE_VECTOR_REGISTERS() restore_vector_registers_x86()
+                    #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
                 #endif
-            #endif /* CONFIG_X86 */
-        #else /* !WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
-            #ifndef DISABLE_VECTOR_REGISTERS
-                #define DISABLE_VECTOR_REGISTERS() NOT_COMPILED_IN
-            #endif
-            #ifndef REENABLE_VECTOR_REGISTERS
-                #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
-            #endif
-        #endif
+            #else /* !CONFIG_X86 */
+                #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
+            #endif /* !CONFIG_X86 */
+        #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
     #endif /* !BUILDING_WOLFSSL */
 
     /* Copied from wc_port.h: For FIPS keep the function names the same */
