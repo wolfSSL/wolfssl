@@ -403,6 +403,7 @@
         sha->digest[4] = 0xC3D2E1F0L;
 
         sha->buffLen = 0;
+        XMEMSET(sha->buffer, 0, sizeof(sha->buffer));
         sha->loLen   = 0;
         sha->hiLen   = 0;
     #ifdef WOLFSSL_HASH_FLAGS
