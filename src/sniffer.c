@@ -6496,8 +6496,8 @@ doPart:
             return WOLFSSL_FATAL_ERROR;
     }
 
-    /* do we have another msg in record ? */
-    if (sslFrame < recordEnd) {
+    /* do we have another msg in record ? did we decode the current msg ? */
+    if (sslFrame < recordEnd && decoded) {
         Trace(ANOTHER_MSG_STR);
         goto doPart;
     }
