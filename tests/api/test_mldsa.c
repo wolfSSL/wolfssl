@@ -16859,7 +16859,6 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
     size_t pemMaxSz = ML_DSA_LEVEL5_BOTH_KEY_PEM_SIZE;
     size_t pemSz = 0;
 #endif /* WOLFSSL_DER_TO_PEM */
-    int expect = 0;
 
     ExpectNotNull(der = (byte*) XMALLOC(derMaxSz, NULL,
         DYNAMIC_TYPE_TMP_BUFFER));
@@ -16880,20 +16879,31 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
         ExpectIntEQ(XFCLOSE(fp), 0);
 
         /* DER */
-        expect = ossl_form[i].p8_nolv ? WOLFSSL_SUCCESS : WOLFSSL_BAD_FILE;
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
-            WOLFSSL_FILETYPE_ASN1), expect);
+        if (ossl_form[i].p8_nolv) {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_BAD_FILE);
+        }
 
 #ifdef WOLFSSL_DER_TO_PEM
         /* PEM */
         ExpectIntGT(pemSz = wc_DerToPem(der, (word32)derSz, pem,
             (word32)pemMaxSz, PKCS8_PRIVATEKEY_TYPE), 0);
-        expect = ossl_form[i].p8_nolv ? WOLFSSL_SUCCESS : ASN_PARSE_E;
-        ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, pem, pemSz,
-            WOLFSSL_FILETYPE_PEM), expect);
+        if (ossl_form[i].p8_nolv) {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, pem, pemSz,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+        }
+        else {
+            ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, pem, pemSz,
+                WOLFSSL_FILETYPE_PEM), ASN_PARSE_E);
+        }
 #endif /* WOLFSSL_DER_TO_PEM */
     }
 
+    wolfSSL_CTX_free(ctx);
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_DER_TO_PEM
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
