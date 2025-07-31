@@ -304,7 +304,7 @@ endif
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
-$(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
+$(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS) $(obj)/linuxkm/module_hooks.o
 	@cp $< $@ || exit $$?
 	if [[ "$${VERSION}" -gt 6 || ("$${VERSION}" -eq 6 && "$${PATCHLEVEL}" -ge 13) ]]; then
 	    # use ASCII octal escape to avoid syntax disruption in the awk script.
@@ -312,7 +312,7 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 	else
 	    ns='WOLFSSL'
 	fi
-	$(READELF) --symbols --wide $(WOLFSSL_OBJ_TARGETS) |
+	$(READELF) --symbols --wide $(filter %.o,$^) |
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {

@@ -980,6 +980,9 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
             if (ctx->rngs[i].lock != 0) {
                 /* better to leak than to crash. */
                 pr_err("BUG: wc_linuxkm_drbg_ctx_clear called with DRBG #%d still locked.", i);
+                ctx->rngs = NULL;
+                ctx->n_rngs = 0;
+                return;
             }
             else
                 wc_FreeRng(&ctx->rngs[i].rng);

@@ -672,10 +672,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
-    wolfssl_linuxkm_pie_redirect_table.can_save_vector_registers_x86 = can_save_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
-    wolfssl_linuxkm_pie_redirect_table.restore_vector_registers_x86 = restore_vector_registers_x86;
-    wolfssl_linuxkm_pie_redirect_table.save_vector_registers_x86 = save_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.wc_restore_vector_registers_x86 = wc_restore_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.wc_save_vector_registers_x86 = wc_save_vector_registers_x86;
 #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
     #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
 #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
