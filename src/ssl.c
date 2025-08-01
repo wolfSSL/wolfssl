@@ -5869,7 +5869,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #endif
     DerBuffer*   der = *pDer;
 
-    WOLFSSL_MSG_CERT("Adding a CA");
+    WOLFSSL_MSG_CERT_LOG("Adding a CA");
 
     if (cm == NULL) {
         FreeDer(pDer);
@@ -5893,9 +5893,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     }
 #endif
 
-#ifdef WOLFSSL_DEBUG_CERTS
     WOLFSSL_MSG_CERT("\tParsing new CA");
-#endif
     ret = ParseCert(cert, CA_TYPE, verify, cm);
 
     WOLFSSL_MSG("\tParsed new CA");
@@ -5941,11 +5939,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 if (cm->minRsaKeySz < 0 ||
                                    cert->pubKeySize < (word16)cm->minRsaKeySz) {
                     ret = RSA_KEY_SIZE_E;
-                #ifdef WOLFSSL_DEBUG_CERTS
-                    WOLFSSL_MSG_CERT_EX("\tCA RSA key size error: pubKeySize = %d;"
-                                                            " minRsaKeySz = %d",
+                    WOLFSSL_MSG_CERT_LOG("\tCA RSA key size error");
+                    WOLFSSL_MSG_CERT_EX("\tCA RSA pubKeySize = %d; "
+                                                "minRsaKeySz = %d",
                                    cert->pubKeySize, cm->minRsaKeySz);
-                #endif
                 }
                 break;
         #endif /* !NO_RSA */
@@ -5954,11 +5951,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 if (cm->minEccKeySz < 0 ||
                                    cert->pubKeySize < (word16)cm->minEccKeySz) {
                     ret = ECC_KEY_SIZE_E;
-                #ifdef WOLFSSL_DEBUG_CERTS
-                    WOLFSSL_MSG_CERT_EX("\tCA ECC key size error: pubKeySize "
-                                        "= %d; minEccKeySz = %d",
+                    WOLFSSL_MSG_CERT_LOG("\tCA ECC key size error");
+                    WOLFSSL_MSG_CERT_EX("\tCA ECC pubKeySize = %d; "
+                                                 "minEccKeySz = %d",
                                    cert->pubKeySize, cm->minEccKeySz);
-                #endif
                 }
                 break;
             #endif /* HAVE_ECC */

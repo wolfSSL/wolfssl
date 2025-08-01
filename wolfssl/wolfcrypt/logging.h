@@ -42,10 +42,6 @@
  * WOLFSSL_DEBUG_PRINTF_FN(...)
  *  A buffer-less, non-truncating debug message renderer.
  *
- * WOLFSSL_MSG_BUF_SZ
- *   Used by WOLFSSL_MSG
- *   Re-definable macro: maximum length of WOLFSSL_MSG debugging messages.
- *
  * WOLFSSL_MSG_EX_BUF_SZ
  *   Re-definable macro: maximum length of WOLFSSL_MSG_EX debugging messages.
  *
@@ -70,6 +66,11 @@
  *
  * WOLFSSL_MSG_CERT
  *   Single message parameter. Works everywhere.
+ *   Print only during WOLFSSL_DEBUG_CERTS
+ *
+ * WOLFSSL_MSG_CERT_LOG
+ *   Single message parameter. Works everywhere.
+ *   Print during either DEBUG_WOLFSSL or WOLFSSL_DEBUG_CERTS
  *
  * WOLFSSL_MSG_CERT_EX
  *   Variable number of parameters. Should be supported nearly everywhere.
@@ -372,6 +373,20 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_MSG(m)            WC_DO_NOTHING
     #define WOLFSSL_BUFFER(b, l)      WC_DO_NOTHING
 #endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
+
+/* A special case of certificate-related debug AND regular debug.
+ * WOLFSSL_MSG_CERT_LOG will always print during DEBUG_WOLFSSL
+ * even if cert debugging disabled with NO_WOLFSSL_DEBUG_CERTS.
+ *
+ * WOLFSSL_MSG_CERT_LOG will also print during WOLFSSL_DEBUG_CERTS
+ * even if standard DEBUG_WOLFSSL is not enabled. */
+#if defined(DEBUG_WOLFSSL)
+    #define WOLFSSL_MSG_CERT_LOG(msg) WOLFSSL_MSG(msg)
+#elif defined(WOLFSSL_DEBUG_CERTS)
+    #define WOLFSSL_MSG_CERT_LOG(msg) WOLFSSL_MSG_CERT(msg)
+#else
+    #define WOLFSSL_MSG_CERT_LOG(msg) WC_DO_NOTHING
+#endif
 
 /* WOLFSSL_ERROR and WOLFSSL_HAVE_ERROR_QUEUE */
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\

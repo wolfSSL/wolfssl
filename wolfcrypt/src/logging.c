@@ -359,7 +359,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     #include <stdarg.h> /* for var args */
 
     #ifndef WOLFSSL_MSG_CERT_BUF_SZ
-        #define WOLFSSL_MSG_CERT_BUF_SZ 100
+        #define WOLFSSL_MSG_CERT_BUF_SZ 140
     #endif
 
     int WOLFSSL_MSG_CERT(const char* msg)
@@ -383,7 +383,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     #ifdef WOLFSSL_SMALL_STACK
         char*  msg;
         msg = (char*)XMALLOC(WOLFSSL_MSG_CERT_BUF_SZ, NULL,
-                             DYNAMIC_TYPE_OUT_BUFFER);
+                             DYNAMIC_TYPE_TMP_BUFFER);
         if (msg == NULL) {
             return MEMORY_E;
         }
@@ -400,7 +400,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
             wolfssl_log(INFO_LOG, NULL, 0, msg);
         }
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(msg, NULL, DYNAMIC_TYPE_OUT_BUFFER);
+    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return 0;
     } /* WOLFSSL_MSG_CERT_EX */
@@ -473,7 +473,7 @@ void WOLFSSL_MSG_EX2(const char *file, int line, const char* fmt, ...)
 #else
     /* We need a do-nothing function when variadic macros not available */
     #ifdef WOLF_NO_VARIADIC_MACROS
-
+        /* See header for same-name, do nothing functions */
     #else
         /* See header for same-name, do nothing macros */
     #endif

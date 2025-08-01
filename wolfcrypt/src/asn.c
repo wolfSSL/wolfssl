@@ -25805,7 +25805,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
         else {
             /* no signer */
-            WOLFSSL_MSG_CERT("No CA signer to verify with");
+            WOLFSSL_MSG_CERT_LOG("No CA signer to verify with");
             /* If you end up here with error -188,
              * consider using WOLFSSL_ALT_CERT_CHAINS. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -25832,7 +25832,7 @@ exit_pcr:
         if (verify != VERIFY_SKIP_DATE) {
             return cert->badDate;
         }
-        WOLFSSL_MSG_CERT("Date error: Verify option is skipping");
+        WOLFSSL_MSG_CERT_LOG("Date error: Verify option is skipping");
     }
 
     if (cert->criticalExt != 0)

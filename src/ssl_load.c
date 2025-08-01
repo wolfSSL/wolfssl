@@ -2724,7 +2724,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         &sz);
     if ((ret == 0) && (type == DETECT_CERT_TYPE) &&
             (format != WOLFSSL_FILETYPE_PEM)) {
-        WOLFSSL_MSG_CERT("Cannot detect certificate type when not PEM");
+        WOLFSSL_MSG_CERT_LOG("Cannot detect certificate type when not PEM");
         ret = WOLFSSL_BAD_CERTTYPE;
     }
     /* Try to detect type by parsing cert header and footer. */
@@ -2763,7 +2763,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #endif /* !NO_CODING && !WOLFSSL_NO_PEM */
         {
             /* Not a header that we support. */
-            WOLFSSL_MSG_CERT("Failed to detect certificate type");
+            WOLFSSL_MSG_CERT_LOG("Failed to detect certificate type");
             WOLFSSL_DEBUG_PRINTF(
                 "ERROR: ProcessFile: Failed to detect certificate type"
                 " of \"%s\"\n",

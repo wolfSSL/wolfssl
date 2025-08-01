@@ -356,8 +356,8 @@
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
-/* Ensure WOLFSSL_DEBUG_CERTS is always set when WOLFSSL_DEBUG is enabled */
-#ifdef WOLFSSL_DEBUG
+/* Ensure WOLFSSL_DEBUG_CERTS is always set when DEBUG_WOLFSSL is enabled */
+#ifdef DEBUG_WOLFSSL
     #undef  WOLFSSL_DEBUG_CERTS
     #define WOLFSSL_DEBUG_CERTS
 #endif

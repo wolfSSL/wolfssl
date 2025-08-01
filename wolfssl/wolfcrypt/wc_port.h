@@ -91,6 +91,7 @@
           defined(__clang__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
     #elif defined(__WATCOMC__)
+          /* Watcom macro needs to expand to something, here just a comment: */
           #define WC_DEPRECATED(msg) /* null expansion */
     #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
           defined(_WIN32_WCE)
