@@ -7,6 +7,7 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/.project
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/rzn2l_tst_thread_entry.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/wolfssl_dummy.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/local_system_init.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/test/wolf_client.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/test/wolf_server.c
 EXTRA_DIST+= IDE/Renesas/e2studio/RZN2L/test/src/test/wolfssl_rsip_unit_test.c

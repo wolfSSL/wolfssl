@@ -1020,7 +1020,7 @@ int sce_crypt_AesCbc_multitest(int devId)
     info_aes2.devId = devId;
     info_aes256_1.devId = devId;
     info_aes256_2.devId = devId;
-    
+
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
                                             sizeof(sce_aes_wrapped_key_t));

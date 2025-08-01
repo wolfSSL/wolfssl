@@ -1319,7 +1319,7 @@ int rsip_crypt_test()
         }
 
     #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
-        /* 
+        /*
          * Need to be cleaned up before context clear
          * for internal instance
          */

@@ -171,7 +171,6 @@ void Clr_CallbackCtx(FSPSM_ST *g)
     if (g->wrapped_key_rsapub2048 != NULL)
         g->wrapped_key_rsapub2048 = NULL;
    #endif
-   
 }
 #endif
 
