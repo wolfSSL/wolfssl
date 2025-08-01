@@ -159,6 +159,8 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
     (--enable-staticmemory). It gives the optimum buffer size for memory
     “buckets”. This allows for a way to compute buffer size so that no
     extra unused memory is left at the end after it has been partitioned.
+    For the none _ex version of this function the default bucket and
+    distribution list set during compile time is used.
     The returned value, if positive, is the computed buffer size to use.
 
     \return Success On successfully completing buffer size calculations a
@@ -174,6 +176,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
     byte buffer[1000];
     word32 size = sizeof(buffer);
     int optimum;
+
     optimum = wolfSSL_StaticBufferSz(buffer, size, WOLFMEM_GENERAL);
     if (optimum < 0) { //handle error case }
     printf(“The optimum buffer size to make use of all memory is %d\n”,
@@ -615,10 +618,13 @@ int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
 
     _Example_
     \code
-    word16 bucket_sizes[] = {64, 128, 256, 512, 1024};
-    int bucket_count = 5;
+    word32 sizeList[] = {64, 128, 256, 512, 1024};
+    word32 distList[] = {1, 2, 1, 1, 1};
+    int listSz = 5;
     int optimum;
-    optimum = wolfSSL_StaticBufferSz_ex(bucket_sizes, bucket_count, WOLFMEM_GENERAL);
+
+    optimum = wolfSSL_StaticBufferSz_ex(listSz, sizeList, distList, NULL, 0,
+        WOLFMEM_GENERAL);
     if (optimum < 0) { //handle error case }
     printf("The optimum buffer size with custom buckets is %d\n", optimum);
     ...
@@ -627,4 +633,7 @@ int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
     \sa wolfSSL_StaticBufferSz
     \sa wc_LoadStaticMemory_ex
 */
-int wolfSSL_StaticBufferSz_ex(word16* bucket_sizes, int bucket_count, int flag);
+int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
+            const word32 *sizeList, const word32 *distList,
+            byte* buffer, word32 sz, int flag);
+
