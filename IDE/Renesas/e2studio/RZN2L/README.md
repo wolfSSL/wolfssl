@@ -218,7 +218,7 @@ MODIFIED
 ```
 .incbin "../../test/Debug/test_RZN2L.bin"
 ```
-+ Modify `Load Image and Symbol`. Open `Debug Configuration` -> Open `Statup` tab -> Replace `RZN2L_bsp_xspi0bootx1_app.elf` to `test_RZN2L.elf`
++ Modify `Load Image and Symbol`. Open `Debug Configuration` -> Open `Startup` tab -> Replace `RZN2L_bsp_xspi0bootx1_app.elf` to `test_RZN2L.elf`
 
 ## Run loader and `test_RZN2L`
 + Run the loader project

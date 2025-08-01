@@ -237,13 +237,10 @@ void wolfSSL_TLS_cleanup()
 void rzn2l_tst_thread_entry(void *pvParameters)
 {
     FSP_PARAMETER_NOT_USED (pvParameters);
-    fsp_err_t err;
-    (void)err;
     /* Open the transfer instance with initial configuration. */
-    err = R_SCI_UART_Open(&g_uart0_ctrl, &g_uart0_cfg);
+    R_SCI_UART_Open(&g_uart0_ctrl, &g_uart0_cfg);
 
 #if defined(UNIT_TEST)
-
     int ret;
 
     printf("\n");

@@ -32,8 +32,6 @@ struct FSPSM_tls_flg_ST {
 };
 
 struct FSPSM_ST_Internal {
-    /* unique number for each session */
-    int devId;
 
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
         !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)

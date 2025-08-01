@@ -45,6 +45,9 @@ struct FSPSM_key_flg_ST {
 typedef struct FSPSM_ST_Internal FSPSM_ST_Internal;
 
 typedef struct FSPSM_tag_ST {
+    /* unique number for each session */
+    int devId;
+
     /* installed key handling */
     /* aes */
     FSPSM_W_KEYVAR   wrapped_key_aes256;
