@@ -5737,7 +5737,7 @@ static int test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
     EXPECT_DECLS;
 #if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_DH) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
-    WOLFSSL_CTX *ctx;
+    WOLFSSL_CTX *ctx = NULL;
 
     (void)ctx;
 
@@ -19889,6 +19889,8 @@ static int test_wc_i2d_PKCS12(void)
     return EXPECT_RESULT();
 }
 
+#ifndef __WATCOMC__
+/* There are known Watcom incompatibilities in this implementation  */
 static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
 {
     EXPECT_DECLS;
@@ -19988,6 +19990,7 @@ static int test_wc_PKCS12_create(void)
 
     return EXPECT_RESULT();
 }
+#endif /* __WATCOM__ */
 
 /*----------------------------------------------------------------------------*
  | ASN.1 Tests
@@ -68503,8 +68506,10 @@ TEST_CASE testCases[] = {
 
     /* wolfCrypt PKCS#12 */
     TEST_DECL(test_wc_i2d_PKCS12),
+#ifndef __WATCOMC__
+    /* There are known Watcom incompatibilities in this implementation  */
     TEST_DECL(test_wc_PKCS12_create),
-
+#endif
     /*
      * test_wolfCrypt_Cleanup needs to come after the above wolfCrypt tests to
      * avoid memory leaks.

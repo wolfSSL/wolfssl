@@ -1482,6 +1482,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define XALIGNED(x) __attribute__ ( (aligned (x)))
     #elif defined(__KEIL__)
         #define XALIGNED(x) __align(x)
+    #elif defined(__WATCOMC__) /* && (_MSC_VER or !_MSC_VER) */
+        /* No align available for Open Watcom V2, expansion comment needed: */
+        #define XALIGNED(x) /* null expansion */
     #elif defined(_MSC_VER)
         /* disable align warning, we want alignment ! */
         #pragma warning(disable: 4324)

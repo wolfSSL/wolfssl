@@ -88,7 +88,9 @@ static word32 cpu_flags_set = 0;
 #endif
 
 #if defined(USE_INTEL_POLY1305_SPEEDUP) || defined(POLY130564)
-    #if defined(_MSC_VER)
+    #if defined(__WATCOMC__)
+        #error "POLY130564 || USE_INTEL_POLY1305_SPEEDUP Watcom not supported"
+    #elif defined(_MSC_VER)
         #define POLY1305_NOINLINE __declspec(noinline)
     #elif defined(__GNUC__)
         #define POLY1305_NOINLINE __attribute__((noinline))
@@ -96,7 +98,7 @@ static word32 cpu_flags_set = 0;
         #define POLY1305_NOINLINE
     #endif
 
-    #if defined(_MSC_VER)
+    #if defined(_MSC_VER) && !(__WATCOMC__)
         #include <intrin.h>
 
         typedef struct word128 {

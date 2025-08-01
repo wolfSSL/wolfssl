@@ -25741,7 +25741,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
                 }
             }
         #endif /* IGNORE_NAME_CONSTRAINTS */
-        }
+        } /* cert->ca */
 #ifdef WOLFSSL_CERT_REQ
         else if (type == CERTREQ_TYPE) {
             /* try to confirm/verify signature */
@@ -25805,7 +25805,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
         else {
             /* no signer */
-            WOLFSSL_MSG("No CA signer to verify with");
+            WOLFSSL_MSG_CERT_LOG("No CA signer to verify with");
             /* If you end up here with error -188,
              * consider using WOLFSSL_ALT_CERT_CHAINS. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
@@ -25818,10 +25818,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
 #endif
             {
                 WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
+                WOLFSSL_MSG_CERT("Consider using WOLFSSL_ALT_CERT_CHAINS.");
                 return ASN_NO_SIGNER_E;
             }
         }
-    }
+    } /* verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE */
 
 #if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
 exit_pcr:
@@ -25831,7 +25832,7 @@ exit_pcr:
         if (verify != VERIFY_SKIP_DATE) {
             return cert->badDate;
         }
-        WOLFSSL_MSG("Date error: Verify option is skipping");
+        WOLFSSL_MSG_CERT_LOG("Date error: Verify option is skipping");
     }
 
     if (cert->criticalExt != 0)

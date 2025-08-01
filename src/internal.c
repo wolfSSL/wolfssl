@@ -8025,7 +8025,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->secLevel = ctx->secLevel;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
     /* Returns 0 on success, not WOLFSSL_SUCCESS (1) */
-    WOLFSSL_MSG_EX("InitSSL done. return 0 (success)");
+    WOLFSSL_MSG("InitSSL done. return 0 (success)");
     return 0;
 }
 
@@ -15776,7 +15776,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
                             ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
                             if (!ssl->options.usingAltCertChain) {
-                                WOLFSSL_MSG("Trying alternate cert chain");
+                                WOLFSSL_MSG_CERT_LOG(
+                                                 "Trying alternate cert chain");
                                 ssl->options.usingAltCertChain = 1;
                             }
 
@@ -15788,8 +15789,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             /* do not add to certificate manager */
                             skipAddCA = 1;
+                        } /* ASN_NO_SIGNER_E || ASN_SELF_SIGNED_E */
+                    } /* ret != 0 && isCA */
+                #else
+                    /* Not defined: WOLFSSL_ALT_CERT_CHAINS
+                     * When WOLFSSL_DEBUG_CERTS enabled, suggest solution */
+                    #ifdef WOLFSSL_DEBUG_CERTS
+                    if (ret != 0 && args->dCert->isCA) {
+                        if (ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)) {
+                            WOLFSSL_MSG_CERT(
+                                  "Consider enabling WOLFSSL_ALT_CERT_CHAINS"
+                                  " to resolve ASN_NO_SIGNER_E");
                         }
-                    }
+                        if (ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)) {
+                            WOLFSSL_MSG_CERT(
+                                  "Consider enabling WOLFSSL_ALT_CERT_CHAINS"
+                                  " to resolve ASN_SELF_SIGNED_E");
+                        }
+                    } /* check alt-cert possible fixable error codes */
+                    #endif
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
 
                 #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
