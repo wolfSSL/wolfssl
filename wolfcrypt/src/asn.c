@@ -21304,27 +21304,24 @@ enum {
 static int DecodeExtKeyUsageInternal(const byte* input, word32 sz, DecodedCert* cert)
 {
     int ret = 0;
-    const byte *extExtKeyUsageSrc = NULL;
-    word32 extExtKeyUsageSz = 0;
-    word32 extExtKeyUsageCount = 0;
-    byte extExtKeyUsage = 0;
-    byte extExtKeyUsageSsh = 0;
 
-    ret = DecodeExtKeyUsage(input, sz, &extExtKeyUsageSrc, &extExtKeyUsageSz,
-            &extExtKeyUsageCount, &extExtKeyUsage, &extExtKeyUsageSsh);
+
+    ret = DecodeExtKeyUsage(input, sz,
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            &cert->extExtKeyUsageSrc, &cert->extExtKeyUsageSz, &cert->extExtKeyUsageCount,
+#else
+            NULL, NULL, NULL,
+#endif
+            &cert->extExtKeyUsage,
+#ifdef WOLFSSL_WOLFSSH
+            &cert->extExtKeyUsageSsh
+#else
+            NULL
+#endif
+            );
+
     if (ret != 0)
         return ret;
-
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    cert->extExtKeyUsageSrc = extExtKeyUsageSrc;
-    cert->extExtKeyUsageSz = extExtKeyUsageSz;
-    cert->extExtKeyUsageCount = extExtKeyUsageCount;
-    #endif
-
-    cert->extExtKeyUsage = extExtKeyUsage;
-    #ifdef WOLFSSL_WOLFSSH
-    cert->extExtKeyUsageSsh = extExtKeyUsageSsh;
-    #endif /* WOLFSSL_WOLFSSH */
 
     return 0;
 }
@@ -24219,11 +24216,20 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
 
     WOLFSSL_ENTER("DecodeExtKeyUsage");
 
+    (void) extExtKeyUsageSrc;
+    (void) extExtKeyUsageSz;
+    (void) extExtKeyUsageCount;
+    (void) extExtKeyUsageSsh;
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     *extExtKeyUsageSrc = NULL;
     *extExtKeyUsageSz = 0;
     *extExtKeyUsageCount = 0;
+#endif
     *extExtKeyUsage = 0;
+#ifdef WOLFSSL_WOLFSSH
     *extExtKeyUsageSsh = 0;
+#endif
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -24292,11 +24298,20 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
 
     WOLFSSL_ENTER("DecodeExtKeyUsage");
 
+    (void) extExtKeyUsageSrc;
+    (void) extExtKeyUsageSz;
+    (void) extExtKeyUsageCount;
+    (void) extExtKeyUsageSsh;
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     *extExtKeyUsageSrc = NULL;
     *extExtKeyUsageSz = 0;
     *extExtKeyUsageCount = 0;
+#endif
     *extExtKeyUsage = 0;
+#ifdef WOLFSSL_WOLFSSH
     *extExtKeyUsageSsh = 0;
+#endif
 
     /* Strip SEQUENCE OF and expect to account for all the data. */
     if (GetASN_Sequence(input, &idx, &length, sz, 1) < 0) {
