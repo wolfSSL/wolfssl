@@ -159,6 +159,8 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
     (--enable-staticmemory). It gives the optimum buffer size for memory
     “buckets”. This allows for a way to compute buffer size so that no
     extra unused memory is left at the end after it has been partitioned.
+    For the none _ex version of this function the default bucket and
+    distribution list set during compile time is used.
     The returned value, if positive, is the computed buffer size to use.
 
     \return Success On successfully completing buffer size calculations a
@@ -174,6 +176,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
     byte buffer[1000];
     word32 size = sizeof(buffer);
     int optimum;
+
     optimum = wolfSSL_StaticBufferSz(buffer, size, WOLFMEM_GENERAL);
     if (optimum < 0) { //handle error case }
     printf(“The optimum buffer size to make use of all memory is %d\n”,
@@ -409,3 +412,228 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats);
 */
 int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
                 int flag, int max);
+
+/*!
+    \ingroup Memory
+
+    \brief This function is used to set aside static memory for wolfCrypt use with custom
+    bucket sizes and distributions. Memory can be used by passing the created heap hint
+    into functions. This extended version allows for custom bucket sizes and distributions
+    instead of using the default predefined sizes.
+
+    \return If successful, 0 will be returned.
+    \return All unsuccessful return values will be less than 0.
+
+    \param hint WOLFSSL_HEAP_HINT structure to use
+    \param buf memory to use for all operations.
+    \param sz size of memory buffer being passed in.
+    \param flag type of memory.
+    \param max max concurrent operations (handshakes, IO).
+    \param bucket_sizes array of bucket sizes to use
+    \param bucket_count number of bucket sizes in the array
+
+    _Example_
+    \code
+    WOLFSSL_HEAP_HINT hint;
+    int ret;
+    unsigned char memory[MAX];
+    int memorySz = MAX;
+    int flag = WOLFMEM_GENERAL | WOLFMEM_TRACK_STATS;
+    word16 bucket_sizes[] = {64, 128, 256, 512, 1024};
+    int bucket_count = 5;
+    ...
+
+    // load in memory for use with custom bucket sizes
+
+    ret = wc_LoadStaticMemory_ex(&hint, memory, memorySz, flag, 0,
+                                 bucket_sizes, bucket_count);
+    if (ret != SSL_SUCCESS) {
+        // handle error case
+    }
+    ...
+
+    ret = wc_InitRng_ex(&rng, hint, 0);
+
+    // check ret value
+    \endcode
+
+    \sa wc_LoadStaticMemory
+    \sa wc_UnloadStaticMemory
+*/
+int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT* hint, unsigned char* buf, unsigned int sz,
+                int flag, int max, word16* bucket_sizes, int bucket_count);
+
+/*!
+    \ingroup Memory
+
+    \brief This function sets a global heap hint that will be used when NULL heap hint
+    is passed to memory allocation functions. This allows for setting a default heap
+    hint that will be used across the entire application.
+
+    \return Returns the previous global heap hint that was set.
+
+    \param hint WOLFSSL_HEAP_HINT structure to use as the global heap hint
+
+    _Example_
+    \code
+    WOLFSSL_HEAP_HINT hint;
+    WOLFSSL_HEAP_HINT* prev_hint;
+    int ret;
+    unsigned char memory[MAX];
+    int memorySz = MAX;
+    ...
+
+    // load in memory for use
+    ret = wc_LoadStaticMemory(&hint, memory, memorySz, WOLFMEM_GENERAL, 0);
+    if (ret != SSL_SUCCESS) {
+        // handle error case
+    }
+
+    // set as global heap hint
+    prev_hint = wolfSSL_SetGlobalHeapHint(&hint);
+    if (prev_hint != NULL) {
+        // there was a previous global heap hint
+    }
+    \endcode
+
+    \sa wolfSSL_GetGlobalHeapHint
+    \sa wc_LoadStaticMemory
+*/
+WOLFSSL_HEAP_HINT* wolfSSL_SetGlobalHeapHint(WOLFSSL_HEAP_HINT* hint);
+
+/*!
+    \ingroup Memory
+
+    \brief This function gets the current global heap hint that is used when NULL
+    heap hint is passed to memory allocation functions.
+
+    \return Returns the current global heap hint, or NULL if none is set.
+
+    \param none No parameters.
+
+    _Example_
+    \code
+    WOLFSSL_HEAP_HINT* current_hint;
+    ...
+
+    current_hint = wolfSSL_GetGlobalHeapHint();
+    if (current_hint != NULL) {
+        // there is a global heap hint set
+        // can use current_hint for operations
+    }
+    \endcode
+
+    \sa wolfSSL_SetGlobalHeapHint
+    \sa wc_LoadStaticMemory
+*/
+WOLFSSL_HEAP_HINT* wolfSSL_GetGlobalHeapHint(void);
+
+/*!
+    \ingroup Memory
+
+    \brief This function sets a debug callback function for static memory allocation
+    tracking. Used with WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK build option. The callback
+    function will be called during memory allocation and deallocation operations to
+    provide debugging information.
+
+    \return If successful, 0 will be returned.
+    \return All unsuccessful return values will be less than 0.
+
+    \param cb debug callback function to set
+
+    _Example_
+    \code
+    static void debug_memory_cb(const char* func, const char* file, int line,
+                                void* ptr, size_t size, int type)
+    {
+        printf("Memory %s: %s:%d ptr=%p size=%zu type=%d\n",
+               func, file, line, ptr, size, type);
+    }
+    ...
+
+    // set debug callback
+    int ret = wolfSSL_SetDebugMemoryCb(debug_memory_cb);
+    if (ret != 0) {
+        // handle error case
+    }
+    \endcode
+
+    \sa none
+*/
+int wolfSSL_SetDebugMemoryCb(wolfSSL_DebugMemoryCb cb);
+
+/*!
+    \ingroup Memory
+
+    \brief This function frees static memory heap and associated mutex. Should be
+    called when done using static memory allocation to properly clean up resources.
+
+    \return If successful, 0 will be returned.
+    \return All unsuccessful return values will be less than 0.
+
+    \param hint WOLFSSL_HEAP_HINT structure to unload
+
+    _Example_
+    \code
+    WOLFSSL_HEAP_HINT hint;
+    int ret;
+    unsigned char memory[MAX];
+    int memorySz = MAX;
+    ...
+
+    // load in memory for use
+    ret = wc_LoadStaticMemory(&hint, memory, memorySz, WOLFMEM_GENERAL, 0);
+    if (ret != SSL_SUCCESS) {
+        // handle error case
+    }
+
+    // use memory for operations
+    ...
+
+    // cleanup when done
+    ret = wc_UnloadStaticMemory(&hint);
+    if (ret != 0) {
+        // handle error case
+    }
+    \endcode
+
+    \sa wc_LoadStaticMemory
+    \sa wc_LoadStaticMemory_ex
+*/
+int wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* hint);
+
+/*!
+    \ingroup Memory
+
+    \brief This function calculates the required buffer size for static memory allocation
+    with custom bucket sizes and distributions. This extended version allows for custom
+    bucket sizes instead of using the default predefined sizes.
+
+    \return On successfully completing buffer size calculations a positive value is returned.
+    \return All negative values are considered to be error cases.
+
+    \param bucket_sizes array of bucket sizes to use
+    \param bucket_count number of bucket sizes in the array
+    \param flag desired type of memory ie WOLFMEM_GENERAL or WOLFMEM_IO_POOL
+
+    _Example_
+    \code
+    word32 sizeList[] = {64, 128, 256, 512, 1024};
+    word32 distList[] = {1, 2, 1, 1, 1};
+    int listSz = 5;
+    int optimum;
+
+    optimum = wolfSSL_StaticBufferSz_ex(listSz, sizeList, distList, NULL, 0,
+        WOLFMEM_GENERAL);
+    if (optimum < 0) { //handle error case }
+    printf("The optimum buffer size with custom buckets is %d\n", optimum);
+    ...
+    \endcode
+
+    \sa wolfSSL_StaticBufferSz
+    \sa wc_LoadStaticMemory_ex
+*/
+int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
+            const word32 *sizeList, const word32 *distList,
+            byte* buffer, word32 sz, int flag);
+
