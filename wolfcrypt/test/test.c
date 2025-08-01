@@ -46999,7 +46999,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
                                                  int         isPublicOnlyKey)
 {
     int           ret = 0;
-#ifndef WOLFSSL_DILITHIUM_NO_ASN1
+#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     /* Size the buffer to accommodate the largest encoded key size */
     const word32  maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
     word32        derSz;
@@ -47049,7 +47049,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 #endif
     }
 
-#ifndef WOLFSSL_DILITHIUM_NO_ASN1
+#if !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
     /* Export raw key as DER */
     if (ret == 0) {
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
@@ -47123,7 +47123,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
         ret = WC_TEST_RET_ENC_NC;
     }
 #endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
-#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 && WOLFSSL_ASN_TEMPLATE */
 
     /* Cleanup */
     wc_dilithium_free(key);
