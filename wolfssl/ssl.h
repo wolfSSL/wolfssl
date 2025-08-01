@@ -3288,6 +3288,8 @@ WOLFSSL_API void   wolfSSL_set_security_level(WOLFSSL * ssl, int level);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
+/* which user_settings.h file was used to build wolfssl */
+WOLFSSL_API const char* wolfSSL_user_settings_tag(void);
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 WOLFSSL_API const char* wolfSSL_OpenSSL_version(int a);
 #else

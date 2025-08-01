@@ -242,7 +242,18 @@ enum wolfSSL_ErrorCodes {
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
 
-wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)  /* VS2015 or newer */
+    #pragma warning(push)
+    /* Visual Studio complains: "operands are different enum types"
+     * even with explicitly type cast. So ignore it here: */
+    #pragma warning(disable: 5287)
+    wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+    #pragma warning(pop)
+#else
+    wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
+#endif
+
 
 /* I/O Callback default errors */
 enum IOerrors {

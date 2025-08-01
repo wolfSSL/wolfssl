@@ -25,7 +25,13 @@
 
 #if !defined(WOLFSSL_SSL_CERTMAN_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning ssl_certman.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+             "ssl_certman.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning \
+              ssl_certman.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 
