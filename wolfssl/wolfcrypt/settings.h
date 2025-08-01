@@ -4538,6 +4538,10 @@ extern void uITRON4_free(void *p) ;
 #error "If TLS is enabled please make sure either client or server is enabled."
 #endif
 
+#ifdef WOLFSSL_DEBUG
+    #error "Please use DEBUG_WOLFSSL not WOLFSSL_DEBUG"
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
