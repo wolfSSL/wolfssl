@@ -49,7 +49,7 @@
 
 struct Aes;
 
-WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId);
+void *Renesas_cmn_GetCbCtxBydevId(int devId);
 
 #define SCE_AES_GCM_AUTH_TAG_SIZE  16
 
@@ -60,14 +60,16 @@ extern FSPSM_INSTANCE   gFSPSM_ctrl;
 typedef fsp_err_t (*aesGcmEncInitFn)
         (FSPSM_AESGCM_HANDLE*, FSPSM_AES_PWKEY, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmEncUpdateFn)
-        (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t);
+        (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t,
+        uint32_t*);
 typedef fsp_err_t (*aesGcmEncFinalFn)
         (FSPSM_AESGCM_HANDLE*, uint8_t*, uint32_t*, uint8_t*);
 
 typedef fsp_err_t (*aesGcmDecInitFn)
         (FSPSM_AESGCM_HANDLE*, FSPSM_AES_PWKEY, uint8_t*, uint32_t);
 typedef fsp_err_t (*aesGcmDecUpdateFn)
-        (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t);
+        (FSPSM_AESGCM_HANDLE*,uint8_t*, uint8_t*, uint32_t, uint8_t*, uint32_t,
+        uint32_t*);
 typedef fsp_err_t (*aesGcmDecFinalFn)
         (FSPSM_AESGCM_HANDLE*, uint8_t*, uint32_t*, uint8_t*, uint32_t);
 
@@ -77,72 +79,136 @@ static fsp_err_t _R_RSIP_AES_GCM_EncryptInit(FSPSM_AESGCM_HANDLE* h,
                                         FSPSM_AES_PWKEY k, uint8_t* iv,
                                         uint32_t iv_l)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_AES_AEAD_Init(&gFSPSM_ctrl, RSIP_AES_AEAD_MODE_GCM_ENC,
+                                (FSPSM_AES_PWKEY const)k,
+                                (uint8_t* const)iv, iv_l);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_EncryptInit(&gFSPSM_ctrl, (FSPSM_AES_PWKEY const)k,
                                             (uint8_t* const)iv, iv_l);
+   #endif
 }
+
+/* wrapper for Gcm encrypt/decript ADD update */
+#if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+static fsp_err_t _R_RSIP_AES_GCM_ADDUpdate(uint8_t* p_add, uint32_t add_len)
+{
+    return R_RSIP_AES_AEAD_AADUpdate(&gFSPSM_ctrl, p_add, add_len);
+}
+#endif
 /* wrapper for Gcm encrypt update */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptUpdate(FSPSM_AESGCM_HANDLE* h,
         uint8_t* p_plain, uint8_t* p_cipher, uint32_t plain_length,
-        uint8_t* p_add, uint32_t add_len)
+        uint8_t* p_add, uint32_t add_len, uint32_t* out_len)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    (void) p_add;
+    (void) add_len;
+    return R_RSIP_AES_AEAD_Update(&gFSPSM_ctrl, (uint8_t* const) p_plain,
+                                      (uint32_t const) plain_length,
+                                      (uint8_t* const) p_cipher,
+                                      (uint32_t* const) out_len);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_EncryptUpdate(&gFSPSM_ctrl, (uint8_t* const) p_plain,
                                       (uint8_t* const) p_cipher,
                                       (uint32_t const) plain_length,
                                       (uint8_t* const) p_add,
                                       (uint32_t const) add_len);
+   #endif
 }
 /* wrapper for Gcm encrypt final */
 static fsp_err_t _R_RSIP_AES_GCM_EncryptFinal(FSPSM_AESGCM_HANDLE* h,
                                         uint8_t* p_cipher, uint32_t* c_len,
                                         uint8_t* p_atag)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_AEAD_Finish(&gFSPSM_ctrl, (uint8_t* const) p_cipher,
+                                    (uint32_t* const) c_len,
+                                    (uint8_t* const) p_atag);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_EncryptFinal(&gFSPSM_ctrl, (uint8_t* const) p_cipher,
                                       (uint32_t* const) c_len,
                                       (uint8_t* const) p_atag);
+   #endif
 }
 /* wrapper for Gcm decrypt init */
 static fsp_err_t _R_RSIP_AES_GCM_DecryptInit(FSPSM_AESGCM_HANDLE* h,
                                 FSPSM_AES_PWKEY k, uint8_t* iv, uint32_t iv_l)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void)h;
+    return R_RSIP_AES_AEAD_Init(&gFSPSM_ctrl, RSIP_AES_AEAD_MODE_GCM_DEC,
+                                (FSPSM_AES_PWKEY const)k,
+                                (uint8_t* const)iv, iv_l);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_DecryptInit(&gFSPSM_ctrl, (FSPSM_AES_PWKEY const)k,
                                                     (uint8_t* const)iv, iv_l);
+   #endif
 }
 /* wrapper for Gcm decrypt update */
 static fsp_err_t _R_RSIP_AES_GCM_DecryptUpdate(FSPSM_AESGCM_HANDLE* h,
         uint8_t* p_cipher, uint8_t* p_plain, uint32_t c_length,
-        uint8_t* p_add, uint32_t add_len)
+        uint8_t* p_add, uint32_t add_len, uint32_t* out_len)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    (void) p_add;
+    (void) add_len;
+    return R_RSIP_AES_AEAD_Update(&gFSPSM_ctrl, (uint8_t* const) p_cipher,
+                                      (uint32_t const) c_length,
+                                      (uint8_t* const) p_plain,
+                                      (uint32_t* const) out_len);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_DecryptUpdate(&gFSPSM_ctrl, (uint8_t* const) p_cipher,
                                       (uint8_t* const) p_plain,
                                       (uint32_t const) c_length,
                                       (uint8_t* const) p_add,
                                       (uint32_t const) add_len);
+   #endif
 }
 /* wrapper for Gcm decrypt final */
 static fsp_err_t _R_RSIP_AES_GCM_DecryptFinal(FSPSM_AESGCM_HANDLE* h,
                                         uint8_t* p_plain, uint32_t* plain_len,
                                         uint8_t* p_atag, uint32_t atag_len)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_AEAD_Verify(&gFSPSM_ctrl, (uint8_t* const) p_plain,
+                                      (uint32_t* const) plain_len,
+                                      (uint8_t* const) p_atag,
+                                      (uint32_t const) atag_len);
+   #else
     (void) h;
     return R_RSIP_AES_GCM_DecryptFinal(&gFSPSM_ctrl, (uint8_t* const) p_plain,
                                       (uint32_t* const) plain_len,
                                       (uint8_t* const) p_atag,
                                       (uint32_t const) atag_len);
+   #endif
 }
 /* wrapper for aes cbc encrypt init */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptInit(FSPSM_AES_HANDLE* h,
                                       FSPSM_AES_PWKEY k,
                                       uint8_t* iv)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_Cipher_Init(&gFSPSM_ctrl,
+                                        RSIP_AES_CIPHER_MODE_CBC_ENC,
+                                        k, iv);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_EncryptInit(&gFSPSM_ctrl,
                                         RSIP_AES_MODE_CBC,
                                         k, iv);
+   #endif
 }
 /* wrapper for aes cbc encrypt update */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptUpdate(FSPSM_AES_HANDLE* h,
@@ -150,31 +216,53 @@ static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptUpdate(FSPSM_AES_HANDLE* h,
                                       uint8_t* p_cipher,
                                       uint32_t plain_length)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_Cipher_Update(&gFSPSM_ctrl,
+                                        (const uint8_t* const)p_plain,
+                                        (uint8_t* const)p_cipher,
+                                        (const uint32_t)plain_length);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_EncryptUpdate(&gFSPSM_ctrl,
                                         (const uint8_t* const)p_plain,
                                         (uint8_t* const)p_cipher,
                                         (const uint32_t)plain_length);
+   #endif
 }
 /* wrapper for aes cbc encrypt final */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_EncryptFinal(FSPSM_AES_HANDLE* h,
                                       uint8_t* p_cipher,
-                                      uint32_t* cipher_lengh)
+                                      uint32_t* cipher_length)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    (void) p_cipher;
+    (void) cipher_length;
+    return R_RSIP_AES_Cipher_Finish(&gFSPSM_ctrl);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_EncryptFinal(&gFSPSM_ctrl,
                                         (uint8_t* const)p_cipher,
-                                        (uint32_t* const)cipher_lengh);
+                                        (uint32_t* const)cipher_length);
+   #endif
 }
 /* wrapper for aes cbc decrypt init */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptInit(FSPSM_AES_HANDLE* h,
                                       FSPSM_AES_PWKEY k,
                                       uint8_t* iv)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_Cipher_Init(&gFSPSM_ctrl,
+                                        RSIP_AES_CIPHER_MODE_CBC_DEC,
+                                        k, iv);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_DecryptInit(&gFSPSM_ctrl,
                                         RSIP_AES_MODE_CBC,
                                         k, iv);
+   #endif
 }
 /* wrapper for aes cbc decrypt update */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptUpdate(FSPSM_AES_HANDLE* h,
@@ -182,21 +270,36 @@ static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptUpdate(FSPSM_AES_HANDLE* h,
                                       uint8_t* p_plain,
                                       uint32_t cipher_lengh)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    return R_RSIP_AES_Cipher_Update(&gFSPSM_ctrl,
+                                        (const uint8_t* const)p_cipher,
+                                        (uint8_t* const)p_plain,
+                                        (const uint32_t)cipher_lengh);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_DecryptUpdate(&gFSPSM_ctrl,
                                         (const uint8_t* const)p_cipher,
                                         (uint8_t* const)p_plain,
                                         (const uint32_t)cipher_lengh);
+   #endif
 }
 /* wrapper for aes cbc encrypt final */
 static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptFinal(FSPSM_AES_HANDLE* h,
                                       uint8_t* p_plain,
                                       uint32_t* plain_lengh)
 {
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    (void) h;
+    (void) p_plain;
+    (void) plain_lengh;
+    return R_RSIP_AES_Cipher_Finish(&gFSPSM_ctrl);
+   #else
     (void) h;
     return R_RSIP_AES_Cipher_DecryptFinal(&gFSPSM_ctrl,
                                         (uint8_t* const)p_plain,
                                         (uint32_t* const)plain_lengh);
+   #endif
 }
 #endif
 /* Perform Aes Gcm encryption by FSP SM
@@ -212,7 +315,7 @@ static fsp_err_t _R_RSIP_AESCBC_Cipher_DecryptFinal(FSPSM_AES_HANDLE* h,
  * ctx    The callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
+int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                               const byte* in, word32 sz,
                               byte* iv, word32 ivSz,
                               byte* authTag, word32 authTagSz,
@@ -222,6 +325,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
     int ret;
     FSPSM_AESGCM_HANDLE _handle;
     uint32_t            dataLen = sz;
+    uint32_t            out_len = 0;
+    uint32_t            out_len_tmp = 0;
     FSPSM_ST    *info = (FSPSM_ST*)ctx;
 
     aesGcmEncInitFn     initFn;
@@ -354,11 +459,22 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
             ret = initFn(&_handle, key_client_aes, (uint8_t*)iv_l, ivSz_l);
 
             if (ret == FSP_SUCCESS) {
+                /* pass only AAD and it's size before passing cipher text */
+               #if defined(WOLFSSL_RENESAS_RSIP) &&\
+                                    (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                ret = _R_RSIP_AES_GCM_ADDUpdate((uint8_t*)authIn, authInSz);
+               #else
                 ret = updateFn(&_handle, NULL, NULL, 0UL, (uint8_t*)authIn,
-                                                                    authInSz);
+                                                                authInSz,
+                                                                &out_len_tmp);
+               #endif
             }
+
             if (ret == FSP_SUCCESS) {
-                ret = updateFn(&_handle, plainBuf, cipherBuf, sz, NULL, 0UL);
+                out_len_tmp = 0;
+                ret = updateFn(&_handle, plainBuf, cipherBuf, sz, NULL, 0UL,
+                                                                &out_len_tmp);
+                out_len += out_len_tmp;
             }
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmEncryptUpdate2: failed");
@@ -372,12 +488,21 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
                 * from its error state and all the trailing APIs will fail.
                 */
                 dataLen = 0;
+                out_len_tmp = 0;
                 ret = finalFn(&_handle,
                            cipherBuf + (sz + delta - WC_AES_BLOCK_SIZE),
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                              &out_len_tmp,
+                #else
                               &dataLen,
+                #endif
                               aTagBuf);
 
                 if (ret == FSP_SUCCESS) {
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                    out_len += out_len_tmp;
+                    dataLen = out_len;
+                #endif
                    /* copy encrypted data to out */
                     if (sz != dataLen) {
                         WOLFSSL_MSG("sz is not equal to dataLen!!!!");
@@ -423,7 +548,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmEncrypt(struct Aes* aes, byte* out,
  * ctx    The Callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
+int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
                           const byte* in, word32 sz,
                           const byte* iv, word32 ivSz,
                           const byte* authTag, word32 authTagSz,
@@ -433,6 +558,8 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
     int ret;
     FSPSM_AESGCM_HANDLE _handle;
     uint32_t            dataLen = sz;
+    uint32_t            out_len = 0;
+    uint32_t            out_len_tmp = 0;
     FSPSM_ST    *info = (FSPSM_ST*)ctx;
 
     aesGcmDecInitFn     initFn;
@@ -559,11 +686,19 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
 
             if (ret == FSP_SUCCESS) {
                 /* pass only AAD and it's size before passing cipher text */
+               #if defined(WOLFSSL_RENESAS_RSIP) &&\
+                                        (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                ret = _R_RSIP_AES_GCM_ADDUpdate((uint8_t*)authIn, authInSz);
+               #else
                 ret = updateFn(&_handle, NULL, NULL, 0UL, (uint8_t*)authIn,
-                                                                    authInSz);
+                                                        authInSz, &out_len_tmp);
+               #endif
             }
             if (ret == FSP_SUCCESS) {
-                ret = updateFn(&_handle, cipherBuf, plainBuf, sz, NULL, 0UL);
+                out_len_tmp = 0;
+                ret = updateFn(&_handle, cipherBuf,
+                                        plainBuf, sz, NULL, 0UL, &out_len_tmp);
+                out_len += out_len_tmp;
             }
             if (ret != FSP_SUCCESS) {
                 WOLFSSL_MSG("R_XXXX_AesXXXGcmDecryptUpdate: failed in decrypt");
@@ -572,13 +707,22 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
 
             if (ret == FSP_SUCCESS) {
                 dataLen = 0;
+                out_len_tmp = 0;
                 ret = finalFn(&_handle,
                                   plainBuf + (sz + delta - WC_AES_BLOCK_SIZE),
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                            &out_len_tmp,
+                #else
                             &dataLen,
+                #endif
                             aTagBuf,
                             min(16, authTagSz));
 
                 if (ret == FSP_SUCCESS) {
+                #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+                    out_len += out_len_tmp;
+                    dataLen = out_len;
+                #endif
                     /* copy plain data to out */
                     if (sz != dataLen) {
                         WOLFSSL_MSG("sz is not equal to dataLen!!!!");
@@ -617,7 +761,7 @@ WOLFSSL_LOCAL int  wc_fspsm_AesGcmDecrypt(struct Aes* aes, byte* out,
  * sz     Length of cipher text/plaintext in bytes
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_fspsm_AesCbcEncrypt(struct Aes* aes, byte* out,
+int wc_fspsm_AesCbcEncrypt(struct Aes* aes, byte* out,
                                                 const byte* in, word32 sz)
 {
     FSPSM_AES_HANDLE _handle;
@@ -691,7 +835,7 @@ WOLFSSL_LOCAL int wc_fspsm_AesCbcEncrypt(struct Aes* aes, byte* out,
  * sz     Length of cipher text/plaintext in bytes
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
+int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
                                                     const byte* in, word32 sz)
 {
     FSPSM_AES_HANDLE _handle;
@@ -759,7 +903,7 @@ WOLFSSL_LOCAL int wc_fspsm_AesCbcDecrypt(struct Aes* aes, byte* out,
  * aes    The AES object.
  * return none
  */
-WOLFSSL_LOCAL void wc_fspsm_Aesfree(Aes* aes)
+void wc_fspsm_Aesfree(Aes* aes)
 {
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
     /* In the case of session key, memory is allocated
@@ -814,7 +958,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 }
 #endif
 
-WOLFSSL_LOCAL int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info,
+int wc_fspsm_AesCipher(int devIdArg, wc_CryptoInfo* info,
                                                                     void* ctx)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);

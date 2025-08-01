@@ -153,6 +153,8 @@ typedef struct TsipUserCtx_Internal TsipUserCtx_Internal;
  * TsipUserCtx holds mainly keys used for TLS handshake in TSIP specific format.
  */
 typedef struct TsipUserCtx {
+    /* unique number for each session */
+    int devId;
 
     int wrappedKeyType;
 /* for tsip crypt only mode */

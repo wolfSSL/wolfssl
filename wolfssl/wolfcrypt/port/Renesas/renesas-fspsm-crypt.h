@@ -21,12 +21,13 @@
 #ifndef __RENESAS_FSPSM_CRYPT_H__
 #define __RENESAS_FSPSM_CRYPT_H__
 
+#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define WOLFSSL_FSPSM_ILLEGAL_CIPHERSUITE     -1
-#define MAX_FSPSM_CBINDEX 5
 
 typedef void* FSPSM_W_KEYVAR;
 

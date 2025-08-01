@@ -34,6 +34,7 @@
     #define FSPSM_key_flg_ST        sce_keyflgs_crypt
     #define FSPSM_tag_ST            tagUser_SCEPKCbInfo
     #define FSPSM_ST                User_SCEPKCbInfo
+    #define FSPSM_ST_Internal       FSPSM_ST_Internal
     #define FSPSM_ST_PKC            SCE_PKCbInfo
 
     /* map SCE API to macro */
@@ -167,28 +168,38 @@
 #elif defined(WOLFSSL_RENESAS_RSIP)
 
     #include "r_rsip.h"
-
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 200)
+    #include "r_rsip_api.h"
+   #endif
     /* structure, type so on */
     #define FSPSM_W_KEYVAR          renesas_rsip_wrappedkey
     #define FSPSM_tls_flg_ST        rsip_keyflgs_tls
     #define FSPSM_key_flg_ST        rsip_keyflgs_crypt
     #define FSPSM_tag_ST            tagUser_RSIPPKCbInfo
     #define FSPSM_ST                User_RSIPPKCbInfo
+    #define FSPSM_ST_Internal       FSPSM_ST_Internal
     #define FSPSM_ST_PKC            RSIP_PKCbInfo
     #define FSPSM_KEY_TYPE          rsip_key_type_t
 
     #define FSPSM_INSTANCE          rsip_instance_ctrl_t
-    #define gFSPSM_ctrl             rsip_ctrl
     #define FSPSM_CONFIG            rsip_cfg_t
+   #if (WOLFSSL_RENESAS_RZFSP_VER >= 220)
+    #define gFSPSM_ctrl             g_rsip_ctrl
+    #define gFSPSM_cfg              g_rsip_cfg
+   #else
+    #define gFSPSM_ctrl             rsip_ctrl
     #define gFSPSM_cfg              rsip_cfg
+   #endif
     #define H_INSTANCE              gFSPSM_ctrl
     #define FSPSM_OPEN              R_RSIP_Open
     #define FSPSM_CLOSE             R_RSIP_Close
 
     /* rnd generation func */
-    #define R_RANDOM_GEN(b)         R_RSIP_RandomNumberGenerate(&gFSPSM_ctrl,b)
+    #define R_RANDOM_GEN(b) \
+        R_RSIP_RandomNumberGenerate(&gFSPSM_ctrl, (uint8_t* const)b)
     /* sha 1*/
     #define FSPSM_SHA_HANDLE        rsip_sha_handle_t
+
     #define FSPSM_SHA1_Init         _R_RSIP_SHA1_GenerateInit
     #define FSPSM_SHA1_Up           _R_RSIP_SHA_GenerateUpdate
     #define FSPSM_SHA1_Final        _R_RSIP_SHA_GenerateFinal

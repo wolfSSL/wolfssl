@@ -20,6 +20,7 @@
  */
 /* Operating Environment and Threading */
 #if defined(WOLFSSL_RENESAS_RSIP)
+    #define WOLFSSL_RENESAS_RZFSP_VER     200
     /* FSP SM stands for Flexible Software Package Security Module
     *  WOLFSSL_RENESAS_FSPSM enables fundamental code when it uses.
     *    e.g. Open/Close/Random generator
@@ -104,7 +105,9 @@
 #endif
 
 #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+    #define WOLF_CRYPTO_CB_RSA_PAD
     #define WOLFSSL_KEY_GEN
+    #define RSA_MIN_SIZE 512
 #endif
 
 int uart_printf (const char *__restrict format, ...);
@@ -112,4 +115,7 @@ int uart_printf (const char *__restrict format, ...);
 #define printf uart_printf
 
 #define TEST_SLEEP() vTaskDelay(50)
+#if defined(WOLFSSL_RENESAS_RSIP)
 #define CUSTOM_RAND_GENERATE_BLOCK wc_fspsm_GenerateRandBlock
+#endif
+

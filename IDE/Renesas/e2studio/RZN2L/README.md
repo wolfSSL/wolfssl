@@ -21,37 +21,49 @@ The example project summary is listed below and is relevant for every project.
 ### Project Summary
 |Item|Name/Version|
 |:--|:--|
+|e2Studio|2025-04.1 (25.4.1)|
 |Board|RZN2L|
 |Device|R9A07G084M08GBG|
 |Toolchain|GCC for Renesas RZ|
 |Toolchain Version|10.3.1.20210824|
-|FSP Version|1.2.0|
+|FSP Version|2.0.0|
 
 #### Selected software components
 
 |Components|Version|Note|
 |:--|:--|:--|
-|Board Support Package Common Files|v1.20||
-|I/O Port|v1.2.0||
-|Arm CMSIS Version 5 - Core (M)|v5.7.0+renesas.1||
-|Board support package for R9A07G084M04GBG|v1.2.0|Note1|
-|Board support package for RZN2L|v1.2.0||
-|Board support package for RZN2L - FSP Data|v1.2.0||
-|RSK+RZN2L Board Support Files (RAM execution without flash memory)|v1.2.0||
-|FreeRTOS - Buffer Allocation 2|v1.2.0||
-|FreeRTOS - Memory Management - Heap 4|v1.2.0||
-|FreeRTOS+TCP|v1.2.0||
-|Ethernet PHY |v1.2.0||
-|Ethernet Selector|v1.2.0||
-|Ethernet|v1.2.0||
-|Ethernet Switch|v1.2.0||
-|SCI UART|v1.2.0||
-|r_ether to FreeRTOS+TCP Wrapper|v1.2.0||
-|Renesas Secure IP Driver|v1.3.0+fsp.1.2.0|Need to contact Renesas to get RSIP module|
-|RSIP Engine for RZ/N2L|v1.3.0+fsp.1.2.0|Need to contact Renesas to get RSIP module|
+|Board Support Package Common Files|v2.0.0||
+|I/O Port|v2.0.0||
+|Arm CMSIS Version 5 - Core (M)|v5.7.0+renesas.1.fsp.2.0.0||
+|Board support package for R9A07G084M04GBG|v2.0.0|Note1|
+|Board support package for RZN2L|v2.0.0||
+|Board support package for RZN2L - FSP Data|v2.0.0||
+|RSK+RZN2L Board Support Files (xSPI0 x1 boot mode)|v2.0.0||
+|FreeRTOS - Buffer Allocation 2|v2.0.0||
+|FreeRTOS - Memory Management - Heap 4|v2.0.0||
+|FreeRTOS+TCP|v2.0.0||
+|Ethernet PHY |v2.0.0||
+|Ethernet Selector|v2.0.0||
+|Ethernet|v2.0.0||
+|Ethernet Switch|v2.0.0||
+|SCI UART|v2.0.0||
+|r_ether to FreeRTOS+TCP Wrapper|v2.0.0||
+|Renesas Secure IP Driver|v1.5.0+fsp.1.3.0||
+|RSIP Engine for RZ/N2L|v1.5.0+fsp.1.3.0||
 
 Note1:\
- To use RSIP driver, a device type should be `R9A07G084M04GBG`. However, choosing `R9A07G084M04GBG` won't allow to select `RSK+RZN2L` board. This example uses LED and external flash memory on `RSK + RZN2L` board. Therefore, the example temporary `R9A07G084M04GBG` for the device type. Updating e2studio or fsp could resolve the issue.
+ To use RSIP driver, a device type should be `R9A07G084M08GBG`. However, choosing `R9A07G084M04GBG` won't allow to select `RSK+RZN2L` board. This example uses LED and external flash memory on `RSK + RZN2L` board. Therefore, the example temporary `R9A07G084M04GBG` for the device type. Updating e2studio or fsp could resolve the issue.
+
+## Board Settings
+This example program uses `xSPI0 boot`. Therefore, the board's switch and jumper settings required to run the sample program from external flash are shown below. For details on each setting, see the Renesas Starter Kit+ for RZN2L User's Manual.
+
+|Project|SW4-1|SW4-2|SW4-3|SW4-4|SW4-7|
+|:--|:--|:--|:--|:--|:--|
+|xSPI0 boot mode|ON|ON|ON|ON|OFF|
+
+|Project|CN8|CN24|
+|:--|:--|:--|
+|xSPI0 boot mode|Short 2-3|Short2-3|
 
 ## Setup Steps and Build wolfSSL Library
 
@@ -63,7 +75,7 @@ Note1:\
 
 + Click File->New->`RZ/N C/C++ FSP Project`.
 + Enter project name `dummy_application`.
-+ Select Board: to `RSK+RZN2L (RAM execution without flash memory)`.
++ Select Board: to `RSK+RZN2L (xSPI0 x1 boot mode)`.
 + Select Device: to `R9A07G084M04GBG`. Click Next.
 + Check to `Executable`
 + Select FreeRTOS from RTOS selection. Click Finish.
@@ -93,31 +105,125 @@ Note1:\
 + Click `Generate Project Content` on FSP configuration GUI
 
 3.) Prepare UART to logging
-
-+ Download Sample package from [BACnet Start-Up](https://www.renesas.com/us/en/products/microcontrollers-microprocessors/rz-mpus/bacnet-start-rzn2l-rsk)
++ Download Example packages from [RZ/N2L Group Example program](https://www.renesas.com/us/en/document/scd/rzn2l-group-example-program?r=1622651) and unzip the archived file.
++ unzip RZN2L_RSK_sci_uart_Rev200.zip
++ unzip RZN2L_RSK_sci_uart_Rev200/basis/gcc/RZN2L_RSK_sci_uart_Rev200a.zip
++
 + Copy the following C source files from the project to src/serial_io folder of `test_RZN2L`\
-um_serial_io_uart.c\
-um_serial_io_task_writer.c\
-um_serial_io_cfg.h\
-um_common_api.h\
-um_common_cfg.h\
-um_serial_io.c\
-um_serial_io.h\
-um_serial_io_api.h\
-um_serial_io_internal.h
+sio_char.h\
+siochar.c
 
+4.) Prepare loader project
++ Download Example packages from [RZ/N2L Group Example of separating loader program and application program projects](https://www.renesas.com/en/document/scd/11691006?language=en&r=1622651) and unzip the archived file.
++ Unzip `RZN2L_loader_application\gcc\xspi0bootx1\Loader_application_projects.zip
++ Copy `RZN2L_bsp_xspi0bootx1_loader` and `RZN2L_bsp_xspi0bootx1_app` to `<wolfSSL>\IDE\Renesas\e2studio\RZN2L` folder
++ Import `RZN2L_bsp_xspi0bootx1_loader` from `e2studio`
 
-+ Open um_serial_io_task_writer.c and re-name printf to uart_printf
+## Build `test_RZN2L`
+1). Modify `fsp/src/bsp/cmsis/Device/RENESAS/Source/cr/startup_core.c`:
+ORIGINAL
+```
+BSP_TARGET_ARM BSP_ATTRIBUTE_STACKLESS void __Vectors (void)
+{
+    __asm volatile (
+        "    ldr pc,=Reset_Handler            \n"
+```
+==>
 
-3.) Build `test_RZN2L` project
+MODIFIED
+```
+BSP_TARGET_ARM BSP_ATTRIBUTE_STACKLESS void __Vectors (void)
+{
+    __asm volatile (
+#if 0
+        "    ldr pc,=Reset_Handler            \n"
+#else
+        "    ldr pc,=local_system_init        \n"
+#endif
+```
+1). Modify `fsp/src/bsp/cmsis/Device/RENESAS/Source/startup.c`:
 
-## Run `test_RZN2L`
+ORIGINAL
+```
+void SystemInit (void)
+{
+#if BSP_CFG_EARLY_INIT
+...
+#if BSP_CFG_C_RUNTIME_INIT
 
-1). Right click the project and Select menu `Debug` -> `Renesas GDB Hardware debugging`
+    /* Copy the loader data from external Flash to internal RAM. */
+    bsp_loader_data_init();
 
-2). Select J-Link ARM and R9A07G084M04
+    /* Clear loader bss section in internal RAM. */
+    bsp_loader_bss_init();
+#endif
+...
+#if !(BSP_CFG_RAM_EXECUTION)
 
-3). Break at Entry point. Change `cpsr` register value from 0xXXXXX1yy to 0xXXXXX1da
+    /* Copy the application program from external Flash to internal RAM. */
+    bsp_copy_to_ram();
+
+    /* Clear bss section in internal RAM. */
+    bsp_application_bss_init();
+#endif
+...
+}
+```
+
+==>
+
+MODIFIED
+```
+BSP_TARGET_ARM void mpu_cache_init (void)
+{
+...
+if BSP_CFG_C_RUNTIME_INIT && !defined(EXTERNAL_LOADER_APP)
+
+    /* Copy the loader data from external Flash to internal RAM. */
+    bsp_loader_data_init();
+
+    /* Clear loader bss section in internal RAM. */
+    bsp_loader_bss_init();
+#endif
+...
+#if !(BSP_CFG_RAM_EXECUTION) && !defined(EXTERNAL_LOADER_APP)
+
+    /* Copy the application program from external Flash to internal RAM. */
+    /* bsp_copy_to_ram(); */
+
+    /* Clear bss section in internal RAM. */
+    bsp_application_bss_init();
+#endif
+...
+}
+```
+2). Copy contenst of `fsp_xspi0_boot_app.ld` of `RZN2L_bsp_xspi0bootx1_app\script\` to `test_RZN2L\script\fsp_xspi0_boot.ld`
+
+3). Right click the project and Select menu `Debug` -> `Renesas GDB Hardware debugging`
+
+4). Select J-Link ARM and R9A07G084M04
+5). Build `test_RZN2L`
+
+## Build loader project
++ Modify `src/Flash_section.s`:
+
+ORIGINAL
+```
+.incbin "../../RZN2L_bsp_xspi0bootx1_app/Debug/RZN2L_bsp_xspi0bootx1_app.bin"
+```
+
+==>
+
+MODIFIED
+```
+.incbin "../../test/Debug/test_RZN2L.bin"
+```
++ Modify `Load Image and Symbol`. Open `Debug Configuration` -> Open `Startup` tab -> Replace `RZN2L_bsp_xspi0bootx1_app.elf` to `test_RZN2L.elf`
+
+## Run loader and `test_RZN2L`
++ Run the loader project
++ Loader download `test_RZN2L` binary from flash to system ram and execute it.
++ Note: It recommends to re-build the loader project when re-building `test_RZN2L`
 
 ## Run TLS 1.3 Client
 1.) Enable `WOLFSSL_TLS13` macro in `user_settings.h`

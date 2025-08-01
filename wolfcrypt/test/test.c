@@ -263,7 +263,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #include <printx.h>
     #undef printf
     #define printf printx
-#elif defined(WOLFSSL_RENESAS_RSIP)
+#elif defined(WOLFSSL_RENESAS_RSIP) || defined(WOLFSSL_RENESAS_RZN2L)
     #ifndef TEST_SLEEP
         #define TEST_SLEEP() vTaskDelay(50)
     #endif
@@ -2567,6 +2567,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     wc_CryptoCb_CleanupOcteon(&devId);
+#endif
+#ifdef HAVE_RENESAS_SYNC
+    wc_CryptoCb_CleanupRenesasCmn(&devId);
 #endif
 #endif
 

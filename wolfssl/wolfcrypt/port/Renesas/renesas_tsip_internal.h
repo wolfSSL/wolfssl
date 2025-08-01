@@ -24,10 +24,6 @@
 #include "renesas-tsip-crypt.h"
 
 struct TsipUserCtx_Internal {
-
-    /* unique number for each session */
-    int devId;
-
     /* client key pair wrapped by provisioning key */
     byte*                                              wrappedPrivateKey;
     byte*                                              wrappedPublicKey;

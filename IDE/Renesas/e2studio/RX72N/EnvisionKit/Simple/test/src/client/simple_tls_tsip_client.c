@@ -32,7 +32,7 @@
 #endif
 
 #if defined(SIMPLE_TLS_TSIP_CLIENT) || defined(SIMPLE_TLS_CLIENT)
-#define SIMPLE_TLSSEVER_IP       "192.168.11.11"
+#define SIMPLE_TLSSEVER_IP       "192.168.11.6"
 #define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
@@ -308,10 +308,10 @@ void wolfSSL_TLS_client( )
     #else
 
     if (ret == 0) {
-        err = wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
+        ret = wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
                             sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1);
 
-        if (err != SSL_SUCCESS) {
+        if (ret != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
             ret = -1;

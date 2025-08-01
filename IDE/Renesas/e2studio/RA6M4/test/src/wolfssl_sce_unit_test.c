@@ -37,8 +37,6 @@
 
 #include "FreeRTOS.h"
 
-static const int devId = 7890;
-
 #ifndef NO_SHA
  int sha_test();
 #endif
@@ -63,10 +61,9 @@ static byte Aes256_Cbc_multTst_rslt = 0;
 static byte Aes128_Gcm_multTst_rslt = 0;
 static byte Aes256_Gcm_multTst_rslt = 0;
 
-int sce_crypt_AesCbc_multitest();
-int sce_crypt_AesGcm_multitest();
-int sce_crypt_Sha_AesCbcGcm_multitest();
-int sce_crypt_sha_multitest();
+int sce_crypt_AesCbc_multitest(int devId);
+int sce_crypt_AesGcm_multitest(int devId);
+int sce_crypt_Sha_AesCbcGcm_multitest(int devId);
 int sce_crypt_test();
 int sce_crypt_sha256_multitest();
 void tskSha256_Test1(void *pvParam);
@@ -97,12 +94,13 @@ FSPSM_ST gCbInfo_a; /* for multi testing */
 #endif
 typedef struct tagInfo
 {
+    int devId;
     sce_aes_wrapped_key_t aes_key;
 } Info;
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 
-static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
+static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key, int devId)
 {
 
     Aes  aes[1];
@@ -171,7 +169,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
     Info *p = (Info*)pvParam;
 
     while (exit_loop == 0) {
-        ret = sce_aes_cbc_test(0, &p->aes_key);
+        ret = sce_aes_cbc_test(0, &p->aes_key, p->devId);
         vTaskDelay(10/portTICK_PERIOD_MS);
         if (ret != 0) {
             printf(" result was not good(%d). sce_aes_cbc_test\n", ret);
@@ -186,7 +184,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
 #endif
 
 #ifdef WOLFSSL_AES_256
-static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key)
+static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key, int devId)
 {
     Aes enc[1];
     byte cipher[WC_AES_BLOCK_SIZE];
@@ -269,7 +267,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
     Info *p = (Info*)pvParam;
 
     while (exit_loop == 0) {
-        ret = sce_aes256_test(0, &p->aes_key);
+        ret = sce_aes256_test(0, &p->aes_key, p->devId);
         vTaskDelay(10/portTICK_PERIOD_MS);
         if (ret != 0) {
             printf(" result was not good(%d). sce_aes256_test\n", ret);
@@ -284,7 +282,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
 #endif /* WOLFSSL_AES_256 */
 
 #if defined(WOLFSSL_AES_256)
-static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
+static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key, int devId)
 {
     Aes enc[1];
     Aes dec[1];
@@ -451,7 +449,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
     Info *p = (Info*)pvParam;
 
     while (exit_loop == 0) {
-        ret = sce_aesgcm256_test(0, &p->aes_key);
+        ret = sce_aesgcm256_test(0, &p->aes_key, p->devId);
         vTaskDelay(10/portTICK_PERIOD_MS);
         if (ret != 0) {
             printf(" result was not good(%d). sce_aesgcm256_test\n", ret);
@@ -466,7 +464,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 
 #if defined(WOLFSSL_AES_128)
 
-static int sce_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key)
+static int sce_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key, int devId)
 {
     Aes enc[1];
     Aes dec[1];
@@ -597,7 +595,7 @@ static void tskAes128_Gcm_Test(void *pvParam)
     Info *p = (Info*)pvParam;
 
     while (exit_loop == 0) {
-        ret = sce_aesgcm128_test(0, &p->aes_key);
+        ret = sce_aesgcm128_test(0, &p->aes_key, p->devId);
         vTaskDelay(10/portTICK_PERIOD_MS);
         if (ret != 0) {
             printf(" result was not good(%d). sce_aesgcm128_test\n", ret);
@@ -619,7 +617,7 @@ static void tskAes128_Gcm_Test(void *pvParam)
 #define TEST_STRING_SZ   25
 #define RSA_TEST_BYTES   256 /* up to 2048-bit key */
 
-static int sce_rsa_test(int prnt, int keySize)
+static int sce_rsa_test(int prnt, int keySize, int devId)
 {
     int ret = 0;
 
@@ -654,7 +652,7 @@ static int sce_rsa_test(int prnt, int keySize)
     XMEMSET(out,  0, outSz);
     XMEMSET(out2, 0, outSz);
 
-    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    ret = wc_InitRsaKey_ex(key, NULL, devId);
     if (ret != 0) {
         goto out;
     }
@@ -699,7 +697,7 @@ out:
     return ret;
 }
 
-static int sce_rsa_SignVerify_test(int prnt, int keySize)
+static int sce_rsa_SignVerify_test(int prnt, int keySize, int devId)
 {
     int ret = 0;
 
@@ -730,7 +728,7 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
     XMEMCPY(in, inStr, inLen);
     XMEMCPY(in2, inStr2, inLen);
 
-    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    ret = wc_InitRsaKey_ex(key, NULL, devId);
     if (ret != 0) {
         goto out;
     }
@@ -781,6 +779,7 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
 int sce_crypt_test()
 {
     int ret = 0;
+    int devId = INVALID_DEVID;
     fsp_err_t err;
 
     Clr_CallbackCtx(&gCbInfo);
@@ -817,13 +816,14 @@ int sce_crypt_test()
     SCE_KeyGeneration(&gCbInfo_a);
 
     ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &gCbInfo);
-    if ( ret > 0)
-         ret = 0;
-
+    if ( ret > 0) {
+        devId = ret;
+        ret = 0;
+    }
     if (ret == 0) {
          printf(" sce_rsa_test(512)(this will be done"
               " by SW because SCE doesn't support 512 bits key size.)");
-         ret = sce_rsa_test(1, 512);
+         ret = sce_rsa_test(1, 512, devId);
          RESULT_STR(ret)
     }
 
@@ -833,13 +833,13 @@ int sce_crypt_test()
         gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 1;
         gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 0;
         gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 0;
-        ret = sce_rsa_test(1, 1024);
+        ret = sce_rsa_test(1, 1024, devId);
         RESULT_STR(ret)
     }
 
     if (ret == 0) {
         printf(" sce_rsa_SignVerify_test(1024)");
-        ret = sce_rsa_SignVerify_test(1, 1024);
+        ret = sce_rsa_SignVerify_test(1, 1024, devId);
         RESULT_STR(ret)
     }
 
@@ -849,13 +849,13 @@ int sce_crypt_test()
         gCbInfo.keyflgs_crypt.bits.rsapub1024_installedkey_set = 0;
         gCbInfo.keyflgs_crypt.bits.rsapri2048_installedkey_set = 1;
         gCbInfo.keyflgs_crypt.bits.rsapub2048_installedkey_set = 1;
-        ret = sce_rsa_test(1, 2048);
+        ret = sce_rsa_test(1, 2048, devId);
         RESULT_STR(ret)
     }
 
     if (ret == 0 && err == FSP_SUCCESS) {
         printf(" sce_rsa_SignVerify_test(2048)");
-        ret = sce_rsa_SignVerify_test(1, 2048);
+        ret = sce_rsa_SignVerify_test(1, 2048, devId);
         RESULT_STR(ret)
     }
 
@@ -864,16 +864,16 @@ int sce_crypt_test()
     ret = sha256_test();
     RESULT_STR(ret)
 #endif
-    ret = sce_aes_cbc_test(1, &g_user_aes128_key_index1);
+    ret = sce_aes_cbc_test(1, &g_user_aes128_key_index1, devId);
     if (ret == 0) {
-        ret = sce_aes256_test(1, &g_user_aes256_key_index1);
+        ret = sce_aes256_test(1, &g_user_aes256_key_index1, devId);
     }
     if (ret == 0) {
-        ret = sce_aesgcm128_test(1, &g_user_aes128_key_index1);
+        ret = sce_aesgcm128_test(1, &g_user_aes128_key_index1, devId);
     }
 
     if (ret == 0) {
-        ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1);
+        ret = sce_aesgcm256_test(1, &g_user_aes256_key_index1, devId);
     }
     printf(" \n");
     if (ret == 0) {
@@ -882,22 +882,21 @@ int sce_crypt_test()
     }
     if (ret == 0) {
         printf(" multi Aes cbc thread test\n");
-        ret = sce_crypt_AesCbc_multitest();
+        ret = sce_crypt_AesCbc_multitest(devId);
     }
     if (ret == 0) {
         printf(" multi Aes Gcm thread test\n");
-        ret = sce_crypt_AesGcm_multitest();
+        ret = sce_crypt_AesGcm_multitest(devId);
     }
     if (ret == 0) {
         printf(" multi sha aescbc aesgcm thread test\n");
-        sce_crypt_Sha_AesCbcGcm_multitest();
+        sce_crypt_Sha_AesCbcGcm_multitest(devId);
     } else
         ret = -1;
 
-    #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
-        Clr_CallbackCtx(&gCbInfo);
-        Clr_CallbackCtx(&gCbInfo_a);
-    #endif
+    wc_CryptoCb_CleanupRenesasCmn(&devId);
+    Clr_CallbackCtx(&gCbInfo);
+    Clr_CallbackCtx(&gCbInfo_a);
 
     return ret;
 }
@@ -955,7 +954,7 @@ int sce_crypt_sha256_multitest()
     sha256_multTst_rslt1 = 0;
     sha256_multTst_rslt2 = 0;
 
-    exit_semaph = xSemaphoreCreateCounting(num, 0);
+    exit_semaph = xSemaphoreCreateCounting((UBaseType_t)num, 0);
     xRet = pdPASS;
 
 #ifndef NO_SHA256
@@ -994,7 +993,7 @@ int sce_crypt_sha256_multitest()
 }
 
 
-int sce_crypt_AesCbc_multitest()
+int sce_crypt_AesCbc_multitest(int devId)
 {
     int ret = 0;
     int num = 0;
@@ -1015,8 +1014,12 @@ int sce_crypt_AesCbc_multitest()
     Aes128_Cbc_multTst_rslt = 0;
     Aes256_Cbc_multTst_rslt = 0;
 
-    exit_semaph = xSemaphoreCreateCounting(num, 0);
+    exit_semaph = xSemaphoreCreateCounting((UBaseType_t)num, 0);
     xRet = pdPASS;
+    info_aes1.devId = devId;
+    info_aes2.devId = devId;
+    info_aes256_1.devId = devId;
+    info_aes256_2.devId = devId;
 
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
@@ -1075,7 +1078,7 @@ int sce_crypt_AesCbc_multitest()
 }
 
 
-int sce_crypt_AesGcm_multitest()
+int sce_crypt_AesGcm_multitest(int devId)
 {
     int ret = 0;
     int num = 0;
@@ -1097,9 +1100,12 @@ int sce_crypt_AesGcm_multitest()
     Aes128_Gcm_multTst_rslt = 0;
     Aes256_Gcm_multTst_rslt = 0;
 
-    exit_semaph = xSemaphoreCreateCounting(num, 0);
+    exit_semaph = xSemaphoreCreateCounting((UBaseType_t)num, 0);
     xRet = pdPASS;
-
+    info_aes1.devId = devId;
+    info_aes2.devId = devId;
+    info_aes256_1.devId = devId;
+    info_aes256_2.devId = devId;
 #if defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
                                     sizeof(sce_aes_wrapped_key_t));
@@ -1158,7 +1164,7 @@ int sce_crypt_AesGcm_multitest()
     return ret;
 }
 
-int sce_crypt_Sha_AesCbcGcm_multitest()
+int sce_crypt_Sha_AesCbcGcm_multitest(int devId)
 {
     int ret = 0;
     int num = 0;
@@ -1188,9 +1194,12 @@ int sce_crypt_Sha_AesCbcGcm_multitest()
     Aes128_Gcm_multTst_rslt = 0;
     Aes256_Gcm_multTst_rslt = 0;
 
-    exit_semaph = xSemaphoreCreateCounting(num, 0);
+    exit_semaph = xSemaphoreCreateCounting((UBaseType_t)num, 0);
     xRet = pdPASS;
-
+    info_aes128cbc.devId = devId;
+    info_aes128gcm.devId = devId;
+    info_aes256cbc.devId = devId;
+    info_aes256gcm.devId = devId;
 #ifndef NO_SHA256
     xRet = xTaskCreate(tskSha256_Test1, "sha256_test1",
                                             STACK_SIZE, NULL, 3, NULL);

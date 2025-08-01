@@ -1278,6 +1278,11 @@ WOLFSSL_API int wc_fspsm_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
 
     ForceZero(uCtx->internal, sizeof(FSPSM_ST_Internal));
 
+    uCtx->internal->ssl  = ssl;
+    uCtx->internal->ctx  = ssl->ctx;
+    uCtx->internal->heap = ssl->heap;
+    uCtx->internal->side = ssl->ctx->method->side;
+
     ssl->RenesasUserCtx = user_ctx;     /* ssl doesn't own user_ctx */
 
     wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
