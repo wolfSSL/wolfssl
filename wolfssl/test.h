@@ -3124,7 +3124,7 @@ static WC_INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
         return 0;
     }
 
-    /* print to stderr so is on the same pipe as WOLFSSL_DEBUG */
+    /* print to stderr so is on the same pipe as DEBUG_WOLFSSL */
     fprintf(stderr, "Total mallocs   = %d\n", stats->totalAlloc);
     fprintf(stderr, "Total frees     = %d\n", stats->totalFr);
     fprintf(stderr, "Current mallocs = %d\n", stats->curAlloc);

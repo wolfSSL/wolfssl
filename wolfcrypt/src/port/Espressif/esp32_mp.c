@@ -2154,7 +2154,7 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
         DPORT_REG_WRITE(RSA_MULT_MODE_REG, (mph->hwWords_sz >> 4) - 1);
 #if defined(DEBUG_WOLFSSL)
         ESP_LOGV(TAG, "RSA_MULT_MODE_REG = %d", (mph->hwWords_sz >> 4) - 1);
-#endif /* WOLFSSL_DEBUG */
+#endif /* DEBUG_WOLFSSL */
 
         /* step.2 write X, M, and r_inv into memory.
          * The capacity of each memory block is 128 words.
