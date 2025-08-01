@@ -39834,6 +39834,7 @@ static int test_wolfSSL_SESSION(void)
         const char* ticket = "This is a session ticket";
         char buf[64] = {0};
         word32 bufSz = (word32)sizeof(buf);
+        word32 retSz = 0;
 
         ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_set_SessionTicket(ssl, (byte *)ticket,
@@ -39841,6 +39842,10 @@ static int test_wolfSSL_SESSION(void)
         ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_get_SessionTicket(ssl, (byte *)buf, &bufSz));
         ExpectStrEQ(ticket, buf);
+
+        /* return ticket length if buffer parameter is null */
+        wolfSSL_get_SessionTicket(ssl, NULL, &retSz);
+        ExpectIntEQ(bufSz, retSz);
     }
 #endif
 
