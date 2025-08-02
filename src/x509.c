@@ -1972,16 +1972,19 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
 
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
             ret = wolfSSL_ASN1_STRING_set(newString, cert.extSubjKeyId,
                                           cert.extSubjKeyIdSz);
+            FreeDecodedCert(&cert);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
@@ -2007,6 +2010,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
 
@@ -2015,6 +2019,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     DYNAMIC_TYPE_X509_EXT);
             if (akey == NULL) {
                 WOLFSSL_MSG("Failed to malloc authority key id");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
 
@@ -2024,11 +2029,13 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             if (akey->keyid == NULL) {
                 WOLFSSL_MSG("ASN1_STRING_new() failed");
                 wolfSSL_AUTHORITY_KEYID_free(akey);
+                FreeDecodedCert(&cert);
                 return NULL;
             }
 
             ret = wolfSSL_ASN1_STRING_set(akey->keyid, cert.extAuthKeyId,
                                           cert.extAuthKeyIdSz);
+            FreeDecodedCert(&cert);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_AUTHORITY_KEYID_free(akey);
@@ -2059,6 +2066,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 asn1String->length, object->type, (byte)ext->crit, &cert, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("DecodeExtensionType() failed");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
 
@@ -2068,10 +2076,12 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             newString = wolfSSL_ASN1_STRING_new();
             if (newString == NULL) {
                 WOLFSSL_MSG("Failed to malloc ASN1_STRING");
+                FreeDecodedCert(&cert);
                 return NULL;
             }
             ret = wolfSSL_ASN1_STRING_set(newString, (byte*)&cert.extKeyUsage,
                                                                 sizeof(word16));
+            FreeDecodedCert(&cert);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("ASN1_STRING_set() failed");
                 wolfSSL_ASN1_STRING_free(newString);
