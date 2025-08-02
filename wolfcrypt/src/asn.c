@@ -18684,7 +18684,7 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                         goto exit_cs;
                     }
                     if ((ret = wc_dilithium_set_level(sigCtx->key.dilithium,
-                            level)) < 0) {
+                            (byte)level)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_Dilithium_PublicKeyDecode(key, &idx,
@@ -31914,7 +31914,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                 ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
                     &outSz, dilithiumKey, rng);
                 if (ret == 0)
-                    ret = outSz;
+                    ret = (int)outSz;
             }
         }
     #endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_NO_SIGN */

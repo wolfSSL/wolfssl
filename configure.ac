@@ -1359,11 +1359,7 @@ then
         test "$enable_kyber" = "" && test "$enable_mlkem" = "" && enable_mlkem=yes
         test "$enable_lms" = "" && enable_lms='yes,sha256-192'
         test "$enable_xmss" = "" && enable_xmss=yes
-
-        if test "$ENABLED_EXPERIMENTAL" = "yes"
-        then
-            test "$enable_dilithium" = "" && enable_dilithium=yes
-        fi
+        test "$enable_dilithium" = "" && enable_dilithium=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -11193,7 +11189,7 @@ echo "   * AES-XTS:                    $ENABLED_AESXTS"
 echo "   * AES-XTS streaming:          $ENABLED_AESXTS_STREAM"
 echo "   * AES-SIV:                    $ENABLED_AESSIV"
 echo "   * AES-EAX:                    $ENABLED_AESEAX"
-echo "   * AES Bitspliced:             $ENABLED_AESBS"
+echo "   * AES Bitsliced:              $ENABLED_AESBS"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * ASCON:                      $ENABLED_ASCON"
