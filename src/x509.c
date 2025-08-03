@@ -3281,21 +3281,19 @@ int wolfSSL_X509_EXTENSION_set_object(WOLFSSL_X509_EXTENSION* ext,
 /*
  * Replace the current string in 'asn1str', which is the full X.509
  * extension octet string with some data specific for the extension
- * type. The extension is the one given in 'oid'
+ * type. The extension is the one given in 'oid'.
+ * Return 0 in case of success, or a negative error code.
  */
-static void wolfSSL_ASN1_STRING_into_old_ext_fmt (WOLFSSL_ASN1_STRING *asn1str, word32 oid)
+static int wolfSSL_ASN1_STRING_into_old_ext_fmt(WOLFSSL_ASN1_STRING *asn1str,
+                                                word32 oid)
 {
     switch (oid)
     {
-        case BASIC_CA_OID:
-            /* Do nothing, it is already set */
-            break;
-
         case AUTH_INFO_OID:
             wolfSSL_ASN1_STRING_clear(asn1str);
             asn1str->data = NULL;
             asn1str->length = 0;
-            break;
+            return 0;
 
         case AUTH_KEY_OID:
         {
@@ -3306,23 +3304,24 @@ static void wolfSSL_ASN1_STRING_into_old_ext_fmt (WOLFSSL_ASN1_STRING *asn1str, 
             word32 issuerSz = 0;
             const byte *serial = NULL;
             word32 serialSz = 0;
+            char *data = NULL;
 
             ret = DecodeAuthKeyId((const byte *)asn1str->data, asn1str->length,
                     &extAuthKeyId, &extAuthKeyIdSz, &issuer, &issuerSz, &serial,
                     &serialSz);
 
-            if (ret == 0)
-            {
-                char *data;
-                data = (char*)XMALLOC((size_t)(extAuthKeyIdSz), NULL, DYNAMIC_TYPE_OPENSSL);
-                if (data)
-                {
-                    XMEMCPY(data, extAuthKeyId, (size_t)extAuthKeyIdSz);
-                    wolfSSL_ASN1_STRING_set(asn1str, data, extAuthKeyIdSz);
-                    XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
-                }
-            }
-            break;
+            if (ret != 0)
+                return ret;
+
+            data = (char*)XMALLOC((size_t)(extAuthKeyIdSz), NULL,
+                                  DYNAMIC_TYPE_OPENSSL);
+            if (data == NULL)
+                return MEMORY_ERROR;
+
+            XMEMCPY(data, extAuthKeyId, (size_t)extAuthKeyIdSz);
+            wolfSSL_ASN1_STRING_set(asn1str, data, extAuthKeyIdSz);
+            XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
+            return 0;
         }
 
         case SUBJ_KEY_OID:
@@ -3330,28 +3329,29 @@ static void wolfSSL_ASN1_STRING_into_old_ext_fmt (WOLFSSL_ASN1_STRING *asn1str, 
             int ret = 0;
             const byte *extSubjKeyId = NULL;
             word32 extSubjKeyIdSz = 0;
+            char *data = NULL;
 
             ret = DecodeSubjKeyId((const byte *)asn1str->data, asn1str->length,
                     &extSubjKeyId, &extSubjKeyIdSz);
-            if (ret == 0)
-            {
-                char *data;
-                data = (char*)XMALLOC((size_t)(extSubjKeyIdSz), NULL, DYNAMIC_TYPE_OPENSSL);
-                if (data)
-                {
-                    XMEMCPY(data, extSubjKeyId, (size_t)extSubjKeyIdSz);
-                    wolfSSL_ASN1_STRING_set(asn1str, data, extSubjKeyIdSz);
-                    XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
-                }
-            }
-            break;
+            if (ret != 0)
+                return ret;
+
+            data = (char*)XMALLOC((size_t)(extSubjKeyIdSz), NULL,
+                                  DYNAMIC_TYPE_OPENSSL);
+            if (data == NULL)
+                return MEMORY_ERROR;
+
+            XMEMCPY(data, extSubjKeyId, (size_t)extSubjKeyIdSz);
+            wolfSSL_ASN1_STRING_set(asn1str, data, extSubjKeyIdSz);
+            XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
+            return 0;
         }
 
         case CERT_POLICY_OID:
             wolfSSL_ASN1_STRING_clear(asn1str);
             asn1str->data = NULL;
             asn1str->length = 0;
-            break;
+            return 0;
 
         case KEY_USAGE_OID:
         {
@@ -3360,9 +3360,12 @@ static void wolfSSL_ASN1_STRING_into_old_ext_fmt (WOLFSSL_ASN1_STRING *asn1str, 
 
             ret = DecodeKeyUsage((const byte *)asn1str->data, asn1str->length,
                     &extKeyUsage);
-            if (ret == 0)
-                wolfSSL_ASN1_STRING_set(asn1str, (byte*)&extKeyUsage, sizeof(word16));
-            break;
+            if (ret != 0)
+                return ret;
+
+            wolfSSL_ASN1_STRING_set(asn1str, (byte*)&extKeyUsage,
+                                    sizeof(extKeyUsage));
+            return 0;
         }
 
         case EXT_KEY_USAGE_OID:
@@ -3373,37 +3376,34 @@ static void wolfSSL_ASN1_STRING_into_old_ext_fmt (WOLFSSL_ASN1_STRING *asn1str, 
             word32 extExtKeyUsageCount = 0;
             byte extExtKeyUsage = 0;
             byte extExtKeyUsageSsh = 0;
+            char *data = NULL;
 
-            ret = DecodeExtKeyUsage((const byte *)asn1str->data, asn1str->length,
+            ret = DecodeExtKeyUsage((const byte*)asn1str->data, asn1str->length,
                     &extExtKeyUsageSrc, &extExtKeyUsageSz, &extExtKeyUsageCount,
                     &extExtKeyUsage, &extExtKeyUsageSsh);
-            if (ret == 0)
-            {
-                char *data;
-                data = (char*)XMALLOC((size_t)(extExtKeyUsageSz), NULL, DYNAMIC_TYPE_OPENSSL);
-                if (data)
-                {
-                    XMEMCPY(data, extExtKeyUsageSrc, (size_t)extExtKeyUsageSz);
-                    wolfSSL_ASN1_STRING_set(asn1str, data, extExtKeyUsageSz);
-                    XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
-                }
-            }
-            break;
+            if (ret != 0)
+                return ret;
+
+            data = (char*)XMALLOC((size_t)(extExtKeyUsageSz), NULL,
+                                  DYNAMIC_TYPE_OPENSSL);
+            if (data == NULL)
+                return MEMORY_ERROR;
+
+            XMEMCPY(data, extExtKeyUsageSrc, (size_t)extExtKeyUsageSz);
+            wolfSSL_ASN1_STRING_set(asn1str, data, extExtKeyUsageSz);
+            XFREE(data, NULL, DYNAMIC_TYPE_OPENSSL);
+            return 0;
         }
 
         case CRL_DIST_OID:
             wolfSSL_ASN1_STRING_clear(asn1str);
             asn1str->data = NULL;
             asn1str->length = 0;
-            break;
-
-        case ALT_NAMES_OID:
-            /* Do nothing, it is already set */
-            break;
+            return 0;
 
         default:
             /* Do nothing, it is already set */
-            break;
+            return 0;
     }
 }
 #endif /* WOLFSSL_OLD_EXTDATA_FMT */
@@ -3418,7 +3418,15 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(
 
 #ifdef WOLFSSL_OLD_EXTDATA_FMT
     if (ret)
-        wolfSSL_ASN1_STRING_into_old_ext_fmt (ret, ext->obj->type);
+    {
+        int error;
+        error = wolfSSL_ASN1_STRING_into_old_ext_fmt (ret, ext->obj->type);
+        if (error != 0)
+        {
+            WOLFSSL_MSG("Error calling wolfSSL_ASN1_STRING_into_old_ext_fmt");
+            return NULL;
+        }
+    }
 #endif
 
     return ret;
