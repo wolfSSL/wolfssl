@@ -9806,6 +9806,10 @@ then
     fi
 fi
 
+# Make function 'wolfSSL_X509_EXTENSION_get_data' return different type of
+# data for each type of extension, as it used to do in the past, instead of
+# always returning the full OCTET STRING of the extension. Use only if you
+# need to keep compatibility with older versions.
 AC_ARG_ENABLE([old-extdata-fmt],
     [AS_HELP_STRING([--enable-old-extdata-fmt],[Enable old format for extracting extension data (default: disabled)])],
     [ ENABLED_OLD_EXTDATA_FMT=$enableval ],
