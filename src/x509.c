@@ -3300,15 +3300,10 @@ static int wolfSSL_ASN1_STRING_into_old_ext_fmt(WOLFSSL_ASN1_STRING *asn1str,
             int ret = 0;
             const byte *extAuthKeyId = NULL;
             word32 extAuthKeyIdSz = 0;
-            const byte *issuer = NULL;
-            word32 issuerSz = 0;
-            const byte *serial = NULL;
-            word32 serialSz = 0;
             char *data = NULL;
 
             ret = DecodeAuthKeyId((const byte *)asn1str->data, asn1str->length,
-                    &extAuthKeyId, &extAuthKeyIdSz, &issuer, &issuerSz, &serial,
-                    &serialSz);
+                    &extAuthKeyId, &extAuthKeyIdSz, NULL, NULL, NULL, NULL);
 
             if (ret != 0)
                 return ret;

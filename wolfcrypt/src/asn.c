@@ -24100,14 +24100,20 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
 
     WOLFSSL_ENTER("DecodeAuthKeyId");
 
-    *extAuthKeyId = NULL;
-    *extAuthKeyIdSz = 0;
+    if (extAuthKeyId)
+        *extAuthKeyId = NULL;
+    if (extAuthKeyIdSz)
+        *extAuthKeyIdSz = 0;
 
-    *extAuthKeyIdIssuer = NULL;
-    *extAuthKeyIdIssuerSz = 0;
+    if (extAuthKeyIdIssuer)
+        *extAuthKeyIdIssuer = NULL;
+    if (extAuthKeyIdIssuerSz)
+        *extAuthKeyIdIssuerSz = 0;
 
-    *extAuthKeyIdIssuerSN = NULL;
-    *extAuthKeyIdIssuerSNSz = 0;
+    if (extAuthKeyIdIssuerSN)
+        *extAuthKeyIdIssuerSN = NULL;
+    if (extAuthKeyIdIssuerSNSz)
+        *extAuthKeyIdIssuerSNSz = 0;
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -24128,8 +24134,10 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
         return ASN_PARSE_E;
     }
 
-    *extAuthKeyIdSz = length;
-    *extAuthKeyId = &input[idx];
+    if (extAuthKeyIdSz)
+        *extAuthKeyIdSz = length;
+    if (extAuthKeyId)
+        *extAuthKeyId = &input[idx];
     return 0;
 
 #else
@@ -24138,14 +24146,20 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
 
     WOLFSSL_ENTER("DecodeAuthKeyId");
 
-    *extAuthKeyId = NULL;
-    *extAuthKeyIdSz = 0;
+    if (extAuthKeyId)
+        *extAuthKeyId = NULL;
+    if (extAuthKeyIdSz)
+        *extAuthKeyIdSz = 0;
 
-    *extAuthKeyIdIssuer = NULL;
-    *extAuthKeyIdIssuerSz = 0;
+    if (extAuthKeyIdIssuer)
+        *extAuthKeyIdIssuer = NULL;
+    if (extAuthKeyIdIssuerSz)
+        *extAuthKeyIdIssuerSz = 0;
 
-    *extAuthKeyIdIssuerSN = NULL;
-    *extAuthKeyIdIssuerSNSz = 0;
+    if (extAuthKeyIdIssuerSN)
+        *extAuthKeyIdIssuerSN = NULL;
+    if (extAuthKeyIdIssuerSNSz)
+        *extAuthKeyIdIssuerSNSz = 0;
 
     CALLOC_ASNGETDATA(dataASN, authKeyIdASN_Length, ret, NULL);
 
@@ -24156,7 +24170,8 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
                            &idx, sz);
     }
     /* Each field is optional */
-    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
+    if (ret == 0 && extAuthKeyId && extAuthKeyIdSz &&
+            dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data != NULL) {
         GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_KEYID],
                 extAuthKeyId, extAuthKeyIdSz);
     }
@@ -24174,16 +24189,17 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.data, &idx,
                 dataASN[AUTHKEYIDASN_IDX_ISSUER].data.ref.length);
 
-        if (ret == 0) {
+        if (ret == 0 && extAuthKeyIdIssuer && extAuthKeyIdIssuerSz) {
             GetASN_GetConstRef(&nameASN[ALTNAMEASN_IDX_GN],
                     extAuthKeyIdIssuer, extAuthKeyIdIssuerSz);
         }
     }
-    if (ret == 0 && dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
+    if (ret == 0 && extAuthKeyIdIssuerSN && extAuthKeyIdIssuerSNSz &&
+            dataASN[AUTHKEYIDASN_IDX_SERIAL].data.ref.data != NULL) {
         GetASN_GetConstRef(&dataASN[AUTHKEYIDASN_IDX_SERIAL],
                 extAuthKeyIdIssuerSN, extAuthKeyIdIssuerSNSz);
     }
-    if (ret == 0) {
+    if (ret == 0 && extAuthKeyIdIssuerSz && extAuthKeyIdIssuerSNSz) {
         if ((*extAuthKeyIdIssuerSz > 0) ^
                 (*extAuthKeyIdIssuerSNSz > 0)) {
             WOLFSSL_MSG("authorityCertIssuer and authorityCertSerialNumber MUST"
