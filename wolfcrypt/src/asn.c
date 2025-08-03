@@ -20670,13 +20670,15 @@ enum {
  * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
  *          non-zero length.
  */
-static int DecodeBasicCaConstraintInternal(const byte* input, int sz, DecodedCert* cert)
+static int DecodeBasicCaConstraintInternal(const byte* input, int sz,
+                                           DecodedCert* cert)
 {
     int ret;
     byte isCa = 0;
     word16 pathLength = 0;
     byte pathLengthSet = 0;
-    ret = DecodeBasicCaConstraint(input, sz, &isCa, &pathLength, &pathLengthSet);
+    ret = DecodeBasicCaConstraint(input, sz, &isCa, &pathLength,
+                                  &pathLengthSet);
     if (ret != 0)
         return ret;
 
@@ -21133,7 +21135,8 @@ enum {
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
  */
-static int DecodeAuthKeyIdInternal(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeAuthKeyIdInternal(const byte* input, word32 sz,
+                                   DecodedCert* cert)
 {
     int ret;
     const byte *extAuthKeyId = NULL;
@@ -21268,7 +21271,8 @@ enum {
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeKeyUsageInternal(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeKeyUsageInternal(const byte* input, word32 sz,
+                                  DecodedCert* cert)
 {
     return DecodeKeyUsage(input, sz, &cert->extKeyUsage);
 }
@@ -21301,14 +21305,16 @@ enum {
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-static int DecodeExtKeyUsageInternal(const byte* input, word32 sz, DecodedCert* cert)
+static int DecodeExtKeyUsageInternal(const byte* input, word32 sz,
+                                     DecodedCert* cert)
 {
     int ret = 0;
 
 
     ret = DecodeExtKeyUsage(input, sz,
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            &cert->extExtKeyUsageSrc, &cert->extExtKeyUsageSz, &cert->extExtKeyUsageCount,
+            &cert->extExtKeyUsageSrc, &cert->extExtKeyUsageSz,
+            &cert->extExtKeyUsageCount,
 #else
             NULL, NULL, NULL,
 #endif
@@ -22506,7 +22512,8 @@ int DecodeExtensionType(const byte* input, word32 length, word32 oid,
                 ret = ASN_CRIT_EXT_E;
             }
         #endif
-            if ((ret == 0) && (DecodeAuthKeyIdInternal(input, length, cert) < 0)) {
+            if ((ret == 0) &&
+                (DecodeAuthKeyIdInternal(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -22527,7 +22534,8 @@ int DecodeExtensionType(const byte* input, word32 length, word32 oid,
             }
         #endif
 
-            if ((ret == 0) && (DecodeSubjKeyIdInternal(input, length, cert) < 0)) {
+            if ((ret == 0) &&
+                (DecodeSubjKeyIdInternal(input, length, cert) < 0)) {
                 ret = ASN_PARSE_E;
             }
             break;
@@ -24208,7 +24216,8 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
  */
 WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
-        word32 *extExtKeyUsageCount, byte *extExtKeyUsage, byte *extExtKeyUsageSsh)
+        word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
+        byte *extExtKeyUsageSsh)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0, oid;
@@ -24390,7 +24399,8 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
+WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz,
+                                 word16 *extKeyUsage)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;

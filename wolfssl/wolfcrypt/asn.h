@@ -2137,7 +2137,7 @@ WOLFSSL_LOCAL int DecodeCert(DecodedCert* cert, int verify, int* criticalExt);
 #endif
 
 WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
-                            byte *isCa, word16 *pathLength, byte *pathLengthSet);
+                           byte *isCa, word16 *pathLength, byte *pathLengthSet);
 
 WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
                             const byte **extSubjKeyId, word32 *extSubjKeyIdSz);
@@ -2147,11 +2147,13 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
             const byte **extAuthKeyIdIssuer, word32 *extAuthKeyIdIssuerSz,
             const byte **extAuthKeyIdIssuerSN, word32 *extAuthKeyIdIssuerSNSz);
 
-WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage);
+WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz,
+                                 word16 *extKeyUsage);
 
 WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
-        word32 *extExtKeyUsageCount, byte *extExtKeyUsage, byte *extExtKeyUsageSsh);
+        word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
+        byte *extExtKeyUsageSsh);
 
 WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
