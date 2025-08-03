@@ -10030,7 +10030,7 @@ enum {
 int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
+    word32 inOutIdx = 0, seqEnd, oid, shaOid = 0, seqPkcs5End = sz;
     int    ret = 0, first, second, length = 0, version, saltSz, id = 0;
     int    iterations = 0, keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -10062,6 +10062,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
         if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
+        seqPkcs5End = inOutIdx + length;
 
         if (GetAlgoId(input, &inOutIdx, &oid, oidKdfType, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
@@ -10079,7 +10080,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
      * DEFAULT items. */
     seqEnd = inOutIdx + (word32)length;
 
-    ret = GetOctetString(input, &inOutIdx, &saltSz, sz);
+    ret = GetOctetString(input, &inOutIdx, &saltSz, seqEnd);
     if (ret < 0)
         goto exit_dc;
 
@@ -10097,7 +10098,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
     XMEMCPY(salt, &input[inOutIdx], (size_t)saltSz);
     inOutIdx += (word32)saltSz;
 
-    if (GetShortInt(input, &inOutIdx, &iterations, sz) < 0) {
+    if (GetShortInt(input, &inOutIdx, &iterations, seqEnd) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
@@ -10105,19 +10106,19 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
     if (seqEnd > inOutIdx) {
         word32 localIdx = inOutIdx;
 
-        if (GetASNTag(input, &localIdx, &tag, sz) < 0) {
+        if (GetASNTag(input, &localIdx, &tag, seqEnd) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         if (tag == ASN_INTEGER &&
-                GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
+                GetShortInt(input, &inOutIdx, &keySz, seqEnd) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
     }
 
     /* DEFAULT HMAC is SHA-1 */
     if (seqEnd > inOutIdx) {
-        if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, sz) < 0) {
+        if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, seqEnd) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
@@ -10133,7 +10134,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 
     if (version == PKCS5v2) {
         /* get encryption algo */
-        if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
+        if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, seqPkcs5End) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
@@ -10144,7 +10145,7 @@ int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
         if (shaOid == 0)
             shaOid = oid;
 
-        ret = GetOctetString(input, &inOutIdx, &length, sz);
+        ret = GetOctetString(input, &inOutIdx, &length, seqPkcs5End);
         if (ret < 0)
             goto exit_dc;
 
@@ -10215,9 +10216,10 @@ exit_dc:
         idx = dataASN[PKCS8DECASN_IDX_ENCALGO_OID].data.oid.length;
         /* Second last byte: 1 (PKCS #12 PBE Id) or 5 (PKCS #5)
          * Last byte: Alg or PBES2 */
-        ret = CheckAlgo(dataASN[PKCS8DECASN_IDX_ENCALGO_OID].data.oid.data[idx - 2],
-                  dataASN[PKCS8DECASN_IDX_ENCALGO_OID].data.oid.data[idx - 1],
-                  &id, &version, NULL);
+        ret = CheckAlgo(
+            dataASN[PKCS8DECASN_IDX_ENCALGO_OID].data.oid.data[idx - 2],
+            dataASN[PKCS8DECASN_IDX_ENCALGO_OID].data.oid.data[idx - 1], &id,
+            &version, NULL);
     }
     if (ret == 0) {
         /* Get the parameters data. */
@@ -10241,7 +10243,8 @@ exit_dc:
                                0, params, &pIdx, sz);
             if (ret == 0) {
                 /* Get the salt data. */
-                GetASN_GetRef(&dataASN[PBES1PARAMSASN_IDX_SALT], &salt, &saltSz);
+                GetASN_GetRef(&dataASN[PBES1PARAMSASN_IDX_SALT], &salt,
+                    &saltSz);
             }
         }
         else {
@@ -10250,17 +10253,22 @@ exit_dc:
             /* Initialize for PBES2 parameters. Put iterations in var; match
              * KDF, HMAC and cipher, and copy CBC into buffer. */
             XMEMSET(dataASN, 0, sizeof(*dataASN) * pbes2ParamsASN_Length);
-            GetASN_ExpBuffer(&dataASN[PBES2PARAMSASN_IDX_KDF_OID], pbkdf2Oid, sizeof(pbkdf2Oid));
-            GetASN_Int32Bit(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_ITER], &iterations);
-            GetASN_OID(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID], oidHmacType);
+            GetASN_ExpBuffer(&dataASN[PBES2PARAMSASN_IDX_KDF_OID], pbkdf2Oid,
+                sizeof(pbkdf2Oid));
+            GetASN_Int32Bit(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_ITER],
+                &iterations);
+            GetASN_OID(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID],
+                oidHmacType);
             GetASN_OID(&dataASN[PBES2PARAMSASN_IDX_ENCS_OID], oidBlkType);
-            GetASN_Buffer(&dataASN[PBES2PARAMSASN_IDX_ENCS_PARAMS], cbcIv, &ivSz);
+            GetASN_Buffer(&dataASN[PBES2PARAMSASN_IDX_ENCS_PARAMS], cbcIv,
+                &ivSz);
             /* Parse the PBES2 parameters  */
             ret = GetASN_Items(pbes2ParamsASN, dataASN, pbes2ParamsASN_Length,
                                0, params, &pIdx, sz);
             if (ret == 0) {
                 /* Get the salt data. */
-                GetASN_GetRef(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_SALT], &salt, &saltSz);
+                GetASN_GetRef(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_SALT],
+                    &salt, &saltSz);
                 /* Get the digest and encryption algorithm id. */
                 shaOid = dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID].data.oid.sum; /* Default HMAC-SHA1 */
                 id     = (int)dataASN[PBES2PARAMSASN_IDX_ENCS_OID].data.oid.sum;
