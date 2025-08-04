@@ -37068,6 +37068,9 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     }
     if ((seed == NULL && seedLen != NULL) ||
         (seed != NULL && seedLen == NULL)) {
+    #ifdef WOLFSSL_ASN_TEMPLATE
+        FREE_ASNGETDATA(dataASN, NULL);
+    #endif
         return BAD_FUNC_ARG;
     }
 
