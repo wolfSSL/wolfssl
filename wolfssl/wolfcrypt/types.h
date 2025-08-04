@@ -1220,8 +1220,16 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_HMAC = 6,
     WC_ALGO_TYPE_CMAC = 7,
     WC_ALGO_TYPE_CERT = 8,
+    WC_ALGO_TYPE_KDF = 9,
 
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CERT
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_KDF
+};
+
+/* KDF types */
+enum wc_KdfType {
+    WC_KDF_TYPE_NONE = 0,
+    WC_KDF_TYPE_HKDF = 1
+    /* Future: WC_KDF_TYPE_PBKDF2 = 2, WC_KDF_TYPE_SCRYPT = 3, etc. */
 };
 
 /* hash types */

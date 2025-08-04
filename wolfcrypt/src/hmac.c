@@ -1622,14 +1622,26 @@ int wolfSSL_GetHmacMaxSize(void)
      * out      The output keying material.
      * returns 0 on success, otherwise failure.
      */
-    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                       const byte* salt,  word32 saltSz,
-                       const byte* info,  word32 infoSz,
-                       byte* out,         word32 outSz)
+    int wc_HKDF_ex(int type, const byte* inKey, word32 inKeySz,
+                   const byte* salt, word32 saltSz, const byte* info,
+                   word32 infoSz, byte* out, word32 outSz, void* heap,
+                   int devId)
     {
         byte   prk[WC_MAX_DIGEST_SIZE];
         word32 hashSz;
         int    ret;
+
+        (void)devId; /* suppress unused parameter warning */
+
+#ifdef WOLF_CRYPTO_CB
+        /* Try crypto callback first for complete operation */
+        if (devId != INVALID_DEVID) {
+             ret = wc_CryptoCb_Hkdf(type, inKey, inKeySz, salt, saltSz, info,
+                                   infoSz, out, outSz, devId);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+        }
+#endif
 
         ret = wc_HmacSizeByType(type);
         if (ret < 0) {
@@ -1637,11 +1649,21 @@ int wolfSSL_GetHmacMaxSize(void)
         }
         hashSz = (word32)ret;
 
-        ret = wc_HKDF_Extract(type, salt, saltSz, inKey, inKeySz, prk);
+        ret = wc_HKDF_Extract_ex(type, salt, saltSz, inKey, inKeySz, prk, heap,
+                                 devId);
         if (ret != 0)
             return ret;
 
-        return wc_HKDF_Expand(type, prk, hashSz, info, infoSz, out, outSz);
+        return wc_HKDF_Expand_ex(type, prk, hashSz, info, infoSz, out, outSz,
+                                 heap, devId);
+    }
+
+    int wc_HKDF(int type, const byte* inKey, word32 inKeySz, const byte* salt,
+                word32 saltSz, const byte* info, word32 infoSz, byte* out,
+                word32 outSz)
+    {
+        return wc_HKDF_ex(type, inKey, inKeySz, salt, saltSz, info, infoSz, out,
+                          outSz, NULL, INVALID_DEVID);
     }
 
 #endif /* HAVE_HKDF */
