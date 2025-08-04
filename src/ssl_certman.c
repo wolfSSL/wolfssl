@@ -453,12 +453,12 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+int wolfSSL_CertManagerUnloadTypeCerts(
                                 WOLFSSL_CERT_MANAGER* cm, byte type)
 {
     int ret = WOLFSSL_SUCCESS;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCertsEx");
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTypeCerts");
 
     /* Validate parameter. */
     if (cm == NULL) {
@@ -485,7 +485,7 @@ static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
     WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
-    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_TEMP_CA);
+    return wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_TEMP_CA);
 }
 #endif
 
@@ -493,7 +493,7 @@ int wolfSSL_CertManagerUnloadIntermediateCerts(
     WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
-    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_CHAIN_CA);
+    return wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_CHAIN_CA);
 }
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -530,7 +530,7 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-/* Load certificate/s from buffer with flags.
+/* Load certificate/s from buffer with flags and type.
  *
  * @param [in] cm         Certificate manager.
  * @param [in] buff       Buffer holding encoding of certificate.
@@ -549,20 +549,21 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
                             in WOLFSSL_USER_CA = noop.  Recommended to
                             set to WOLFSSL_USER_INTER when loading
                             intermediate certs to allow unloading via
-                            wolfSSL_CertManagerUnloadIntermediateCertsEx.
+                            wolfSSL_CertManagerUnloadTypeCerts.
  * @return  WOLFSSL_SUCCESS on success.
  * @return  WOLFSSL_FATAL_ERROR when cm is NULL or failed create WOLFSSL_CTX.
  * @return  Other values on loading failure.
  */
-int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
+int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
     const unsigned char* buff, long sz, int format, int userChain,
     word32 flags, int type)
 {
     int ret = WOLFSSL_SUCCESS;
     WOLFSSL_CTX* tmp = NULL;
     DecodedCert* dCert = NULL;
+    DerBuffer* der = NULL;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer_ex2");
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABufferType");
 
     /* Validate parameters. */
     if (cm == NULL) {
@@ -592,25 +593,45 @@ int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
         tmp->cm = NULL;
     }
     if (ret == WOLFSSL_SUCCESS && type != WOLFSSL_USER_CA) {
-        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
                                                 DYNAMIC_TYPE_DCERT);
 
         if (dCert == NULL) {
             ret = WOLFSSL_FATAL_ERROR;
         } else {
-            XMEMSET(dCert, 0, sizeof(DecodedCert));
-            wc_InitDecodedCert(dCert, buff,
-                            (word32)sz, cm->heap);
-            ret = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, NULL);
-            if (ret) {
-                ret = WOLFSSL_FATAL_ERROR;
-            } else {
-                ret = SetCAType(cm, dCert->extSubjKeyId, type);
+            if (format == WOLFSSL_FILETYPE_PEM) {
+                ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, NULL, NULL);
+                if (!ret) {
+                    /* Replace buffer pointer and size with DER buffer. */
+                    buff = der->buffer;
+                    sz = (long)der->length;
+                    ret = WOLFSSL_SUCCESS;
+                } else {
+                    WOLFSSL_ERROR(ret);
+
+                    if (der != NULL) {
+                        FreeDer(&der);
+                    }
+
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+
+            if (ret == WOLFSSL_SUCCESS) {
+                XMEMSET(dCert, 0, sizeof(DecodedCert));
+                wc_InitDecodedCert(dCert, buff,
+                                (word32)sz, cm->heap);
+                ret = wc_ParseCert(dCert, CERT_TYPE, NO_VERIFY, NULL);
+                if (ret) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                } else {
+                    ret = SetCAType(cm, dCert->extSubjKeyId, type);
+                }
             }
 
             if (dCert) {
                 wc_FreeDecodedCert(dCert);
-                XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+                XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
             }
         }
     }
@@ -642,7 +663,7 @@ int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
 int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
     const unsigned char* buff, long sz, int format, int userChain, word32 flags)
 {
-    return wolfSSL_CertManagerLoadCABuffer_ex2(cm, buff, sz, format, userChain,
+    return wolfSSL_CertManagerLoadCABufferType(cm, buff, sz, format, userChain,
         flags, WOLFSSL_USER_CA);
 }
 
