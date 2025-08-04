@@ -268,11 +268,6 @@ void mlkem_redistribute_8_rand_avx2(const word64* s, byte* r0, byte* r1,
     byte* r2, byte* r3);
 
 WOLFSSL_LOCAL
-void mlkem_sha3_128_blocksx4_seed_avx2(word64* s, byte* seed);
-WOLFSSL_LOCAL
-void mlkem_sha3_256_blocksx4_seed_avx2(word64* s, byte* seed);
-
-WOLFSSL_LOCAL
 void mlkem_cbd_eta2_avx2(sword16* p, const byte* r);
 WOLFSSL_LOCAL
 void mlkem_cbd_eta3_avx2(sword16* p, const byte* r);
