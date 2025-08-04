@@ -4203,7 +4203,7 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,
         const char* f, const char* d);
-    WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer_ex2(WOLFSSL_CERT_MANAGER* cm,
+    WOLFSSL_API int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
         const unsigned char* buff, long sz, int format, int userChain,
         word32 flags, int type);
     WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
@@ -4213,7 +4213,7 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
         const unsigned char* buff, long sz, int format);
 
     WOLFSSL_API int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
-    WOLFSSL_API int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+    WOLFSSL_API int wolfSSL_CertManagerUnloadTypeCerts(
                                 WOLFSSL_CERT_MANAGER* cm, byte type);
     WOLFSSL_API int wolfSSL_CertManagerUnloadIntermediateCerts(
         WOLFSSL_CERT_MANAGER* cm);
