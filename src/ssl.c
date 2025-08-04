@@ -16653,7 +16653,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     }
 
     if (ret == 0) {
-        pub_derSz = (word32)wc_EccPublicKeyDerSize(eccKey, 0);
+        pub_derSz = (word32)wc_EccPublicKeyDerSize(eccKey, 1);
         if ((int)pub_derSz <= 0) {
             ret = WOLFSSL_FAILURE;
         }
@@ -16669,7 +16669,7 @@ int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     }
 
     if (ret == 0) {
-        pub_derSz = (word32)wc_EccPublicKeyToDer(eccKey, pub_der, pub_derSz, 0);
+        pub_derSz = (word32)wc_EccPublicKeyToDer(eccKey, pub_der, pub_derSz, 1);
         if ((int)pub_derSz <= 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
