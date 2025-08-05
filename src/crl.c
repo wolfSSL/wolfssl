@@ -218,6 +218,10 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
     RevokedCert* next;
 
     WOLFSSL_ENTER("FreeCRL_Entry");
+    if (crle == NULL) {
+        WOLFSSL_MSG("CRL Entry is null");
+        return;
+    }
 
     while (tmp != NULL) {
         next = tmp->next;
