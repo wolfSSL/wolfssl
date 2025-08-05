@@ -3146,7 +3146,8 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 static int test_wolfSSL_CertManagerLoadCABufferType(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* int1_cert = "./certs/intermediate/ca-int-cert.pem";
     const char* int2_cert = "./certs/intermediate/ca-int2-cert.pem";
@@ -3159,7 +3160,7 @@ static int test_wolfSSL_CertManagerLoadCABufferType(void)
     size_t int1_cert_sz = 0;
     size_t int2_cert_sz = 0;
     size_t client_cert_sz = 0;
-    WOLFSSL_CERT_MANAGER* cm;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(load_file(ca_cert, &ca_cert_buf, &ca_cert_sz), 0);
@@ -3262,7 +3263,8 @@ static int test_wolfSSL_CertManagerLoadCABufferType(void)
     ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
         client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
-    wolfSSL_CertManagerFree(cm);
+    if (cm)
+        wolfSSL_CertManagerFree(cm);
     if (ca_cert_buf)
         free(ca_cert_buf);
     if (int1_cert_buf)

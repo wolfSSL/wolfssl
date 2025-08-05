@@ -608,11 +608,6 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
                     ret = WOLFSSL_SUCCESS;
                 } else {
                     WOLFSSL_ERROR(ret);
-
-                    if (der != NULL) {
-                        FreeDer(&der);
-                    }
-
                     ret = WOLFSSL_FATAL_ERROR;
                 }
             }
@@ -632,6 +627,9 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
             if (dCert) {
                 wc_FreeDecodedCert(dCert);
                 XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
+            }
+            if (der) {
+                FreeDer(&der);
             }
         }
     }
