@@ -63,12 +63,12 @@ Bounds on each t[i] vary depending on context.
 #if defined(CURVE25519_SMALL) || defined(ED25519_SMALL)
     #define F25519_SIZE 32
 
-    WOLFSSL_LOCAL void lm_copy(byte*, const byte*);
-    WOLFSSL_LOCAL void lm_add(byte*, const byte*, const byte*);
-    WOLFSSL_LOCAL void lm_sub(byte*, const byte*, const byte*);
-    WOLFSSL_LOCAL void lm_neg(byte*,const byte*);
-    WOLFSSL_LOCAL void lm_invert(byte*, const byte*);
-    WOLFSSL_LOCAL void lm_mul(byte*,const byte*,const byte*);
+    WOLFSSL_LOCAL void lm_copy(byte* x, const byte* a);
+    WOLFSSL_LOCAL void lm_add(byte* r, const byte* a, const byte* b);
+    WOLFSSL_LOCAL void lm_sub(byte* r, const byte* a, const byte* b);
+    WOLFSSL_LOCAL void lm_neg(byte* r,const byte* a);
+    WOLFSSL_LOCAL void lm_invert(byte* r, const byte* x);
+    WOLFSSL_LOCAL void lm_mul(byte* r,const byte* a, const byte* b);
 #endif
 
 
