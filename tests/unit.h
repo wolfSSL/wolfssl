@@ -428,6 +428,29 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, test_cbType client_on_handshake);
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    #define HAVE_IO_TESTS_DEPENDENCIES
+#endif
+
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args);
+int test_client_nofail(void* args, cbType cb);
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_fixed_mem(void);
+#endif
+
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
+int CreatePKCS7SignedData(unsigned char* output, int outputSz,
+                          byte* data, word32 dataSz,
+                          int withAttribs, int detachedSig,
+                          int useIntermediateCertChain,
+                          int pkAlgoType);
+#endif
+
 void ApiTest_StopOnFail(void);
 void ApiTest_PrintTestCases(void);
 void ApiTest_PrintGroups(void);
