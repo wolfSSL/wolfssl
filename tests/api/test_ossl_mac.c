@@ -35,7 +35,7 @@
 #include <tests/api/test_ossl_mac.h>
 
 /*******************************************************************************
- * MAC OpenSSL compatibiltity API Testing
+ * MAC OpenSSL compatibility API Testing
  ******************************************************************************/
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)

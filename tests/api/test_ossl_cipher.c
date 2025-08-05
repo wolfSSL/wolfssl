@@ -37,7 +37,7 @@
 #include <tests/api/test_ossl_cipher.h>
 
 /*******************************************************************************
- * Cipher OpenSSL compatibiltity API Testing
+ * Cipher OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_DES(void)

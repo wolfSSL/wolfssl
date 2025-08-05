@@ -37,7 +37,7 @@
 #include <tests/api/test_ossl_dgst.h>
 
 /*******************************************************************************
- * Digest OpenSSL compatibiltity API Testing
+ * Digest OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_MD4(void)

@@ -34,7 +34,7 @@
 #include <tests/api/test_ossl_bn.h>
 
 /*******************************************************************************
- * BN OpenSSL compatibiltity API Testing
+ * BN OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_BN_CTX(void)

@@ -36,7 +36,7 @@
 #include <tests/api/test_ossl_ec.h>
 
 /*******************************************************************************
- * EC OpenSSL compatibiltity API Testing
+ * EC OpenSSL compatibility API Testing
  ******************************************************************************/
 
 #if defined(HAVE_ECC) && !defined(OPENSSL_NO_PK)

@@ -135,7 +135,7 @@ static int test_wc_PKCS12_create_once(int keyEncType, int certEncType)
         &outCert, &outCertSz, &outCaList), 0);
 
     ExpectIntEQ(outKeySz, inKeySz);
-    ExpectIntEQ(outCertSz, outCertSz);
+    ExpectIntEQ(outCertSz, inCertSz);
     ExpectNotNull(outCaList);
     ExpectNotNull(outCaList->buffer);
     ExpectIntEQ(outCaList->bufferSz, inCa.bufferSz);

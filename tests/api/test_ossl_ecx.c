@@ -40,7 +40,7 @@
 #include <tests/api/test_ossl_ecx.h>
 
 /*******************************************************************************
- * ECX OpenSSL compatibiltity API Testing
+ * ECX OpenSSL compatibility API Testing
  ******************************************************************************/
 
 #ifdef OPENSSL_EXTRA

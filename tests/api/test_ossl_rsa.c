@@ -36,7 +36,7 @@
 #include <tests/api/test_ossl_rsa.h>
 
 /*******************************************************************************
- * RSA OpenSSL compatibiltity API Testing
+ * RSA OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_RSA(void)

@@ -35,7 +35,7 @@
 #include <tests/api/test_ossl_dh.h>
 
 /*******************************************************************************
- * DH OpenSSL compatibiltity API Testing
+ * DH OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_DH(void)

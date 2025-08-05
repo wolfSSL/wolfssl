@@ -36,7 +36,7 @@
 #include <tests/api/test_ossl_asn1.h>
 
 /*******************************************************************************
- * ASN.1 OpenSSL compatibiltity API Testing
+ * ASN.1 OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_wolfSSL_ASN1_BIT_STRING(void)

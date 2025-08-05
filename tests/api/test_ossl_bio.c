@@ -35,7 +35,7 @@
 #include <tests/api/test_ossl_bio.h>
 
 /*******************************************************************************
- * BIO OpenSSL compatibiltity API Testing
+ * BIO OpenSSL compatibility API Testing
  ******************************************************************************/
 
 #ifndef NO_BIO

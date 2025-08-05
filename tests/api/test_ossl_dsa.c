@@ -35,7 +35,7 @@
 #include <tests/api/test_ossl_dsa.h>
 
 /*******************************************************************************
- * DSA OpenSSL compatibiltity API Testing
+ * DSA OpenSSL compatibility API Testing
  ******************************************************************************/
 
 int test_DSA_do_sign_verify(void)
