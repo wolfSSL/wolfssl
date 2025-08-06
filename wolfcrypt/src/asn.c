@@ -41359,7 +41359,7 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
     DECL_ASNGETDATA(dataASN, pivCertASN_Length);
     int ret = 0;
     word32 idx;
-    byte info;
+    byte info = 0;
 
     WOLFSSL_ENTER("wc_ParseCertPIV");
 
