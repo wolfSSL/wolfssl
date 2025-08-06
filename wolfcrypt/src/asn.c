@@ -715,6 +715,11 @@ int SizeASN_Items(const ASNItem* asn, ASNSetData *data, int count, int* encSz)
     WOLFSSL_ENTER("SizeASN_Items");
 #endif
 
+    if (asn == NULL || data == NULL || count <= 0 || encSz == NULL) {
+        WOLFSSL_MSG("bad arguments in SizeASN_Items");
+        return BAD_FUNC_ARG;
+    }
+
     for (i = count - 1; i >= 0; i--) {
         /* Skip this ASN.1 item when encoding. */
         if (data[i].noOut) {
