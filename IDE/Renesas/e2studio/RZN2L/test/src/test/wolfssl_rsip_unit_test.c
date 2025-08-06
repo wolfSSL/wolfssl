@@ -732,12 +732,10 @@ static int rsip_rsa_SignVerify_test(int prnt, int keySize, int devId)
 
     RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     WC_RNG rng;
-    word32 sigSz;
     const char inStr [] = TEST_STRING;
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
-    (void)sigSz;
 
     byte *in = NULL;
     byte *in2 = NULL;
@@ -781,7 +779,7 @@ static int rsip_rsa_SignVerify_test(int prnt, int keySize, int devId)
     if (ret < 0) {
         goto out;
     }
-    sigSz = (word32)ret;
+
     //* this should fail */
     ret = wc_RsaSSL_Verify(in2, inLen, out, (word32)(keySize/8), key);
     if (ret != FSP_ERR_CRYPTO_RSIP_FAIL) {

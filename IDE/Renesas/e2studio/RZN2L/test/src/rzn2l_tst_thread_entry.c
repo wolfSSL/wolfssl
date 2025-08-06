@@ -375,7 +375,6 @@ void rzn2l_tst_thread_entry(void *pvParameters)
     TCPInit();
 
     int TCP_connect_retry = 0;
-    printf("\n");
     printf("Start TLS Connection to %s port(%d)\n", SERVER_IP, DEFAULT_PORT);
     wolfSSL_TLS_client_init();
 
@@ -410,7 +409,7 @@ void rzn2l_tst_thread_entry(void *pvParameters)
 
     int TCP_connect_retry = 0;
 
-    printf("\n Start TLS Accept at %03d.%03d.%03d.%03d port(%d)\n",
+    printf("Start TLS Accept at %03d.%03d.%03d.%03d port(%d)\n",
                                                    ucIPAddress[0],
                                                    ucIPAddress[1],
                                                    ucIPAddress[2],

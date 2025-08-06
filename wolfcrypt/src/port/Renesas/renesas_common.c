@@ -430,7 +430,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
      * first. On that time, internal instance has not yet been allocated.
      */
     if (cbInfo->internal == NULL) {
-        if (!ssl)
+        if (ssl)
             cbInfo->internal =
                 (FSPSM_ST_Internal*)XMALLOC(internal_sz, ssl->heap,
                                         DYNAMIC_TYPE_TMP_BUFFER);
