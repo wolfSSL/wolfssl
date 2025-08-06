@@ -90,8 +90,11 @@
             ((__GNUC__ == 4) && (__GNUC_MINOR__ > 5))))) ||  \
           defined(__clang__)
         #define WC_DEPRECATED(msg) __attribute__((deprecated(msg)))
+    #elif defined(__WATCOMC__)
+          /* Watcom macro needs to expand to something, here just a comment: */
+          #define WC_DEPRECATED(msg) /* null expansion */
     #elif defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
-          defined(_WIN32_WCE) || defined(__WATCOMC__)
+          defined(_WIN32_WCE)
         #define WC_DEPRECATED(msg) __declspec(deprecated(msg))
     #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
           defined(__IAR_SYSTEMS_ICC__)

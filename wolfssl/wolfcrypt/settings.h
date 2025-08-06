@@ -356,6 +356,12 @@
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
+/* Ensure WOLFSSL_DEBUG_CERTS is always set when DEBUG_WOLFSSL is enabled */
+#ifdef DEBUG_WOLFSSL
+    #undef  WOLFSSL_DEBUG_CERTS
+    #define WOLFSSL_DEBUG_CERTS
+#endif
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 /*------------------------------------------------------------*/
@@ -562,6 +568,9 @@
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
     #endif
+
+    /* Debug message do not need an additional LF for ESP_LOG */
+    #define WOLFSSL_DEBUG_LINE_ENDING ""
 
     /* Parse any Kconfig / menuconfig items into wolfSSL macro equivalents.
      * Macros may or may not be defined. If defined, they may have a value of
@@ -4424,6 +4433,12 @@ extern void uITRON4_free(void *p) ;
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */
+
+#ifdef NO_WOLFSSL_DEBUG_CERTS
+    /* Simplify certificate debugging gate check with only WOLFSSL_DEBUG_CERTS.
+     * NO_WOLFSSL_DEBUG_CERTS prioritized over WOLFSSL_DEBUG_CERTS; disable: */
+    #undef WOLFSSL_DEBUG_CERTS
+#endif
 
 #if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)
 #error "Dynamic session cache currently does not support persistent session cache."
