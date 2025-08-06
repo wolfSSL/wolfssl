@@ -118,7 +118,7 @@ THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
 #ifdef DEBUG_WOLFSSL
 
 /* Set these to default values initially. */
-static wolfSSL_Logging_cb log_function = NULL;
+static wolfSSL_Logging_cb LogFunction = NULL;
 #ifndef WOLFSSL_LOGGINGENABLED_DEFAULT
 #define WOLFSSL_LOGGINGENABLED_DEFAULT 0
 #endif
@@ -133,13 +133,13 @@ static struct log mynewt_log;
 #endif /* DEBUG_WOLFSSL */
 
 /* allow this to be set to NULL, so logs can be redirected to default output */
-int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
+int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function)
 {
 #ifdef DEBUG_WOLFSSL
-    log_function = f;
+    LogFunction = log_function;
     return 0;
 #else
-    (void)f;
+    (void)log_function;
     return NOT_COMPILED_IN;
 #endif
 }
@@ -148,7 +148,7 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void)
 {
 #ifdef DEBUG_WOLFSSL
-    return log_function;
+    return LogFunction;
 #else
     return NULL;
 #endif
@@ -240,8 +240,8 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
 {
     (void)file_name;
     (void)line_number;
-    if (log_function)
-        log_function(logLevel, logMessage);
+    if (LogFunction)
+        LogFunction(logLevel, logMessage);
     else {
 #if defined(WOLFSSL_USER_LOG)
         WOLFSSL_USER_LOG(logMessage);

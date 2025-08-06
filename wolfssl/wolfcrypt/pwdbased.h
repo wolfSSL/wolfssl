@@ -49,16 +49,16 @@ WOLFSSL_API int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
                       int hashType, void* heap);
 WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
-                      int typeH);
+                      int hashType);
 WOLFSSL_API int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen,
                     const byte* salt, int sLen, int iterations, int kLen,
-                    int typeH, void* heap, int devId);
+                    int hashType, void* heap, int devId);
 WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
-                      int typeH);
-WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
-                            const byte* salt, int sLen, int iterations,
-                            int kLen, int typeH, int purpose);
+                      int hashType);
+WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
+                            const byte* salt, int saltLen, int iterations,
+                            int kLen, int hashType, int id);
 WOLFSSL_API int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
                        const byte* salt, int saltLen, int iterations, int kLen,
                        int hashType, int id, void* heap);
