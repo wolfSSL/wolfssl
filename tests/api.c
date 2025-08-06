@@ -3045,7 +3045,7 @@ static int test_wolfSSL_CertManagerAPI(void)
     EXPECT_DECLS;
 #ifndef NO_CERTS
     WOLFSSL_CERT_MANAGER* cm = NULL;
-    unsigned char c;
+    unsigned char c = 0;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
 
