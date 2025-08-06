@@ -33625,11 +33625,14 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     unsigned char *tmp = NULL;
     int derLen;
     unsigned char pub_buf[65];
+    unsigned char pub_spki_buf[91];
     const int pub_len = 65;
+    const int pub_spki_len = 91;
     BN_CTX* ctx = NULL;
     EC_GROUP* curve = NULL;
     EC_KEY* ephemeral_key = NULL;
     const EC_POINT* h = NULL;
+    ecc_key *eccKey = NULL;
 
     /* Generate an x963 key pair and get public part into pub_buf */
     ExpectNotNull(ctx = BN_CTX_new());
@@ -33640,6 +33643,17 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     ExpectNotNull(h = EC_KEY_get0_public_key(ephemeral_key));
     ExpectIntEQ(pub_len, EC_POINT_point2oct(curve, h,
         POINT_CONVERSION_UNCOMPRESSED, pub_buf, pub_len, ctx));
+    /* Create an ecc key struct from the point.
+       Use it to create a DER with the appropriate
+       SubjectPublicKeyInfo format. */
+    ExpectNotNull(eccKey = (ecc_key *)XMALLOC(sizeof(*eccKey), NULL,
+        DYNAMIC_TYPE_ECC));
+    ExpectIntEQ(wc_ecc_init(eccKey), 0);
+    ExpectIntEQ(wc_ecc_import_x963(pub_buf, pub_len, eccKey), 0);
+    ExpectIntEQ(derLen = wc_EccPublicKeyDerSize(eccKey, 1),
+        pub_spki_len);
+    ExpectIntEQ(derLen = wc_EccPublicKeyToDer(eccKey, pub_spki_buf,
+        pub_spki_len, 1), pub_spki_len);
     /* Prepare the EVP_PKEY */
     ExpectNotNull(pkey = EVP_PKEY_new());
 
@@ -33651,17 +33665,19 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     /* Check that key can be successfully encoded. */
     ExpectIntGE((derLen = wolfSSL_i2d_PublicKey(pkey, &der)), 0);
     /* Ensure that the encoded version matches the original. */
-    ExpectIntEQ(derLen, pub_len);
-    ExpectIntEQ(XMEMCMP(der, pub_buf, derLen), 0);
+    ExpectIntEQ(derLen, pub_spki_len);
+    ExpectIntEQ(XMEMCMP(der, pub_spki_buf, derLen), 0);
 
     /* Do same test except with pre-allocated buffer to ensure the der pointer
      * is advanced. */
     tmp = der;
     ExpectIntGE((derLen = wolfSSL_i2d_PublicKey(pkey, &tmp)), 0);
-    ExpectIntEQ(derLen, pub_len);
-    ExpectIntEQ(XMEMCMP(der, pub_buf, derLen), 0);
+    ExpectIntEQ(derLen, pub_spki_len);
+    ExpectIntEQ(XMEMCMP(der, pub_spki_buf, derLen), 0);
     ExpectTrue(der + derLen == tmp);
 
+    wc_ecc_free(eccKey);
+    XFREE(eccKey, NULL, DYNAMIC_TYPE_ECC);
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
     EVP_PKEY_free(pkey);
     EC_KEY_free(ephemeral_key);
