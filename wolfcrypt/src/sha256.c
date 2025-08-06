@@ -2074,7 +2074,10 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha224->W = NULL;
     #endif
-
+    #ifdef WOLF_CRYPTO_CB
+        sha224->devId = devId;
+        sha224->devCtx = NULL;
+    #endif
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
         #if defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224)
         /* We know this is a fresh, uninitialized item, so set to INIT */
