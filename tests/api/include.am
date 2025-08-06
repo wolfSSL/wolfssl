@@ -58,6 +58,25 @@ tests_unit_test_SOURCES += tests/api/test_tls.c
 tests_unit_test_SOURCES += tests/api/test_x509.c
 # ASN
 tests_unit_test_SOURCES += tests/api/test_asn.c
+# PKCS#7
+tests_unit_test_SOURCES += tests/api/test_pkcs7.c
+# PKCS#12
+tests_unit_test_SOURCES += tests/api/test_pkcs12.c
+# OpenSSL ASN.1
+tests_unit_test_SOURCES += tests/api/test_ossl_asn1.c
+# OpenSSL BN
+tests_unit_test_SOURCES += tests/api/test_ossl_bn.c
+# OpenSSL BIO
+tests_unit_test_SOURCES += tests/api/test_ossl_bio.c
+# OpenSSL Crypto
+tests_unit_test_SOURCES += tests/api/test_ossl_dgst.c
+tests_unit_test_SOURCES += tests/api/test_ossl_mac.c
+tests_unit_test_SOURCES += tests/api/test_ossl_cipher.c
+tests_unit_test_SOURCES += tests/api/test_ossl_rsa.c
+tests_unit_test_SOURCES += tests/api/test_ossl_dh.c
+tests_unit_test_SOURCES += tests/api/test_ossl_ec.c
+tests_unit_test_SOURCES += tests/api/test_ossl_ecx.c
+tests_unit_test_SOURCES += tests/api/test_ossl_dsa.c
 endif
 
 EXTRA_DIST += tests/api/api.h
@@ -111,4 +130,17 @@ EXTRA_DIST += tests/api/test_tls_ext.h
 EXTRA_DIST += tests/api/test_tls.h
 EXTRA_DIST += tests/api/test_x509.h
 EXTRA_DIST += tests/api/test_asn.h
+EXTRA_DIST += tests/api/test_pkcs7.h
+EXTRA_DIST += tests/api/test_pkcs12.h
+EXTRA_DIST += tests/api/test_ossl_asn1.h
+EXTRA_DIST += tests/api/test_ossl_bn.h
+EXTRA_DIST += tests/api/test_ossl_bio.h
+EXTRA_DIST += tests/api/test_ossl_dgst.h
+EXTRA_DIST += tests/api/test_ossl_mac.h
+EXTRA_DIST += tests/api/test_ossl_cipher.h
+EXTRA_DIST += tests/api/test_ossl_rsa.h
+EXTRA_DIST += tests/api/test_ossl_dh.h
+EXTRA_DIST += tests/api/test_ossl_ec.h
+EXTRA_DIST += tests/api/test_ossl_ecx.h
+EXTRA_DIST += tests/api/test_ossl_dsa.h
 
