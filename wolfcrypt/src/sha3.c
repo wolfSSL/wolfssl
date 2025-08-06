@@ -564,6 +564,7 @@ void BlockSha3(word64* s)
 #endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
 
 #if !defined(STM32_HASH_SHA3)
+#if defined(BIG_ENDIAN_ORDER)
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
     return ((word64)a[0] <<  0) |
@@ -583,7 +584,6 @@ static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
  */
 static word64 Load64BitBigEndian(const byte* a)
 {
-#if defined(BIG_ENDIAN_ORDER) || (WOLFSSL_GENERAL_ALIGNMENT == 1)
     word64 n = 0;
     int i;
 
@@ -591,26 +591,8 @@ static word64 Load64BitBigEndian(const byte* a)
         n |= (word64)a[i] << (8 * i);
 
     return n;
-#elif ((WOLFSSL_GENERAL_ALIGNMENT > 0) && (WOLFSSL_GENERAL_ALIGNMENT == 4))
-    word64 n;
-
-    n  =          *(word32*) a;
-    n |= ((word64)*(word32*)(a + 4)) << 32;
-
-    return n;
-#elif ((WOLFSSL_GENERAL_ALIGNMENT > 0) && (WOLFSSL_GENERAL_ALIGNMENT == 2))
-    word64 n;
-
-    n  =          *(word16*) a;
-    n |= ((word64)*(word16*)(a + 2)) << 16;
-    n |= ((word64)*(word16*)(a + 4)) << 32;
-    n |= ((word64)*(word16*)(a + 6)) << 48;
-
-    return n;
-#else
-    return *(const word64*)a;
-#endif
 }
+#endif
 
 /* Initialize the state for a SHA3-224 hash operation.
  *
@@ -700,8 +682,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     word32 blocks;
 
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
-    if (SHA3_BLOCK == sha3_block_avx2)
+    if (SHA3_BLOCK == sha3_block_avx2) {
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
+    }
 #endif
     if (sha3->i > 0) {
         byte *t;
@@ -719,9 +702,13 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         sha3->i = (byte)(sha3->i + i);
 
         if (sha3->i == p * 8) {
+        #if !defined(BIG_ENDIAN_ORDER)
+            xorbuf(sha3->s, sha3->t, (word32)(p * 8));
+        #else
             for (i = 0; i < p; i++) {
                 sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
             }
+        #endif
         #ifdef SHA3_FUNC_PTR
             (*SHA3_BLOCK)(sha3->s);
         #else
@@ -740,9 +727,13 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     }
     #endif
     for (; blocks > 0; blocks--) {
+    #if !defined(BIG_ENDIAN_ORDER)
+        xorbuf(sha3->s, data, (word32)(p * 8));
+    #else
         for (i = 0; i < p; i++) {
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
         }
+    #endif
     #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(sha3->s);
     #else
@@ -752,8 +743,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         data += p * 8U;
     }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
-    if (SHA3_BLOCK == sha3_block_avx2)
+    if (SHA3_BLOCK == sha3_block_avx2) {
         RESTORE_VECTOR_REGISTERS();
+    }
 #endif
     if (len > 0) {
         XMEMCPY(sha3->t, data, len);
@@ -775,12 +767,25 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
     word32 rate = p * 8U;
     word32 j;
+#if defined(BIG_ENDIAN_ORDER)
     word32 i;
+#endif
 
+#if !defined(BIG_ENDIAN_ORDER)
+    xorbuf(sha3->s, sha3->t, sha3->i);
+#ifdef WOLFSSL_HASH_FLAGS
+    if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
+        padChar = 0x01;
+    }
+#endif
+    ((byte*)sha3->s)[sha3->i ] ^= padChar;
+    ((byte*)sha3->s)[rate - 1] ^= 0x80;
+#else
     sha3->t[rate - 1]  = 0x00;
 #ifdef WOLFSSL_HASH_FLAGS
-    if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256))
+    if ((p == WC_SHA3_256_COUNT) && (sha3->flags & WC_HASH_SHA3_KECCAK256)) {
         padChar = 0x01;
+    }
 #endif
     sha3->t[sha3->i ]  = padChar;
     sha3->t[rate - 1] |= 0x80;
@@ -790,6 +795,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     for (i = 0; i < p; i++) {
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
     }
+#endif
 
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2)
@@ -820,8 +826,9 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
         XMEMCPY(hash + j, sha3->s, l - j);
     }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
-    if (SHA3_BLOCK == sha3_block_avx2)
+    if (SHA3_BLOCK == sha3_block_avx2) {
         RESTORE_VECTOR_REGISTERS();
+    }
 #endif
 
     return 0;
