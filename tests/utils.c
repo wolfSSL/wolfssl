@@ -405,6 +405,38 @@ int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
     return 0;
 }
 
+int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
+        char *out, int *out_sz, int msg_pos)
+{
+    int msg_count;
+    const int* msg_sizes;
+    int i;
+    const byte* buff;
+
+    if (client) {
+        buff = ctx->c_buff;
+        msg_count = ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    }
+    else {
+        buff = ctx->s_buff;
+        msg_count = ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (msg_pos < 0 || msg_pos >= msg_count) {
+        return -1;
+    }
+    if (*out_sz < msg_sizes[msg_pos]) {
+        return -1;
+    }
+    for (i = 0; i < msg_pos; i++) {
+        buff += msg_sizes[i];
+    }
+    XMEMCPY(out, buff, (size_t)msg_sizes[msg_pos]);
+    *out_sz = msg_sizes[msg_pos];
+    return 0;
+}
+
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
 {
     int *len;
