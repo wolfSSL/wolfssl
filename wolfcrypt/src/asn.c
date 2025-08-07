@@ -23930,8 +23930,8 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
  * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
  *          non-zero length.
  */
-WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
-                            byte *isCa, word16 *pathLength, byte *pathLengthSet)
+int DecodeBasicCaConstraint(const byte* input, int sz, byte *isCa,
+                            word16 *pathLength, byte *pathLengthSet)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
@@ -24046,8 +24046,8 @@ WOLFSSL_LOCAL int DecodeBasicCaConstraint(const byte* input, int sz,
  *          invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
-                            const byte **extSubjKeyId, word32 *extSubjKeyIdSz)
+int DecodeSubjKeyId(const byte* input, word32 sz, const byte **extSubjKeyId,
+                    word32 *extSubjKeyIdSz)
 {
     word32 idx = 0;
     int length = 0;
@@ -24088,10 +24088,10 @@ WOLFSSL_LOCAL int DecodeSubjKeyId(const byte* input, word32 sz,
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
  */
-WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
-            const byte **extAuthKeyId, word32 *extAuthKeyIdSz,
-            const byte **extAuthKeyIdIssuer, word32 *extAuthKeyIdIssuerSz,
-            const byte **extAuthKeyIdIssuerSN, word32 *extAuthKeyIdIssuerSNSz)
+int DecodeAuthKeyId(const byte* input, word32 sz, const byte **extAuthKeyId,
+        word32 *extAuthKeyIdSz, const byte **extAuthKeyIdIssuer,
+        word32 *extAuthKeyIdIssuerSz, const byte **extAuthKeyIdIssuerSN,
+        word32 *extAuthKeyIdIssuerSNSz)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
@@ -24230,7 +24230,7 @@ WOLFSSL_LOCAL int DecodeAuthKeyId(const byte* input, word32 sz,
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
+int DecodeExtKeyUsage(const byte* input, word32 sz,
         const byte **extExtKeyUsageSrc, word32 *extExtKeyUsageSz,
         word32 *extExtKeyUsageCount, byte *extExtKeyUsage,
         byte *extExtKeyUsageSsh)
@@ -24415,8 +24415,7 @@ WOLFSSL_LOCAL int DecodeExtKeyUsage(const byte* input, word32 sz,
  *          is invalid.
  * @return  MEMORY_E on dynamic memory allocation failure.
  */
-WOLFSSL_LOCAL int DecodeKeyUsage(const byte* input, word32 sz,
-                                 word16 *extKeyUsage)
+int DecodeKeyUsage(const byte* input, word32 sz, word16 *extKeyUsage)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
