@@ -26,6 +26,10 @@
 #ifndef WOLF_CRYPT_OID_SUM_H
 #define WOLF_CRYPT_OID_SUM_H
 
+/* Note for some CPUs smaller than 32 bit, the upper 16 bits of new OID
+ * values may be ignored. If collisions are encountered, consider WC_16BIT_CPU
+ * and/or WOLFSSL_OLD_OID_SUM to force smaller, old OID values. */
+
 enum Hash_Sum {
 #ifdef WOLFSSL_OLD_OID_SUM
     /* 0x2a,0x86,0x48,0x86,0xf7,0x0d,0x02,0x02  */
