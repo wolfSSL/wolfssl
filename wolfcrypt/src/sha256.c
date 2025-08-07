@@ -2173,7 +2173,17 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
         if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
-
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha224->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_Sha224Hash(sha224, NULL, 0, hash);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
         #if defined(HAVE_INTEL_QA)
