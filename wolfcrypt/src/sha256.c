@@ -2074,7 +2074,10 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha224->W = NULL;
     #endif
-
+    #ifdef WOLF_CRYPTO_CB
+        sha224->devId = devId;
+        sha224->devCtx = NULL;
+    #endif
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
         #if defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA224)
         /* We know this is a fresh, uninitialized item, so set to INIT */
@@ -2133,7 +2136,17 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
         if (data == NULL) {
             return BAD_FUNC_ARG;
         }
-
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha224->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_Sha224Hash(sha224, data, len, NULL);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
         #if defined(HAVE_INTEL_QA)
@@ -2160,7 +2173,17 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
         if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
-
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (sha224->devId != INVALID_DEVID)
+        #endif
+        {
+            ret = wc_CryptoCb_Sha224Hash(sha224, NULL, 0, hash);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
         #if defined(HAVE_INTEL_QA)

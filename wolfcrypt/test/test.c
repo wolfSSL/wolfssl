@@ -60741,6 +60741,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = sha_test();
 #endif
+#ifdef WOLFSSL_SHA224
+    if (ret == 0)
+        ret = sha224_test();
+#endif
 #ifndef NO_SHA256
     if (ret == 0)
         ret = sha256_test();
