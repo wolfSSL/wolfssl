@@ -9025,7 +9025,7 @@ static SetVerifyOptions ModeToVerifyOptions(int mode)
 }
 
 WOLFSSL_ABI
-void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
+void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback verify_callback)
 {
     SetVerifyOptions opts;
 
@@ -9043,7 +9043,7 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     ctx->verifyPostHandshake = opts.verifyPostHandshake;
 #endif
 
-    ctx->verifyCallback = vc;
+    ctx->verifyCallback = verify_callback;
 }
 
 #ifdef OPENSSL_ALL
@@ -9060,7 +9060,7 @@ void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 #endif
 
 
-void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
+void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback verify_callback)
 {
     SetVerifyOptions opts;
 
@@ -9078,7 +9078,7 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
     ssl->options.verifyPostHandshake = opts.verifyPostHandshake;
 #endif
 
-    ssl->verifyCallback = vc;
+    ssl->verifyCallback = verify_callback;
 }
 
 void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)

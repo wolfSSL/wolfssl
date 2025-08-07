@@ -264,7 +264,7 @@ enum IOerrors {
 
 
 WOLFSSL_LOCAL
-void SetErrorString(int err, char* buff);
+void SetErrorString(int err, char* str);
 
 #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
         (defined(BUILDING_WOLFSSL) || \

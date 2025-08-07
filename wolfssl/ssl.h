@@ -1835,7 +1835,7 @@ WOLFSSL_API int   wolfSSL_ERR_GET_LIB(unsigned long err);
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long errNumber,char* data);
 WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
-                                           unsigned long sz);
+                                           unsigned long len);
 WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long e);
@@ -4226,7 +4226,7 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm);
 #ifndef NO_WOLFSSL_CM_VERIFY
     WOLFSSL_API void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
-        VerifyCallback vc);
+        VerifyCallback verify_callback);
 #endif
     WOLFSSL_API int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
         const char* path, int type, int monitor);
