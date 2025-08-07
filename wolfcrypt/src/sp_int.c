@@ -14208,7 +14208,7 @@ static int _sp_exptmod_nct(const sp_int* b, const sp_int* e, const sp_int* m,
         winBits = 6;
     }
     else if (bits <= 21) {
-        winBits = 1;
+        winBits = 2;
     }
     else if (bits <= 36) {
         winBits = 3;
