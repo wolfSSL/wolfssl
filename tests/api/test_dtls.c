@@ -1393,6 +1393,7 @@ int test_dtls_rtx_across_epoch_change(void)
           defined(WOLFSSL_DTLS13) */
     return EXPECT_RESULT();
 }
+
 int test_dtls_drop_client_ack(void)
 {
     EXPECT_DECLS;
@@ -1470,5 +1471,57 @@ int test_dtls_drop_client_ack(void)
     wolfSSL_CTX_free(ctx_s);
 #endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) &&                     \
           defined(WOLFSSL_DTLS13) */
+    return EXPECT_RESULT();
+}
+
+int test_dtls_replay(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3" },
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2" },
+#endif
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_client_method, wolfDTLSv1_server_method, "DTLSv1_0" },
+#endif
+    };
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        char msg_buf[256];
+        int msg_len = sizeof(msg_buf);
+        byte app_data[8];
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        /* Setup DTLS contexts */
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                params[i].client_meth, params[i].server_meth), 0);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        ExpectIntEQ(wolfSSL_write(ssl_c, "test", 4), 4);
+        ExpectIntEQ(test_memio_copy_message(&test_ctx, 0, msg_buf, &msg_len, 0), 0);
+        ExpectIntEQ(wolfSSL_read(ssl_s, app_data, sizeof(app_data)), 4);
+        ExpectIntEQ(test_memio_inject_message(&test_ctx, 0, msg_buf, msg_len), 0);
+        ExpectIntEQ(wolfSSL_read(ssl_s, app_data, sizeof(app_data)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
     return EXPECT_RESULT();
 }
