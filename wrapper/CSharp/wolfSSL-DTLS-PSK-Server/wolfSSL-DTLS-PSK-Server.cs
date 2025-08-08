@@ -80,7 +80,7 @@ public class wolfSSL_DTLS_PSK_Server
         /* These paths should be changed according to use */
         string fileCert = wolfssl.setPath("server-cert.pem");
         string fileKey = wolfssl.setPath("server-key.pem");
-        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        string dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem")).ToString();
 
         if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");

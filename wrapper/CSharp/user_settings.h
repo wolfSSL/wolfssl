@@ -24,6 +24,19 @@
 #ifndef _WIN_CSHARP_USER_SETTINGS_H_
 #define _WIN_CSHARP_USER_SETTINGS_H_
 
+#define WOLFSSL_USER_SETTINGS_TAG "wolfssl v5.8.0 for C# Wrapper v1.0"
+
+#ifdef WindowsCE
+    #define NO_WOLFSSL_DIR
+    #define WOLFSSL_NO_ATOMICS
+    #define WC_NO_ASYNC_THREADING
+    #define USE_WINDOWS_API
+    #define WOLFSSL_SMALL_STACK
+    #define MAX_SUPPORTED_THREADS 1024
+    #define MAX_SUPPORTED_PRIV_KEYS 1024
+    #define MAX_CONFIGURED_THREAD 512
+#endif
+
 /* Features */
 #define NO_OLD_TLS
 #define WOLFSSL_TLS13

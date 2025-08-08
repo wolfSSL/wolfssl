@@ -27,16 +27,16 @@ using System.Net;
 using System.Net.Sockets;
 using wolfSSL.CSharp;
 
-public class wolfSSL_TLS_CSHarp
+public class wolfSSL_TLS_CSharp
 {
     /// <summary>
     /// Example of a logging function
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg)
-    {
-        Console.WriteLine(msg);
+    public static void standard_log(int lvl, IntPtr msg) {
+        string str = Marshal.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
 
@@ -86,6 +86,18 @@ public class wolfSSL_TLS_CSHarp
         IntPtr ssl;
         Socket fd;
         IntPtr arg_sni;
+
+        Console.WriteLine(Environment.CurrentDirectory);
+        wolfssl.SetVerbosity(true);
+        if (File.Exists("wolfssl.dll")) {
+            Console.WriteLine("Found wolfssl.dll");
+        }
+        else {
+            /* Consider copying to working directory, or adding to path */
+            Console.WriteLine("ERROR: Could not find wolfssl.dll; trying explicit load...");
+            wolfssl.LoadDLL("");
+        }
+
 
         /* These paths should be changed for use */
         string fileCert = wolfssl.setPath("server-cert.pem");
@@ -164,7 +176,7 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        if (haveSNI(args)) 
+        if (haveSNI(args))
         {
            // Allocating memory and setting SNI arg
            int test_value = 32;
@@ -191,7 +203,7 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
+        if (wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting dh2048Pem");
             Console.WriteLine(wolfssl.get_error(ssl));
@@ -258,8 +270,8 @@ public class wolfSSL_TLS_CSHarp
                 0x0a, 0x05, 0x01, 0x04, 0x01, 0x02, 0x01, 0x04, 0x03, 0x02, 0x03
             };
 
-            int ret = wolfssl.SNI_GetFromBuffer(buffer, 1024, 0, result, inOutSz); 
-            
+            int ret = wolfssl.SNI_GetFromBuffer(buffer, 1024, 0, result, inOutSz);
+
             if (ret != wolfssl.SUCCESS) {
                 Console.WriteLine("Error on reading SNI from buffer, ret value = " + ret);
                 tcp.Stop();

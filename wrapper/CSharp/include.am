@@ -1,4 +1,5 @@
 # wolfSSL CSharp wrapper files
+EXTRA_DIST+= wrapper/CSharp/.editorconfig
 EXTRA_DIST+= wrapper/CSharp/README.md
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-DTLS-PSK-Server/App.config
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-DTLS-PSK-Server/Properties/AssemblyInfo.cs
@@ -26,6 +27,7 @@ EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/Properties/AssemblyInfo.
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/wolfSSL-Example-IOCallbacks.cs
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-Example-IOCallbacks/wolfSSL-Example-IOCallbacks.csproj
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp.sln
+EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp-Clients.sln
 EXTRA_DIST+= wrapper/CSharp/user_settings.h
 EXTRA_DIST+= wrapper/CSharp/wolfssl.vcxproj
 EXTRA_DIST+= wrapper/CSharp/wolfSSL_CSharp/Properties/AssemblyInfo.cs
