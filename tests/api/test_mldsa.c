@@ -16692,6 +16692,7 @@ int test_wc_dilithium_verify_kats(void)
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 static struct {
     const char* fileName;
@@ -16708,6 +16709,7 @@ static struct {
      *         -provparam ml-dsa.output_formats=${OUT_FORM} -out ${OUT_FILE}
      */
 
+#ifndef WOLFSSL_NO_ML_DSA_44
     /* ALGO=ML-DSA-44, OUT_FORM=seed-only, OUT_FILE=mldsa44_seed-only.der   */
     {"certs/mldsa/mldsa44_seed-only.der",  WC_ML_DSA_44, 1, 1, 1, 0},
     /* ALGO=ML-DSA-44, OUT_FORM=priv-only, OUT_FILE=mldsa44_priv-only.der   */
@@ -16720,6 +16722,8 @@ static struct {
     {"certs/mldsa/mldsa44_bare-seed.der",  WC_ML_DSA_44, 0, 0, 0, 0},
     /* ALGO=ML-DSA-44, OUT_FORM=bare-priv, OUT_FILE=mldsa44_bare-priv.der   */
     {"certs/mldsa/mldsa44_bare-priv.der",  WC_ML_DSA_44, 0, 0, 0, 0},
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
     /* ALGO=ML-DSA-65, OUT_FORM=seed-only, OUT_FILE=mldsa65_seed-only.der   */
     {"certs/mldsa/mldsa65_seed-only.der",  WC_ML_DSA_65, 1, 1, 1, 0},
     /* ALGO=ML-DSA-65, OUT_FORM=priv-only, OUT_FILE=mldsa65_priv-only.der   */
@@ -16732,6 +16736,8 @@ static struct {
     {"certs/mldsa/mldsa65_bare-seed.der",  WC_ML_DSA_65, 0, 0, 0, 0},
     /* ALGO=ML-DSA-65, OUT_FORM=bare-priv, OUT_FILE=mldsa65_bare-priv.der   */
     {"certs/mldsa/mldsa65_bare-priv.der",  WC_ML_DSA_65, 0, 0, 0, 0},
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
     /* ALGO=ML-DSA-87, OUT_FORM=seed-only, OUT_FILE=mldsa87_seed-only.der   */
     {"certs/mldsa/mldsa87_seed-only.der",  WC_ML_DSA_87, 1, 1, 1, 0},
     /* ALGO=ML-DSA-87, OUT_FORM=priv-only, OUT_FILE=mldsa87_priv-only.der   */
@@ -16744,6 +16750,7 @@ static struct {
     {"certs/mldsa/mldsa87_bare-seed.der",  WC_ML_DSA_87, 0, 0, 0, 0},
     /* ALGO=ML-DSA-87, OUT_FORM=bare-priv, OUT_FILE=mldsa87_bare-priv.der   */
     {"certs/mldsa/mldsa87_bare-priv.der",  WC_ML_DSA_87, 0, 0, 0, 0}
+#endif
 };
 #endif
 
@@ -16753,6 +16760,7 @@ int test_wc_Dilithium_PrivateKeyDecode_OpenSSL_form(void)
 
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE)
 
     byte* der = NULL;
@@ -16845,6 +16853,8 @@ int test_mldsa_pkcs8_import_OpenSSL_form(void)
     EXPECT_DECLS;
 #if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     defined(HAVE_DILITHIUM) && defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_ASN1) && defined(WOLFSSL_ASN_TEMPLATE) && \
     !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))

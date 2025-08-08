@@ -195,6 +195,7 @@
 #define DILITHIUM_Q_BITS                23
 /* Number of elements in polynomial. */
 #define DILITHIUM_N                     256
+#define MLDSA_N                         256
 
 /* Number of dropped bits. */
 #define DILITHIUM_D                     13
@@ -683,8 +684,13 @@ struct dilithium_key {
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_ASSIGN_KEY
+#ifdef USE_INTEL_SPEEDUP
+    byte p[DILITHIUM_MAX_PUB_KEY_SIZE+8];
+    byte k[DILITHIUM_MAX_KEY_SIZE+8];
+#else
     byte p[DILITHIUM_MAX_PUB_KEY_SIZE];
     byte k[DILITHIUM_MAX_KEY_SIZE];
+#endif
 #else
     const byte* p;
     const byte* k;
@@ -892,6 +898,79 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
     word32 inLen);
 #endif
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
+#ifdef USE_INTEL_SPEEDUP
+WOLFSSL_LOCAL void wc_mldsa_poly_red_avx2(sword32* a);
+
+WOLFSSL_LOCAL void wc_mldsa_ntt_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_ntt_full_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_avx2(sword32* r);
+WOLFSSL_LOCAL void wc_mldsa_invntt_full_avx2(sword32* r);
+
+WOLFSSL_LOCAL void wc_mldsa_mul_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_4_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_5_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_mul_vec_7_avx2(sword32* r, const sword32* a,
+    const sword32* b);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_4x4_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_6x5_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+WOLFSSL_LOCAL void wc_mldsa_matrix_mul_8x7_avx2(sword32* r, const sword32* m,
+    const sword32* v);
+
+WOLFSSL_LOCAL void wc_mldsa_redistribute_21_rand_avx2(word64* s, byte* r0,
+    byte* r1, byte* r2, byte* r3);
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_n_avx2(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+WOLFSSL_LOCAL int wc_mldsa_rej_uniform_avx2(sword32* a, word32 len,
+    const byte* r, word32 rLen);
+
+WOLFSSL_LOCAL void wc_mldsa_redistribute_17_rand_avx2(word64* s, byte* r0,
+    byte* r1, byte* r2, byte* r3);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta2_avx2(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+WOLFSSL_LOCAL void wc_mldsa_extract_coeffs_eta4_avx2(const byte* z,
+    unsigned int zLen, sword32* s, unsigned int* cnt);
+
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_2_avx2(const sword32* s, byte d,
+    byte* p);
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_eta_4_avx2(const sword32* t, byte* p);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_2_avx2(const byte* p, sword32* s);
+WOLFSSL_LOCAL void wc_mldsa_decode_eta_4_avx2(const byte* p, sword32* s);
+
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_88_avx2(const sword32* w1, byte* w1e);
+WOLFSSL_LOCAL void wc_mldsa_encode_w1_32_avx2(const sword32* w1, byte* w1e);
+
+WOLFSSL_LOCAL void wc_mldsa_vec_encode_t0_t1_avx2(const sword32* t, byte d,
+    byte* t0, byte* t1);
+WOLFSSL_LOCAL void wc_mldsa_decode_t0_avx2(const byte* t0, sword32* t);
+WOLFSSL_LOCAL void wc_mldsa_decode_t1_avx2(const byte* t1, sword32* t);
+
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_17_avx2(const byte* s, sword32* z);
+WOLFSSL_LOCAL void wc_mldsa_decode_gamma1_19_avx2(const byte* s, sword32* z);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_17_avx2(const sword32* z, byte* s);
+WOLFSSL_LOCAL void wc_mldsa_encode_gamma1_19_avx2(const sword32* z, byte* s);
+
+WOLFSSL_LOCAL void wc_mldsa_decompose_q88_avx2(const sword32* r, sword32* r0,
+    sword32* r1);
+WOLFSSL_LOCAL void wc_mldsa_decompose_q32_avx2(const sword32* r, byte k,
+    sword32* r0, sword32* r1);
+
+WOLFSSL_LOCAL void wc_mldsa_use_hint_88_avx2(sword32* w1, const byte* h);
+WOLFSSL_LOCAL void wc_mldsa_use_hint_32_avx2(sword32* w1, byte k,
+    const byte* h);
+
+WOLFSSL_LOCAL int wc_mldsa_vec_check_low_avx2(const sword32* a, byte l,
+    sword32 hi);
+
+WOLFSSL_LOCAL void wc_mldsa_poly_add_avx2(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_sub_avx2(sword32* r, const sword32* a);
+WOLFSSL_LOCAL void wc_mldsa_poly_make_pos_avx2(sword32* a);
+#endif
 
 
 #define WC_ML_DSA_DRAFT         10

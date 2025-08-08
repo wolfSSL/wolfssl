@@ -14285,13 +14285,15 @@ void bench_dilithiumKeySign(byte level)
 #define DILITHIUM_BENCH_MSG_SIZE 512
 #ifdef WOLFSSL_SMALL_STACK
     dilithium_key *key = NULL;
-    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     byte   *sig = NULL;
     byte   *msg = NULL;
     #endif
 #else
     dilithium_key key[1];
-    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     byte   sig[DILITHIUM_MAX_SIG_SIZE];
     byte   msg[DILITHIUM_BENCH_MSG_SIZE];
     #endif
@@ -14302,17 +14304,38 @@ void bench_dilithiumKeySign(byte level)
     byte params = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    sig = (byte *)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    msg = (byte *)XMALLOC(DILITHIUM_BENCH_MSG_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    sig = (byte *)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    msg = (byte *)XMALLOC(DILITHIUM_BENCH_MSG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
-    if ((key == NULL) || (sig == NULL) || (msg == NULL)) {
-        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        key = NULL;
+    if (key == NULL) {
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        sig = NULL;
+        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        msg = NULL;
+    #endif
         goto out;
     }
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    if ((sig == NULL) || (msg == NULL)) {
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        key = NULL;
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        sig = NULL;
+        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        msg = NULL;
+        goto out;
+    }
+    #endif
 #endif /* WOLFSSL_SMALL_STACK */
 
     if (level == 2) {

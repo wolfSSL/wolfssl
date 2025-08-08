@@ -624,13 +624,13 @@ static int InitSha3(wc_Sha3* sha3)
         }
         else
 #endif
-        if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags)) {
+            SHA3_BLOCK = sha3_block_avx2;
+            SHA3_BLOCK_N = sha3_block_n_avx2;
+        }
+        else if (IS_INTEL_BMI1(cpuid_flags) && IS_INTEL_BMI2(cpuid_flags)) {
             SHA3_BLOCK = sha3_block_bmi2;
             SHA3_BLOCK_N = sha3_block_n_bmi2;
-        }
-        else if (IS_INTEL_AVX2(cpuid_flags)) {
-            SHA3_BLOCK = sha3_block_avx2;
-            SHA3_BLOCK_N = NULL;
         }
         else {
             SHA3_BLOCK = BlockSha3;
