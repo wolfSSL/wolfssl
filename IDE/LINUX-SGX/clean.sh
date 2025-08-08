@@ -1,3 +1,4 @@
 #!/bin/sh
 
-make -f sgx_t_static.mk clean
+make -f sgx_t_static.mk HAVE_WOLFSSL_BENCHMARK=1 HAVE_WOLFSSL_TEST=1 HAVE_WOLFSSL_SP=1 HAVE_WOLFSSL_ASSEMBLY=1 clean
+
