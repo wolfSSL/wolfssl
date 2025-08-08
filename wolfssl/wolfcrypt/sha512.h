@@ -261,6 +261,10 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
 #endif
+#if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
+WOLFSSL_API int wc_Sha512HashBlock(wc_Sha512* sha512, const unsigned char* data,
+    unsigned char* hash);
+#endif
 
 #if !defined(WOLFSSL_NOSHA512_224) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
