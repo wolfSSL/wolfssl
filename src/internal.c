@@ -1388,11 +1388,19 @@ static int ExportOptions(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
                 WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
                 return DTLS_EXPORT_VER_E;
             }
+            if (idx != TLS_EXPORT_OPT_SZ && type == WOLFSSL_EXPORT_TLS) {
+                WOLFSSL_MSG("Update TLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
             break;
 
         case WOLFSSL_EXPORT_VERSION:
             if (idx != DTLS_EXPORT_OPT_SZ && type == WOLFSSL_EXPORT_DTLS) {
                 WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            if (idx != TLS_EXPORT_OPT_SZ && type == WOLFSSL_EXPORT_TLS) {
+                WOLFSSL_MSG("Update TLS_EXPORT_OPT_SZ and version of export");
                 return DTLS_EXPORT_VER_E;
             }
             break;
