@@ -45,7 +45,7 @@
 */
 int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
-                      int typeH);
+                      int hashType);
 
 /*!
     \ingroup Password
@@ -96,7 +96,7 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
 */
 int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
-                      int typeH);
+                      int hashType);
 
 /*!
     \ingroup Password
@@ -132,10 +132,10 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
     Should be kLen long
     \param passwd pointer to the buffer containing the password to use for
     the key derivation
-    \param pLen length of the password to use for key derivation
+    \param passLen length of the password to use for key derivation
     \param salt pointer to the buffer containing the salt to use
     for key derivation
-    \param sLen length of the salt
+    \param saltLen length of the salt
     \param iterations number of times to process the hash
     \param kLen desired length of the derived key
     \param hashType the hashing algorithm to use. Valid choices are: WC_MD5,
@@ -165,6 +165,6 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
     \sa wc_PBKDF1
     \sa wc_PBKDF2
 */
-int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
-                            const byte* salt, int sLen, int iterations,
-                            int kLen, int typeH, int purpose);
+int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
+                            const byte* salt, int saltLen, int iterations,
+                            int kLen, int hashType, int id);

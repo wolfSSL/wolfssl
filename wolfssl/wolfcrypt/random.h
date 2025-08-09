@@ -212,7 +212,7 @@ struct WC_RNG {
     #define RNG WC_RNG
 #endif
 
-WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
+WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz);
 
 
 #ifdef HAVE_WNR
@@ -235,7 +235,7 @@ WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
 WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
                                     void* heap, int devId);
-WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* b, word32 sz);
+WOLFSSL_ABI WOLFSSL_API int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
 WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #else
@@ -259,17 +259,17 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 #endif
 
 #ifdef HAVE_HASHDRBG
-    WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,
-                                       word32 entropySz);
+    WOLFSSL_API int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed,
+                                       word32 seedSz);
     WOLFSSL_API int wc_RNG_TestSeed(const byte* seed, word32 seedSz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
+                                        const byte* seedA, word32 seedASz,
+                                        const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz);
     WOLFSSL_API int wc_RNG_HealthTest_ex(int reseed,
                                         const byte* nonce, word32 nonceSz,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
+                                        const byte* seedA, word32 seedASz,
+                                        const byte* seedB, word32 seedBSz,
                                         byte* output, word32 outputSz,
                                         void* heap, int devId);
 #endif /* HAVE_HASHDRBG */

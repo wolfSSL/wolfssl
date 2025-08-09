@@ -279,17 +279,17 @@ WC_RNG* wc_rng_free(WC_RNG* rng);
     \brief Creates and tests functionality of drbg.
 
     \return 0 on success
-    \return BAD_FUNC_ARG entropyA and output must not be null.  If reseed
-    set entropyB must not be null
+    \return BAD_FUNC_ARG seedA and output must not be null.  If reseed
+    set seedB must not be null
     \return -1 test failed
 
     \param int reseed: if set, will test reseed functionality
-    \param entropyA: entropy to instantiate drgb with
-    \param entropyASz: size of entropyA in bytes
-    \param entropyB: If reseed set, drbg will be reseeded with entropyB
-    \param entropyBSz: size of entropyB in bytes
-    \param output: initialized to random data seeded with entropyB if
-    seedrandom is set, and entropyA otherwise
+    \param seedA: seed to instantiate drgb with
+    \param seedASz: size of seedA in bytes
+    \param seedB: If reseed set, drbg will be reseeded with seedB
+    \param seedBSz: size of seedB in bytes
+    \param output: initialized to random data seeded with seedB if
+    seedrandom is set, and seedA otherwise
     \param outputSz: length of output in bytes
 
     _Example_
@@ -322,7 +322,6 @@ WC_RNG* wc_rng_free(WC_RNG* rng);
     \sa wc_RNG_GenerateByte
     \sa wc_FreeRng
 */
-int wc_RNG_HealthTest(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
-                                        byte* output, word32 outputSz);
+int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
+        const byte* seedB, word32 seedBSz,
+        byte* output, word32 outputSz);
