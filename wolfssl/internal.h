@@ -2292,7 +2292,7 @@ WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, 
 #endif
 WOLFSSL_LOCAL int  SetupTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
-WOLFSSL_LOCAL int  HashRaw(WOLFSSL* ssl, const byte* output, int sz);
+WOLFSSL_LOCAL int  HashRaw(WOLFSSL* ssl, const byte* data, int sz);
 WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
@@ -2779,7 +2779,7 @@ typedef struct ProcPeerCertArgs {
 #endif
 } ProcPeerCertArgs;
 WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
-        int ret, ProcPeerCertArgs* args);
+        int cert_err, ProcPeerCertArgs* args);
 WOLFSSL_LOCAL void DoCrlCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
         ProcPeerCertArgs* args, int* outRet);
 
@@ -6719,7 +6719,7 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
         WOLFSSL_LOCAL Signer* GetCAByKeyHash(void* vp, const byte* keyHash);
     #endif
     #if !defined(NO_SKID) && !defined(GetCAByName)
-        WOLFSSL_LOCAL Signer* GetCAByName(void* cm, byte* hash);
+        WOLFSSL_LOCAL Signer* GetCAByName(void* vp, byte* hash);
     #endif
 #endif /* !NO_CERTS */
 WOLFSSL_LOCAL int  BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash,

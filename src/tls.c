@@ -448,12 +448,12 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 }
 
 /* External facing wrapper so user can call as well, 0 on success */
-int wolfSSL_DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
+int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
                          const byte* ms, word32 msLen,
                          const byte* sr, const byte* cr,
                          int tls1_2, int hash_type)
 {
-    return _DeriveTlsKeys(key_dig, key_dig_len, ms, msLen, sr, cr, tls1_2,
+    return _DeriveTlsKeys(key_data, keyLen, ms, msLen, sr, cr, tls1_2,
         hash_type, NULL, INVALID_DEVID);
 }
 
@@ -705,7 +705,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
 
 /* Used by EAP-TLS and EAP-TTLS to derive keying material from
  * the master_secret. */
-int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
+int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
                                                               const char* label)
 {
     int   ret;
@@ -730,7 +730,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
 
 #ifdef WOLFSSL_HAVE_PRF
     PRIVATE_KEY_UNLOCK();
-    ret = wc_PRF_TLS((byte*)msk, len, ssl->arrays->masterSecret, SECRET_LEN,
+    ret = wc_PRF_TLS((byte*)key, len, ssl->arrays->masterSecret, SECRET_LEN,
               (const byte *)label, (word32)XSTRLEN(label), seed, SEED_LEN,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
               ssl->heap, ssl->devId);
@@ -740,7 +740,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
     ret = PRF_MISSING;
     WOLFSSL_MSG("Pseudo-random function is not enabled");
 
-    (void)msk;
+    (void)key;
     (void)len;
     (void)label;
 #endif
