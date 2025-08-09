@@ -22,7 +22,7 @@
 #ifndef _RENESAS_FSPSM_INTERNAL_H_
 #define _RENESAS_FSPSM_INTERNAL_H_
 
-#include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-types.h>
+
 #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
 
 /* Wrapped TLS FSP Key Set Flags */
@@ -35,6 +35,13 @@ struct FSPSM_ST_Internal {
 
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
         !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+    /* WOLFSSL object associated with */
+    struct WOLFSSL*         ssl;
+    struct WOLFSSL_CTX*     ctx;
+
+    /* HEAP_HINT */
+    void*                   heap;
+
     /* out from R_SCE_TLS_ServerKeyExchangeVerify */
     uint32_t
         encrypted_ephemeral_ecdh_public_key[FSPSM_TLS_ENCRYPTED_ECCPUBKEY_SZ];
@@ -54,7 +61,6 @@ struct FSPSM_ST_Internal {
         uint8_t chr;
         struct FSPSM_tls_flg_ST bits;
     } keyflgs_tls;
-
 };
 
 #ifdef WOLFSSL_RENESAS_FSPSM_TLS
@@ -92,7 +98,8 @@ typedef struct FSPSM_RSA_CTX {
 typedef struct {
     void*  heap;
     word32 sha_type;
-#if defined(WOLFSSL_RENESAS_SCEPROTECT)
+#if defined(WOLFSSL_RENESAS_SCEPROTECT) || \
+    (defined(WOLFSSL_RENESAS_RSIP) && (WOLFSSL_RENESAS_RZFSP_VER >= 220))
     word32 used;
     word32 len;
     byte*  msg;

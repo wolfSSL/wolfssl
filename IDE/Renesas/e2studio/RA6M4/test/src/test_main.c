@@ -150,18 +150,27 @@ void Clr_CallbackCtx(FSPSM_ST *g)
 {
     (void) g;
 
-   #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    XFREE(g->wrapped_key_rsapri2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g == NULL) return;
 
-    XFREE(g->wrapped_key_rsapub2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g->wrapped_key_aes256 != NULL)
+        g->wrapped_key_aes256 = NULL;
 
-    XFREE(g->wrapped_key_rsapri1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g->wrapped_key_aes128 != NULL)
+        g->wrapped_key_aes128 = NULL;
+
+   #if defined(WOLFSSL_RENESAS_RSIP_CRYPTONLY)
+    if (g->wrapped_key_rsapri2048 != NULL)
+        g->wrapped_key_rsapri2048 = NULL;
 
     if (g->wrapped_key_rsapub2048 != NULL)
-        XFREE(g->wrapped_key_rsapub1024,
-                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        g->wrapped_key_rsapub2048 = NULL;
+
+    if (g->wrapped_key_rsapri1024 != NULL)
+        g->wrapped_key_rsapri1024 = NULL;
+
+    if (g->wrapped_key_rsapub2048 != NULL)
+        g->wrapped_key_rsapub2048 = NULL;
    #endif
-   XMEMSET(g, 0, sizeof(FSPSM_ST));
 }
 #endif
 
@@ -261,9 +270,6 @@ void sce_test(void)
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
-
-    /* free */
-    Clr_CallbackCtx(&guser_PKCbInfo);
 
 #elif defined(TLS_CLIENT)
     #include "hal_data.h"

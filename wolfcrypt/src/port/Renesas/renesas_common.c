@@ -44,16 +44,21 @@
     #define cmn_hw_lock    tsip_hw_lock
     #define cmn_hw_unlock  tsip_hw_unlock
 
-    #define FSPSM_ST       TsipUserCtx;
-    #define MAX_FSPSM_CBINDEX 5
+    #define FSPSM_ST            TsipUserCtx
+    #define FSPSM_ST_Internal   TsipUserCtx_Internal
+
 #endif
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/asn.h>
-#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
-#include <wolfssl/internal.h>
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
 #endif
+#include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -65,16 +70,9 @@ uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
 static int gdevId = INITIAL_DEVID;     /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
-/* store callback ctx by devId */
-#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+
+#define     MAX_FSPSM_CBINDEX 5
 FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
-#elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-#define FSPSM_ST       TsipUserCtx;
-#define MAX_FSPSM_CBINDEX 5
-TsipUserCtx *gCbCtx[MAX_FSPSM_CBINDEX];
-#endif
 
 #include <wolfssl/wolfcrypt/cryptocb.h>
 
@@ -274,8 +272,9 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_ECC */
     }
 
-#elif defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+#elif (defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY))\
+    && !defined(NO_WOLFSSL_RENESAS_FSPSM_AES)
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
     #if !defined(NO_AES)
@@ -285,6 +284,20 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
 #if !defined(NO_RSA) && defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
+        if (info->pk.type == WC_PK_TYPE_RSA_GET_SIZE) {
+            if (cbInfo->keyflgs_crypt.bits.rsapri2048_installedkey_set ||
+                cbInfo->keyflgs_crypt.bits.rsapub2048_installedkey_set )
+            {
+               *info->pk.rsa_get_size.keySize = 256;
+               ret = 0;
+            } else if (
+                cbInfo->keyflgs_crypt.bits.rsapri1024_installedkey_set ||
+                cbInfo->keyflgs_crypt.bits.rsapub1024_installedkey_set )
+            {
+                *info->pk.rsa_get_size.keySize = 128;
+                ret = 0;
+            }
+        }
     #if defined(WOLFSSL_KEY_GEN)
         if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
             ret = wc_fspsm_MakeRsaKey(info->pk.rsakg.key,
@@ -400,13 +413,8 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
     (void)ssl;
     (void)ctx;
 
- #if defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-    TsipUserCtx* cbInfo = (TsipUserCtx*)ctx;
- #elif defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
-       defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     FSPSM_ST* cbInfo = (FSPSM_ST*)ctx;
- #endif
+    size_t internal_sz = sizeof(FSPSM_ST_Internal);
 
     if (cbInfo == NULL
    #if (!defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
@@ -418,13 +426,34 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         WOLFSSL_MSG("Invalid devId\n");
         return INVALID_DEVID;
     }
+    /* On Crypt Only mode, it is possible to call this method
+     * first. On that time, internal instance has not yet been allocated.
+     */
+    if (cbInfo->internal == NULL) {
+        if (ssl)
+            cbInfo->internal =
+                (FSPSM_ST_Internal*)XMALLOC(internal_sz, ssl->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        else
+            cbInfo->internal = (FSPSM_ST_Internal*)XMALLOC(internal_sz, NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        if (cbInfo->internal == NULL) {
+            return MEMORY_E;
+        }
+       #if defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
+            defined(WOLFSSL_RENESAS_TSIP_TLS)
+        if (ssl)
+            cbInfo->internal->heap = ssl->heap;
+       #endif
+        ForceZero(cbInfo->internal, internal_sz);
+    }
     /* need exclusive control because of static variable */
     if ((cmn_hw_lock()) == 0) {
         /* sanity check for overflow */
         if (gdevId < 0) {
             gdevId = INITIAL_DEVID;
         }
-        cbInfo->internal->devId = gdevId++;
+        cbInfo->devId = gdevId++;
         cmn_hw_unlock();
     }
     else {
@@ -432,7 +461,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         return INVALID_DEVID;
     }
 
-    if (wc_CryptoCb_RegisterDevice(cbInfo->internal->devId,
+    if (wc_CryptoCb_RegisterDevice(cbInfo->devId,
                             Renesas_cmn_CryptoDevCb, cbInfo) < 0) {
         /* undo devId number */
         gdevId--;
@@ -443,12 +472,12 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
        !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY) && \
        !defined(HAVE_RENESAS_SYNC)
     if (ssl)
-        wolfSSL_SetDevId(ssl, cbInfo->internal->devId);
+        wolfSSL_SetDevId(ssl, cbInfo->devId);
    #endif
 
-    gCbCtx[cbInfo->internal->devId - INITIAL_DEVID] = (void*)cbInfo;
+    gCbCtx[cbInfo->devId - INITIAL_DEVID] = (void*)cbInfo;
 
-    return cbInfo->internal->devId;
+    return cbInfo->devId;
 }
 
 /* Renesas Security Library Common Method
@@ -459,8 +488,26 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
  */
 void wc_CryptoCb_CleanupRenesasCmn(int* id)
 {
+
+    FSPSM_ST* cbInfo = NULL;
+
+    if (*id < INITIAL_DEVID ||
+       (*id  - INITIAL_DEVID) > MAX_FSPSM_CBINDEX)
+        return;
+    /* retrieve internal instance */
+    cbInfo = (FSPSM_ST*)gCbCtx[*id - INITIAL_DEVID];
+
+    if (cbInfo != NULL && cbInfo->internal != NULL) {
+     #if defined(WOLFSSL_RENESAS_FSPSM_TLS) && \
+        !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+        XFREE(cbInfo->internal, cbInfo->internal->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+     #else
+        XFREE(cbInfo->internal, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     #endif
+        cbInfo->internal = NULL;
+    }
     wc_CryptoCb_UnRegisterDevice(*id);
-    *id = INVALID_DEVID;
 }
 
 #endif /* WOLF_CRYPTO_CB */
@@ -752,7 +799,7 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
     if (Renesas_cmn_usable(ssl, 0)) {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = wc_tsip_generateSessionKey(ssl, cbInfo,
-                                                cbInfo->internal->devId);
+                                                cbInfo->devId);
 #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
         ret = wc_fspsm_generateSessionKey(ssl, ctx, cbInfo->devId);
 #endif
