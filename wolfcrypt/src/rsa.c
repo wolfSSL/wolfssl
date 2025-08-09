@@ -42,6 +42,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_AFALG_XILINX_RSA
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
@@ -2748,7 +2749,7 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         case RSA_PUBLIC_ENCRYPT:
         case RSA_PUBLIC_DECRYPT:
             if (mp_exptmod_nct(tmp, &key->e, &key->n, tmp) != MP_OKAY) {
-                WOLFSSL_MSG("mp_exptmod_nct failed");
+                WOLFSSL_MSG_CERT_LOG("mp_exptmod_nct failed");
                 ret = MP_EXPTMOD_E;
             }
             break;
@@ -2845,7 +2846,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     *outLen = keyLen;
     return RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
 #endif /* WOLFSSL_SP_MATH */
-}
+} /* wc_RsaFunctionSync */
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 #endif
 

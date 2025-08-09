@@ -40,6 +40,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfio.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NUCLEUS_PLUS_2_3
 /* Holds last Nucleus networking error number */

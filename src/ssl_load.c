@@ -28,6 +28,7 @@
  */
 
 #ifdef WOLFSSL_SYS_CA_CERTS
+/* Will be turned off automatically when NO_FILESYSTEM is defined */
 
 #ifdef _WIN32
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
@@ -58,6 +59,8 @@
         #warning ssl_load.c does not need to be compiled separately from ssl.c
     #endif
 #else
+
+#include <wolfssl/wolfcrypt/logging.h>
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* PSK field of context when it exists. */
@@ -2721,7 +2724,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         &sz);
     if ((ret == 0) && (type == DETECT_CERT_TYPE) &&
             (format != WOLFSSL_FILETYPE_PEM)) {
-        WOLFSSL_MSG("Cannot detect certificate type when not PEM");
+        WOLFSSL_MSG_CERT_LOG("Cannot detect certificate type when not PEM");
         ret = WOLFSSL_BAD_CERTTYPE;
     }
     /* Try to detect type by parsing cert header and footer. */
@@ -2729,17 +2732,24 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #if !defined(NO_CODING) && !defined(WOLFSSL_NO_PEM)
         const char* header = NULL;
         const char* footer = NULL;
+#ifdef HAVE_CRL
+        WOLFSSL_MSG_CERT("Detecting cert type... (including CRL_TYPE)");
+#else
+        WOLFSSL_MSG_CERT("Detecting cert type... (HAVE_CRL not defined)");
+#endif
 
         /* Look for CA header and footer - same as CERT_TYPE. */
         if (wc_PemGetHeaderFooter(CA_TYPE, &header, &footer) == 0 &&
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
             type = CA_TYPE;
+            WOLFSSL_DEBUG_PRINTF("Detected cert type CA_TYPE = %d:", type);
         }
 #ifdef HAVE_CRL
         /* Look for CRL header and footer. */
         else if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
             type = CRL_TYPE;
+            WOLFSSL_DEBUG_PRINTF("Detected cert type CRL_TYPE = %d:", type);
         }
 #endif
         /* Look for cert header and footer - same as CA_TYPE. */
@@ -2747,12 +2757,13 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) !=
                     NULL)) {
             type = CERT_TYPE;
+            WOLFSSL_DEBUG_PRINTF("Detected cert type CERT_TYPE = %d:", type);
         }
         else
-#endif
+#endif /* !NO_CODING && !WOLFSSL_NO_PEM */
         {
             /* Not a header that we support. */
-            WOLFSSL_MSG("Failed to detect certificate type");
+            WOLFSSL_MSG_CERT_LOG("Failed to detect certificate type");
 #ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
             WOLFSSL_DEBUG_PRINTF(
                 "ERROR: ProcessFile: Failed to detect certificate type"
@@ -2761,17 +2772,19 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #endif
             ret = WOLFSSL_BAD_CERTTYPE;
         }
-    }
+    } /* (ret == 0) && (type == DETECT_CERT_TYPE) */
+
     if (ret == 0) {
         /* When CA or trusted peer and PEM - process as a chain buffer. */
         if (((type == CA_TYPE) || (type == TRUSTED_PEER_TYPE)) &&
                 (format == WOLFSSL_FILETYPE_PEM)) {
+            WOLFSSL_MSG_CERT("Processing cert chain buffer...");
             ret = ProcessChainBuffer(ctx, ssl, content.buffer, sz, type,
                 verify, fname);
         }
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE) {
-            /* Load the CRL. */
+            WOLFSSL_MSG_CERT("Loading CRL...");
             ret = BufferLoadCRL(crl, content.buffer, sz, format, verify);
         }
 #endif

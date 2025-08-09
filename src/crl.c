@@ -39,6 +39,7 @@ CRL Options:
 
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef WOLFSSL_LINUXKM
     #include <string.h>
@@ -795,7 +796,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     crl->currentEntry = CRL_Entry_new(crl->heap);
     if (crl->currentEntry == NULL) {
-        WOLFSSL_MSG("alloc CRL Entry failed");
+        WOLFSSL_MSG_CERT_LOG("alloc CRL Entry failed");
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -806,9 +807,11 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(crl->currentEntry->certs, dcrl, myBuffer, (word32)sz,
                    verify, crl->cm);
+
     if (ret != 0 && !(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)
                       && verify == NO_VERIFY)) {
-        WOLFSSL_MSG("ParseCRL error");
+        WOLFSSL_MSG_CERT_LOG("ParseCRL error");
+        WOLFSSL_MSG_CERT_EX("ParseCRL verify = %d, ret = %d", verify, ret);
         CRL_Entry_free(crl->currentEntry, crl->heap);
         crl->currentEntry = NULL;
     }
@@ -816,7 +819,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         ret = AddCRL(crl, dcrl, myBuffer,
                      ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
         if (ret != 0) {
-            WOLFSSL_MSG("AddCRL error");
+            WOLFSSL_MSG_CERT_LOG("AddCRL error");
             crl->currentEntry = NULL;
         }
     }
