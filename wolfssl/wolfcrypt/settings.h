@@ -4389,6 +4389,15 @@ extern void uITRON4_free(void *p) ;
     #undef XREALLOC
 #endif
 
+/* There's currently no 100% reliable "smaller than 32 bit" detection.
+ * The user can specify: WC_16BIT_CPU
+ * Lower 16 bits of new OID values may collide on some 16 bit platforms.
+ *   e.g  Arduino Mega, fqbn=arduino:avr:mega  */
+#if defined(WC_16BIT_CPU)
+    /* Force the old, 16 bit OIDs to be used in wolfcrypt/oid_sum.h */
+    #undef  WOLFSSL_OLD_OID_SUM
+    #define WOLFSSL_OLD_OID_SUM
+#endif
 
 /* ---------------------------------------------------------------------------
  * Deprecated Algorithm Handling
