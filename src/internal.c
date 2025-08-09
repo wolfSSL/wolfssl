@@ -604,6 +604,9 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
 
 int IsEncryptionOn(const WOLFSSL* ssl, int isSend)
 {
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
 #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
     if (ssl->options.dtls && !isSend) {
@@ -10847,12 +10850,16 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 
-/* return bytes received, -1 on error */
+/* return bytes received, WOLFSSL_FATAL_ERROR on error,
+ * or BAD_FUNC_ARG if ssl is null */
 static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
     int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
 #ifdef WOLFSSL_QUIC
     if (WOLFSSL_IS_QUIC(ssl)) {
         /* QUIC only "reads" from data provided by the application
@@ -11011,6 +11018,11 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 int SendBuffered(WOLFSSL* ssl)
 {
     int retryLimit = WOLFSSL_MODE_AUTO_RETRY_ATTEMPTS;
+
+    if (ssl == NULL) {
+        WOLFSSL_MSG("ssl is null");
+        return BAD_FUNC_ARG;
+    }
 
     if (ssl->CBIOSend == NULL && !WOLFSSL_IS_QUIC(ssl)) {
         WOLFSSL_MSG("Your IO Send callback is null, please set");
@@ -11382,6 +11394,10 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
 
 int MsgCheckEncryption(WOLFSSL* ssl, byte type, byte encrypted)
 {
+    if (ssl == NULL) {
+        WOLFSSL_MSG("ssl is null");
+        return BAD_FUNC_ARG;
+    }
 #ifdef WOLFSSL_QUIC
     /* QUIC protects messages outside of the TLS scope */
     if (WOLFSSL_IS_QUIC(ssl) && IsAtLeastTLSv1_3(ssl->version))
@@ -23582,6 +23598,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     BuildMsgArgs  lcl_args;
 #endif
 
+#ifdef WOLFSSL_DTLS_CID
+    byte cidSz = 0;
+#endif
+
     WOLFSSL_ENTER("BuildMessage");
 
     if (ssl == NULL) {
@@ -23714,14 +23734,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 args->idx      += DTLS_RECORD_EXTRA;
                 args->headerSz += DTLS_RECORD_EXTRA;
         #ifdef WOLFSSL_DTLS_CID
-                if (ssl->options.dtls) {
-                    byte cidSz = 0;
-                    if ((cidSz = DtlsGetCidTxSize(ssl)) > 0) {
-                        args->sz       += cidSz;
-                        args->idx      += cidSz;
-                        args->headerSz += cidSz;
-                        args->sz++; /* real_type. no padding. */
-                    }
+                if ((cidSz = DtlsGetCidTxSize(ssl)) > 0) {
+                    args->sz       += cidSz;
+                    args->idx      += cidSz;
+                    args->headerSz += cidSz;
+                    args->sz++; /* real_type. no padding. */
                 }
         #endif
             }

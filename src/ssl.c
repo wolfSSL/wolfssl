@@ -6041,11 +6041,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     if (ret == 0 && signer != NULL) {
         ret = FillSigner(signer, cert, type, der);
 
-    #ifndef NO_SKID
-        row = HashSigner(signer->subjectKeyIdHash);
-    #else
-        row = HashSigner(signer->subjectNameHash);
-    #endif
+        if (ret == 0){
+        #ifndef NO_SKID
+            row = HashSigner(signer->subjectKeyIdHash);
+        #else
+            row = HashSigner(signer->subjectNameHash);
+        #endif
+        }
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
         /* Verify CA by TSIP so that generated tsip key is going to          */

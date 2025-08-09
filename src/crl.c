@@ -218,6 +218,10 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
     RevokedCert* next;
 
     WOLFSSL_ENTER("FreeCRL_Entry");
+    if (crle == NULL) {
+        WOLFSSL_MSG("CRL Entry is null");
+        return;
+    }
 
     while (tmp != NULL) {
         next = tmp->next;
@@ -1636,7 +1640,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 
 #ifdef DEBUG_WOLFSSL
 #define SHOW_WINDOWS_ERROR() do {                               \
-    LPVOID lpMsgBuf;                                            \
+    LPVOID lpMsgBuf = NULL;                                     \
     DWORD dw = GetLastError();                                  \
     FormatMessageA(                                             \
         FORMAT_MESSAGE_ALLOCATE_BUFFER |                        \

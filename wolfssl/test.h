@@ -1233,7 +1233,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #if defined(SHOW_CERTS) && defined(KEEP_OUR_CERT) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
-    printf("Peer verify result = %lu\n", wolfSSL_get_verify_result(ssl));
+    printf("Peer verify result = %ld\n", wolfSSL_get_verify_result(ssl));
 #endif /* SHOW_CERTS && KEEP_OUR_CERT */
     printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
@@ -1871,7 +1871,7 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     }
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Client using HW (Len %d, Hint %s)\n", ret, hint);
+    WOLFSSL_PKMSG("PSK Client using HW (Len %u, Hint %s)\n", ret, hint);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -1915,7 +1915,7 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
         ret = 32;   /* length of key in octets or 0 for error */
     }
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Server using HW (Len %d, Hint %s)\n", ret, identity);
+    WOLFSSL_PKMSG("PSK Server using HW (Len %u, Hint %s)\n", ret, identity);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -1954,7 +1954,7 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
     ret = 32;   /* length of key in octets or 0 for error */
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Client TLS 1.3 using HW (Len %d, Hint %s)\n", ret, hint);
+    WOLFSSL_PKMSG("PSK Client TLS 1.3 using HW (Len %u, Hint %s)\n", ret, hint);
     ret = (unsigned int)USE_HW_PSK;
 #endif
 
@@ -1997,7 +1997,7 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     ret = 32;   /* length of key in octets or 0 for error */
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
-    WOLFSSL_PKMSG("PSK Server TLS 1.3 using HW (Len %d, Hint %s)\n",
+    WOLFSSL_PKMSG("PSK Server TLS 1.3 using HW (Len %u, Hint %s)\n",
         ret, identity);
     ret = (unsigned int)USE_HW_PSK;
 #endif
