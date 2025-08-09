@@ -746,9 +746,9 @@ enum {
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
-        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* // NOLINT(bugprone-sizeof-expression) */
+        VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DO_NOTHING
     #define WC_CALLOC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
