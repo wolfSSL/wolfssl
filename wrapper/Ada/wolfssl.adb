@@ -19,6 +19,7 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
+with Ada.Unchecked_Conversion;
 pragma Warnings (Off, "* is an internal GNAT unit");
 with GNAT.Sockets.Thin_Common;
 pragma Warnings (On, "* is an internal GNAT unit");
@@ -798,10 +799,15 @@ package body WolfSSL is
       S : String (1 .. Error_Message_Index'Last);
       B : Byte_Array (1 .. size_t (Error_Message_Index'Last));
       C : Natural;
+      -- Use unchecked conversion instead of type conversion to mimic C style
+      -- conversion from int to unsigned long, avoiding the Ada overflow check.
+      function To_Unsigned_Long is new Ada.Unchecked_Conversion
+         (Source => long,
+          Target => unsigned_long);
    begin
-      WolfSSL_Error_String (Error => unsigned_long (Code),
+      WolfSSL_Error_String (Error => To_Unsigned_Long (long (Code)),
                             Data  => B,
-                            Size  => unsigned_long (B'Last));
+                            Size  => To_Unsigned_Long (long (B'Last)));
       Interfaces.C.To_Ada (Item     => B,
                            Target   => S,
                            Count    => C,
