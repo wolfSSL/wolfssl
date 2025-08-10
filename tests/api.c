@@ -8049,19 +8049,8 @@ THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 #endif
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_negotiate(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_negotiate(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "error = %d, %s\n", err,
@@ -8274,19 +8263,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
             goto done;
         }
 
-        #ifdef WOLFSSL_ASYNC_CRYPT
-        err = 0; /* Reset error */
-        #endif
-        do {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) { break; } else if (ret == 0) { continue; }
-            }
-        #endif
-            ret = wolfSSL_accept(ssl);
-            err = wolfSSL_get_error(ssl, 0);
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_accept(ssl),
+                                    ret != WOLFSSL_SUCCESS);
         if (ret != WOLFSSL_SUCCESS) {
             char buff[WOLFSSL_MAX_ERROR_SZ];
             fprintf(stderr, "error = %d, %s\n", err,
@@ -8511,19 +8489,8 @@ int test_client_nofail(void* args, cbType cb)
         cbf->ssl_ready(ssl);
     }
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_negotiate(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_negotiate(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "error = %d, %s\n", err,
@@ -8762,19 +8729,8 @@ static void test_client_reuse_WOLFSSLobj(void* args, cbType cb,
         cbf->ssl_ready(ssl);
     }
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "error = %d, %s\n", err,
@@ -8826,19 +8782,8 @@ static void test_client_reuse_WOLFSSLobj(void* args, cbType cb,
         goto done;
     }
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "error = %d, %s\n", err,
@@ -9081,19 +9026,8 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-#endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_accept(ssl);
-        err = wolfSSL_get_error(ssl, ret);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_accept(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "accept error = %d, %s\n", err,
@@ -9101,37 +9035,15 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         /*err_sys("SSL_accept failed");*/
     }
     else {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        err = 0; /* Reset error */
-    #endif
-        do {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) { break; } else if (ret == 0) { continue; }
-            }
-        #endif
-            idx = wolfSSL_read(ssl, input, sizeof(input)-1);
-            err = wolfSSL_get_error(ssl, idx);
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(idx = wolfSSL_read(ssl, input, sizeof(input)-1),
+                                    idx <= 0);
         if (idx > 0) {
             input[idx] = 0;
             fprintf(stderr, "Client message: %s\n", input);
         }
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        err = 0; /* Reset error */
-    #endif
-        do {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) { break; } else if (ret == 0) { continue; }
-            }
-        #endif
-            ret = wolfSSL_write(ssl, msg, len);
-            err = wolfSSL_get_error(ssl, ret);
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write(ssl, msg, len),
+                                    len != ret);
         if (len != ret) {
             goto cleanup;
         }
@@ -9299,19 +9211,8 @@ static void run_wolfssl_client(void* args)
     if (callbacks->ssl_ready)
         callbacks->ssl_ready(ssl);
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, ret);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
         fprintf(stderr, "error = %d, %s\n", err,
@@ -9319,35 +9220,13 @@ static void run_wolfssl_client(void* args)
         /*err_sys("SSL_connect failed");*/
     }
     else {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-        err = 0; /* Reset error */
-        #endif
-        do {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) { break; } else if (ret == 0) { continue; }
-            }
-        #endif
-            ret = wolfSSL_write(ssl, msg, len);
-            err = wolfSSL_get_error(ssl, ret);
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write(ssl, msg, len),
+                                    ret != len);
         if (len != ret)
             goto cleanup;
 
-        #ifdef WOLFSSL_ASYNC_CRYPT
-        err = 0; /* Reset error */
-        #endif
-        do {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) { break; } else if (ret == 0) { continue; }
-            }
-        #endif
-            ret = wolfSSL_read(ssl, input, sizeof(input)-1);
-            err = wolfSSL_get_error(ssl, ret);
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_read(ssl, input, sizeof(input)-1),
+                                    ret <= 0);
         if (ret > 0) {
             input[ret] = '\0'; /* null term */
             fprintf(stderr, "Server response: %s\n", input);
@@ -27720,49 +27599,17 @@ static int test_wolfSSL_SESSION(void)
     tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
     ExpectIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_connect(ssl);
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                ret != WOLFSSL_SUCCESS);
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_write(ssl, sendGET, (int)XSTRLEN(sendGET));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(
+        ret = wolfSSL_write(ssl, sendGET, (int)XSTRLEN(sendGET)),
+        ret <= 0);
     ExpectIntEQ(ret, (int)XSTRLEN(sendGET));
 
-    #ifdef WOLFSSL_ASYNC_CRYPT
-    err = 0; /* Reset error */
-    #endif
-    do {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) { break; } else if (ret == 0) { continue; }
-        }
-    #endif
-        ret = wolfSSL_read(ssl, msg, sizeof(msg));
-        err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_read(ssl, msg, sizeof(msg)),
+                                ret != 23);
     ExpectIntEQ(ret, 23);
 
     ExpectPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */

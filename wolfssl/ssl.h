@@ -5550,7 +5550,24 @@ WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
 WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
     WOLF_EVENT_FLAG flags, int* eventCount);
+#define WOLFSSL_ASYNC_IF_PENDING                                \
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {                 \
+        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);  \
+        if (ret < 0) break;                                     \
+    }
+#else
+#define WOLFSSL_ASYNC_IF_PENDING if(0)(void)0;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#define WOLFSSL_ASYNC_WHILE_PENDING(call, cond)                 \
+    do {                                                        \
+        err = 0;                                                \
+        call;                                                   \
+        if (cond) {                                             \
+            err = wolfSSL_get_error(ssl, 0);                    \
+            WOLFSSL_ASYNC_IF_PENDING                            \
+        }                                                       \
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E))
 
 typedef void (*Rem_Sess_Cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 
