@@ -346,6 +346,14 @@ package body Tls_Server with SPARK_Mode is
          WolfSSL.Create_WolfSSL (Context => Ctx, Ssl => Ssl);
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
+            declare
+               Error_Message : constant WolfSSL.Error_Message :=
+                 WolfSSL.Error (WolfSSL.Get_Error (Ssl, Result));
+            begin
+               if Result = Success then
+                  Put_Line (Error_Message.Text (1 .. Error_Message.Last));
+               end if;
+            end;
             SPARK_Sockets.Close_Socket (L);
 
             if not DTLS then
