@@ -40,21 +40,22 @@
  * ****************************************************************************
  *
  * WOLFSSL_DEBUG_PRINTF()
- *   Utility macro: A buffer-less, non-truncating debug message renderer.
- *   Unavailable on some targets, and has no default no-op definition,
- *   so the WOLFSSL_DEBUG_CERTIFICATE_LOADS gate is needed.
+ *   Utility macro: A buffer-less, non-truncating debug message renderer.  On
+ *   supported targets, it is always functional, i.e. it is not affected by
+ *   DEBUG_WOLFSSL or wolfSSL_Debugging_{ON,OFF}().  Test for support using
+ *   defined(WOLFSSL_DEBUG_PRINTF) -- if it is unsupported it is not defined.
  *
- * WOLFSSL_DEBUG_PRINTF_FN(...)
+ * WOLFSSL_DEBUG_PRINTF_FN
  *   Used to supply an override definition of the target platform's printf-like
- *   function, and it is not function-like:
+ *   function.  By default, it is defined to fprintf.  If defined, this is used
+ *   as the underlying function for all logging by the library.
  *
- *   #ifdef WOLFSSL_DEBUG_PRINTF_FN
- *       #define [user-supplied definition]
- *   #elif defined(ARDUINO)
- *       #warning ARDUINO only has print and sprintf, no printf on some targets.
- *   #elif defined(WOLFSSL_LOG_PRINTF) || defined(WOLFSSL_DEOS)
- *       #define WOLFSSL_DEBUG_PRINTF_FN printf
- *   [...]
+ * WOLFSSL_DEBUG_PRINTF_FIRST_ARGS
+ *   Used to supply an override definition of the initial args to the target
+ *   platform's printf-like function, with a trailing comma.  This can be
+ *   defined to nothing if there are no initial args to supply.  By default, it
+ *   is defined to stderr plus a trailing comma.  If defined, the args are
+ *   passed to WOLFSSL_DEBUG_PRINTF_FN wherever it is called.
  *
  * WOLFSSL_MSG_EX_BUF_SZ
  *   Re-definable macro: maximum length of WOLFSSL_MSG_EX debugging messages.
@@ -89,6 +90,10 @@
  * WOLFSSL_MSG_CERT_EX
  *   Variable number of parameters. Should be supported nearly everywhere.
  *
+ * WOLFSSL_MSG_CERT_LOG_EX
+ *   Variable number of parameters. Should be supported nearly everywhere.
+ *   Print during either DEBUG_WOLFSSL or WOLFSSL_DEBUG_CERTS
+ *
  * When any of the above are disabled:
  *   With WOLF_NO_VARIADIC_MACROS a do nothing placeholder function is used.
  *   Otherwise, a do-nothing macro. See WC_DO_NOTHING
@@ -120,7 +125,7 @@
  * See also:
  *  int WOLFSSL_IS_DEBUG_ON(void)
  *
- *  Note: does not detect or control WOLFSSL_DEBUG_PRINTF_FN usage
+ *  Note: does not affect WOLFSSL_DEBUG_PRINTF(), which renders unconditionally.
  *
  */
 
@@ -394,12 +399,15 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
  *
  * WOLFSSL_MSG_CERT_LOG will also print during WOLFSSL_DEBUG_CERTS
  * even if standard DEBUG_WOLFSSL is not enabled. */
-#if defined(DEBUG_WOLFSSL)
-    #define WOLFSSL_MSG_CERT_LOG(msg) WOLFSSL_MSG(msg)
-#elif defined(WOLFSSL_DEBUG_CERTS)
+#if defined(WOLFSSL_DEBUG_CERTS)
     #define WOLFSSL_MSG_CERT_LOG(msg) WOLFSSL_MSG_CERT(msg)
+    #define WOLFSSL_MSG_CERT_LOG_EX WOLFSSL_MSG_CERT_EX
+#elif defined(DEBUG_WOLFSSL)
+    #define WOLFSSL_MSG_CERT_LOG(msg) WOLFSSL_MSG(msg)
+    #define WOLFSSL_MSG_CERT_LOG_EX WOLFSSL_MSG_EX
 #else
     #define WOLFSSL_MSG_CERT_LOG(msg) WC_DO_NOTHING
+    #define WOLFSSL_MSG_CERT_LOG_EX WOLFSSL_MSG_EX
 #endif
 
 /* WOLFSSL_ERROR and WOLFSSL_HAVE_ERROR_QUEUE */
@@ -535,7 +543,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_DEBUG_PRINTF_FN M2M_LOG_INFO
 #elif defined(WOLFSSL_ANDROID_DEBUG)
     #define WOLFSSL_DEBUG_PRINTF_FN __android_log_print
-    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS ANDROID_LOG_VERBOSE, "[wolfSSL]"
+    #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS ANDROID_LOG_VERBOSE, "[wolfSSL]",
 #elif defined(WOLFSSL_XILINX)
     #define WOLFSSL_DEBUG_PRINTF_FN xil_printf
 #elif defined(WOLFSSL_LINUXKM)
@@ -557,7 +565,7 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
             /* ESP-IDF supports variadic. Do not use WOLF_NO_VARIADIC_MACROS.
              * This is only for WOLF_NO_VARIADIC_MACROS testing: */
             #define WOLFSSL_DEBUG_PRINTF(a) \
-                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS, a)
+                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS a)
         #else
             /* no variadic not defined for this platform */
         #endif
