@@ -26,6 +26,13 @@
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 /*
 Possible memory options:
  * NO_WOLFSSL_MEMORY:               Disables wolf memory callback support. When not defined settings.h defines USE_WOLFSSL_MEMORY.
@@ -1661,36 +1668,10 @@ void __attribute__((no_instrument_function))
 #endif
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
-/* Exported version of ForceZero() that takes a size_t. */
+/* Exported version of ForceZero(). */
 void wc_ForceZero(void *mem, size_t len)
 {
-    byte *zb = (byte *)mem;
-    unsigned long *zl;
-
-    XFENCE();
-
-    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
-        if (len == 0)
-            return;
-        *zb++ = 0;
-        --len;
-    }
-
-    zl = (unsigned long *)zb;
-
-    while (len > sizeof(unsigned long)) {
-        *zl++ = 0;
-        len -= sizeof(unsigned long);
-    }
-
-    zb = (byte *)zl;
-
-    while (len) {
-        *zb++ = 0;
-        --len;
-    }
-
-    XFENCE();
+    ForceZero(mem, len);
 }
 #endif
 
