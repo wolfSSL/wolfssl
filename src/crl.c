@@ -210,19 +210,22 @@ static CRL_Entry* CRL_Entry_new(void* heap)
 /* Free all CRL Entry resources */
 static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 {
+    RevokedCert* tmp;
+    RevokedCert* next;
+
 #ifdef CRL_STATIC_REVOKED_LIST
     if (crle != NULL) {
         XMEMSET(crle->certs, 0, CRL_MAX_REVOKED_CERTS*sizeof(RevokedCert));
     }
 #else
-    RevokedCert* tmp = crle->certs;
-    RevokedCert* next;
 
     WOLFSSL_ENTER("FreeCRL_Entry");
     if (crle == NULL) {
         WOLFSSL_MSG("CRL Entry is null");
         return;
     }
+
+    tmp = crle->certs;
 
     while (tmp != NULL) {
         next = tmp->next;
