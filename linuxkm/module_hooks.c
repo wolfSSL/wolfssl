@@ -837,6 +837,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 PRAGMA_GCC_DIAG_PUSH
 PRAGMA_GCC("GCC diagnostic ignored \"-Wnested-externs\"")
 PRAGMA_GCC("GCC diagnostic ignored \"-Wpointer-arith\"")
+PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-parameter\"")
 #include <crypto/hash.h>
 PRAGMA_GCC_DIAG_POP
 
