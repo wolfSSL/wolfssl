@@ -4763,12 +4763,11 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     if (ret == MP_OKAY)
         ret = mp_read_unsigned_bin(e, eRaw, eRawSz);
 
-    if (ret == MP_OKAY) {
+    if (ret == MP_OKAY)
         SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == MP_OKAY)
-            ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
-
+    if (ret == 0) {
+        ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
         RESTORE_VECTOR_REGISTERS();
     }
 
@@ -5173,7 +5172,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 #endif
 
-    RESTORE_VECTOR_REGISTERS();
+    if (err != WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E))
+        RESTORE_VECTOR_REGISTERS();
 
     /* Last value p - 1. */
     mp_forcezero(tmp1);
