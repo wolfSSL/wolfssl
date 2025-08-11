@@ -33293,6 +33293,13 @@ static int test_wolfSSL_X509_EXTENSION_get_data(void)
     WOLFSSL_X509_EXTENSION* ext = NULL;
     WOLFSSL_ASN1_STRING* str = NULL;
     XFILE file = XBADFILE;
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    const byte ext_data[] = {
+        0x04, 0x14, 0xB3, 0x11, 0x32, 0xC9, 0x92, 0x98,
+        0x84, 0xE2, 0xC9, 0xF8, 0xD0, 0x3B, 0x6E, 0x03,
+        0x42, 0xCA, 0x1F, 0x0E, 0x8E, 0x3C,
+    };
+#endif
 
     ExpectTrue((file = XFOPEN("./certs/server-cert.pem", "rb")) != XBADFILE);
     ExpectNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
@@ -33302,6 +33309,11 @@ static int test_wolfSSL_X509_EXTENSION_get_data(void)
 
     ExpectNull(str = wolfSSL_X509_EXTENSION_get_data(NULL));
     ExpectNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
+
+#ifndef WOLFSSL_OLD_EXTDATA_FMT
+    ExpectIntEQ(str->length, sizeof (ext_data));
+    ExpectBufEQ(str->data, ext_data, sizeof (ext_data));
+#endif
 
     wolfSSL_X509_free(x509);
 #endif
