@@ -166,22 +166,26 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_ECB;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
     #endif
-        HAL_CRYP_Init(&hcryp);
-
-    #if defined(STM32_HAL_V2)
-        ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
-            (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_CRYPTO_AES_ONLY)
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, WC_AES_BLOCK_SIZE,
-            outBlock, STM32_HAL_TIMEOUT);
-    #else
-        ret = HAL_CRYP_AESECB_Encrypt(&hcryp, (uint8_t*)inBlock, WC_AES_BLOCK_SIZE,
-            outBlock, STM32_HAL_TIMEOUT);
-    #endif
-        if (ret != HAL_OK) {
-            ret = WC_TIMEOUT_E;
+        if (HAL_CRYP_Init(&hcryp) != HAL_OK) {
+            ret = BAD_FUNC_ARG;
         }
-        HAL_CRYP_DeInit(&hcryp);
+
+        if (ret == 0) {
+        #if defined(STM32_HAL_V2)
+            ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
+                (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
+        #elif defined(STM32_CRYPTO_AES_ONLY)
+            ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, WC_AES_BLOCK_SIZE,
+                outBlock, STM32_HAL_TIMEOUT);
+        #else
+            ret = HAL_CRYP_AESECB_Encrypt(&hcryp, (uint8_t*)inBlock, WC_AES_BLOCK_SIZE,
+                outBlock, STM32_HAL_TIMEOUT);
+        #endif
+            if (ret != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
+            HAL_CRYP_DeInit(&hcryp);
+        }
 
     #else /* Standard Peripheral Library */
         ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
@@ -4996,19 +5000,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
     #endif
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
-        HAL_CRYP_Init(&hcryp);
+        ret = HAL_CRYP_Init(&hcryp);
 
-    #if defined(STM32_HAL_V2)
-        ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
-            (uint32_t*)out, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_CRYPTO_AES_ONLY)
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * WC_AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
-    #else
-        ret = HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in,
-                                      blocks * WC_AES_BLOCK_SIZE,
-                                      out, STM32_HAL_TIMEOUT);
-    #endif
+        if (ret == HAL_OK) {
+        #if defined(STM32_HAL_V2)
+            ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
+                (uint32_t*)out, STM32_HAL_TIMEOUT);
+        #elif defined(STM32_CRYPTO_AES_ONLY)
+            ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * WC_AES_BLOCK_SIZE,
+                out, STM32_HAL_TIMEOUT);
+        #else
+            ret = HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in,
+                                        blocks * WC_AES_BLOCK_SIZE,
+                                        out, STM32_HAL_TIMEOUT);
+        #endif
+        }
         if (ret != HAL_OK) {
             ret = WC_TIMEOUT_E;
         }
@@ -5060,19 +5066,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif
 
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
-        HAL_CRYP_Init(&hcryp);
+        ret = HAL_CRYP_Init(&hcryp);
 
-    #if defined(STM32_HAL_V2)
-        ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
-            (uint32_t*)out, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_CRYPTO_AES_ONLY)
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * WC_AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
-    #else
-        ret = HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in,
-                                      blocks * WC_AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
-    #endif
+        if (ret == HAL_OK) {
+        #if defined(STM32_HAL_V2)
+            ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
+                (uint32_t*)out, STM32_HAL_TIMEOUT);
+        #elif defined(STM32_CRYPTO_AES_ONLY)
+            ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * WC_AES_BLOCK_SIZE,
+                out, STM32_HAL_TIMEOUT);
+        #else
+            ret = HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in,
+                                        blocks * WC_AES_BLOCK_SIZE,
+                out, STM32_HAL_TIMEOUT);
+        #endif
+        }
         if (ret != HAL_OK) {
             ret = WC_TIMEOUT_E;
         }
@@ -11608,7 +11616,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     aes->heap = heap;
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
     aes->devId = devId;
 #else
     (void)devId;
