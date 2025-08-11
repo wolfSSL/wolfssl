@@ -1946,6 +1946,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #ifndef SAVE_NO_VECTOR_REGISTERS
         #define SAVE_NO_VECTOR_REGISTERS(fail_clause) WC_RELAX_LONG_LOOP()
     #endif
+    #ifndef SAVE_NO_VECTOR_REGISTERS2
+        #define SAVE_NO_VECTOR_REGISTERS2() 0
+    #endif
 #else
     #ifndef SAVE_NO_VECTOR_REGISTERS
         #define SAVE_NO_VECTOR_REGISTERS(fail_clause) {     \
@@ -1954,9 +1957,9 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
                 WC_RELAX_LONG_LOOP();                       \
             }
     #endif
-#endif
-#ifndef SAVE_NO_VECTOR_REGISTERS2
-    #define SAVE_NO_VECTOR_REGISTERS2() 0
+    #ifndef SAVE_NO_VECTOR_REGISTERS2
+        #define SAVE_NO_VECTOR_REGISTERS2() WC_CHECK_FOR_INTR_SIGNALS()
+    #endif
 #endif
 #ifndef RESTORE_NO_VECTOR_REGISTERS
     #define RESTORE_NO_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP()
@@ -1966,8 +1969,10 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
 #endif
 #ifndef SAVE_VECTOR_REGISTERS2
-    #define SAVE_VECTOR_REGISTERS2() 0
-    #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING
+    #define SAVE_VECTOR_REGISTERS2() SAVE_NO_VECTOR_REGISTERS2()
+    #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING /* VECTOR_REGISTERS_{PUSH,POP}
+                                                 * in aes.c depend on this.
+                                                 */
 #endif
 #ifndef CAN_SAVE_VECTOR_REGISTERS
     #define CAN_SAVE_VECTOR_REGISTERS() 1

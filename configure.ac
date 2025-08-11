@@ -5655,7 +5655,8 @@ AC_ARG_ENABLE([pwdbased],
 # MemUse Entropy
 # wolfEntropy Software Jitter SP800-90B certifiable entropy source
 
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && \
+   (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
 then
     ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
 else

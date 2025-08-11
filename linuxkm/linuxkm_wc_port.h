@@ -136,6 +136,7 @@
     extern void wc_linuxkm_relax_long_loop(void);
 
     enum wc_svr_flags {
+        WC_SVR_FLAG_NONE = 0,
         WC_SVR_FLAG_INHIBIT = 1,
     };
 
@@ -478,7 +479,7 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {     \
-                int _svr_ret = wc_save_vector_registers_x86(0); \
+                int _svr_ret = wc_save_vector_registers_x86(WC_SVR_FLAG_NONE); \
                 if (_svr_ret != 0) {                         \
                     fail_clause                              \
                 }                                            \
@@ -489,11 +490,11 @@
                 #define SAVE_VECTOR_REGISTERS2() ({                    \
                     int _fuzzer_ret = SAVE_VECTOR_REGISTERS2_fuzzer(); \
                     (_fuzzer_ret == 0) ?                               \
-                     wc_save_vector_registers_x86(0) :                    \
+                     wc_save_vector_registers_x86(WC_SVR_FLAG_NONE) :  \
                      _fuzzer_ret;                                      \
                 })
             #else
-                #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(0)
+                #define SAVE_VECTOR_REGISTERS2() wc_save_vector_registers_x86(WC_SVR_FLAG_NONE)
             #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
