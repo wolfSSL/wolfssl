@@ -495,7 +495,7 @@
 #endif
 #elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
     /* Use MSVC compiler intrinsics for atomic ops */
-    #ifdef _WIN32_WCE
+    #if defined(_WIN32_WCE) && defined(_M_ARM)
         #include <armintr.h>
     #else
         #include <intrin.h>

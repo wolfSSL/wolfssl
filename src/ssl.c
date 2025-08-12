@@ -15409,6 +15409,20 @@ const char* wolfSSL_lib_version(void)
     return LIBWOLFSSL_VERSION_STRING;
 }
 
+/* current user_settings.h breadcrumb tag */
+const char* wolfSSL_user_settings_tag(void)
+{
+#ifdef WOLFSSL_USER_SETTINGS
+    #ifdef WOLFSSL_USER_SETTINGS_TAG
+        return WOLFSSL_USER_SETTINGS_TAG;
+    #else
+        return "unknown or WOLFSSL_USER_SETTINGS_TAG not set";
+    #endif
+#else
+    return "WOLFSSL_USER_SETTINGS not defined, assuming options.h build";
+#endif
+}
+
 #ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const char* wolfSSL_OpenSSL_version(int a)

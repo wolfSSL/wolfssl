@@ -23,7 +23,12 @@
 
 #if !defined(WOLFSSL_CONF_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning conf.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+                    "conf.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning conf.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 

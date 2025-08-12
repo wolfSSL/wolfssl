@@ -20,23 +20,16 @@
  */
 
 
-
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using wolfSSL.CSharp;
 
 
-
 public class wolfSSL_TLS_PSK_Client
 {
-
-
     /// <summary>
     /// Example of a PSK function call back
     /// </summary>
@@ -49,6 +42,7 @@ public class wolfSSL_TLS_PSK_Client
     /// <returns>size of key set</returns>
     public static uint my_psk_client_cb(IntPtr ssl, string hint, IntPtr identity, uint id_max, IntPtr key, uint max_key)
     {
+        Console.WriteLine("Hello my_psk_client_cb!");
         /* C# client */
         byte[] id = { 67, 35, 32, 99, 108, 105, 101, 110, 116 };
         if (id_max < 9)
@@ -79,14 +73,18 @@ public class wolfSSL_TLS_PSK_Client
         IntPtr ctx;
         IntPtr ssl;
         Socket tcp;
+        StringBuilder dhparam;
 
         wolfssl.psk_client_delegate psk_cb = new wolfssl.psk_client_delegate(my_psk_client_cb);
 
-        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        Console.WriteLine("Current path: " + Environment.CurrentDirectory);
+        dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        dhparam = new StringBuilder(Path.GetFullPath(dhparam.ToString()));
         if (dhparam.Length == 0) {
             Console.WriteLine("Platform not supported");
             return;
         }
+        Console.WriteLine("Using cert: " + dhparam.ToString());
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# client psk wrapper");
@@ -162,12 +160,13 @@ public class wolfSSL_TLS_PSK_Client
         }
 
         if (!File.Exists(dhparam.ToString())) {
-            Console.WriteLine("Could not find dh file");
+            Console.WriteLine("Current path: " + Environment.CurrentDirectory);
+            Console.WriteLine("Could not find dh file: " + dhparam);
             wolfssl.CTX_free(ctx);
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM);
 
         if (wolfssl.connect(ssl) != wolfssl.SUCCESS)
         {

@@ -20,8 +20,6 @@
  */
 
 
-
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -35,7 +33,7 @@ using wolfSSL.CSharp;
 
 public class wolfSSL_TLS_PSK_Server
 {
-
+    static int SERVER_PORT = 11111;
 
     /// <summary>
     /// Example of a PSK function call back
@@ -160,7 +158,7 @@ public class wolfSSL_TLS_PSK_Server
 
         /* set up TCP socket */
         IPAddress ip = IPAddress.Parse("0.0.0.0"); //bind to any
-        TcpListener tcp = new TcpListener(ip, 11111);
+        TcpListener tcp = new TcpListener(ip, SERVER_PORT);
         tcp.Start();
 
         Console.WriteLine("Started TCP and waiting for a connection");
@@ -184,7 +182,7 @@ public class wolfSSL_TLS_PSK_Server
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        wolfssl.SetTmpDH_file(ssl, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM);
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {

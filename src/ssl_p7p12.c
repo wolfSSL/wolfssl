@@ -30,7 +30,13 @@
 
 #if !defined(WOLFSSL_SSL_P7P12_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning ssl_p7p12.c does not need to be compiled separately from ssl.c
+        #if defined(_MSC_VER)
+            #pragma message( \
+               "ssl_p7p12.c does not need to be compiled separately from ssl.c")
+        #else
+            #warning \
+                ssl_p7p12.c does not need to be compiled separately from ssl.c
+        #endif
     #endif
 #else
 

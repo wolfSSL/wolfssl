@@ -106,9 +106,9 @@ public class wolfSSL_TLS_ServerThreaded
     /// </summary>
     /// <param name="lvl">level of log</param>
     /// <param name="msg">message to log</param>
-    public static void standard_log(int lvl, StringBuilder msg)
-    {
-        Console.WriteLine(msg);
+    public static void standard_log(int lvl, IntPtr msg) {
+        string str = Marshal.PtrToStringAnsi(msg);
+        Console.WriteLine(str);
     }
 
     public static void Main(string[] args)
@@ -171,7 +171,7 @@ public class wolfSSL_TLS_ServerThreaded
 
         short minDhKey = 128;
         wolfssl.CTX_SetMinDhKey_Sz(ctx, minDhKey);
-        wolfssl.CTX_SetTmpDH_file(ctx, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        wolfssl.CTX_SetTmpDH_file(ctx, dhparam.ToString(), wolfssl.SSL_FILETYPE_PEM);
 
         /* set up TCP socket */
         IPAddress ip = IPAddress.Parse("0.0.0.0"); /* bind to any */
