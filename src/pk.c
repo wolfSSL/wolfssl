@@ -8858,7 +8858,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     if (ret == 0) {
         /* Validate the size of the private key. */
         sz = wolfSSL_BN_num_bytes(dh->priv_key);
-        if (sz > (int)privSz) {
+        if (sz > privSz) {
             WOLFSSL_ERROR_MSG("Bad priv internal size");
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -8957,12 +8957,14 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     }
     PRIVATE_KEY_LOCK();
 
+    if (privSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
-    if (priv != NULL)
+        if (priv != NULL)
 #endif
-    {
-        /* Zeroize sensitive data. */
-        ForceZero(priv, (word32)privSz);
+        {
+            /* Zeroize sensitive data. */
+            ForceZero(priv, (word32)privSz);
+        }
     }
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);

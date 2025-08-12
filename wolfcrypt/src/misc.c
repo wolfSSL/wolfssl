@@ -587,32 +587,36 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
 /* This routine fills the first len bytes of the memory area pointed by mem
-   with zeros. It ensures compiler optimization doesn't skip it  */
-WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, word32 len)
+   with zeros. It ensures compiler optimization doesn't skip it. */
+WC_MISC_STATIC WC_INLINE void ForceZero(void* mem, size_t len)
 {
-    volatile byte* z = (volatile byte*)mem;
+    byte *zb = (byte *)mem;
+    unsigned long *zl;
 
-#if (defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD)) \
-            && defined(WORD64_AVAILABLE)
-    volatile word64* w;
-    #ifndef WOLFSSL_UNALIGNED_64BIT_ACCESS
-        word32 l = (sizeof(word64) - ((size_t)z & (sizeof(word64)-1))) &
-                                                             (sizeof(word64)-1);
+    XFENCE();
 
-        if (len < l) l = len;
-        len -= l;
-        while (l--) *z++ = 0;
-    #endif
-        for (w = (volatile word64*)z;
-             len >= sizeof(*w);
-             len -= (word32)sizeof(*w))
-        {
-            *w++ = 0;
-        }
-    z = (volatile byte*)w;
-#endif
+    while ((wc_ptr_t)zb & (wc_ptr_t)(sizeof(unsigned long) - 1U)) {
+        if (len == 0)
+            return;
+        *zb++ = 0;
+        --len;
+    }
 
-    while (len--) *z++ = 0;
+    zl = (unsigned long *)zb;
+
+    while (len >= sizeof(unsigned long)) {
+        *zl++ = 0;
+        len -= sizeof(unsigned long);
+    }
+
+    zb = (byte *)zl;
+
+    while (len) {
+        *zb++ = 0;
+        --len;
+    }
+
+    XFENCE();
 }
 #endif
 

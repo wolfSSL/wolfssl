@@ -67,7 +67,7 @@ WOLFSSL_LOCAL
 void xorbuf(void* buf, const void* mask, word32 count);
 
 WOLFSSL_LOCAL
-void ForceZero(void* mem, word32 len);
+void ForceZero(void* mem, size_t len);
 
 WOLFSSL_LOCAL
 int ConstantCompare(const byte* a, const byte* b, int length);
@@ -184,7 +184,7 @@ WOLFSSL_LOCAL w64wrapper w64Mul(word32 a, word32 b);
 
 /* Declarations for user defined functions */
 #ifdef WOLFSSL_NO_FORCE_ZERO
-void ForceZero(void* mem, word32 len);
+void ForceZero(void* mem, size_t len);
 #endif
 #ifdef WOLFSSL_NO_CONST_CMP
 int ConstantCompare(const byte* a, const byte* b, int length);

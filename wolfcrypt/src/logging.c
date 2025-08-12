@@ -373,6 +373,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
         return 0;
     }
 
+    #ifdef XVSNPRINTF
     #ifdef __clang__
     /* tell clang argument 1 is format */
     __attribute__((__format__ (__printf__, 1, 0)))
@@ -404,9 +405,10 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
 #endif
         return 0;
     } /* WOLFSSL_MSG_CERT_EX */
-#else
+    #endif /* XVSNPRINTF */
 
-    /* !(DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS) */
+#else /* (!WOLFSSL_DEBUG_CERTS && !DEBUG_WOLFSSL) || NO_WOLFSSL_DEBUG_CERTS */
+
     #ifdef WOLF_NO_VARIADIC_MACROS
         #ifdef  __WATCOMC__
             /* Do-nothing implementation in header for OW Open Watcom V2 */
@@ -425,7 +427,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
     #else
         /* using a macro, see logging.h */
     #endif
-#endif /* DEBUG_WOLFSSL || WOLFSSL_DEBUG_CERTS */
+#endif /* (!WOLFSSL_DEBUG_CERTS && !DEBUG_WOLFSSL) || NO_WOLFSSL_DEBUG_CERTS */
 
 #if defined(XVSNPRINTF) && !defined(NO_WOLFSSL_MSG_EX)
 #include <stdarg.h> /* for var args */
