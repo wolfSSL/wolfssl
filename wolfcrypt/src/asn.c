@@ -1283,6 +1283,12 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return ASN_PARSE_E;
             }
+            if (!zeroPadded && (input[idx] >= 0x80U)) {
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Unexpected negative INTEGER value");
+            #endif
+                return ASN_EXPECT_0_E;
+            }
             /* Fill number with all of data. */
             *data->data.u8 = input[idx];
             break;
