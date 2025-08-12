@@ -45,7 +45,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-/* the mixed-case wolfSSL contains some global types, used by lowercase wolfssl */
+/* the mixed-case wolfSSL namespace contains some global types, used by lowercase wolfssl class */
 namespace wolfSSL
 {
     /* Some global structs for use with wolfSSL_get_alert_history */
@@ -178,10 +178,12 @@ namespace wolfSSL.CSharp
 #if DEBUG
             if (is64Bit)
             {
+                Console.WriteLine("wolfSSL CSharp is 64 bit;");
                 subDirsToCheck = new string[] { "DLL Debug", "Debug", "Debug\\x64" };
             }
             else
             {
+                Console.WriteLine("wolfSSL CSharp is 32 bit;");
                 subDirsToCheck = new string[] { "DLL Debug", "Debug", "Debug\\x86", "Debug\\Win32" };
             }
 #elif RELEASE

@@ -21,13 +21,11 @@
 
 
 // Optionally set explicit cipher, see CIPHER_SUITE and wolfssl.CTX_set_cipher_list()
-#define USE_SPECIFIED_CIPHER
+// #define USE_SPECIFIED_CIPHER
 
 using System;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using wolfSSL;
 using wolfSSL.CSharp;
@@ -59,7 +57,7 @@ public class wolfSSL_TLS_Client
     /// </summary>
     /// <param name="h"></param>
     /// <param name="m"></param>
-    private static void show_alert_history_code(WOLFSSL_ALERT h, string m)
+    private static void show_alert_history_code(wolfSSL.WOLFSSL_ALERT h, string m)
     {
         /* VS initializes .code and .level to zero; wolfSSL sets to -1 until there's a valid value. */
         if ((h.code > 0) || (h.level > 0)) {
@@ -74,7 +72,7 @@ public class wolfSSL_TLS_Client
     /// <param name="ssl"></param>
     private static void show_alert_history(IntPtr ssl)
     {
-        WOLFSSL_ALERT_HISTORY myHistory = new WOLFSSL_ALERT_HISTORY();
+        WOLFSSL_ALERT_HISTORY myHistory = new wolfSSL.WOLFSSL_ALERT_HISTORY();
         int ret = 0;
         ret = wolfssl.get_alert_history(ssl, ref myHistory);
         if (ret == wolfssl.SUCCESS) {

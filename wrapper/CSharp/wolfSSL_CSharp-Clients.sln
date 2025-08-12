@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wolfssl", "wolfssl.vcxproj"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-DTLS-PSK-Client", "wolfSSL-DTLS-PSK-Client\wolfSSL-DTLS-PSK-Client.csproj", "{D7D1817F-DEBE-4A47-A34F-33A7D3B46204}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wolfSSL-TLS-Client", "wolfSSL-TLS-Client\wolfSSL-TLS-Client.csproj", "{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,8 +37,8 @@ Global
 		{52609808-0418-46D3-8E17-141927A1A39A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{52609808-0418-46D3-8E17-141927A1A39A}.Release|x64.ActiveCfg = Release|x64
 		{52609808-0418-46D3-8E17-141927A1A39A}.Release|x64.Build.0 = Release|x64
-		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|Any CPU.Build.0 = Debug|x64
+		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|Any CPU.ActiveCfg = DLL Debug|Win32
+		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|Any CPU.Build.0 = DLL Debug|Win32
 		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|x64.ActiveCfg = DLL Debug|x64
 		{67932048-D67E-4C86-B55F-90899B9BDA64}.Debug|x64.Build.0 = DLL Debug|x64
 		{67932048-D67E-4C86-B55F-90899B9BDA64}.Release|Any CPU.ActiveCfg = Release|x64
@@ -51,8 +53,19 @@ Global
 		{D7D1817F-DEBE-4A47-A34F-33A7D3B46204}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D7D1817F-DEBE-4A47-A34F-33A7D3B46204}.Release|x64.ActiveCfg = Release|x64
 		{D7D1817F-DEBE-4A47-A34F-33A7D3B46204}.Release|x64.Build.0 = Release|x64
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Debug|x64.ActiveCfg = Debug|x64
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Debug|x64.Build.0 = Debug|x64
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Release|x64.ActiveCfg = Release|x64
+		{B9DF2972-38F6-4B42-B228-E3C1A47DF8E8}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1A5504FC-6BDF-4876-AECD-42A4546C6D69}
 	EndGlobalSection
 EndGlobal

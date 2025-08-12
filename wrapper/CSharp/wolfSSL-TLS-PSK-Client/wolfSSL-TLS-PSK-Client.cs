@@ -20,23 +20,16 @@
  */
 
 
-
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using wolfSSL.CSharp;
 
 
-
 public class wolfSSL_TLS_PSK_Client
 {
-
-
     /// <summary>
     /// Example of a PSK function call back
     /// </summary>

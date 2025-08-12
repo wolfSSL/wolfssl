@@ -514,3 +514,4 @@ wolfssl/debug-untrace-error-codes.h
 /DLL Release (options.h)/x64
 /wrapper/CSharp/wolfSSL_CSharp-Clients-VS2022.sln
 /wrapper/CSharp/wolfSSL_CSharp-VS2022.sln
+/wrapper/CSharp/wolfSSL-TLS-Client/wolfSSL-TLS_WCE_2008
