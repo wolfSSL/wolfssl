@@ -4292,7 +4292,15 @@ int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx)
 
 int wolfSSL_get_SessionTicket(WOLFSSL* ssl, byte* buf, word32* bufSz)
 {
-    if (ssl == NULL || buf == NULL || bufSz == NULL || *bufSz == 0)
+    if (ssl == NULL || bufSz == NULL)
+        return BAD_FUNC_ARG;
+
+    if (*bufSz == 0 && buf == NULL) {
+        *bufSz = ssl->session->ticketLen;
+        return LENGTH_ONLY_E;
+    }
+
+    if (buf == NULL)
         return BAD_FUNC_ARG;
 
     if (ssl->session->ticketLen <= *bufSz) {
