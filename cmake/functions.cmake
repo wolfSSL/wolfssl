@@ -220,6 +220,7 @@ function(generate_build_flags)
         set(BUILD_ARIA "yes" PARENT_SCOPE)
     endif()
     set(BUILD_INLINE ${WOLFSSL_INLINE} PARENT_SCOPE)
+    set(BUILD_ARMASM_INLINE ${WOLFSSL_ARMASM_INLINE} PARENT_SCOPE)
     if(WOLFSSL_OCSP OR WOLFSSL_USER_SETTINGS)
         set(BUILD_OCSP "yes" PARENT_SCOPE)
     endif()
@@ -392,10 +393,14 @@ function(generate_lib_src_list LIB_SOURCES)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sha512.c)
 
                    if(BUILD_ARMASM AND BUILD_FIPS_READY)
-                        list(APPEND LIB_SOURCES
-                             wolfcrypt/src/port/arm/armv8-sha512.c
-                             wolfcrypt/src/port/arm/armv8-sha512-asm.S
-                             wolfcrypt/src/port/arm/armv8-32-sha512-asm.S)
+                        if(BUILD_ARMASM_INLINE)
+                             list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha512.c)
+                        else()
+                             list(APPEND LIB_SOURCES
+                               wolfcrypt/src/port/arm/armv8-sha512.c
+                               wolfcrypt/src/port/arm/armv8-sha512-asm.S
+                               wolfcrypt/src/port/arm/armv8-32-sha512-asm.S)
+                        endif()
                    endif()
 
                    if(BUILD_INTELASM)
@@ -577,10 +582,15 @@ function(generate_lib_src_list LIB_SOURCES)
 
          if(NOT BUILD_FIPS_V2 AND BUILD_SHA512)
               if(BUILD_ARMASM)
-                   list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-sha512.c
-                        wolfcrypt/src/port/arm/armv8-sha512-asm.S
-                        wolfcrypt/src/port/arm/armv8-32-sha512-asm.S)
+                   if(BUILD_ARMASM_INLINE)
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha512.c)
+                   else()
+                        list(APPEND LIB_SOURCES
+                            wolfcrypt/src/port/arm/armv8-sha512.c
+                            wolfcrypt/src/port/arm/armv8-sha512-asm.S
+                            wolfcrypt/src/port/arm/armv8-32-sha512-asm.S)
+                   endif()
               else()
                    list(APPEND LIB_SOURCES wolfcrypt/src/sha512.c)
 
@@ -749,9 +759,11 @@ function(generate_lib_src_list LIB_SOURCES)
                         list(APPEND LIB_SOURCES wolfcrypt/src/fe_x25519_asm.S)
                    else()
                         if(BUILD_ARMASM)
-                             list(APPEND LIB_SOURCES
-                                  wolfcrypt/src/port/arm/armv8-32-curve25519.S
-                                  wolfcrypt/src/port/arm/armv8-curve25519.S)
+                             if (NOT BUILD_ARMASM_INLINE)
+                                  list(APPEND LIB_SOURCES
+                                      wolfcrypt/src/port/arm/armv8-32-curve25519.S
+                                      wolfcrypt/src/port/arm/armv8-curve25519.S)
+                              endif()
                         else()
                              list(APPEND LIB_SOURCES wolfcrypt/src/fe_operations.c)
                         endif()
@@ -770,7 +782,10 @@ function(generate_lib_src_list LIB_SOURCES)
                              list(APPEND LIB_SOURCES wolfcrypt/src/fe_x25519_asm.S)
                         else()
                              if(BUILD_ARMASM)
-                                  list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-curve25519.S)
+                                  if(NOT BUILD_ARMASM_INLINE)
+                                      list(APPEND LIB_SOURCES 
+                                      wolfcrypt/src/port/arm/armv8-curve25519.S)
+                                   endif()
                              else()
                                   list(APPEND LIB_SOURCES wolfcrypt/src/fe_operations.c)
                              endif()
