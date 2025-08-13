@@ -209,6 +209,9 @@ struct wc_Sha512 {
 #if defined(STM32_HASH_SHA512)
     STM32_HASH_Context stmCtx;
 #endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    int hashType; /* used to determine which SHA512 is used */
+#endif /* WOLFSSL_SHA512_HASHTYPE */
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 

@@ -325,6 +325,9 @@ static int InitSha512(wc_Sha512* sha512)
 #ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    sha512->hashType = WC_HASH_TYPE_SHA512;
+#endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
 
@@ -378,6 +381,9 @@ static int InitSha512_224(wc_Sha512* sha512)
 #ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    sha512->hashType = WC_HASH_TYPE_SHA512_224;
+#endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
 #endif /* !WOLFSSL_NOSHA512_224 && !FIPS ... */
@@ -431,6 +437,9 @@ static int InitSha512_256(wc_Sha512* sha512)
 #ifdef WOLFSSL_HASH_FLAGS
     sha512->flags = 0;
 #endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    sha512->hashType = WC_HASH_TYPE_SHA512_256;
+#endif /* WOLFSSL_SHA512_HASHTYPE */
     return 0;
 }
 #endif /* !WOLFSSL_NOSHA512_256 && !FIPS... */
