@@ -160,7 +160,11 @@ for (my $i = 0; $i < $num_1024; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
 
@@ -177,7 +181,10 @@ for (my $i = 0; $i < $num_2048; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 
 
@@ -196,7 +203,10 @@ for (my $i = 0; $i < $num_3072; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_3072 */\n\n";
@@ -214,7 +224,10 @@ for (my $i = 0; $i < $num_4096; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_4096 */\n\n";
@@ -231,7 +244,10 @@ for (my $i = 0; $i < $num_falcon; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 
 print OUT_FILE "#endif /* HAVE_FALCON */\n\n";
@@ -500,7 +516,7 @@ static const unsigned char bench_dilithium_level2_key[] = {
     0x12, 0xea, 0xc1, 0x94, 0x37, 0xa0, 0x11, 0xff, 0xb2, 0xa4,
     0xc3, 0x61, 0xf2, 0xa3, 0x49, 0xbe, 0xe7, 0xb6, 0x96, 0x2f,
 };
-static const int sizeof_bench_dilithium_level2_key = sizeof(bench_dilithium_level2_key);
+#define sizeof_bench_dilithium_level2_key (sizeof(bench_dilithium_level2_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -642,8 +658,8 @@ static const unsigned char bench_dilithium_level2_pubkey[] = {
     0x36, 0x8b, 0x81, 0x26, 0x99, 0x92, 0x42, 0xda, 0x45, 0xb1,
     0xfe, 0x4b,
 };
-static const int sizeof_bench_dilithium_level2_pubkey =
-    sizeof(bench_dilithium_level2_pubkey);
+#define sizeof_bench_dilithium_level2_pubkey \\
+       (sizeof(bench_dilithium_level2_pubkey))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
 
@@ -1057,7 +1073,7 @@ static const unsigned char bench_dilithium_level3_key[] = {
     0xd2, 0x71, 0xb2, 0x5e, 0xae, 0x72, 0xc9, 0x69, 0x3b, 0x80,
     0xc2, 0x27,
 };
-static const int sizeof_bench_dilithium_level3_key = sizeof(bench_dilithium_level3_key);
+#define sizeof_bench_dilithium_level3_key (sizeof(bench_dilithium_level3_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -1764,7 +1780,7 @@ static const unsigned char bench_dilithium_level5_key[] = {
     0x15, 0xed, 0xa6, 0x86, 0x8f, 0x2f, 0xe5, 0x67, 0x0f, 0xdd,
     0xbf, 0x70, 0x53, 0xaa, 0x9b, 0x74,
 };
-static const int sizeof_bench_dilithium_level5_key = sizeof(bench_dilithium_level5_key);
+#define sizeof_bench_dilithium_level5_key (sizeof(bench_dilithium_level5_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -2034,8 +2050,8 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
     0xe9, 0x0e, 0x42, 0xdd, 0x17, 0xd7, 0x6e, 0x19, 0x8d, 0x95,
     0x0a, 0x93,
 };
-static const int sizeof_bench_dilithium_level5_pubkey =
-    sizeof(bench_dilithium_level5_pubkey);
+#define sizeof_bench_dilithium_level5_pubkey \\
+       (sizeof(bench_dilithium_level5_pubkey))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
 
@@ -2055,7 +2071,10 @@ for (my $i = 0; $i < $num_sphincs; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 
 print OUT_FILE "#endif /* HAVE_SPHINCS */\n\n";
@@ -2072,7 +2091,10 @@ for (my $i = 0; $i < $num_ecc; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 print OUT_FILE "#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */\n\n";
 
@@ -2147,7 +2169,10 @@ for (my $i = 0; $i < $num_ed; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 print OUT_FILE "#endif /* HAVE_ED25519 */\n\n";
 
@@ -2164,7 +2189,10 @@ for (my $i = 0; $i < $num_x; $i++) {
     print OUT_FILE "{\n";
     file_to_hex($fname);
     print OUT_FILE "};\n";
-    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE "#define sizeof_$sname (sizeof($sname))\n\n"
 }
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_25519 */\n\n";
 

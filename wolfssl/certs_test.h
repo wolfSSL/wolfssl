@@ -71,7 +71,7 @@ static const unsigned char client_key_der_1024[] =
         0xA2, 0xFE, 0xBF, 0x08, 0x6B, 0x1A, 0x5D, 0x3F, 0x90, 0x12,
         0xB1, 0x05, 0x86, 0x31, 0x29, 0xDB, 0xD9, 0xE2
 };
-static const int sizeof_client_key_der_1024 = sizeof(client_key_der_1024);
+#define sizeof_client_key_der_1024 (sizeof(client_key_der_1024))
 
 /* ./certs/1024/client-keyPub.der, 1024-bit */
 static const unsigned char client_keypub_der_1024[] =
@@ -94,7 +94,7 @@ static const unsigned char client_keypub_der_1024[] =
         0x27, 0x00, 0xF6, 0x91, 0x68, 0x65, 0xA9, 0x02, 0x03, 0x01,
         0x00, 0x01
 };
-static const int sizeof_client_keypub_der_1024 = sizeof(client_keypub_der_1024);
+#define sizeof_client_keypub_der_1024 (sizeof(client_keypub_der_1024))
 
 /* ./certs/1024/client-cert.der, 1024-bit */
 static const unsigned char client_cert_der_1024[] =
@@ -206,7 +206,7 @@ static const unsigned char client_cert_der_1024[] =
         0x67, 0xCA, 0xA7, 0xA6, 0x41, 0xC5, 0x28, 0x0F, 0xFD, 0x2E,
         0x0E, 0xF0
 };
-static const int sizeof_client_cert_der_1024 = sizeof(client_cert_der_1024);
+#define sizeof_client_cert_der_1024 (sizeof(client_cert_der_1024))
 
 /* ./certs/1024/dh1024.der, 1024-bit */
 static const unsigned char dh_key_der_1024[] =
@@ -226,7 +226,7 @@ static const unsigned char dh_key_der_1024[] =
         0x8C, 0x63, 0x0A, 0xAD, 0xC7, 0x10, 0xEA, 0xC7, 0xA1, 0xB9,
         0x9D, 0xF2, 0xA8, 0x37, 0x73, 0x02, 0x01, 0x02
 };
-static const int sizeof_dh_key_der_1024 = sizeof(dh_key_der_1024);
+#define sizeof_dh_key_der_1024 (sizeof(dh_key_der_1024))
 
 /* ./certs/1024/dsa1024.der, 1024-bit */
 static const unsigned char dsa_key_der_1024[] =
@@ -277,7 +277,7 @@ static const unsigned char dsa_key_der_1024[] =
         0x3B, 0xA1, 0x19, 0x75, 0xDF, 0x9B, 0xF5, 0x72, 0x53, 0x4F,
         0x39, 0xE1, 0x1C, 0xEC, 0x13, 0x84, 0x82, 0x18
 };
-static const int sizeof_dsa_key_der_1024 = sizeof(dsa_key_der_1024);
+#define sizeof_dsa_key_der_1024 (sizeof(dsa_key_der_1024))
 
 /* ./certs/1024/rsa1024.der, 1024-bit */
 static const unsigned char rsa_key_der_1024[] =
@@ -344,7 +344,7 @@ static const unsigned char rsa_key_der_1024[] =
         0xB9, 0x9E, 0xD5, 0x5B, 0x2E, 0x87, 0x1C, 0x58, 0xD0, 0x37,
         0x89, 0x96, 0xEC, 0x48, 0x54, 0xF5, 0x9F, 0x0F, 0xB3
 };
-static const int sizeof_rsa_key_der_1024 = sizeof(rsa_key_der_1024);
+#define sizeof_rsa_key_der_1024 (sizeof(rsa_key_der_1024))
 
 /* ./certs/1024/ca-key.der, 1024-bit */
 static const unsigned char ca_key_der_1024[] =
@@ -412,7 +412,7 @@ static const unsigned char ca_key_der_1024[] =
         0x8A, 0x20, 0x4B, 0xF2, 0xB1, 0x52, 0x83, 0xAB, 0x6F, 0x10
 
 };
-static const int sizeof_ca_key_der_1024 = sizeof(ca_key_der_1024);
+#define sizeof_ca_key_der_1024 (sizeof(ca_key_der_1024))
 
 /* ./certs/1024/ca-cert.der, 1024-bit */
 static const unsigned char ca_cert_der_1024[] =
@@ -522,7 +522,7 @@ static const unsigned char ca_cert_der_1024[] =
         0x52, 0xF8, 0x8A, 0x51, 0xB7, 0xED, 0x3A, 0xAA, 0x78, 0x41,
         0x90, 0x95, 0xE8, 0x40, 0x2E, 0x66, 0xFC
 };
-static const int sizeof_ca_cert_der_1024 = sizeof(ca_cert_der_1024);
+#define sizeof_ca_cert_der_1024 (sizeof(ca_cert_der_1024))
 
 /* ./certs/1024/server-key.der, 1024-bit */
 static const unsigned char server_key_der_1024[] =
@@ -589,7 +589,7 @@ static const unsigned char server_key_der_1024[] =
         0xE1, 0x00, 0x72, 0xBE, 0x6E, 0xC3, 0x94, 0x49, 0xDC, 0xBB,
         0x8E, 0x1A, 0x78, 0xE5, 0x49, 0x1F, 0x55, 0x41, 0xA1
 };
-static const int sizeof_server_key_der_1024 = sizeof(server_key_der_1024);
+#define sizeof_server_key_der_1024 (sizeof(server_key_der_1024))
 
 /* ./certs/1024/server-cert.der, 1024-bit */
 static const unsigned char server_cert_der_1024[] =
@@ -697,7 +697,7 @@ static const unsigned char server_cert_der_1024[] =
         0x77, 0xCF, 0x6D, 0xA0, 0x27, 0xAD, 0xC0, 0x16, 0x56, 0x55,
         0x46, 0xB2, 0xBF, 0xF1
 };
-static const int sizeof_server_cert_der_1024 = sizeof(server_cert_der_1024);
+#define sizeof_server_cert_der_1024 (sizeof(server_cert_der_1024))
 
 #endif /* USE_CERT_BUFFERS_1024 */
 
@@ -827,7 +827,7 @@ static const unsigned char client_key_der_2048[] =
         0x45, 0x5D, 0x13, 0x39, 0x65, 0x42, 0x46, 0xA1, 0x9F, 0xCD,
         0xF5, 0xBF
 };
-static const int sizeof_client_key_der_2048 = sizeof(client_key_der_2048);
+#define sizeof_client_key_der_2048 (sizeof(client_key_der_2048))
 
 /* ./certs/client-keyPub.der, 2048-bit */
 static const unsigned char client_keypub_der_2048[] =
@@ -863,7 +863,7 @@ static const unsigned char client_keypub_der_2048[] =
         0xAE, 0xF5, 0xFC, 0x5B, 0xE5, 0xFB, 0xA1, 0xBA, 0xD3, 0x02,
         0x03, 0x01, 0x00, 0x01
 };
-static const int sizeof_client_keypub_der_2048 = sizeof(client_keypub_der_2048);
+#define sizeof_client_keypub_der_2048 (sizeof(client_keypub_der_2048))
 
 /* ./certs/client-cert.der, 2048-bit */
 static const unsigned char client_cert_der_2048[] =
@@ -1001,7 +1001,7 @@ static const unsigned char client_cert_der_2048[] =
         0xE8, 0xBC, 0x89, 0xED, 0x01, 0xE2, 0xFE, 0x44, 0x86, 0x86,
         0x80, 0x39, 0xEC
 };
-static const int sizeof_client_cert_der_2048 = sizeof(client_cert_der_2048);
+#define sizeof_client_cert_der_2048 (sizeof(client_cert_der_2048))
 
 /* ./certs/dh2048.der, 2048-bit */
 static const unsigned char dh_key_der_2048[] =
@@ -1034,7 +1034,7 @@ static const unsigned char dh_key_der_2048[] =
         0xC3, 0xA9, 0x41, 0x83, 0xFB, 0xC7, 0xFA, 0xC8, 0xE2, 0x1E,
         0x7E, 0xAF, 0x00, 0x3F, 0x93, 0x02, 0x01, 0x02
 };
-static const int sizeof_dh_key_der_2048 = sizeof(dh_key_der_2048);
+#define sizeof_dh_key_der_2048 (sizeof(dh_key_der_2048))
 
 /* ./certs/dh-pubkey-2048.der, 2048-bit */
 static const unsigned char dh_pub_key_der_2048[] =
@@ -1096,7 +1096,7 @@ static const unsigned char dh_pub_key_der_2048[] =
         0x81, 0x8F, 0xE7, 0x96, 0x18, 0xD9, 0xE0, 0x97, 0x08, 0x45,
         0x36, 0xC3
 };
-static const int sizeof_dh_pub_key_der_2048 = sizeof(dh_pub_key_der_2048);
+#define sizeof_dh_pub_key_der_2048 (sizeof(dh_pub_key_der_2048))
 
 /* ./certs/statickeys/dh-ffdhe2048.der, 2048-bit */
 static const unsigned char dh_ffdhe_statickey_der_2048[] =
@@ -1135,7 +1135,7 @@ static const unsigned char dh_ffdhe_statickey_der_2048[] =
         0x65, 0x46, 0xF6, 0x34, 0xB8, 0xB0, 0xC1, 0x55, 0x3A, 0xF7,
         0xC8, 0x43, 0xB8
 };
-static const int sizeof_dh_ffdhe_statickey_der_2048 = sizeof(dh_ffdhe_statickey_der_2048);
+#define sizeof_dh_ffdhe_statickey_der_2048 (sizeof(dh_ffdhe_statickey_der_2048))
 
 /* ./certs/statickeys/dh-ffdhe2048-pub.der, 2048-bit */
 static const unsigned char dh_ffdhe_pub_statickey_der_2048[] =
@@ -1197,7 +1197,7 @@ static const unsigned char dh_ffdhe_pub_statickey_der_2048[] =
         0x10, 0xE0, 0xF2, 0x09, 0x1C, 0x6D, 0x02, 0x5D, 0xFC, 0x7A,
         0x08, 0x82
 };
-static const int sizeof_dh_ffdhe_pub_statickey_der_2048 = sizeof(dh_ffdhe_pub_statickey_der_2048);
+#define sizeof_dh_ffdhe_pub_statickey_der_2048 (sizeof(dh_ffdhe_pub_statickey_der_2048))
 
 /* ./certs/dsa-pubkey-2048.der, 2048-bit */
 static const unsigned char dsa_pub_key_der_2048[] =
@@ -1288,7 +1288,7 @@ static const unsigned char dsa_pub_key_der_2048[] =
         0x11, 0xF9, 0x1B, 0xF1, 0x3C, 0x68, 0xDF, 0xC2, 0xF4, 0x98,
         0x5F, 0x6C, 0xC8
 };
-static const int sizeof_dsa_pub_key_der_2048 = sizeof(dsa_pub_key_der_2048);
+#define sizeof_dsa_pub_key_der_2048 (sizeof(dsa_pub_key_der_2048))
 
 /* ./certs/dsa2048.der, 2048-bit */
 static const unsigned char dsa_key_der_2048[] =
@@ -1378,7 +1378,7 @@ static const unsigned char dsa_key_der_2048[] =
         0x3E, 0x75, 0x13, 0x13, 0x06, 0x8F, 0x94, 0xD3, 0xE6, 0xE9,
         0x00, 0xCB, 0x62, 0x6D, 0x9A
 };
-static const int sizeof_dsa_key_der_2048 = sizeof(dsa_key_der_2048);
+#define sizeof_dsa_key_der_2048 (sizeof(dsa_key_der_2048))
 
 /* ./certs/rsa2048.der, 2048-bit */
 static const unsigned char rsa_key_der_2048[] =
@@ -1504,7 +1504,7 @@ static const unsigned char rsa_key_der_2048[] =
         0x83, 0x0B, 0xD4, 0x74, 0x80, 0xB6, 0x7D, 0x62, 0x45, 0xBF,
         0x56
 };
-static const int sizeof_rsa_key_der_2048 = sizeof(rsa_key_der_2048);
+#define sizeof_rsa_key_der_2048 (sizeof(rsa_key_der_2048))
 
 /* ./certs/ca-key.der, 2048-bit */
 static const unsigned char ca_key_der_2048[] =
@@ -1630,7 +1630,7 @@ static const unsigned char ca_key_der_2048[] =
         0x8A, 0xC0, 0x05, 0x55, 0x2C, 0x24, 0xC0, 0x4A, 0x97, 0x04,
         0x27, 0x9A
 };
-static const int sizeof_ca_key_der_2048 = sizeof(ca_key_der_2048);
+#define sizeof_ca_key_der_2048 (sizeof(ca_key_der_2048))
 
 /* ./certs/ca-cert.der, 2048-bit */
 static const unsigned char ca_cert_der_2048[] =
@@ -1765,7 +1765,7 @@ static const unsigned char ca_cert_der_2048[] =
         0xD3, 0xDF, 0x7A, 0x06, 0x32, 0x8D, 0x29, 0x1F, 0x28, 0x1D,
         0x8D, 0x26, 0x33
 };
-static const int sizeof_ca_cert_der_2048 = sizeof(ca_cert_der_2048);
+#define sizeof_ca_cert_der_2048 (sizeof(ca_cert_der_2048))
 
 /* ./certs/ca-cert-chain.der, 2048-bit */
 static const unsigned char ca_cert_chain_der[] =
@@ -1874,7 +1874,7 @@ static const unsigned char ca_cert_chain_der[] =
         0xD9, 0xA2, 0x38, 0xD0, 0x22, 0x04, 0xCA, 0x31, 0x1C, 0xAC,
         0x3C, 0xF2
 };
-static const int sizeof_ca_cert_chain_der = sizeof(ca_cert_chain_der);
+#define sizeof_ca_cert_chain_der (sizeof(ca_cert_chain_der))
 
 /* ./certs/server-key.der, 2048-bit */
 static const unsigned char server_key_der_2048[] =
@@ -2000,7 +2000,7 @@ static const unsigned char server_key_der_2048[] =
         0x7C, 0x9A, 0x1F, 0x0C, 0x7C, 0xA9, 0xB0, 0x0E, 0x21, 0x37,
         0x3B, 0xF1, 0xB0
 };
-static const int sizeof_server_key_der_2048 = sizeof(server_key_der_2048);
+#define sizeof_server_key_der_2048 (sizeof(server_key_der_2048))
 
 /* ./certs/server-cert.der, 2048-bit */
 static const unsigned char server_cert_der_2048[] =
@@ -2133,7 +2133,7 @@ static const unsigned char server_cert_der_2048[] =
         0xF0, 0x24, 0x9F, 0x83, 0x83, 0xDA, 0xA6, 0xAA, 0x3C, 0xC8
 
 };
-static const int sizeof_server_cert_der_2048 = sizeof(server_cert_der_2048);
+#define sizeof_server_cert_der_2048 (sizeof(server_cert_der_2048))
 
 #endif /* USE_CERT_BUFFERS_2048 */
 
@@ -2183,7 +2183,7 @@ static const unsigned char dh_key_der_3072[] =
         0x11, 0x03, 0xB9, 0x03, 0x07, 0xFE, 0x66, 0x38, 0x5F, 0xA2,
         0x3E, 0x9C, 0x1B, 0x02, 0x01, 0x02
 };
-static const int sizeof_dh_key_der_3072 = sizeof(dh_key_der_3072);
+#define sizeof_dh_key_der_3072 (sizeof(dh_key_der_3072))
 
 /* ./certs/dsa3072.der, 3072-bit */
 static const unsigned char dsa_key_der_3072[] =
@@ -2314,7 +2314,7 @@ static const unsigned char dsa_key_der_3072[] =
         0x73, 0x99, 0x40, 0x1B, 0xDC, 0xA9, 0xBA, 0xC4, 0x1B, 0x12,
         0x6C, 0xFF, 0x53
 };
-static const int sizeof_dsa_key_der_3072 = sizeof(dsa_key_der_3072);
+#define sizeof_dsa_key_der_3072 (sizeof(dsa_key_der_3072))
 
 /* ./certs/rsa3072.der, 3072-bit */
 static const unsigned char rsa_key_der_3072[] =
@@ -2497,7 +2497,7 @@ static const unsigned char rsa_key_der_3072[] =
         0xA6, 0x9F, 0x7E, 0x3D, 0x2D, 0x1A, 0x44, 0x31, 0x3D, 0x81,
         0x91, 0xB8, 0x36, 0x08, 0x27, 0x42, 0x9E, 0x08
 };
-static const int sizeof_rsa_key_der_3072 = sizeof(rsa_key_der_3072);
+#define sizeof_rsa_key_der_3072 (sizeof(rsa_key_der_3072))
 
 /* ./certs/3072/client-key.der, 3072-bit */
 static const unsigned char client_key_der_3072[] =
@@ -2683,7 +2683,7 @@ static const unsigned char client_key_der_3072[] =
         0x67, 0x7C, 0xC7, 0x51, 0x5B, 0xBE, 0xE3, 0xF8, 0xBE, 0x1E,
         0xC7, 0xD2, 0x28, 0x97
 };
-static const int sizeof_client_key_der_3072 = sizeof(client_key_der_3072);
+#define sizeof_client_key_der_3072 (sizeof(client_key_der_3072))
 
 /* ./certs/3072/client-keyPub.der, 3072-bit */
 static const unsigned char client_keypub_der_3072[] =
@@ -2732,7 +2732,7 @@ static const unsigned char client_keypub_der_3072[] =
         0xC9, 0xD6, 0x73, 0x7C, 0x96, 0x41, 0x93, 0x02, 0x03, 0x01,
         0x00, 0x01
 };
-static const int sizeof_client_keypub_der_3072 = sizeof(client_keypub_der_3072);
+#define sizeof_client_keypub_der_3072 (sizeof(client_keypub_der_3072))
 
 /* ./certs/3072/client-cert.der, 3072-bit */
 static const unsigned char client_cert_der_3072[] =
@@ -2895,7 +2895,7 @@ static const unsigned char client_cert_der_3072[] =
         0x54, 0xB0, 0x7C, 0x6F, 0xF5, 0xDE, 0x26, 0x66, 0xC0, 0xBA,
         0x85, 0x38, 0xD0, 0x25, 0xFE, 0xB9, 0xBF, 0x12, 0x98
 };
-static const int sizeof_client_cert_der_3072 = sizeof(client_cert_der_3072);
+#define sizeof_client_cert_der_3072 (sizeof(client_cert_der_3072))
 
 #endif /* USE_CERT_BUFFERS_3072 */
 
@@ -3143,7 +3143,7 @@ static const unsigned char client_key_der_4096[] =
         0x92, 0xEA, 0x01, 0x45, 0x89, 0xD1, 0x4E, 0xFE, 0x4D, 0x2B,
         0x4B, 0x18, 0xE6, 0xCE
 };
-static const int sizeof_client_key_der_4096 = sizeof(client_key_der_4096);
+#define sizeof_client_key_der_4096 (sizeof(client_key_der_4096))
 
 /* ./certs/4096/client-keyPub.der, 4096-bit */
 static const unsigned char client_keypub_der_4096[] =
@@ -3205,7 +3205,7 @@ static const unsigned char client_keypub_der_4096[] =
         0xF2, 0xCF, 0x6B, 0x15, 0xAB, 0x02, 0x03, 0x01, 0x00, 0x01
 
 };
-static const int sizeof_client_keypub_der_4096 = sizeof(client_keypub_der_4096);
+#define sizeof_client_keypub_der_4096 (sizeof(client_keypub_der_4096))
 
 /* ./certs/4096/client-cert.der, 4096-bit */
 static const unsigned char client_cert_der_4096[] =
@@ -3394,7 +3394,7 @@ static const unsigned char client_cert_der_4096[] =
         0x89, 0x18, 0x29, 0x32, 0xC5, 0xAD, 0xFB, 0x9C, 0xF7, 0x26,
         0xAC, 0x56, 0x3E, 0xF7, 0x73
 };
-static const int sizeof_client_cert_der_4096 = sizeof(client_cert_der_4096);
+#define sizeof_client_cert_der_4096 (sizeof(client_cert_der_4096))
 
 /* ./certs/dh4096.der, 4096-bit */
 static const unsigned char dh_key_der_4096[] =
@@ -3453,7 +3453,7 @@ static const unsigned char dh_key_der_4096[] =
         0xF3, 0x56, 0xBD, 0xF0, 0xFC, 0x00, 0x78, 0x00, 0x56, 0xB4,
         0x3B, 0x02, 0x01, 0x02
 };
-static const int sizeof_dh_key_der_4096 = sizeof(dh_key_der_4096);
+#define sizeof_dh_key_der_4096 (sizeof(dh_key_der_4096))
 
 #endif /* USE_CERT_BUFFERS_4096 */
 
@@ -3684,7 +3684,7 @@ static const unsigned char bench_falcon_level1_key[] =
         0xCB, 0xC9, 0x40, 0xD2, 0x3A, 0xBE, 0xA9, 0xB7, 0x78, 0x76,
         0x9F, 0x1E
 };
-static const int sizeof_bench_falcon_level1_key = sizeof(bench_falcon_level1_key);
+#define sizeof_bench_falcon_level1_key (sizeof(bench_falcon_level1_key))
 
 /* certs/falcon/bench_falcon_level5_key.der */
 static const unsigned char bench_falcon_level5_key[] =
@@ -4103,7 +4103,7 @@ static const unsigned char bench_falcon_level5_key[] =
         0xED, 0xD3, 0x59, 0x13, 0x9D, 0xB5, 0xD0, 0x50, 0x68, 0x1A,
         0xA5, 0xA6
 };
-static const int sizeof_bench_falcon_level5_key = sizeof(bench_falcon_level5_key);
+#define sizeof_bench_falcon_level5_key (sizeof(bench_falcon_level5_key))
 
 #endif /* HAVE_FALCON */
 
@@ -4370,7 +4370,7 @@ static const unsigned char bench_dilithium_level2_key[] = {
     0x12, 0xea, 0xc1, 0x94, 0x37, 0xa0, 0x11, 0xff, 0xb2, 0xa4,
     0xc3, 0x61, 0xf2, 0xa3, 0x49, 0xbe, 0xe7, 0xb6, 0x96, 0x2f,
 };
-static const int sizeof_bench_dilithium_level2_key = sizeof(bench_dilithium_level2_key);
+#define sizeof_bench_dilithium_level2_key (sizeof(bench_dilithium_level2_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -4512,8 +4512,8 @@ static const unsigned char bench_dilithium_level2_pubkey[] = {
     0x36, 0x8b, 0x81, 0x26, 0x99, 0x92, 0x42, 0xda, 0x45, 0xb1,
     0xfe, 0x4b,
 };
-static const int sizeof_bench_dilithium_level2_pubkey =
-    sizeof(bench_dilithium_level2_pubkey);
+#define sizeof_bench_dilithium_level2_pubkey \
+       (sizeof(bench_dilithium_level2_pubkey))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
 
@@ -4927,7 +4927,7 @@ static const unsigned char bench_dilithium_level3_key[] = {
     0xd2, 0x71, 0xb2, 0x5e, 0xae, 0x72, 0xc9, 0x69, 0x3b, 0x80,
     0xc2, 0x27,
 };
-static const int sizeof_bench_dilithium_level3_key = sizeof(bench_dilithium_level3_key);
+#define sizeof_bench_dilithium_level3_key (sizeof(bench_dilithium_level3_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -5634,7 +5634,7 @@ static const unsigned char bench_dilithium_level5_key[] = {
     0x15, 0xed, 0xa6, 0x86, 0x8f, 0x2f, 0xe5, 0x67, 0x0f, 0xdd,
     0xbf, 0x70, 0x53, 0xaa, 0x9b, 0x74,
 };
-static const int sizeof_bench_dilithium_level5_key = sizeof(bench_dilithium_level5_key);
+#define sizeof_bench_dilithium_level5_key (sizeof(bench_dilithium_level5_key))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -5904,8 +5904,8 @@ static const unsigned char bench_dilithium_level5_pubkey[] = {
     0xe9, 0x0e, 0x42, 0xdd, 0x17, 0xd7, 0x6e, 0x19, 0x8d, 0x95,
     0x0a, 0x93,
 };
-static const int sizeof_bench_dilithium_level5_pubkey =
-    sizeof(bench_dilithium_level5_pubkey);
+#define sizeof_bench_dilithium_level5_pubkey \
+       (sizeof(bench_dilithium_level5_pubkey))
 
 #endif /* !WOLFSSL_DILITHIUM_NO_VERIFY */
 
@@ -5929,7 +5929,7 @@ static const unsigned char bench_sphincs_fast_level1_key[] =
         0xF6, 0x57, 0xCE, 0x45, 0x8F, 0x8B, 0x1D, 0x68, 0x63, 0xAA,
         0x24, 0xA4, 0xE1, 0x0D, 0xFB
 };
-static const int sizeof_bench_sphincs_fast_level1_key = sizeof(bench_sphincs_fast_level1_key);
+#define sizeof_bench_sphincs_fast_level1_key (sizeof(bench_sphincs_fast_level1_key))
 
 /* certs/sphincs/bench_sphincs_fast_level3_key.der */
 static const unsigned char bench_sphincs_fast_level3_key[] =
@@ -5952,7 +5952,7 @@ static const unsigned char bench_sphincs_fast_level3_key[] =
         0x38, 0x1F, 0x57, 0x89, 0x76, 0x8C, 0x6D, 0x88, 0xCE, 0x18,
         0x4F, 0xA7, 0x88, 0x48, 0x7C, 0x0D
 };
-static const int sizeof_bench_sphincs_fast_level3_key = sizeof(bench_sphincs_fast_level3_key);
+#define sizeof_bench_sphincs_fast_level3_key (sizeof(bench_sphincs_fast_level3_key))
 
 /* certs/sphincs/bench_sphincs_fast_level5_key.der */
 static const unsigned char bench_sphincs_fast_level5_key[] =
@@ -5980,7 +5980,7 @@ static const unsigned char bench_sphincs_fast_level5_key[] =
         0x2B, 0x66, 0x58, 0x64, 0x1D, 0x94, 0xAF, 0x58, 0xB5, 0x23,
         0x2C, 0xA1, 0xE9, 0x95
 };
-static const int sizeof_bench_sphincs_fast_level5_key = sizeof(bench_sphincs_fast_level5_key);
+#define sizeof_bench_sphincs_fast_level5_key (sizeof(bench_sphincs_fast_level5_key))
 
 /* certs/sphincs/bench_sphincs_small_level1_key.der */
 static const unsigned char bench_sphincs_small_level1_key[] =
@@ -5998,7 +5998,7 @@ static const unsigned char bench_sphincs_small_level1_key[] =
         0x52, 0xC1, 0x31, 0xF7, 0xC1, 0x86, 0x7E, 0x73, 0xFB, 0x9E,
         0x72, 0x57, 0x8A, 0xD7, 0x44
 };
-static const int sizeof_bench_sphincs_small_level1_key = sizeof(bench_sphincs_small_level1_key);
+#define sizeof_bench_sphincs_small_level1_key (sizeof(bench_sphincs_small_level1_key))
 
 /* certs/sphincs/bench_sphincs_small_level3_key.der */
 static const unsigned char bench_sphincs_small_level3_key[] =
@@ -6021,7 +6021,7 @@ static const unsigned char bench_sphincs_small_level3_key[] =
         0x90, 0x55, 0x58, 0x6C, 0x0A, 0x52, 0x61, 0x0B, 0xF3, 0xBC,
         0xE1, 0x1F, 0xB4, 0xA6, 0x5F, 0x9F
 };
-static const int sizeof_bench_sphincs_small_level3_key = sizeof(bench_sphincs_small_level3_key);
+#define sizeof_bench_sphincs_small_level3_key (sizeof(bench_sphincs_small_level3_key))
 
 /* certs/sphincs/bench_sphincs_small_level5_key.der */
 static const unsigned char bench_sphincs_small_level5_key[] =
@@ -6049,7 +6049,7 @@ static const unsigned char bench_sphincs_small_level5_key[] =
         0x34, 0x9A, 0x4E, 0x86, 0x25, 0x66, 0xFF, 0xA0, 0x79, 0x47,
         0xBE, 0x94, 0xC2, 0x69
 };
-static const int sizeof_bench_sphincs_small_level5_key = sizeof(bench_sphincs_small_level5_key);
+#define sizeof_bench_sphincs_small_level5_key (sizeof(bench_sphincs_small_level5_key))
 
 #endif /* HAVE_SPHINCS */
 
@@ -6072,7 +6072,7 @@ static const unsigned char ecc_clikey_der_256[] =
         0xF7, 0xBD, 0xA9, 0xB2, 0x36, 0x22, 0x5F, 0xC7, 0x5D, 0x7F,
         0xB4
 };
-static const int sizeof_ecc_clikey_der_256 = sizeof(ecc_clikey_der_256);
+#define sizeof_ecc_clikey_der_256 (sizeof(ecc_clikey_der_256))
 
 /* ./certs/ecc-client-keyPub.der, ECC */
 static const unsigned char ecc_clikeypub_der_256[] =
@@ -6088,7 +6088,7 @@ static const unsigned char ecc_clikeypub_der_256[] =
         0xF7, 0xBD, 0xA9, 0xB2, 0x36, 0x22, 0x5F, 0xC7, 0x5D, 0x7F,
         0xB4
 };
-static const int sizeof_ecc_clikeypub_der_256 = sizeof(ecc_clikeypub_der_256);
+#define sizeof_ecc_clikeypub_der_256 (sizeof(ecc_clikeypub_der_256))
 
 /* ./certs/client-ecc-cert.der, ECC */
 static const unsigned char cliecc_cert_der_256[] =
@@ -6181,7 +6181,7 @@ static const unsigned char cliecc_cert_der_256[] =
         0x0C, 0xDA, 0x34, 0x0B, 0x4E, 0x83, 0xA2, 0x10, 0x67, 0x99,
         0x19, 0x1C, 0x93, 0x91, 0xC8, 0xC7
 };
-static const int sizeof_cliecc_cert_der_256 = sizeof(cliecc_cert_der_256);
+#define sizeof_cliecc_cert_der_256 (sizeof(cliecc_cert_der_256))
 
 /* ./certs/ecc-key.der, ECC */
 static const unsigned char ecc_key_der_256[] =
@@ -6200,7 +6200,7 @@ static const unsigned char ecc_key_der_256[] =
         0x34, 0x86, 0xE8, 0x20, 0x58, 0x33, 0x0B, 0x80, 0x34, 0x89,
         0xD8
 };
-static const int sizeof_ecc_key_der_256 = sizeof(ecc_key_der_256);
+#define sizeof_ecc_key_der_256 (sizeof(ecc_key_der_256))
 
 /* ./certs/ecc-keyPub.der, ECC */
 static const unsigned char ecc_key_pub_der_256[] =
@@ -6216,7 +6216,7 @@ static const unsigned char ecc_key_pub_der_256[] =
         0x34, 0x86, 0xE8, 0x20, 0x58, 0x33, 0x0B, 0x80, 0x34, 0x89,
         0xD8
 };
-static const int sizeof_ecc_key_pub_der_256 = sizeof(ecc_key_pub_der_256);
+#define sizeof_ecc_key_pub_der_256 (sizeof(ecc_key_pub_der_256))
 
 /* ./certs/statickeys/ecc-secp256r1.der, ECC */
 static const unsigned char ecc_secp_r1_statickey_der_256[] =
@@ -6235,7 +6235,7 @@ static const unsigned char ecc_secp_r1_statickey_der_256[] =
         0xB5, 0x1D, 0xCC, 0xBA, 0x3C, 0xED, 0x04, 0xC9, 0xA8, 0x92,
         0x37
 };
-static const int sizeof_ecc_secp_r1_statickey_der_256 = sizeof(ecc_secp_r1_statickey_der_256);
+#define sizeof_ecc_secp_r1_statickey_der_256 (sizeof(ecc_secp_r1_statickey_der_256))
 
 /* ./certs/server-ecc-comp.der, ECC */
 static const unsigned char serv_ecc_comp_der_256[] =
@@ -6331,7 +6331,7 @@ static const unsigned char serv_ecc_comp_der_256[] =
         0x00, 0x03, 0xC1, 0x0C, 0x1F, 0x54, 0xA0, 0xCA, 0x4D, 0x99,
         0x6A
 };
-static const int sizeof_serv_ecc_comp_der_256 = sizeof(serv_ecc_comp_der_256);
+#define sizeof_serv_ecc_comp_der_256 (sizeof(serv_ecc_comp_der_256))
 
 /* ./certs/server-ecc-rsa.der, ECC */
 static const unsigned char serv_ecc_rsa_der_256[] =
@@ -6445,7 +6445,7 @@ static const unsigned char serv_ecc_rsa_der_256[] =
         0x9C, 0x65, 0x96, 0x1A, 0xB3, 0x98, 0x4D, 0x3B, 0xFB, 0xC7
 
 };
-static const int sizeof_serv_ecc_rsa_der_256 = sizeof(serv_ecc_rsa_der_256);
+#define sizeof_serv_ecc_rsa_der_256 (sizeof(serv_ecc_rsa_der_256))
 
 /* ./certs/server-ecc.der, ECC */
 static const unsigned char serv_ecc_der_256[] =
@@ -6519,7 +6519,7 @@ static const unsigned char serv_ecc_der_256[] =
         0x1D, 0xAA, 0x63, 0xDA, 0xFC, 0x97, 0x50, 0x87, 0x92, 0x69,
         0xEE, 0x63, 0x57, 0xB6, 0xEC, 0xE2, 0xE9, 0xFA
 };
-static const int sizeof_serv_ecc_der_256 = sizeof(serv_ecc_der_256);
+#define sizeof_serv_ecc_der_256 (sizeof(serv_ecc_der_256))
 
 /* ./certs/ca-ecc-key.der, ECC */
 static const unsigned char ca_ecc_key_der_256[] =
@@ -6538,7 +6538,7 @@ static const unsigned char ca_ecc_key_der_256[] =
         0x37, 0x44, 0xC1, 0xCB, 0xFC, 0x80, 0xCA, 0xE8, 0x43, 0xEA,
         0xA7
 };
-static const int sizeof_ca_ecc_key_der_256 = sizeof(ca_ecc_key_der_256);
+#define sizeof_ca_ecc_key_der_256 (sizeof(ca_ecc_key_der_256))
 
 /* ./certs/ca-ecc-cert.der, ECC */
 static const unsigned char ca_ecc_cert_der_256[] =
@@ -6611,7 +6611,7 @@ static const unsigned char ca_ecc_cert_der_256[] =
         0x2A, 0x7D, 0x59, 0xA8, 0xDE, 0xE7, 0x0A, 0x11, 0x83, 0x4F,
         0x92, 0x77, 0x8D, 0x92, 0x3B
 };
-static const int sizeof_ca_ecc_cert_der_256 = sizeof(ca_ecc_cert_der_256);
+#define sizeof_ca_ecc_cert_der_256 (sizeof(ca_ecc_cert_der_256))
 
 /* ./certs/ca-ecc384-key.der, ECC */
 static const unsigned char ca_ecc_key_der_384[] =
@@ -6634,7 +6634,7 @@ static const unsigned char ca_ecc_key_der_384[] =
         0x83, 0xBD, 0x93, 0x3F, 0x5F, 0x50, 0x2D, 0x70, 0x3F, 0xDE,
         0x35, 0x25, 0xE1, 0x90, 0x3B, 0x86, 0xE0
 };
-static const int sizeof_ca_ecc_key_der_384 = sizeof(ca_ecc_key_der_384);
+#define sizeof_ca_ecc_key_der_384 (sizeof(ca_ecc_key_der_384))
 
 /* ./certs/ca-ecc384-cert.der, ECC */
 static const unsigned char ca_ecc_cert_der_384[] =
@@ -6713,7 +6713,7 @@ static const unsigned char ca_ecc_cert_der_384[] =
         0x27, 0x6D, 0x60, 0xED, 0xA2, 0x9F, 0x9F, 0x7E, 0x66, 0x43,
         0xF9, 0x15, 0x1D, 0x65, 0x5D, 0x49
 };
-static const int sizeof_ca_ecc_cert_der_384 = sizeof(ca_ecc_cert_der_384);
+#define sizeof_ca_ecc_cert_der_384 (sizeof(ca_ecc_cert_der_384))
 
 #endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
 
@@ -6849,7 +6849,7 @@ static const unsigned char server_ed25519_cert[] =
         0x25, 0x92, 0xAC, 0xA8, 0x6C, 0xDE, 0xDF, 0x1D, 0xEB, 0x64,
         0xE4, 0x8A, 0x06
 };
-static const int sizeof_server_ed25519_cert = sizeof(server_ed25519_cert);
+#define sizeof_server_ed25519_cert (sizeof(server_ed25519_cert))
 
 /* ./certs/ed25519/server-ed25519-key.der, ED25519 */
 static const unsigned char server_ed25519_key[] =
@@ -6860,7 +6860,7 @@ static const unsigned char server_ed25519_key[] =
         0x2F, 0xD2, 0x5B, 0x1A, 0x10, 0x05, 0xEF, 0x5A, 0x41, 0x25,
         0xCE, 0x1B, 0x53, 0x78
 };
-static const int sizeof_server_ed25519_key = sizeof(server_ed25519_key);
+#define sizeof_server_ed25519_key (sizeof(server_ed25519_key))
 
 /* ./certs/ed25519/ca-ed25519.der, ED25519 */
 static const unsigned char ca_ed25519_cert[] =
@@ -6928,7 +6928,7 @@ static const unsigned char ca_ed25519_cert[] =
         0x4D, 0xB6, 0x0F, 0x42, 0x9E, 0x51, 0xF7, 0xDB, 0xA7, 0xBF,
         0x16, 0x23, 0xC4, 0xBD, 0x7D, 0xC9, 0x03
 };
-static const int sizeof_ca_ed25519_cert = sizeof(ca_ed25519_cert);
+#define sizeof_ca_ed25519_cert (sizeof(ca_ed25519_cert))
 
 /* ./certs/ed25519/client-ed25519.der, ED25519 */
 static const unsigned char client_ed25519_cert[] =
@@ -7028,7 +7028,7 @@ static const unsigned char client_ed25519_cert[] =
         0x92, 0xE3, 0x21, 0x58, 0xD1, 0x3E, 0x8A, 0x71, 0x91, 0x2D,
         0x0E
 };
-static const int sizeof_client_ed25519_cert = sizeof(client_ed25519_cert);
+#define sizeof_client_ed25519_cert (sizeof(client_ed25519_cert))
 
 /* ./certs/ed25519/client-ed25519-key.der, ED25519 */
 static const unsigned char client_ed25519_key[] =
@@ -7039,7 +7039,7 @@ static const unsigned char client_ed25519_key[] =
         0xEB, 0x02, 0x09, 0xA3, 0x99, 0xF5, 0x6E, 0xBF, 0x9D, 0x3C,
         0xFE, 0x54, 0x39, 0xE6
 };
-static const int sizeof_client_ed25519_key = sizeof(client_ed25519_key);
+#define sizeof_client_ed25519_key (sizeof(client_ed25519_key))
 
 #endif /* HAVE_ED25519 */
 
@@ -7054,7 +7054,7 @@ static const unsigned char x25519_statickey_der[] =
         0xEF, 0xC1, 0x89, 0x8C, 0xB3, 0x15, 0xC6, 0x79, 0xD3, 0xAC,
         0x22, 0x00, 0xAE, 0xFA, 0xB3, 0xB7, 0x0F, 0x78
 };
-static const int sizeof_x25519_statickey_der = sizeof(x25519_statickey_der);
+#define sizeof_x25519_statickey_der (sizeof(x25519_statickey_der))
 
 /* ./certs/statickeys/x25519-pub.der, CURVE25519 */
 static const unsigned char x25519_pub_statickey_der[] =
@@ -7065,7 +7065,7 @@ static const unsigned char x25519_pub_statickey_der[] =
         0xF0, 0x99, 0x39, 0x98, 0xEA, 0x26, 0xA2, 0x5B, 0x38, 0xFD,
         0x96, 0xDB, 0x2A, 0x26
 };
-static const int sizeof_x25519_pub_statickey_der = sizeof(x25519_pub_statickey_der);
+#define sizeof_x25519_pub_statickey_der (sizeof(x25519_pub_statickey_der))
 
 #endif /* USE_CERT_BUFFERS_25519 */
 
