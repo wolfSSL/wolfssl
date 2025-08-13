@@ -103,7 +103,7 @@ extern volatile sword16 mlkem_opt_blocker;
 
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
-static word32 cpuid_flags = 0;
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
 /* Half of Q plus one. Converted message bit value of 1. */
@@ -1243,7 +1243,7 @@ void mlkem_init(void)
 {
 #if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
     defined(WOLFSSL_ARMASM))
-    cpuid_flags = cpuid_get_flags();
+    cpuid_get_flags_ex(&cpuid_flags);
 #endif
 }
 

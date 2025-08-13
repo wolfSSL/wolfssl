@@ -169,7 +169,7 @@
 #ifdef WOLFSSL_WC_DILITHIUM
 
 #if defined(USE_INTEL_SPEEDUP)
-static word32 cpuid_flags = 0;
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
 #ifdef DEBUG_DILITHIUM
@@ -10623,7 +10623,7 @@ int wc_dilithium_init_ex(dilithium_key* key, void* heap, int devId)
     }
 
 #if defined(WOLFSSL_WC_DILITHIUM) && defined(USE_INTEL_SPEEDUP)
-    cpuid_flags = cpuid_get_flags();
+    cpuid_get_flags_ex(&cpuid_flags);
 #endif
 
     return ret;

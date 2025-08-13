@@ -42241,10 +42241,10 @@ static int test_wolfSSL_dtls_bad_record(void)
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 static volatile int test_AEAD_seq_num = 0;
-#ifdef WOLFSSL_ATOMIC_INITIALIZER
-wolfSSL_Atomic_Int test_AEAD_done = WOLFSSL_ATOMIC_INITIALIZER(0);
-#else
+#ifdef WOLFSSL_NO_ATOMICS
 static volatile int test_AEAD_done = 0;
+#else
+wolfSSL_Atomic_Int test_AEAD_done = WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif
 #ifdef WOLFSSL_MUTEX_INITIALIZER
 static wolfSSL_Mutex test_AEAD_mutex = WOLFSSL_MUTEX_INITIALIZER(test_AEAD_mutex);

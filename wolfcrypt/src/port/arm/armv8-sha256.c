@@ -274,8 +274,7 @@ static void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #endif
 
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-static word32 cpuid_flags = 0;
-static int cpuid_flags_set = 0;
+static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
 static int InitSha256(wc_Sha256* sha256)
@@ -1763,10 +1762,7 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 #endif
 
 #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    if (!cpuid_flags_set) {
-        cpuid_flags = cpuid_get_flags();
-        cpuid_flags_set = 1;
-    }
+    cpuid_get_flags_ex(&cpuid_flags);
 #endif
 
     (void)devId;
@@ -2048,10 +2044,7 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
         sha224->heap = heap;
 
     #if defined(__aarch64__) && !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-        if (!cpuid_flags_set) {
-            cpuid_flags = cpuid_get_flags();
-            cpuid_flags_set = 1;
-        }
+        cpuid_get_flags_ex(&cpuid_flags);
     #endif
 
         (void)devId;

@@ -25,8 +25,7 @@
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
     defined(HAVE_CPUID_AARCH64)
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
+    static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 #endif
 
 #ifdef HAVE_CPUID_INTEL
@@ -81,21 +80,22 @@
     }
 
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
-            if (cpuid_flag(1, 0, ECX, 28)) { cpuid_flags |= CPUID_AVX1  ; }
-            if (cpuid_flag(7, 0, EBX,  5)) { cpuid_flags |= CPUID_AVX2  ; }
-            if (cpuid_flag(7, 0, EBX,  8)) { cpuid_flags |= CPUID_BMI2  ; }
-            if (cpuid_flag(1, 0, ECX, 30)) { cpuid_flags |= CPUID_RDRAND; }
-            if (cpuid_flag(7, 0, EBX, 18)) { cpuid_flags |= CPUID_RDSEED; }
-            if (cpuid_flag(1, 0, ECX, 25)) { cpuid_flags |= CPUID_AESNI ; }
-            if (cpuid_flag(7, 0, EBX, 19)) { cpuid_flags |= CPUID_ADX   ; }
-            if (cpuid_flag(1, 0, ECX, 22)) { cpuid_flags |= CPUID_MOVBE ; }
-            if (cpuid_flag(7, 0, EBX,  3)) { cpuid_flags |= CPUID_BMI1  ; }
-            if (cpuid_flag(7, 0, EBX, 29)) { cpuid_flags |= CPUID_SHA   ; }
-
-            cpuid_check = 1;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+            if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1  ; }
+            if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2  ; }
+            if (cpuid_flag(7, 0, EBX,  8)) { new_cpuid_flags |= CPUID_BMI2  ; }
+            if (cpuid_flag(1, 0, ECX, 30)) { new_cpuid_flags |= CPUID_RDRAND; }
+            if (cpuid_flag(7, 0, EBX, 18)) { new_cpuid_flags |= CPUID_RDSEED; }
+            if (cpuid_flag(1, 0, ECX, 25)) { new_cpuid_flags |= CPUID_AESNI ; }
+            if (cpuid_flag(7, 0, EBX, 19)) { new_cpuid_flags |= CPUID_ADX   ; }
+            if (cpuid_flag(1, 0, ECX, 22)) { new_cpuid_flags |= CPUID_MOVBE ; }
+            if (cpuid_flag(7, 0, EBX,  3)) { new_cpuid_flags |= CPUID_BMI1  ; }
+            if (cpuid_flag(7, 0, EBX, 29)) { new_cpuid_flags |= CPUID_SHA   ; }
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #elif defined(HAVE_CPUID_AARCH64)
@@ -113,9 +113,10 @@
     /* https://developer.arm.com/documentation/ddi0601/2024-09/AArch64-Registers
      * /ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0 */
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
             word64 features;
 
             __asm__ __volatile (
@@ -126,25 +127,26 @@
             );
 
             if (features & CPUID_AARCH64_FEAT_AES)
-                cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_AES;
             if (features & CPUID_AARCH64_FEAT_AES_PMULL) {
-                cpuid_flags |= CPUID_AES;
-                cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_PMULL;
             }
             if (features & CPUID_AARCH64_FEAT_SHA256)
-                cpuid_flags |= CPUID_SHA256;
+                new_cpuid_flags |= CPUID_SHA256;
             if (features & CPUID_AARCH64_FEAT_SHA256_512)
-                cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
+                new_cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
             if (features & CPUID_AARCH64_FEAT_RDM)
-                cpuid_flags |= CPUID_RDM;
+                new_cpuid_flags |= CPUID_RDM;
             if (features & CPUID_AARCH64_FEAT_SHA3)
-                cpuid_flags |= CPUID_SHA3;
+                new_cpuid_flags |= CPUID_SHA3;
             if (features & CPUID_AARCH64_FEAT_SM3)
-                cpuid_flags |= CPUID_SM3;
+                new_cpuid_flags |= CPUID_SM3;
             if (features & CPUID_AARCH64_FEAT_SM4)
-                cpuid_flags |= CPUID_SM4;
+                new_cpuid_flags |= CPUID_SM4;
 
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #elif defined(__linux__)
@@ -154,42 +156,44 @@
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
             word64 hwcaps = getauxval(AT_HWCAP);
 
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             if (hwcaps & HWCAP_AES)
-                cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_AES;
             if (hwcaps & HWCAP_PMULL)
-                cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_PMULL;
             if (hwcaps & HWCAP_SHA2)
-                cpuid_flags |= CPUID_SHA256;
+                new_cpuid_flags |= CPUID_SHA256;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
             if (hwcaps & HWCAP_SHA512)
-                cpuid_flags |= CPUID_SHA512;
+                new_cpuid_flags |= CPUID_SHA512;
         #endif
         #if defined(HWCAP_ASIMDRDM) && !defined(WOLFSSL_AARCH64_NO_SQRDMLSH)
             if (hwcaps & HWCAP_ASIMDRDM)
-                cpuid_flags |= CPUID_RDM;
+                new_cpuid_flags |= CPUID_RDM;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
             if (hwcaps & HWCAP_SHA3)
-                cpuid_flags |= CPUID_SHA3;
+                new_cpuid_flags |= CPUID_SHA3;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
             if (hwcaps & HWCAP_SM3)
-                cpuid_flags |= CPUID_SM3;
+                new_cpuid_flags |= CPUID_SM3;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
             if (hwcaps & HWCAP_SM4)
-                cpuid_flags |= CPUID_SM4;
+                new_cpuid_flags |= CPUID_SM4;
         #endif
 
             (void)hwcaps;
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #elif defined(__ANDROID__) || defined(ANDROID)
@@ -198,19 +202,21 @@
 
     #include "cpu-features.h"
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
             word64 features = android_getCpuFeatures();
 
             if (features & ANDROID_CPU_ARM_FEATURE_AES)
-                cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_AES;
             if (features & ANDROID_CPU_ARM_FEATURE_PMULL)
-                cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_PMULL;
             if (features & ANDROID_CPU_ARM_FEATURE_SHA2)
-                cpuid_flags |= CPUID_SHA256;
+                new_cpuid_flags |= CPUID_SHA256;
 
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #elif defined(__APPLE__)
@@ -229,29 +235,31 @@
         return ret;
     }
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_AES") != 0)
-                cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
-                cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_PMULL;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA256") != 0)
-                cpuid_flags |= CPUID_SHA256;
+                new_cpuid_flags |= CPUID_SHA256;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA512") != 0)
-                cpuid_flags |= CPUID_SHA512;
+                new_cpuid_flags |= CPUID_SHA512;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_RDM") != 0)
-                cpuid_flags |= CPUID_RDM;
+                new_cpuid_flags |= CPUID_RDM;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_SHA3") != 0)
-                cpuid_flags |= CPUID_SHA3;
+                new_cpuid_flags |= CPUID_SHA3;
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
-            cpuid_flags |= CPUID_SM3;
+            new_cpuid_flags |= CPUID_SM3;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
-            cpuid_flags |= CPUID_SM4;
+            new_cpuid_flags |= CPUID_SM4;
         #endif
 
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #elif defined(__FreeBSD__) || defined(__OpenBSD__)
@@ -259,70 +267,75 @@
 
     #include <sys/auxv.h>
 
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
             word64 features = 0;
 
             elf_aux_info(AT_HWCAP, &features, sizeof(features));
 
             if (features & CPUID_AARCH64_FEAT_AES)
-                cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_AES;
             if (features & CPUID_AARCH64_FEAT_AES_PMULL) {
-                cpuid_flags |= CPUID_AES;
-                cpuid_flags |= CPUID_PMULL;
+                new_cpuid_flags |= CPUID_AES;
+                new_cpuid_flags |= CPUID_PMULL;
             }
             if (features & CPUID_AARCH64_FEAT_SHA256)
-                cpuid_flags |= CPUID_SHA256;
+                new_cpuid_flags |= CPUID_SHA256;
             if (features & CPUID_AARCH64_FEAT_SHA256_512)
-                cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
+                new_cpuid_flags |= CPUID_SHA256 | CPUID_SHA512;
             if (features & CPUID_AARCH64_FEAT_RDM)
-                cpuid_flags |= CPUID_RDM;
+                new_cpuid_flags |= CPUID_RDM;
             if (features & CPUID_AARCH64_FEAT_SHA3)
-                cpuid_flags |= CPUID_SHA3;
+                new_cpuid_flags |= CPUID_SHA3;
             if (features & CPUID_AARCH64_FEAT_SM3)
-                cpuid_flags |= CPUID_SM3;
+                new_cpuid_flags |= CPUID_SM3;
             if (features & CPUID_AARCH64_FEAT_SM4)
-                cpuid_flags |= CPUID_SM4;
+                new_cpuid_flags |= CPUID_SM4;
 
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #else
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
-            cpuid_flags |= CPUID_AES;
-            cpuid_flags |= CPUID_PMULL;
-            cpuid_flags |= CPUID_SHA256;
+            new_cpuid_flags |= CPUID_AES;
+            new_cpuid_flags |= CPUID_PMULL;
+            new_cpuid_flags |= CPUID_SHA256;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
-            cpuid_flags |= CPUID_SHA512;
+            new_cpuid_flags |= CPUID_SHA512;
         #endif
         #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
-            cpuid_flags |= CPUID_RDM;
+            new_cpuid_flags |= CPUID_RDM;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-            cpuid_flags |= CPUID_SHA3;
+            new_cpuid_flags |= CPUID_SHA3;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM3
-            cpuid_flags |= CPUID_SM3;
+            new_cpuid_flags |= CPUID_SM3;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
-            cpuid_flags |= CPUID_SM4;
+            new_cpuid_flags |= CPUID_SM4;
         #endif
 
-            cpuid_check = 1;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #endif
 #elif defined(HAVE_CPUID)
-    void cpuid_set_flags(void)
+    static WC_INLINE void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
-            cpuid_flags = 0;
-            cpuid_check = 1;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
+            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 #endif
@@ -331,24 +344,25 @@
 
     word32 cpuid_get_flags(void)
     {
-        if (!cpuid_check)
-            cpuid_set_flags();
-        return cpuid_flags;
+        cpuid_set_flags();
+        return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
     void cpuid_select_flags(word32 flags)
     {
-        cpuid_flags = flags;
+        WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
     }
 
     void cpuid_set_flag(word32 flag)
     {
-        cpuid_flags |= flag;
+        WOLFSSL_ATOMIC_STORE
+            (cpuid_flags, WOLFSSL_ATOMIC_LOAD(cpuid_flags) | flag);
     }
 
     void cpuid_clear_flag(word32 flag)
     {
-        cpuid_flags &= ~flag;
+        WOLFSSL_ATOMIC_STORE
+            (cpuid_flags, WOLFSSL_ATOMIC_LOAD(cpuid_flags) & ~flag);
     }
 
 #endif /* HAVE_CPUID */

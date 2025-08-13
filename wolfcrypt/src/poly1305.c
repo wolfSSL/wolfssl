@@ -83,8 +83,7 @@ and Daniel J. Bernstein
 #endif
 
 #ifdef USE_INTEL_POLY1305_SPEEDUP
-static word32 intel_flags = 0;
-static word32 cpu_flags_set = 0;
+static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
 #endif
 
 #if defined(USE_INTEL_POLY1305_SPEEDUP) || defined(POLY130564)
@@ -513,10 +512,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_POLY1305_SPEEDUP
-    if (!cpu_flags_set) {
-        intel_flags = cpuid_get_flags();
-        cpu_flags_set = 1;
-    }
+    cpuid_get_flags_ex(&intel_flags);
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
