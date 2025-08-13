@@ -259,7 +259,8 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (out && *outLen > i)
         out[i]= '\0';
 
-    *outLen = i; /* Note, does not reflect terminating null, if any. */
+    /* Note, *outLen won't reflect the optional terminating null. */
+    *outLen = i;
 
     return 0;
 }
@@ -346,7 +347,8 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (out && *outLen > i)
         out[i]= '\0';
 
-    *outLen = i; /* Note, does not reflect terminating null, if any. */
+    /* Note, *outLen won't reflect the optional terminating null. */
+    *outLen = i;
 
     return 0;
 }
