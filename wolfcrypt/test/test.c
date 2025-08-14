@@ -18892,6 +18892,91 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         if (const_byte_ptr_test(const_byte_array, &j) != CBPTR_EXPECTED) {
             ret = 1;
         }
+        if (ret != 0)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    {
+
+#ifdef WOLFSSL_NO_ATOMICS
+        int a_int = WOLFSSL_ATOMIC_INITIALIZER(-2);
+        unsigned int a_uint = WOLFSSL_ATOMIC_INITIALIZER(2);
+#else
+        wolfSSL_Atomic_Int a_int = WOLFSSL_ATOMIC_INITIALIZER(-2);
+        wolfSSL_Atomic_Uint a_uint = WOLFSSL_ATOMIC_INITIALIZER(2);
+#endif
+        int int_expected;
+        unsigned int uint_expected;
+
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -2)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 2)
+            return WC_TEST_RET_ENC_NC;
+        wolfSSL_Atomic_Int_Init(&a_int, -3);
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -3)
+            return WC_TEST_RET_ENC_NC;
+        wolfSSL_Atomic_Uint_Init(&a_uint, 3);
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 3)
+            return WC_TEST_RET_ENC_NC;
+        WOLFSSL_ATOMIC_STORE(a_int, -4);
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -4)
+            return WC_TEST_RET_ENC_NC;
+        WOLFSSL_ATOMIC_STORE(a_uint, 4);
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 4)
+            return WC_TEST_RET_ENC_NC;
+
+        if (wolfSSL_Atomic_Int_FetchAdd(&a_int, 2) != -4)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -2)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Uint_FetchAdd(&a_uint, 2) != 4)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 6)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Int_FetchSub(&a_int, 2) != -2)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -4)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Uint_FetchSub(&a_uint, 2) != 6)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 4)
+            return WC_TEST_RET_ENC_NC;
+
+        if (wolfSSL_Atomic_Int_AddFetch(&a_int, 2) != -2)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -2)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Uint_AddFetch(&a_uint, 2) != 6)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 6)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Int_SubFetch(&a_int, 2) != -4)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -4)
+            return WC_TEST_RET_ENC_NC;
+        if (wolfSSL_Atomic_Uint_SubFetch(&a_uint, 2) != 4)
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 4)
+            return WC_TEST_RET_ENC_NC;
+
+        int_expected = -5;
+        if (wolfSSL_Atomic_Int_CompareExchange(&a_int, &int_expected, -7))
+            return WC_TEST_RET_ENC_NC;
+        if (int_expected != -4)
+            return WC_TEST_RET_ENC_NC;
+        if (! wolfSSL_Atomic_Int_CompareExchange(&a_int, &int_expected, -7))
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_int) != -7)
+            return WC_TEST_RET_ENC_NC;
+        uint_expected = 5;
+        if (wolfSSL_Atomic_Uint_CompareExchange(&a_uint, &uint_expected, 7))
+            return WC_TEST_RET_ENC_NC;
+        if (uint_expected != 4)
+            return WC_TEST_RET_ENC_NC;
+        if (! wolfSSL_Atomic_Uint_CompareExchange(&a_uint, &uint_expected, 7))
+            return WC_TEST_RET_ENC_NC;
+        if (WOLFSSL_ATOMIC_LOAD(a_uint) != 7)
+            return WC_TEST_RET_ENC_NC;
     }
 
     return ret;

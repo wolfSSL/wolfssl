@@ -624,11 +624,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
      */
     static int checkedAESNI = 0;
     static int haveAESNI  = 0;
-    static word32 intel_flags = 0;
+    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
 
     static WARN_UNUSED_RESULT int Check_CPU_support_AES(void)
     {
-        intel_flags = cpuid_get_flags();
+        cpuid_get_flags_ex(&intel_flags);
 
         return IS_INTEL_AESNI(intel_flags) != 0;
     }
@@ -786,15 +786,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
     #define NEED_AES_TABLES
 
-    static int checkedCpuIdFlags = 0;
-    static word32 cpuid_flags = 0;
+    static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
 
     static void Check_CPU_support_HwCrypto(Aes* aes)
     {
-        if (checkedCpuIdFlags == 0) {
-            cpuid_flags = cpuid_get_flags();
-            checkedCpuIdFlags = 1;
-        }
+        cpuid_get_flags_ex(&cpuid_flags);
         aes->use_aes_hw_crypto = IS_AARCH64_AES(cpuid_flags);
     #ifdef HAVE_AESGCM
         aes->use_pmull_hw_crypto = IS_AARCH64_PMULL(cpuid_flags);

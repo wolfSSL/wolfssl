@@ -466,62 +466,123 @@
 #endif
 
 #ifndef WOLFSSL_NO_ATOMICS
-#ifdef SINGLE_THREADED
-    typedef int wolfSSL_Atomic_Int;
-    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x) (x)
-    #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
-    #define WOLFSSL_ATOMIC_OPS
-#elif defined(HAVE_C___ATOMIC)
-#ifdef __cplusplus
-#if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
-    /* C++ using direct calls to compiler built-in functions */
-    typedef volatile int wolfSSL_Atomic_Int;
-    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), __ATOMIC_CONSUME)
-    #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), val, __ATOMIC_RELEASE)
-    #define WOLFSSL_ATOMIC_OPS
-#endif
-#else
-    #ifdef WOLFSSL_HAVE_ATOMIC_H
-    /* Default C Implementation */
-    #include <stdatomic.h>
-    typedef atomic_int wolfSSL_Atomic_Int;
-    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
-    #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
-    #define WOLFSSL_ATOMIC_OPS
-    #endif /* WOLFSSL_HAVE_ATOMIC_H */
-#endif
-#elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
-    /* Use MSVC compiler intrinsics for atomic ops */
-    #ifdef _WIN32_WCE
-        #include <armintr.h>
-    #else
-        #include <intrin.h>
+    #if defined(WOLFSSL_USER_DEFINED_ATOMICS)
+        /* user-supplied bindings for wolfSSL_Atomic_Int etc. */
+        #if !defined(WOLFSSL_ATOMIC_INITIALIZER) || \
+            !defined(WOLFSSL_ATOMIC_LOAD) || \
+            !defined(WOLFSSL_ATOMIC_STORE)
+            #error WOLFSSL_USER_DEFINED_ATOMICS is set but macro(s) are missing.
+        #else
+            #define WOLFSSL_ATOMIC_OPS
+        #endif
+    #elif defined(SINGLE_THREADED)
+        typedef int wolfSSL_Atomic_Int;
+        typedef unsigned int wolfSSL_Atomic_Uint;
+        #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+        #define WOLFSSL_ATOMIC_LOAD(x) (x)
+        #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
+        #define WOLFSSL_ATOMIC_OPS
+    #elif defined(HAVE_C___ATOMIC)
+        #ifdef __cplusplus
+            #if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
+                /* C++ using direct calls to compiler built-in functions */
+                typedef volatile int wolfSSL_Atomic_Int;
+                typedef volatile unsigned int wolfSSL_Atomic_Uint;
+                #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+                #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
+                                                               __ATOMIC_CONSUME)
+                #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
+                                                          val, __ATOMIC_RELEASE)
+                #define WOLFSSL_ATOMIC_OPS
+            #endif
+        #else
+            #ifdef WOLFSSL_HAVE_ATOMIC_H
+                /* Default C Implementation */
+                #include <stdatomic.h>
+                typedef atomic_int wolfSSL_Atomic_Int;
+                typedef atomic_uint wolfSSL_Atomic_Uint;
+                #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+                #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+                #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
+                #define WOLFSSL_ATOMIC_OPS
+            #endif /* WOLFSSL_HAVE_ATOMIC_H */
+        #endif
+    #elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
+        /* Use MSVC compiler intrinsics for atomic ops */
+        #ifdef _WIN32_WCE
+            #include <armintr.h>
+        #else
+            #include <intrin.h>
+        #endif
+        typedef volatile long wolfSSL_Atomic_Int;
+        typedef volatile unsigned long wolfSSL_Atomic_Uint;
+        #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+        #define WOLFSSL_ATOMIC_LOAD(x) (x)
+        #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
+        #define WOLFSSL_ATOMIC_OPS
     #endif
-    typedef volatile long wolfSSL_Atomic_Int;
+
+    #ifndef WOLFSSL_ATOMIC_INITIALIZER
+        /* If we weren't able to implement atomics above, disable them here. */
+        #define WOLFSSL_NO_ATOMICS
+    #endif
+#endif
+
+#ifdef WOLFSSL_NO_ATOMICS
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
-    #define WOLFSSL_ATOMIC_OPS
-#endif
 #endif /* WOLFSSL_NO_ATOMICS */
 
-#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+/* WOLFSSL_ATOMIC_COERCE_INT() needs to accept either a regular int or an
+ * wolfSSL_Atomic_Int as its argument, and evaluate to a regular int.
+ * Allows a user-supplied override definition with type introspection.
+ */
+#ifndef WOLFSSL_ATOMIC_COERCE_INT
+    #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
+#endif
+#ifndef WOLFSSL_ATOMIC_COERCE_UINT
+    #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
+#endif
+
+#ifdef WOLFSSL_USER_DEFINED_ATOMICS
+    /* user-supplied bindings for wolfSSL_Atomic_Int_Init(),
+     * wolfSSL_Atomic_Int_FetchAdd(), etc.
+     */
+#elif defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
     WOLFSSL_API void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
-    /* Fetch* functions return the value of the counter immediately preceding
-     * the effects of the function. */
+    WOLFSSL_API void wolfSSL_Atomic_Uint_Init(
+        wolfSSL_Atomic_Uint* c, unsigned int i);
+    /* FetchOp functions return the value of the counter immediately preceding
+     * the effects of the operation.
+     * OpFetch functions return the value of the counter immediately after
+     * the effects of the operation.
+     */
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_CompareExchange(
+        wolfSSL_Atomic_Int* c, int *expected_i, int new_i);
+    WOLFSSL_API unsigned int wolfSSL_Atomic_Uint_FetchAdd(
+        wolfSSL_Atomic_Uint* c, unsigned int i);
+    WOLFSSL_API unsigned int wolfSSL_Atomic_Uint_FetchSub(
+        wolfSSL_Atomic_Uint* c, unsigned int i);
+    WOLFSSL_API unsigned int wolfSSL_Atomic_Uint_AddFetch(
+        wolfSSL_Atomic_Uint* c, unsigned int i);
+    WOLFSSL_API unsigned int wolfSSL_Atomic_Uint_SubFetch(
+        wolfSSL_Atomic_Uint* c, unsigned int i);
+    WOLFSSL_API int wolfSSL_Atomic_Uint_CompareExchange(
+        wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i);
 #else
     /* Code using these fallback implementations in non-SINGLE_THREADED builds
-     * needs to arrange its own explicit fallback to int for wolfSSL_Atomic_Int,
-     * which is not defined if !defined(WOLFSSL_ATOMIC_OPS) &&
-     * !defined(SINGLE_THREADED).  This forces local awareness of thread-unsafe
-     * semantics.
+     * needs to arrange its own explicit fallback to int for wolfSSL_Atomic_Int
+     * and unsigned int for wolfSSL_Atomic_Uint, which is not defined if
+     * !defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED).  This forces
+     * local awareness of thread-unsafe semantics.
      */
     #define wolfSSL_Atomic_Int_Init(c, i) (*(c) = (i))
+    #define wolfSSL_Atomic_Uint_Init(c, i) (*(c) = (i))
     static WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(int *c, int i) {
         int ret = *c;
         *c += i;
@@ -531,6 +592,60 @@
         int ret = *c;
         *c -= i;
         return ret;
+    }
+    static WC_INLINE int wolfSSL_Atomic_Int_AddFetch(int *c, int i) {
+        return (*c += i);
+    }
+    static WC_INLINE int wolfSSL_Atomic_Int_SubFetch(int *c, int i) {
+        return (*c -= i);
+    }
+    static WC_INLINE int wolfSSL_Atomic_Int_CompareExchange(
+        int *c, int *expected_i, int new_i)
+    {
+        if (*c == *expected_i) {
+            *c = new_i;
+            return 1;
+        }
+        else {
+            *expected_i = *c;
+            return 0;
+        }
+    }
+    static WC_INLINE unsigned int wolfSSL_Atomic_Uint_FetchAdd(
+        unsigned int *c, unsigned int i)
+    {
+        unsigned int ret = *c;
+        *c += i;
+        return ret;
+    }
+    static WC_INLINE unsigned int wolfSSL_Atomic_Uint_FetchSub(
+        unsigned int *c, unsigned int i)
+    {
+        unsigned int ret = *c;
+        *c -= i;
+        return ret;
+    }
+    static WC_INLINE unsigned int wolfSSL_Atomic_Uint_AddFetch(
+        unsigned int *c, unsigned int i)
+    {
+        return (*c += i);
+    }
+    static WC_INLINE unsigned int wolfSSL_Atomic_Uint_SubFetch(
+        unsigned int *c, unsigned int i)
+    {
+        return (*c -= i);
+    }
+    static WC_INLINE int wolfSSL_Atomic_Uint_CompareExchange(
+        unsigned int *c, unsigned int *expected_i, unsigned int new_i)
+    {
+        if (*c == *expected_i) {
+            *c = new_i;
+            return 1;
+        }
+        else {
+            *expected_i = *c;
+            return 0;
+        }
     }
 #endif
 
