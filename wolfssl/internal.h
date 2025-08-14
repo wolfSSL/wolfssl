@@ -2446,10 +2446,8 @@ struct WOLFSSL_OCSP {
     OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
     int                   error;
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     int(*statusCb)(WOLFSSL*, void*);
-#endif
+    void*                 statusCbArg;
 };
 #endif
 
@@ -2686,6 +2684,7 @@ typedef struct ProcPeerCertArgs {
     int    count;
     int    certIdx;
     int    lastErr;
+    int    leafVerifyErr;
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
@@ -3288,6 +3287,9 @@ WOLFSSL_LOCAL int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
                           byte isRequest, int idx);
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest_ex(TLSX* extensions, int idx);
 
+WOLFSSL_LOCAL int TLSX_CSR_SetResponseWithStatusCB(WOLFSSL *ssl);
+WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
+
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -3747,6 +3749,7 @@ struct WOLFSSL_CTX {
 #ifndef NO_CERTS
     DerBuffer*  certificate;
     DerBuffer*  certChain;
+    int         certChainCnt;
                  /* chain after self, in DER, with leading size for each cert */
     #ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* client_ca_names;
@@ -3754,12 +3757,13 @@ struct WOLFSSL_CTX {
     #endif
     #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
+    #endif
+#ifdef WOLFSSL_CERT_SETUP_CB
+#ifdef OPENSSL_EXTRA
     client_cert_cb CBClientCert;  /* client certificate callback */
+#endif
     CertSetupCallback  certSetupCb;
     void*              certSetupCbArg;
-    #endif
-#ifdef WOLFSSL_TLS13
-    int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
@@ -4014,6 +4018,8 @@ struct WOLFSSL_CTX {
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
          || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* certOcspRequest;
+            ocspVerifyStatusCb ocspStatusVerifyCb;
+            void* ocspStatusVerifyCbArg;
         #endif
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             OcspRequest* chainOcspRequest[MAX_CHAIN_DEPTH];
@@ -4820,8 +4826,8 @@ typedef struct Buffers {
 #endif
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
-#ifdef WOLFSSL_TLS13
     int             certChainCnt;
+#ifdef WOLFSSL_TLS13
     DerBuffer*      certExts[MAX_CERT_EXTENSIONS];
 #endif
 #endif
@@ -6110,9 +6116,8 @@ struct WOLFSSL {
         void*       ocspIOCtx;
         byte ocspProducedDate[MAX_DATE_SZ];
         int ocspProducedDateFormat;
+        buffer      ocspCsrResp[1 + MAX_CHAIN_DEPTH];
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        byte*       ocspResp;
-        int         ocspRespSz;
         char*   url;
     #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)

@@ -1405,6 +1405,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTX_get_tlsext_ticket_keys  wolfSSL_CTX_get_tlsext_ticket_keys
 #define SSL_CTX_set_tlsext_ticket_keys  wolfSSL_CTX_set_tlsext_ticket_keys
 #define SSL_CTX_get_tlsext_status_cb    wolfSSL_CTX_get_tlsext_status_cb
+#define SSL_CTX_set_tlsext_status_arg   wolfSSL_CTX_set_tlsext_status_arg
 #define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
 #define SSL_CTX_set_num_tickets         wolfSSL_CTX_set_num_tickets
 #define SSL_CTX_get_num_tickets         wolfSSL_CTX_get_num_tickets
@@ -1581,9 +1582,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
-#define SSL_TLSEXT_ERR_ALERT_WARNING    warning_return
-#define SSL_TLSEXT_ERR_ALERT_FATAL      fatal_return
-#define SSL_TLSEXT_ERR_NOACK            noack_return
+#define SSL_TLSEXT_ERR_ALERT_WARNING    1
+#define SSL_TLSEXT_ERR_ALERT_FATAL      2
+#define SSL_TLSEXT_ERR_NOACK            3
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
 
 #define SSL_set_tlsext_host_name        wolfSSL_set_tlsext_host_name
@@ -1720,7 +1721,6 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_in_connect_init             wolfSSL_SSL_in_connect_init
 #define SSL_get0_session                wolfSSL_SSL_get0_session
 #define SSL_CTX_set_tlsext_ticket_key_cb wolfSSL_CTX_set_tlsext_ticket_key_cb
-#define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
 #define SSL_CTX_get_extra_chain_certs   wolfSSL_CTX_get_extra_chain_certs
 #define SSL_CTX_get0_chain_certs        wolfSSL_CTX_get0_chain_certs
 #define SSL_get0_chain_certs            wolfSSL_get0_chain_certs
