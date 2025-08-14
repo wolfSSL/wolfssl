@@ -2526,10 +2526,7 @@ struct WOLFSSL_OCSP {
     OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
     int                   error;
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     int(*statusCb)(WOLFSSL*, void*);
-#endif
 };
 #endif
 
@@ -3368,6 +3365,9 @@ WOLFSSL_LOCAL int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
                           byte isRequest, int idx);
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest_ex(TLSX* extensions, int idx);
 
+WOLFSSL_LOCAL int TLSX_CSR_SetResponseWithStatusCB(WOLFSSL *ssl);
+WOLFSSL_LOCAL int ProcessChainOCSPRequest(WOLFSSL* ssl);
+
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -3833,10 +3833,14 @@ struct WOLFSSL_CTX {
     #endif
     #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
+    #endif
+#ifdef WOLFSSL_CERT_SETUP_CB
+#ifdef OPENSSL_EXTRA
     client_cert_cb CBClientCert;  /* client certificate callback */
+#endif
     CertSetupCallback  certSetupCb;
     void*              certSetupCbArg;
-    #endif
+#endif
 #ifdef WOLFSSL_TLS13
     int         certChainCnt;
 #endif
@@ -6182,9 +6186,9 @@ struct WOLFSSL {
         void*       ocspIOCtx;
         byte ocspProducedDate[MAX_DATE_SZ];
         int ocspProducedDateFormat;
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         byte*       ocspResp;
         int         ocspRespSz;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         char*   url;
     #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)

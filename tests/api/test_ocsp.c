@@ -658,3 +658,184 @@ int test_ocsp_certid_enc_dec(void)
     return TEST_SKIPPED;
 }
 #endif
+
+#if defined(HAVE_OCSP) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_CERT_SETUP_CB) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA)
+
+/* --- certificate-selection callback ----------------------------------- */
+static int test_ocsp_tls13_cert_cb_cert_cb(WOLFSSL* ssl, void* arg)
+{
+    (void)arg;
+    if (wolfSSL_use_certificate_file(ssl,
+            "./certs/ocsp/intermediate1-ca-cert.pem", WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS)
+        return 0;
+    if (wolfSSL_use_PrivateKey_file(ssl,
+            "./certs/ocsp/intermediate1-ca-key.pem",  WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS)
+        return 0;
+    return 1;  /* success */
+}
+
+static int test_ocsp_tls13_cert_cb_status_cb(WOLFSSL* ssl, void* ioCtx)
+{
+    byte* ocsp_resp = NULL;
+    (void)ioCtx;
+    ocsp_resp = (byte*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
+    if (ocsp_resp == NULL)
+        return WOLFSSL_OCSP_STATUS_CB_NOACK;
+    XMEMCPY(ocsp_resp, resp_server1_cert, sizeof(resp_server1_cert));
+    if (wolfSSL_set_tlsext_status_ocsp_resp(ssl, ocsp_resp,
+            sizeof(resp_server1_cert)) != WOLFSSL_SUCCESS) {
+        XFREE(ocsp_resp, NULL, 0);
+        return WOLFSSL_OCSP_STATUS_CB_NOACK;
+    }
+    return WOLFSSL_OCSP_STATUS_CB_OK;
+}
+
+static int test_ocsp_tls13_cert_cb_verify_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    int ret = 0;
+    int err = wolfSSL_X509_STORE_CTX_get_error(store);
+
+    if (preverify == 1)
+        return 1;
+    if (err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+            || err == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+#endif
+            ) {
+        int idx = wolfSSL_X509_STORE_CTX_get_error_depth(store);
+        WOLFSSL_BUFFER_INFO* bInfo = &store->certs[idx];
+        WOLFSSL* ssl = (WOLFSSL*)store->userCtx;
+        WOLFSSL_BUFFER_INFO* ocspStaple = wolfSSL_GetOcspStaple(ssl, (word32)idx);
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        DecodedCert cert;
+        byte certInit = 0;
+        WOLFSSL_OCSP ocsp;
+        byte ocspInit = 0;
+
+        ret = 1;
+        cm = wolfSSL_CertManagerNew();
+        if (cm == NULL)
+            ret = 0;
+        if (ret == 1 &&
+            wolfSSL_CertManagerLoadCA(cm, "./certs/ocsp/root-ca-cert.pem", NULL)
+                != WOLFSSL_SUCCESS)
+            ret = 0;
+
+        /* Verify cert with CA */
+        if (ret == 1) {
+            wc_InitDecodedCert(&cert, bInfo->buffer, bInfo->length, NULL);
+            certInit = 1;
+        }
+        if (ret == 1 && wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm) != 0)
+            ret = 0;
+
+        /* Verify OCSP with CA */
+        if (ret == 1 && (ocspStaple == NULL || ocspStaple->buffer == NULL ||
+                ocspStaple->length == 0))
+            ret = 0;
+        if (ret == 1 && wc_InitOCSP(&ocsp, cm) != 0)
+            ret = 0;
+        if (ret == 1)
+            ocspInit = 1;
+        if (ret == 1 &&
+                wc_CheckCertOcspResponse(&ocsp, &cert, ocspStaple->buffer,
+                        ocspStaple->length, NULL) != 0)
+            ret = 0;
+
+        if (ocspInit)
+            wc_FreeOCSP(&ocsp);
+        if (certInit)
+            wc_FreeDecodedCert(&cert);
+        wolfSSL_CertManagerFree(cm);
+    }
+    return ret;
+}
+
+static int test_ocsp_tls13_cert_cb_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    /* server: dynamic cert */
+    wolfSSL_CTX_set_cert_cb(ctx, test_ocsp_tls13_cert_cb_cert_cb, NULL);
+    return TEST_SUCCESS;
+}
+
+/* --- very small OCSP-status callback ---------------------------------- */
+/* no status callback path - context struct not needed */
+
+/* --- the actual test case --------------------------------------------- */
+int test_ocsp_tls13_cert_cb(void)
+{
+    EXPECT_DECLS;
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+    } params[] = {
+#if defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3" },
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3" },
+#endif
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        struct test_ssl_memio_ctx test_ctx;
+
+        printf("\nTesting %s\n", params[i].tls_version);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        test_ctx.c_cb.caPemFile  = "";
+        /* Do NOT preload any cert/key into the server context: leave empty strings
+           so that ctx setup code skips loading them entirely and the only cert
+           comes from the per-connection callback below. */
+        test_ctx.s_cb.certPemFile = "";  /* nothing pre-loaded */
+        test_ctx.s_cb.keyPemFile  = "";
+
+        test_ctx.c_cb.method = params[i].client_meth;
+        test_ctx.s_cb.method = params[i].server_meth;
+
+        test_ctx.s_cb.ctx_ready = test_ocsp_tls13_cert_cb_ctx_ready;
+
+        ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+        /* Unload the certificate that test helpers may have put into the server
+           SSL object - we want the server to *not* have any certificate at the
+           moment it parses ClientHello so that the early OCSP code path fails. */
+        ExpectIntEQ(wolfSSL_UnloadCertsKeys(test_ctx.s_ssl), WOLFSSL_SUCCESS);
+
+        /* turn on OCSP stapling on the server side */
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.s_ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx,
+                test_ocsp_tls13_cert_cb_status_cb), WOLFSSL_SUCCESS);
+
+        /* client: request stapling */
+        wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT,
+                test_ocsp_tls13_cert_cb_verify_cb);
+        /* No way to get ssl from the store without OPENSSL_EXTRA */
+        wolfSSL_SetCertCbCtx(test_ctx.c_ssl, test_ctx.c_ssl);
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0),
+                    WOLFSSL_SUCCESS);
+
+        ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+
+        test_ssl_memio_cleanup(&test_ctx);
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else  /* feature guards */
+int test_ocsp_tls13_cert_cb(void)
+{
+    return TEST_SKIPPED;
+}
+#endif

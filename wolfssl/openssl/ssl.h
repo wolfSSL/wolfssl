@@ -1576,9 +1576,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
-#define SSL_TLSEXT_ERR_ALERT_WARNING    warning_return
-#define SSL_TLSEXT_ERR_ALERT_FATAL      fatal_return
-#define SSL_TLSEXT_ERR_NOACK            noack_return
+#define SSL_TLSEXT_ERR_ALERT_WARNING    1
+#define SSL_TLSEXT_ERR_ALERT_FATAL      2
+#define SSL_TLSEXT_ERR_NOACK            3
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
 
 #define SSL_set_tlsext_host_name        wolfSSL_set_tlsext_host_name
