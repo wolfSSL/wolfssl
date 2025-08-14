@@ -9,7 +9,7 @@ from pyasn1.codec.der.decoder import decode
 from pyasn1.type import univ, tag, useful, namedtype
 from base64 import b64decode
 from hashlib import sha1, sha256
-from datetime import datetime
+from datetime import datetime, timedelta
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography import x509
@@ -124,7 +124,7 @@ def cert_status(value: int) -> rfc6960.CertStatus:
         revoked = rfc6960.RevokedInfo().subtype(implicitTag=tag.Tag(
             tag.tagClassContext, tag.tagFormatSimple, 1))
         revoked['revocationTime'] = useful.GeneralizedTime().fromDateTime(
-            datetime.now())
+            datetime.now() - timedelta(days=1))
         cs['revoked'] = revoked
 
     return cs
@@ -136,7 +136,7 @@ def single_response(issuer_cert_path: str, serial: int,
     sr = rfc6960.SingleResponse().clone()
     sr.setComponentByName('certID', cid)
     sr['certStatus'] = cs
-    sr['thisUpdate'] = useful.GeneralizedTime().fromDateTime(datetime.now())
+    sr['thisUpdate'] = useful.GeneralizedTime().fromDateTime(datetime.now() - timedelta(days=1))
     return sr
 
 def response_data(rid: rfc6960.ResponderID | None,
@@ -146,7 +146,7 @@ def response_data(rid: rfc6960.ResponderID | None,
         tag.tagClassContext, tag.tagFormatSimple, 0))
     if rid:
         rd['responderID'] = rid
-    rd['producedAt'] = useful.GeneralizedTime().fromDateTime(datetime.now())
+    rd['producedAt'] = useful.GeneralizedTime().fromDateTime(datetime.now() - timedelta(days=1))
     rs = univ.SequenceOf(componentType=rfc6960.SingleResponse())
     rs.extend(responses)
     rd['responses'] = rs
@@ -233,7 +233,7 @@ def single_response_from_cert(cert_path: str,
     sr = rfc6960.SingleResponse().clone()
     sr.setComponentByName('certID', cid)
     sr['certStatus'] = cs
-    sr['thisUpdate'] = useful.GeneralizedTime().fromDateTime(datetime.now())
+    sr['thisUpdate'] = useful.GeneralizedTime().fromDateTime(datetime.now() - timedelta(days=1))
     return sr
 
 RESPONSE_STATUS_GOOD = 0
@@ -398,6 +398,51 @@ if __name__ == '__main__':
             'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
             'responder_key': WOLFSSL_OCSP_CERT_PATH + 'root-ca-key.pem',
             'name': 'resp_bad_embedded_cert'
+        },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-cert.pem'],
+            'responder_by_name': True,
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+                    'serial': 0x05,
+                    'status': CERT_GOOD
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
+            'name': 'resp_server1_cert'
+        },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-cert.pem'],
+            'responder_by_name': True,
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_GOOD
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
+            'name': 'resp_intermediate1_cert'
+        },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'certs_path': [WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-cert.pem'],
+            'responder_by_name': True,
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+                    'serial': 0x63,
+                    'status': CERT_GOOD
+                }
+            ],
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'ocsp-responder-key.pem',
+            'name': 'resp_root_ca_cert'
         },
     ]
 

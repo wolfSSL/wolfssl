@@ -25926,11 +25926,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         }
 
         #ifdef HAVE_OCSP
-        if (verify != NO_VERIFY && type != CA_TYPE &&
+        if (type != CA_TYPE &&
                                                 type != TRUSTED_PEER_TYPE) {
+            /* Need the CA's public key hash for OCSP */
             if (cert->ca) {
-                /* Need the CA's public key hash for OCSP */
                 XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
+                    KEYID_SIZE);
+            }
+            else if (cert->selfSigned) {
+                XMEMCPY(cert->issuerKeyHash, cert->subjectKeyHash,
                     KEYID_SIZE);
             }
         }
@@ -39504,7 +39508,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = 0;
         }
     }
-    else
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
     if (!noVerifySignature && !sigValid) {
         Signer* ca;
