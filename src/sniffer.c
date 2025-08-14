@@ -2230,8 +2230,23 @@ static int GetRecordHeader(const byte* input, RecordLayerHeader* rh, int* size)
     XMEMCPY(rh, input, RECORD_HEADER_SZ);
     *size = (rh->length[0] << 8) | rh->length[1];
 
+    /* make sure length is valid */
     if (*size > (MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
+    /* make sure the record type is valid */
+    if (rh->type < change_cipher_spec ||
+    #ifdef WOLFSSL_DTLS13
+        rh->type > ack
+    #else
+        rh->type > dtls12_cid
+    #endif
+        ) {
+        return UNKNOWN_RECORD_TYPE;
+    }
+    /* make sure version is valid */
+    if (rh->pvMajor > SSLv3_MAJOR || rh->pvMinor > TLSv1_3_MINOR) {
+        return VERSION_ERROR;
+    }
 
     return 0;
 }
