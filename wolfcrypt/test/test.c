@@ -2970,6 +2970,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/;";
     static const byte charTest[] = "A+Gd\0\0\0";
+    static const byte oneByteTest[] = "YQ==";
+    static const byte twoByteTest[] = "YWE=";
+    static const byte threeByteTest[] = "YWFh";
+    static const byte fourByteTest[] = "YWFhYQ==";
+    static const byte byteTestOutput[] = "aaaa";
     int        i;
     WOLFSSL_ENTER("base64_test");
 
@@ -2997,7 +3002,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     /* Bad parameters. */
     outLen = 1;
     ret = Base64_Decode(good, sizeof(good), out, &outLen);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
         return WC_TEST_RET_ENC_EC(ret);
 
     outLen = sizeof(out);
@@ -3046,6 +3051,48 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
             return WC_TEST_RET_ENC_I(i);
     }
 
+    /* overrun/right-sized tests */
+#define N_BYTE_TEST(f, n, t) do {                               \
+    outLen = (n) - 1;                                           \
+    ret = (f)(t, sizeof(t), out, &outLen);                      \
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))                       \
+        return WC_TEST_RET_ENC_EC(ret);                         \
+    outLen = (n);                                               \
+    ret = (f)(t, sizeof(t), out, &outLen);                      \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_EC(ret);                         \
+    if (outLen != (n))                                          \
+        return WC_TEST_RET_ENC_I(outLen);                       \
+    ret = XMEMCMP(out, byteTestOutput, (n));                    \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_I(ret);                          \
+    ret = (f)(t, sizeof(t) - 1, out, &outLen);                  \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_EC(ret);                         \
+    if (outLen != (n))                                          \
+        return WC_TEST_RET_ENC_I(outLen);                       \
+    ret = XMEMCMP(out, byteTestOutput, (n));                    \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_I(ret);                          \
+    outLen = (n) + 1;                                           \
+    out[n] = 1;                                                 \
+    ret = (f)(t, sizeof(t), out, &outLen);                      \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_EC(ret);                         \
+    if (outLen != (n))                                          \
+        return WC_TEST_RET_ENC_I(outLen);                       \
+    ret = XMEMCMP(out, byteTestOutput, (n));                    \
+    if (ret != 0)                                               \
+        return WC_TEST_RET_ENC_I(ret);                          \
+    if (out[n] != 0)                                            \
+        return WC_TEST_RET_ENC_NC;                              \
+    } while (0)
+
+    N_BYTE_TEST(Base64_Decode, 1, oneByteTest);
+    N_BYTE_TEST(Base64_Decode, 2, twoByteTest);
+    N_BYTE_TEST(Base64_Decode, 3, threeByteTest);
+    N_BYTE_TEST(Base64_Decode, 4, fourByteTest);
+
     /* Same tests again, using Base64_Decode_nonCT() */
 
     /* Good Base64 encodings. */
@@ -3072,7 +3119,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
     /* Bad parameters. */
     outLen = 1;
     ret = Base64_Decode_nonCT(good, sizeof(good), out, &outLen);
-    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+    if (ret != WC_NO_ERR_TRACE(BUFFER_E))
         return WC_TEST_RET_ENC_EC(ret);
 
     outLen = sizeof(out);
@@ -3121,6 +3168,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t base64_test(void)
             return WC_TEST_RET_ENC_I(i);
     }
 
+    N_BYTE_TEST(Base64_Decode_nonCT, 1, oneByteTest);
+    N_BYTE_TEST(Base64_Decode_nonCT, 2, twoByteTest);
+    N_BYTE_TEST(Base64_Decode_nonCT, 3, threeByteTest);
+    N_BYTE_TEST(Base64_Decode_nonCT, 4, fourByteTest);
 
 #ifdef WOLFSSL_BASE64_ENCODE
     /* Decode and encode all symbols - non-alphanumeric. */
