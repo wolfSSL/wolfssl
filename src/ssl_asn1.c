@@ -2085,11 +2085,13 @@ int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
     }
     if (!err) {
         /* Length at least 1, parameters valid - cannot fail to get tag. */
-        GetASNTag(*in, &inOutIdx, &t, (word32)inLen);
-        /* Get length in DER encoding. */
-        if (GetLength_ex(*in, &inOutIdx, &l, (word32)inLen, 0) < 0) {
-            WOLFSSL_MSG("GetLength error");
-            err = 1;
+        err = GetASNTag(*in, &inOutIdx, &t, (word32)inLen);
+        if (!err){
+            /* Get length in DER encoding. */
+            if (GetLength_ex(*in, &inOutIdx, &l, (word32)inLen, 0) < 0) {
+                WOLFSSL_MSG("GetLength error");
+                err = 1;
+            }
         }
     }
     if (!err) {

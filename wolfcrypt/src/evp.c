@@ -11664,7 +11664,10 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
 
     for (in = 0; in < (word32)inlen && ret == WOLFSSL_SUCCESS; in +=
              WOLFSSL_EVP_PKEY_PRINT_DIGITS_PER_LINE ) {
-        Indent(out, indent);
+        if (Indent(out, indent) < 0) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
         for (i = 0; (i < WOLFSSL_EVP_PKEY_PRINT_DIGITS_PER_LINE) &&
                                         (in + i < (word32)inlen); i++) {
 
