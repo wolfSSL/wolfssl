@@ -31226,6 +31226,7 @@ done:
 #else
     wc_ecc_free(key);
 #endif
+    (void)tmpSz;
 
     return ret;
 }
@@ -59636,12 +59637,11 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
      wc_test_ret_t ret = 0;
 #if defined(HAVE_ECC)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    ecc_key* key = (ecc_key *)XMALLOC(sizeof *key,
+    ecc_key* key = (ecc_key *)XMALLOC(sizeof(*key),
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    ecc_key* pub = (ecc_key *)XMALLOC(sizeof *pub,
+    ecc_key* pub = (ecc_key *)XMALLOC(sizeof(*pub),
                                             HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte* out = (byte*)XMALLOC(sizeof(byte),
-                                            HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte* out = (byte*)XMALLOC(256, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     byte* check = (byte*)XMALLOC(256, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -59649,6 +59649,9 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
     ecc_key key[1];
     #ifdef HAVE_ECC_DHE
     ecc_key pub[1];
+    #endif
+    #if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    byte   out[256];
     #endif
     #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     byte check[256];
@@ -59705,7 +59708,6 @@ static wc_test_ret_t ecc_onlycb_test(myCryptoDevCtx *ctx)
 #if defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
     byte   in[] = "Everyone gets Friday off. ecc p";
     word32 inLen = (word32)XSTRLEN((char*)in);
-    byte   out[256];
     word32 outLen;
     int    verify;
 #endif

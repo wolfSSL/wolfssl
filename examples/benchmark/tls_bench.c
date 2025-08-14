@@ -85,12 +85,12 @@ Or
         #define SINGLE_THREADED
     #endif
 #endif
-/* Conversely, if both server and client are enabled, we must require pthreads */
+
+/* If both client and server are enabled and single threaded, just disable this example */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) \
     && defined(SINGLE_THREADED)
-    #error "threads must be enabled if building benchmark suite \
-to run both client and server. Please define HAVE_PTHREAD if your \
-platform supports it"
+    #undef  NO_TLS
+    #define NO_TLS
 #endif
 
 #if 0

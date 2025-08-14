@@ -1360,7 +1360,7 @@ int test_wc_ecc_pointFns(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key    key;
     WC_RNG     rng;
     int        ret;
@@ -1465,7 +1465,7 @@ int test_wc_ecc_shared_secret_ssh(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(PLUTON_CRYPTO_ECC) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key key;
     ecc_key key2;
     WC_RNG  rng;
@@ -1639,7 +1639,8 @@ int test_wc_ecc_mulmod(void)
     EXPECT_DECLS;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-      defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_ECC)
     ecc_key     key1;
     ecc_key     key2;
     ecc_key     key3;
