@@ -482,19 +482,9 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
             }
 
             /* Write data */
-            do {
-                err = 0; /* reset error */
-                ret = SSL_write(ssl, buffer, (int)min((word32)len, (word32)rx_pos));
-                if (ret <= 0) {
-                    err = SSL_get_error(ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+            WOLFSSL_ASYNC_WHILE_PENDING(
+                  ret = SSL_write(ssl, buffer, (int)min((word32)len, (word32)rx_pos)),
+                  ret <= 0);
             if (ret != (int)min((word32)len, (word32)rx_pos)) {
                 LOG_ERROR("SSL_write echo error %d\n", err);
                 err_sys_ex(runWithErrors, "SSL_write failed");
@@ -3596,19 +3586,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 } while (err == WC_NO_ERR_TRACE(WC_PENDING_E) || ret > 0);
             }
     #endif
-            do {
-                err = 0; /* reset error */
-                ret = SSL_accept(ssl);
-                if (ret != WOLFSSL_SUCCESS) {
-                    err = SSL_get_error(ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+            WOLFSSL_ASYNC_WHILE_PENDING(ret = SSL_accept(ssl),
+                                        ret != WOLFSSL_SUCCESS);
         }
 #else
         if (nonBlocking) {
