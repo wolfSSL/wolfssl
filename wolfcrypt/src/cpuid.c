@@ -355,14 +355,18 @@
 
     void cpuid_set_flag(word32 flag)
     {
-        WOLFSSL_ATOMIC_STORE
-            (cpuid_flags, WOLFSSL_ATOMIC_LOAD(cpuid_flags) | flag);
+        word32 current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        while (! wolfSSL_Atomic_Uint_CompareExchange
+               (&cpuid_flags, &current_flags, current_flags | flag))
+            WC_RELAX_LONG_LOOP();
     }
 
     void cpuid_clear_flag(word32 flag)
     {
-        WOLFSSL_ATOMIC_STORE
-            (cpuid_flags, WOLFSSL_ATOMIC_LOAD(cpuid_flags) & ~flag);
+        word32 current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        while (! wolfSSL_Atomic_Uint_CompareExchange
+               (&cpuid_flags, &current_flags, current_flags & ~flag))
+            WC_RELAX_LONG_LOOP();
     }
 
 #endif /* HAVE_CPUID */

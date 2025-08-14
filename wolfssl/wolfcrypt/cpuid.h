@@ -115,7 +115,7 @@
             return 0;
     }
 
-    /* Public APIs to modify flags -- note that these are not threadsafe. */
+    /* Public APIs to modify flags. */
     WOLFSSL_API void cpuid_select_flags(word32 flags);
     WOLFSSL_API void cpuid_set_flag(word32 flag);
     WOLFSSL_API void cpuid_clear_flag(word32 flag);

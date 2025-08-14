@@ -466,13 +466,20 @@
 #endif
 
 #ifndef WOLFSSL_NO_ATOMICS
-    #ifdef SINGLE_THREADED
+    #if defined(WOLFSSL_USER_DEFINED_ATOMICS)
+        /* user-supplied bindings for wolfSSL_Atomic_Int etc. */
+        #if !defined(WOLFSSL_ATOMIC_INITIALIZER) || \
+            !defined(WOLFSSL_ATOMIC_LOAD) || \
+            !defined(WOLFSSL_ATOMIC_STORE)
+            #error WOLFSSL_USER_DEFINED_ATOMICS is set but macro(s) are missing.
+        #else
+            #define WOLFSSL_ATOMIC_OPS
+        #endif
+    #elif defined(SINGLE_THREADED)
         typedef int wolfSSL_Atomic_Int;
         typedef unsigned int wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
         #define WOLFSSL_ATOMIC_LOAD(x) (x)
-        #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
-        #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
         #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
         #define WOLFSSL_ATOMIC_OPS
     #elif defined(HAVE_C___ATOMIC)
@@ -484,8 +491,6 @@
                 #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
                 #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
                                                                __ATOMIC_CONSUME)
-                #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
-                #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
                 #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
                                                           val, __ATOMIC_RELEASE)
                 #define WOLFSSL_ATOMIC_OPS
@@ -498,8 +503,6 @@
                 typedef atomic_uint wolfSSL_Atomic_Uint;
                 #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
                 #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
-                #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
-                #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
                 #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
                 #define WOLFSSL_ATOMIC_OPS
             #endif /* WOLFSSL_HAVE_ATOMIC_H */
@@ -515,8 +518,6 @@
         typedef volatile unsigned long wolfSSL_Atomic_Uint;
         #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
         #define WOLFSSL_ATOMIC_LOAD(x) (x)
-        #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
-        #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
         #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
         #define WOLFSSL_ATOMIC_OPS
     #endif
@@ -530,18 +531,31 @@
 #ifdef WOLFSSL_NO_ATOMICS
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_LOAD(x) (x)
-    #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
-    #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
     #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
 #endif /* WOLFSSL_NO_ATOMICS */
 
-#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+/* WOLFSSL_ATOMIC_COERCE_INT() needs to accept either a regular int or an
+ * wolfSSL_Atomic_Int as its argument, and evaluate to a regular int.
+ * Allows a user-supplied override definition with type introspection.
+ */
+#ifndef WOLFSSL_ATOMIC_COERCE_INT
+    #define WOLFSSL_ATOMIC_COERCE_INT(x) ((int)(x))
+#endif
+#ifndef WOLFSSL_ATOMIC_COERCE_UINT
+    #define WOLFSSL_ATOMIC_COERCE_UINT(x) ((unsigned int)(x))
+#endif
+
+#ifdef WOLFSSL_USER_DEFINED_ATOMICS
+    /* user-supplied bindings for wolfSSL_Atomic_Int_Init(),
+     * wolfSSL_Atomic_Int_FetchAdd(), etc.
+     */
+#elif defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
     WOLFSSL_API void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
     WOLFSSL_API void wolfSSL_Atomic_Uint_Init(
         wolfSSL_Atomic_Uint* c, unsigned int i);
-    /* Fetch* functions return the value of the counter immediately preceding
+    /* FetchOp functions return the value of the counter immediately preceding
      * the effects of the operation.
-     * *Fetch functions return the value of the counter immediately after
+     * OpFetch functions return the value of the counter immediately after
      * the effects of the operation.
      */
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);

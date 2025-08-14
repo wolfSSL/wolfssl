@@ -1310,6 +1310,12 @@ int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
 int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
                                        int new_i)
 {
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
     return __atomic_compare_exchange_n(c, expected_i, new_i, 0 /* weak */,
                                        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
 }
@@ -1341,6 +1347,12 @@ unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
     return __atomic_compare_exchange_n(
         c, expected_i, new_i, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
 }
@@ -1383,6 +1395,12 @@ int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
 int wolfSSL_Atomic_Int_CompareExchange(
     wolfSSL_Atomic_Int* c, int *expected_i, int new_i)
 {
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
     return atomic_compare_exchange_strong_explicit(
         c, expected_i, new_i, memory_order_seq_cst, memory_order_acquire);
 }
@@ -1416,6 +1434,12 @@ unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
+    /* For the success path, use full synchronization with barriers --
+     * "Sequentially-consistent ordering" -- so that all threads see the same
+     * "single total modification order of all atomic operations" -- but on
+     * failure we just need to be sure we acquire the value that changed out
+     * from under us.
+     */
     return atomic_compare_exchange_strong_explicit(
         c, expected_i, new_i, memory_order_seq_cst, memory_order_acquire);
 }
