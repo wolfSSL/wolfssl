@@ -3147,7 +3147,7 @@ static int test_wolfSSL_CertManagerLoadCABufferType(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* int1_cert = "./certs/intermediate/ca-int-cert.pem";
     const char* int2_cert = "./certs/intermediate/ca-int2-cert.pem";
