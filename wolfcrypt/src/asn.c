@@ -37869,7 +37869,7 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
-    word32 idx = 0, seqSz, verSz, algoSz, privSz, pubSz = 0, sz;
+    word32 idx = 0, seqSz, verSz, algoSz, tmpSz, privSz, pubSz = 0, sz;
 #else
     DECL_ASNSETDATA(dataASN, privateKeyASN_Length);
     int sz = 0;
@@ -37884,16 +37884,15 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
-    if (privKeyLen >= 128 || pubKeyLen >= 128) {
-        /* privKeyLen and pubKeyLen are assumed to be less than 128 */
-        return BAD_FUNC_ARG;
-    }
-
     /* calculate size */
     if (pubKey) {
-        pubSz = 2 + pubKeyLen;
+        pubSz = SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY, pubKeyLen,
+            NULL, 0) + pubKeyLen;
     }
-    privSz = 2 + 2 + privKeyLen;
+
+    tmpSz  = SetOctetString(privKeyLen, NULL) + privKeyLen;
+
+    privSz = SetOctetString(tmpSz, NULL) + tmpSz;
     algoSz = SetAlgoID(keyType, NULL, oidKeyType, 0);
     verSz  = 3; /* version is 3 bytes (enum + id + version(byte)) */
     seqSz  = SetSequence(verSz + algoSz + privSz + pubSz, NULL);
@@ -37916,14 +37915,14 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
         algoSz = SetAlgoID(keyType, output + idx, oidKeyType, 0);
         idx += algoSz;
         /* privKey */
-        idx += SetOctetString(2 + privKeyLen, output + idx);
+        idx += SetOctetString(tmpSz, output + idx);
         idx += SetOctetString(privKeyLen, output + idx);
         XMEMCPY(output + idx, privKey, privKeyLen);
         idx += privKeyLen;
         /* pubKey */
         if (pubKey) {
-            idx += SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY |
-                             1, pubKeyLen, output + idx, 0);
+            idx += SetHeader(ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY,
+                pubKeyLen, output + idx, 0);
             XMEMCPY(output + idx, pubKey, pubKeyLen);
             idx += pubKeyLen;
         }

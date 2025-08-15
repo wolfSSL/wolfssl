@@ -23,6 +23,393 @@
 
 #include <tests/api/test_asn.h>
 
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
+static int test_SetAsymKeyDer_once(byte* privKey, word32 privKeySz, byte* pubKey,
+    word32 pubKeySz, byte* trueDer, word32 trueDerSz)
+{
+    EXPECT_DECLS;
+
+    byte* calcDer = NULL;
+    word32 calcDerSz = 0;
+
+    ExpectIntEQ(calcDerSz = SetAsymKeyDer(privKey, privKeySz, pubKey, pubKeySz,
+        NULL, 0, ED25519k), trueDerSz);
+    ExpectNotNull(calcDer = (byte*)XMALLOC(calcDerSz, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectIntEQ(calcDerSz = SetAsymKeyDer(privKey, privKeySz, pubKey, pubKeySz,
+        calcDer, calcDerSz, ED25519k), trueDerSz);
+    ExpectIntEQ(XMEMCMP(calcDer, trueDer, trueDerSz), 0);
+    XFREE(calcDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return EXPECT_RESULT();
+}
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT && HAVE_ED25519 */
+
+int test_SetAsymKeyDer(void)
+{
+    EXPECT_DECLS;
+
+#if defined(WC_ENABLE_ASYM_KEY_EXPORT) && defined(HAVE_ED25519)
+    /* We can't access the keyEd25519Oid variable, so declare it instead */
+    byte algId[] = {43, 101, 112};
+    byte version[] = {0x0};
+    byte keyPat = 0xcc;
+
+    byte* privKey = NULL;
+    word32 privKeySz = 0;
+    byte* pubKey = NULL;
+    word32 pubKeySz = 0;
+    byte trueDer[310]; /* The largest size is 310 bytes on Condition 8 */
+    word32 trueDerSz = 0;
+
+    /*
+     * Condition 1:
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 0           (Empty)
+     *     SEQ data = 46             (1 to 127)
+     */
+    privKeySz = 32;
+    pubKeySz = 0;
+    trueDerSz = 48;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = trueDerSz - 2;
+    /* VER */
+    trueDer[2]  = ASN_INTEGER;
+    trueDer[3]  = sizeof(version);
+    trueDer[4]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[5]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[6]  = sizeof(algId) + 2;
+    trueDer[7]  = ASN_OBJECT_ID;
+    trueDer[8]  = sizeof(algId);
+    trueDer[9]  = algId[0];
+    trueDer[10] = algId[1];
+    trueDer[11] = algId[2];
+    /* PKEY */
+    trueDer[12] = ASN_OCTET_STRING;
+    trueDer[13] = privKeySz + 2;
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = privKeySz;
+    privKey     = &trueDer[16];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[16] to trueDer[47] */
+    /* PUBKEY */
+    pubKey = NULL; /* Empty */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 2:
+     *     PKEY data = 129          (128 to 255)
+     *     PKEY_CURVEKEY data = 127 (0 to 127)
+     *     PUBKEY data = 0          (Empty)
+     *     SEQ data = 142           (128 to 255)
+     */
+    privKeySz = 127;
+    pubKeySz = 0;
+    trueDerSz = 145;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x81;
+    trueDer[2]  = trueDerSz - 3;
+    /* VER */
+    trueDer[3]  = ASN_INTEGER;
+    trueDer[4]  = sizeof(version);
+    trueDer[5]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[6]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[7]  = sizeof(algId) + 2;
+    trueDer[8]  = ASN_OBJECT_ID;
+    trueDer[9]  = sizeof(algId);
+    trueDer[10] = algId[0];
+    trueDer[11] = algId[1];
+    trueDer[12] = algId[2];
+    /* PKEY */
+    trueDer[13] = ASN_OCTET_STRING;
+    trueDer[14] = 0x81;
+    trueDer[15] = privKeySz + 2;
+    trueDer[16] = ASN_OCTET_STRING;
+    trueDer[17] = privKeySz;
+    privKey     = &trueDer[18];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[18] to trueDer[144] */
+    /* PUBKEY */
+    pubKey = NULL; /* Empty */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 3:
+     *     PKEY data = 131     (128 to 255)
+     *     PKEY_CURVEKEY = 128 (128 to 255)
+     *     PUBKEY data = 0     (Empty)
+     *     SEQ data =144       (128 to 255)
+     */
+    privKeySz = 128;
+    pubKeySz = 0;
+    trueDerSz = 147;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x81;
+    trueDer[2]  = trueDerSz - 3;
+    /* VER */
+    trueDer[3]  = ASN_INTEGER;
+    trueDer[4]  = sizeof(version);
+    trueDer[5]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[6]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[7]  = sizeof(algId) + 2;
+    trueDer[8]  = ASN_OBJECT_ID;
+    trueDer[9]  = sizeof(algId);
+    trueDer[10] = algId[0];
+    trueDer[11] = algId[1];
+    trueDer[12] = algId[2];
+    /* PKEY */
+    trueDer[13] = ASN_OCTET_STRING;
+    trueDer[14] = 0x81;
+    trueDer[15] = privKeySz + 3;
+    trueDer[16] = ASN_OCTET_STRING;
+    trueDer[17] = 0x81;
+    trueDer[18] = privKeySz;
+    privKey     = &trueDer[19];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[19] to trueDer[146] */
+    /* PUBKEY */
+    pubKey = NULL; /* Empty */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 4:
+     *     PKEY data = 258           (256 to 65535)
+     *     PKEY_CURVEPKEY data = 255 (128 to 255)
+     *     PUBKEY data = 0           (Empty)
+     *     SEQ data = 272            (256 to 65536)
+     */
+    privKeySz = 255;
+    pubKeySz = 0;
+    trueDerSz = 276;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x82;
+    trueDer[2]  = ((trueDerSz - 4) >> 8) & 0xff;
+    trueDer[3]  = (trueDerSz - 4) & 0xff;
+    /* VER */
+    trueDer[4]  = ASN_INTEGER;
+    trueDer[5]  = sizeof(version);
+    trueDer[6]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[7]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[8]  = sizeof(algId) + 2;
+    trueDer[9]  = ASN_OBJECT_ID;
+    trueDer[10] = sizeof(algId);
+    trueDer[11] = algId[0];
+    trueDer[12] = algId[1];
+    trueDer[13] = algId[2];
+    /* PKEY */
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = 0x82;
+    trueDer[16] = ((privKeySz + 3) >> 8) & 0xff;
+    trueDer[17] = (privKeySz + 3) & 0xff;
+    trueDer[18] = ASN_OCTET_STRING;
+    trueDer[19] = 0x81;
+    trueDer[20] = privKeySz;
+    privKey     = &trueDer[21];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[21] to trueDer[275] */
+    /* PUBKEY */
+    pubKey = NULL; /* Empty */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 5:
+     *     PKEY data = 260           (256 to 65535)
+     *     PKEY_CURVEPKEY data = 256 (256 to 65535)
+     *     PUBKEY data = 0           (Empty)
+     *     SEQ data = 274            (256 to 65535)
+     */
+    privKeySz = 256;
+    pubKeySz = 0;
+    trueDerSz = 278;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x82;
+    trueDer[2]  = ((trueDerSz - 4) >> 8) & 0xff;
+    trueDer[3]  = (trueDerSz - 4) & 0xff;
+    /* VER */
+    trueDer[4]  = ASN_INTEGER;
+    trueDer[5]  = sizeof(version);
+    trueDer[6]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[7]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[8]  = sizeof(algId) + 2;
+    trueDer[9]  = ASN_OBJECT_ID;
+    trueDer[10] = sizeof(algId);
+    trueDer[11] = algId[0];
+    trueDer[12] = algId[1];
+    trueDer[13] = algId[2];
+    /* PKEY */
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = 0x82;
+    trueDer[16] = ((privKeySz + 4) >> 8) & 0xff;
+    trueDer[17] = (privKeySz + 4) & 0xff;
+    trueDer[18] = ASN_OCTET_STRING;
+    trueDer[19] = 0x82;
+    trueDer[20] = (privKeySz >> 8) & 0xff;
+    trueDer[21] = privKeySz & 0xff;
+    privKey     = &trueDer[22];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[22] to trueDer[277] */
+    /* PUBKEY */
+    pubKey = NULL; /* Empty */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 6:
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 32          (1 to 127)
+     *     SEQ data = 80             (1 to 127)
+     */
+    privKeySz = 32;
+    pubKeySz = 32;
+    trueDerSz = 82;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = trueDerSz - 2;
+    /* VER */
+    trueDer[2]  = ASN_INTEGER;
+    trueDer[3]  = sizeof(version);
+    trueDer[4]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[5]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[6]  = sizeof(algId) + 2;
+    trueDer[7]  = ASN_OBJECT_ID;
+    trueDer[8]  = sizeof(algId);
+    trueDer[9]  = algId[0];
+    trueDer[10] = algId[1];
+    trueDer[11] = algId[2];
+    /* PKEY */
+    trueDer[12] = ASN_OCTET_STRING;
+    trueDer[13] = privKeySz + 2;
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = privKeySz;
+    privKey     = &trueDer[16];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[16] to trueDer[47] */
+    /* PUBKEY */
+    trueDer[48] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    trueDer[49] = pubKeySz;
+    pubKey      = &trueDer[50];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[50] to trueDer[81] */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 7:
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 128         (128 to 255)
+     *     SEQ data = 180            (128 to 255)
+     */
+    privKeySz = 32;
+    pubKeySz = 128;
+    trueDerSz = 180;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x81;
+    trueDer[2]  = trueDerSz - 3;
+    /* VER */
+    trueDer[3]  = ASN_INTEGER;
+    trueDer[4]  = sizeof(version);
+    trueDer[5]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[6]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[7]  = sizeof(algId) + 2;
+    trueDer[8]  = ASN_OBJECT_ID;
+    trueDer[9]  = sizeof(algId);
+    trueDer[10] = algId[0];
+    trueDer[11] = algId[1];
+    trueDer[12] = algId[2];
+    /* PKEY */
+    trueDer[13] = ASN_OCTET_STRING;
+    trueDer[14] = privKeySz + 2;
+    trueDer[15] = ASN_OCTET_STRING;
+    trueDer[16] = privKeySz;
+    privKey     = &trueDer[17];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[17] to trueDer[48] */
+    /* PUBKEY */
+    trueDer[49] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    trueDer[50] = 0x81;
+    trueDer[51] = pubKeySz;
+    pubKey      = &trueDer[52];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[52] to trueDer[179] */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+
+    /*
+     * Condition 8:
+     *     PKEY data = 34            (1 to 127)
+     *     PKEY_CURVEPKEY data = 32  (1 to 127)
+     *     PUBKEY data = 256         (256 to 65535)
+     *     SEQ data = 306            (256 to 65535)
+     */
+    privKeySz = 32;
+    pubKeySz = 256;
+    trueDerSz = 310;
+
+    /* SEQ */
+    trueDer[0]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[1]  = 0x82;
+    trueDer[2]  = ((trueDerSz - 4) >> 8) & 0xff;
+    trueDer[3]  = (trueDerSz - 4) & 0xff;
+    /* VER */
+    trueDer[4]  = ASN_INTEGER;
+    trueDer[5]  = sizeof(version);
+    trueDer[6]  = version[0];
+    /* PKEYALGO_SEQ */
+    trueDer[7]  = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    trueDer[8]  = sizeof(algId) + 2;
+    trueDer[9]  = ASN_OBJECT_ID;
+    trueDer[10] = sizeof(algId);
+    trueDer[11] = algId[0];
+    trueDer[12] = algId[1];
+    trueDer[13] = algId[2];
+    /* PKEY */
+    trueDer[14] = ASN_OCTET_STRING;
+    trueDer[15] = privKeySz + 2;
+    trueDer[16] = ASN_OCTET_STRING;
+    trueDer[17] = privKeySz;
+    privKey     = &trueDer[18];
+    XMEMSET(privKey, keyPat, privKeySz); /* trueDer[18] to trueDer[49] */
+    /* PUBKEY */
+    trueDer[50] = ASN_CONTEXT_SPECIFIC | ASN_ASYMKEY_PUBKEY;
+    trueDer[51] = 0x82;
+    trueDer[52] = (pubKeySz >> 8) & 0xff;
+    trueDer[53] = pubKeySz & 0xff;
+    pubKey      = &trueDer[54];
+    XMEMSET(pubKey, keyPat, pubKeySz); /* trueDer[54] to trueDer[309] */
+
+    EXPECT_TEST(test_SetAsymKeyDer_once(privKey, privKeySz, pubKey, pubKeySz,
+        trueDer, trueDerSz));
+#endif /* WC_ENABLE_ASYM_KEY_EXPORT && HAVE_ED25519 */
+
+    return EXPECT_RESULT();
+
+}
+
 #ifndef NO_ASN
 static int test_SetShortInt_once(word32 val, byte* valDer, word32 valDerSz)
 {
