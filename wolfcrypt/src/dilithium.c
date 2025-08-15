@@ -10586,6 +10586,52 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
 }
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
+#ifndef WC_NO_CONSTRUCTORS
+/**
+ * Create a new dilithium key object.
+ *
+ * heap  [in]  Dynamic memory hint.
+ * devId [in]  Device Id.
+ * returns MEMORY_E when dynamic memory allocation fails
+ */
+
+dilithium_key* wc_dilithium_new(void* heap, int devId)
+{
+    int ret;
+    dilithium_key* key = (dilithium_key*)XMALLOC(sizeof(dilithium_key), heap,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (key != NULL) {
+        ret = wc_dilithium_init_ex(key, heap, devId);
+        if (ret != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_DILITHIUM);
+            key = NULL;
+        }
+    }
+
+    return key;
+}
+
+/**
+ * Delete and free a dilithium key object.
+ *
+ * key   [in]       dilithium key object to delete.
+ * key_p [in, out]  Pointer to key pointer to set to NULL.
+ * returns BAD_FUNC_ARG when key is NULL
+ */
+
+int wc_dilithium_delete(dilithium_key* key, dilithium_key** key_p)
+{
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+    wc_dilithium_free(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    if (key_p != NULL)
+        *key_p = NULL;
+
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
+
 /* Initialize the dilithium private/public key.
  *
  * key  [in]  Dilithium key.
