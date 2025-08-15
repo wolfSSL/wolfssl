@@ -6425,7 +6425,7 @@ doPart:
                         ret -= MacSize(ssl);
                 #endif
                     TraceGotData(ret);
-                    if (ret) {  /* may be blank message */
+                    if (ret > 0) {  /* may be blank message */
                         if (data != NULL) {
                             byte* tmpData;  /* don't leak on realloc free */
                             /* add an extra byte at end of allocation in case
@@ -6479,10 +6479,20 @@ doPart:
                         decoded += ret;
                         ssl->buffers.clearOutputBuffer.length = 0;
                     }
+                    else if (ret < 0){
+                    #ifdef DEBUG_SNIFFER
+                        printf("Invalid data offset calculation! "
+                            "ret %d, inOutIdx %d, ivExtra %d\n",
+                            ret, inOutIdx, ivExtra);
+                    #endif
+                        /* set error, but do not treat fatal */
+                        SetError(BAD_APP_DATA_STR, error, session, 0);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                 }
                 else {
                     /* set error, but do not treat fatal */
-                    SetError(BAD_APP_DATA_STR, error,session, 0);
+                    SetError(BAD_APP_DATA_STR, error, session, 0);
                     return WOLFSSL_FATAL_ERROR;
                 }
                 if (ssl->buffers.outputBuffer.dynamicFlag)
@@ -6511,8 +6521,9 @@ doPart:
             return WOLFSSL_FATAL_ERROR;
     }
 
-    /* do we have another msg in record ? did we decode the current msg ? */
-    if (sslFrame < recordEnd && decoded) {
+    /* do we have another msg in record (if app data did we decode bytes?) */
+    if (sslFrame < recordEnd && ((enum ContentType)rh.type != application_data ||
+        ((enum ContentType)rh.type == application_data && decoded))) {
         Trace(ANOTHER_MSG_STR);
         goto doPart;
     }
