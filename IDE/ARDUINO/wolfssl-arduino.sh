@@ -26,6 +26,9 @@
 # The Arduino library include file is "wolfssl.h" (all lower case)
 # The Published wolfSSL Arduino Registry is at https://github.com/wolfSSL/Arduino-wolfSSL.git
 # See https://downloads.arduino.cc/libraries/logs/github.com/wolfSSL/Arduino-wolfSSL/
+#
+echo "wolfssl-arduino.sh v5.8.2 rev B"
+
 ROOT_DIR="/wolfssl"
 
 # The Arduino Version will initially have a suffix appended during fine tuning stage.
@@ -70,18 +73,24 @@ if [ "$ROOT_DIR" = "" ]; then
     exit 1
 fi
 
+if [ "$ARDUINO_ROOT" = "" ]; then
+    echo "No ARDUINO_ROOT export... detecting..."
+    ARDUINO_ROOT="$HOME/Arduino/libraries"
 
-ARDUINO_ROOT="$HOME/Arduino/libraries"
-
-# Check environment
-if [ -n "$WSL_DISTRO_NAME" ]; then
-    # we found a non-blank WSL environment distro name
-    current_path="$(pwd)"
-    pattern="/mnt/?"
-    if echo "$current_path" | grep -Eq "^$pattern"; then
-        # if we are in WSL and shared Windows file system, 'ln' does not work.
-        ARDUINO_ROOT="/mnt/c/Users/$USER/Documents/Arduino/libraries"
+    # Check environment
+    if [ -n "$WSL_DISTRO_NAME" ]; then
+        # we found a non-blank WSL environment distro name
+        echo "Found WSL: $WSL_DISTRO_NAME"
+        current_path="$(pwd)"
+        pattern="/mnt/?"
+        if echo "$current_path" | grep -Eq "^$pattern"; then
+            # if we are in WSL and shared Windows file system, 'ln' does not work.
+            ARDUINO_ROOT="/mnt/c/Users/$USER/Documents/Arduino/libraries"
+            echo "ARDUINO_ROOT set to $ARDUINO_ROOT"
+        fi
     fi
+else
+    echo "Using export ARDUINO_ROOT"
 fi
 echo "The Arduino library root is: $ARDUINO_ROOT"
 
@@ -173,7 +182,7 @@ THIS_DIR=${PWD##*/}
 if [ "$THIS_DIR" = "ARDUINO" ]; then
     # mkdir ./wolfssl
     if [ -d ".${ROOT_DIR}" ]; then
-        echo "ERROR: $(realpath ".${ROOT_DIR}") is not empty"
+        echo "ERROR: $(realpath ".${ROOT_DIR}") is not empty; failed prior install? Please remove."
         exit 1
     else
         echo "Step 01: mkdir .${ROOT_DIR}"
@@ -267,6 +276,7 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
     echo "Destination EXAMPLES_DIR=.${EXAMPLES_DIR}"
     echo "EXAMPLES_DIR_REAL_PATH=${EXAMPLES_DIR_REAL_PATH}"
 
+    # Only explicit source code is copied to the Arduino library. Edit with caution, no automation:
     if [ -n "$WOLFSSL_EXAMPLES_ROOT" ]; then
         echo "Copy template example...."
         mkdir -p ".${EXAMPLES_DIR}"/template/wolfssl_library/src
@@ -279,23 +289,33 @@ if [ "$THIS_DIR" = "ARDUINO" ]; then
 
         echo "Copy wolfssl_AES_CTR example...."
         mkdir -p ".${EXAMPLES_DIR}"/wolfssl_AES_CTR
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.ino ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/wolfssl_AES_CTR.ino || exit 1
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/README.md           ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/README.md           || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/wolfssl_AES_CTR.ino               ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/wolfssl_AES_CTR.ino               || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_AES_CTR/README.md                         ".${EXAMPLES_DIR}"/wolfssl_AES_CTR/README.md                         || exit 1
 
         echo "Copy wolfssl_client example...."
         mkdir -p ".${EXAMPLES_DIR}"/wolfssl_client
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/wolfssl_client.ino   ".${EXAMPLES_DIR}"/wolfssl_client/wolfssl_client.ino   || exit 1
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/README.md            ".${EXAMPLES_DIR}"/wolfssl_client/README.md            || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/wolfssl_client.ino                 ".${EXAMPLES_DIR}"/wolfssl_client/wolfssl_client.ino                 || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client/README.md                          ".${EXAMPLES_DIR}"/wolfssl_client/README.md                          || exit 1
+
+        echo "Copy wolfssl_client_dtls example...."
+        mkdir -p ".${EXAMPLES_DIR}"/wolfssl_client_dtls
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client_dtls/wolfssl_client_dtls.ino       ".${EXAMPLES_DIR}"/wolfssl_client_dtls/wolfssl_client_dtls.ino       || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_client_dtls/README.md                     ".${EXAMPLES_DIR}"/wolfssl_client_dtls/README.md                     || exit 1
 
         echo "Copy wolfssl_server example...."
         mkdir -p .${EXAMPLES_DIR}/wolfssl_server
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/wolfssl_server.ino   ".${EXAMPLES_DIR}"/wolfssl_server/wolfssl_server.ino   || exit 1
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/README.md            ".${EXAMPLES_DIR}"/wolfssl_server/README.md            || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/wolfssl_server.ino                 ".${EXAMPLES_DIR}"/wolfssl_server/wolfssl_server.ino                 || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server/README.md                          ".${EXAMPLES_DIR}"/wolfssl_server/README.md                          || exit 1
+
+        echo "Copy wolfssl_server_dtls example...."
+        mkdir -p .${EXAMPLES_DIR}/wolfssl_server_dtls
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server_dtls/wolfssl_server_dtls.ino       ".${EXAMPLES_DIR}"/wolfssl_server_dtls/wolfssl_server_dtls.ino       || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_server_dtls/README.md                     ".${EXAMPLES_DIR}"/wolfssl_server_dtls/README.md                     || exit 1
 
         echo "Copy wolfssl_version example...."
         mkdir -p .${EXAMPLES_DIR}/wolfssl_version
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/wolfssl_version.ino ".${EXAMPLES_DIR}"/wolfssl_version/wolfssl_version.ino || exit 1
-        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/README.md           ".${EXAMPLES_DIR}"/wolfssl_version/README.md           || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/wolfssl_version.ino               ".${EXAMPLES_DIR}"/wolfssl_version/wolfssl_version.ino               || exit 1
+        $CP_CMD "$WOLFSSL_EXAMPLES_ROOT"/Arduino/sketches/wolfssl_version/README.md                         ".${EXAMPLES_DIR}"/wolfssl_version/README.md                         || exit 1
     else
         NO_ARDUINO_EXAMPLES=1
     fi
@@ -364,27 +384,39 @@ if [ "$THIS_OPERATION" = "INSTALL" ]; then
     # Nearly an ordinary copy, but we remove any lines with ">>" (typically edit with caution warning in comments)
     grep -v '>>' ../../examples/configs/user_settings_arduino.h > ".${ROOT_SRC_DIR}"/user_settings.h || exit 1
 
-    # Show the user_settings.h revision string:
+    echo "This user_settings.h revision string:"
     grep "WOLFSSL_USER_SETTINGS_ID" ."${ROOT_SRC_DIR}/user_settings.h"
     echo ""
 
     if [ "$THIS_INSTALL_IS_GITHUB" = "true" ]; then
         echo "Installing to GitHub directory: $THIS_INSTALL_DIR"
-        cp -r ."$ROOT_DIR"/* "$THIS_INSTALL_DIR" || exit 1
+        cp -r ."$ROOT_DIR"/* "$THIS_INSTALL_DIR"                || exit 1
         echo "Removing workspace library directory: .$ROOT_DIR"
-        rm -rf ".$ROOT_DIR"
+        rm -rf ".$ROOT_DIR"                                     || exit 1
     else
 
         echo "Installing to local directory:"
         if [ "$THIS_INSTALL_DIR" = "" ]; then
-            echo "mv .$ROOT_DIR $ARDUINO_ROOT"
-            mv  ."$ROOT_DIR" "$ARDUINO_ROOT" || exit 1
+            if [ -n "$WSL_DISTRO_NAME" ]; then
+                # setfattr not installed by default
+                # echo "Set system.wsl_case_sensitive .$ROOT_DIR"
+                # setfattr -x system.wsl_case_sensitive .$ROOT_DIR
+                #
+                # use copy instead of move to avoid possible system.wsl_case_sensitive warnings
+                echo "cp -r  .\"$ROOT_DIR\" \"$ARDUINO_ROOT\""
+                      cp -r   ."$ROOT_DIR"   "$ARDUINO_ROOT"    || exit 1
 
+                echo "rm -rf .\"$ROOT_DIR\""
+                      rm -rf  ."$ROOT_DIR"                      || exit 1
+            else
+                echo "mv  .$ROOT_DIR   $ARDUINO_ROOT"
+                      mv ."$ROOT_DIR" "$ARDUINO_ROOT"           || exit 1
+            fi
             echo "Arduino wolfSSL Version: $WOLFSSL_VERSION$WOLFSSL_VERSION_ARUINO_SUFFIX"
         else
             echo "cp -r .\"$ROOT_DIR\"/* \"$THIS_INSTALL_DIR\""
-            mkdir -p "$THIS_INSTALL_DIR" || exit 1
-            cp -r ."$ROOT_DIR"/* "$THIS_INSTALL_DIR" || exit 1
+            mkdir -p "$THIS_INSTALL_DIR"                        || exit 1
+            cp -r ."$ROOT_DIR"/* "$THIS_INSTALL_DIR"            || exit 1
         fi
     fi
 fi
