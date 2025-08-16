@@ -1713,7 +1713,8 @@ enum Misc {
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
     DTLS_EXPORT_OPT_SZ       = 62, /* amount of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_4     = 61, /* amount of bytes used from Options */
-    TLS_EXPORT_OPT_SZ        = 65, /* amount of bytes used from Options */
+    TLS_EXPORT_OPT_SZ        = 66, /* amount of bytes used from Options */
+    TLS_EXPORT_OPT_SZ_4      = 65, /* amount of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */

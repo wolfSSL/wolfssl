@@ -1911,7 +1911,7 @@ int wolfSSL_session_import_internal(WOLFSSL* ssl, const unsigned char* buf,
                     optSz = DTLS_EXPORT_OPT_SZ_4;
                 }
                 else {
-                    optSz = TLS_EXPORT_OPT_SZ;
+                    optSz = TLS_EXPORT_OPT_SZ_4;
                 }
                 break;
 
