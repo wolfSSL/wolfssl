@@ -12371,6 +12371,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             *sigAlgo = SM2k;
             break;
         case invalid_sa_algo:
+        case any_sa_algo:
         default:
             *hashAlgo = WC_HASH_TYPE_NONE;
             *sigAlgo = 0;
@@ -16166,6 +16167,9 @@ static WC_INLINE const char* wolfssl_kea_to_string(int kea)
             keaStr = "ECDH";
             break;
 #endif
+        case any_kea:
+            keaStr = "any";
+            break;
         default:
             keaStr = "unknown";
             break;
@@ -16217,6 +16221,9 @@ static WC_INLINE const char* wolfssl_sigalg_to_string(int sig_algo)
             authStr = "Ed448";
             break;
 #endif
+        case any_sa_algo:
+            authStr = "any";
+            break;
         default:
             authStr = "unknown";
             break;
@@ -16247,18 +16254,18 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
 #endif
 #ifndef NO_AES
         case wolfssl_aes:
-            if (key_size == 128)
+            if (key_size == AES_128_KEY_SIZE)
                 encStr = "AES(128)";
-            else if (key_size == 256)
+            else if (key_size == AES_256_KEY_SIZE)
                 encStr = "AES(256)";
             else
                 encStr = "AES(?)";
             break;
     #ifdef HAVE_AESGCM
         case wolfssl_aes_gcm:
-            if (key_size == 128)
+            if (key_size == AES_128_KEY_SIZE)
                 encStr = "AESGCM(128)";
-            else if (key_size == 256)
+            else if (key_size == AES_256_KEY_SIZE)
                 encStr = "AESGCM(256)";
             else
                 encStr = "AESGCM(?)";
@@ -16266,9 +16273,9 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
     #endif
     #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
-            if (key_size == 128)
+            if (key_size == AES_128_KEY_SIZE)
                 encStr = "AESCCM(128)";
-            else if (key_size == 256)
+            else if (key_size == AES_256_KEY_SIZE)
                 encStr = "AESCCM(256)";
             else
                 encStr = "AESCCM(?)";
@@ -16282,11 +16289,11 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
 #endif
 #ifdef HAVE_ARIA
         case wolfssl_aria_gcm:
-            if (key_size == 128)
+            if (key_size == ARIA_128_KEY_SIZE)
                 encStr = "Aria(128)";
-            else if (key_size == 192)
+            else if (key_size == ARIA_192_KEY_SIZE)
                 encStr = "Aria(192)";
-            else if (key_size == 256)
+            else if (key_size == ARIA_256_KEY_SIZE)
                 encStr = "Aria(256)";
             else
                 encStr = "Aria(?)";
@@ -16294,9 +16301,9 @@ static WC_INLINE const char* wolfssl_cipher_to_string(int cipher, int key_size)
 #endif
 #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
-            if (key_size == 128)
+            if (key_size == CAMELLIA_128_KEY_SIZE)
                 encStr = "Camellia(128)";
-            else if (key_size == 256)
+            else if (key_size == CAMELLIA_256_KEY_SIZE)
                 encStr = "Camellia(256)";
             else
                 encStr = "Camellia(?)";
@@ -16383,7 +16390,10 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
     authStr = wolfssl_sigalg_to_string(cipher->ssl->specs.sig_algo);
     encStr = wolfssl_cipher_to_string(cipher->ssl->specs.bulk_cipher_algorithm,
                                       cipher->ssl->specs.key_size);
-    macStr = wolfssl_mac_to_string(cipher->ssl->specs.mac_algorithm);
+    if (cipher->ssl->specs.cipher_type == aead)
+        macStr = "AEAD";
+    else
+        macStr = wolfssl_mac_to_string(cipher->ssl->specs.mac_algorithm);
 
     /* Build up the string by copying onto the end. */
     XSTRNCPY(in, wolfSSL_CIPHER_get_name(cipher), (size_t)len);
@@ -19263,6 +19273,7 @@ static int SaToNid(byte sa, int* nid)
             *nid = WC_NID_sm2;
             break;
         case invalid_sa_algo:
+        case any_sa_algo:
         default:
             ret = WOLFSSL_FAILURE;
             break;
