@@ -25,7 +25,7 @@
 
 #if defined(HAVE_CPUID) || defined(HAVE_CPUID_INTEL) || \
     defined(HAVE_CPUID_AARCH64)
-    static cpuid_flags_t cpuid_flags = WC_CPUID_INITIALIZER;
+    static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 #endif
 
 #ifdef HAVE_CPUID_INTEL
@@ -49,7 +49,7 @@
     #define ECX 2
     #define EDX 3
 
-    static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
+    static cpuid_flags_t cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
     {
         int got_intel_cpu = 0;
         int got_amd_cpu = 0;
@@ -82,8 +82,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             if (cpuid_flag(1, 0, ECX, 28)) { new_cpuid_flags |= CPUID_AVX1  ; }
             if (cpuid_flag(7, 0, EBX,  5)) { new_cpuid_flags |= CPUID_AVX2  ; }
             if (cpuid_flag(7, 0, EBX,  8)) { new_cpuid_flags |= CPUID_BMI2  ; }
@@ -115,8 +116,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features;
 
             __asm__ __volatile (
@@ -158,8 +160,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 hwcaps = getauxval(AT_HWCAP);
 
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
@@ -204,8 +207,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features = android_getCpuFeatures();
 
             if (features & ANDROID_CPU_ARM_FEATURE_AES)
@@ -237,8 +241,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_AES") != 0)
                 new_cpuid_flags |= CPUID_AES;
             if (cpuid_get_sysctlbyname("hw.optional.arm.FEAT_PMULL") != 0)
@@ -269,8 +274,9 @@
 
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             word64 features = 0;
 
             elf_aux_info(AT_HWCAP, &features, sizeof(features));
@@ -301,8 +307,9 @@
 #else
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             new_cpuid_flags |= CPUID_AES;
             new_cpuid_flags |= CPUID_PMULL;
@@ -332,8 +339,9 @@
 #elif defined(HAVE_CPUID)
     static WC_INLINE void cpuid_set_flags(void)
     {
-        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_UNINITED_VAL) {
-            word32 new_cpuid_flags = 0, old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
             (void)wolfSSL_Atomic_Uint_CompareExchange
                 (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
@@ -342,28 +350,28 @@
 
 #ifdef HAVE_CPUID
 
-    word32 cpuid_get_flags(void)
+    cpuid_flags_t cpuid_get_flags(void)
     {
         cpuid_set_flags();
         return WOLFSSL_ATOMIC_LOAD(cpuid_flags);
     }
 
-    void cpuid_select_flags(word32 flags)
+    void cpuid_select_flags(cpuid_flags_t flags)
     {
         WOLFSSL_ATOMIC_STORE(cpuid_flags, flags);
     }
 
-    void cpuid_set_flag(word32 flag)
+    void cpuid_set_flag(cpuid_flags_t flag)
     {
-        word32 current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags | flag))
             WC_RELAX_LONG_LOOP();
     }
 
-    void cpuid_clear_flag(word32 flag)
+    void cpuid_clear_flag(cpuid_flags_t flag)
     {
-        word32 current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
+        cpuid_flags_t current_flags = WOLFSSL_ATOMIC_LOAD(cpuid_flags);
         while (! wolfSSL_Atomic_Uint_CompareExchange
                (&cpuid_flags, &current_flags, current_flags & ~flag))
             WC_RELAX_LONG_LOOP();
