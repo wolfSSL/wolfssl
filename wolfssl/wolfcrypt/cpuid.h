@@ -44,14 +44,15 @@
     #define HAVE_CPUID_AARCH64
 #endif
 
-#define WC_CPUID_UNINITED_VAL 0xffffffffU
+#define WC_CPUID_INITIALIZER 0xffffffffU
+typedef word32 cpuid_flags_t;
 #if !defined(WOLFSSL_NO_ATOMICS) && !defined(SINGLE_THREADED)
-    typedef wolfSSL_Atomic_Uint cpuid_flags_t;
-    #define WC_CPUID_INITIALIZER \
-        WOLFSSL_ATOMIC_INITIALIZER(WC_CPUID_UNINITED_VAL)
+    typedef wolfSSL_Atomic_Uint cpuid_flags_atomic_t;
+    #define WC_CPUID_ATOMIC_INITIALIZER \
+        WOLFSSL_ATOMIC_INITIALIZER(WC_CPUID_INITIALIZER)
 #else
-    typedef word32 cpuid_flags_t;
-    #define WC_CPUID_INITIALIZER WC_CPUID_UNINITED_VAL
+    typedef word32 cpuid_flags_atomic_t;
+    #define WC_CPUID_ATOMIC_INITIALIZER WC_CPUID_INITIALIZER
 #endif
 
 #ifdef HAVE_CPUID_INTEL
@@ -103,11 +104,26 @@
 #endif
 
 #ifdef HAVE_CPUID
-    word32 cpuid_get_flags(void);
+    cpuid_flags_t cpuid_get_flags(void);
 
+    /* Idempotent flag getter -- fast, but return value (whether updated) is not
+     * strictly reliable.
+     */
     static WC_INLINE int cpuid_get_flags_ex(cpuid_flags_t *flags) {
-        if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_UNINITED_VAL) {
-            word32 old_cpuid_flags = WC_CPUID_UNINITED_VAL;
+        if (*flags == WC_CPUID_INITIALIZER) {
+            *flags = cpuid_get_flags();
+            return 1;
+        }
+        else
+            return 0;
+    }
+
+    /* Strictly race-free flag getter -- slow, but the return value is strictly
+     * accurate.
+     */
+    static WC_INLINE int cpuid_get_flags_atomic(cpuid_flags_atomic_t *flags) {
+        if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t old_cpuid_flags = WC_CPUID_INITIALIZER;
             return wolfSSL_Atomic_Uint_CompareExchange
                 (flags, &old_cpuid_flags, cpuid_get_flags());
         }
@@ -115,10 +131,11 @@
             return 0;
     }
 
+
     /* Public APIs to modify flags. */
-    WOLFSSL_API void cpuid_select_flags(word32 flags);
-    WOLFSSL_API void cpuid_set_flag(word32 flag);
-    WOLFSSL_API void cpuid_clear_flag(word32 flag);
+    WOLFSSL_API void cpuid_select_flags(cpuid_flags_t flags);
+    WOLFSSL_API void cpuid_set_flag(cpuid_flags_t flag);
+    WOLFSSL_API void cpuid_clear_flag(cpuid_flags_t flag);
 
 #endif
 
