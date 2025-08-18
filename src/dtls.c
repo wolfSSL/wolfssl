@@ -899,7 +899,7 @@ static int SendStatelessReply(const WOLFSSL* ssl, WolfSSL_CH* ch, byte isTls13)
                 DTLS_COOKIE_SZ);
 #else
         WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
-        WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
+        (void)WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
         ret = NOT_COMPILED_IN;
 #endif
     }

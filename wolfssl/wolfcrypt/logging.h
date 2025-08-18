@@ -436,9 +436,9 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
           OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_VERBOSE_ERRORS
-#define WOLFSSL_ERROR_VERBOSE(e) WOLFSSL_ERROR(e)
+#define WOLFSSL_ERROR_VERBOSE(e) (WOLFSSL_ERROR(e),e)
 #else
-#define WOLFSSL_ERROR_VERBOSE(e) (void)(e)
+#define WOLFSSL_ERROR_VERBOSE(e) (e)
 #endif /* WOLFSSL_VERBOSE_ERRORS */
 
 #ifdef HAVE_STACK_SIZE_VERBOSE

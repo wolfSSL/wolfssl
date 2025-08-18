@@ -26245,8 +26245,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
 #ifdef MAX3266X_CB /* Can do a basic ECB block */
@@ -26273,8 +26272,7 @@ static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 {
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
 #ifdef MAX3266X_CB /* Can do a basic ECB block */
@@ -26329,8 +26327,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
     if (sz == 0) {
@@ -26370,8 +26367,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
     if (sz == 0) {
@@ -26416,8 +26412,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
     #ifdef WOLF_CRYPTO_CB
         #ifndef WOLF_CRYPTO_CB_FIND
@@ -26997,8 +26992,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (aes->rounds != 10 && aes->rounds != 12 && aes->rounds != 14) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
 #ifdef WOLF_CRYPTO_CB
