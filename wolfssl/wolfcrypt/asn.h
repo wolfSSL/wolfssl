@@ -2763,7 +2763,7 @@ WOLFSSL_LOCAL int DecodeAsymKey(const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
-WOLFSSL_LOCAL int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
+WOLFSSL_TEST_VIS int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     const byte* pubKey, word32 pubKeyLen, byte* output, word32 outLen,
     int keyType);
 #endif
