@@ -2835,8 +2835,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
     r = aes->rounds >> 1;
 
     if (r > 7 || r == 0) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
 #ifdef WOLFSSL_AESNI
@@ -2871,8 +2870,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
             return 0;
         #else
             WOLFSSL_MSG("AES-ECB encrypt with bad alignment");
-            WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
-            return BAD_ALIGN_E;
+            return WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
         #endif
         }
 
@@ -3619,8 +3617,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     r = aes->rounds >> 1;
 
     if (r > 7 || r == 0) {
-        WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
-        return KEYUSAGE_E;
+        return WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
     }
 
 #ifdef WOLFSSL_AESNI
@@ -5753,8 +5750,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         blocks = sz / WC_AES_BLOCK_SIZE;
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
         if (sz % WC_AES_BLOCK_SIZE) {
-            WOLFSSL_ERROR_VERBOSE(BAD_LENGTH_E);
-            return BAD_LENGTH_E;
+            return WOLFSSL_ERROR_VERBOSE(BAD_LENGTH_E);
         }
 #endif
 
@@ -5853,8 +5849,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 }
             #else
                 WOLFSSL_MSG("AES-CBC encrypt with bad alignment");
-                WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
-                ret = BAD_ALIGN_E;
+                ret = WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
             #endif
             } else {
                 AES_CBC_encrypt_AESNI(in, out, (byte*)aes->reg, sz, (byte*)aes->key,

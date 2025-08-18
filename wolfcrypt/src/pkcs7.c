@@ -10562,8 +10562,7 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                     XFREE(privKey, pkcs7->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                             #endif
-                            WOLFSSL_ERROR_VERBOSE(MEMORY_E);
-                            return MEMORY_E;
+                            return WOLFSSL_ERROR_VERBOSE(MEMORY_E);
                         }
 
                         keySz = wc_RsaPrivateDecrypt_ex(encryptedKey,

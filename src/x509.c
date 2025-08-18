@@ -5763,7 +5763,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                                             &idx, (ecc_key*)key->ecc->internal,
                                             key->pkey_sz);
                 if (ret < 0) {
-                    WOLFSSL_ERROR_VERBOSE(ret);
+                    (void)WOLFSSL_ERROR_VERBOSE(ret);
                     WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
                     wolfSSL_EVP_PKEY_free(key);
                     return NULL;
@@ -10860,7 +10860,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     }
     else {
         WOLFSSL_MSG("Subject Key ID too large");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+        (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return WOLFSSL_FAILURE;
     }
 
@@ -10881,7 +10881,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     }
     else {
         WOLFSSL_MSG("Auth Key ID too large");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+        (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return WOLFSSL_FAILURE;
     }
 
@@ -10905,7 +10905,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     if (x509->rawCRLInfo != NULL) {
         if (x509->rawCRLInfoSz > CTC_MAX_CRLINFO_SZ) {
             WOLFSSL_MSG("CRL Info too large");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(cert->crlInfo, x509->rawCRLInfo, x509->rawCRLInfoSz);
@@ -10981,7 +10981,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         if (serialSz > EXTERNAL_SERIAL_SIZE ||
                 serialSz > CTC_SERIAL_SIZE) {
             WOLFSSL_MSG("Serial size too large error");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(cert->serial, serial, serialSz);
@@ -11210,7 +11210,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_RsaPublicKeyDecode(x509->pubKey.buffer, &idx, rsa,
                                                            x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_FreeRsaKey(rsa);
                 XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11239,7 +11239,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_EccPublicKeyDecode(x509->pubKey.buffer, &idx, ecc,
                                                            x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_ecc_free(ecc);
                 XFREE(ecc, NULL, DYNAMIC_TYPE_ECC);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11268,7 +11268,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_DsaPublicKeyDecode(x509->pubKey.buffer, &idx, dsa,
                                                            x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_FreeDsaKey(dsa);
                 XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11307,7 +11307,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_Falcon_PublicKeyDecode(x509->pubKey.buffer, &idx, falcon,
                                             x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_falcon_free(falcon);
                 XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11371,7 +11371,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_Dilithium_PublicKeyDecode(x509->pubKey.buffer, &idx,
                                     dilithium, x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_dilithium_free(dilithium);
                 XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11430,7 +11430,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             ret = wc_Sphincs_PublicKeyDecode(x509->pubKey.buffer, &idx, sphincs,
                                              x509->pubKey.length);
             if (ret != 0) {
-                WOLFSSL_ERROR_VERBOSE(ret);
+                (void)WOLFSSL_ERROR_VERBOSE(ret);
                 wc_sphincs_free(sphincs);
                 XFREE(sphincs, NULL, DYNAMIC_TYPE_SPHINCS);
                 XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
@@ -11463,8 +11463,7 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             wc_FreeRng(&rng);
         }
         if (ret <= 0) {
-            WOLFSSL_ERROR_VERBOSE(ret);
-            ret = WOLFSSL_FAILURE;
+            (void)WOLFSSL_ERROR_VERBOSE(ret) = WOLFSSL_FAILURE;
             goto cleanup;
         }
 
@@ -15409,7 +15408,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         }
         else {
             WOLFSSL_MSG("Challenge password too long");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         break;
@@ -15418,7 +15417,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             len = (int)XSTRLEN((char*)bytes);
         if (len + 1 > EXTERNAL_SERIAL_SIZE) {
             WOLFSSL_MSG("SerialNumber too long");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
+            (void)WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(req->serial, bytes, len);
