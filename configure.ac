@@ -1344,8 +1344,6 @@ then
     then
         test "$enable_curve25519" = "" && enable_curve25519=yes
         test "$enable_curve448" = "" && enable_curve448=yes
-        test "$enable_cryptocb" = "" && enable_cryptocb=yes
-        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -1358,6 +1356,8 @@ then
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
+            test "$enable_cryptocb" = "" && enable_cryptocb=yes
+            test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
             test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
             test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
@@ -7335,7 +7335,7 @@ then
 fi
 
 # Small Stack - Cache on object
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
 then
     ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
 else
