@@ -3993,6 +3993,42 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
     }
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
+    if (!clientHello) {
+        TLSX* ext;
+        word32 modes;
+        KeyShareEntry* kse = NULL;
+
+        /* Get the PSK key exchange modes the client wants to negotiate. */
+        ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
+        if (ext == NULL) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        modes = ext->val;
+
+        ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (ext != NULL) {
+            kse = (KeyShareEntry*)ext->data;
+        }
+        /* Use (EC)DHE for forward-security if possible. */
+        if (((modes & (1 << PSK_DHE_KE)) != 0) && (!ssl->options.noPskDheKe) &&
+                                                (kse != NULL) && kse->derived) {
+            if ((kse->session != 0) && (kse->session != kse->group)) {
+                WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+                return PSK_KEY_ERROR;
+            }
+        }
+        else if (ssl->options.onlyPskDheKe) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        else if (ssl->options.noPskDheKe) {
+            ssl->arrays->preMasterSz = 0;
+        }
+    }
+    else
+#endif
     if (ssl->options.noPskDheKe) {
         ssl->arrays->preMasterSz = 0;
     }
