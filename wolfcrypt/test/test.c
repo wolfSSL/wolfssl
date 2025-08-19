@@ -15578,7 +15578,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
         !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
         !defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(WOLFSSL_KCAPI_AES) && \
         !(defined(WOLF_CRYPTO_CB) && \
-            (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
+            (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC))) && \
+        !defined(WOLFSSL_AESGCM_NO_VARIABLE_IV_TEST)
 
     #define ENABLE_NON_12BYTE_IV_TEST
 #ifdef WOLFSSL_AES_192
