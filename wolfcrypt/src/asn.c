@@ -39514,6 +39514,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int ret = 0;
     word32 idx = *ioIndex;
     Signer* ca = NULL;
+    CbOCSPRespCert ocspRespCertCb = (NULL != cm) ? ((WOLFSSL_CERT_MANAGER*)cm)->ocspRespCertCb: NULL;
     int sigValid = 0;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
@@ -39561,6 +39562,11 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         /* Store reference to certificate BER data. */
         GetASN_GetRef(&dataASN[OCSPBASICRESPASN_IDX_CERTS_SEQ], &resp->cert,
                 &resp->certSz);
+    }
+    /* If no certificate was read from the response data, but an response issuer certificate callback is available. */
+    if ((ret == 0) && (resp->certSz == 0) && (ocspRespCertCb != NULL)) {
+        /* Call callback to obtain issuing certificate data. */
+        resp->certSz = ocspRespCertCb(&resp->cert);
     }
 
     if ((ret == 0) && resp->certSz > 0) {

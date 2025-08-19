@@ -2484,6 +2484,25 @@ int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER* cm, CbOCSPIO ioCb,
     return ret;
 }
 
+WOLFSSL_API int wolfSSL_CertManagerSetOCSPResponseIssuer_Cb(WOLFSSL_CERT_MANAGER* cm,
+        CbOCSPRespCert respCertCb)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetOCSP_Cb");
+
+    /* Validate parameters. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Set callback into certificate manager. */
+        cm->ocspRespCertCb = respCertCb;
+    }
+
+    return ret;
+}
+
 #endif /* HAVE_OCSP */
 
 #endif /* NO_CERTS */

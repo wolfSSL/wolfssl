@@ -2696,6 +2696,7 @@ struct WOLFSSL_CERT_MANAGER {
     crlErrorCb      crlCb;                 /* Allow user to override error */
     void*           crlCbCtx;
     CbOCSPIO        ocspIOCb;              /* I/O callback for OCSP lookup */
+    CbOCSPRespCert  ocspRespCertCb;        /* Callback for OCSP response issuer certificate */
     CbOCSPRespFree  ocspRespFreeCb;        /* Frees OCSP Response from IO Cb */
     wolfSSL_Mutex   caLock;                /* CA list lock */
     byte            crlEnabled:1;          /* is CRL on ? */

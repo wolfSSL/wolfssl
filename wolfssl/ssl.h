@@ -3749,6 +3749,7 @@ typedef int  (*crlErrorCb)(int ret, WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm,
                            void* ctx);
 typedef int  (*CbOCSPIO)(void*, const char*, int,
                                          unsigned char*, int, unsigned char**);
+typedef int (*CbOCSPRespCert)(unsigned char**);
 typedef void (*CbOCSPRespFree)(void*,unsigned char*);
 
 #ifdef HAVE_CRL_IO
@@ -4264,6 +4265,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
         WOLFSSL_CERT_MANAGER* cm, const char* url);
     WOLFSSL_API int wolfSSL_CertManagerSetOCSP_Cb(WOLFSSL_CERT_MANAGER* cm,
         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx);
+    WOLFSSL_API int wolfSSL_CertManagerSetOCSPResponseIssuer_Cb(WOLFSSL_CERT_MANAGER* cm,
+        CbOCSPRespCert respCertCb);
 
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSPStapling(
         WOLFSSL_CERT_MANAGER* cm);
