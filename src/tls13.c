@@ -10118,10 +10118,24 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_BUILD:
         {
             int validSigAlgo;
+            const Suites* suites = WOLFSSL_SUITES(ssl);
+            word16 i;
 
             /* Signature algorithm. */
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
+            }
+
+            validSigAlgo = 0;
+            for (i = 0; i < suites->hashSigAlgoSz; i += 2) {
+                 if ((suites->hashSigAlgo[i + 0] == input[args->idx + 0]) &&
+                         (suites->hashSigAlgo[i + 1] == input[args->idx + 1])) {
+                     validSigAlgo = 1;
+                     break;
+                 }
+            }
+            if (!validSigAlgo) {
+                ERROR_OUT(INVALID_PARAMETER, exit_dcv);
             }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
