@@ -162,7 +162,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key,
                 aes->keylen, NULL);
             if (ret != HAL_OK) {
-                ret = WC_TIMEOUT_E;
+                WOLFSSL_MSG("Error with DHUK key unwrap");
+                ret = BAD_FUNC_ARG;
             }
             /* reconfigure for using unwrapped key now */
             HAL_CRYP_GetConfig(&hcryp, &Config);
@@ -175,16 +176,21 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         else {
             ret = wc_Stm32_Aes_Init(aes, &hcryp);
-            hcryp.Init.Algorithm  = CRYP_AES_ECB;
-            if (HAL_CRYP_Init(&hcryp) != HAL_OK) {
-                ret = BAD_FUNC_ARG;
+            if (ret == 0) {
+                hcryp.Init.Algorithm  = CRYP_AES_ECB;
+                ret = HAL_CRYP_Init(&hcryp);
+                if (ret != HAL_OK) {
+                    ret = BAD_FUNC_ARG;
+                }
             }
         }
 
-        ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
-                (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
-        if (ret != HAL_OK) {
-            ret = WC_TIMEOUT_E;
+        if (ret == HAL_OK) {
+            ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
+                    (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
+            if (ret != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
         }
         HAL_CRYP_DeInit(&hcryp);
     #elif defined(WOLFSSL_STM32_CUBEMX)
@@ -299,12 +305,14 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
         /* Handle making use of wrapped key */
         if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
-            CRYP_ConfigTypeDef Config = {0};
+            CRYP_ConfigTypeDef Config;
 
+            XMEMSET(&Config, 0, sizeof(Config));
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key,
                 aes->keylen, NULL);
             if (ret != HAL_OK) {
-                ret = WC_TIMEOUT_E;
+                WOLFSSL_MSG("Error with DHUK unwrap");
+                ret = BAD_FUNC_ARG;
             }
             /* reconfigure for using unwrapped key now */
             HAL_CRYP_GetConfig(&hcryp, &Config);
@@ -317,16 +325,21 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         else {
             ret = wc_Stm32_Aes_Init(aes, &hcryp);
-            hcryp.Init.Algorithm  = CRYP_AES_ECB;
-            if (HAL_CRYP_Init(&hcryp) != HAL_OK) {
-                ret = BAD_FUNC_ARG;
+            if (ret == 0) {
+                hcryp.Init.Algorithm  = CRYP_AES_ECB;
+                ret = HAL_CRYP_Init(&hcryp);
+                if (ret != HAL_OK) {
+                    ret = BAD_FUNC_ARG;
+                }
             }
         }
 
-        ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
-                (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
-        if (ret != HAL_OK) {
-            ret = WC_TIMEOUT_E;
+        if (ret == HAL_OK) {
+            ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)inBlock, WC_AES_BLOCK_SIZE,
+                    (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
+            if (ret != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
         }
         HAL_CRYP_DeInit(&hcryp);
     #elif defined(WOLFSSL_STM32_CUBEMX)
@@ -5062,8 +5075,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
 
         if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
-            CRYP_ConfigTypeDef Config = {0};
+            CRYP_ConfigTypeDef Config;
 
+            XMEMSET(&Config, 0, sizeof(Config));
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen, NULL);
 
             /* reconfigure for using unwrapped key now */
@@ -5078,6 +5092,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         else {
             ret = wc_Stm32_Aes_Init(aes, &hcryp);
             if (ret != 0) {
+                wolfSSL_CryptHwMutexUnLock();
                 return ret;
             }
             hcryp.Init.Algorithm  = CRYP_AES_CBC;
@@ -5089,13 +5104,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (ret == HAL_OK) {
             ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
                 (uint32_t*)out, STM32_HAL_TIMEOUT);
-        }
-        if (ret != HAL_OK) {
-            ret = WC_TIMEOUT_E;
-        }
+            if (ret != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
 
-        /* store iv for next call */
-        XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+            /* store iv for next call */
+            XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+        }
 
         HAL_CRYP_DeInit(&hcryp);
 
@@ -5125,8 +5140,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
 
         if (aes->devId == WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID) {
-            CRYP_ConfigTypeDef Config = {0};
+            CRYP_ConfigTypeDef Config;
 
+            XMEMSET(&Config, 0, sizeof(Config));
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen, NULL);
 
             /* reconfigure for using unwrapped key now */
@@ -5141,6 +5157,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         else {
             ret = wc_Stm32_Aes_Init(aes, &hcryp);
             if (ret != 0) {
+                wolfSSL_CryptHwMutexUnLock();
                 return ret;
             }
             hcryp.Init.Algorithm  = CRYP_AES_CBC;
@@ -5149,19 +5166,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             ret = HAL_CRYP_Init(&hcryp);
         }
 
-        /* if input and output same will overwrite input iv */
-        XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
-
         if (ret == HAL_OK) {
+            /* if input and output same will overwrite input iv */
+            XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
             ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, blocks * WC_AES_BLOCK_SIZE,
                 (uint32_t*)out, STM32_HAL_TIMEOUT);
-        }
-        if (ret != HAL_OK) {
-            ret = WC_TIMEOUT_E;
-        }
+            if (ret != HAL_OK) {
+                ret = WC_TIMEOUT_E;
+            }
 
-        /* store iv for next call */
-        XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
+            /* store iv for next call */
+            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
+        }
 
         HAL_CRYP_DeInit(&hcryp);
         wolfSSL_CryptHwMutexUnLock();
