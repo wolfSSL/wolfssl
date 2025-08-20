@@ -39327,7 +39327,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
 #endif
                         ) {
-            WOLFSSL_MSG("Missing ticket callback")
+            WOLFSSL_MSG("Missing ticket callback");
             ret = WOLFSSL_TICKET_RET_REJECT;
         }
         else {
