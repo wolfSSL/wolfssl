@@ -80,7 +80,6 @@ static WC_INLINE int aligned_xmalloc(byte** buf, byte** aligned, void* heap, wor
     return 0;
 #else
     WOLFSSL_MSG("AES-ECB encrypt with bad alignment");
-    WOLFSSL_ERROR_VERBOSE(BAD_ALIGN_E);
     return BAD_ALIGN_E;
 #endif
 }
