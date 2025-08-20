@@ -1625,6 +1625,14 @@ if(NOT WOLFSSL_INLINE)
     list(APPEND WOLFSSL_DEFINITIONS "-DNO_INLINE")
 endif()
 
+add_option("WOLFSSL_ARMASM_INLINE"
+    "Enable ARM assembly inline functions (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_ARMASM_INLINE)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_ARMASM_INLINE")
+endif()
+
 # TODO:
 #       - CRL monitor
 #       - User crypto
