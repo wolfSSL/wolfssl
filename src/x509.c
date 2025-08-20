@@ -10880,7 +10880,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     }
     else {
         WOLFSSL_MSG("Auth Key ID too large");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return WOLFSSL_FAILURE;
     }
 

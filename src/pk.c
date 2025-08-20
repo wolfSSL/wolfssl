@@ -1868,7 +1868,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
             else {
                  WOLFSSL_ERROR_MSG("RsaPublicKeyDecode failed");
             }
-            WOLFSSL_ERROR_VERBOSE(res);
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
