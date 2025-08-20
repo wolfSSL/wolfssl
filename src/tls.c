@@ -9874,6 +9874,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     int ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    keyShareEntry->session = ssl->session->namedGroup;
     ssl->session->namedGroup = keyShareEntry->group;
 #endif
     /* reset the pre master secret size */
@@ -9901,6 +9902,9 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         WOLFSSL_MSG("KE Secret");
         WOLFSSL_BUFFER(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
     }
+#endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    keyShareEntry->derived = (ret == 0);
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     keyShareEntry->lastRet = ret;
