@@ -15330,7 +15330,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 /* Must be empty when received from server. */
                 if (ssl->options.side == WOLFSSL_CLIENT_END) {
                     if (ctxSz != 0) {
-                        WOLFSSL_ERROR_VERBOSE(INVALID_CERT_CTX_E);
                         ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                 }
@@ -15340,7 +15339,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ssl->options.side == WOLFSSL_SERVER_END) {
                     if (ssl->options.handShakeState != HANDSHAKE_DONE &&
                                                                    ctxSz != 0) {
-                        WOLFSSL_ERROR_VERBOSE(INVALID_CERT_CTX_E);
                         ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                     else if (ssl->options.handShakeState == HANDSHAKE_DONE) {
@@ -15365,7 +15363,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (curr == NULL)
                 #endif
                         {
-                            WOLFSSL_ERROR_VERBOSE(INVALID_CERT_CTX_E);
                             ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                         }
                     }
@@ -15442,7 +15439,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #else
                 if (args->totalCerts >= ssl->verifyDepth ||
                         args->totalCerts >= MAX_CHAIN_DEPTH) {
-                    WOLFSSL_ERROR_VERBOSE(MAX_CHAIN_ERROR);
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
                 }
             #endif
@@ -37996,8 +37992,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->options.peerAuthGood = (ret == 0);
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             }
-            if (ret != 0)
-                WOLFSSL_ERROR_VERBOSE(ret);
             WOLFSSL_LEAVE("HandleTlsResumption", ret);
             return ret;
         }
