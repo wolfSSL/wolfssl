@@ -435,12 +435,6 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 #endif /* DEBUG_WOLFSSL | OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
           OPENSSL_EXTRA */
 
-#ifdef WOLFSSL_VERBOSE_ERRORS
-#define WOLFSSL_ERROR_VERBOSE(e) WOLFSSL_ERROR(e)
-#else
-#define WOLFSSL_ERROR_VERBOSE(e) (void)(e)
-#endif /* WOLFSSL_VERBOSE_ERRORS */
-
 #ifdef HAVE_STACK_SIZE_VERBOSE
     extern WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack;
     extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize;
