@@ -10860,7 +10860,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     }
     else {
         WOLFSSL_MSG("Subject Key ID too large");
-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);
         return WOLFSSL_FAILURE;
     }
 
@@ -10905,7 +10904,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     if (x509->rawCRLInfo != NULL) {
         if (x509->rawCRLInfoSz > CTC_MAX_CRLINFO_SZ) {
             WOLFSSL_MSG("CRL Info too large");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(cert->crlInfo, x509->rawCRLInfo, x509->rawCRLInfoSz);
@@ -10981,7 +10979,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
         if (serialSz > EXTERNAL_SERIAL_SIZE ||
                 serialSz > CTC_SERIAL_SIZE) {
             WOLFSSL_MSG("Serial size too large error");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(cert->serial, serial, serialSz);
@@ -15409,7 +15406,6 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         }
         else {
             WOLFSSL_MSG("Challenge password too long");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         break;
@@ -15418,7 +15414,6 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             len = (int)XSTRLEN((char*)bytes);
         if (len + 1 > EXTERNAL_SERIAL_SIZE) {
             WOLFSSL_MSG("SerialNumber too long");
-            WOLFSSL_ERROR_VERBOSE(BUFFER_E);
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(req->serial, bytes, len);

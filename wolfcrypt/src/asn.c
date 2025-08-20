@@ -26143,7 +26143,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
             else
 #endif
             {
-                WOLFSSL_ERROR_VERBOSE(ASN_NO_SIGNER_E);
                 WOLFSSL_MSG_CERT("Consider using WOLFSSL_ALT_CERT_CHAINS.");
                 return ASN_NO_SIGNER_E;
             }

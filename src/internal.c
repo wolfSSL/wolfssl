@@ -39584,7 +39584,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (len > SESSION_TICKET_LEN ||
             len < (word32)(WOLFSSL_INTERNAL_TICKET_LEN +
                            WOLFSSL_TICKET_FIXED_SZ)) {
-            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_MSG_SZ);
+            WOLF_MSG(wolfSSL_ERR_reason_error_string(BAD_TICKET_MSG_SZ));
             return WOLFSSL_TICKET_RET_REJECT;
         }
 
@@ -39593,7 +39593,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* decrypt */
         ato16(et->enc_len, &inLen);
         if (inLen > WOLFSSL_TICKET_ENC_SZ) {
-            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_MSG_SZ);
+            WOLF_MSG(wolfSSL_ERR_reason_error_string(BAD_TICKET_MSG_SZ));
             return WOLFSSL_TICKET_RET_REJECT;
         }
         outLen = (int)inLen;   /* may be reduced by user padding */
@@ -39608,8 +39608,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         (ssl->options.mask & WOLFSSL_OP_NO_TICKET) != 0)
 #endif
                         ) {
-            /* Use BAD_TICKET_ENCRYPT to signal missing ticket callback */
-            WOLFSSL_ERROR_VERBOSE(BAD_TICKET_ENCRYPT);
+            WOLF_MSG("Missing ticket callback")
             ret = WOLFSSL_TICKET_RET_REJECT;
         }
         else {
@@ -39627,7 +39626,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         #endif /* WOLFSSL_ASYNC_CRYPT */
             if (ret != WOLFSSL_TICKET_RET_CREATE) {
-                WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
+                WOLF_MSG(wolfSSL_ERR_reason_error_string(BAD_TICKET_KEY_CB_SZ));
                 return WOLFSSL_TICKET_RET_REJECT;
             }
         }
