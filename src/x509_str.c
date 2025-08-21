@@ -34,13 +34,8 @@
 #ifdef OPENSSL_EXTRA
 static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
                             WOLFSSL_STACK *certs, WOLFSSL_X509 *x);
-static int X509StorePopCert(WOLFSSL_STACK *certs_stack,
-                            WOLFSSL_STACK *dest_stack,
-                            WOLFSSL_X509 *cert);
 static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
                                           WOLFSSL_X509* x509, int type);
-static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
-                                            WOLFSSL_X509* x509, int type);
 #endif
 
 /* Based on OpenSSL default max depth */
@@ -409,6 +404,64 @@ exit:
     return ret;
 }
 
+static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
+                                            WOLFSSL_X509* x509, int type) {
+    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
+    byte          hash[KEYID_SIZE];
+
+    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
+        result = GetHashId(x509->subjKeyId, (int)x509->subjKeyIdSz,
+                    hash, HashIdAlg(x509->sigOID));
+        if (result) {
+            result = WOLFSSL_FATAL_ERROR;
+        } else {
+            result = RemoveCA(store->cm, hash, type);
+        }
+    }
+
+    return result;
+}
+
+static int X509StoreMoveCert(WOLFSSL_STACK *certs_stack,
+                             WOLFSSL_STACK *dest_stack,
+                             WOLFSSL_X509 *cert) {
+    int i;
+
+    if (certs_stack == NULL || dest_stack == NULL || cert == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(certs_stack); i++) {
+        if (wolfSSL_sk_X509_value(certs_stack, i) == cert) {
+            wolfSSL_sk_X509_push(dest_stack,
+                                 (WOLFSSL_X509*)wolfSSL_sk_pop_node(certs_stack, i));
+            return WOLFSSL_SUCCESS;
+        }
+    }
+
+    return WOLFSSL_FAILURE;
+}
+
+
+/* Current certificate failed, but it is possible there is an
+ * alternative cert with the same subject key which will work.
+ * Retry until all possible candidate certs are exhausted. */
+static int X509VerifyCertSetupRetry(WOLFSSL_X509_STORE_CTX* ctx,
+    WOLF_STACK_OF(WOLFSSL_X509)* certs, WOLF_STACK_OF(WOLFSSL_X509)* failed,
+    int* depth, int origDepth) {
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+
+    WOLFSSL_MSG("X509_verify_cert current cert failed, "
+                "retrying with other certs.");
+    ret = X509StoreRemoveCa(ctx->store, ctx->current_cert,
+                            WOLFSSL_TEMP_CA);
+    X509StoreMoveCert(certs, failed, ctx->current_cert);
+    ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
+    if (*depth < origDepth)
+        *depth += 1;
+
+    return ret;
+}
+
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 1 on success or <= 0 on failure.
  */
@@ -499,25 +552,28 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                         goto exit;
                     }
                 }
-            } else {
+            } else
         #endif
-            ret = X509StoreAddCa(ctx->store, issuer,
-                                            WOLFSSL_TEMP_CA);
-            if (ret != WOLFSSL_SUCCESS) {
-                goto retry;
+            {
+                ret = X509StoreAddCa(ctx->store, issuer,
+                                                WOLFSSL_TEMP_CA);
+                if (ret != WOLFSSL_SUCCESS) {
+                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                        &depth, origDepth);
+                    continue;
+                }
+                added = 1;
+                ret = X509StoreVerifyCert(ctx);
+                if (ret != WOLFSSL_SUCCESS) {
+                    if ((origDepth - depth) <= 1)
+                        added = 0;
+                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                        &depth, origDepth);
+                    continue;
+                }
+                /* Add it to the current chain and look at the issuer cert next */
+                wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
             }
-            added = 1;
-            ret = X509StoreVerifyCert(ctx);
-            if (ret != WOLFSSL_SUCCESS) {
-                if ((origDepth - depth) <= 1)
-                    added = 0;
-                goto retry;
-            }
-            /* Add it to the current chain and look at the issuer cert next */
-            wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            }
-        #endif
             ctx->current_cert = issuer;
         }
         else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
@@ -531,7 +587,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
                     ret = WOLFSSL_SUCCESS;
                 } else {
-                    goto retry;
+                    X509VerifyCertSetupRetry(ctx, certs, failedCerts,
+                        &depth, origDepth);
+                    continue;
                 }
             }
 
@@ -564,33 +622,18 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         }
 
         depth--;
-        continue;
-
-retry:
-        /* Current certificate failed, but it is possible there is an
-         * alternative cert with the same subject key which will work.
-         * Retry until all possible candidate certs are exhausted. */
-         WOLFSSL_MSG("X509_verify_cert current cert failed,"
-                     "retrying with other certs.");
-         ret = X509StoreRemoveCa(ctx->store, ctx->current_cert,
-                                 WOLFSSL_TEMP_CA);
-         X509StorePopCert(certs, failedCerts, ctx->current_cert);
-         ctx->current_cert = wolfSSL_sk_X509_pop(ctx->chain);
-         if (depth < origDepth)
-            depth++;
     }
 
 exit:
     /* Copy back failed certs if verification failed. */
     if (ret != WOLFSSL_SUCCESS) {
-        while (wolfSSL_sk_X509_num(failedCerts) > 0)
+        for (int cnt = 0, total = wolfSSL_sk_X509_num(failedCerts);
+                cnt < total; cnt++)
         {
             wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
         }
     }
-    if (failedCerts) {
-        wolfSSL_sk_X509_pop_free(failedCerts, NULL);
-    }
+    wolfSSL_sk_X509_pop_free(failedCerts, NULL);
 
     /* Remove additional intermediates from init from the store */
     if (ctx != NULL && numInterAdd > 0) {
@@ -1098,25 +1141,6 @@ static int X509StoreGetIssuerEx(WOLFSSL_X509 **issuer,
     return WOLFSSL_FAILURE;
 }
 
-static int X509StorePopCert(WOLFSSL_STACK *certs_stack,
-                            WOLFSSL_STACK *dest_stack,
-                            WOLFSSL_X509 *cert) {
-    int i;
-
-    if (certs_stack == NULL || dest_stack == NULL || cert == NULL)
-        return WOLFSSL_FATAL_ERROR;
-
-    for (i = 0; i < wolfSSL_sk_X509_num(certs_stack); i++) {
-        if (wolfSSL_sk_X509_value(certs_stack, i) == cert) {
-            wolfSSL_sk_X509_push(dest_stack,
-                                 (WOLFSSL_X509*)wolfSSL_sk_pop_node(certs_stack, i));
-            return WOLFSSL_SUCCESS;
-        }
-    }
-
-    return WOLFSSL_FAILURE;
-}
-
 #endif
 
 /******************************************************************************
@@ -1449,40 +1473,6 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
 
     return result;
 }
-
-static int X509StoreRemoveCa(WOLFSSL_X509_STORE* store,
-                                            WOLFSSL_X509* x509, int type) {
-    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
-    DecodedCert* dCert = NULL;
-
-    if (store != NULL && x509 != NULL && x509->derCert != NULL) {
-        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
-                                                DYNAMIC_TYPE_DCERT);
-
-        if (dCert == NULL) {
-            return result;
-        }
-        XMEMSET(dCert, 0, sizeof(DecodedCert));
-        wc_InitDecodedCert(dCert, x509->derCert->buffer,
-                           x509->derCert->length, NULL);
-        result = wc_ParseCert(dCert, CA_TYPE, NO_VERIFY, store->cm);
-        if (result) {
-            wc_FreeDecodedCert(dCert);
-            XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
-            return WOLFSSL_FATAL_ERROR;
-        }
-
-        result = RemoveCA(store->cm, dCert->extSubjKeyId, type);
-    }
-
-    if (dCert) {
-        wc_FreeDecodedCert(dCert);
-        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
-    }
-
-    return result;
-}
-
 
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {

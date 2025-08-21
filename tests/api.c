@@ -20363,10 +20363,10 @@ static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
     return EXPECT_RESULT();
 }
 
-#ifdef HAVE_ECC
 static int test_wolfSSL_X509_STORE_CTX_ex12(void)
 {
     EXPECT_DECLS;
+#ifdef HAVE_ECC
     X509_STORE* store = NULL;
     X509_STORE_CTX* ctx = NULL;
     STACK_OF(X509)* chain = NULL;
@@ -20387,6 +20387,10 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
     ExpectNotNull(rootEccX509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCARootECCFile));
     ExpectIntEQ(X509_STORE_add_cert(store, rootEccX509), 1);
     ExpectNotNull(badAkiX509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCABadAKIECCFile));
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, badAkiX509, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+
     ExpectIntEQ(X509_STORE_add_cert(store, badAkiX509), 1);
     ExpectNotNull(ctx = X509_STORE_CTX_new());
     ExpectNotNull(ca1X509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCA1ECCFile));
@@ -20399,9 +20403,9 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
     X509_free(rootEccX509);
     X509_free(badAkiX509);
     X509_free(ca1X509);
+#endif
     return EXPECT_RESULT();
 }
-#endif
 #endif
 
 static int test_wolfSSL_X509_STORE_CTX_ex(void)
@@ -20441,9 +20445,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
-#ifdef HAVE_ECC
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex12(), 1);
-#endif
 
     if(testData.x509Ca) {
         X509_free(testData.x509Ca);

@@ -6147,23 +6147,23 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
 {
     Signer* current;
-    Signer* prev;
+    Signer** prev;
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  row;
 
     WOLFSSL_MSG("Removing a CA");
 
     if (cm == NULL || hash == NULL) {
-        return ret;
+        return BAD_FUNC_ARG;
     }
 
     row = HashSigner(hash);
 
     if (wc_LockMutex(&cm->caLock) != 0) {
-        return ret;
+        return BAD_MUTEX_E;
     }
     current = cm->caTable[row];
-    prev = current;
+    prev = &cm->caTable[row];
     while (current) {
         byte* subjectHash;
 
@@ -6175,17 +6175,12 @@ int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
 
         if ((current->type == type) &&
             (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0)) {
-            if (current == cm->caTable[row]) {
-                cm->caTable[row] = cm->caTable[row]->next;
-            }
-            else {
-                prev->next = current->next;
-            }
+            *prev = current->next;
             FreeSigner(current, cm->heap);
             ret = WOLFSSL_SUCCESS;
             break;
         }
-        prev = current;
+        prev = &current->next;
         current = current->next;
     }
     wc_UnLockMutex(&cm->caLock);
