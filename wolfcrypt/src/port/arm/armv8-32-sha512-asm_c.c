@@ -96,13 +96,13 @@ static const word64 L_SHA512_transform_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
+void Transform_Sha512_Len_base(wc_Sha512* sha512_p, const byte* data_p,
     word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512_p,
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512_p,
     const byte* data_p, word32 len_p)
 #else
-WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512,
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_base(wc_Sha512* sha512,
     const byte* data, word32 len)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -115,7 +115,6 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512,
 #else
     register word64* L_SHA512_transform_len_k_c =
         (word64*)&L_SHA512_transform_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -7593,13 +7592,13 @@ static const word64 L_SHA512_transform_neon_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p,
+void Transform_Sha512_Len_neon(wc_Sha512* sha512_p, const byte* data_p,
     word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512_p,
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512_p,
     const byte* data_p, word32 len_p)
 #else
-WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512,
+WC_OMIT_FRAME_POINTER void Transform_Sha512_Len_neon(wc_Sha512* sha512,
     const byte* data, word32 len)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -7612,7 +7611,6 @@ WC_OMIT_FRAME_POINTER void Transform_Sha512_Len(wc_Sha512* sha512,
 #else
     register word64* L_SHA512_transform_neon_len_k_c =
         (word64*)&L_SHA512_transform_neon_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

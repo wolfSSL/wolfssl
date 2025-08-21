@@ -320,8 +320,9 @@ int test_wolfSSL_DES_ede3_cbc_encrypt(void)
 int test_wolfSSL_AES_encrypt(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB) && \
-    defined(WOLFSSL_AES_256) && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
     AES_KEY enc;
     AES_KEY dec;
     const byte msg[] = {
@@ -449,8 +450,10 @@ int test_wolfSSL_AES_cbc_encrypt(void)
     const byte ct128[]  = { 0x87,0x85,0xb1,0xa7,0x5b,0x0f,0x3b,0xd9,
                             0x58,0xdc,0xd0,0xe2,0x93,0x18,0xc5,0x21 };
 
+#ifdef WOLFSSL_AES_128
     const byte iv128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
                             0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
+#endif
 
     byte key128[]       = { 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
                             0xff,0xff,0xf0,0x00,0x00,0x00,0x00,0x00 };
@@ -767,7 +770,8 @@ int test_wolfSSL_CRYPTO_cts128(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(OPENSSL_EXTRA) && \
-    defined(HAVE_CTS) && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API)
+    defined(HAVE_CTS) && !defined(WOLFSSL_NO_OPENSSL_AES_LOW_LEVEL_API) && \
+    defined(WOLFSSL_AES_128)
     byte tmp[64]; /* Largest vector size */
     /* Test vectors taken form RFC3962 Appendix B */
     const testVector vects[] = {

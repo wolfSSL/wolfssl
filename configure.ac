@@ -1313,6 +1313,7 @@ AC_ARG_ENABLE([all-crypto],
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
+    test "$enable_aesecb" = "" && enable_aesecb=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
@@ -3052,6 +3053,19 @@ AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       ])
 
 
+# AES-ECB
+AC_ARG_ENABLE([aesecb],
+    [AS_HELP_STRING([--enable-aesecb],[Enable wolfSSL AES-ECB support (default: enabled)])],
+    [ ENABLED_AESECB=$enableval ],
+    [ ENABLED_AESECB=no ]
+    )
+
+if test "$ENABLED_AESECB" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_ECB"
+fi
+
 # AES-CBC
 AC_ARG_ENABLE([aescbc],
     [AS_HELP_STRING([--enable-aescbc],[Enable wolfSSL AES-CBC support (default: enabled)])],
@@ -3381,7 +3395,7 @@ then
     ENABLED_ARMASM="yes"
 
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM -DWOLFSSL_NO_HASH_RAW"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
     #Check if mcpu and mfpu values already set if not use default
     case $CPPFLAGS in
     *mcpu* | *mfpu*)
@@ -6633,6 +6647,7 @@ fi
 if test "$ENABLED_CHACHA" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CHACHA"
 fi
 
 

@@ -58,8 +58,7 @@ on the specific device platform.
 #endif
 
 
-#if !defined(NO_SHA256) && !(defined(WOLFSSL_ARMASM) || \
-    defined(WOLFSSL_ARMASM_NO_NEON)) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(NO_SHA256) && !defined(WOLFSSL_RISCV_ASM)
 
 #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
@@ -206,6 +205,8 @@ on the specific device platform.
 #elif defined(FREESCALE_MMCAU_SHA)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0 /* reverse not needed on update */
 #elif defined(WOLFSSL_PPC32_ASM)
+    #define SHA256_UPDATE_REV_BYTES(ctx)    0
+#elif defined(WOLFSSL_ARMASM)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0
 #else
     #define SHA256_UPDATE_REV_BYTES(ctx)    SHA256_REV_BYTES(ctx)
@@ -1089,6 +1090,51 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
 #define XTRANSFORM Transform_Sha256
 #define XTRANSFORM_LEN Transform_Sha256_Len
 
+#elif defined(WOLFSSL_ARMASM)
+
+int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+    ret = InitSha256(sha256);
+    if (ret != 0)
+        return ret;
+
+    sha256->heap = heap;
+    (void)devId;
+
+    return ret;
+}
+
+static WC_INLINE int Transform_Sha256(wc_Sha256* sha256, const byte* data)
+{
+#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+    Transform_Sha256_Len_base(sha256, data, WC_SHA256_BLOCK_SIZE);
+#elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    Transform_Sha256_Len_neon(sha256, data, WC_SHA256_BLOCK_SIZE);
+#else
+    Transform_Sha256_Len_crypto(sha256, data, WC_SHA256_BLOCK_SIZE);
+#endif
+    return 0;
+}
+
+static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
+    word32 len)
+{
+#if defined(WOLFSSL_ARMASM_THUMB2) || defined(WOLFSSL_ARMASM_NO_NEON)
+    Transform_Sha256_Len_base(sha256, data, len);
+#elif defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    Transform_Sha256_Len_neon(sha256, data, len);
+#else
+    Transform_Sha256_Len_crypto(sha256, data, len);
+#endif
+    return 0;
+}
+#define XTRANSFORM      Transform_Sha256
+#define XTRANSFORM_LEN  Transform_Sha256_Len
+
 #else
     #define NEED_SOFT_SHA256
 
@@ -1678,6 +1724,11 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
                 2 * sizeof(word32));
         }
     #endif
+    #if defined(WOLFSSL_ARMASM)
+        ByteReverseWords( &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
+            &sha256->buffer[WC_SHA256_PAD_SIZE / sizeof(word32)],
+            2 * sizeof(word32));
+    #endif
 
     #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
        !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
@@ -1780,7 +1831,17 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
         if (sha256 == NULL || data == NULL) {
             return BAD_FUNC_ARG;
         }
+
+    #ifdef WOLFSSL_ARMASM
+        {
+            byte buffer[WC_SHA256_BLOCK_SIZE];
+            ByteReverseWords((word32*)buffer, (word32*)data,
+                WC_SHA256_BLOCK_SIZE);
+            return Transform_Sha256(sha256, buffer);
+        }
+    #else
         return Transform_Sha256(sha256, data);
+    #endif
     }
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
 

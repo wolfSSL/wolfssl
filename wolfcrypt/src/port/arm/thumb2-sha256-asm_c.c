@@ -65,12 +65,12 @@ XALIGNED(16) static const word32 L_SHA256_transform_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len_base(wc_Sha256* sha256, const byte* data, word32 len);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256_p,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256_p,
     const byte* data_p, word32 len_p)
 #else
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
     const byte* data, word32 len)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {

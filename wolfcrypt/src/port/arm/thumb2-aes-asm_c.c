@@ -880,7 +880,8 @@ static const word32* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
 #endif /* HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
         * WOLFSSL_AES_COUNTER */
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB)
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1103,7 +1104,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_encrypt(const unsigned char* in,
 }
 
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
-        * WOLFSSL_AES_COUNTER */
+        * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 void AES_CBC_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
@@ -1616,8 +1617,8 @@ WC_OMIT_FRAME_POINTER void AES_CTR_encrypt(const unsigned char* in,
 
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(HAVE_AES_CBC)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 void AES_decrypt_block(const word32* td, int nr, const byte* td4);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 WC_OMIT_FRAME_POINTER void AES_decrypt_block(const word32* td_p, int nr_p,
@@ -1890,7 +1891,7 @@ static const byte L_AES_Thumb2_td4[] = {
     0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -2115,7 +2116,7 @@ WC_OMIT_FRAME_POINTER void AES_ECB_decrypt(const unsigned char* in,
     );
 }
 
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
 void AES_CBC_decrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
@@ -2529,7 +2530,8 @@ WC_OMIT_FRAME_POINTER void AES_CBC_decrypt(const unsigned char* in,
 }
 
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
+        * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
 XALIGNED(16) static const word32 L_GCM_gmult_len_r[] = {

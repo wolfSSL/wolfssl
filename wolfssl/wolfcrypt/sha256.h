@@ -345,6 +345,13 @@ WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst);
 
 #endif /* WOLFSSL_SHA224 */
 
+#if defined(WOLFSSL_ARMASM)
+void Transform_Sha256_Len_base(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len_neon(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len_crypto(wc_Sha256* sha256, const byte* data,
+    word32 len);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
