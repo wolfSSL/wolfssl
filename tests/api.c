@@ -20390,9 +20390,9 @@ static int test_wolfSSL_X509_STORE_CTX_ex12(void)
     ExpectNotNull(ctx = X509_STORE_CTX_new());
     ExpectIntEQ(X509_STORE_CTX_init(ctx, store, badAkiX509, NULL), 1);
     ExpectIntEQ(X509_verify_cert(ctx), 0);
+    X509_STORE_CTX_cleanup(ctx);
 
     ExpectIntEQ(X509_STORE_add_cert(store, badAkiX509), 1);
-    ExpectNotNull(ctx = X509_STORE_CTX_new());
     ExpectNotNull(ca1X509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCA1ECCFile));
     ExpectIntEQ(X509_STORE_CTX_init(ctx, store, ca1X509, NULL), 1);
     ExpectIntEQ(X509_verify_cert(ctx), 1);

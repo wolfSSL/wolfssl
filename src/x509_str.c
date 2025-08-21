@@ -472,6 +472,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int added = 0;
     int i = 0;
     int numInterAdd = 0;
+    int numFailedCerts = 0;
     int depth = 0;
     int origDepth = 0;
     WOLFSSL_X509 *issuer = NULL;
@@ -627,8 +628,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 exit:
     /* Copy back failed certs if verification failed. */
     if (ret != WOLFSSL_SUCCESS) {
-        for (int cnt = 0, total = wolfSSL_sk_X509_num(failedCerts);
-                cnt < total; cnt++)
+        numFailedCerts = wolfSSL_sk_X509_num(failedCerts);
+        for (i = 0; i < numFailedCerts; i++)
         {
             wolfSSL_sk_X509_push(certs, wolfSSL_sk_X509_pop(failedCerts));
         }
