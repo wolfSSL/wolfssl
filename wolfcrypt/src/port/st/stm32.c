@@ -450,10 +450,22 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #ifdef WOLFSSL_STM32_CUBEMX
 
 #if defined(WOLFSSL_STM32U5_DHUK)
+/* Set the DHUK IV to be used when unwrapping an AES key
+ * return 0 on success */
+int wc_Stm32_Aes_SetDHUK_IV(struct Aes* aes, const byte* iv, int ivSz)
+{
+    if (ivSz != sizeof(aes->dhukIV)) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(aes->dhukIV, iv, ivSz);
+    aes->dhukIVLen = ivSz;
+    return 0;
+}
 
 /* Wrap an AES key using the DHUK */
 int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
-    word32* outSz, const byte* iv)
+    word32* outSz, const byte* iv, int ivSz)
 {
     CRYP_HandleTypeDef hcryp;
     int ret = 0;
@@ -494,7 +506,7 @@ int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
 
 
 int wc_Stm32_Aes_UnWrap(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
-        const byte* in, word32 inSz, const byte* iv)
+        const byte* in, word32 inSz, const byte* iv, int ivSz)
 {
     int ret = 0;
 
@@ -508,7 +520,7 @@ int wc_Stm32_Aes_UnWrap(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
     hcryp->Init.DataType  = CRYP_DATATYPE_8B;
     hcryp->Init.KeySize   = CRYP_KEYSIZE_256B;
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    if (iv != NULL) {
+    if (ivSz > 0 && iv != NULL) {
         hcryp->Init.pInitVect = (uint32_t *)iv;
         hcryp->Init.Algorithm = CRYP_AES_CBC;
     }
@@ -529,7 +541,7 @@ int wc_Stm32_Aes_UnWrap(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
 
 #endif
 
-int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
+int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp, int useSaes)
 {
     int ret;
     word32 keySize;
@@ -561,8 +573,8 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
 
 #ifdef WOLFSSL_STM32U5_DHUK
     /* Use hardware key */
-    if (aes->devId == WOLFSSL_STM32U5_DHUK_DEVID ||
-            aes->devId == WOLFSSL_STM32U5_SAES_DEVID) {
+    if (useSaes && (aes->devId == WOLFSSL_STM32U5_DHUK_DEVID ||
+            aes->devId == WOLFSSL_STM32U5_SAES_DEVID)) {
 
             /* SAES requires use of the RNG -- HAL_RNG_DeInit() calls from
                random.c turn off the RNG clock -- re-enable the clock here */

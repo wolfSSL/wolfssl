@@ -160,7 +160,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             CRYP_ConfigTypeDef Config = {0};
 
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key,
-                aes->keylen, NULL);
+                aes->keylen, aes->dhukIV, aes->dhukIVLen);
             if (ret != HAL_OK) {
                 WOLFSSL_MSG("Error with DHUK key unwrap");
                 ret = BAD_FUNC_ARG;
@@ -175,7 +175,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             HAL_CRYP_SetConfig(&hcryp, &Config);
         }
         else {
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wc_Stm32_Aes_Init(aes, &hcryp, 1);
             if (ret == 0) {
                 hcryp.Init.Algorithm  = CRYP_AES_ECB;
                 ret = HAL_CRYP_Init(&hcryp);
@@ -194,7 +194,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         HAL_CRYP_DeInit(&hcryp);
     #elif defined(WOLFSSL_STM32_CUBEMX)
-        ret = wc_Stm32_Aes_Init(aes, &hcryp);
+        ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
             return ret;
 
@@ -309,7 +309,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
             XMEMSET(&Config, 0, sizeof(Config));
             ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key,
-                aes->keylen, NULL);
+                aes->keylen, aes->dhukIV, aes->dhukIVLen);
             if (ret != HAL_OK) {
                 WOLFSSL_MSG("Error with DHUK unwrap");
                 ret = BAD_FUNC_ARG;
@@ -324,7 +324,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             HAL_CRYP_SetConfig(&hcryp, &Config);
         }
         else {
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wc_Stm32_Aes_Init(aes, &hcryp, 1);
             if (ret == 0) {
                 hcryp.Init.Algorithm  = CRYP_AES_ECB;
                 ret = HAL_CRYP_Init(&hcryp);
@@ -343,7 +343,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         }
         HAL_CRYP_DeInit(&hcryp);
     #elif defined(WOLFSSL_STM32_CUBEMX)
-        ret = wc_Stm32_Aes_Init(aes, &hcryp);
+        ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
             return ret;
 
@@ -5078,7 +5078,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_ConfigTypeDef Config;
 
             XMEMSET(&Config, 0, sizeof(Config));
-            ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen, NULL);
+            ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen,
+                (const byte*)aes->dhukIV, aes->dhukIVLen);
 
             /* reconfigure for using unwrapped key now */
             HAL_CRYP_GetConfig(&hcryp, &Config);
@@ -5090,7 +5091,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             HAL_CRYP_SetConfig(&hcryp, &Config);
         }
         else {
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wc_Stm32_Aes_Init(aes, &hcryp, 1);
             if (ret != 0) {
                 wolfSSL_CryptHwMutexUnLock();
                 return ret;
@@ -5143,7 +5144,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_ConfigTypeDef Config;
 
             XMEMSET(&Config, 0, sizeof(Config));
-            ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen, NULL);
+            ret = wc_Stm32_Aes_UnWrap(aes, &hcryp, (const byte*)aes->key, aes->keylen,
+                aes->dhukIV, aes->dhukIVLen);
 
             /* reconfigure for using unwrapped key now */
             HAL_CRYP_GetConfig(&hcryp, &Config);
@@ -5155,7 +5157,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             HAL_CRYP_SetConfig(&hcryp, &Config);
         }
         else {
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wc_Stm32_Aes_Init(aes, &hcryp, 1);
             if (ret != 0) {
                 wolfSSL_CryptHwMutexUnLock();
                 return ret;
@@ -5202,7 +5204,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (blocks == 0)
             return 0;
 
-        ret = wc_Stm32_Aes_Init(aes, &hcryp);
+        ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
             return ret;
 
@@ -5264,7 +5266,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (blocks == 0)
             return 0;
 
-        ret = wc_Stm32_Aes_Init(aes, &hcryp);
+        ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
         if (ret != 0)
             return ret;
 
@@ -6365,7 +6367,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #endif
 
         #ifdef WOLFSSL_STM32_CUBEMX
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
             if (ret != 0) {
                 return ret;
             }
@@ -8557,7 +8559,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
         return ret;
 
 #ifdef WOLFSSL_STM32_CUBEMX
-    ret = wc_Stm32_Aes_Init(aes, &hcryp);
+    ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
     if (ret != 0)
         return ret;
 #endif
@@ -9095,7 +9097,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         return ret;
 
 #ifdef WOLFSSL_STM32_CUBEMX
-    ret = wc_Stm32_Aes_Init(aes, &hcryp);
+    ret = wc_Stm32_Aes_Init(aes, &hcryp, 0);
     if (ret != 0)
         return ret;
 #endif

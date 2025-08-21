@@ -286,7 +286,10 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     Gcm gcm;
-
+#ifdef WOLFSSL_STM32U5_DHUK
+    byte dhukIV[16]; /* Used when unwrapping an encrypted key */
+    int dhukIVLen;
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
