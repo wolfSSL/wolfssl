@@ -3973,7 +3973,6 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         /* Get the PSK key exchange modes the client wants to negotiate. */
         ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
         if (ext == NULL) {
-            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
         modes = ext->val;
@@ -3986,12 +3985,10 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
         if (((modes & (1 << PSK_DHE_KE)) != 0) && (!ssl->options.noPskDheKe) &&
                                                 (kse != NULL) && kse->derived) {
             if ((kse->session != 0) && (kse->session != kse->group)) {
-                WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
             }
         }
         else if (ssl->options.onlyPskDheKe) {
-            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
             return PSK_KEY_ERROR;
         }
         else if (ssl->options.noPskDheKe) {
