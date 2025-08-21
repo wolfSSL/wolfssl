@@ -49,9 +49,9 @@
 #define WOLFSSL_NO_VAR_ASSIGN_REG
 #endif /* __ghs__ */
 
-#ifndef NO_SHA256
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
 static const word32 L_SHA256_transform_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -72,13 +72,13 @@ static const word32 L_SHA256_transform_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
+void Transform_Sha256_Len_base(wc_Sha256* sha256_p, const byte* data_p,
     word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256_p,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256_p,
     const byte* data_p, word32 len_p)
 #else
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_base(wc_Sha256* sha256,
     const byte* data, word32 len)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -91,7 +91,6 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
 #else
     register word32* L_SHA256_transform_len_k_c =
         (word32*)&L_SHA256_transform_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1754,10 +1753,8 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
     );
 }
 
-#endif /* WOLFSSL_ARMASM_NO_NEON */
-#include <wolfssl/wolfcrypt/sha256.h>
-
-#ifndef WOLFSSL_ARMASM_NO_NEON
+#else
+#ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
 static const word32 L_SHA256_transform_neon_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -1777,13 +1774,13 @@ static const word32 L_SHA256_transform_neon_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p,
+void Transform_Sha256_Len_neon(wc_Sha256* sha256_p, const byte* data_p,
     word32 len_p);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256_p,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256_p,
     const byte* data_p, word32 len_p)
 #else
-WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_neon(wc_Sha256* sha256,
     const byte* data, word32 len)
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
 {
@@ -1796,7 +1793,6 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
 #else
     register word32* L_SHA256_transform_neon_len_k_c =
         (word32*)&L_SHA256_transform_neon_len_k;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2835,6 +2831,205 @@ WC_OMIT_FRAME_POINTER void Transform_Sha256_Len(wc_Sha256* sha256,
     );
 }
 
+#else
+static const word32 L_SHA256_trans_crypto_len_k[] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+};
+
+void Transform_Sha256_Len_crypto(wc_Sha256* sha256_p, const byte* data_p,
+    word32 len_p);
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_crypto(wc_Sha256* sha256_p,
+    const byte* data_p, word32 len_p)
+#else
+WC_OMIT_FRAME_POINTER void Transform_Sha256_Len_crypto(wc_Sha256* sha256,
+    const byte* data, word32 len)
+#endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
+{
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+    register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
+    register const byte* data asm ("r1") = (const byte*)data_p;
+    register word32 len asm ("r2") = (word32)len_p;
+    register word32* L_SHA256_trans_crypto_len_k_c asm ("r3") =
+        (word32*)&L_SHA256_trans_crypto_len_k;
+#else
+    register word32* L_SHA256_trans_crypto_len_k_c =
+        (word32*)&L_SHA256_trans_crypto_len_k;
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+
+    __asm__ __volatile__ (
+        "mov	r3, %[L_SHA256_trans_crypto_len_k]\n\t"
+        /* Load K into vector registers */
+        "vldm	r3!, {q8-q11}\n\t"
+        "vldm	r3!, {q12-q13}\n\t"
+        /* Load digest into working vars */
+        "vldm	%[sha256], {q0-q1}\n\t"
+        /* Start of loop processing a block */
+        "\n"
+    "L_sha256_len_crypto_begin_%=: \n\t"
+        /* Load W */
+        "vld1.8	{q4-q5}, [%[data]]!\n\t"
+        "vld1.8	{q6-q7}, [%[data]]!\n\t"
+        "vrev32.8	q4, q4\n\t"
+        "vrev32.8	q5, q5\n\t"
+        "vrev32.8	q6, q6\n\t"
+        "vrev32.8	q7, q7\n\t"
+        /* Copy digest to add in at end */
+        "vmov.32	q2, q0\n\t"
+        "vmov.32	q3, q1\n\t"
+        /* Start 16 rounds */
+        /* Round 1 */
+        "vadd.i32	q14, q4, q8\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 2 */
+        "sha256su0.32	q4, q5\n\t"
+        "vadd.i32	q14, q5, q9\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q4, q6, q7\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 3 */
+        "sha256su0.32	q5, q6\n\t"
+        "vadd.i32	q14, q6, q10\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q5, q7, q4\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 4 */
+        "sha256su0.32	q6, q7\n\t"
+        "vadd.i32	q14, q7, q11\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q6, q4, q5\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 5 */
+        "sha256su0.32	q7, q4\n\t"
+        "vadd.i32	q14, q4, q12\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q7, q5, q6\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 6 */
+        "sha256su0.32	q4, q5\n\t"
+        "vadd.i32	q14, q5, q13\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q4, q6, q7\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 7 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q5, q6\n\t"
+        "vadd.i32	q14, q6, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q5, q7, q4\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 8 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q6, q7\n\t"
+        "vadd.i32	q14, q7, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q6, q4, q5\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 9 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q7, q4\n\t"
+        "vadd.i32	q14, q4, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q7, q5, q6\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 10 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q4, q5\n\t"
+        "vadd.i32	q14, q5, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q4, q6, q7\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 11 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q5, q6\n\t"
+        "vadd.i32	q14, q6, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q5, q7, q4\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 12 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q6, q7\n\t"
+        "vadd.i32	q14, q7, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q6, q4, q5\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 13 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "sha256su0.32	q7, q4\n\t"
+        "vadd.i32	q14, q4, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256su1.32	q7, q5, q6\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 14 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "vadd.i32	q14, q5, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 15 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "vadd.i32	q14, q6, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Round 16 */
+        "vld1.32	{q14}, [r3]!\n\t"
+        "vadd.i32	q14, q7, q14\n\t"
+        "vmov.32	q15, q0\n\t"
+        "sha256h.32	q0, q1, q14\n\t"
+        "sha256h2.32	q1, q15, q14\n\t"
+        /* Done 16 rounds */
+        "vadd.i32	q0, q0, q2\n\t"
+        "vadd.i32	q1, q1, q3\n\t"
+        "subs	%[len], %[len], #0x40\n\t"
+        "sub	r3, r3, #0xa0\n\t"
+        "bne	L_sha256_len_crypto_begin_%=\n\t"
+        /* Store digest back */
+        "vst1.8	{q0-q1}, [%[sha256]]\n\t"
+#ifndef WOLFSSL_NO_VAR_ASSIGN_REG
+        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA256_trans_crypto_len_k] "+r" (L_SHA256_trans_crypto_len_k_c)
+        :
+#else
+        :
+        : [sha256] "r" (sha256), [data] "r" (data), [len] "r" (len),
+          [L_SHA256_trans_crypto_len_k] "r" (L_SHA256_trans_crypto_len_k_c)
+#endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
+        : "memory", "cc", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8",
+            "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+    );
+}
+
+#endif /* WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */

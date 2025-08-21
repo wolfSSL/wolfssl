@@ -419,11 +419,15 @@ int test_wolfSSL_CMAC(void)
     byte key[AES_256_KEY_SIZE];
     CMAC_CTX* cmacCtx = NULL;
     byte out[AES_BLOCK_SIZE];
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192)
     size_t outLen = AES_BLOCK_SIZE;
+#endif
 
     for (i=0; i < AES_256_KEY_SIZE; ++i) {
         key[i] = i;
     }
+
+#ifdef WOLFSSL_AES_128
     ExpectNotNull(cmacCtx = CMAC_CTX_new());
     /* Check CMAC_CTX_get0_cipher_ctx; return value not used. */
     ExpectNotNull(CMAC_CTX_get0_cipher_ctx(cmacCtx));
@@ -459,13 +463,14 @@ int test_wolfSSL_CMAC(void)
     ExpectIntEQ(CMAC_Final(cmacCtx, NULL, &outLen), 1);
     ExpectIntEQ(CMAC_Final(cmacCtx, out, NULL), 1);
     CMAC_CTX_free(cmacCtx);
+#endif
 
+#ifdef WOLFSSL_AES_192
     /* Test parameters with CMAC Init. */
     cmacCtx = NULL;
     ExpectNotNull(cmacCtx = CMAC_CTX_new());
     ExpectNotNull(CMAC_CTX_get0_cipher_ctx(cmacCtx));
     ExpectIntEQ(CMAC_Init(NULL, NULL, 0, NULL, NULL), 0);
-    #ifdef WOLFSSL_AES_192
     ExpectIntEQ(CMAC_Init(NULL, key, AES_192_KEY_SIZE, EVP_aes_192_cbc(),
         NULL), 0);
     ExpectIntEQ(CMAC_Init(cmacCtx, NULL, AES_192_KEY_SIZE, EVP_aes_192_cbc(),
@@ -474,7 +479,6 @@ int test_wolfSSL_CMAC(void)
     ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_192_cbc(),
         NULL), 0);
     ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_192_KEY_SIZE, NULL, NULL), 0);
-    #endif
     #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
     /* Only AES-CBC supported. */
     ExpectIntEQ(CMAC_Init(cmacCtx, key, AES_128_KEY_SIZE, EVP_aes_128_gcm(),
@@ -488,6 +492,7 @@ int test_wolfSSL_CMAC(void)
     /* No Init. */
     ExpectIntEQ(CMAC_Final(cmacCtx, out, &outLen), 0);
     CMAC_CTX_free(cmacCtx);
+#endif
 
     /* Test AES-256-CBC */
 #ifdef WOLFSSL_AES_256

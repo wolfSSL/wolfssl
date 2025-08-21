@@ -105,9 +105,9 @@ L_SHA256_transform_len_k:
 	.word	0xc67178f2
 	.text
 	.align	4
-	.globl	Transform_Sha256_Len
-	.type	Transform_Sha256_Len, %function
-Transform_Sha256_Len:
+	.globl	Transform_Sha256_Len_base
+	.type	Transform_Sha256_Len_base, %function
+Transform_Sha256_Len_base:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xc0
 	ADR	r3, L_SHA256_transform_len_k
@@ -1476,7 +1476,7 @@ L_SHA256_transform_len_start:
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 1874 */
-	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */

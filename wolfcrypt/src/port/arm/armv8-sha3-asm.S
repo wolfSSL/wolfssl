@@ -87,15 +87,15 @@ _BlockSha3_crypto:
 	stp	d10, d11, [x29, #32]
 	stp	d12, d13, [x29, #48]
 	stp	d14, d15, [x29, #64]
-#ifdef __APPLE__
-.arch_extension sha3
-#endif /* __APPLE__ */
 #ifndef __APPLE__
 	adrp x1, L_SHA3_transform_crypto_r
 	add  x1, x1, :lo12:L_SHA3_transform_crypto_r
 #else
 	adrp x1, L_SHA3_transform_crypto_r@PAGE
 	add  x1, x1, :lo12:L_SHA3_transform_crypto_r@PAGEOFF
+#endif /* __APPLE__ */
+#ifdef __APPLE__
+.arch_extension sha3
 #endif /* __APPLE__ */
 	ld4	{v0.d, v1.d, v2.d, v3.d}[0], [x0], #32
 	ld4	{v4.d, v5.d, v6.d, v7.d}[0], [x0], #32

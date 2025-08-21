@@ -264,7 +264,7 @@ static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 }
 
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(WOLFSSL_RISCV_ASM)
 /*
 This local function operates on a message with a given number of bytes
 with a given ctx pointer to a Poly1305 structure.
@@ -278,6 +278,20 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     poly1305_blocks_avx(ctx, m, bytes);
     RESTORE_VECTOR_REGISTERS();
     return 0;
+#elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    poly1305_arm64_blocks(ctx, m, bytes);
+    return 0;
+#elif defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_THUMB2)
+    poly1305_blocks_thumb2_16(ctx, m, bytes, 1);
+    return 0;
+#elif defined(WOLFSSL_ARMASM)
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    poly1305_arm32_blocks(ctx, m, bytes);
+    return 0;
+#else
+    poly1305_arm32_blocks_16(ctx, m, bytes, 1);
+    return 0;
+#endif
 #elif defined(POLY130564)
     const word64 hibit = (ctx->finished) ? 0 : ((word64)1 << 40); /* 1 << 128 */
     word64 r0,r1,r2;
@@ -475,13 +489,23 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 This local function is used for the last call when a message with a given
 number of bytes is less than the block size.
 */
-static int poly1305_block(Poly1305* ctx, const unsigned char *m)
+static WC_INLINE int poly1305_block(Poly1305* ctx, const unsigned char *m)
 {
 #ifdef USE_INTEL_POLY1305_SPEEDUP
     /* No call to poly1305_block when AVX2, AVX2 does 4 blocks at a time. */
     SAVE_VECTOR_REGISTERS(return _svr_ret;);
     poly1305_block_avx(ctx, m);
     RESTORE_VECTOR_REGISTERS();
+    return 0;
+#elif defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_THUMB2)
+    poly1305_blocks_thumb2_16(ctx, m, POLY1305_BLOCK_SIZE, !ctx->finished);
+    return 0;
+#elif defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+    poly1305_arm32_blocks_16(ctx, m, POLY1305_BLOCK_SIZE, !ctx->finished);
+    return 0;
+#elif defined(WOLFSSL_ARMASM)
+    /* Only called from finished. */
+    poly1305_arm64_block_16(ctx, m);
     return 0;
 #else
     return poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
@@ -490,7 +514,8 @@ static int poly1305_block(Poly1305* ctx, const unsigned char *m)
 
 int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 {
-#if defined(POLY130564) && !defined(USE_INTEL_POLY1305_SPEEDUP)
+#if defined(POLY130564) && !defined(USE_INTEL_POLY1305_SPEEDUP) && \
+    !defined(WOLFSSL_ARMASM)
     word64 t0,t1;
 #endif
 
@@ -508,8 +533,9 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
     printf("\n");
 #endif
 
-    if (keySz != 32 || ctx == NULL)
+    if ((ctx == NULL) || (key == NULL) || (keySz != 32)) {
         return BAD_FUNC_ARG;
+    }
 
 #ifdef USE_INTEL_POLY1305_SPEEDUP
     cpuid_get_flags_ex(&intel_flags);
@@ -522,6 +548,9 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         poly1305_setkey_avx(ctx, key);
     RESTORE_VECTOR_REGISTERS();
     ctx->started = 0;
+#elif defined(WOLFSSL_ARMASM)
+    poly1305_set_key(ctx, key);
+    ctx->finished = 0;
 #elif defined(POLY130564)
 
     /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
@@ -577,6 +606,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 {
 #ifdef USE_INTEL_POLY1305_SPEEDUP
+#elif defined(WOLFSSL_ARMASM)
 #elif defined(POLY130564)
 
     word64 h0,h1,h2,c;
@@ -608,6 +638,29 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     #endif
         poly1305_final_avx(ctx, mac);
     RESTORE_VECTOR_REGISTERS();
+#elif defined(WOLFSSL_ARMASM)
+    #if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON) && \
+        !defined(__aarch64__)
+        if (ctx->leftover >= POLY1305_BLOCK_SIZE) {
+             size_t len = ctx->leftover & (~(POLY1305_BLOCK_SIZE - 1));
+             poly1305_arm32_blocks(ctx, ctx->buffer, len);
+             ctx->leftover -= len;
+             if (ctx->leftover) {
+                 XMEMCPY(ctx->buffer, ctx->buffer + len, ctx->leftover);
+             }
+        }
+    #endif
+        if (ctx->leftover) {
+             size_t i = ctx->leftover;
+             ctx->buffer[i++] = 1;
+             for (; i < POLY1305_BLOCK_SIZE; i++) {
+                 ctx->buffer[i] = 0;
+             }
+            ctx->finished = 1;
+            poly1305_block(ctx, ctx->buffer);
+        }
+
+        poly1305_final(ctx, mac);
 #elif defined(POLY130564)
 
     /* process the remaining block */
@@ -781,7 +834,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
-#endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
+#endif /* !WOLFSSL_RISCV_ASM */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
