@@ -286,7 +286,10 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     Gcm gcm;
-
+#ifdef WOLFSSL_STM32U5_DHUK
+    byte dhukIV[16]; /* Used when unwrapping an encrypted key */
+    int dhukIVLen;
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
@@ -320,7 +323,7 @@ struct Aes {
     byte use_sha3_hw_crypto;
 #endif
 #endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
     int    devId;
     void*  devCtx;
 #endif
