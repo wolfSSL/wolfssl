@@ -5703,6 +5703,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     TraceRelativeSequence(*expected, real);
 
     if (real < *expected) {
+        int overlap = *expected - real;
 
         if (real + *sslBytes > *expected) {
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5717,7 +5718,6 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
              * same action but for a different setup case. If changing this
              * block be sure to also update the block below. */
             if (reassemblyList) {
-                int overlap = *expected - real;
                 word32 newEnd;
 
                 /* adjust to expected, remove duplicate */
@@ -5746,11 +5746,17 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                  newEnd - reassemblyList->end, session, error);
                 }
             }
-            else {
-                /* DUP overlap, allow */
-                if (*sslBytes > 0) {
-                    skipPartial = 0; /* do not reset sslBytes */
+            else if (*sslBytes > 0) {
+                if (overlap < *sslBytes) {
+                    /* adjust to remove partial overlap */
+                    *sslFrame += overlap;
+                    *sslBytes -= overlap;
                 }
+                else {
+                    /* DUP overlap, allow */
+                }
+
+                skipPartial = 0; /* do not reset sslBytes */
             }
             ret = 0;
         }
@@ -6417,7 +6423,7 @@ doPart:
                             ivExtra = AESGCM_EXP_IV_SZ;
                     }
 
-                    ret -= ivExtra;;
+                    ret -= ivExtra;
 
                 #if defined(HAVE_ENCRYPT_THEN_MAC) && \
                     !defined(WOLFSSL_AEAD_ONLY)
