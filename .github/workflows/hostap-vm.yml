@@ -232,7 +232,7 @@ jobs:
         run: |
           ./update.sh
           # Force regeneration of rsa3072-ca.key to get rsa3072-generate.sh to
-          # correctly update all the certs 
+          # correctly update all the certs
           rm rsa3072-ca.key
           ./rsa3072-generate.sh
 
