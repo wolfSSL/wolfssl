@@ -654,7 +654,26 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+    extern const u8
+        __wc_text_start[],
+        __wc_text_end[],
+        __wc_rodata_start[],
+        __wc_rodata_end[],
+        __wc_rwdata_start[],
+        __wc_rwdata_end[],
+        __wc_bss_start[],
+        __wc_bss_end[];
+    extern const unsigned int wc_linuxkm_pie_reloc_tab[];
+    extern const size_t wc_linuxkm_pie_reloc_tab_length;
+    extern ssize_t wc_linuxkm_normalize_relocations(
+        const u8 *text_in,
+        size_t text_in_len,
+        u8 *text_out,
+        ssize_t *cur_index_p);
+
     struct wolfssl_linuxkm_pie_redirect_table {
+        typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
+
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
     #endif
@@ -932,6 +951,9 @@
     #endif
 
     #ifdef __PIE__
+
+    #define wc_linuxkm_normalize_relocations \
+        WC_LKM_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         #define memcmp WC_LKM_INDIRECT_SYM(memcmp)
