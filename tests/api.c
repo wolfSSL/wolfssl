@@ -3143,6 +3143,140 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_CertManagerLoadCABufferType(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* int1_cert = "./certs/intermediate/ca-int-cert.pem";
+    const char* int2_cert = "./certs/intermediate/ca-int2-cert.pem";
+    const char* client_cert = "./certs/intermediate/client-int-cert.pem";
+    byte* ca_cert_buf = NULL;
+    byte* int1_cert_buf = NULL;
+    byte* int2_cert_buf = NULL;
+    byte* client_cert_buf = NULL;
+    size_t ca_cert_sz = 0;
+    size_t int1_cert_sz = 0;
+    size_t int2_cert_sz = 0;
+    size_t client_cert_sz = 0;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(load_file(ca_cert, &ca_cert_buf, &ca_cert_sz), 0);
+    ExpectIntEQ(load_file(int1_cert, &int1_cert_buf, &int1_cert_sz), 0);
+    ExpectIntEQ(load_file(int2_cert, &int2_cert_buf, &int2_cert_sz), 0);
+    ExpectIntEQ(load_file(client_cert, &client_cert_buf, &client_cert_sz), 0);
+
+    ExpectIntNE(wolfSSL_CertManagerLoadCABufferType(cm, ca_cert_buf,
+        (sword32)ca_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, 0), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerLoadCABufferType(cm, ca_cert_buf,
+        (sword32)ca_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, 5), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, ca_cert_buf,
+        (sword32)ca_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int1_cert_buf,
+        (sword32)int1_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int2_cert_buf,
+        (sword32)int2_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, client_cert_buf,
+        (sword32)client_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+
+    /* Intermediate certs have been unloaded, but CA cert is still
+       loaded.  Expect first level intermediate to verify, rest to fail. */
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int1_cert_buf,
+        (sword32)int1_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_TEMP_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, int2_cert_buf,
+        (sword32)int2_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_CHAIN_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCABufferType(cm, client_cert_buf,
+        (sword32)client_cert_sz, WOLFSSL_FILETYPE_PEM, 0,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_INTER),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_CHAIN_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_TEMP_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CertManagerUnloadTypeCerts(cm, WOLFSSL_USER_CA),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int1_cert_buf,
+        int1_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, int2_cert_buf,
+        int2_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerifyBuffer(cm, client_cert_buf,
+        client_cert_sz, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    if (cm)
+        wolfSSL_CertManagerFree(cm);
+    if (ca_cert_buf)
+        free(ca_cert_buf);
+    if (int1_cert_buf)
+        free(int1_cert_buf);
+    if (int2_cert_buf)
+        free(int2_cert_buf);
+    if (client_cert_buf)
+        free(client_cert_buf);
+#endif
+
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_CertManagerGetCerts(void)
 {
@@ -52713,6 +52847,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerAPI),
     TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer),
     TEST_DECL(test_wolfSSL_CertManagerLoadCABuffer_ex),
+    TEST_DECL(test_wolfSSL_CertManagerLoadCABufferType),
     TEST_DECL(test_wolfSSL_CertManagerGetCerts),
     TEST_DECL(test_wolfSSL_CertManagerSetVerify),
     TEST_DECL(test_wolfSSL_CertManagerNameConstraint),
