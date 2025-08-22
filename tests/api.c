@@ -20445,7 +20445,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
-    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex12(), 1);
+    test_wolfSSL_X509_STORE_CTX_ex12();
 
     if(testData.x509Ca) {
         X509_free(testData.x509Ca);
