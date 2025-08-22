@@ -3631,6 +3631,10 @@ typedef struct KeyShareEntry {
     byte*                 privKey;   /* Private key                       */
     word32                privKeyLen;/* Private key length - PQC only     */
 #endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    word16                session;   /* NamedGroup that was in session    */
+    word16                derived;   /* preMaster has been derived        */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     int                   lastRet;
 #endif
@@ -4277,6 +4281,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL
     int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify);
     WOLFSSL_LOCAL int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
+    WOLFSSL_LOCAL int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type);
     WOLFSSL_LOCAL
     int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash);
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -4325,7 +4330,8 @@ enum KeyExchangeAlgorithm {
     dhe_psk_kea,
     ecdhe_psk_kea,
     ecc_diffie_hellman_kea,
-    ecc_static_diffie_hellman_kea       /* for verify suite only */
+    ecc_static_diffie_hellman_kea,      /* for verify suite only */
+    any_kea
 };
 
 /* Used with InitSuitesHashSigAlgo */
@@ -4355,6 +4361,7 @@ enum SignatureAlgorithm {
     dilithium_level3_sa_algo     = 15,
     dilithium_level5_sa_algo     = 16,
     sm2_sa_algo                  = 17,
+    any_sa_algo                  = 18,
     invalid_sa_algo              = 255
 };
 

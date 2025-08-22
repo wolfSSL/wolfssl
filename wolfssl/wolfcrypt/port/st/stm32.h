@@ -205,7 +205,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
     struct Aes;
     #ifdef WOLFSSL_STM32_CUBEMX
-        int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp);
+        int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
+                int useSAES);
         void wc_Stm32_Aes_Cleanup(void);
     #else /* Standard Peripheral Library */
         int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_InitTypeDef* cryptInit,
@@ -215,6 +216,17 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #endif /* !NO_AES */
 
 #endif /* STM32_CRYPTO */
+
+#if defined(WOLFSSL_STM32U5_DHUK) && !defined(WOLFSSL_STM32U5_DHUK_DEVID)
+    #define WOLFSSL_STM32U5_DHUK_DEVID 808
+    #define WOLFSSL_STM32U5_SAES_DEVID 807
+    #define WOLFSSL_STM32U5_DHUK_WRAPPED_DEVID 809
+    int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
+        word32* outSz, const byte* iv, int ivSz);
+    int wc_Stm32_Aes_UnWrap(struct Aes* aes, CRYP_HandleTypeDef* hcryp, const byte* in,
+        word32 inSz, const byte* iv, int ivSz);
+    int wc_Stm32_Aes_SetDHUK_IV(struct Aes* aes, const byte* iv, int ivSz);
+#endif
 
 #if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
 struct ecc_key;

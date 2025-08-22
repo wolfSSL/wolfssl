@@ -28,7 +28,34 @@
     static cpuid_flags_atomic_t cpuid_flags = WC_CPUID_ATOMIC_INITIALIZER;
 #endif
 
-#ifdef HAVE_CPUID_INTEL
+#if defined(HAVE_CPUID_INTEL) && defined(WOLFSSL_SGX)
+    /* @TODO calling cpuid from a trusted enclave needs additional hardening.
+     * For initial benchmarking, the cpu support is getting hard set.
+     * Another thing of note is cpuid calls cause a SIGILL signal, see
+     * github issue #5 on intel/intel-sgx-ssl */
+
+    /* For tying in an actual external call to cpuid this header and function
+     * call would be used :
+     * #include <sgx_cpuid.h>
+     * #define cpuid(reg, leaf, sub) sgx_cpuidex((reg),(leaf),(sub))
+     */
+    void cpuid_set_flags(void)
+    {
+        if (!cpuid_check) {
+            cpuid_flags |= CPUID_AVX1;
+            cpuid_flags |= CPUID_AVX2;
+            cpuid_flags |= CPUID_BMI2;
+            cpuid_flags |= CPUID_RDSEED;
+            cpuid_flags |= CPUID_AESNI;
+            cpuid_flags |= CPUID_ADX;
+            cpuid_flags |= CPUID_MOVBE;
+            cpuid_flags |= CPUID_BMI1;
+
+            cpuid_check = 1;
+        }
+    }
+
+#elif defined(HAVE_CPUID_INTEL)
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */

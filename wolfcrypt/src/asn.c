@@ -1283,6 +1283,13 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             #endif
                 return ASN_PARSE_E;
             }
+            if ((asn->tag != ASN_BOOLEAN) && (!zeroPadded) &&
+                (input[idx] >= 0x80U)) {
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Unexpected negative INTEGER value");
+            #endif
+                return ASN_EXPECT_0_E;
+            }
             /* Fill number with all of data. */
             *data->data.u8 = input[idx];
             break;
@@ -1293,6 +1300,12 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 WOLFSSL_MSG_VSNPRINTF("Expecting 1 or 2 bytes: %d", len);
             #endif
                 return ASN_PARSE_E;
+            }
+            if (!zeroPadded && (input[idx] >= 0x80U)) {
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Unexpected negative INTEGER value");
+            #endif
+                return ASN_EXPECT_0_E;
             }
             /* Fill number with all of data. */
             *data->data.u16 = 0;
@@ -1308,6 +1321,12 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 WOLFSSL_MSG_VSNPRINTF("Expecting 1 to 4 bytes: %d", len);
             #endif
                 return ASN_PARSE_E;
+            }
+            if (!zeroPadded && (input[idx] >= 0x80U)) {
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+                WOLFSSL_MSG_VSNPRINTF("Unexpected negative INTEGER value");
+            #endif
+                return ASN_EXPECT_0_E;
             }
             /* Fill number with all of data. */
             *data->data.u32 = 0;
@@ -3271,7 +3290,7 @@ int GetMyVersion(const byte* input, word32* inOutIdx,
 
 
 #if !defined(NO_PWDBASED) || defined(WOLFSSL_ASN_EXTRA)
-/* Decode small integer, 32 bits or less.
+/* Decode small positive integer, 32 bits or less.
  *
  * @param [in]      input     Buffer of BER data.
  * @param [in, out] inOutIdx  On in, start of encoded INTEGER.
@@ -3308,6 +3327,11 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 
     if (len + idx > maxIdx)
         return ASN_PARSE_E;
+
+    if (input[idx] >= 0x80U) {
+        /* This function only expects positive INTEGER values. */
+        return ASN_EXPECT_0_E;
+    }
 
     while (len--) {
         *number  = *number << 8 | input[idx++];

@@ -3993,6 +3993,42 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
     }
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
+    if (!clientHello) {
+        TLSX* ext;
+        word32 modes;
+        KeyShareEntry* kse = NULL;
+
+        /* Get the PSK key exchange modes the client wants to negotiate. */
+        ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
+        if (ext == NULL) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        modes = ext->val;
+
+        ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (ext != NULL) {
+            kse = (KeyShareEntry*)ext->data;
+        }
+        /* Use (EC)DHE for forward-security if possible. */
+        if (((modes & (1 << PSK_DHE_KE)) != 0) && (!ssl->options.noPskDheKe) &&
+                                                (kse != NULL) && kse->derived) {
+            if ((kse->session != 0) && (kse->session != kse->group)) {
+                WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+                return PSK_KEY_ERROR;
+            }
+        }
+        else if (ssl->options.onlyPskDheKe) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        else if (ssl->options.noPskDheKe) {
+            ssl->arrays->preMasterSz = 0;
+        }
+    }
+    else
+#endif
     if (ssl->options.noPskDheKe) {
         ssl->arrays->preMasterSz = 0;
     }
@@ -10118,10 +10154,24 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_BUILD:
         {
             int validSigAlgo;
+            const Suites* suites = WOLFSSL_SUITES(ssl);
+            word16 i;
 
             /* Signature algorithm. */
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
+            }
+
+            validSigAlgo = 0;
+            for (i = 0; i < suites->hashSigAlgoSz; i += 2) {
+                 if ((suites->hashSigAlgo[i + 0] == input[args->idx + 0]) &&
+                         (suites->hashSigAlgo[i + 1] == input[args->idx + 1])) {
+                     validSigAlgo = 1;
+                     break;
+                 }
+            }
+            if (!validSigAlgo) {
+                ERROR_OUT(INVALID_PARAMETER, exit_dcv);
             }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS

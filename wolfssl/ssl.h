@@ -3719,8 +3719,9 @@ enum {
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
-    WOLFSSL_TEMP_CA = 3            /* Temp intermediate CA, only for use by
+    WOLFSSL_TEMP_CA  = 3,          /* Temp intermediate CA, only for use by
                                     * X509_STORE */
+    WOLFSSL_USER_INTER = 4         /* user added intermediate cert */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
@@ -4202,6 +4203,9 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,
         const char* f, const char* d);
+    WOLFSSL_API int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
+        const unsigned char* buff, long sz, int format, int userChain,
+        word32 flags, int type);
     WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
         const unsigned char* buff, long sz, int format, int userChain,
         word32 flags);
@@ -4209,6 +4213,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
         const unsigned char* buff, long sz, int format);
 
     WOLFSSL_API int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wolfSSL_CertManagerUnloadTypeCerts(
+                                WOLFSSL_CERT_MANAGER* cm, byte type);
     WOLFSSL_API int wolfSSL_CertManagerUnloadIntermediateCerts(
         WOLFSSL_CERT_MANAGER* cm);
 #ifdef WOLFSSL_TRUST_PEER_CERT
