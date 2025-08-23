@@ -105,8 +105,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	@$(READELF) --wide -r libwolfssl.ko |						\
 	$(AWK) 'BEGIN {									\
 	    n=0;									\
+	    bad_relocs=0;								\
 	    printf("%s\n    ",								\
-	        "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");	\
+	        "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");			\
 	}										\
 	/^Relocation section '\''\.rela\.text\.wolfcrypt'\''/ {				\
 	    p=1;									\
@@ -117,12 +118,20 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	}										\
 	/^0/ {										\
 	    if (p) {									\
+	        if ($$3 !~ "^(R_X86_64_PLT32|R_X86_64_PC32|R_AARCH64_.*)$$") {		\
+	            print "Unexpected relocation type:\n" $$0 >"/dev/stderr";		\
+	            ++bad_relocs;							\
+	        }									\
 	        printf("0x%s%s",							\
 	            gensub("^0*","",1,$$1),						\
 	            ((++n%8) ? ", " : ",\n    "));					\
 	    }										\
 	}										\
 	END {										\
+	    if (bad_relocs) {								\
+	        print "Found " bad_relocs " unexpected relocations." >"/dev/stderr";	\
+	        exit(1);								\
+	    }										\
 	    print "~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
 	}' > wc_linuxkm_pie_reloc_tab.c
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
