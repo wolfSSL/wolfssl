@@ -2006,7 +2006,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
  */
 #ifndef DISABLE_VECTOR_REGISTERS
     #ifdef WC_HAVE_VECTOR_SPEEDUPS
-        #define DISABLE_VECTOR_REGISTERS() -1
+        #define DISABLE_VECTOR_REGISTERS() (-1)
     #else
         #define DISABLE_VECTOR_REGISTERS() 0
     #endif
