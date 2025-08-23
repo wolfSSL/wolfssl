@@ -1714,6 +1714,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #endif
     #endif
 
+#if defined(WC_RNG_SEED_CB) && !defined(WC_GENERATE_SEED_DEFAULT)
+    #define WC_GENERATE_SEED_DEFAULT wc_GenerateSeed
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

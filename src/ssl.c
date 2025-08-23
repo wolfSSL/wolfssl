@@ -6323,7 +6323,7 @@ int wolfSSL_Init(void)
 #endif
 
     #ifdef WC_RNG_SEED_CB
-        wc_SetSeed_Cb(wc_GenerateSeed);
+        wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
     #endif
 
 #ifdef OPENSSL_EXTRA

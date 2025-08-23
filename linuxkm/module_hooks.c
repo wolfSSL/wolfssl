@@ -264,6 +264,104 @@ void wc_linuxkm_relax_long_loop(void) {
     #endif
 }
 
+/* backported wc_GenerateSeed_IntelRD() for FIPS v5. */
+#ifdef WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+
+#include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/random.h>
+
+static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
+static inline void wc_InitRng_IntelRD(void)
+{
+    cpuid_get_flags_ex(&intel_flags);
+}
+
+#define INTELRD_RETRY 32
+
+static WC_INLINE int IntelRDseed64(word64* seed)
+{
+    unsigned char ok;
+
+    __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
+    return (ok) ? 0 : -1;
+}
+
+/* return 0 on success */
+static WC_INLINE int IntelRDseed64_r(word64* rnd)
+{
+    int iters, retry_counter;
+    word64 buf;
+#if defined(HAVE_AMD_RDSEED)
+    /* See "AMD RNG ESV Public Use Document".  Version 0.7 of October 24,
+     * 2024 specifies 0.656 to 1.312 bits of entropy per 128 bit block of
+     * RDSEED output, depending on CPU family.
+     *
+     * FIPS v5 random.c sets ENTROPY_SCALE_FACTOR to 1 for
+     * HAVE_INTEL_RDSEED.
+     */
+    iters = 128;
+#elif defined(HAVE_INTEL_RDSEED)
+    /* The value of 2 applies to Intel's RDSEED which provides about
+     * 0.5 bits minimum of entropy per bit. The value of 4 gives a
+     * conservative margin for FIPS.
+     *
+     * FIPS v5 random.c sets ENTROPY_SCALE_FACTOR to 2 for
+     * HAVE_INTEL_RDSEED.
+     */
+    iters = 2;
+#else
+    #error WC_LINUXKM_RDSEED_IN_GLUE_LAYER requires HAVE_INTEL_RDSEED or HAVE_AMD_RDSEED
+#endif
+
+    while (--iters >= 0) {
+        for (retry_counter = 0; retry_counter < INTELRD_RETRY; retry_counter++) {
+            if (IntelRDseed64(&buf) == 0)
+                break;
+        }
+        if (retry_counter == INTELRD_RETRY)
+            return -1;
+        WC_SANITIZE_DISABLE();
+        *rnd ^= buf; /* deliberately retain any garbage passed in the dest buffer. */
+        WC_SANITIZE_ENABLE();
+    }
+    return 0;
+}
+
+/* return 0 on success */
+int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
+{
+    int ret;
+    word64 rndTmp;
+
+    (void)os;
+
+    wc_InitRng_IntelRD();
+
+    if (!IS_INTEL_RDSEED(intel_flags))
+        return -1;
+
+    for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
+                                                    output += sizeof(word64)) {
+        ret = IntelRDseed64_r((word64*)output);
+        if (ret != 0)
+            return ret;
+    }
+    if (sz == 0)
+        return 0;
+
+    /* handle unaligned remainder */
+    ret = IntelRDseed64_r(&rndTmp);
+    if (ret != 0)
+        return ret;
+
+    XMEMCPY(output, &rndTmp, sz);
+    wc_ForceZero(&rndTmp, sizeof(rndTmp));
+
+    return 0;
+}
+
+#endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
+
 #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
@@ -359,14 +457,15 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS */
 
 #ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    ret = wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
+
     if (ret < 0) {
         pr_err("ERROR: wc_SetSeed_Cb() failed with return code %d.\n", ret);
         (void)libwolfssl_cleanup();
         msleep(10);
         return -ECANCELED;
     }
-#endif
+#endif /* WC_RNG_SEED_CB */
 
 #ifdef WOLFCRYPT_ONLY
     ret = wolfCrypt_Init();
