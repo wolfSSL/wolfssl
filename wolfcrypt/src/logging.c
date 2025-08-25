@@ -397,7 +397,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
         /* Assume zero-terminated msg, len less than WOLFSSL_MSG_CERT_BUF_SZ */
         written = XVSNPRINTF(msg, WOLFSSL_MSG_CERT_BUF_SZ, fmt, args);
         va_end(args);
-        if ((written > 0) && (loggingCertEnabled =! 0)) {
+        if ((written > 0) && (loggingCertEnabled != 0)) {
             wolfssl_log(INFO_LOG, NULL, 0, msg);
         }
 #ifdef WOLFSSL_SMALL_STACK
