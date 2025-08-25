@@ -82,6 +82,14 @@ ifdef LD
     endif
 endif
 
+ifndef READELF
+    READELF := readelf
+endif
+
+ifndef AWK
+    AWK := awk
+endif
+
 libwolfssl.ko:
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
 	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
@@ -92,6 +100,31 @@ libwolfssl.ko:
 	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
 	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+	@echo -e "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = 1;" > wc_linuxkm_pie_reloc_tab.c
+	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
+	@$(READELF) --wide -r libwolfssl.ko |						\
+	$(AWK) 'BEGIN {									\
+	    n=0;									\
+	    printf("%s\n    ",								\
+	        "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");	\
+	}										\
+	/^Relocation section '\''\.rela\.text\.wolfcrypt'\''/ {				\
+	    p=1;									\
+	    next;									\
+	}										\
+	/^Relocation section/ {								\
+	    p=0;									\
+	}										\
+	/^0/ {										\
+	    if (p) {									\
+	        printf("0x%s%s",							\
+	            gensub("^0*","",1,$$1),						\
+	            ((++n%8) ? ", " : ",\n    "));					\
+	    }										\
+	}										\
+	END {										\
+	    print "~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
+	}' > wc_linuxkm_pie_reloc_tab.c
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 else
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS)
@@ -101,34 +134,34 @@ libwolfssl.ko.signed: libwolfssl.ko
 ifdef FORCE_NO_MODULE_SIG
 	@echo 'Skipping module signature operation because FORCE_NO_MODULE_SIG.'
 else
-	@cd '$(KERNEL_ROOT)' || exit $$?;							\
-	while read configline; do								\
-		case "$$configline" in								\
-		CONFIG_MODULE_SIG*=*)								\
-			declare "$${configline%=*}"="$${configline#*=}"				\
-			;;									\
-		esac;										\
-	done < .config || exit $$?;								\
-	if [[ "$${CONFIG_MODULE_SIG}" = "y" && -n "$${CONFIG_MODULE_SIG_KEY}" && 		\
-		-n "$${CONFIG_MODULE_SIG_HASH}" && ( ! -f '$(MODULE_TOP)/$@' ||			\
-			'$(MODULE_TOP)/$<' -nt '$(MODULE_TOP)/$@' ) ]]; then			\
-		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY#\"}";				\
-		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY%\"}";				\
-		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH#\"}";				\
-		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH%\"}";				\
-		cp -p '$(MODULE_TOP)/$<' '$(MODULE_TOP)/$@' || exit $$?;			\
-		./scripts/sign-file "$${CONFIG_MODULE_SIG_HASH}"				\
-				    "$${CONFIG_MODULE_SIG_KEY}"					\
-				    "$${CONFIG_MODULE_SIG_KEY/%.pem/.x509}"			\
-				    '$(MODULE_TOP)/$@';						\
-		sign_file_exitval=$$?;								\
-		if [[ $$sign_file_exitval != 0 ]]; then						\
-			$(RM) -f '$(MODULE_TOP)/$@';						\
-			exit $$sign_file_exitval;						\
-		fi;										\
-		if [[ "$(quiet)" != "silent_" ]]; then						\
-			echo "  Module $@ signed by $${CONFIG_MODULE_SIG_KEY}.";		\
-		fi										\
+	@cd '$(KERNEL_ROOT)' || exit $$?;						\
+	while read configline; do							\
+		case "$$configline" in							\
+		CONFIG_MODULE_SIG*=*)							\
+			declare "$${configline%=*}"="$${configline#*=}"			\
+			;;								\
+		esac;									\
+	done < .config || exit $$?;							\
+	if [[ "$${CONFIG_MODULE_SIG}" = "y" && -n "$${CONFIG_MODULE_SIG_KEY}" && 	\
+		-n "$${CONFIG_MODULE_SIG_HASH}" && ( ! -f '$(MODULE_TOP)/$@' ||		\
+			'$(MODULE_TOP)/$<' -nt '$(MODULE_TOP)/$@' ) ]]; then		\
+		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY#\"}";			\
+		CONFIG_MODULE_SIG_KEY="$${CONFIG_MODULE_SIG_KEY%\"}";			\
+		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH#\"}";			\
+		CONFIG_MODULE_SIG_HASH="$${CONFIG_MODULE_SIG_HASH%\"}";			\
+		cp -p '$(MODULE_TOP)/$<' '$(MODULE_TOP)/$@' || exit $$?;		\
+		./scripts/sign-file "$${CONFIG_MODULE_SIG_HASH}"			\
+				    "$${CONFIG_MODULE_SIG_KEY}"				\
+				    "$${CONFIG_MODULE_SIG_KEY/%.pem/.x509}"		\
+				    '$(MODULE_TOP)/$@';					\
+		sign_file_exitval=$$?;							\
+		if [[ $$sign_file_exitval != 0 ]]; then					\
+			$(RM) -f '$(MODULE_TOP)/$@';					\
+			exit $$sign_file_exitval;					\
+		fi;									\
+		if [[ "$(quiet)" != "silent_" ]]; then					\
+			echo "  Module $@ signed by $${CONFIG_MODULE_SIG_KEY}.";	\
+		fi									\
 	fi
 endif
 

@@ -161,10 +161,17 @@
         #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
             #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         #endif
-    #else
-        #ifndef WOLFSSL_NO_ASM
-            #define WOLFSSL_NO_ASM
-        #endif
+    #endif
+
+    #if defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6, 0, 0) && \
+            (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+            !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
+        #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+    #endif
+    #ifdef WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+        struct OS_Seed;
+        extern int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, unsigned char* output, unsigned int sz);
+        #define WC_GENERATE_SEED_DEFAULT wc_linuxkm_GenerateSeed_IntelRD
     #endif
 
     #ifdef BUILDING_WOLFSSL
@@ -654,7 +661,26 @@
     extern int memcmp(const void *s1, const void *s2, size_t n);
 #endif
 
+    extern const u8
+        __wc_text_start[],
+        __wc_text_end[],
+        __wc_rodata_start[],
+        __wc_rodata_end[],
+        __wc_rwdata_start[],
+        __wc_rwdata_end[],
+        __wc_bss_start[],
+        __wc_bss_end[];
+    extern const unsigned int wc_linuxkm_pie_reloc_tab[];
+    extern const size_t wc_linuxkm_pie_reloc_tab_length;
+    extern ssize_t wc_linuxkm_normalize_relocations(
+        const u8 *text_in,
+        size_t text_in_len,
+        u8 *text_out,
+        ssize_t *cur_index_p);
+
     struct wolfssl_linuxkm_pie_redirect_table {
+        typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
+
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         typeof(memcmp) *memcmp;
     #endif
@@ -932,6 +958,9 @@
     #endif
 
     #ifdef __PIE__
+
+    #define wc_linuxkm_normalize_relocations \
+        WC_LKM_INDIRECT_SYM(wc_linuxkm_normalize_relocations)
 
     #ifndef __ARCH_MEMCMP_NO_REDIRECT
         #define memcmp WC_LKM_INDIRECT_SYM(memcmp)
