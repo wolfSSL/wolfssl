@@ -16130,6 +16130,9 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #ifdef WOLFSSL_QUIC
             || (type == TLSX_KEY_QUIC_TP_PARAMS_DRAFT)
         #endif
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
+            || (type == TLSX_CKS)
+        #endif
             )
         {
             /* Detect duplicate recognized extensions. */
