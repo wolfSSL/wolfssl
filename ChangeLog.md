@@ -9,7 +9,7 @@ NOTE: * wolfSSL is now GPLv3 instead of GPLv2
             * MD5 is now disabled by default
 
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request number where the code change was added.
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request number where the code change was added.
 
 ## Vulnerabilities
 
@@ -208,7 +208,7 @@ https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assur
 
 NOTE: * --enable-heapmath is deprecated
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 
@@ -424,7 +424,7 @@ NOTE:
  user_settings.h.
 
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 
@@ -544,7 +544,7 @@ https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assur
 
 NOTE: * --enable-heapmath is being deprecated and will be removed by end of 2024
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 
