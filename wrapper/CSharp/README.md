@@ -42,7 +42,7 @@ apt-get install mono-complete
 
 ```
 ./autogen.sh
-./configure --enable-keygen --enable-eccencrypt --enable-ed25519 --enable-curve25519 --enable-aesgcm
+./configure --enable-keygen --enable-eccencrypt --enable-ed25519 --enable-curve25519 --enable-aesgcm --enable-opensslextra
 make
 make check
 sudo make install
@@ -55,7 +55,7 @@ From the `wrapper/CSharp` directory (`cd wrapper/CSharp`):
 Compile wolfCrypt test:
 
 ```
-mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs -OUT:wolfcrypttest.exe
+mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:wolfcrypttest.exe
 mono wolfcrypttest.exe
 ```
 
@@ -72,7 +72,7 @@ mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs wolfSSL-TLS-Server/wolfSSL-
 Compile client:
 
 ```
-mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs wolfSSL-TLS-Client/wolfSSL-TLS-Client.cs -OUT:client.exe
+mcs wolfSSL_CSharp/wolfCrypt.cs wolfSSL-TLS-Client/wolfSSL-TLS-Client.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:client.exe
 ```
 
 #### Run the example
