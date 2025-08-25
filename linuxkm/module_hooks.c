@@ -710,8 +710,9 @@ ssize_t wc_linuxkm_normalize_relocations(
     int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0;
 #endif
 
-    if ((text_in < __wc_text_start) ||
-        (text_in >= __wc_text_end))
+    if ((text_in_len == 0) ||
+        (text_in < __wc_text_start) ||
+        (text_in + text_in_len >= __wc_text_end))
     {
         return -1;
     }
@@ -762,7 +763,7 @@ ssize_t wc_linuxkm_normalize_relocations(
         abs_ptr = (uintptr_t)text_in + next_reloc + 4 + reloc_buf;
 
         if ((abs_ptr >= (uintptr_t)__wc_text_start) &&
-            (abs_ptr < (uintptr_t)__wc_text_end))
+            (abs_ptr <= (uintptr_t)__wc_text_end))
         {
             /* internal references in the .wolfcrypt.text segment don't need
              * normalization.
@@ -773,7 +774,7 @@ ssize_t wc_linuxkm_normalize_relocations(
             continue;
         }
         else if ((abs_ptr >= (uintptr_t)__wc_rodata_start) &&
-                 (abs_ptr < (uintptr_t)__wc_rodata_end))
+                 (abs_ptr <= (uintptr_t)__wc_rodata_end))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rodata_r;
@@ -783,7 +784,7 @@ ssize_t wc_linuxkm_normalize_relocations(
             reloc_buf |= WC_RODATA_TAG;
         }
         else if ((abs_ptr >= (uintptr_t)__wc_rwdata_start) &&
-                 (abs_ptr < (uintptr_t)__wc_rwdata_end))
+                 (abs_ptr <= (uintptr_t)__wc_rwdata_end))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rwdata_r;
@@ -793,7 +794,7 @@ ssize_t wc_linuxkm_normalize_relocations(
             reloc_buf |= WC_RWDATA_TAG;
         }
         else if ((abs_ptr >= (uintptr_t)__wc_bss_start) &&
-                 (abs_ptr < (uintptr_t)__wc_bss_end))
+                 (abs_ptr <= (uintptr_t)__wc_bss_end))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_bss_r;
@@ -809,19 +810,23 @@ ssize_t wc_linuxkm_normalize_relocations(
             reloc_buf = WC_OTHER_TAG;
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_other_r;
+            /* we're currently only handling 32 bit relocations (R_X86_64_PLT32
+             * and R_X86_64_PC32) so the top half of the word64 is padding we
+             * can lop off for rendering.
+             */
             pr_notice("found non-wolfcrypt relocation at text offset 0x%x to "
-                      "addr 0x%lx, text=%px-%px, rodata=%px-%px, "
-                      "rwdata=%px-%px, bss=%px-%px\n",
+                      "addr 0x%x, text=%x-%x, rodata=%x-%x, "
+                      "rwdata=%x-%x, bss=%x-%x\n",
                       wc_linuxkm_pie_reloc_tab[i],
-                      abs_ptr,
-                      __wc_text_start,
-                      __wc_text_end,
-                      __wc_rodata_start,
-                      __wc_rodata_end,
-                      __wc_rwdata_start,
-                      __wc_rwdata_end,
-                      __wc_bss_start,
-                      __wc_bss_end);
+                      (unsigned)(uintptr_t)abs_ptr,
+                      (unsigned)(uintptr_t)__wc_text_start,
+                      (unsigned)(uintptr_t)__wc_text_end,
+                      (unsigned)(uintptr_t)__wc_rodata_start,
+                      (unsigned)(uintptr_t)__wc_rodata_end,
+                      (unsigned)(uintptr_t)__wc_rwdata_start,
+                      (unsigned)(uintptr_t)__wc_rwdata_end,
+                      (unsigned)(uintptr_t)__wc_bss_start,
+                      (unsigned)(uintptr_t)__wc_bss_end);
 #endif
         }
         put_unaligned((u32)reloc_buf, (int32_t *)&text_out[next_reloc]);
@@ -829,8 +834,9 @@ ssize_t wc_linuxkm_normalize_relocations(
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
     if (n_other_r > 0)
-        pr_notice("text_in=%px relocs=%d/%d/%d/%d/%d ret = %zu\n",
-                  text_in, n_text_r, n_rodata_r, n_rwdata_r, n_bss_r, n_other_r,
+        pr_notice("text_in=%x relocs=%d/%d/%d/%d/%d ret = %zu\n",
+                  (unsigned)(uintptr_t)text_in, n_text_r, n_rodata_r,
+                  n_rwdata_r, n_bss_r, n_other_r,
                   text_in_len);
 #endif
 

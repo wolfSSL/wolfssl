@@ -1293,7 +1293,6 @@ then
     test "$enable_certext" = "" && enable_certext=yes
     test "$enable_sep" = "" && enable_sep=yes
     test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
@@ -1322,6 +1321,13 @@ then
     test "$enable_md5" = "" && enable_md5=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
+
+    # the compiler optimizer generates a weird out-of-bounds bss reference for
+    # find_hole() in the FP_ECC implementation.
+    if test "$ENABLED_LINUXKM_PIE" != yes
+    then
+        test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
+    fi
 
     if test "x$FIPS_VERSION" != "xv1"
     then
