@@ -86,7 +86,7 @@ NOTE: * wolfSSL is now GPLv3 instead of GPLv2
             * MD5 is now disabled by default
 
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request number where the code change was added.
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request number where the code change was added.
 
 ## Vulnerabilities
 
