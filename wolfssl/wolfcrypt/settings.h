@@ -3764,7 +3764,6 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-
 /* Place any other flags or defines here */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) && defined(_WIN32) \

@@ -161,10 +161,17 @@
         #ifndef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
             #define WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
         #endif
-    #else
-        #ifndef WOLFSSL_NO_ASM
-            #define WOLFSSL_NO_ASM
-        #endif
+    #endif
+
+    #if defined(HAVE_HASHDRBG) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6, 0, 0) && \
+            (defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)) && \
+            !defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER)
+        #define WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+    #endif
+    #ifdef WC_LINUXKM_RDSEED_IN_GLUE_LAYER
+        struct OS_Seed;
+        extern int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, unsigned char* output, unsigned int sz);
+        #define WC_GENERATE_SEED_DEFAULT wc_linuxkm_GenerateSeed_IntelRD
     #endif
 
     #ifdef BUILDING_WOLFSSL

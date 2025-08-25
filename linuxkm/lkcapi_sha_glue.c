@@ -1292,7 +1292,7 @@ static int wc_linuxkm_drbg_loaded = 0;
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
 #if !(defined(HAVE_ENTROPY_MEMUSE) || defined(HAVE_INTEL_RDSEED) ||    \
-    defined(HAVE_AMD_RDSEED))
+      defined(HAVE_AMD_RDSEED) || defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER))
     #error LINUXKM_DRBG_GET_RANDOM_BYTES requires a native or intrinsic entropy source.
 #endif
 

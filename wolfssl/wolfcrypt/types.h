@@ -1991,21 +1991,28 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
-#ifdef WOLFSSL_NO_ASM
-    /* We define fallback no-op definitions for these only if asm is disabled,
-     * otherwise the using code must detect that these macros are undefined and
-     * provide its own non-vector implementation paths.
-     *
-     * Currently these macros are only used in WOLFSSL_LINUXKM code paths, which
-     * are always compiled either with substantive definitions from
-     * linuxkm_wc_port.h, or with WOLFSSL_NO_ASM defined.
-     */
-    #ifndef DISABLE_VECTOR_REGISTERS
+#if (defined(USE_INTEL_SPEEDUP) || defined(USE_INTEL_SPEEDUP_FOR_AES) || \
+     defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
+     defined(WOLFSSL_SP_ASM)) && !defined(WOLFSSL_NO_ASM)
+    #define WC_HAVE_VECTOR_SPEEDUPS
+#endif
+
+/* DISABLE_VECTOR_REGISTERS() and REENABLE_VECTOR_REGISTERS() are currently only
+ * used by Linux kernel code.  If WC_HAVE_VECTOR_SPEEDUPS, we default
+ * DISABLE_VECTOR_REGISTERS() to -1, to assure calling code is forced to handle
+ * the failure.  But if the build disables vec regs globally, we can return 0
+ * harmlessly.  The kernel build defines real calls for these in vectorized
+ * builds, otherwise it uses these fallbacks.
+ */
+#ifndef DISABLE_VECTOR_REGISTERS
+    #ifdef WC_HAVE_VECTOR_SPEEDUPS
+        #define DISABLE_VECTOR_REGISTERS() (-1)
+    #else
         #define DISABLE_VECTOR_REGISTERS() 0
     #endif
-    #ifndef REENABLE_VECTOR_REGISTERS
-        #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
-    #endif
+#endif
+#ifndef REENABLE_VECTOR_REGISTERS
+    #define REENABLE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
 
 #ifndef WC_SANITIZE_DISABLE

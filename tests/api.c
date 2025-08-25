@@ -25508,7 +25508,7 @@ static int test_wolfSSL_RAND_poll(void)
     ExpectIntNE(XMEMCMP(rand1, rand2, 16), 0);
 
     /* reset the seed function used */
-    wc_SetSeed_Cb(wc_GenerateSeed);
+    wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
     RAND_cleanup();
 
