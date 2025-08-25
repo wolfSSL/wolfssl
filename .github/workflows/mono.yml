@@ -1,0 +1,136 @@
+name: Linux Mono C# Build Test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL C# Wrapper
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+
+    # Build wolfSSL using the user_settings.h from the C# wrapper directory
+    - name: Build wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
+      with:
+        path: wolfssl
+        configure: --enable-usersettings CPPFLAGS=-I$GITHUB_WORKSPACE/wolfssl/wrapper/CSharp
+        install: true
+
+    - name: Install mono-complete
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mono-complete
+
+    - name: Build and run wolfCrypt test wrapper
+      working-directory: wolfssl/wrapper/CSharp
+      env:
+        LD_LIBRARY_PATH: $GITHUB_WORKSPACE/build-dir/lib
+      run: |
+        mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:wolfcrypttest.exe
+        mono wolfcrypttest.exe
+
+    - name: Build wolfSSL client/server test
+      working-directory: wolfssl/wrapper/CSharp
+      env:
+        LD_LIBRARY_PATH: $GITHUB_WORKSPACE/build-dir/lib
+      run: |
+        mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs -OUT:server.exe
+        mcs wolfSSL_CSharp/wolfCrypt.cs wolfSSL-TLS-Client/wolfSSL-TLS-Client.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:client.exe
+
+    - name: Test wolfSSL client/server communication
+      working-directory: wolfssl/wrapper/CSharp
+      env:
+        LD_LIBRARY_PATH: $GITHUB_WORKSPACE/build-dir/lib
+      run: |
+        # Start server in background and capture its PID
+        timeout 10s mono server.exe > server.log 2>&1 &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        sleep 2
+        
+        # Run client and capture output
+        timeout 5s mono client.exe > client.log 2>&1
+        CLIENT_EXIT_CODE=$?
+        
+        # Wait a moment for server to process
+        sleep 1
+        
+        # Kill server
+        kill $SERVER_PID 2>/dev/null || true
+        
+        # Check if client completed successfully (exit code 0)
+        if [ $CLIENT_EXIT_CODE -eq 0 ]; then
+          echo "Client completed successfully"
+        else
+          echo "Client failed with exit code $CLIENT_EXIT_CODE"
+          cat client.log
+          exit 1
+        fi
+        
+        # Check for success indicators in logs
+        if grep -q "SSL version is" client.log && grep -q "SSL cipher suite is" client.log; then
+          echo "TLS handshake successful - SSL version and cipher suite detected"
+        else
+          echo "TLS handshake failed - no SSL version/cipher detected"
+          echo "Client log:"
+          cat client.log
+          echo "Server log:"
+          cat server.log
+          exit 1
+        fi
+
+    - name: Test SNI functionality
+      working-directory: wolfssl/wrapper/CSharp
+      env:
+        LD_LIBRARY_PATH: $GITHUB_WORKSPACE/build-dir/lib
+      run: |
+        # Start server with SNI support in background
+        timeout 10s mono server.exe -S > server_sni.log 2>&1 &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        sleep 2
+        
+        # Run client with SNI and capture output
+        timeout 5s mono client.exe -S localhost > client_sni.log 2>&1
+        CLIENT_EXIT_CODE=$?
+        
+        # Wait a moment for server to process
+        sleep 1
+        
+        # Kill server
+        kill $SERVER_PID 2>/dev/null || true
+        
+        # Check if client completed successfully
+        if [ $CLIENT_EXIT_CODE -eq 0 ]; then
+          echo "SNI client completed successfully"
+        else
+          echo "SNI client failed with exit code $CLIENT_EXIT_CODE"
+          cat client_sni.log
+          exit 1
+        fi
+        
+        # Check for SNI success indicators
+        if grep -q "SSL version is" client_sni.log && grep -q "SSL cipher suite is" client_sni.log; then
+          echo "SNI TLS handshake successful"
+        else
+          echo "SNI TLS handshake failed"
+          echo "Client log:"
+          cat client_sni.log
+          echo "Server log:"
+          cat server_sni.log
+          exit 1
+        fi
