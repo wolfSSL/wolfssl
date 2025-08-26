@@ -41,17 +41,21 @@
      */
     void cpuid_set_flags(void)
     {
-        if (!cpuid_check) {
-            cpuid_flags |= CPUID_AVX1;
-            cpuid_flags |= CPUID_AVX2;
-            cpuid_flags |= CPUID_BMI2;
-            cpuid_flags |= CPUID_RDSEED;
-            cpuid_flags |= CPUID_AESNI;
-            cpuid_flags |= CPUID_ADX;
-            cpuid_flags |= CPUID_MOVBE;
-            cpuid_flags |= CPUID_BMI1;
+        if (WOLFSSL_ATOMIC_LOAD(cpuid_flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t new_cpuid_flags = 0,
+                old_cpuid_flags = WC_CPUID_INITIALIZER;
 
-            cpuid_check = 1;
+            new_cpuid_flags |= CPUID_AVX1;
+            new_cpuid_flags |= CPUID_AVX2;
+            new_cpuid_flags |= CPUID_BMI2;
+            new_cpuid_flags |= CPUID_RDSEED;
+            new_cpuid_flags |= CPUID_AESNI;
+            new_cpuid_flags |= CPUID_ADX;
+            new_cpuid_flags |= CPUID_MOVBE;
+            new_cpuid_flags |= CPUID_BMI1;
+
+            (void)wolfSSL_Atomic_Uint_CompareExchange
+                (&cpuid_flags, &old_cpuid_flags, new_cpuid_flags);
         }
     }
 
