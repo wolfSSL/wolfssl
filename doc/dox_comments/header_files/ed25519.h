@@ -767,7 +767,7 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 /*!
     \ingroup ED25519
 
-    \brief This function exports the private key from an ed25519_key
+    \brief This function exports the public key from an ed25519_key
     structure. It stores the public key in the buffer out, and sets the bytes
     written to this buffer in outLen.
 
