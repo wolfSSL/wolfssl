@@ -2689,6 +2689,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ossl_ec.c
         tests/api/test_ossl_ecx.c
         tests/api/test_ossl_dsa.c
+        tests/api/test_tls13.c
         tests/srp.c
         tests/suites.c
         tests/w64wrapper.c

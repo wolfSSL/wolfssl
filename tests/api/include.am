@@ -77,6 +77,8 @@ tests_unit_test_SOURCES += tests/api/test_ossl_dh.c
 tests_unit_test_SOURCES += tests/api/test_ossl_ec.c
 tests_unit_test_SOURCES += tests/api/test_ossl_ecx.c
 tests_unit_test_SOURCES += tests/api/test_ossl_dsa.c
+# TLS 1.3 specific
+tests_unit_test_SOURCES += tests/api/test_tls13.c
 endif
 
 EXTRA_DIST += tests/api/api.h
@@ -143,4 +145,5 @@ EXTRA_DIST += tests/api/test_ossl_dh.h
 EXTRA_DIST += tests/api/test_ossl_ec.h
 EXTRA_DIST += tests/api/test_ossl_ecx.h
 EXTRA_DIST += tests/api/test_ossl_dsa.h
+EXTRA_DIST += tests/api/test_tls13.h
 
