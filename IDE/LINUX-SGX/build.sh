@@ -5,6 +5,11 @@ CFLAGS_NEW="-DDEBUG_WOLFSSL -I/usr/lib/gcc/x86_64-linux-gnu/$(gcc -dumpversion)/
 export CFLAGS="${CFLAGS} ${CFLAGS_NEW}"
 echo ${CFLAGS}
 
+# create an empty options.h file if none exist
+if [ ! -f ../../wolfssl/options.h ]; then
+    touch ../../wolfssl/options.h
+fi
+
 NEW_INCLUDE_PATH="$C_INCLUDE_PATH:/usr/lib/gcc/x86_64-linux-gnu/$(gcc -dumpversion)/include"
 export C_INCLUDE_PATH="$NEW_INCLUDE_PATH"
 
