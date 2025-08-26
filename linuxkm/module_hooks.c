@@ -108,6 +108,9 @@ static unsigned int hash_span(char *start, char *end) {
     return sum;
 }
 
+static int total_text_r = 0, total_rodata_r = 0, total_rwdata_r = 0,
+    total_bss_r = 0, total_other_r = 0;
+
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
@@ -433,6 +436,16 @@ static int wolfssl_init(void)
                 rodata_hash, pie_rodata_end-pie_rodata_start,
                 pie_text_start < pie_rodata_start ? '+' : '-',
                 pie_text_start < pie_rodata_start ? pie_rodata_start - pie_text_start : pie_text_start - pie_rodata_start);
+        pr_info("wolfCrypt segments: text=%x-%x, rodata=%x-%x, "
+                "rwdata=%x-%x, bss=%x-%x\n",
+                (unsigned)(uintptr_t)__wc_text_start,
+                (unsigned)(uintptr_t)__wc_text_end,
+                (unsigned)(uintptr_t)__wc_rodata_start,
+                (unsigned)(uintptr_t)__wc_rodata_end,
+                (unsigned)(uintptr_t)__wc_rwdata_start,
+                (unsigned)(uintptr_t)__wc_rwdata_end,
+                (unsigned)(uintptr_t)__wc_bss_start,
+                (unsigned)(uintptr_t)__wc_bss_end);
     }
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT && DEBUG_LINUXKM_PIE_SUPPORT */
@@ -443,7 +456,19 @@ static int wolfssl_init(void)
         pr_err("ERROR: wolfCrypt_SetCb_fips() failed: %s\n", wc_GetErrorString(ret));
         return -ECANCELED;
     }
+
+#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+    total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
+        total_other_r = 0;
+#endif
+
     fipsEntry();
+
+#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+    pr_info("relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
+            total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
+#endif
+
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
@@ -638,20 +663,7 @@ MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
-#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
-
-/* get_current() is an inline or macro, depending on the target -- sidestep the whole issue with a wrapper func. */
-static struct task_struct *my_get_current_thread(void) {
-    return get_current();
-}
-
-/* preempt_count() is an inline function in arch/x86/include/asm/preempt.h that
- * accesses __preempt_count, which is an int array declared with
- * DECLARE_PER_CPU_CACHE_HOT.
- */
-static int my_preempt_count(void) {
-    return preempt_count();
-}
+#ifdef HAVE_LINUXKM_PIE_SUPPORT
 
 #include "linuxkm/wc_linuxkm_pie_reloc_tab.c"
 
@@ -773,35 +785,40 @@ ssize_t wc_linuxkm_normalize_relocations(
 #endif
             continue;
         }
-        else if ((abs_ptr >= (uintptr_t)__wc_rodata_start) &&
-                 (abs_ptr <= (uintptr_t)__wc_rodata_end))
+        /* for the rodata, rwdata, and bss segments, recognize dest addrs one
+         * byte outside the segment -- the compiler occasionally generates
+         * these, e.g. __wc_rwdata_start - 1 in DoInCoreCheck() in kernel 6.1
+         * build of FIPS v5.
+         */
+        else if ((abs_ptr >= (uintptr_t)__wc_rodata_start - 1) &&
+                 (abs_ptr <= (uintptr_t)__wc_rodata_end + 1))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rodata_r;
 #endif
-            reloc_buf -= (int)((uintptr_t)__wc_rodata_start -
+            reloc_buf -= (int)((uintptr_t)__wc_rodata_start - 1 -
                                (uintptr_t)__wc_text_start);
-            reloc_buf |= WC_RODATA_TAG;
+            reloc_buf ^= WC_RODATA_TAG;
         }
-        else if ((abs_ptr >= (uintptr_t)__wc_rwdata_start) &&
-                 (abs_ptr <= (uintptr_t)__wc_rwdata_end))
+        else if ((abs_ptr >= (uintptr_t)__wc_rwdata_start - 1) &&
+                 (abs_ptr <= (uintptr_t)__wc_rwdata_end + 1))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rwdata_r;
 #endif
-            reloc_buf -= (int)((uintptr_t)__wc_rwdata_start -
+            reloc_buf -= (int)((uintptr_t)__wc_rwdata_start - 1 -
                                (uintptr_t)__wc_text_start);
-            reloc_buf |= WC_RWDATA_TAG;
+            reloc_buf ^= WC_RWDATA_TAG;
         }
-        else if ((abs_ptr >= (uintptr_t)__wc_bss_start) &&
-                 (abs_ptr <= (uintptr_t)__wc_bss_end))
+        else if ((abs_ptr >= (uintptr_t)__wc_bss_start - 1) &&
+                 (abs_ptr <= (uintptr_t)__wc_bss_end + 1))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_bss_r;
 #endif
-            reloc_buf -= (int)((uintptr_t)__wc_bss_start -
+            reloc_buf -= (int)((uintptr_t)__wc_bss_start - 1 -
                                (uintptr_t)__wc_text_start);
-            reloc_buf |= WC_BSS_TAG;
+            reloc_buf ^= WC_BSS_TAG;
         }
         else {
             /* relocation referring to non-wolfcrypt segment -- these can only
@@ -833,6 +850,12 @@ ssize_t wc_linuxkm_normalize_relocations(
     }
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
+    total_text_r += n_text_r;
+    total_rodata_r += n_rodata_r;
+    total_rwdata_r += n_rwdata_r;
+    total_bss_r += n_bss_r;
+    total_other_r += n_other_r;
+
     if (n_other_r > 0)
         pr_notice("text_in=%x relocs=%d/%d/%d/%d/%d ret = %zu\n",
                   (unsigned)(uintptr_t)text_in, n_text_r, n_rodata_r,
@@ -844,6 +867,25 @@ ssize_t wc_linuxkm_normalize_relocations(
         *cur_index_p = i;
 
     return text_in_len;
+}
+
+#endif /* HAVE_LINUXKM_PIE_SUPPORT */
+
+#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+
+/* get_current() is an inline or macro, depending on the target -- sidestep the
+ * whole issue with a wrapper func.
+ */
+static struct task_struct *my_get_current_thread(void) {
+    return get_current();
+}
+
+/* preempt_count() is an inline function in arch/x86/include/asm/preempt.h that
+ * accesses __preempt_count, which is an int array declared with
+ * DECLARE_PER_CPU_CACHE_HOT.
+ */
+static int my_preempt_count(void) {
+    return preempt_count();
 }
 
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
@@ -1129,7 +1171,6 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 }
 
 #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
-
 
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 
