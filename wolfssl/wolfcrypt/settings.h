@@ -4144,6 +4144,33 @@ extern void uITRON4_free(void *p) ;
            without staticmemory (WOLFSSL_STATIC_MEMORY)
 #endif
 
+/*
+ *  the WOLFSSL_SS_* macros handle small stack conditional compiles
+ */
+#ifdef WOLFSSL_SMALL_STACK
+#define WOLFSSL_SS_IF_SS(a,b)  a
+#else
+#define WOLFSSL_SS_IF_SS(a,b)  b
+#endif
+
+#define WOLFSSL_SS_DECL_N(type, var, n)                                       \
+    WOLFSSL_SS_IF_SS(type* var = NULL,type var[n])
+#define WOLFSSL_SS_DECL(type, var) WOLFSSL_SS_DECL_N(type, var, 1)
+#define WOLFSSL_SS_ALLOC_N(type, var, n, heap, ord) WOLFSSL_SS_IF_SS(         \
+    do { var = (type*)XMALLOC(n*sizeof(type), heap, ord);                     \
+    if (var == NULL) { ret = MEMORY_E; } } while(0)                           \
+    ,                                                                         \
+    )
+#define WOLFSSL_SS_ALLOC(type, var, heap, ord)                                \
+    WOLFSSL_SS_ALLOC_N(type, var, 1, heap, ord)
+#define WOLFSSL_SS_IS_NULL(var) WOLFSSL_SS_IF_SS(((var) == NULL),0)
+#define WOLFSSL_SS_FREE(var, heap, ord)                                       \
+     WOLFSSL_SS_IF_SS(XFREE(var, heap, ord),)
+#define WOLFSSL_SS_STATIC_BUFFER_INIT(content, var, n) WOLFSSL_SS_IF_SS(      \
+    do{(void)var;static_buffer_init(&content);}while(0)                       \
+    ,                                                                         \
+    static_buffer_init(&content, var, n))
+
 /* If malloc is disabled make sure it is also disabled in SP math */
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_SP_NO_MALLOC) && \
     (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL))
