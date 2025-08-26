@@ -11341,6 +11341,8 @@ static int test_wolfSSL_tls_export_run(method_provider server_method,
     fdOpenSession(Task_self());
 #endif
 
+    (void)cmpSess;
+
     InitTcpReady(&ready);
 
 #if defined(USE_WINDOWS_API)
