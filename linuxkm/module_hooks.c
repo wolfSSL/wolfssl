@@ -326,6 +326,7 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
         WC_SANITIZE_DISABLE();
         *rnd ^= buf; /* deliberately retain any garbage passed in the dest buffer. */
         WC_SANITIZE_ENABLE();
+        buf = 0;
     }
     return 0;
 }
