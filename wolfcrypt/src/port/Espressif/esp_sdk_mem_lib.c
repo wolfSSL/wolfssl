@@ -123,7 +123,7 @@ enum sdk_memory_segment
 {
     /* Ensure this list exactly matches order in sdk_memory_segment_text */
     mem_map_io = 0,
-    thread_local,
+    thread_local_sec,
     data,
     user_data_ram,
     bss,
@@ -197,7 +197,7 @@ int sdk_init_meminfo(void)
     sdk_log_meminfo(SDK_MEMORY_SEGMENT_COUNT, NULL, NULL); /* print header */
     sdk_log_meminfo(mem_map_io,    MEM_MAP_IO_START,    MEM_MAP_IO_END);
 #if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
-    sdk_log_meminfo(thread_local,  _thread_local_start, _thread_local_end);
+    sdk_log_meminfo(thread_local_sec,  _thread_local_start, _thread_local_end);
 #endif
     sdk_log_meminfo(data,          _data_start,         _data_end);
     sdk_log_meminfo(user_data_ram, USER_DATA_START,     USER_DATA_END);
