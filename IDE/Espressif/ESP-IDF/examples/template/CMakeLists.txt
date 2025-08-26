@@ -7,6 +7,19 @@ message(STATUS "Begin project ${CMAKE_PROJECT_NAME}")
 
 cmake_minimum_required(VERSION 3.16)
 
+# For the main project using ESP-IDF version 6 or greater.
+# Numerous "dangerous relocation: call8: call target out of range: memcpy" errors encountered
+# So we'll allow long calls with the `-mlongcalls` compiler option for all components.
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    if(IDF_TARGET STREQUAL "esp32" OR IDF_TARGET STREQUAL "esp32s2" OR IDF_TARGET STREQUAL "esp32s3")
+        message(STATUS "Adding mlongcalls")
+        add_compile_options(-mlongcalls)
+        add_link_options(-mlongcalls)
+        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -mlongcalls")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mlongcalls")
+    endif()
+endif()
+
 # Optional no watchdog typically used for test & benchmark
 if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_ESP_NO_WATCHDOG=1")
@@ -143,6 +156,16 @@ if(0)
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+# Once the project is loaded, next check for ESP-IDF version 6 or greater.
+# Numerous "dangerous relocation: call8: call target out of range: memcpy" errors encountered
+# So we'll allow long calls with the `-mlongcalls` compiler option for all components.
+if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
+    if(IDF_TARGET STREQUAL "esp32" OR IDF_TARGET STREQUAL "esp32s2" OR IDF_TARGET STREQUAL "esp32s3")
+        message(STATUS "mlongcalls for all components")
+        idf_build_set_property(COMPILE_OPTIONS "-mlongcalls" APPEND)
+    endif()
+endif()
 
 project(wolfssl_template)
 message(STATUS "end project")
