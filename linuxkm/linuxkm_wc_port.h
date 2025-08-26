@@ -653,14 +653,7 @@
         #error "compiling -fPIE requires PIE redirect table."
     #endif
 
-    #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
-
-#ifdef CONFIG_MIPS
-    #undef __ARCH_MEMCMP_NO_REDIRECT
-    #undef memcmp
-    extern int memcmp(const void *s1, const void *s2, size_t n);
-#endif
-
+    #ifdef HAVE_LINUXKM_PIE_SUPPORT
     extern const u8
         __wc_text_start[],
         __wc_text_end[],
@@ -677,6 +670,15 @@
         size_t text_in_len,
         u8 *text_out,
         ssize_t *cur_index_p);
+    #endif /* HAVE_LINUXKM_PIE_SUPPORT */
+
+    #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+
+#ifdef CONFIG_MIPS
+    #undef __ARCH_MEMCMP_NO_REDIRECT
+    #undef memcmp
+    extern int memcmp(const void *s1, const void *s2, size_t n);
+#endif
 
     struct wolfssl_linuxkm_pie_redirect_table {
         typeof(wc_linuxkm_normalize_relocations) *wc_linuxkm_normalize_relocations;
