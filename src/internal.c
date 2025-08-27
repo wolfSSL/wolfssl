@@ -11004,7 +11004,7 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
     }
 
     ForceZero(ssl->buffers.inputBuffer.buffer,
-        ssl->buffers.inputBuffer.length);
+        ssl->buffers.inputBuffer.bufferSize);
     XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
           ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;

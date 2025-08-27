@@ -212,7 +212,7 @@ static wolfSSL_Mutex zeroMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(zeroMutex);
 
 /* Initialize the table of addresses and the mutex.
  */
-void wc_MemZero_Init()
+void wc_MemZero_Init(void)
 {
     /* Clear the table to more easily see what is valid. */
     XMEMSET(memZero, 0, sizeof(memZero));
@@ -226,7 +226,7 @@ void wc_MemZero_Init()
 
 /* Free the mutex and check we have not any uncheck addresses.
  */
-void wc_MemZero_Free()
+void wc_MemZero_Free(void)
 {
     /* Free mutex. */
 #ifndef WOLFSSL_MUTEX_INITIALIZER
