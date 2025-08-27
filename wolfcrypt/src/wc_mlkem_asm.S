@@ -15779,7 +15779,10 @@ _mlkem_decompress_5_avx2:
         vpmullw	%ymm4, %ymm0, %ymm0
         vpmulhrsw	%ymm1, %ymm0, %ymm0
         vmovdqu	%ymm0, 448(%rdi)
-        vbroadcasti128	150(%rsi), %ymm0
+        vmovq	150(%rsi), %xmm0
+        movzxw	158(%rsi), %rdx
+        vpinsrq	$0x01, %rdx, %xmm0, %xmm0
+        vinserti128	$0x01, %xmm0, %ymm0, %ymm0
         vpshufb	%ymm2, %ymm0, %ymm0
         vpand	%ymm3, %ymm0, %ymm0
         vpmullw	%ymm4, %ymm0, %ymm0
