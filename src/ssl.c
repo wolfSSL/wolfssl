@@ -3368,7 +3368,7 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 }
 
 
-/* returns 0 on failure and on no read */
+/* returns 0 on failure and 1 on read */
 int wolfSSL_read_ex(WOLFSSL* ssl, void* data, size_t sz, size_t* rd)
 {
     int ret;
@@ -3388,8 +3388,7 @@ int wolfSSL_read_ex(WOLFSSL* ssl, void* data, size_t sz, size_t* rd)
         *rd = (size_t)ret;
     }
 
-    if (ret <= 0) ret = 0;
-    return ret;
+    return ret > 0 ? 1 : 0;
 }
 
 #ifdef WOLFSSL_MULTICAST
