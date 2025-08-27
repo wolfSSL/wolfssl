@@ -59,6 +59,7 @@ jobs:
           '--enable-lms=small,verify-only --enable-xmss=small,verify-only',
           '--disable-sys-ca-certs',
           '--enable-all CPPFLAGS=-DWOLFSSL_DEBUG_CERTS ',
+          '--enable-all CFLAGS="-DWOLFSSL_CHECK_MEM_ZERO"',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
