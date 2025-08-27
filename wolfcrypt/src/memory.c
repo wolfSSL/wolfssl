@@ -302,7 +302,9 @@ void wc_MemZero_Check(void* addr, size_t len)
                 fprintf(stderr, "\n[MEM_ZERO] %s:%p + %ld is not zero\n",
                     memZero[i].name, memZero[i].addr, j);
                 fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
+            #ifndef TEST_ALWAYS_RUN_TO_END
                 abort();
+            #endif
             }
         }
         /* Update next index to write to. */
