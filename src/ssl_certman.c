@@ -600,6 +600,9 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
             ret = WOLFSSL_FATAL_ERROR;
         } else {
             if (format == WOLFSSL_FILETYPE_PEM) {
+            #ifndef WOLFSSL_PEM_TO_DER
+                ret = NOT_COMPILED_IN;
+            #else
                 ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, NULL, NULL);
                 if (!ret) {
                     /* Replace buffer pointer and size with DER buffer. */
@@ -610,6 +613,7 @@ int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
                     WOLFSSL_ERROR(ret);
                     ret = WOLFSSL_FATAL_ERROR;
                 }
+            #endif
             }
 
             if (ret == WOLFSSL_SUCCESS) {
