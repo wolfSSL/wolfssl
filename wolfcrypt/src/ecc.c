@@ -3166,7 +3166,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     ecc_point** R, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
 {
     int      err = MP_OKAY;
-    int      bytes = (mp_count_bits(modulus) + 7) / 8;
+    int      bytes = (mp_count_bits(modulus) + 7) >> 3;
     int      i;
     int      j = 1;
     int      cnt = DIGIT_BIT;
@@ -3404,7 +3404,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
     ecc_point** R, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
 {
     int          err = MP_OKAY;
-    int          bytes = (mp_count_bits(modulus) + 7) / 8;
+    int          bytes = (mp_count_bits(modulus) + 7) >> 3;
     int          i;
     int          j = 1;
     int          cnt;
@@ -4452,7 +4452,7 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
         Gx == NULL || Gy == NULL)
         return BAD_FUNC_ARG;
 
-    curveSz = (fieldSize + 1) / 8;    /* round up */
+    curveSz = (fieldSize + 1) >> 3;    /* round up */
 
     for (idx = 0; ecc_sets[idx].size != 0; idx++) {
         if (curveSz == ecc_sets[idx].size) {
@@ -11929,7 +11929,7 @@ int wc_ecc_sig_size(const ecc_key* key)
     keySz = key->dp->size;
     orderBits = wc_ecc_get_curve_order_bit_count(key->dp);
     if (orderBits > keySz * 8) {
-        keySz = (orderBits + 7) / 8;
+        keySz = (orderBits + 7) >> 3;
     }
     /* maximum possible signature header size is 7 bytes */
     maxSigSz = (keySz * 2) + SIG_HEADER_SZ;
