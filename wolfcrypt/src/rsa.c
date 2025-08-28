@@ -1562,11 +1562,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
                             byte* optLabel, word32 labelLen, void* heap)
 {
     word32 hLen;
-    int ret;
+    volatile int ret;
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     word32 idx;
     word32 i;
-    word32 inc;
+    volatile word32 inc;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp  = NULL;
@@ -1851,9 +1851,11 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     else {
-        unsigned int j;
-        word16 pastSep = 0;
-        byte   invalid = 0;
+        unsigned int    j;
+        volatile word16 pastSep = 0;
+        volatile byte   invalid = 0;
+        volatile byte   minPad;
+        volatile int    invalidMask;
 
         i = 0;
         /* Decrypted with private key - unpad must be constant time. */
@@ -1865,7 +1867,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         }
 
         /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
-        invalid |= ctMaskLT(i, RSA_MIN_PAD_SZ);
+        minPad = ctMaskLT(i, RSA_MIN_PAD_SZ);
+        invalid |= minPad;
         /* Must have seen separator. */
         invalid |= (byte)~pastSep;
         /* First byte must be 0x00. */
@@ -1874,7 +1877,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
 
         *output = (byte *)(pkcsBlock + i);
-        ret = ((int)-1 + (int)(invalid >> 7)) & ((int)pkcsBlockLen - i);
+        invalidMask = (int)-1 + (int)(invalid >> 7);
+        ret = invalidMask & ((int)pkcsBlockLen - i);
     }
 #endif
 
