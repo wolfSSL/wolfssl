@@ -253,7 +253,8 @@ void WOLFSSL_START(int funcNum)
     if (funcNum < WC_FUNC_COUNT) {
         double now = current_time(0) * 1000.0;
     #ifdef WOLFSSL_FUNC_TIME_LOG
-        fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+        WOLFSSL_DEBUG_PRINTF("%17.3f: START - %s\n",
+                             now, wc_func_name[funcNum]);
     #endif
         wc_func_start[funcNum] = now;
     }
@@ -265,7 +266,8 @@ void WOLFSSL_END(int funcNum)
         double now = current_time(0) * 1000.0;
         wc_func_time[funcNum] += now - wc_func_start[funcNum];
     #ifdef WOLFSSL_FUNC_TIME_LOG
-        fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+        WOLFSSL_DEBUG_PRINTF("%17.3f: END   - %s\n",
+                             now, wc_func_name[funcNum]);
     #endif
     }
 }
@@ -278,11 +280,11 @@ void WOLFSSL_TIME(int count)
     for (i = 0; i < WC_FUNC_COUNT; i++) {
         if (wc_func_time[i] > 0) {
             avg = wc_func_time[i] / count;
-            fprintf(stderr, "%8.3f ms: %s\n", avg, wc_func_name[i]);
+            WOLFSSL_DEBUG_PRINTF("%8.3f ms: %s\n", avg, wc_func_name[i]);
             total += avg;
         }
     }
-    fprintf(stderr, "%8.3f ms\n", total);
+    WOLFSSL_DEBUG_PRINTF("%8.3f ms\n", total);
 }
 #endif
 
@@ -1850,36 +1852,21 @@ static int backtrace_callback(void *data, uintptr_t pc, const char *filename,
         *(int *)data = 1;
         return 0;
     }
-#ifdef NO_STDIO_FILESYSTEM
-    printf("    #%d %p in %s %s:%d\n", (*(int *)data)++, (void *)pc,
-           function, filename, lineno);
-#else
-    fprintf(stderr, "    #%d %p in %s %s:%d\n", (*(int *)data)++, (void *)pc,
-            function, filename, lineno);
-#endif
+    WOLFSSL_DEBUG_PRINTF("    #%d %p in %s %s:%d\n", (*(int *)data)++,
+                         (void *)pc, function, filename, lineno);
     return 0;
 }
 
 static void backtrace_error(void *data, const char *msg, int errnum) {
     (void)data;
-#ifdef NO_STDIO_FILESYSTEM
-    printf("ERR TRACE: error %d while backtracing: %s", errnum, msg);
-#else
-    fprintf(stderr, "ERR TRACE: error %d while backtracing: %s", errnum, msg);
-#endif
+    WOLFSSL_DEBUG_PRINTF("ERR TRACE: error %d while backtracing: %s",
+                         errnum, msg);
 }
 
 static void backtrace_creation_error(void *data, const char *msg, int errnum) {
     (void)data;
-#ifdef NO_STDIO_FILESYSTEM
-    printf("ERR TRACE: internal error %d "
+    WOLFSSL_DEBUG_PRINTF("ERR TRACE: internal error %d "
             "while initializing backtrace facility: %s", errnum, msg);
-    printf("ERR TRACE: internal error "
-           "while initializing backtrace facility");
-#else
-    fprintf(stderr, "ERR TRACE: internal error %d "
-            "while initializing backtrace facility: %s", errnum, msg);
-#endif
 }
 
 static int backtrace_init(struct backtrace_state **backtrace_state) {
