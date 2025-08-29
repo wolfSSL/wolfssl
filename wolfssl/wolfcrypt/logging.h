@@ -550,6 +550,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_DEBUG_PRINTF_FN printk
 #elif defined(WOLFSSL_RENESAS_RA6M4)
     #define WOLFSSL_DEBUG_PRINTF_FN myprintf
+#elif defined(NO_STDIO_FILESYSTEM)
+    #define WOLFSSL_DEBUG_PRINTF_FN printf
 #else
     #define WOLFSSL_DEBUG_PRINTF_FN fprintf
     #define WOLFSSL_DEBUG_PRINTF_FIRST_ARGS stderr,
@@ -561,14 +563,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
 
 #if defined(WOLFSSL_DEBUG_PRINTF_FN) && !defined(WOLFSSL_DEBUG_PRINTF)
     #if defined(WOLF_NO_VARIADIC_MACROS)
-        #if defined(WOLFSSL_ESPIDF)
-            /* ESP-IDF supports variadic. Do not use WOLF_NO_VARIADIC_MACROS.
-             * This is only for WOLF_NO_VARIADIC_MACROS testing: */
-            #define WOLFSSL_DEBUG_PRINTF(a) \
-                WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS a)
-        #else
-            /* no variadic not defined for this platform */
-        #endif
+        #define WOLFSSL_DEBUG_PRINTF(a) \
+            WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS a)
     #else
         #define WOLFSSL_DEBUG_PRINTF(...) \
             WOLFSSL_DEBUG_PRINTF_FN(WOLFSSL_DEBUG_PRINTF_FIRST_ARGS __VA_ARGS__)
