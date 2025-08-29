@@ -1,18 +1,18 @@
 # wolfSSL with Arduino
 
-See the [example sketches](./sketches/README.md):
-
-NOTE: Moving; See https://github.com/wolfSSL/wolfssl-examples/pull/499
+See the [example sketches](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino):
 
 Bare-bones templates:
 
-- [sketches/wolfssl_version](./sketches/wolfssl_version/README.md) single file.
-- [sketches/template](./sketches/template/README.md) multiple file example.
+- [sketches/wolfssl_version](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_version/README.md) single file.
+- [sketches/template](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/template/README.md) multiple file example.
 
 Functional examples:
-- [sketches/wolfssl_AES_CTR](./sketches/wolfssl_AES_CTR/README.md) AES CTR Encrypt / decrypt.
-- [sketches/wolfssl_client](./sketches/wolfssl_client/README.md) TLS Client.
-- [sketches/wolfssl_server](./sketches/wolfssl_server/README.md) TLS Server.
+- [sketches/wolfssl_AES_CTR](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_AES_CTR/README.md) AES CTR Encrypt / decrypt.
+- [sketches/wolfssl_client](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_client/README.md) TLS Client.
+- [sketches/wolfssl_server](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_server/README.md) TLS Server.
+- [sketches/wolfssl_client_dtls](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_client_dtls/README.md) DTLS Client.
+- [sketches/wolfssl_server_dtls](https://github.com/wolfSSL/wolfssl-examples/tree/master/Arduino/sketches/wolfssl_server_dtls/README.md) DTLS Server.
 
 Both the `template` and `wolfssl_AES_CTR` examples include VisualGDB project files.
 

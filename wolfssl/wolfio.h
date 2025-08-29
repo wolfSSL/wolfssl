@@ -93,7 +93,25 @@
             #define LWIP_PROVIDE_ERRNO 1
         #endif
     #elif defined(ARDUINO)
-        /* TODO Add specific boards */
+        /* board-specific */
+        #if defined(__AVR__)
+            /* No AVR specifics at this time */
+        #elif defined(__arm__)
+            /* No ARM specifics at this time */
+        #elif defined(ESP8266)
+            #define WOLFSSL_NO_SOCK
+            #define WOLFSSL_USER_IO
+            #define NO_WRITEV
+            /* No Sockets on ESP8266, thus no DTLS */
+        #elif defined(ESP32)
+            #if defined(WOLFSSL_DTLS) || defined(WOLFSSL_DTLS13)
+                #include <sys/socket.h>
+                #include <netinet/in.h>
+                #include <arpa/inet.h>
+            #endif
+        #else
+            /* Add new boards here */
+        #endif
     #elif defined(FREESCALE_MQX)
         #include <posix.h>
         #include <rtcs.h>
@@ -262,6 +280,20 @@
         #define SOCKET_ECONNREFUSED ECONNREFUSED
         #define SOCKET_ECONNABORTED ECONNABORTED
     #endif
+#elif defined(ARDUINO)
+    #if defined(WOLFSSL_DTLS) || defined(WOLFSSL_DTLS13)
+        #define SOCKADDR_S        struct sockaddr_storage
+        #define SOCKADDR          struct sockaddr
+        #define SOCKADDR_IN       struct sockaddr_in
+    #endif
+    #define SOCKET_EWOULDBLOCK EWOULDBLOCK
+    #define SOCKET_EAGAIN      EAGAIN
+    #define SOCKET_ETIMEDOUT   ETIMEDOUT
+    #define SOCKET_ECONNRESET  ECONNRESET
+    #define SOCKET_EINTR       EINTR
+    #define SOCKET_EPIPE       EPIPE
+    #define SOCKET_ECONNREFUSED ECONNREFUSED
+    #define SOCKET_ECONNABORTED ECONNABORTED
 #elif defined(USE_WINDOWS_API)
     /* no epipe yet */
     #ifndef WSAEPIPE
@@ -402,7 +434,7 @@
     #define SOCKET_EPIPE       EPIPE
     #define SOCKET_ECONNREFUSED ECONNREFUSED
     #define SOCKET_ECONNABORTED ECONNABORTED
-#endif /* USE_WINDOWS_API */
+#endif /* __WATCOMC__ || ARDUINO || USE_WINDOWS_API || __PPU || .. etc */
 
 #ifdef DEVKITPRO
     /* from network.h */
