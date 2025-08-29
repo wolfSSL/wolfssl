@@ -406,8 +406,8 @@ if __name__ == '__main__':
             'responder_by_name': True,
             'responses': [
                 {
-                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
-                    'serial': 0x01,
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'intermediate1-ca-cert.pem',
+                    'serial': 0x05,
                     'status': CERT_GOOD
                 }
             ],
