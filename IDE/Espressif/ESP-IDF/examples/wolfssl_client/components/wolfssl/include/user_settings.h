@@ -1058,8 +1058,9 @@ Turn on timer debugging (used when CPU cycles not available)
             #error "USE_CERT_BUFFERS_1024 is already defined. Pick one."
         #endif
 
-        /* Be sure to include in app when using example certs: */
-        #include <wolfssl/certs_test.h>
+        /* Be sure to include in app, not here, when using example certs: */
+        /* #include <wolfssl/certs_test.h> */
+        /* Including certs_test.h here may cause conflict in wolfssh certs. */
 
         #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_2048
@@ -1085,8 +1086,9 @@ Turn on timer debugging (used when CPU cycles not available)
             #error "USE_CERT_BUFFERS_2048 is already defined. Pick one."
         #endif
 
-        /* Be sure to include in app when using example certs: */
-        #include <wolfssl/certs_test.h>
+        /* Be sure to include in app, not here, when using example certs: */
+        /* #include <wolfssl/certs_test.h> */
+        /* Including certs_test.h here may cause conflict in wolfssh certs. */
 
         #define USE_CERT_BUFFERS_256
         #define CTX_CA_CERT          ca_cert_der_1024
