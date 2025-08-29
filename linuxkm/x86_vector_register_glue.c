@@ -346,7 +346,14 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
-        if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
+        if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
+                     == WC_FPU_COUNT_MASK))
+        {
+            pr_err("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
+                   "pid %d on CPU %d.\n", pstate->pid, raw_smp_processor_id());
+            return BAD_STATE_E;
+        }
+        if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
             if (flags & WC_SVR_FLAG_INHIBIT) {
                 /* allow recursive inhibit calls as long as the whole stack of
                  * them is inhibiting.
@@ -357,15 +364,12 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
             else
                 return WC_ACCEL_INHIBIT_E;
         }
-        if (unlikely(flags & WC_SVR_FLAG_INHIBIT))
-            return BAD_STATE_E;
-        if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
-                     == WC_FPU_COUNT_MASK))
-        {
-            pr_err("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
-                   "pid %d on CPU %d.\n", pstate->pid, raw_smp_processor_id());
-            return BAD_STATE_E;
-        } else {
+        if (flags & WC_SVR_FLAG_INHIBIT) {
+            ++pstate->fpu_state;
+            pstate->fpu_state |= WC_FPU_INHIBITED_FLAG;
+            return 0;
+        }
+        else {
             ++pstate->fpu_state;
             return 0;
         }
@@ -475,7 +479,7 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
     __builtin_unreachable();
 }
 
-void wc_restore_vector_registers_x86(void)
+void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 {
     struct wc_thread_fpu_count_ent *pstate;
 
@@ -494,6 +498,14 @@ void wc_restore_vector_registers_x86(void)
     }
 
     if ((--pstate->fpu_state & WC_FPU_COUNT_MASK) > 0U) {
+        if (flags & WC_SVR_FLAG_INHIBIT) {
+            if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG)
+                pstate->fpu_state &= ~WC_FPU_INHIBITED_FLAG;
+            else
+                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                              "with _INHIBIT flag but saved state isn't _INHIBITED_.\n", task_pid_nr(current),
+                              raw_smp_processor_id());
+        }
         return;
     }
 
@@ -505,6 +517,10 @@ void wc_restore_vector_registers_x86(void)
         #endif
         local_bh_enable();
     } else if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
+        if (unlikely(! (flags & WC_SVR_FLAG_INHIBIT)))
+            VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                          "without _INHIBIT flag but saved state is _INHIBITED_.\n", task_pid_nr(current),
+                          raw_smp_processor_id());
         pstate->fpu_state = 0U;
         wc_linuxkm_fpu_state_release(pstate);
         local_bh_enable();
