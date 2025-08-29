@@ -15780,7 +15780,7 @@ _mlkem_decompress_5_avx2:
         vpmulhrsw	%ymm1, %ymm0, %ymm0
         vmovdqu	%ymm0, 448(%rdi)
         vmovq	150(%rsi), %xmm0
-        movzxw	158(%rsi), %rdx
+        movzwq	158(%rsi), %rdx
         vpinsrq	$0x01, %rdx, %xmm0, %xmm0
         vinserti128	$0x01, %xmm0, %ymm0, %ymm0
         vpshufb	%ymm2, %ymm0, %ymm0
