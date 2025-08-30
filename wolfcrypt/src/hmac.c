@@ -505,7 +505,6 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
      */
     if (!allowFlag) {
         if (length < HMAC_FIPS_MIN_KEY) {
-            WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
             return HMAC_MIN_KEYLEN_E;
         }
     }

@@ -118,7 +118,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         /* server side verified before SetCipherSpecs call */
         if (VerifyClientSuite(havePSK, cipherSuite0, cipherSuite) != 1) {
             WOLFSSL_MSG("SetCipherSpecs() client has an unusable suite");
-            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
             return UNSUPPORTED_SUITE;
         }
     }
@@ -2307,7 +2306,6 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
 
     default:
         WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
-        WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
         return UNSUPPORTED_SUITE;
     }  /* switch */
     }  /* if ECC / Normal suites else */

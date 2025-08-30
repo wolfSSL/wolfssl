@@ -391,7 +391,6 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                     msg->sz, msg->sz);
 #else
             WOLFSSL_MSG("DTLS1.2 disabled with WOLFSSL_NO_TLS12");
-            WOLFSSL_ERROR_VERBOSE(NOT_COMPILED_IN);
             ret = NOT_COMPILED_IN;
 #endif
         }
@@ -1669,7 +1668,6 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
             case hello_request:
                 if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
                     WOLFSSL_MSG("Msg should be epoch 0");
-                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                     return SANITY_MSG_E;
                 }
                 break;
@@ -1684,13 +1682,11 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                          * will be negotiated.  */
                         if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
                             WOLFSSL_MSG("Msg should be epoch 2 or 0");
-                            WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                             return SANITY_MSG_E;
                         }
                     }
                     else {
                         WOLFSSL_MSG("Msg should be epoch 2");
-                        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                         return SANITY_MSG_E;
                     }
                 }
@@ -1707,13 +1703,11 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                              * will be negotiated.  */
                             if (!w64Equal(ssl->keys.curEpoch64, plainEpoch)) {
                                 WOLFSSL_MSG("Msg should be epoch 2 or 0");
-                                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                                 return SANITY_MSG_E;
                             }
                         }
                         else {
                             WOLFSSL_MSG("Msg should be epoch 2");
-                            WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                             return SANITY_MSG_E;
                         }
                     }
@@ -1722,7 +1716,6 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
                     /* Allow epoch 2 in case of rtx */
                     if (!w64GTE(ssl->keys.curEpoch64, hsEpoch)) {
                         WOLFSSL_MSG("Msg should be epoch 2+");
-                        WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                         return SANITY_MSG_E;
                     }
                 }
@@ -1733,7 +1726,6 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
             case session_ticket:
                 if (!w64GTE(ssl->keys.curEpoch64, t0Epoch)) {
                     WOLFSSL_MSG("Msg should be epoch 3+");
-                    WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                     return SANITY_MSG_E;
                 }
                 break;
@@ -1742,7 +1734,6 @@ int Dtls13CheckEpoch(WOLFSSL* ssl, enum HandShakeType type)
             case no_shake:
             default:
                 WOLFSSL_MSG("Unknown message type");
-                WOLFSSL_ERROR_VERBOSE(SANITY_MSG_E);
                 return SANITY_MSG_E;
         }
     }
@@ -3011,20 +3002,17 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
             return 0;
         default:
             WOLFSSL_MSG("Unrecognized ciphersuite for AEAD limit check");
-            WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
             return DECRYPT_ERROR;
     }
     if (ssl->dtls13DecryptEpoch == NULL) {
         WOLFSSL_MSG("Dtls13CheckAEADFailLimit: ssl->dtls13DecryptEpoch should "
                     "not be NULL");
-        WOLFSSL_ERROR_VERBOSE(BAD_STATE_E);
         return BAD_STATE_E;
     }
     w64Increment(&ssl->dtls13DecryptEpoch->dropCount);
     if (w64GT(ssl->dtls13DecryptEpoch->dropCount, hardLimit)) {
         /* We have reached the hard limit for failed decryptions. */
         WOLFSSL_MSG("Connection exceeded hard AEAD limit");
-        WOLFSSL_ERROR_VERBOSE(DECRYPT_ERROR);
         return DECRYPT_ERROR;
     }
     else if (w64GT(ssl->dtls13DecryptEpoch->dropCount, keyUpdateLimit)) {
