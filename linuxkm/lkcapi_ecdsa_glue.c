@@ -20,6 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_ecdsa_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -843,3 +846,5 @@ test_ecdsa_nist_end:
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_ECDSA */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

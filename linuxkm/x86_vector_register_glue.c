@@ -21,6 +21,7 @@
  */
 
 /* included by linuxkm/module_hooks.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
 #if !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
     #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
@@ -531,3 +532,5 @@ void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 
     return;
 }
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */
