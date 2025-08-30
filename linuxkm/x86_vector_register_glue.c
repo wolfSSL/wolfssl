@@ -346,23 +346,19 @@ WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
+        if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
+            /* don't allow recursive inhibit calls when already inhibited --
+             * it would add no functionality and require keeping a separate
+             * count of inhibit recursions.
+             */
+            return WC_ACCEL_INHIBIT_E;
+        }
         if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
                      == WC_FPU_COUNT_MASK))
         {
             pr_err("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
                    "pid %d on CPU %d.\n", pstate->pid, raw_smp_processor_id());
             return BAD_STATE_E;
-        }
-        if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
-            if (flags & WC_SVR_FLAG_INHIBIT) {
-                /* allow recursive inhibit calls as long as the whole stack of
-                 * them is inhibiting.
-                 */
-                ++pstate->fpu_state;
-                return 0;
-            }
-            else
-                return WC_ACCEL_INHIBIT_E;
         }
         if (flags & WC_SVR_FLAG_INHIBIT) {
             ++pstate->fpu_state;
