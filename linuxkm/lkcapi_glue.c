@@ -21,6 +21,7 @@
  */
 
 /* included by linuxkm/module_hooks.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
@@ -981,3 +982,5 @@ static int linuxkm_lkcapi_unregister(void)
 
     return seen_err;
 }
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

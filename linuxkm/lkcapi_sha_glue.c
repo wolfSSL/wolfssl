@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -374,10 +377,7 @@
         !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG)
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG
     #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    #endif
+    /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT is in linuxkm_wc_port.h */
 #else
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
@@ -968,7 +968,6 @@ struct wc_linuxkm_drbg_ctx {
     struct wc_rng_inst {
         wolfSSL_Atomic_Int lock;
         WC_RNG rng;
-        int disabled_vec_ops;
     } *rngs; /* one per CPU ID */
 };
 
@@ -1090,14 +1089,8 @@ static inline struct wc_rng_inst *get_drbg(struct crypto_rng *tfm) {
 
     for (;;) {
         int expected = 0;
-        if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, new_lock_value, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE))) {
-            struct wc_rng_inst *drbg = &ctx->rngs[n];
-            if (tfm == crypto_default_rng)
-                drbg->disabled_vec_ops = (DISABLE_VECTOR_REGISTERS() == 0);
-            else
-                drbg->disabled_vec_ops = 0;
-            return drbg;
-        }
+        if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, new_lock_value, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
+            return &ctx->rngs[n];
         ++n;
         if (n >= (int)ctx->n_rngs)
             n = 0;
@@ -1115,11 +1108,8 @@ static inline struct wc_rng_inst *get_drbg_n(struct wc_linuxkm_drbg_ctx *ctx, in
 
     for (;;) {
         int expected = 0;
-        if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE))) {
-            struct wc_rng_inst *drbg = &ctx->rngs[n];
-            drbg->disabled_vec_ops = 0;
-            return drbg;
-        }
+        if (likely(__atomic_compare_exchange_n(&ctx->rngs[n].lock, &expected, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE)))
+            return &ctx->rngs[n];
         if (can_sleep) {
             if (signal_pending(current))
                 return NULL;
@@ -1137,10 +1127,6 @@ static inline void put_drbg(struct wc_rng_inst *drbg) {
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
     int migration_disabled = (drbg->lock == 2);
     #endif
-    if (drbg->disabled_vec_ops) {
-        REENABLE_VECTOR_REGISTERS();
-        drbg->disabled_vec_ops = 0;
-    }
     __atomic_store_n(&(drbg->lock),0,__ATOMIC_RELEASE);
     #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
         (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
@@ -1154,12 +1140,18 @@ static int wc_linuxkm_drbg_generate(struct crypto_rng *tfm,
                         u8 *dst, unsigned int dlen)
 {
     int ret, retried = 0;
+    int need_fpu_restore;
     struct wc_rng_inst *drbg = get_drbg(tfm);
 
     if (! drbg) {
         pr_err_once("BUG: get_drbg() failed.");
         return -EFAULT;
     }
+
+    /* for the default RNG, make sure we don't cache an underlying SHA256
+     * method that uses vector insns (forbidden from irq handlers).
+     */
+    need_fpu_restore = (tfm == crypto_default_rng) ? (DISABLE_VECTOR_REGISTERS() == 0) : 0;
 
 retry:
 
@@ -1194,6 +1186,8 @@ retry:
 
 out:
 
+    if (need_fpu_restore)
+        REENABLE_VECTOR_REGISTERS();
     put_drbg(drbg);
 
     return ret;
@@ -2054,3 +2048,5 @@ static int wc_linuxkm_drbg_cleanup(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */
