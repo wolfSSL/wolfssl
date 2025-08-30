@@ -302,9 +302,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         WOLFSSL_MSG("Already consumed data");
     }
     else {
-    #ifndef WOLFSSL_SMALL_STACK
-        byte stackBuffer[FILE_BUFFER_SIZE];
-    #endif
+        WOLFSSL_SS_DECL_N(byte, stackBuffer, FILE_BUFFER_SIZE);
         StaticBuffer chain;
         long   consumed = info->consumed;
         word32 idx = 0;
@@ -314,11 +312,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         long   maxSz = (sz - consumed) + (CERT_HEADER_SZ * MAX_CHAIN_DEPTH);
 
         /* Setup buffer to hold chain. */
-    #ifdef WOLFSSL_SMALL_STACK
-        static_buffer_init(&chain);
-    #else
-        static_buffer_init(&chain, stackBuffer, FILE_BUFFER_SIZE);
-    #endif
+        WOLFSSL_SS_STATIC_BUFFER_INIT(chain, stackBuffer, FILE_BUFFER_SIZE);
         /* Make buffer big enough to support maximum size. */
         ret = static_buffer_set_size(&chain, (word32)maxSz, heap,
             DYNAMIC_TYPE_FILE);
@@ -472,18 +466,12 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret;
     word32 idx;
     /* make sure RSA key can be used */
-#ifdef WOLFSSL_SMALL_STACK
-    RsaKey* key;
-#else
-    RsaKey  key[1];
-#endif
+    WOLFSSL_SS_DECL(RsaKey, key);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate an RSA key to parse into so we can get size. */
-    key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
-    if (key == NULL)
+    WOLFSSL_SS_ALLOC(RsaKey, key, heap, DYNAMIC_TYPE_RSA);
+    if (WOLFSSL_SS_IS_NULL(key))
         return MEMORY_E;
-#endif
 
     /* Initialize the RSA key. */
     ret = wc_InitRsaKey_ex(key, heap, devId);
@@ -533,10 +521,8 @@ static int ProcessBufferTryDecodeRsa(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_FreeRsaKey(key);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated key. */
-    XFREE(key, heap, DYNAMIC_TYPE_RSA);
-#endif
+    WOLFSSL_SS_FREE(key, heap, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
@@ -566,18 +552,12 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret = 0;
     word32 idx;
     /* make sure ECC key can be used */
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key* key;
-#else
-    ecc_key  key[1];
-#endif
+    WOLFSSL_SS_DECL(ecc_key, key);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate an ECC key to parse into. */
-    key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
-    if (key == NULL)
+    WOLFSSL_SS_ALLOC(ecc_key, key, heap, DYNAMIC_TYPE_ECC);
+    if (WOLFSSL_SS_IS_NULL(key))
         return MEMORY_E;
-#endif
 
     /* Initialize ECC key. */
     if (wc_ecc_init_ex(key, heap, devId) == 0) {
@@ -642,10 +622,8 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_ecc_free(key);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated key. */
-    XFREE(key, heap, DYNAMIC_TYPE_ECC);
-#endif
+    WOLFSSL_SS_FREE(key, heap, DYNAMIC_TYPE_ECC);
     return ret;
 }
 #endif /* HAVE_ECC */
@@ -673,19 +651,12 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret;
     word32 idx;
     /* make sure Ed25519 key can be used */
-#ifdef WOLFSSL_SMALL_STACK
-    ed25519_key* key;
-#else
-    ed25519_key  key[1];
-#endif
+    WOLFSSL_SS_DECL(ed25519_key, key);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate an Ed25519 key to parse into. */
-    key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
-        DYNAMIC_TYPE_ED25519);
-    if (key == NULL)
+    WOLFSSL_SS_ALLOC(ed25519_key, key, heap, DYNAMIC_TYPE_ED25519);
+    if (WOLFSSL_SS_IS_NULL(key))
         return MEMORY_E;
-#endif
 
     /* Initialize Ed25519 key. */
     ret = wc_ed25519_init_ex(key, heap, devId);
@@ -737,10 +708,8 @@ static int ProcessBufferTryDecodeEd25519(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_ed25519_free(key);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated key. */
-    XFREE(key, heap, DYNAMIC_TYPE_ED25519);
-#endif
+    WOLFSSL_SS_FREE(key, heap, DYNAMIC_TYPE_ED25519);
     return ret;
 }
 #endif /* HAVE_ED25519 && HAVE_ED25519_KEY_IMPORT */
@@ -768,18 +737,12 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int ret;
     word32 idx;
     /* make sure Ed448 key can be used */
-#ifdef WOLFSSL_SMALL_STACK
-    ed448_key* key = NULL;
-#else
-    ed448_key  key[1];
-#endif
+    WOLFSSL_SS_DECL(ed448_key, key);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate an Ed448 key to parse into. */
-    key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
-    if (key == NULL)
+    WOLFSSL_SS_ALLOC(ed448_key, key, heap, DYNAMIC_TYPE_ED448);
+    if (WOLFSSL_SS_IS_NULL(key))
         return MEMORY_E;
-#endif
 
     /* Initialize Ed448 key. */
     ret = wc_ed448_init_ex(key, heap, devId);
@@ -828,10 +791,8 @@ static int ProcessBufferTryDecodeEd448(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_ed448_free(key);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of allocated key. */
-    XFREE(key, heap, DYNAMIC_TYPE_ED448);
-#endif
+    WOLFSSL_SS_FREE(key, heap, DYNAMIC_TYPE_ED448);
     return ret;
 }
 #endif /* HAVE_ED448 && HAVE_ED448_KEY_IMPORT */
@@ -1214,20 +1175,11 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
     int ret = 0;
     word32 algId;
     int   passwordSz = NAME_SZ;
-#ifndef WOLFSSL_SMALL_STACK
-    char  password[NAME_SZ];
-#else
-    char* password;
-#endif
+    WOLFSSL_SS_DECL_N(char, password, NAME_SZ);
 
     (void)heap;
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for password. */
-    password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
-    if (password == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WOLFSSL_SS_ALLOC_N(char, password, passwordSz, heap, DYNAMIC_TYPE_STRING);
 
     if (ret == 0) {
         /* Get password. */
@@ -1252,18 +1204,13 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
         der->length = (word32)ret;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    if (password != NULL)
-#endif
-    {
-        /* Ensure password is zeroized. */
+    /* Ensure password is zeroized. */
+    if(!WOLFSSL_SS_IS_NULL(password))
         ForceZero(password, (word32)passwordSz);
-    }
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of password memory. */
-    XFREE(password, heap, DYNAMIC_TYPE_STRING);
-#elif defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(password, NAME_SZ);
+    WOLFSSL_SS_FREE(password, heap, DYNAMIC_TYPE_STRING);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    WOLFSSL_SS_IF_SS(,wc_MemZero_Check(password, NAME_SZ));
 #endif
     return ret;
 }
@@ -1872,20 +1819,10 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef HAVE_ECC
         case ECDSAk:
         {
-        #ifdef WOLFSSL_SMALL_STACK
-            ecc_key* temp_key = NULL;
-        #else
-            ecc_key temp_key[1];
-        #endif
+            WOLFSSL_SS_DECL(ecc_key, temp_key);
             keyType = ecc_dsa_sa_algo;
 
-        #ifdef WOLFSSL_SMALL_STACK
-            temp_key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap,
-                DYNAMIC_TYPE_ECC);
-            if (temp_key == NULL) {
-                ret = MEMORY_E;
-            }
-        #endif
+            WOLFSSL_SS_ALLOC(ecc_key, temp_key, heap, DYNAMIC_TYPE_ECC);
 
             /* Determine ECC key size. We have to decode the sapki for
              * that. */
@@ -1901,9 +1838,7 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                     wc_ecc_free(temp_key);
                 }
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(temp_key, heap, DYNAMIC_TYPE_ECC);
-        #endif
+            WOLFSSL_SS_FREE(temp_key, heap, DYNAMIC_TYPE_ECC);
 
             if ((ret == 0) && checkKeySz) {
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minEccKeySz :
@@ -2072,21 +2007,12 @@ static int ProcessBufferCert(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der)
 #if defined(HAVE_RPK)
     RpkState* rpkState = ssl ? &ssl->options.rpkState : &ctx->rpkState;
 #endif
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* cert;
-#else
-    DecodedCert  cert[1];
-#endif
+    WOLFSSL_SS_DECL(DecodedCert, cert);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for certificate to be decoded into. */
-    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), heap, DYNAMIC_TYPE_DCERT);
-    if (cert == NULL) {
-        ret = MEMORY_E;
-    }
+    WOLFSSL_SS_ALLOC(DecodedCert, cert, heap, DYNAMIC_TYPE_DCERT);
 
-    if (ret == 0)
-#endif
+    if (!WOLFSSL_SS_IS_NULL(cert))
     {
         /* Get device id from SSL context or SSL object. */
         int devId = wolfSSL_CTX_GetDevId(ctx, ssl);
@@ -2133,10 +2059,8 @@ static int ProcessBufferCert(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der)
 
     /* Dispose of dynamic memory in certificate object. */
     FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
     /* Dispose of certificate object. */
-    XFREE(cert, heap, DYNAMIC_TYPE_DCERT);
-#endif
+    WOLFSSL_SS_FREE(cert, heap, DYNAMIC_TYPE_DCERT); /* Dispose of certificate object. */
     return ret;
 }
 
@@ -2413,11 +2337,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     DerBuffer*    der = NULL;
     int           ret = 0;
     void*         heap = WOLFSSL_HEAP(ctx, ssl);
-#ifdef WOLFSSL_SMALL_STACK
-    EncryptedInfo* info = NULL;
-#else
-    EncryptedInfo  info[1];
-#endif
+    WOLFSSL_SS_DECL(EncryptedInfo, info);
     int           algId = 0;
 #ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
     long usedAtStart = used ? *used : 0L;
@@ -2444,16 +2364,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
         ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     if (ret == 0) {
         /* Allocate memory for encryption information. */
-        info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), heap,
-            DYNAMIC_TYPE_ENCRYPTEDINFO);
-        if (info == NULL) {
-            ret = MEMORY_E;
-        }
+        WOLFSSL_SS_ALLOC(EncryptedInfo, info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
     }
-#endif
     if (ret == 0) {
         /* Initialize encryption information. */
         XMEMSET(info, 0, sizeof(EncryptedInfo));
@@ -2471,22 +2385,18 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
             /* Update to amount used/consumed. */
             *used = info->consumed;
         }
-    #ifdef WOLFSSL_SMALL_STACK
         if (ret != 0) {
              /* Info no longer needed as loading failed. */
-             XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+             WOLFSSL_SS_FREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
         }
-    #endif
     }
 
     if ((ret == 0) && IS_PRIVKEY_TYPE(type)) {
         /* Process the private key. */
         ret = ProcessBufferPrivateKey(ctx, ssl, der, format, info, heap, type,
             algId);
-    #ifdef WOLFSSL_SMALL_STACK
         /* Info no longer needed - keep max memory usage down. */
-        XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
-    #endif
+        WOLFSSL_SS_FREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
     }
     else if (ret == 0) {
         /* Processing a certificate. */
@@ -2519,10 +2429,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
 #endif /* WOLFSSL_DEBUG_CERTIFICATE_LOADS */
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
         /* Info no longer needed - keep max memory usage down. */
-        XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
-    #endif
+        WOLFSSL_SS_FREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
 
         if (ret == 0) {
             /* Process the different types of certificates. */
@@ -2703,9 +2611,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     WOLFSSL* ssl, int userChain, WOLFSSL_CRL* crl, int verify)
 {
     int    ret = 0;
-#ifndef WOLFSSL_SMALL_STACK
-    byte   stackBuffer[FILE_BUFFER_SIZE];
-#endif
+    WOLFSSL_SS_DECL_N(byte, stackBuffer, FILE_BUFFER_SIZE);
     StaticBuffer content;
     long   sz = 0;
     void*  heap = WOLFSSL_HEAP(ctx, ssl);
@@ -2713,11 +2619,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     (void)crl;
     (void)heap;
 
-#ifdef WOLFSSL_SMALL_STACK
-    static_buffer_init(&content);
-#else
-    static_buffer_init(&content, stackBuffer, FILE_BUFFER_SIZE);
-#endif
+    WOLFSSL_SS_STATIC_BUFFER_INIT(content, stackBuffer, FILE_BUFFER_SIZE);
 
     /* Read file into static buffer. */
     ret = wolfssl_read_file_static(fname, &content, heap, DYNAMIC_TYPE_FILE,
@@ -2889,20 +2791,10 @@ static int wolfssl_ctx_load_path(WOLFSSL_CTX* ctx, const char* path,
     char* name = NULL;
     int fileRet;
     int failCount = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    ReadDirCtx* readCtx;
-#else
-    ReadDirCtx readCtx[1];
-#endif
 
-#ifdef WOLFSSL_SMALL_STACK
+    WOLFSSL_SS_DECL(ReadDirCtx, readCtx);
     /* Allocate memory for directory reading context. */
-    readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
-        DYNAMIC_TYPE_DIRCTX);
-    if (readCtx == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WOLFSSL_SS_ALLOC(ReadDirCtx, readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
 
     if (ret == 1) {
         /* Get name of first file in path. */
@@ -2960,10 +2852,7 @@ static int wolfssl_ctx_load_path(WOLFSSL_CTX* ctx, const char* path,
             ret = 1;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        /* Dispose of dynamically allocated memory. */
-        XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
-    #endif
+        WOLFSSL_SS_FREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
     }
 
     return ret;
@@ -5626,18 +5515,9 @@ static int wolfssl_check_dh_key(unsigned char* p, int pSz, unsigned char* g,
 {
     WC_RNG rng;
     int ret = 0;
-#ifndef WOLFSSL_SMALL_STACK
-    DhKey checkKey[1];
-#else
-    DhKey *checkKey;
-#endif
+    WOLFSSL_SS_DECL(DhKey, checkKey);
 
-#ifdef WOLFSSL_SMALL_STACK
-    checkKey = (DhKey*)XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
-    if (checkKey == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WOLFSSL_SS_ALLOC(DhKey, checkKey,  NULL, DYNAMIC_TYPE_DH);
     /* Initialize a new random number generator. */
     if ((ret == 0) && ((ret = wc_InitRng(&rng)) == 0)) {
         /* Initialize a DH object. */
@@ -5651,10 +5531,7 @@ static int wolfssl_check_dh_key(unsigned char* p, int pSz, unsigned char* g,
         wc_FreeRng(&rng);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of dynamically allocated data. */
-    XFREE(checkKey, NULL, DYNAMIC_TYPE_DH);
-#endif
+    WOLFSSL_SS_FREE(checkKey, NULL, DYNAMIC_TYPE_DH);
     /* Convert wolfCrypt return code to 1 on success and ret on failure. */
     return WC_TO_WS_RC(ret);
 }
@@ -6073,19 +5950,13 @@ static int ws_ctx_ssl_set_tmp_dh_file(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 {
     int    res = 1;
     int    ret;
-#ifndef WOLFSSL_SMALL_STACK
-    byte   stackBuffer[FILE_BUFFER_SIZE];
-#endif
+    WOLFSSL_SS_DECL_N(byte, stackBuffer, FILE_BUFFER_SIZE);
     StaticBuffer dhFile;
     long   sz = 0;
     void*  heap = WOLFSSL_HEAP(ctx, ssl);
 
     /* Setup buffer to hold file contents. */
-#ifdef WOLFSSL_SMALL_STACK
-    static_buffer_init(&dhFile);
-#else
-    static_buffer_init(&dhFile, stackBuffer, FILE_BUFFER_SIZE);
-#endif
+    WOLFSSL_SS_STATIC_BUFFER_INIT(dhFile, stackBuffer, FILE_BUFFER_SIZE);
 
     /* Validate parameters. */
     if (((ctx == NULL) && (ssl == NULL)) || (fname == NULL)) {
