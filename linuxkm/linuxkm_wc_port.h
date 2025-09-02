@@ -422,6 +422,17 @@
             #define WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
         #endif
 
+        /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT needs to be here
+         * to assure that calls to get_random_bytes() in random.c are gated out
+         * (they would recurse, potentially infinitely).
+         */
+        #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && \
+             !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG) && \
+             !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
+            !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
+            #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
+        #endif
+
         #ifndef __PIE__
             #include <linux/crypto.h>
             #include <linux/scatterlist.h>
@@ -469,7 +480,7 @@
         extern void free_wolfcrypt_linuxkm_fpu_states(void);
         WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
         WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
-        WOLFSSL_API void wc_restore_vector_registers_x86(void);
+        WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
 
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
@@ -505,14 +516,14 @@
             #endif
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
-            #define RESTORE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
+            #define RESTORE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_NONE)
         #endif
 
         #ifndef DISABLE_VECTOR_REGISTERS
             #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
         #ifndef REENABLE_VECTOR_REGISTERS
-            #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
+            #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
         #endif
 
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
@@ -1217,12 +1228,12 @@
             #if defined(CONFIG_X86)
                 WOLFSSL_API __must_check int wc_can_save_vector_registers_x86(void);
                 WOLFSSL_API __must_check int wc_save_vector_registers_x86(enum wc_svr_flags flags);
-                WOLFSSL_API void wc_restore_vector_registers_x86(void);
+                WOLFSSL_API void wc_restore_vector_registers_x86(enum wc_svr_flags flags);
                 #ifndef DISABLE_VECTOR_REGISTERS
                     #define DISABLE_VECTOR_REGISTERS() wc_save_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
                 #ifndef REENABLE_VECTOR_REGISTERS
-                    #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86()
+                    #define REENABLE_VECTOR_REGISTERS() wc_restore_vector_registers_x86(WC_SVR_FLAG_INHIBIT)
                 #endif
             #else /* !CONFIG_X86 */
                 #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unimplemented architecture.
