@@ -450,9 +450,9 @@
 #endif
 
 /* old FIPS has only AES_BLOCK_SIZE. */
-#if !defined(NO_AES) && (defined(HAVE_SELFTEST) || \
-     (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
-    #define WC_AES_BLOCK_SIZE AES_BLOCK_SIZE
+#if !defined(NO_AES) && \
+     (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0))
+      #define WC_AES_BLOCK_SIZE AES_BLOCK_SIZE
 #endif /* !NO_AES && (HAVE_SELFTEST || FIPS_VERSION3_LT(6,0,0)) */
 
 #ifdef WOLFSSL_HARDEN_TLS

@@ -20705,10 +20705,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
             TEST_SLEEP();
 
 #if defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
-                                         hash[j], -1);
-#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION <= 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[j], -1, 0);
 #else
@@ -20788,10 +20785,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
 #if defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
-                                         hash[0], 0);
-#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION <= 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
                                          hash[0], 0, 0);
 #else
@@ -20821,10 +20815,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     TEST_SLEEP();
 
 #if defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
-                                         hash[0], 0);
-#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION <= 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], 0, 0);
 #else
@@ -20903,10 +20894,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     len = -3;
 #endif
 #if defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
-                                         hash[0], len);
-#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION <= 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len, 0);
 #else
@@ -20921,12 +20909,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     len = (int)(plainSz - digestSz - 1);
 #endif
 #if defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
-            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
-                                         hash[0], len);
-    if (ret != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_pss);
-#elif defined(HAVE_SELFTEST) && (HAVE_SELFTEST_VERSION == 2)
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION <= 2))
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
                                          hash[0], len, 0);
     if (ret != WC_NO_ERR_TRACE(BAD_PADDING_E))

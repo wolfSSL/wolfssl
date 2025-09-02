@@ -19134,16 +19134,9 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 if (sigOID == RSAPSSk) {
                 #if (defined(HAVE_SELFTEST) && \
                      (!defined(HAVE_SELFTEST_VERSION) || \
-                      (HAVE_SELFTEST_VERSION < 2))) || \
+                      (HAVE_SELFTEST_VERSION <= 2))) || \
                     (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-                     (HAVE_FIPS_VERSION < 2))
-                    ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
-                        sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
-                        sigCtx->saltLen);
-                #elif (defined(HAVE_SELFTEST) && \
-                       (HAVE_SELFTEST_VERSION == 2)) || \
-                      (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-                       (HAVE_FIPS_VERSION == 2))
+                       (HAVE_FIPS_VERSION <= 2))
                     ret = wc_RsaPSS_CheckPadding_ex(sigCtx->digest,
                         sigCtx->digestSz, sigCtx->out, ret, sigCtx->hash,
                         sigCtx->saltLen, 0);

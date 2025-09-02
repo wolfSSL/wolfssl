@@ -77,8 +77,6 @@ enum {
         WC_SHAKE256          = WC_HASH_TYPE_SHAKE256,
     #endif
 
-#if !defined(HAVE_SELFTEST) || \
-    defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION >= 2)
     /* These values are used for HMAC, not SHA-3 directly.
      * They come from from FIPS PUB 202. */
     WC_SHA3_128_BLOCK_SIZE = 168,
@@ -86,7 +84,6 @@ enum {
     WC_SHA3_256_BLOCK_SIZE = 136,
     WC_SHA3_384_BLOCK_SIZE = 104,
     WC_SHA3_512_BLOCK_SIZE = 72,
-#endif
 
     WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_SHA3)
 };
