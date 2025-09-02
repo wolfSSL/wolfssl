@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_aes_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -4312,3 +4315,5 @@ static int linuxkm_test_aesecb(void) {
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AES */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */
