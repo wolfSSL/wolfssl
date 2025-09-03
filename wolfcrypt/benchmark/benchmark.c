@@ -9458,14 +9458,12 @@ void bench_dh(int useDeviceID)
 
     WC_DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING,
                      BENCH_DH_KEY_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(pub2, byte,
-                     BENCH_DH_KEY_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(pub2, byte, BENCH_DH_KEY_SIZE);
     WC_DECLARE_ARRAY(agree, byte, BENCH_MAX_PENDING,
                      BENCH_DH_KEY_SIZE, HEAP_HINT);
     WC_DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING,
                      BENCH_DH_PRIV_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(priv2, byte,
-                     BENCH_DH_PRIV_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE);
 
     /* old scan-build misfires -Wmaybe-uninitialized on these. */
     XMEMSET(pub, 0, sizeof(pub));

@@ -706,25 +706,26 @@ enum {
         idx##VAR_NAME = 0;                                                     \
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_SMALL_STACK)
     #define WC_DECLARE_VAR_IS_HEAP_ALLOC
-    #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+    #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE)                   \
         VAR_TYPE* VAR_NAME = NULL
-    #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)               \
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
         do {                                                               \
             (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), \
-                (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);                         \
+                (HEAP), TY);                                               \
             if ((VAR_NAME) == NULL) {                                      \
-                WC_ALLOC_DO_ON_FAILURE();                                  \
+                ONFAIL;                                                    \
             }                                                              \
         } while (0)
-    #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)    \
-        do {                                                     \
-            WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP);    \
-            XMEMSET(VAR_NAME, 0, sizeof(VAR_TYPE) * (VAR_SIZE)); \
-        } while (0)
+    #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)               \
+        WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP,                \
+                        DYNAMIC_TYPE_WOLF_BIGINT, WC_ALLOC_DO_ON_FAILURE())
+    #define WC_VAR_OK(VAR_NAME) ((VAR_NAME) != NULL)
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) \
+        XFREE(VAR_NAME, (HEAP), TYPE)
     #define WC_FREE_VAR(VAR_NAME, HEAP) \
-        XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
+        WC_FREE_VAR_EX(VAR_NAME, HEAP, DYNAMIC_TYPE_WOLF_BIGINT)
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
@@ -738,13 +739,16 @@ enum {
         WC_FREE_HEAP_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)
 #else
     #undef WC_DECLARE_VAR_IS_HEAP_ALLOC
-    #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+    #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE) \
         VAR_TYPE VAR_NAME[VAR_SIZE]
-    #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) WC_DO_NOTHING
-    #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
-        XMEMSET(VAR_NAME, 0, sizeof(var))
+    #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)  \
+        WC_DO_NOTHING
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
+        WC_DO_NOTHING
+    #define WC_VAR_OK(VAR_NAME) 1
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) WC_DO_NOTHING
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
@@ -761,7 +765,8 @@ enum {
 #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
     /* These are here for the FIPS code that can't be changed.
      * New definitions don't need to be added here. */
-    #define DECLARE_VAR                 WC_DECLARE_VAR
+    #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
+            WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE)
     #define DECLARE_ARRAY               WC_DECLARE_ARRAY
     #define FREE_VAR                    WC_FREE_VAR
     #define FREE_ARRAY                  WC_FREE_ARRAY
