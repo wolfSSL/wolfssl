@@ -733,9 +733,9 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     int          bits = TEST_RSA_BITS;
     const word32 cipherLen = TEST_RSA_BYTES;
     word32 cipherLenResult = cipherLen;
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
-    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
@@ -799,9 +799,9 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
     int          bits = TEST_RSA_BITS;
     const word32 cipherSz = TEST_RSA_BYTES;
 
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
-    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_ALLOC_VAR(plain, byte, TEST_STRING_SZ, NULL);
@@ -867,9 +867,9 @@ int test_wc_RsaSSL_SignVerify(void)
     int    bits = TEST_RSA_BITS;
     const word32 outSz = TEST_RSA_BYTES;
 
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
-    WC_DECLARE_VAR(out, byte, TEST_RSA_BYTES, NULL);
-    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(out, byte, TEST_RSA_BYTES);
+    WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_ALLOC_VAR(out, byte, TEST_RSA_BYTES, NULL);

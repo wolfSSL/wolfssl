@@ -1119,9 +1119,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
     }
 
     (void)wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

@@ -4067,11 +4067,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #endif
 #ifndef NO_LARGE_HASH_TEST
 #define LARGE_HASH_TEST_INPUT_SZ 1024
-#ifdef WOLFSSL_SMALL_STACK
-    byte *large_input = NULL;
-#else
-    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
-#endif
+    WC_DECLARE_VAR(large_input, byte, LARGE_HASH_TEST_INPUT_SZ);
 #endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -4223,14 +4219,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
            "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (large_input == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
-    }
-#endif
+    WC_ALLOC_VAR_EX(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER,
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E),exit));
 
     for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -4319,11 +4310,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 #endif
 #ifndef NO_LARGE_HASH_TEST
 #define LARGE_HASH_TEST_INPUT_SZ 1024
-#ifdef WOLFSSL_SMALL_STACK
-    byte *large_input = NULL;
-#else
-    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
-#endif
+    WC_DECLARE_VAR(large_input, byte, LARGE_HASH_TEST_INPUT_SZ);
 #endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -4472,14 +4459,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
         "\xa5\xdc\xfc\xfa\x9d\x1a\x4d\xc0\xfa\x3a\x14\xf6\x01\x51\x90\xa4";
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (large_input == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
-    }
-#endif
+    WC_ALLOC_VAR_EX(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER,
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E),exit));
 
     for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -20642,9 +20624,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
 
-    WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, RSA_TEST_BYTES);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES);
+    WC_DECLARE_VAR(sig, byte, RSA_TEST_BYTES);
 
     WC_ALLOC_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
     WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -20966,9 +20948,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
     !defined(NO_FILESYSTEM)
     XFILE  file;
 #endif
-    WC_DECLARE_VAR(key, RsaKey, 1, HEAP_HINT);
-    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(key, RsaKey, 1);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES);
 
     WC_ALLOC_VAR(key, RsaKey, 1, HEAP_HINT);
     WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -21201,9 +21183,9 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     !defined(USE_CERT_BUFFERS_4096) && !defined(NO_FILESYSTEM)
     XFILE  file;
 #endif
-    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES);
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
-    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES);
 #endif
 
     WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -22052,9 +22034,9 @@ static wc_test_ret_t rsa_oaep_padding_test(RsaKey* key, WC_RNG* rng)
     const word32 plainSz = RSA_TEST_BYTES;
     byte*  res = NULL;
 
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -22421,9 +22403,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
 #endif
 
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ);
+    WC_DECLARE_VAR(out, byte, RSA_TEST_BYTES);
+    WC_DECLARE_VAR(plain, byte, RSA_TEST_BYTES);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     WC_ALLOC_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -29173,9 +29155,7 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
     if (receiverKey != NULL)
         wc_HpkeFreeKey(hpke, hpke->kem, receiverKey, hpke->heap);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (rngRet == 0)
         wc_FreeRng(rng);
@@ -29969,12 +29949,12 @@ static wc_test_ret_t ecc_test_vector_item(const eccVector* vector)
 #else
     ecc_key userA[1];
 #endif
-    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
     word32  sigRawSz, rSz = MAX_ECC_BYTES, sSz = MAX_ECC_BYTES;
-    WC_DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(r, byte, MAX_ECC_BYTES, HEAP_HINT);
-    WC_DECLARE_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
+    WC_DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE);
+    WC_DECLARE_VAR(r, byte, MAX_ECC_BYTES);
+    WC_DECLARE_VAR(s, byte, MAX_ECC_BYTES);
 #endif
 
     WC_ALLOC_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
@@ -30390,11 +30370,7 @@ done:
 static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key *key = NULL;
-#else
-    ecc_key key[1];
-#endif
+    WC_DECLARE_VAR(key, ecc_key, 1);
     int key_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
@@ -30452,11 +30428,8 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     };
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    key = (ecc_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(key, ecc_key, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0)
@@ -30497,9 +30470,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 done:
     if (key_inited)
         wc_ecc_free(key);
- #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
    return ret;
 }
 #endif /* NO_ECC256 || HAVE_ALL_CURVES */
@@ -30674,13 +30645,11 @@ done:
         mp_free(expR);
         mp_free(expS);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -30818,13 +30787,11 @@ done:
         mp_free(expR);
         mp_free(expS);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -31521,20 +31488,20 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 {
 #if defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
-    WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE);
+    WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE);
     word32  y;
 #endif
 #ifdef HAVE_ECC_KEY_EXPORT
     #define ECC_KEY_EXPORT_BUF_SIZE (MAX_ECC_BYTES * 2 + 32)
-    WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE);
 #endif
     word32  x = 0;
 #if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_KCAPI_ECC)) && \
     defined(HAVE_ECC_SIGN)
-    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE);
+    WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE);
     int     i;
 #ifdef HAVE_ECC_VERIFY
     int     verify;
@@ -33202,20 +33169,20 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
     int keySize = 32;
     int curve_id = ECC_SM2P256V1;
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG)
-    WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE);
+    WC_DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE);
 #endif
 #ifdef HAVE_ECC_KEY_EXPORT
     #define ECC_KEY_EXPORT_BUF_SIZE (MAX_ECC_BYTES * 2 + 32)
-    WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(exportBuf, byte, ECC_KEY_EXPORT_BUF_SIZE);
 #endif
     word32  x = 0;
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && !defined(WC_NO_RNG)
     word32  y;
 #endif
 #ifdef HAVE_ECC_SIGN
-    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE);
+    WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE);
     int     i;
     int     verify;
 #endif /* HAVE_ECC_SIGN */

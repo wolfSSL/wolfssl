@@ -198,9 +198,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
     secure_zero_memory( block, BLAKE2B_BLOCKBYTES ); /* Burn the key from */
                                                      /* memory */
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   }
   return ret;
 }
@@ -319,9 +317,7 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
   return ret;
 }
@@ -377,9 +373,7 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
 
  out:
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
   return ret;
 }
