@@ -20844,9 +20844,9 @@ static int DecodeBasicCaConstraintInternal(const byte* input, int sz,
         return ret;
 
     cert->isCA = isCa ? 1 : 0;
+    cert->pathLengthSet = pathLengthSet ? 1 : 0;
     if (pathLengthSet) {
         cert->pathLength = pathLength;
-        cert->pathLengthSet = pathLengthSet ? 1 : 0;
     }
 
     return 0;
