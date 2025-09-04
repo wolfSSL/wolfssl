@@ -616,53 +616,96 @@ int test_wc_RsaPSS_VerifyCheckInline(void)
 int test_wc_RsaKeyToDer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
-    RsaKey genKey;
-    WC_RNG rng;
+#if !defined(NO_RSA) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_KEY_TO_DER))
+    RsaKey key;
     byte*  der = NULL;
+    word32  derSz = 0;
+#if defined(WOLFSSL_KEY_GEN)
+    WC_RNG rng;
 #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4)) && \
     (defined(RSA_MIN_SIZE) && (RSA_MIN_SIZE <= 1024))
     int     bits = 1024;
-    word32  derSz = 611;
+    derSz = 611;
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 10 (ASN length) + 4 seqSz + 3 version */
 #else
     int     bits = 2048;
-    word32  derSz = 1196;
+    derSz = 1196;
     /* (2 x 256) + 2 (possible leading 00) + (5 x 128) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 17 (ASN length) + 4 seqSz + 3 version */
 #endif
-
     XMEMSET(&rng, 0, sizeof(rng));
-    XMEMSET(&genKey, 0, sizeof(genKey));
+#endif /* WOLFSSL_KEY_GEN */
 
-    ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    XMEMSET(&key, 0, sizeof(key));
+
     /* Init structures. */
-    ExpectIntEQ(wc_InitRsaKey(&genKey, HEAP_HINT), 0);
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+
+#if defined(WOLFSSL_KEY_GEN)
+    /* Generate a key */
+    ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    /* Init rng. */
     ExpectIntEQ(wc_InitRng(&rng), 0);
     /* Make key. */
-    ExpectIntEQ(MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng), 0);
+    ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
+#else
+    {
+    /* Import a key */
+    word32 idx = 0;
+    #if !defined(NO_FILESYSTEM)
+    const char* key_fname = "./certs/server-key.der";
+    XFILE file;
+    ExpectTrue((file = XFOPEN(key_fname, "rb")) != XBADFILE);
+    ExpectIntEQ(XFSEEK(file, 0, XSEEK_END), 0);
+    ExpectIntGT(derSz = XFTELL(file), 0);
+    ExpectIntEQ(XFSEEK(file, 0, XSEEK_SET), 0);
+    ExpectNotNull(der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_FILE));
+    ExpectIntEQ((int)XFREAD(der, 1, derSz, file), derSz);
+    XFCLOSE(file);
+    #elif defined(USE_CERT_BUFFERS_1024)
+    der = client_key_der_1024;
+    derSz = (word32)sizeof_client_key_der_1024;
+    #elif defined(USE_CERT_BUFFERS_2048)
+    der = client_key_der_2048;
+    derSz = (word32)sizeof_client_key_der_2048;
+    #elif defined(USE_CERT_BUFFERS_3072)
+    der = client_key_der_3072;
+    derSz = (word32)sizeof_client_key_der_3072;
+    #elif defined(USE_CERT_BUFFERS_4096)
+    der = client_key_der_4096;
+    derSz = (word32)sizeof_client_key_der_4096;
+    #endif
 
-    ExpectIntGT(wc_RsaKeyToDer(&genKey, der, derSz), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecode(der, &idx, &key, (word32)derSz), 0);
+    }
+#endif
+    /* Test exporting private key to DER */
+    ExpectIntGT(wc_RsaKeyToDer(&key, der, derSz), 0);
 
     /* Pass good/bad args. */
     ExpectIntEQ(wc_RsaKeyToDer(NULL, der, FOURK_BUF),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* Get just the output length */
-    ExpectIntGT(wc_RsaKeyToDer(&genKey, NULL, 0), 0);
+    ExpectIntGT(wc_RsaKeyToDer(&key, NULL, 0), 0);
     /* Try Public Key. */
-    genKey.type = 0;
-    ExpectIntEQ(wc_RsaKeyToDer(&genKey, der, FOURK_BUF),
+    key.type = 0;
+    ExpectIntEQ(wc_RsaKeyToDer(&key, der, FOURK_BUF),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         /* Put back to Private Key */
-        genKey.type = 1;
+        key.type = 1;
     #endif
 
+    #if !defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM)
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    DoExpectIntEQ(wc_FreeRsaKey(&genKey), 0);
-    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    #endif
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+    #if defined(WOLFSSL_KEY_GEN)
+        DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    #endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_RsaKeyToDer */
