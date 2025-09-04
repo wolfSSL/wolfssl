@@ -230,7 +230,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(handshake_hash, ssl->heap);
+    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(handshake_hash, HSHASH_SZ);
 #endif
@@ -441,7 +441,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(seed, heap);
+    XFREE(seed, heap, DYNAMIC_TYPE_SEED);
 #endif
 
     return ret;
@@ -533,7 +533,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(seed, heap);
+    XFREE(seed, heap, DYNAMIC_TYPE_SEED);
 #endif
 
     return ret;
