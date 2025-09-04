@@ -25810,7 +25810,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
          *   If the cA boolean is not asserted, then the keyCertSign bit in the
          *   key usage extension MUST NOT be asserted. */
         if (!cert->isCA && cert->extKeyUsageSet &&
-                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
+                (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0
+        #ifdef ALLOW_SELFSIGNED_INVALID_CERTSIGN
+                && !cert->selfSigned
+        #endif
+        ) {
             WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
             return KEYUSAGE_E;
         }
