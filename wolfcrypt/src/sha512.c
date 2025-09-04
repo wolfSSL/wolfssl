@@ -121,17 +121,6 @@
     /* #define DEBUG_YMM  */
 #endif
 
-#if defined(HAVE_BYTEREVERSE64) && \
-        !defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
-    #define ByteReverseWords64(out, in, size) ByteReverseWords64_1(out, size)
-    #define ByteReverseWords64_1(buf, size) \
-        { unsigned int i ;\
-            for(i=0; i< size/sizeof(word64); i++){\
-                __asm__ volatile("bswapq %0":"+r"(buf[i])::) ;\
-            }\
-        }
-#endif
-
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
     !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
@@ -1400,17 +1389,23 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #elif defined(STM32_HASH_SHA512)
 #else
 
-static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
+static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
 {
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef LITTLE_ENDIAN_ORDER
-    ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
-#endif
-
+    if ((digestSz & 0x7) == 0)
+        ByteReverseWords64((word64 *)hash, sha512->digest, digestSz);
+    else {
+        ByteReverseWords64(sha512->digest, sha512->digest,
+                           WC_SHA512_DIGEST_SIZE);
+        XMEMCPY(hash, sha512->digest, digestSz);
+    }
+#else
     XMEMCPY(hash, sha512->digest, digestSz);
+#endif
 
     return 0;
 }
@@ -1807,10 +1802,10 @@ int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
     }
 
 #ifdef LITTLE_ENDIAN_ORDER
-    ByteReverseWords64(sha384->digest, sha384->digest, WC_SHA384_DIGEST_SIZE);
-#endif
-
+    ByteReverseWords64((word64 *)hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#else
     XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#endif
 
     return 0;
 }
