@@ -366,6 +366,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_quiet_shutdown      wolfSSL_CTX_set_quiet_shutdown
 #define SSL_set_quiet_shutdown          wolfSSL_set_quiet_shutdown
 #define SSL_get_error                   wolfSSL_get_error
+#define SSL_strerror                    wolfSSL_ERR_reason_error_string
 #define SSL_set_session                 wolfSSL_set_session
 #define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
 #define SSL_SESSION_get0_peer           wolfSSL_SESSION_get0_peer
