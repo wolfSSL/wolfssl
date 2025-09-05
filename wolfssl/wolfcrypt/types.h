@@ -1582,7 +1582,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #ifndef HAVE_SELFTEST
             #define WOLFSSL_THREAD_NO_JOIN
         #endif
-    #elif defined(__NT__) || defined(INTIME_RTOS))
+    #elif defined(__NT__) || defined(INTIME_RTOS)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
         typedef struct COND_TYPE {
