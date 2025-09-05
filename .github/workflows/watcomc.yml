@@ -62,6 +62,9 @@ jobs:
         uses: open-watcom/setup-watcom@v0
         with:
           version: ${{ matrix.platform.owimage }}
+          tag: 2025-09-01-Build
+          # Currently fixed to this build because of latest compiler error:
+          # file clbrdll.lib(fltuse80): undefined symbol _SetLD80bit_
 
       - name: Checkout wolfSSL
         uses: actions/checkout@v4
