@@ -32603,6 +32603,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
                     }
                     ssl->ecdhCurveOID = (word32)curveOid;
+                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+                    ssl->namedGroup = 0;
+                #endif
 
                     length = input[args->idx++];
                     if ((args->idx - args->begin) + length > size) {
@@ -32617,7 +32620,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             if (ret != 0) {
                                 goto exit_dske;
                             }
-                        } else if (ssl->peerEccKeyPresent) {
+                        } else if (ssl->peerX25519KeyPresent) {
                             ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
                                            ssl->peerX25519Key);
                             ssl->peerX25519KeyPresent = 0;
@@ -32660,7 +32663,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             if (ret != 0) {
                                 goto exit_dske;
                             }
-                        } else if (ssl->peerEccKeyPresent) {
+                        } else if (ssl->peerX448KeyPresent) {
                             ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
                                            ssl->peerX448Key);
                             ssl->peerX448KeyPresent = 0;
@@ -32695,7 +32698,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         break;
                     }
                 #endif
-
+                #ifdef HAVE_ECC
                     if (ssl->peerEccKey == NULL) {
                         ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
                                  (void**)&ssl->peerEccKey);
@@ -32713,11 +32716,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     curveId = wc_ecc_get_oid((word32)curveOid, NULL, NULL);
                     if (wc_ecc_import_x963_ex(input + args->idx, length,
                         ssl->peerEccKey, curveId) != 0) {
+                    #ifdef WOLFSSL_EXTRA_ALERTS
+                        SendAlert(ssl, alert_fatal, illegal_parameter);
+                    #endif
                         ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
                     }
 
                     args->idx += length;
                     ssl->peerEccKeyPresent = 1;
+                #endif
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
