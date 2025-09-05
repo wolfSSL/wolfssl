@@ -159,7 +159,7 @@ C149F3285397DFBD0C6720E14818475C3A50B10880EF9619463173A6D5ED15E7
         /* Ensure all previous buffered output is flushed */
         fflush(stdout);
         fflush(stderr);
-        
+
         va_start(args, fmt);
         /* Use vfprintf for va_list arguments */
         n = vfprintf(stdout, fmt, args);
