@@ -4430,8 +4430,14 @@ extern void uITRON4_free(void *p) ;
     (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
      defined(WOLFSSL_KCAPI_RSA) || defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_SE050))
-    #undef  WOLFSSL_KEY_TO_DER
-    #define WOLFSSL_KEY_TO_DER
+    /* FIPS v2 has the wc_RsaKeyToDer in rsa.h (in boundary),
+     * so with FIPS or self test only allow with WOLFSSL_KEY_GEN */
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        defined(WOLFSSL_KEY_GEN)
+
+        #undef  WOLFSSL_KEY_TO_DER
+        #define WOLFSSL_KEY_TO_DER
+    #endif
 #endif
 
 
