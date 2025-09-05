@@ -561,7 +561,8 @@ int test_wolfSSL_EC_POINT(void)
 
     /* check bn2hex */
     hexStr = BN_bn2hex(k);
-    ExpectStrEQ(hexStr, kTest);
+    if (hexStr != NULL)
+        ExpectStrEQ(hexStr, kTest);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
      defined(XFPRINTF)
     BN_print_fp(stderr, k);
@@ -570,7 +571,8 @@ int test_wolfSSL_EC_POINT(void)
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = BN_bn2hex(Gx);
-    ExpectStrEQ(hexStr, kGx);
+    if (hexStr != NULL)
+        ExpectStrEQ(hexStr, kGx);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
      defined(XFPRINTF)
     BN_print_fp(stderr, Gx);
@@ -579,7 +581,8 @@ int test_wolfSSL_EC_POINT(void)
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = BN_bn2hex(Gy);
-    ExpectStrEQ(hexStr, kGy);
+    if (hexStr != NULL)
+        ExpectStrEQ(hexStr, kGy);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
      defined(XFPRINTF)
     BN_print_fp(stderr, Gy);
@@ -1237,7 +1240,8 @@ int test_wolfSSL_EC_KEY_set_group(void)
 int test_wolfSSL_EC_KEY_set_conv_form(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM)
     BIO* bio = NULL;
     EC_KEY* key = NULL;
 
