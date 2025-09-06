@@ -4510,8 +4510,8 @@ static void bench_aesgcm_internal(int useDeviceID,
 #endif
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ);
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -4692,8 +4692,8 @@ static void bench_aesgcm_stream_internal(int useDeviceID,
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ);
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5273,7 +5273,7 @@ void bench_aesofb(void)
 #ifdef WOLFSSL_AES_XTS
 void bench_aesxts(void)
 {
-    WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
+    WC_DECLARE_VAR(aes, XtsAes, 1);
     double start;
     int    i, count, ret;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -5431,8 +5431,8 @@ void bench_aesccm(int useDeviceID)
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ);
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5776,8 +5776,8 @@ void bench_sm4_gcm(void)
     int    count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ);
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -5853,8 +5853,8 @@ void bench_sm4_ccm(void)
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ);
 
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
@@ -6069,7 +6069,7 @@ exit:
 #ifdef HAVE_CHACHA
 void bench_chacha(void)
 {
-    WC_DECLARE_VAR(enc, ChaCha, 1, HEAP_HINT);
+    WC_DECLARE_VAR(enc, ChaCha, 1);
     double start;
     int    ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -6145,8 +6145,8 @@ void bench_chacha20_poly1305_aead(void)
     int    ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ);
+    WC_DECLARE_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE);
     WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
@@ -6191,8 +6191,8 @@ void bench_ascon_aead(void)
 #define ASCON_AD_SZ XSTR_SIZEOF(ASCON_AD)
     double start;
     int    ret = 0, i, count;
-    WC_DECLARE_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ, HEAP_HINT);
-    WC_DECLARE_VAR(enc, wc_AsconAEAD128, 1, HEAP_HINT);
+    WC_DECLARE_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ);
+    WC_DECLARE_VAR(enc, wc_AsconAEAD128, 1);
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     WC_ALLOC_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ, HEAP_HINT);
@@ -8997,7 +8997,7 @@ static void bench_rsa_helper(int useDeviceID,
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(message, byte, TEST_STRING_SZ);
 #endif
     WC_DECLARE_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
                                  rsaKeySz, HEAP_HINT);
@@ -9458,14 +9458,12 @@ void bench_dh(int useDeviceID)
 
     WC_DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING,
                      BENCH_DH_KEY_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(pub2, byte,
-                     BENCH_DH_KEY_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(pub2, byte, BENCH_DH_KEY_SIZE);
     WC_DECLARE_ARRAY(agree, byte, BENCH_MAX_PENDING,
                      BENCH_DH_KEY_SIZE, HEAP_HINT);
     WC_DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING,
                      BENCH_DH_PRIV_SIZE, HEAP_HINT);
-    WC_DECLARE_VAR(priv2, byte,
-                     BENCH_DH_PRIV_SIZE, HEAP_HINT);
+    WC_DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE);
 
     /* old scan-build misfires -Wmaybe-uninitialized on these. */
     XMEMSET(pub, 0, sizeof(pub));
@@ -9912,10 +9910,8 @@ void bench_mlkem(int type)
     wc_KyberKey_Free(key2);
     wc_KyberKey_Free(key1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
 
@@ -12374,7 +12370,7 @@ void bench_ed448KeyGen(void)
 void bench_ed448KeySign(void)
 {
     int    ret;
-    WC_DECLARE_VAR(genKey, ed448_key, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, ed448_key, 1);
 #ifdef HAVE_ED448_SIGN
     double start;
     int    i, count;
@@ -12464,7 +12460,7 @@ exit:
 #ifdef WOLFCRYPT_ECCSI_KMS
 void bench_eccsiKeyGen(void)
 {
-    WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, EccsiKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
@@ -12505,11 +12501,11 @@ exit:
 
 void bench_eccsiPairGen(void)
 {
-    WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, EccsiKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
-    WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
+    WC_DECLARE_VAR(ssk, mp_int, 1);
     ecc_point* pvt;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
@@ -12561,11 +12557,11 @@ exit:
 #ifdef WOLFCRYPT_ECCSI_CLIENT
 void bench_eccsiValidate(void)
 {
-    WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, EccsiKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
-    WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
+    WC_DECLARE_VAR(ssk, mp_int, 1);
     ecc_point* pvt;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int valid;
@@ -12619,11 +12615,11 @@ exit:
 
 void bench_eccsi(void)
 {
-    WC_DECLARE_VAR(genKey, EccsiKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, EccsiKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
-    WC_DECLARE_VAR(ssk, mp_int, 1, HEAP_HINT);
+    WC_DECLARE_VAR(ssk, mp_int, 1);
     ecc_point* pvt;
     static const byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     static const byte msg[] = { 0x01, 0x23, 0x34, 0x45 };
@@ -12716,7 +12712,7 @@ exit:
 #ifdef WOLFCRYPT_SAKKE_KMS
 void bench_sakkeKeyGen(void)
 {
-    WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, SakkeKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
@@ -12757,7 +12753,7 @@ exit:
 
 void bench_sakkeRskGen(void)
 {
-    WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, SakkeKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
@@ -12807,7 +12803,7 @@ exit:
 #ifdef WOLFCRYPT_SAKKE_CLIENT
 void bench_sakkeValidate(void)
 {
-    WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, SakkeKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
@@ -12859,7 +12855,7 @@ exit:
 
 void bench_sakke(void)
 {
-    WC_DECLARE_VAR(genKey, SakkeKey, 1, HEAP_HINT);
+    WC_DECLARE_VAR(genKey, SakkeKey, 1);
     double start;
     int    i, count;
     const char**desc = bench_desc_words[lng_index];
