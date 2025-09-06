@@ -45,8 +45,8 @@ jobs:
       - name: Confirm packages built
         run: |
           DEB_COUNT=$(find -name 'libwolfssl*.deb' | wc -l)
-          if [ "$DEB_COUNT" != "2" ]; then
-            echo Did not find exactly two deb packages!!!
+          if [ "$DEB_COUNT" != "3" ]; then
+            echo Did not find exactly three deb packages!!!
             exit 1
           fi
 # disabled 20240919 -- broken target.
