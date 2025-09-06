@@ -23,7 +23,7 @@
 
 int benchmark_test(void *args);
 
-void wolfssl_thread_entry(void *pvParameters) {
+void wolfssl_tst_thd_entry(void *pvParameters) {
     FSP_PARAMETER_NOT_USED(pvParameters);
     initialise_monitor_handles();
     benchmark_test(0);
