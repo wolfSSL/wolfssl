@@ -665,6 +665,13 @@
     #endif
 
     #ifdef HAVE_LINUXKM_PIE_SUPPORT
+
+    #ifndef WOLFSSL_TEXT_SEGMENT_CANONICALIZER
+        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER(text_in, text_in_len, text_out, cur_index_p) \
+            wc_linuxkm_normalize_relocations(text_in, text_in_len, text_out, cur_index_p)
+        #define WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ 8192
+    #endif
+
     extern const u8
         __wc_text_start[],
         __wc_text_end[],

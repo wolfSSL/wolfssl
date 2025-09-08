@@ -719,6 +719,7 @@ ssize_t wc_linuxkm_normalize_relocations(
 {
     ssize_t i = -1;
     size_t text_in_offset;
+    size_t last_reloc; /* for error-checking order in wc_linuxkm_pie_reloc_tab[] */
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
     int n_text_r = 0, n_rodata_r = 0, n_rwdata_r = 0, n_bss_r = 0, n_other_r = 0;
 #endif
@@ -746,13 +747,20 @@ ssize_t wc_linuxkm_normalize_relocations(
     memcpy(text_out, text_in, text_in_len);
     WC_SANITIZE_ENABLE();
 
-    for (;
+    for (last_reloc = wc_linuxkm_pie_reloc_tab[i > 0 ? i-1 : 0];
          (size_t)i < wc_linuxkm_pie_reloc_tab_length - 1;
          ++i)
     {
         size_t next_reloc = wc_linuxkm_pie_reloc_tab[i];
         int reloc_buf;
         uintptr_t abs_ptr;
+
+        if (last_reloc > next_reloc) {
+            pr_err("BUG: out-of-order offset found at wc_linuxkm_pie_reloc_tab[%zd]: %zu > %zu\n",
+                   i, last_reloc, next_reloc);
+            return -1;
+        }
+        last_reloc = next_reloc;
 
         next_reloc -= text_in_offset;
 
