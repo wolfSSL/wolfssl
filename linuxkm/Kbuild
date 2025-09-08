@@ -217,6 +217,7 @@ endif
 	    --rename-section .rodata.str1.1=.rodata.wolfcrypt	\
 	    --rename-section .rodata.str1.8=.rodata.wolfcrypt	\
 	    --rename-section .rodata.cst16=.rodata.wolfcrypt	\
+	    --rename-section .rodata.cst32=.rodata.wolfcrypt	\
 	    --rename-section .data=.data.wolfcrypt		\
 	    --rename-section .data.rel.local=.data.wolfcrypt    \
 	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?
