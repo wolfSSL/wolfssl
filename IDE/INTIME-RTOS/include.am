@@ -13,4 +13,4 @@ EXTRA_DIST += \
     IDE/INTIME-RTOS/wolfExamples.sln \
     IDE/INTIME-RTOS/wolfssl-lib.sln \
     IDE/INTIME-RTOS/wolfssl-lib.vcxproj \
-    IDE/INTIME-RTOS/makefile
+    IDE/INTIME-RTOS/Makefile
