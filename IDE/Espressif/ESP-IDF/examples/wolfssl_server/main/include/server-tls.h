@@ -21,6 +21,24 @@
 #ifndef _SERVER_TLS_
 #define _SERVER_TLS_
 
+/* This example uses wolfssl test certificates */
+#if 1
+    /* See wolfssl/certs_test.h */
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+        defined(CONFIG_IDF_TARGET_ESP8684) || \
+        defined(CONFIG_IDF_TARGET_ESP8266)
+        /* Use smaller certs for low-memory devices */
+        #define USE_CERT_BUFFERS_1024
+    #else
+        #define USE_CERT_BUFFERS_2048
+    #endif
+
+    /* always include smallest testing 32 byte RSA/ECC keys */
+    #define USE_CERT_BUFFERS_256
+#else
+    /* define your own certificate macros; see user_settings.h */
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h> /* includes wolfSSL user-settings.h */
 #include <wolfssl/ssl.h>
 #include "sdkconfig.h"
