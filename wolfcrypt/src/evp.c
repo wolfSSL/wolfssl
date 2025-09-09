@@ -8902,7 +8902,7 @@ static void clearEVPPkeyKeys(WOLFSSL_EVP_PKEY *pkey)
 }
 
 #ifndef NO_RSA
-#if defined(WOLFSSL_KEY_GEN)
+#ifdef WOLFSSL_KEY_TO_DER
 static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
 {
     int ret = 0;
@@ -9008,7 +9008,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
         return WOLFSSL_SUCCESS;
     }
 }
-#endif
+#endif /* WOLFSSL_KEY_TO_DER */
 
 WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey)
 {
@@ -9060,12 +9060,12 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
         }
     }
 
-#if defined(WOLFSSL_KEY_GEN)
+#ifdef WOLFSSL_KEY_TO_DER
     if (PopulateRSAEvpPkeyDer(pkey) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("PopulateRSAEvpPkeyDer failed");
         return WOLFSSL_FAILURE;
     }
-#endif /* WOLFSSL_KEY_GEN */
+#endif
 
 #ifdef WC_RSA_BLINDING
     if (key->ownRng == 0) {
@@ -10045,7 +10045,7 @@ int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
     return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
 int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
 {
     if (pkey == NULL || key == NULL)
@@ -10080,7 +10080,7 @@ int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_RSA* key)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 
 #ifndef NO_DSA
 int wolfSSL_EVP_PKEY_assign_DSA(WOLFSSL_EVP_PKEY* pkey, WOLFSSL_DSA* key)

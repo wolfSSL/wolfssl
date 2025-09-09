@@ -1237,7 +1237,8 @@ int test_wolfSSL_EC_KEY_set_group(void)
 int test_wolfSSL_EC_KEY_set_conv_form(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM)
     BIO* bio = NULL;
     EC_KEY* key = NULL;
 

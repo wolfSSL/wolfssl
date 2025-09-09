@@ -4425,6 +4425,22 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_OLD_OID_SUM
 #endif
 
+/* Support for Key to DER conversion */
+#if !defined(NO_RSA) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
+     defined(WOLFSSL_KCAPI_RSA) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_SE050))
+    /* FIPS v2 has the wc_RsaKeyToDer in rsa.h (in boundary),
+     * so with FIPS or self test only allow with WOLFSSL_KEY_GEN */
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        defined(WOLFSSL_KEY_GEN)
+
+        #undef  WOLFSSL_KEY_TO_DER
+        #define WOLFSSL_KEY_TO_DER
+    #endif
+#endif
+
+
 /* ---------------------------------------------------------------------------
  * Deprecated Algorithm Handling
  *   Unless allowed via a build macro, disable support
