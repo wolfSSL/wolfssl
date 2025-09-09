@@ -27,19 +27,19 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 
 |Components|Version|
 |:--|:--|
-|Board Support Package Common Files|v3.5.0|
-|Arm CMSIS Version 5 - Core (M)|v5.8.0+renesas.0.fsp.3.5.0|
-|FreeRTOS|v10.4.3-LTS.Patch.2+fsp.3.5.0|
-|RA6M3-EK Board Support Files|v3.5.0|
-|Board support package for R7FA6M3AH3CFC|v3.5.0|
-|Board support package for RA6M3|v3.5.0|
-|Board support package for RA6M3 - FSP Data|v3.5.0|
-|FreeRTOS - Memory Management - Heap 4|v10.4.3-LTS.Patch.2+fsp.3.5.0|
-|r_ether to FreeRTOS+TCP Wrapper|v3.5.0|
-|Ethernet|v3.5.0|
-|Ethernet PHY|v3.5.0|
-|FreeRTOS+TCP|v2.3.2-LTS.Patch.1+fsp.3.5.0|
-|FreeRTOS - Buffer Allocation 2|v2.3.2-LTS.Patch.1+fsp.3.5.0|
+|Board Support Package Common Files|v6.1.0|
+|Arm CMSIS Version 5 - Core (M)|v6.1.0+renesas.0.fsp.6.1.0|
+|FreeRTOS|v11.1.0+fsp.6.1.0|
+|RA6M3-EK Board Support Files|v6.1.0|
+|Board support package for R7FA6M3AH3CFC|v6.1.0|
+|Board support package for RA6M3|v6.1.0|
+|Board support package for RA6M3 - FSP Data|v6.1.0|
+|FreeRTOS - Memory Management - Heap 4|v11.1.0+fsp.6.1.0|
+|r_ether to FreeRTOS+TCP Wrapper|v6.1.0|
+|Ethernet|v6.1.0|
+|Ethernet PHY|v6.1.0|
+|FreeRTOS+TCP|v4.3.3+fsp.6.1.0|
+|FreeRTOS - Buffer Allocation 2|v4.3.3+fsp.6.1.0|
 
 
 ## Setup Steps
@@ -51,11 +51,11 @@ The following steps explain how to generate the missing files and where to place
 1.) Create a 'dummy' Renesas RA C Library Project.
 
 + Click File->New->`RA C/C++ Project`
-+ Click `Renesas RA C Library Project`. Click Next
 + Enter `dummy_library` as the project name. Click Next.
 + Under `Board: Custom User Board`, select `EK-RA6M3`.
-+ Under `RTOS: No RTOS`, select `FreeRTOS`.
-+ Click Next. Select `FreeRTOS - Minimal - Static Allocation`
++ Select `None`. Click Next.
++ Select `Static Library`. Under `RTOS: No RTOS`, select `FreeRTOS`. Click Next
++ Select `FreeRTOS - Minimal - Static Allocation`
 + Click Finish.
 + Open Smart Configurator by clicking configuration.xml in the project
 + Go to `BSP` tab and increase Heap Size under `RA Common` on Properties page, e.g. 0x1000
@@ -67,15 +67,16 @@ The following steps explain how to generate the missing files and where to place
 |Thread Symbol|wolfssl_tst_thread|
 |Thread Name|wolf_tst_thread|
 |Thread Stack size|increase depending on your environment<br> e.g. 0xA000|
-|Thread MemoryAllocation|Dynamic|
+|Thread Memory Allocation Support Dynamic Allocation|Enabled|
+|Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000|
 |Common General Use Mutexes|Enabled|
 |Common General Enable Backward Compatibility|Enabled|
-|Common Memory Allocation Support Dynamic Allocation|Enabled|
-|Common Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000|
+
 
 + Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `RTOS` -> `FreeRTOS Heap 4`
-+ Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties
-
++ Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties. Go to `Add Ethernet Driver` box, and click the box to select `New` -> `Ethernet (r_ether)`
+. Set properties.
++ Increase `BSP` heap size. Go to `BSP` tab and increase `RA Common` Heap size. e.g. 0x1000
 |Property|Value|
 |:--|:--|
 |Network Events call vApplicationIPNetworkEventHook|Disable|
@@ -84,9 +85,10 @@ The following steps explain how to generate the missing files and where to place
 2.) Create a 'dummy' Renesas RA C Project Using RA Library.
 
 + Click File->New->`RA C/C++ Project`
-+ Click `Renesas RA C Project Using RA Library`. Click Next
 + Enter `dummy_app` as the project name. Click Next.
-+ Under `Executable Using an RA Static library`
++ Under `Board: Custom User Board`, select `EK-RA6M3`.
++ Select `None`. Click Next.
++ Select `Executable Using an RA Static library`, and `No RTOS`. Click Finish
 + Enter `dummy_app` as the project name. Click Next
 + Select `dummy_library` from Select Renesas RA library project.
 + Click Finish.
@@ -125,6 +127,7 @@ The following steps explain how to generate the missing files and where to place
 + Select and Copy the following folder inside dummy_app\
 
   `script/`
+  `Debug/`
 
 + Paste the copied folders into each executable projects which are Crypt test, benchmark, client and server projects\
 + The `dummy_app` project can now be deleted.

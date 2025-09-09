@@ -32,20 +32,8 @@
 #include <stdio.h>
 #include "hal_data.h"
 
-/* the function is called just before main() to set up pins */
-/* this needs to be called to setup IO Port */
-void R_BSP_WarmStart (bsp_warm_start_event_t event)
-{
 
-    if (BSP_WARM_START_POST_C == event) {
-        /* C runtime environment and system clocks are setup. */
-        /* Configure pins. */
-        R_IOPORT_Open(&g_ioport_ctrl, g_ioport.p_cfg);
-    }
-}
-
-
-void wolfssl_thread_entry(void *pvParameters) {
+void wolfssl_tst_thd_entry(void *pvParameters) {
     FSP_PARAMETER_NOT_USED(pvParameters);
 
     /* FreeRTOS+TCP parameters and objects */
