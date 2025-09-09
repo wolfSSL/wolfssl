@@ -20985,11 +20985,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        || out == NULL || plain == NULL
-    #endif
-    ) {
+    if (tmp == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_nopadding);
     }
 
