@@ -283,7 +283,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>DEBUG_WOLFSSL;WOLFSSL_HAVE_ERROR_QUEUE;_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_DEBUG;OPENSSL_ALL;WOLFSSL_ALLOW_SSLV3;HAVE_EX_DATA;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DEBUG_WOLFSSL;_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_DEBUG;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Async</ExceptionHandling>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <FunctionLevelLinking>false</FunctionLevelLinking>
@@ -293,7 +293,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <ErrorReporting>Prompt</ErrorReporting>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;c:\intime\rt\include\network7;c:\intime\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;$(intime)\rt\include\network7;$(intime)\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -323,7 +323,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <PreprocessorDefinitions>DEBUG_WOLFSSL;WOLFSSL_HAVE_ERROR_QUEUE;_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;OPENSSL_ALL;WOLFSSL_ALLOW_SSLV3;HAVE_EX_DATA;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>Async</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <StringPooling>true</StringPooling>
@@ -333,7 +333,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <ErrorReporting>Prompt</ErrorReporting>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;c:\intime\rt\include\network7;c:\intime\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;$(intime)\rt\include\network7;$(intime)\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
