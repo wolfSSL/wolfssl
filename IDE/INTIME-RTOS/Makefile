@@ -1,5 +1,4 @@
 # Makefile for the INtime wolfSSL library component
-# Copyright 2017 by TenAsys Corporation. All rights reserved.
 #
 SWENGENV := $(RMX_SRC_BASE)/tools/swenghg
 #
