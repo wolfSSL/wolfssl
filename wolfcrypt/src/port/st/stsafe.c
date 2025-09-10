@@ -120,7 +120,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
 {
     int err;
     byte sigRS[STSAFE_MAX_SIG_LEN];
-    byte *r, *s;
+    byte *r = NULL, *s = NULL;
     word32 r_len = STSAFE_MAX_SIG_LEN/2, s_len = STSAFE_MAX_SIG_LEN/2;
     byte pubKeyX[STSAFE_MAX_PUBKEY_RAW_LEN/2];
     byte pubKeyY[STSAFE_MAX_PUBKEY_RAW_LEN/2];
@@ -130,7 +130,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     word32 inOutIdx = 0;
     StSafeA_CurveId curve_id = STSAFE_A_NIST_P_256;
     int ecc_curve;
-    int key_sz;
+    int key_sz = 0;
 
     (void)ssl;
     (void)ctx;
@@ -486,7 +486,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         }
         else if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
             byte sigRS[STSAFE_MAX_SIG_LEN];
-            byte *r, *s;
+            byte *r = NULL, *s = NULL;
             word32 r_len = STSAFE_MAX_SIG_LEN/2, s_len = STSAFE_MAX_SIG_LEN/2;
             byte pubKeyX[STSAFE_MAX_PUBKEY_RAW_LEN/2];
             byte pubKeyY[STSAFE_MAX_PUBKEY_RAW_LEN/2];
