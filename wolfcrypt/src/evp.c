@@ -4659,9 +4659,7 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
         if (ret == WOLFSSL_SUCCESS)
             ret = wc_HmacFinal(hmacCopy, md) == 0;
         wc_HmacFree(hmacCopy);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(hmacCopy, NULL, DYNAMIC_TYPE_OPENSSL);
-#endif
+        WC_FREE_VAR_EX(hmacCopy, NULL, DYNAMIC_TYPE_OPENSSL);
         return ret;
     }
     else {
@@ -4678,9 +4676,7 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
         if (ret == WOLFSSL_SUCCESS)
             ret = wolfSSL_EVP_DigestFinal(ctxCopy, md, mdlen);
         wolfSSL_EVP_MD_CTX_cleanup(ctxCopy);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(ctxCopy, NULL, DYNAMIC_TYPE_OPENSSL);
-#endif
+        WC_FREE_VAR_EX(ctxCopy, NULL, DYNAMIC_TYPE_OPENSSL);
         return ret;
     }
 }
@@ -6638,11 +6634,7 @@ void wolfSSL_EVP_init(void)
     {
         int ret;
         int hashType = WC_HASH_TYPE_NONE;
-    #ifdef WOLFSSL_SMALL_STACK
-        EncryptedInfo* info;
-    #else
-        EncryptedInfo  info[1];
-    #endif
+        WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
 
     #ifdef WOLFSSL_SMALL_STACK
         info = (EncryptedInfo*)XMALLOC(sizeof(EncryptedInfo), NULL,
@@ -6674,9 +6666,7 @@ void wolfSSL_EVP_init(void)
             ret = (int)info->keySz;
 
     end:
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
-    #endif
+        WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
         if (ret < 0)
             return 0; /* failure - for compatibility */
 
@@ -11701,9 +11691,7 @@ static int PrintHexWithColon(WOLFSSL_BIO* out, const byte* input,
             idx = 0;
         }
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #if !defined(NO_RSA)
@@ -11730,26 +11718,16 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     const byte*  e   = NULL; /* pointer to modulus/exponent */
     word32 i;
     unsigned long exponent = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* a = NULL;
-#else
-    mp_int a[1];
-#endif
+    WC_DECLARE_VAR(a, mp_int, 1, 0);
     char line[32] = { 0 };
 
     (void)pctx;
 
-#ifdef WOLFSSL_SMALL_STACK
-    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (a == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-#endif
+    WC_ALLOC_VAR_EX(a, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+        return WOLFSSL_FAILURE);
 
     if( mp_init(a) != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+        WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
         return WOLFSSL_FAILURE;
     }
     if (indent < 0) {
@@ -11853,9 +11831,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     } while (0);
 
     mp_free(a);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
     return res;
 }
 #endif /* !NO_RSA */
@@ -11914,10 +11890,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 #endif
 
     if (mp_init(a) != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+        WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_ECC);
+        WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
         return WOLFSSL_FAILURE;
     }
 
@@ -11925,10 +11899,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         /* Return early so we don't have to remember if init succeeded
          * or not. */
         mp_free(a);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+        WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_ECC);
+        WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
         return WOLFSSL_FAILURE;
     }
 
@@ -12047,10 +12019,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wc_ecc_free(key);
     mp_free(a);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_ECC);
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
 
     return res;
 }
@@ -12078,24 +12048,14 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     word32  inOutIdx = 0;
     word32  oid;
     byte    tagFound;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* a = NULL;
-#else
-    mp_int  a[1];
-#endif
+    WC_DECLARE_VAR(a, mp_int, 1, 0);
     char line[32] = { 0 };
 
-#ifdef WOLFSSL_SMALL_STACK
-    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (a == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-#endif
+    WC_ALLOC_VAR_EX(a, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+        return WOLFSSL_FAILURE);
 
     if( mp_init(a) != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+        WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
         return WOLFSSL_FAILURE;
     }
 
@@ -12268,9 +12228,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     } while (0);
 
     mp_free(a);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
     return res;
 }
 #endif /* !NO_DSA */
@@ -12302,24 +12260,14 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     byte*   publicKey = NULL;
     word32  outSz;
     byte    outHex[3];
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* a = NULL;
-#else
-    mp_int  a[1];
-#endif
+    WC_DECLARE_VAR(a, mp_int, 1, 0);
     char line[32] = { 0 };
 
-#ifdef WOLFSSL_SMALL_STACK
-    a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (a == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-#endif
+    WC_ALLOC_VAR_EX(a, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+        return WOLFSSL_FAILURE);
 
     if( mp_init(a) != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+        WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
         return WOLFSSL_FAILURE;
     }
 
@@ -12498,9 +12446,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     } while (0);
 
     mp_free(a);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
     return res;
 }
 #endif /* WOLFSSL_DH_EXTRA */

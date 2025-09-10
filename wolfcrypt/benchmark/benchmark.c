@@ -9912,10 +9912,8 @@ void bench_mlkem(int type)
     wc_KyberKey_Free(key2);
     wc_KyberKey_Free(key1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
 
