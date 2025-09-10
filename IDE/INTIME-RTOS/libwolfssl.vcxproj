@@ -16,6 +16,8 @@
   <ItemGroup>
     <ClCompile Include="libwolfssl.c" />
     <ClCompile Include="..\..\src\crl.c" />
+    <ClCompile Include="..\..\src\dtls13.c" />
+    <ClCompile Include="..\..\src\dtls.c" />
     <ClCompile Include="..\..\src\internal.c" />
     <ClCompile Include="..\..\src\wolfio.c" />
     <ClCompile Include="..\..\src\keys.c" />
@@ -23,11 +25,13 @@
     <ClCompile Include="..\..\src\sniffer.c" />
     <ClCompile Include="..\..\src\ssl.c" />
     <ClCompile Include="..\..\src\tls.c" />
+	<ClCompile Include="..\..\src\tls13.c" />
     <ClCompile Include="..\..\wolfcrypt\src\aes.c" />
     <ClCompile Include="..\..\wolfcrypt\src\arc4.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asm.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
     <ClCompile Include="..\..\wolfcrypt\src\blake2b.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\blake2s.c" />
     <ClCompile Include="..\..\wolfcrypt\src\camellia.c" />
     <ClCompile Include="..\..\wolfcrypt\src\chacha.c" />
     <ClCompile Include="..\..\wolfcrypt\src\chacha20_poly1305.c" />
@@ -35,18 +39,28 @@
     <ClCompile Include="..\..\wolfcrypt\src\coding.c" />
     <ClCompile Include="..\..\wolfcrypt\src\compress.c" />
     <ClCompile Include="..\..\wolfcrypt\src\curve25519.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\cpuid.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\cryptocb.c" />
     <ClCompile Include="..\..\wolfcrypt\src\des3.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\dilithium.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ed25519.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\ed448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\error.c" />
+	<!--ClCompile Include="..\..\wolfcrypt\src\ext_kyber.c" /-->
+    <ClCompile Include="..\..\wolfcrypt\src\falcon.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fe_low_mem.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fe_operations.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\ge_448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ge_low_mem.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ge_operations.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hash.c" />
     <ClCompile Include="..\..\wolfcrypt\src\kdf.c" />
+	<!--ClCompile Include="..\..\wolfcrypt\src\wc_kyber.c" /-->
+    <!--ClCompile Include="..\..\wolfcrypt\src\wc_kyber_poly.c" /-->
     <ClCompile Include="..\..\wolfcrypt\src\hmac.c" />
     <ClCompile Include="..\..\wolfcrypt\src\integer.c" />
     <ClCompile Include="..\..\wolfcrypt\src\logging.c" />
@@ -59,18 +73,28 @@
     <ClCompile Include="..\..\wolfcrypt\src\poly1305.c" />
     <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
     <ClCompile Include="..\..\wolfcrypt\src\random.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\rc2.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ripemd.c" />
     <ClCompile Include="..\..\wolfcrypt\src\rsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha256.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\sha3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha512.c" />
     <ClCompile Include="..\..\wolfcrypt\src\signature.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\sphincs.c" />
+	<ClCompile Include="..\..\wolfcrypt\src\sp_c32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_c64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_int.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_x86_64.c" />
     <ClCompile Include="..\..\wolfcrypt\src\srp.c" />
     <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_pkcs11.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\port\liboqs\liboqs.c" />
+
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="user_settings.h" />
@@ -151,13 +175,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|INtime'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

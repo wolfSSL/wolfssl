@@ -183,7 +183,8 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
  */
 static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 {
-#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE)
+#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE) && \
+    !defined(INTIME_RTOS)
     size_t errstr_offset;
     char errstr[WOLFSSL_STRERROR_BUFFER_SIZE];
 #endif /* _WIN32 */
@@ -242,7 +243,8 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
         return WOLFSSL_CBIO_ERR_CONN_CLOSE;
     }
 
-#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE)
+#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE) && \
+    !defined(INTIME_RTOS)
     strcpy_s(errstr, sizeof(errstr), "\tGeneral error: ");
     errstr_offset = strlen(errstr);
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,

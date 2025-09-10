@@ -1554,7 +1554,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
 #elif defined(WOLFSSL_USER_THREADING)
     /* User can define user specific threading types
         *  THREAD_RETURN
-        *  TREAD_TYPE
+        *  THREAD_TYPE
         *  WOLFSSL_THREAD
         * e.g.
         *  typedef unsigned int  THREAD_RETURN;
@@ -1582,7 +1582,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #ifndef HAVE_SELFTEST
             #define WOLFSSL_THREAD_NO_JOIN
         #endif
-    #elif defined(__NT__)
+    #elif defined(__NT__) || defined(INTIME_RTOS)
         typedef unsigned      THREAD_RETURN;
         typedef uintptr_t     THREAD_TYPE;
         typedef struct COND_TYPE {
@@ -1714,6 +1714,12 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     typedef unsigned int   THREAD_RETURN;
     typedef TX_THREAD      THREAD_TYPE;
     #define WOLFSSL_THREAD
+#elif defined(INTIME_RTOS)
+    typedef unsigned int  THREAD_RETURN;
+    #define INTIME_THREAD_TYPE THREAD_TYPE
+    #undef THREAD_TYPE
+    typedef uintptr_t     THREAD_TYPE;
+    #define WOLFSSL_THREAD __stdcall
 #else
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;
@@ -1804,6 +1810,12 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         WOLFSSL_API int wolfSSL_CondWait(COND_TYPE* cond);
         WOLFSSL_API int wolfSSL_CondStart(COND_TYPE* cond);
         WOLFSSL_API int wolfSSL_CondEnd(COND_TYPE* cond);
+    #endif
+
+    #ifdef INTIME_RTOS
+       #undef  THREAD_TYPE
+       #define THREAD_TYPE INTIME_THREAD_TYPE
+       #undef  INTIME_THREAD_TYPE
     #endif
 #else
     #define WOLFSSL_RETURN_FROM_THREAD(x) return (THREAD_RETURN)(x)
