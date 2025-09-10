@@ -3312,11 +3312,7 @@ int wc_xmss_keygen(XmssState* state, const unsigned char* seed,
     const word8 n = params->n;
     /* Offset of root node in public key. */
     byte* pk_root = pk;
-#ifdef WOLFSSL_SMALL_STACK
-    BdsState* bds = NULL;
-#else
-    BdsState bds[1];
-#endif
+    WC_DECLARE_VAR(bds, BdsState, 1, 0);
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for tree hash instances and put in BDS state. */
@@ -3427,11 +3423,7 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
     byte node[WC_XMSS_MAX_N];
     word32 idx;
     byte* sig_r = sig + XMSS_IDX_LEN;
-#ifdef WOLFSSL_SMALL_STACK
-    BdsState* bds = NULL;
-#else
-    BdsState bds[1];
-#endif
+    WC_DECLARE_VAR(bds, BdsState, 1, 0);
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for tree hash instances and put in BDS state. */

@@ -1144,9 +1144,7 @@ static int wolfIoT_ecc_sign(WOLFSSL* ssl,
     if (ret == 0)
         ret = wc_ecc_sign_hash(in, inSz, out, outSz, rng, myKey);
     wc_ecc_free(myKey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(myKey, NULL, DYNAMIC_TYPE_ECC);
-#endif
+    WC_FREE_VAR_EX(myKey, NULL, DYNAMIC_TYPE_ECC);
 
     (void)ctx;
     return ret;
@@ -1203,10 +1201,8 @@ static int wolfIoT_ecc_verify(WOLFSSL *ssl,
 #endif
     ret = wc_ecc_init(key);
     if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-        XFREE(sig_raw, NULL, DYNAMIC_TYPE_SIGNATURE);
-    #endif
+        WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_ECC);
+        WC_FREE_VAR_EX(sig_raw, NULL, DYNAMIC_TYPE_SIGNATURE);
         return ret;
     }
 
@@ -1246,10 +1242,8 @@ static int wolfIoT_ecc_verify(WOLFSSL *ssl,
         }
     }
     wc_ecc_free(key);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(sig_raw, NULL, DYNAMIC_TYPE_SIGNATURE);
-#endif
+    WC_FREE_VAR_EX(key, NULL, DYNAMIC_TYPE_ECC);
+    WC_FREE_VAR_EX(sig_raw, NULL, DYNAMIC_TYPE_SIGNATURE);
     (void)ctx;
     return ret;
 }
@@ -1282,16 +1276,11 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpKey = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-    if (tmpKey == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(tmpKey, ecc_key, 1, NULL, DYNAMIC_TYPE_ECC,
+        return MEMORY_E);
     ret = wc_ecc_init(tmpKey);
     if (ret != 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpKey, NULL, DYNAMIC_TYPE_ECC);
-    #endif
+        WC_FREE_VAR_EX(tmpKey, NULL, DYNAMIC_TYPE_ECC);
         return ret;
     }
 
@@ -1405,9 +1394,7 @@ static int wolfIoT_ecc_shared_secret(WOLFSSL* ssl, struct ecc_key* otherKey,
         }
     }
     wc_ecc_free(tmpKey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpKey, NULL, DYNAMIC_TYPE_ECC);
-#endif
+    WC_FREE_VAR_EX(tmpKey, NULL, DYNAMIC_TYPE_ECC);
     (void)ctx;
     return ret;
 }

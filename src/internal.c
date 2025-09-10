@@ -12221,9 +12221,7 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
+    WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
 }
@@ -12267,9 +12265,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
+    WC_FREE_VAR_EX(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
 }
@@ -14060,11 +14056,9 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
      * single->isDynamic is set. */
     FreeOcspResponse(response);
 
-    #ifdef WOLFSSL_SMALL_STACK
-    XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-    XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-    XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
-    #endif
+    WC_FREE_VAR_EX(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+    WC_FREE_VAR_EX(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+    WC_FREE_VAR_EX(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
     WOLFSSL_LEAVE("ProcessCSR", ret);
     return ret;
@@ -15906,25 +15900,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner) {
-#ifdef WOLFSSL_SMALL_STACK
-                        DecodedCert *dCertAdd = NULL;
-#else
-                        DecodedCert dCertAdd[1];
-#endif
+                        WC_DECLARE_VAR(dCertAdd, DecodedCert, 1, 0);
                         int dCertAdd_inited = 0;
                         DerBuffer *derBuffer = NULL;
                         buffer* cert = &args->certs[args->certIdx];
                         Signer *s = NULL;
 
-#ifdef WOLFSSL_SMALL_STACK
-                        dCertAdd = (DecodedCert *)
-                            XMALLOC(sizeof(*dCertAdd), ssl->heap,
-                                    DYNAMIC_TYPE_TMP_BUFFER);
-                        if (dCertAdd == NULL) {
-                            ret = MEMORY_E;
-                            goto exit_req_v2;
-                        }
-#endif
+                        WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
+                            DYNAMIC_TYPE_TMP_BUFFER,
+                            {ret=MEMORY_E;goto exit_req_v2;});
                         InitDecodedCert(dCertAdd, cert->buffer, cert->length,
                                         ssl->heap);
                         dCertAdd_inited = 1;
@@ -15957,9 +15941,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             FreeDer(&derBuffer);
                         if (dCertAdd_inited)
                             FreeDecodedCert(dCertAdd);
-#ifdef WOLFSSL_SMALL_STACK
-                        XFREE(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+                        WC_FREE_VAR_EX(dCertAdd, ssl->heap,
+                            DYNAMIC_TYPE_TMP_BUFFER);
                         if (ret != 0)
                             goto exit_ppc;
                     }
@@ -17213,11 +17196,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             ssl->status_request_v2 = 0;
 
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(status,   NULL, DYNAMIC_TYPE_OCSP_STATUS);
-                XFREE(single,   NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-                XFREE(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-            #endif
+                WC_FREE_VAR_EX(status, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+                WC_FREE_VAR_EX(single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+                WC_FREE_VAR_EX(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
 
         }
         break;
@@ -23576,9 +23557,7 @@ static int BuildMD5_CertVerify(const WOLFSSL* ssl, byte* digest)
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
+    WC_FREE_VAR_EX(md5, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
 }
@@ -23621,9 +23600,7 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
+    WC_FREE_VAR_EX(sha, ssl->heap, DYNAMIC_TYPE_HASHCTX);
 
     return ret;
 }
@@ -24050,18 +24027,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             #ifdef HAVE_TRUNCATED_HMAC
                 if (ssl->truncated_hmac &&
                                         ssl->specs.hash_size > args->digestSz) {
-                #ifdef WOLFSSL_SMALL_STACK
-                    byte* hmac;
-                #else
-                    byte  hmac[WC_MAX_DIGEST_SIZE];
-                #endif
+                    WC_DECLARE_VAR(hmac, byte, WC_MAX_DIGEST_SIZE, 0);
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
-                    if (hmac == NULL)
-                        ERROR_OUT(MEMORY_E, exit_buildmsg);
-                #endif
+                    WC_ALLOC_VAR_EX(hmac, byte, WC_MAX_DIGEST_SIZE, ssl->heap,
+                        DYNAMIC_TYPE_DIGEST,
+                        ERROR_OUT(MEMORY_E,exit_buildmsg));
 
                     ret = ssl->hmac(ssl, hmac,
                                      output + args->headerSz + args->ivSz,
@@ -24069,9 +24039,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                                      epochOrder);
                     XMEMCPY(output + args->idx, hmac, args->digestSz);
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
-                #endif
+                    WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
                 }
                 else
             #endif
@@ -24197,18 +24165,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             #ifdef HAVE_TRUNCATED_HMAC
                 if (ssl->truncated_hmac &&
                                         ssl->specs.hash_size > args->digestSz) {
-                #ifdef WOLFSSL_SMALL_STACK
-                    byte* hmac = NULL;
-                #else
-                    byte  hmac[WC_MAX_DIGEST_SIZE];
-                #endif
+                    WC_DECLARE_VAR(hmac, byte, WC_MAX_DIGEST_SIZE, 0);
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
-                                                           DYNAMIC_TYPE_DIGEST);
-                    if (hmac == NULL)
-                        ERROR_OUT(MEMORY_E, exit_buildmsg);
-                #endif
+                    WC_ALLOC_VAR_EX(hmac, byte, WC_MAX_DIGEST_SIZE, ssl->heap,
+                        DYNAMIC_TYPE_DIGEST,
+                        ERROR_OUT(MEMORY_E,exit_buildmsg));
 
                     ret = ssl->hmac(ssl, hmac, output + args->headerSz,
                                     args->ivSz + inSz + args->pad + 1, -1,
@@ -24216,9 +24177,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     XMEMCPY(output + args->idx + args->pad + 1, hmac,
                                                                 args->digestSz);
 
-                #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
-                #endif
+                    WC_FREE_VAR_EX(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
                 }
                 else
             #endif
@@ -24522,22 +24481,14 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 
     if (request == NULL || ssl->buffers.weOwnCert) {
         DerBuffer* der = ssl->buffers.certificate;
-        #ifdef WOLFSSL_SMALL_STACK
-            DecodedCert* cert = NULL;
-        #else
-            DecodedCert  cert[1];
-        #endif
+            WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
         /* unable to fetch status. skip. */
         if (der->buffer == NULL || der->length == 0)
             return 0;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                        DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ssl->heap, DYNAMIC_TYPE_DCERT,
+            return MEMORY_E);
         request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), ssl->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
         if (request == NULL)
@@ -24554,9 +24505,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
             request = NULL;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-    #endif
+        WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
     }
 
     if (ret == 0) {
@@ -25379,25 +25328,15 @@ int SendCertificateStatus(WOLFSSL* ssl)
                                               || ssl->buffers.weOwnCertChain)) {
                 buffer der;
                 word32 idx = 0;
-            #ifdef WOLFSSL_SMALL_STACK
-                DecodedCert* cert;
-            #else
-                DecodedCert  cert[1];
-            #endif
+                WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
                 DerBuffer* chain;
 
-            #ifdef WOLFSSL_SMALL_STACK
-                cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                                            DYNAMIC_TYPE_DCERT);
-                if (cert == NULL)
-                    return MEMORY_E;
-            #endif
+                WC_ALLOC_VAR_EX(cert, DecodedCert, 1, ssl->heap,
+                    DYNAMIC_TYPE_DCERT, return MEMORY_E);
                 request = (OcspRequest*)XMALLOC(sizeof(OcspRequest), ssl->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
                 if (request == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-            #endif
+                    WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
                     return MEMORY_E;
                 }
 
@@ -25440,9 +25379,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 }
                 if (!ctxOwnsRequest)
                     XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-            #endif
+                WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             }
             else {
                 while (ret == 0 &&
@@ -31905,9 +31842,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
                 FreeDecodedCert(cert);
 
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-#endif
+                WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
                 if (ret != 0) {
                     if (name != NULL)
                         wolfSSL_X509_NAME_free(name);
@@ -33125,20 +33060,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                              }
                             #endif
                             if (IsAtLeastTLSv1_2(ssl)) {
-                            #ifdef WOLFSSL_SMALL_STACK
-                                byte*  encodedSig;
-                            #else
-                                byte   encodedSig[MAX_ENCODED_SIG_SZ];
-                            #endif
+                                WC_DECLARE_VAR(encodedSig, byte,
+                                    MAX_ENCODED_SIG_SZ, 0);
                                 word32 encSigSz;
 
-                            #ifdef WOLFSSL_SMALL_STACK
-                                encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
-                                                ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                                if (encodedSig == NULL) {
-                                    ERROR_OUT(MEMORY_E, exit_dske);
-                                }
-                            #endif
+                                WC_ALLOC_VAR_EX(encodedSig, byte,
+                                    MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    DYNAMIC_TYPE_SIGNATURE,
+                                    ERROR_OUT(MEMORY_E,exit_dske));
 
                                 encSigSz = wc_EncodeSignature(encodedSig,
                                     ssl->buffers.digest.buffer,
@@ -33149,9 +33078,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                             min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
                                     ret = VERIFY_SIGN_ERROR;
                                 }
-                            #ifdef WOLFSSL_SMALL_STACK
-                                XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-                            #endif
+                                WC_FREE_VAR_EX(encodedSig, ssl->heap,
+                                    DYNAMIC_TYPE_SIGNATURE);
                                 if (ret != 0) {
                                     goto exit_dske;
                                 }
@@ -38984,10 +38912,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ret = VERIFY_CERT_ERROR;
                             }
 
-                        #ifdef WOLFSSL_SMALL_STACK
-                            XFREE(encodedSig, ssl->heap,
-                                  DYNAMIC_TYPE_SIGNATURE);
-                        #endif
+                            WC_FREE_VAR_EX(encodedSig, ssl->heap,
+                                DYNAMIC_TYPE_SIGNATURE);
                         }
                     }
                     else {
@@ -40268,10 +40194,8 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
     }
     wc_HmacFree(hmac);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     *outLen = inLen;
 
@@ -40343,19 +40267,12 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
                         void* heap, int enc)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 
     (void)heap;
 
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (aes == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(aes, Aes, 1, heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     if (enc) {
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -40380,9 +40297,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         wc_AesFree(aes);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     *outLen = inLen;
 
@@ -40412,19 +40327,12 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
                         void* heap, int enc)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sm4* sm4;
-#else
-    wc_Sm4 sm4[1];
-#endif
+    WC_DECLARE_VAR(sm4, wc_Sm4, 1, 0);
 
     (void)heap;
 
-#ifdef WOLFSSL_SMALL_STACK
-    sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sm4 == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(sm4, wc_Sm4, 1, heap, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     if (enc) {
         ret = wc_Sm4Init(sm4, NULL, INVALID_DEVID);
@@ -40449,9 +40357,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         wc_Sm4Free(sm4);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sm4, heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(sm4, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     *outLen = inLen;
 

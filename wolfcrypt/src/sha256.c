@@ -2422,23 +2422,14 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash)
     {
         int ret;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha224* tmpSha224;
-    #else
-        wc_Sha224  tmpSha224[1];
-    #endif
+        WC_DECLARE_VAR(tmpSha224, wc_Sha224, 1, 0);
 
         if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        tmpSha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmpSha224 == NULL) {
-            return MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(tmpSha224, wc_Sha224, 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
         ret = wc_Sha224Copy(sha224, tmpSha224);
         if (ret == 0) {
@@ -2446,9 +2437,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
             wc_Sha224Free(tmpSha224);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(tmpSha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -2558,23 +2547,14 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha256* tmpSha256;
-#else
-    wc_Sha256  tmpSha256[1];
-#endif
+    WC_DECLARE_VAR(tmpSha256, wc_Sha256, 1, 0);
 
     if (sha256 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpSha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpSha256 == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(tmpSha256, wc_Sha256, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_Sha256Copy(sha256, tmpSha256);
     if (ret == 0) {
@@ -2583,9 +2563,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     }
 
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpSha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

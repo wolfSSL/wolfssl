@@ -465,23 +465,14 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
 {
     int ret;
     byte* labeled_ikm_p;
-#ifndef WOLFSSL_SMALL_STACK
-    byte labeled_ikm[MAX_HPKE_LABEL_SZ];
-#else
-    byte* labeled_ikm;
-#endif
+    WC_DECLARE_VAR(labeled_ikm, byte, MAX_HPKE_LABEL_SZ, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    labeled_ikm = (byte*)XMALLOC(MAX_HPKE_LABEL_SZ, hpke->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (labeled_ikm == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(labeled_ikm, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     /* concat the labeled_ikm */
     /* version */
@@ -508,9 +499,7 @@ static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
         (word32)(size_t)(labeled_ikm_p - labeled_ikm), out);
     PRIVATE_KEY_LOCK();
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(labeled_ikm, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(labeled_ikm, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -523,23 +512,14 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
 {
     int ret;
     byte* labeled_info_p;
-#ifndef WOLFSSL_SMALL_STACK
-    byte labeled_info[MAX_HPKE_LABEL_SZ];
-#else
-    byte* labeled_info;
-#endif
+    WC_DECLARE_VAR(labeled_info, byte, MAX_HPKE_LABEL_SZ, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    labeled_info = (byte*)XMALLOC(MAX_HPKE_LABEL_SZ, hpke->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (labeled_info == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(labeled_info, byte, MAX_HPKE_LABEL_SZ, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     /* copy length */
     ret = I2OSP((int)L, 2, labeled_info);
@@ -571,9 +551,7 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
         PRIVATE_KEY_LOCK();
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(labeled_info, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(labeled_info, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -606,23 +584,14 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
 {
     int ret;
     /* max length is the largest hmac digest possible */
-#ifndef WOLFSSL_SMALL_STACK
-    byte eae_prk[WC_MAX_DIGEST_SIZE];
-#else
-    byte* eae_prk;
-#endif
+    WC_DECLARE_VAR(eae_prk, byte, WC_MAX_DIGEST_SIZE, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    eae_prk = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, hpke->heap,
-        DYNAMIC_TYPE_DIGEST);
-    if (eae_prk == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(eae_prk, byte, WC_MAX_DIGEST_SIZE, hpke->heap,
+        DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
     /* extract */
     ret = wc_HpkeLabeledExtract(hpke, hpke->kem_suite_id,
@@ -636,9 +605,7 @@ static int wc_HpkeExtractAndExpand( Hpke* hpke, byte* dh, word32 dh_len,
             (byte*)SHARED_SECRET_LABEL_STR, SHARED_SECRET_LABEL_STR_LEN,
             kemContext, kem_context_length, hpke->Nsecret, sharedSecret);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(eae_prk, hpke->heap, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(eae_prk, hpke->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -726,10 +693,9 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
             1 + 2 * hpke->Nh, hpke->Nh, context->exporter_secret);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_schedule_context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(secret, hpke->heap, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(key_schedule_context, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(secret, hpke->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -830,10 +796,8 @@ static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
             hpke->Npk * 2, sharedSecret);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -843,11 +807,7 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
     void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz)
 {
     int ret;
-#ifndef WOLFSSL_SMALL_STACK
-    byte sharedSecret[HPKE_Nsecret_MAX];
-#else
-    byte* sharedSecret;
-#endif
+    WC_DECLARE_VAR(sharedSecret, byte, HPKE_Nsecret_MAX, 0);
 
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
@@ -867,9 +827,7 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -896,21 +854,13 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
 {
     int ret;
     byte nonce[HPKE_Nn_MAX];
-#ifndef WOLFSSL_SMALL_STACK
-    Aes aes[1];
-#else
-    Aes* aes;
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     if (hpke == NULL || context == NULL || (aad == NULL && aadSz > 0) ||
         plaintext == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), hpke->heap, DYNAMIC_TYPE_AES);
-    if (aes == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
+        return MEMORY_E);
     ret = wc_AesInit(aes, hpke->heap, INVALID_DEVID);
     if (ret == 0) {
         /* compute nonce */
@@ -928,9 +878,7 @@ int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
         }
         wc_AesFree(aes);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, hpke->heap, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
     return ret;
 }
 
@@ -940,11 +888,7 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
     word32 ptSz, byte* ciphertext)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    HpkeBaseContext* context;
-#else
-    HpkeBaseContext context[1];
-#endif
+    WC_DECLARE_VAR(context, HpkeBaseContext, 1, 0);
 
     /* check that all the buffers are non NULL or optional with 0 length */
     if (hpke == NULL || ephemeralKey == NULL || receiverKey == NULL ||
@@ -953,13 +897,8 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    context = (HpkeBaseContext*)XMALLOC(sizeof(HpkeBaseContext), hpke->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (context == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(context, HpkeBaseContext, 1, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     PRIVATE_KEY_UNLOCK();
 
@@ -975,9 +914,7 @@ int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
 
     PRIVATE_KEY_LOCK();
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1095,10 +1032,8 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
             hpke->Npk * 2, sharedSecret);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1109,19 +1044,10 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
     word32 infoSz)
 {
     int ret;
-#ifndef WOLFSSL_SMALL_STACK
-    byte sharedSecret[HPKE_Nsecret_MAX];
-#else
-    byte* sharedSecret;
-#endif
+    WC_DECLARE_VAR(sharedSecret, byte, HPKE_Nsecret_MAX, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    sharedSecret = (byte*)XMALLOC(hpke->Nsecret, hpke->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (sharedSecret == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sharedSecret, byte, hpke->Nsecret, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     /* decap */
     ret = wc_HpkeDecap(hpke, receiverKey, pubKey, pubKeySz, sharedSecret);
@@ -1132,9 +1058,7 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
             infoSz);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(sharedSecret, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1159,21 +1083,13 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
 {
     int ret;
     byte nonce[HPKE_Nn_MAX];
-#ifndef WOLFSSL_SMALL_STACK
-    Aes aes[1];
-#else
-    Aes* aes;
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     if (hpke == NULL) {
         return BAD_FUNC_ARG;
     }
     XMEMSET(nonce, 0, sizeof(nonce));
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), hpke->heap, DYNAMIC_TYPE_AES);
-    if (aes == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(aes, Aes, 1, hpke->heap, DYNAMIC_TYPE_AES,
+        return MEMORY_E);
     /* compute nonce */
     ret = wc_HpkeContextComputeNonce(hpke, context, nonce);
     if (ret == 0)
@@ -1190,9 +1106,7 @@ int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context, byte* aad,
         }
         wc_AesFree(aes);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, hpke->heap, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, hpke->heap, DYNAMIC_TYPE_AES);
     return ret;
 }
 
@@ -1203,11 +1117,7 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
     byte* ciphertext, word32 ctSz, byte* plaintext)
 {
     int ret;
-#ifndef WOLFSSL_SMALL_STACK
-    HpkeBaseContext context[1];
-#else
-    HpkeBaseContext* context;
-#endif
+    WC_DECLARE_VAR(context, HpkeBaseContext, 1, 0);
 
     /* check that all the buffer are non NULL or optional with 0 length */
     if (hpke == NULL || receiverKey == NULL || pubKey == NULL ||
@@ -1217,13 +1127,8 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    context = (HpkeBaseContext*)XMALLOC(sizeof(HpkeBaseContext), hpke->heap,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (context == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(context, HpkeBaseContext, 1, hpke->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     PRIVATE_KEY_UNLOCK();
 
@@ -1239,9 +1144,7 @@ int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
 
     PRIVATE_KEY_LOCK();
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

@@ -2757,10 +2757,8 @@ static int wc_mldsa_gen_matrix_4x4_avx2(sword32* a, byte* seed)
         a += 4 * MLDSA_N;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -2904,10 +2902,8 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
             MLDSA_N - ctr1, p, SHA3_128_BYTES);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3013,10 +3009,8 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
         a += 4 * MLDSA_N;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3625,10 +3619,8 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
                (ctr3 < MLDSA_N));
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3780,10 +3772,8 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3937,10 +3927,8 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4124,10 +4112,8 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_17_avx2(rand + 3 * DILITHIUM_MAX_V,
         y + 3 * DILITHIUM_N);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4206,10 +4192,8 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
         wc_mldsa_decode_gamma1_19_avx2(rand, y + 4 * DILITHIUM_N);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -4303,10 +4287,8 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_19_avx2(rand + 2 * DILITHIUM_MAX_V,
         y + 6 * DILITHIUM_N);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -8256,11 +8238,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 
         /* Step 11: Start rejection sampling loop */
         do {
-#ifdef WOLFSSL_SMALL_STACK
-            byte *w1e = NULL;
-#else
-            byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
-#endif
+            WC_DECLARE_VAR(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, 0);
             sword32* w = w1;
             sword32* y_ntt = z;
             sword32* cs2 = ct0;
@@ -8290,13 +8268,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             if (valid) {
         #endif
                 /* Step 15: Encode w1. */
-#ifdef WOLFSSL_SMALL_STACK
-                w1e = (byte *)XMALLOC(DILITHIUM_MAX_W1_ENC_SZ, key->heap,
-                                      DYNAMIC_TYPE_DILITHIUM);
-                if (w1e == NULL)
-                    ret = MEMORY_E;
-                if (ret == 0)
-#endif
+                WC_ALLOC_VAR_EX(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, key->heap,
+                    DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
+                if (WC_VAR_OK(w1e))
                 {
                     dilithium_vec_encode_w1(w1, params->k, params->gamma2, w1e);
                     /* Step 15: Hash mu and encoded w1.
@@ -8365,9 +8339,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     }
                 }
 
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
-#endif
+                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
             }
 
             if (!valid) {

@@ -731,19 +731,11 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in signing. */
             ret = wc_xmss_state_init(state, key->params);
@@ -774,9 +766,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1102,19 +1092,11 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in key generation. */
             ret = wc_xmss_state_init(state, key->params);
@@ -1138,9 +1120,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1161,9 +1141,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
         key->state = WC_XMSS_STATE_OK;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -1638,19 +1616,11 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XmssState* state;
-    #else
-        XmssState state[1];
-    #endif
+        WC_DECLARE_VAR(state, XmssState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, XmssState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize state for use in verification. */
             ret = wc_xmss_state_init(state, key->params);
@@ -1660,9 +1630,7 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
                 /* Free state after use. */
                 wc_xmss_state_free(state);
             }
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 

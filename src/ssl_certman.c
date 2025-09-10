@@ -738,26 +738,16 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
     int ret = 0;
     int fatal = 0;
     DerBuffer* der = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* cert = NULL;
-#else
-    DecodedCert  cert[1];
-#endif
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     WOLFSSL_ENTER("CM_VerifyBuffer_ex");
 
     (void)prev_err;
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for decoded certificate. */
-    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
-         DYNAMIC_TYPE_DCERT);
-    if (cert == NULL) {
-        ret = MEMORY_E;
-        fatal = 1;
-    }
-    if (ret == 0)
-#endif
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
+        {ret=MEMORY_E;fatal=1;});
+    if (WC_VAR_OK(cert))
     {
         /* Reset fields of decoded certificate. */
         XMEMSET(cert, 0, sizeof(DecodedCert));
@@ -806,11 +796,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 #ifndef NO_WOLFSSL_CM_VERIFY
     /* Use callback to perform verification too if available. */
     if ((!fatal) && cm->verifyCallback) {
-    #ifdef WOLFSSL_SMALL_STACK
-        ProcPeerCertArgs* args;
-    #else
-        ProcPeerCertArgs  args[1];
-    #endif
+        WC_DECLARE_VAR(args, ProcPeerCertArgs, 1, 0);
         buffer certBuf;
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -843,19 +829,14 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
             /* Use callback to verify certificate. */
             ret = DoVerifyCallback(cm, NULL, ret, args);
         }
-    #ifdef WOLFSSL_SMALL_STACK
-        /* Dispose of allocated callback args. */
-        XFREE(args, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(args, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 
     /* Dispose of allocated memory. */
     FreeDecodedCert(cert);
     FreeDer(&der);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(cert, cm->heap, DYNAMIC_TYPE_DCERT);
 
     /* Convert the ret value to a return value. */
     return (ret == 0) ? WOLFSSL_SUCCESS : ret;
@@ -1880,11 +1861,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
     const unsigned char* der, int sz)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* cert = NULL;
-#else
-    DecodedCert  cert[1];
-#endif
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_CertManagerCheckCRL");
 
@@ -1895,14 +1872,10 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
     /* Check if CRL checking enabled. */
     if ((ret == 0) && cm->crlEnabled) {
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for decoded certificate. */
-        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
-            DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            ret = MEMORY_E;
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(cert))
         {
             /* Initialize decoded certificate with buffer. */
             InitDecodedCert(cert, der, (word32)sz, NULL);
@@ -1919,9 +1892,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
 
             /* Dispose of dynamically allocated memory. */
             FreeDecodedCert(cert);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
-        #endif
+            WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
         }
     }
 
@@ -2406,11 +2377,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
     const unsigned char* der, int sz)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* cert = NULL;
-#else
-    DecodedCert  cert[1];
-#endif
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSP");
 
@@ -2421,15 +2388,10 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
 
     /* Check if OCSP checking enabled. */
     if ((ret == 0) && cm->ocspEnabled) {
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for decoded certificate. */
-        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
-            DYNAMIC_TYPE_DCERT);
-        if (cert == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(cert))
         {
             /* Initialize decoded certificate with buffer. */
             InitDecodedCert(cert, der, (word32)sz, NULL);
@@ -2446,9 +2408,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
 
             /* Dispose of dynamically allocated memory. */
             FreeDecodedCert(cert);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
-        #endif
+            WC_FREE_VAR_EX(cert, cm->heap, DYNAMIC_TYPE_DCERT);
         }
     }
 

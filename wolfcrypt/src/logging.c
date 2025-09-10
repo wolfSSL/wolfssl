@@ -402,9 +402,7 @@ static void wolfssl_log(const int logLevel, const char* const file_name,
         if ((written > 0) && (loggingCertEnabled != 0)) {
             wolfssl_log(INFO_LOG, NULL, 0, msg);
         }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return 0;
     } /* WOLFSSL_MSG_CERT_EX */
     #endif /* XVSNPRINTF */
