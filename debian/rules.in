@@ -1,0 +1,79 @@
+#!/usr/bin/make -f
+
+# Store the configure options and CFLAGS used during ./configure
+# This file is generated from rules.in by the configure script
+CONFIGURE_OPTIONS = @CONFIGURE_OPTIONS@
+CONFIGURE_CFLAGS = @CONFIGURE_CFLAGS@
+ENABLED_FIPS = @ENABLED_FIPS@
+
+# Use debhelper with automatic sequence
+%:
+	dh $@
+
+# Override configure to use the stored options
+override_dh_auto_configure:
+	./configure \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_HOST_GNU_TYPE) \
+		--prefix=/usr \
+		--mandir=\$${prefix}/share/man \
+		--infodir=\$${prefix}/share/info \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--libdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH) \
+		--libexecdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH) \
+		--disable-maintainer-mode \
+		--disable-dependency-tracking \
+		--enable-shared \
+		--enable-static \
+		$(CONFIGURE_OPTIONS) \
+		CFLAGS="$(CONFIGURE_CFLAGS)"
+
+# Override test to skip them (optional, remove if you want to run tests)
+#override_dh_auto_test:
+	# Skip tests during package build
+
+# Handle FIPS builds which require special hash generation
+override_dh_auto_build:
+ifeq ($(ENABLED_FIPS),yes)
+	# FIPS build requires two-stage process with hash generation
+	$(MAKE)
+	./fips-hash.sh
+	$(MAKE)
+else
+	# Standard build
+	dh_auto_build
+endif
+
+# Handle multiarch library placement and remove .la files
+override_dh_auto_install:
+	dh_auto_install
+	# Remove .la files (not needed in modern Debian packages)
+	find debian/tmp -name '*.la' -delete
+	# Move libraries to multiarch directory if needed
+	if [ -d debian/tmp/usr/lib ]; then \
+		mkdir -p debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH); \
+		if [ -f debian/tmp/usr/lib/libwolfssl.so.* ]; then \
+			mv debian/tmp/usr/lib/libwolfssl.so.* debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/; \
+		fi; \
+		if [ -f debian/tmp/usr/lib/libwolfssl.so ]; then \
+			mv debian/tmp/usr/lib/libwolfssl.so debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/; \
+		fi; \
+		if [ -f debian/tmp/usr/lib/libwolfssl.a ]; then \
+			mv debian/tmp/usr/lib/libwolfssl.a debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/; \
+		fi; \
+		if [ -d debian/tmp/usr/lib/pkgconfig ]; then \
+			mv debian/tmp/usr/lib/pkgconfig debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/; \
+		fi; \
+	fi
+
+# Set proper permissions and strip symbols
+override_dh_strip:
+	dh_strip --dbgsym-migration='libwolfssl-dbg (<< 5.0.0-1~)'
+
+# Auto-clean override - prevent make distclean from removing debian files
+override_dh_auto_clean:
+	# Run make clean instead of make distclean to preserve debian files
+	if [ -f Makefile ]; then \
+		$(MAKE) clean; \
+	fi
