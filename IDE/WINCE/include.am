@@ -3,3 +3,5 @@
 # All paths should be given relative to the root
 
 EXTRA_DIST+= IDE/WINCE/user_settings.h
+EXTRA_DIST+= IDE/WINCE/README.md
+EXTRA_DIST+= IDE/WINCE/user_settings.h.140-2-deprecated
