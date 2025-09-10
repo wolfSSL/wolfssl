@@ -97,7 +97,7 @@ extern const unsigned int wolfCrypt_PIE_rodata_end[];
 /* cheap portable ad-hoc hash function to confirm bitwise stability of the PIE
  * binary image.
  */
-static unsigned int hash_span(char *start, char *end) {
+static unsigned int hash_span(const u8 *start, const u8 *end) {
     unsigned int sum = 1;
     while (start < end) {
         unsigned int rotate_by;
@@ -419,24 +419,18 @@ static int wolfssl_init(void)
 #endif
 
     {
-        char *pie_text_start = (char *)wolfCrypt_PIE_first_function;
-        char *pie_text_end = (char *)wolfCrypt_PIE_last_function;
-        char *pie_rodata_start = (char *)wolfCrypt_PIE_rodata_start;
-        char *pie_rodata_end = (char *)wolfCrypt_PIE_rodata_end;
-        unsigned int text_hash, rodata_hash;
-
-        text_hash = hash_span(pie_text_start, pie_text_end);
-        rodata_hash = hash_span(pie_rodata_start, pie_rodata_end);
+        unsigned int text_hash = hash_span(__wc_text_start, __wc_text_end);
+        unsigned int rodata_hash = hash_span(__wc_rodata_start, __wc_rodata_end);
 
         /* note, "%pK" conceals the actual layout information.  "%px" exposes
          * the true module start address, which is potentially useful to an
          * attacker.
          */
         pr_info("wolfCrypt section hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu), offset %c0x%lx\n",
-                text_hash, pie_text_end-pie_text_start,
-                rodata_hash, pie_rodata_end-pie_rodata_start,
-                pie_text_start < pie_rodata_start ? '+' : '-',
-                pie_text_start < pie_rodata_start ? pie_rodata_start - pie_text_start : pie_text_start - pie_rodata_start);
+                text_hash, __wc_text_end - __wc_text_start,
+                rodata_hash, __wc_rodata_end - __wc_rodata_start,
+                &__wc_text_start[0] < &__wc_rodata_start[0] ? '+' : '-',
+                &__wc_text_start[0] < &__wc_rodata_start[0] ? &__wc_rodata_start[0] - &__wc_text_start[0] : &__wc_text_start[0] - &__wc_rodata_start[0]);
         pr_info("wolfCrypt segments: text=%x-%x, rodata=%x-%x, "
                 "rwdata=%x-%x, bss=%x-%x\n",
                 (unsigned)(uintptr_t)__wc_text_start,
