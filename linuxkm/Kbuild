@@ -127,10 +127,11 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     endif
     $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_SUPPORT_FLAGS) $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
+    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
     # using inline retpolines leads to "unannotated intra-function call"
     # warnings from objtool without this:
+    undefine CONFIG_OBJTOOL
     $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
-    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
 endif
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE
