@@ -22059,6 +22059,47 @@ static int test_wolfSSL_CTX_set_srp_password(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_CTX_set_cert_store_null_certs(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
+    X509_STORE *store = NULL;
+    WOLFSSL_CTX *ctx = NULL;
+    WOLFSSL_METHOD *method = NULL;
+    X509 *cert = NULL;
+    const char caCert[] = "./certs/ca-cert.pem";
+
+    /* Create a new X509_STORE */
+    ExpectNotNull(store = X509_STORE_new());
+
+    /* Load a certificate */
+    ExpectNotNull(cert = wolfSSL_X509_load_certificate_file(caCert,
+                                                            SSL_FILETYPE_PEM));
+
+    /* Add the certificate to the store */
+    ExpectIntEQ(X509_STORE_add_cert(store, cert), SSL_SUCCESS);
+    ExpectNotNull(store->certs);
+
+    /* Create a new SSL_CTX */
+    ExpectNotNull(method = wolfSSLv23_server_method());
+    ExpectNotNull(ctx = wolfSSL_CTX_new(method));
+
+    /* Set the store in the SSL_CTX */
+    wolfSSL_CTX_set_cert_store(ctx, store);
+
+    /* Verify that the certs member of the store is null */
+    ExpectNull(store->certs);
+
+    /* Clean up */
+    wolfSSL_CTX_free(ctx);
+    X509_free(cert);
+
+#endif
+    return EXPECT_RESULT();
+}
+
+
 static int test_wolfSSL_X509_STORE(void)
 {
     EXPECT_DECLS;
@@ -50596,6 +50637,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_VERIFY_PARAM_set1_ip),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_store),
     TEST_DECL(test_wolfSSL_X509_STORE),
+    TEST_DECL(test_wolfSSL_CTX_set_cert_store_null_certs),
     TEST_DECL(test_wolfSSL_X509_STORE_load_locations),
     TEST_DECL(test_X509_STORE_get0_objects),
     TEST_DECL(test_wolfSSL_X509_load_crl_file),

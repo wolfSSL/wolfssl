@@ -2794,6 +2794,11 @@ WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type);
 #endif /* !defined NO_CERTS */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_LOCAL int X509StoreAddCa(WOLFSSL_X509_STORE* store,
+                                 WOLFSSL_X509* x509, int type);
+#endif
+
 /* wolfSSL Sock Addr */
 struct WOLFSSL_SOCKADDR {
     unsigned int sz; /* sockaddr size */

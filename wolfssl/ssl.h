@@ -5344,7 +5344,6 @@ WOLFSSL_API int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_new(
     WOLF_SK_COMPARE_CB(WOLFSSL_X509, cb));
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_new_null(void);
-WOLFSSL_API int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s);
 
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_sk_X509_OBJECT_free(WOLFSSL_STACK* s);
@@ -5428,6 +5427,7 @@ WOLFSSL_API int wolfSSL_i2d_ASN1_BIT_STRING(const WOLFSSL_ASN1_BIT_STRING* bstr,
         unsigned char** pp);
 WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_d2i_ASN1_BIT_STRING(
         WOLFSSL_ASN1_BIT_STRING** out, const byte** src, long len);
+WOLFSSL_API int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s);
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 WOLFSSL_API int  wolfSSL_version(WOLFSSL* ssl);
