@@ -8191,6 +8191,14 @@ then
         ENABLED_TICKET_NONCE_MALLOC="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TICKET_NONCE_MALLOC"
     fi
+elif test "$ENABLED_CURL" = "tiny"
+then
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="x509small"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CURL"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \

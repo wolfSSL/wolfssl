@@ -6529,7 +6529,7 @@ static const byte kTlsServerStr[SIZEOF_SENDER+1] = { 0x53, 0x52, 0x56, 0x52, 0x0
 static const byte kTlsClientFinStr[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte kTlsServerFinStr[FINISHED_LABEL_SZ + 1] = "server finished";
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || defined(HAVE_CURL)
 typedef struct {
     int name_len;
     const char *name;
@@ -6539,7 +6539,7 @@ typedef struct {
 extern const WOLF_EC_NIST_NAME kNistCurves[];
 WOLFSSL_LOCAL int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx,
         const char* names, byte curves_only);
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || HAVE_CURL */
 
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL* ssl);
