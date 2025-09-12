@@ -11111,7 +11111,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
     bufferStatic* outputBuffer, int size)
 {
     byte* tmp;
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
                                       RECORD_HEADER_SZ;
     byte align = WOLFSSL_GENERAL_ALIGNMENT;
@@ -11119,7 +11119,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     /* the encrypted data will be offset from the front of the buffer by
        the header, if the user wants encrypted alignment they need
        to define their alignment requirement */
@@ -11135,7 +11135,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
     if (tmp == NULL)
         return MEMORY_E;
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         tmp += align - hdrSz;
 #endif
@@ -11156,7 +11156,7 @@ static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
               DYNAMIC_TYPE_OUT_BUFFER);
     }
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         outputBuffer->offset = align - hdrSz;
     else
@@ -11182,7 +11182,7 @@ byte* GetOutputBuffer(WOLFSSL* ssl)
 static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 {
     byte* tmp;
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
                                       RECORD_HEADER_SZ;
     byte align = WOLFSSL_GENERAL_ALIGNMENT;
@@ -11191,7 +11191,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 #endif
     word32 newSz;
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     /* the encrypted data will be offset from the front of the buffer by
        the header, if the user wants encrypted alignment they need
        to define their alignment requirement */
@@ -11216,7 +11216,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     if (tmp == NULL)
         return MEMORY_E;
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         tmp += align - hdrSz;
 #endif
@@ -11242,7 +11242,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     }
     ssl->buffers.outputBuffer.dynamicFlag = 1;
 
-#if WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         ssl->buffers.outputBuffer.offset = align - hdrSz;
     else
@@ -11259,14 +11259,14 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 {
     byte* tmp;
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     byte  align = ssl->options.dtls ? WOLFSSL_GENERAL_ALIGNMENT : 0;
     byte  hdrSz = DTLS_RECORD_HEADER_SZ;
 #else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
 
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     /* the encrypted data will be offset from the front of the buffer by
        the dtls record header, if the user wants encrypted alignment they need
        to define their alignment requirement. in tls we read record header
@@ -11290,7 +11290,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
     if (tmp == NULL)
         return MEMORY_E;
 
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         tmp += align - hdrSz;
 #endif
@@ -11319,7 +11319,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
     }
 
     ssl->buffers.inputBuffer.dynamicFlag = 1;
-#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
+#if defined(WOLFSSL_DTLS) || (WOLFSSL_GENERAL_ALIGNMENT > 0)
     if (align)
         ssl->buffers.inputBuffer.offset = align - hdrSz;
     else
