@@ -260,7 +260,7 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
 #ifndef NO_CERTS
         if (serverKey == NULL) {
             ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
-                WOLFSSL_FILETYPE_PEM);
+                CERT_FILETYPE);
         }
         else {
             ret = wolfSSL_CTX_use_PrivateKey_buffer(*ctx_s, serverKey,
@@ -280,7 +280,7 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
 
         if (serverCert == NULL) {
             ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
-                                                   WOLFSSL_FILETYPE_PEM);
+                                                   CERT_FILETYPE);
         }
         else {
             ret = wolfSSL_CTX_use_certificate_chain_buffer_format(*ctx_s,

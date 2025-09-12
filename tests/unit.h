@@ -352,6 +352,12 @@
 #endif
 #ifdef HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
 
+#ifdef WOLFSSL_PEM_TO_DER
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_PEM
+#else
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_ASN1
+#endif
+
 typedef int (*ctx_cb)(WOLFSSL_CTX* ctx);
 typedef int (*ssl_cb)(WOLFSSL* ssl);
 typedef int (*test_cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
