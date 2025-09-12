@@ -795,7 +795,8 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     if (blockSize > 8)
         return BAD_FUNC_ARG;
 
-    if (cost < 1 || cost >= 128 * blockSize / 8 || parallel < 1 || dkLen < 1)
+    if (cost < 1 || cost >= 128 * blockSize / 8 ||
+        cost > 31 || parallel < 1 || dkLen < 1)
         return BAD_FUNC_ARG;
 
     /* The following comparison used to be:
@@ -810,14 +811,22 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     bSz = 128 * (word32)blockSize;
     if (parallel > (int)(SCRYPT_WORD32_MAX / bSz))
         return BAD_FUNC_ARG;
+
     blocksSz = bSz * (word32)parallel;
     blocks = (byte*)XMALLOC((size_t)blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (blocks == NULL) {
         ret = MEMORY_E;
         goto end;
     }
+
+    /* Check that (1 << cost) * bSz won't overflow or exceed allowed max */
+    if (((size_t)1 << cost) * (size_t)bSz > SCRYPT_WORD32_MAX) {
+        ret = BAD_FUNC_ARG;
+        goto end;
+    }
+
     /* Temporary for scryptROMix. */
-    v = (byte*)XMALLOC((size_t)((1U << cost) * bSz), NULL,
+    v = (byte*)XMALLOC(((size_t)1 << cost) * (size_t)bSz, NULL,
                        DYNAMIC_TYPE_TMP_BUFFER);
     if (v == NULL) {
         ret = MEMORY_E;
@@ -841,7 +850,8 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 
     /* Step 2. */
     for (i = 0; i < parallel; i++)
-        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize, 1U << cost);
+        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize,
+                    (word32)((size_t)1 << cost));
 
     /* Step 3. */
     ret = wc_PBKDF2(output, passwd, passLen, blocks, (int)blocksSz, 1, dkLen,
