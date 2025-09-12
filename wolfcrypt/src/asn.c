@@ -26635,11 +26635,11 @@ static wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 static wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
 static wcchar END_PKCS7            = "-----END PKCS7-----";
 #endif
-#if defined(HAVE_ECC) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_DSA) && defined(WOLFSSL_PEM_TO_DER)
     static wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
     static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_PEM_TO_DER)
     static wcchar BEGIN_PRIV_KEY_PREFIX = "-----BEGIN";
     static wcchar PRIV_KEY_SUFFIX = "PRIVATE KEY-----";
     static wcchar END_PRIV_KEY_PREFIX   = "-----END";

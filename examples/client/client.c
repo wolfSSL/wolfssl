@@ -2221,7 +2221,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_RPK
     int useRPK = 0;
 #endif /* HAVE_RPK */
+#ifdef WOLFSSL_PEM_TO_DER
     int fileFormat = WOLFSSL_FILETYPE_PEM;
+#else
+    int fileFormat = WOLFSSL_FILETYPE_ASN1;
+#endif
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     const char * policy = NULL;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
