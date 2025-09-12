@@ -28249,9 +28249,8 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
 }
 #endif /* WOLFSSL_FPKI */
 
-#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_KCAPI_RSA) || \
-    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))))
+#if !defined(NO_RSA) && \
+    (defined(WOLFSSL_KEY_TO_DER) || defined(WOLFSSL_CERT_GEN))
 /* USER RSA ifdef portions used instead of refactor in consideration for
    possible fips build */
 /* Encode a public RSA key to output.
@@ -28433,13 +28432,10 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
     return SetRsaPublicKey(output, key, (int)inLen, with_header);
 }
 
-#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || WOLFSSL_KCAPI_RSA ||
-            ((OPENSSL_EXTRA || WOLFSSL_KEY_GEN))) */
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 #endif /* NO_CERTS */
 
-#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
-     defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)) && \
-     !defined(NO_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_TO_DER)
 
 /* Encode private RSA key in DER format.
  *
@@ -28606,7 +28602,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #endif
 }
 
-#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+#endif /* !NO_RSA && WOLFSSL_KEY_TO_DER */
 
 #ifndef NO_CERTS
 

@@ -12963,7 +12963,7 @@ static int test_tls_bad_legacy_version(void)
 static int test_wolfSSL_X509_NAME_get_entry(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 #if defined(OPENSSL_ALL) || \
         (defined(OPENSSL_EXTRA) && \
             (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)))
@@ -12971,10 +12971,8 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
     X509_NAME_ENTRY* ne = NULL;
     X509_NAME* name = NULL;
     X509* x509 = NULL;
-#ifndef NO_FILESYSTEM
     ASN1_STRING* asn = NULL;
     char* subCN = NULL;
-#endif
     int idx = 0;
     ASN1_OBJECT *object = NULL;
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || \
@@ -12984,7 +12982,6 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
 #endif
 #endif
 
-#ifndef NO_FILESYSTEM
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(name = X509_get_subject_name(x509));
@@ -12995,7 +12992,6 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
     ExpectNotNull(subCN = (char*)ASN1_STRING_data(asn));
     wolfSSL_FreeX509(x509);
     x509 = NULL;
-#endif
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
         WOLFSSL_FILETYPE_PEM));
@@ -13020,7 +13016,7 @@ static int test_wolfSSL_X509_NAME_get_entry(void)
     ExpectNotNull(object = X509_NAME_ENTRY_get_object(ne));
     wolfSSL_FreeX509(x509);
 #endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (KEEP_PEER_CERT || SESSION_CERTS) */
-#endif /* !NO_CERTS && !NO_RSA */
+#endif /* !NO_CERTS && !NO_RSA && !NO_FILESYSTEM */
 
     return EXPECT_RESULT();
 }
@@ -16953,7 +16949,8 @@ static int test_wolfSSL_X509_check_private_key(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-        defined(USE_CERT_BUFFERS_2048) && !defined(NO_CHECK_PRIVATE_KEY)
+        defined(USE_CERT_BUFFERS_2048) && !defined(NO_CHECK_PRIVATE_KEY) && \
+        !defined(NO_FILESYSTEM)
     X509*  x509 = NULL;
     EVP_PKEY* pkey = NULL;
     const byte* key;
@@ -19943,7 +19940,7 @@ static int test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup(void)
 static int test_wolfSSL_X509_STORE_CTX_get_issuer(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     X509_STORE_CTX* ctx = NULL;
     X509_STORE* str = NULL;
     X509* x509Ca = NULL;
@@ -20612,7 +20609,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
 }
 
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
 static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
         STACK_OF(X509)* chain)
 {
@@ -20751,7 +20748,7 @@ static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
 static int test_X509_STORE_untrusted(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     const char* untrusted1[] = {
         "./certs/intermediate/ca-int2-cert.pem",
         NULL
@@ -20934,7 +20931,8 @@ static int test_wolfSSL_get0_param(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_FILESYSTEM)
     SSL_CTX* ctx = NULL;
     SSL*     ssl = NULL;
 
@@ -20989,7 +20987,8 @@ static int test_wolfSSL_set1_host(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_TLS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_FILESYSTEM)
     const char host[] = "www.test_wolfSSL_set1_host.com";
     const char emptyStr[] = "";
     SSL_CTX*   ctx = NULL;
@@ -21033,7 +21032,7 @@ static int test_wolfSSL_set1_host(void)
 static int test_wolfSSL_X509_VERIFY_PARAM_set1_ip(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     unsigned char buf[16] = {0};
     WOLFSSL_X509_VERIFY_PARAM* param = NULL;
 
@@ -21336,7 +21335,7 @@ static int test_wolfSSL_CTX_add_client_CA(void)
     EXPECT_DECLS;
 #if !defined(WOLFSSL_NO_CA_NAMES) && defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(NO_CERTS) && \
-    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_FILESYSTEM)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_X509* x509 = NULL;
     WOLFSSL_X509* x509_a = NULL;
@@ -22062,7 +22061,8 @@ static int test_wolfSSL_CTX_set_srp_password(void)
 static int test_wolfSSL_X509_STORE(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_TLS)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM)
     X509_STORE *store = NULL;
 
 #ifdef HAVE_CRL
@@ -22130,7 +22130,7 @@ static int test_wolfSSL_X509_STORE(void)
 
 
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
     {
     #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
         SSL_CTX* ctx = NULL;
@@ -22772,7 +22772,8 @@ static int test_wolfSSL_set1_curves_list(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && !defined(NO_TLS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_FILESYSTEM)
     SSL*     ssl = NULL;
     SSL_CTX* ctx = NULL;
 
@@ -22930,7 +22931,8 @@ static int test_wolfSSL_set1_sigalgs_list(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
     !defined(NO_TLS) && \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_FILESYSTEM)
     SSL*     ssl = NULL;
     SSL_CTX* ctx = NULL;
 
@@ -29355,7 +29357,8 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
 static int test_wolfSSL_X509_get_serialNumber(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
     ASN1_INTEGER* a = NULL;
     BIGNUM* bn = NULL;
     X509*   x509 = NULL;
@@ -29489,7 +29492,8 @@ static int test_wolfSSL_X509_ext_get_critical_by_NID(void)
 static int test_wolfSSL_X509_CRL_distribution_points(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_FILESYSTEM)
     WOLFSSL_X509* x509 = NULL;
     const char* file = "./certs/client-crl-dist.pem";
 
