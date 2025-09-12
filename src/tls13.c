@@ -10537,28 +10537,17 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if ((ssl->options.peerSigAlgo == ecc_dsa_sa_algo) &&
-                (ssl->peerEccDsaKeyPresent)) {
-            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (ssl->options.peerSigAlgo == sm2_sa_algo) {
-                    ret = Sm2wSm3Verify(ssl, TLS13_SM2_SIG_ID,
-                        TLS13_SM2_SIG_ID_SZ, sig, args->sigSz,
-                        args->sigData, args->sigDataSz,
-                        ssl->peerEccDsaKey, NULL);
-                }
-                else
-            #endif
-                {
-                    WOLFSSL_MSG("Doing ECC peer cert verify");
-                    ret = EccVerify(ssl, sig, args->sigSz,
-                        args->sigData, args->sigDataSz,
-                        ssl->peerEccDsaKey,
-                    #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerEccDsaKey
-                    #else
-                        NULL
-                    #endif
-                        );
-                }
+                    ssl->peerEccDsaKeyPresent) {
+                WOLFSSL_MSG("Doing ECC peer cert verify");
+                ret = EccVerify(ssl, sig, args->sigSz,
+                    args->sigData, args->sigDataSz,
+                    ssl->peerEccDsaKey,
+                #ifdef HAVE_PK_CALLBACKS
+                    &ssl->buffers.peerEccDsaKey
+                #else
+                    NULL
+                #endif
+                    );
 
                 if (ret >= 0) {
                     /* CLIENT/SERVER: data verified with public key from
@@ -10570,6 +10559,23 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif /* HAVE_ECC */
+        #if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            if ((ssl->options.peerSigAlgo == sm2_sa_algo) &&
+                   ssl->peerEccDsaKeyPresent) {
+                WOLFSSL_MSG("Doing SM2/SM3 peer cert verify");
+                ret = Sm2wSm3Verify(ssl, TLS13_SM2_SIG_ID, TLS13_SM2_SIG_ID_SZ,
+                    sig, args->sigSz, args->sigData, args->sigDataSz,
+                    ssl->peerEccDsaKey, NULL);
+                if (ret >= 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
+
+                    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
+                    ssl->peerEccDsaKeyPresent = 0;
+                }
+            }
+        #endif
         #ifdef HAVE_ED25519
             if ((ssl->options.peerSigAlgo == ed25519_sa_algo) &&
                 (ssl->peerEd25519KeyPresent)) {
