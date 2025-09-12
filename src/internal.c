@@ -20993,7 +20993,7 @@ static byte MaskPadding(const byte* data, int sz, int macSz)
         checkSz = TLS_MAX_PAD_SZ;
 
     for (i = 0; i < checkSz; i++) {
-        byte mask = ctMaskLTE(i, paddingSz);
+        volatile byte mask = ctMaskLTE(i, paddingSz);
         good |= mask & (data[sz - 1 - i] ^ paddingSz);
     }
 
@@ -21013,16 +21013,21 @@ static byte MaskPadding(const byte* data, int sz, int macSz)
 static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
 {
     int i, j;
-    unsigned char mac[WC_MAX_DIGEST_SIZE];
-    int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
-    int macEnd = sz - 1 - data[sz - 1];
-    int macStart = macEnd - macSz;
     int r = 0;
-    unsigned char started, notEnded;
+    unsigned char mac[WC_MAX_DIGEST_SIZE];
+    volatile int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
+    volatile int macEnd = sz - 1 - data[sz - 1];
+    volatile int macStart = macEnd - macSz;
+    volatile int maskScanStart;
+    volatile int maskMacStart;
+    volatile unsigned char started;
+    volatile unsigned char notEnded;
     unsigned char good = 0;
 
-    scanStart &= ctMaskIntGTE(scanStart, 0);
-    macStart &= ctMaskIntGTE(macStart, 0);
+    maskScanStart = ctMaskIntGTE(scanStart, 0);
+    maskMacStart = ctMaskIntGTE(macStart, 0);
+    scanStart &= maskScanStart;
+    macStart &= maskMacStart;
 
     /* Div on Intel has different speeds depending on value.
      * Use a bitwise AND or mod a specific value (converted to mul). */
@@ -21986,7 +21991,7 @@ static int DoDecrypt(WOLFSSL *ssl)
                             ssl->curSize - (word16)digestSz);
             if (ret == 0) {
                 byte invalid = 0;
-                byte padding = (byte)-1;
+                volatile byte padding = (byte)-1;
                 word32 i;
                 word32 off = in->idx + ssl->curSize - digestSz - 1;
 
@@ -41818,7 +41823,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case rsa_kea:
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
-                        int lenErrMask;
+                        volatile int lenErrMask;
 
                         ret = RsaDec(ssl,
                             input + args->idx,
@@ -42032,7 +42037,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case rsa_kea:
                     {
                         byte *tmpRsa;
-                        byte mask;
+                        volatile byte mask;
 
                         /* Add the signature length to idx */
                         args->idx += args->length;
