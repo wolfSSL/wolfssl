@@ -6721,13 +6721,21 @@ int InitSSL_Suites(WOLFSSL* ssl)
             !havePSK && !haveAnon && !haveMcast) {
 
         /* server certificate must be loaded */
-        if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
+        if ((!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)
+#ifdef WOLFSSL_CERT_SETUP_CB
+                && ssl->ctx->certSetupCb == NULL
+#endif
+                ) {
             WOLFSSL_MSG("Server missing certificate");
             WOLFSSL_ERROR_VERBOSE(NO_PRIVATE_KEY);
             return NO_PRIVATE_KEY;
         }
 
-        if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
+        if ((!ssl->buffers.key || !ssl->buffers.key->buffer)
+#ifdef WOLFSSL_CERT_SETUP_CB
+                && ssl->ctx->certSetupCb == NULL
+#endif
+                ) {
             /* allow no private key if using existing key */
         #ifdef WOLF_PRIVATE_KEY_ID
             if (ssl->devId != INVALID_DEVID
@@ -24325,10 +24333,9 @@ int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
-    ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, SSL_CM(ssl), NULL);
-    if (ret != 0) {
+    ret = ParseCertRelative(cert, CERT_TYPE, NO_VERIFY, SSL_CM(ssl), NULL);
+    if (ret != 0)
         WOLFSSL_MSG("ParseCert failed");
-    }
     if (ret == 0)
         ret = InitOcspRequest(request, cert, 0, ssl->heap);
     if (ret == 0) {
@@ -25081,9 +25088,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 }
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) &&                                \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||                         \
-    defined(WOLFSSL_HAPROXY))
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
 static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
 {
     WOLFSSL_OCSP *ocsp;
@@ -25103,7 +25108,7 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
     WOLFSSL_MSG("Calling ocsp->statusCb");
     ret = ocsp->statusCb(ssl, ioCtx);
     switch (ret) {
-        case SSL_TLSEXT_ERR_OK:
+        case WOLFSSL_OCSP_STATUS_CB_OK:
             if (ssl->ocspResp == NULL || ssl->ocspRespSz == 0) {
                 ret = 0;
                 break;
@@ -25112,11 +25117,11 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
             response.length = ssl->ocspRespSz;
             ret = BuildCertificateStatus(ssl, WOLFSSL_CSR_OCSP, &response, 1);
             break;
-        case SSL_TLSEXT_ERR_NOACK:
+        case WOLFSSL_OCSP_STATUS_CB_NOACK:
             /* No OCSP response to send */
             ret = 0;
             break;
-        case SSL_TLSEXT_ERR_ALERT_FATAL:
+        case WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL:
         /* fall through */
         default:
             ret = WOLFSSL_FATAL_ERROR;
@@ -25124,8 +25129,7 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
     }
     return ret;
 }
-#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && (defined(OPENSSL_ALL) ||
-          defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 
 #endif /* NO_WOLFSSL_SERVER */
 
@@ -25151,9 +25155,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
     status_type = status_type ? status_type : ssl->status_request_v2;
 #endif
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY))
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     if (SSL_CM(ssl)->ocsp_stapling != NULL &&
             SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
         if (ssl->status_request == WOLFSSL_CSR_OCSP)
@@ -31670,7 +31672,8 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         word16 len;
         word32 begin = *inOutIdx;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
-        defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+        defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+        defined(WOLFSSL_CERT_SETUP_CB)
         int ret;
     #endif
     #ifdef OPENSSL_EXTRA
@@ -31817,6 +31820,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             len -= (word16)(OPAQUE16_LEN) + dnSz;
         }
 
+    #ifdef WOLFSSL_CERT_SETUP_CB
     #ifdef OPENSSL_EXTRA
         /* call client cert callback if no cert has been loaded */
         if ((ssl->ctx->CBClientCert != NULL) &&
@@ -31838,6 +31842,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 return WOLFSSL_ERROR_WANT_X509_LOOKUP;
             }
         }
+    #endif
         if ((ret = CertSetupCbWrapper(ssl)) != 0)
             return ret;
     #endif
@@ -38671,7 +38676,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
 #endif
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_CERT_SETUP_CB
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
             ret = CertSetupCbWrapper(ssl);
