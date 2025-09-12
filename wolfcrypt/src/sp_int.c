@@ -18077,6 +18077,9 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
             a->dp[j++] = *(sp_int_digit*)(in + i - (SP_WORD_SIZEOF - 1));
         }
     #else
+        for (i = 0; i < (int)a->used; i++) {
+            a->dp[i] = 0;
+        }
         /* Construct digit from required number of bytes. */
         for (i = (int)(inSz-1); i >= SP_WORD_SIZEOF - 1; i -= SP_WORD_SIZEOF) {
             a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0)
