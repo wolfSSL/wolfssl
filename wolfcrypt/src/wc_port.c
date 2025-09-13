@@ -2472,7 +2472,7 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
-        if (tx_mutex_create(m, "wolfSSL Mutex", TX_NO_INHERIT) == 0)
+        if (tx_mutex_create(m, (CHAR*)"wolfSSL Mutex", TX_NO_INHERIT) == 0)
             return 0;
         else
             return BAD_MUTEX_E;
