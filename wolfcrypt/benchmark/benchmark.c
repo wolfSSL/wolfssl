@@ -69,6 +69,9 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WOLFSSL_SMALL_STACK
+#endif
 #define WC_ALLOC_DO_ON_FAILURE() do { printf("out of memory at benchmark.c L %d\n", __LINE__); ret = MEMORY_E; goto exit; } while (0)
 
 #include <wolfssl/wolfcrypt/types.h>
