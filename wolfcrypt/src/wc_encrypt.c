@@ -44,21 +44,14 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                   const byte* key, word32 keySz, const byte* iv)
 {
     int  ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes  aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 
     if (out == NULL || in == NULL || key == NULL || iv == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (aes == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -69,9 +62,7 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
         wc_AesFree(aes);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -81,17 +72,10 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
                             const byte* key, word32 keySz, const byte* iv)
 {
     int  ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes;
-#else
-    Aes  aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (aes == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(aes, Aes, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -102,9 +86,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
         wc_AesFree(aes);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -116,25 +98,16 @@ int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
                              const byte* key, const byte* iv)
 {
     int ret  = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Des* des;
-#else
-    Des  des[1];
-#endif
+    WC_DECLARE_VAR(des, Des, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (des == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_Des_SetKey(des, key, iv, DES_ENCRYPTION);
     if (ret == 0)
         ret = wc_Des_CbcEncrypt(des, out, in, sz);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(des, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -143,25 +116,16 @@ int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                              const byte* key, const byte* iv)
 {
     int ret  = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Des* des;
-#else
-    Des  des[1];
-#endif
+    WC_DECLARE_VAR(des, Des, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (des == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(des, Des, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_Des_SetKey(des, key, iv, DES_DECRYPTION);
     if (ret == 0)
         ret = wc_Des_CbcDecrypt(des, out, in, sz);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(des, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -171,17 +135,10 @@ int wc_Des3_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
                               const byte* key, const byte* iv)
 {
     int ret    = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Des3* des3;
-#else
-    Des3  des3[1];
-#endif
+    WC_DECLARE_VAR(des3, Des3, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    des3 = (Des3*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (des3 == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(des3, Des3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_Des3Init(des3, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -191,9 +148,7 @@ int wc_Des3_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
         wc_Des3Free(des3);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -203,17 +158,10 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
                               const byte* key, const byte* iv)
 {
     int ret    = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Des3* des3;
-#else
-    Des3  des3[1];
-#endif
+    WC_DECLARE_VAR(des3, Des3, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    des3 = (Des3*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (des3 == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(des3, Des3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_Des3Init(des3, NULL, INVALID_DEVID);
     if (ret == 0) {
@@ -223,9 +171,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
         wc_Des3Free(des3);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -239,11 +185,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
-#ifdef WOLFSSL_SMALL_STACK
-    byte* key      = NULL;
-#else
-    byte  key[WC_MAX_SYM_KEY_SIZE];
-#endif
+    WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
     (void)passwordSz;
@@ -263,12 +205,8 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
         return BUFFER_E;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
-    if (key == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(key, byte, WC_MAX_SYM_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_SYMMETRIC_KEY, return MEMORY_E);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
 #endif
@@ -313,11 +251,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
     int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
-#ifdef WOLFSSL_SMALL_STACK
-    byte* key      = NULL;
-#else
-    byte  key[WC_MAX_SYM_KEY_SIZE];
-#endif
+    WC_DECLARE_VAR(key, byte, WC_MAX_SYM_KEY_SIZE, 0);
 
     (void)derSz;
     (void)passwordSz;
@@ -328,12 +262,8 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
-    if (key == NULL) {
-        return MEMORY_E;
-    }
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_ALLOC_VAR_EX(key, byte, WC_MAX_SYM_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_SYMMETRIC_KEY, return MEMORY_E);
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     XMEMSET(key, 0xff, WC_MAX_SYM_KEY_SIZE);
     wc_MemZero_Add("wc_BufferKeyDecrypt key", key, WC_MAX_SYM_KEY_SIZE);
@@ -392,11 +322,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     int typeH = WC_HASH_TYPE_NONE;
     word32 derivedLen = 0;
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* key = NULL;
-#else
-    byte key[PKCS_MAX_KEY_SIZE];
-#endif
+    WC_DECLARE_VAR(key, byte, PKCS_MAX_KEY_SIZE, 0);
 
     (void)input;
     (void)length;
@@ -687,9 +613,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 if (free_aes)
                     wc_AesFree(aes);
                 ForceZero(aes, sizeof(Aes));
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-            #endif
+                WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
                 break;
             }
     #endif /* !NO_AES && HAVE_AES_CBC && (WOLFSSL_AES_256 || WOLFSSL_AES_128) */

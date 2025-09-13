@@ -455,22 +455,14 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* newV;
-#else
-    byte newV[DRBG_SEED_LEN];
-#endif
+    WC_DECLARE_VAR(newV, byte, DRBG_SEED_LEN, 0);
 
     if (drbg == NULL) {
         return DRBG_FAILURE;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    newV = (byte*)XMALLOC(DRBG_SEED_LEN, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (newV == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(newV, byte, DRBG_SEED_LEN, drbg->heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
     XMEMSET(newV, 0, DRBG_SEED_LEN);
 
     ret = Hash_df(drbg, newV, DRBG_SEED_LEN, drbgReseed,
@@ -486,9 +478,7 @@ static int Hash_DRBG_Reseed(DRBG_internal* drbg, const byte* seed, word32 seedSz
         drbg->reseedCtr = 1;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(newV, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -602,10 +592,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     }
     ForceZero(data, DRBG_SEED_LEN);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(data, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
+    WC_FREE_VAR_EX(data, drbg->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
@@ -1494,20 +1482,13 @@ static wolfSSL_Mutex entropy_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(entropy_mute
 int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte *noise = NULL;
-#else
-    byte noise[MAX_NOISE_CNT];
-#endif
+    WC_DECLARE_VAR(noise, byte, MAX_NOISE_CNT, 0);
     /* Noise length is the number of 8 byte samples required to get the bits of
      * entropy requested. */
     int noise_len = (bits + ENTROPY_EXTRA) / ENTROPY_MIN;
 
-#ifdef WOLFSSL_SMALL_STACK
-    noise = (byte *)XMALLOC(MAX_NOISE_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (noise == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(noise, byte, MAX_NOISE_CNT, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     /* Lock the mutex as collection uses globals. */
     if ((ret == 0) && (wc_LockMutex(&entropy_mutex) != 0)) {
@@ -1568,9 +1549,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
         wc_UnLockMutex(&entropy_mutex);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(noise, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(noise, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1841,9 +1820,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         } /* ret == 0 */
 
         ForceZero(seed, seedSz);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(seed, rng->heap, DYNAMIC_TYPE_SEED);
-    #endif
+        WC_FREE_VAR_EX(seed, rng->heap, DYNAMIC_TYPE_SEED);
     } /* else swc_RNG_HealthTestLocal was successful */
 
     if (ret == DRBG_SUCCESS) {
@@ -2231,9 +2208,7 @@ exit_rng_ht:
         ret = -1;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(drbg, heap, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(drbg, heap, DYNAMIC_TYPE_RNG);
 
     return ret;
 }
@@ -2292,19 +2267,10 @@ const FLASH_QUALIFIER byte outputB_data[] = {
 static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* check;
-#else
-    byte  check[RNG_HEALTH_TEST_CHECK_SIZE];
-#endif
+    WC_DECLARE_VAR(check, byte, RNG_HEALTH_TEST_CHECK_SIZE, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, heap,
-                           DYNAMIC_TYPE_TMP_BUFFER);
-    if (check == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(check, byte, RNG_HEALTH_TEST_CHECK_SIZE, heap,
+        DYNAMIC_TYPE_TMP_BUFFER, return MEMORY_E);
 
     if (reseed) {
 #ifdef WOLFSSL_USE_FLASHMEM
@@ -2418,9 +2384,7 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
 #endif
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(check, heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(check, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

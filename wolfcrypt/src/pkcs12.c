@@ -1119,9 +1119,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
         current  = current->next;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(DeCert, heap, DYNAMIC_TYPE_PKCS);
-#endif
+    WC_FREE_VAR_EX(DeCert, heap, DYNAMIC_TYPE_PKCS);
 
     return 0;
 }
