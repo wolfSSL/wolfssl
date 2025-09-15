@@ -8,6 +8,10 @@ Then build the wolfssl Rust wrapper with:
 
     make -C wrapper/rust
 
+Run tests with:
+
+    make -C wrapper/rust test
+
 ## Repository Directory Structure
 
 | Repository Directory | Description |
