@@ -423,7 +423,7 @@ enum {
 #endif
 
 /* set up thread local storage if available */
-#ifdef HAVE_THREAD_LS
+#if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS)
     #if defined(_MSC_VER) || defined(__WATCOMC__)
         #define THREAD_LS_T __declspec(thread)
     /* Thread local storage only in FreeRTOS v8.2.1 and higher */
