@@ -116,6 +116,114 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 /*!
     \ingroup ECC
 
+    \brief wc_ecc_make_pub computes the public component from an ecc_key with an
+    existing private component.  If pubOut is supplied, the computed public key
+    is stored there, else it is stored in the supplied ecc_key public component
+    slot.
+
+    \return 0 Returned on success.
+    \return ECC_BAD_ARG_E Returned if rng or key evaluate to NULL
+    \return BAD_FUNC_ARG Returned if the supplied key is not a valid ecc_key.
+    \return MEMORY_E Returned if there is an error allocating memory while
+    computing the public key
+    \return MP_INIT_E may be returned if there is an error while computing
+    the public key
+    \return MP_READ_E may be returned if there is an error while computing
+    the public key
+    \return MP_CMP_E may be returned if there is an error while computing the
+    public key
+    \return MP_INVMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_EXPTMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_MOD_E may be returned if there is an error while computing the
+    public key
+    \return MP_MUL_E may be returned if there is an error while computing the
+    public key
+    \return MP_ADD_E may be returned if there is an error while computing the
+    public key
+    \return MP_MULMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_TO_E may be returned if there is an error while computing the
+    public key
+    \return MP_MEM may be returned if there is an error while computing the
+    public key
+    \return ECC_OUT_OF_RANGE_E may be returned if there is an error while computing the
+    public key
+    \return ECC_PRIV_KEY_E may be returned if there is an error while computing the
+    public key
+    \return ECC_INF_E may be returned if there is an error while computing the
+    public key
+
+    \param key Pointer to an ecc_key containing a valid private component
+    \param pubOut Optional pointer to an ecc_point struct in which to store
+    the computed public key
+
+    \sa wc_ecc_make_pub_ex
+    \sa wc_ecc_make_key
+*/
+
+int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
+
+/*!
+    \ingroup ECC
+
+    \brief wc_ecc_make_pub_ex computes the public component from an ecc_key with
+    an existing private component.  If pubOut is supplied, the computed public
+    key is stored there, else it is stored in the supplied ecc_key public
+    component slot.  The supplied rng, if non-NULL, is used to blind the private
+    key value used in the computation.  If rng is NULL, an ephemeral rng is
+    instantiated internally.
+
+    \return 0 Returned on success.
+    \return ECC_BAD_ARG_E Returned if rng or key evaluate to NULL
+    \return BAD_FUNC_ARG Returned if the supplied key is not a valid ecc_key.
+    \return MEMORY_E Returned if there is an error allocating memory while
+    computing the public key
+    \return MP_INIT_E may be returned if there is an error while computing
+    the public key
+    \return MP_READ_E may be returned if there is an error while computing
+    the public key
+    \return MP_CMP_E may be returned if there is an error while computing the
+    public key
+    \return MP_INVMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_EXPTMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_MOD_E may be returned if there is an error while computing the
+    public key
+    \return MP_MUL_E may be returned if there is an error while computing the
+    public key
+    \return MP_ADD_E may be returned if there is an error while computing the
+    public key
+    \return MP_MULMOD_E may be returned if there is an error while computing
+    the public key
+    \return MP_TO_E may be returned if there is an error while computing the
+    public key
+    \return MP_MEM may be returned if there is an error while computing the
+    public key
+    \return ECC_OUT_OF_RANGE_E may be returned if there is an error while computing the
+    public key
+    \return ECC_PRIV_KEY_E may be returned if there is an error while computing the
+    public key
+    \return ECC_INF_E may be returned if there is an error while computing the
+    public key
+
+    \param key Pointer to an ecc_key containing a valid private component
+    \param pubOut Optional pointer to an ecc_point struct in which to store
+    the computed public key
+    \param rng Rng to be used in the public key computation
+
+    \sa wc_ecc_make_pub
+    \sa wc_ecc_make_key
+    \sa wc_InitRng
+*/
+
+int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng);
+
+/*!
+    \ingroup ECC
+
     \brief Perform sanity checks on ecc key validity.
 
     \return MP_OKAY Success, key is OK.
@@ -960,6 +1068,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
 
     \sa wc_ecc_export_x963_ex
     \sa wc_ecc_import_x963
+    \sa wc_ecc_make_pub
 */
 
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
@@ -967,23 +1076,25 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 /*!
     \ingroup ECC
 
-    \brief This function exports the ECC key from the ecc_key structure,
+    \brief This function exports the public key from the ecc_key structure,
     storing the result in out. The key will be stored in ANSI X9.63 format.
     It stores the bytes written to the output buffer in outLen. This function
     allows the additional option of compressing the certificate through the
     compressed parameter. When this parameter is true, the key will be stored
     in ANSI X9.63 compressed format.
 
-    \return 0 Returned on successfully exporting the ecc_key
+    \return 0 Returned on successfully exporting the ecc_key public component
+    \return ECC_PRIVATEKEY_ONLY Returned if the ecc_key public component is
+    missing
     \return NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at
     compile time, but the key was requested in compressed format
     \return LENGTH_ONLY_E Returned if the output buffer evaluates to NULL, but
     the other two input parameters are valid. Indicates that the function is
-    only returning the length required to store the key
+    only returning the length required to store the public key
     \return ECC_BAD_ARG_E Returned if any of the input parameters are NULL, or
     the key is unsupported (has an invalid index)
     \return BUFFER_E Returned if the output buffer is too small to store the
-    ecc key. If the output buffer is too small, the size needed will be
+    public key. If the output buffer is too small, the size needed will be
     returned in outLen
     \return MEMORY_E Returned if there is an error allocating memory with
     XMALLOC
@@ -1010,9 +1121,9 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 
     \param key pointer to the ecc_key object to export
     \param out pointer to the buffer in which to store the ANSI X9.63
-    formatted key
+    formatted public key
     \param outLen size of the output buffer. On successfully storing the
-    key, will hold the bytes written to the output buffer
+    public key, will hold the bytes written to the output buffer
     \param compressed indicator of whether to store the key in compressed
     format. 1==compressed, 0==uncompressed
 
@@ -1031,6 +1142,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 
     \sa wc_ecc_export_x963
     \sa wc_ecc_import_x963
+    \sa wc_ecc_make_pub
 */
 
 int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen, int compressed);
