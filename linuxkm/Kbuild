@@ -131,6 +131,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # using inline retpolines leads to "unannotated intra-function call"
     # warnings from objtool without this:
     $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
+    ifdef FORCE_GLOBAL_OBJTOOL_OFF
+        undefine CONFIG_OBJTOOL
+    endif
 endif
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE
@@ -194,7 +197,7 @@ endif
 	@cd "$(obj)" || exit $$?
 	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?
 	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?
-	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | grep -E '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2
 	rm wolfcrypt_test_link.o
 	if [ -n "$$undefined" ]; then
 	    echo "wolfCrypt container has unresolved symbols:" 1>&2
