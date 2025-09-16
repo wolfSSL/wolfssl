@@ -1706,13 +1706,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("asn      test passed!\n");
 #endif
 
-#ifndef WC_NO_RNG
-    if ( (ret = random_test()) != 0)
-        TEST_FAIL("RANDOM   test failed!\n", ret);
-    else
-        TEST_PASS("RANDOM   test passed!\n");
-#endif /* WC_NO_RNG */
-
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
         TEST_FAIL("MD5      test failed!\n", ret);
@@ -1796,6 +1789,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("SHA-3    test passed!\n");
 #endif
+
+#ifndef WC_NO_RNG
+    if ((ret = random_test()) != 0)
+        TEST_FAIL("RANDOM   test failed!\n", ret);
+    else
+        TEST_PASS("RANDOM   test passed!\n");
+#endif /* WC_NO_RNG */
 
 #ifdef WOLFSSL_SHAKE128
     if ( (ret = shake128_test()) != 0)
