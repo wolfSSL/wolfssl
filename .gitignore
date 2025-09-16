@@ -449,6 +449,7 @@ MagicCrypto
 # debian packaging
 debian/changelog
 debian/control
+debian/rules
 *.deb
 
 # Ada/Alire files
