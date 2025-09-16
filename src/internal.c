@@ -18922,8 +18922,9 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (type == finished && ssl->keys.dtls_peer_handshake_number >=
                             ssl->keys.dtls_expected_peer_handshake_number &&
-                            ssl->keys.curEpoch == ssl->keys.dtls_epoch) {
-        /* finished msg should be ignore from the current epoch
+                            ssl->keys.curEpoch == ssl->keys.dtls_epoch &&
+                            ssl->keys.curEpoch != 0) {
+        /* finished msg should be ignored from the current epoch
          * if it comes from a previous handshake */
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             ignoreFinished = ssl->options.connectState < FINISHED_DONE;
