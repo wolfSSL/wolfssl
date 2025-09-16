@@ -14,8 +14,7 @@ concurrency:
 
 jobs:
   make_check:
-    strategy:
-      fail-fast: false
+    if: github.repository_owner == 'wolfssl'
     runs-on: macos-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 5
