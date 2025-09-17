@@ -18,6 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 
+.ONESHELL:
 SHELL=bash
 
 all: libwolfssl.ko libwolfssl.ko.signed
@@ -96,8 +97,6 @@ ifndef MAKE_TMPDIR
     MAKE_TMPDIR := $(TMPDIR)
 endif
 
-libwolfssl.ko: libwolfssl.o
-
 GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
 	$(AWK) 'BEGIN {									\
 	    n=0;									\
@@ -131,21 +130,25 @@ GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
 	    print "~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
 	}'
 
-libwolfssl.o:
+.PHONY: libwolfssl.ko
+libwolfssl.ko:
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
 	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
 	@if test -z '$(src_libwolfssl_la_OBJECTS)'; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
         # after commit 9a0ebe5011 (6.10), sources must be in $(obj).  work around this by making links to all needed sources:
 	@mkdir -p '$(MODULE_TOP)/linuxkm'
-	@test '$(MODULE_TOP)/module_hooks.c' -ef '$(MODULE_TOP)/linuxkm/module_hooks.c' || cp --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
-	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
-	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
+	@test '$(MODULE_TOP)/module_hooks.c' -ef '$(MODULE_TOP)/linuxkm/module_hooks.c' || cp --verbose --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
+	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp --verbose --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
+	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp --verbose --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-	@echo -e "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = 1;" > wc_linuxkm_pie_reloc_tab.c
-	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
-	@$(GENERATE_RELOC_TAB) > wc_linuxkm_pie_reloc_tab.c
-	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	@$(eval RELOC_TMP := $(shell mktemp "$(MAKE_TMPDIR)/wc_linuxkm_pie_reloc_tab.c.XXXXXX"))
+	@[[ -f wc_linuxkm_pie_reloc_tab.c ]] || echo -e "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = 1;" > wc_linuxkm_pie_reloc_tab.c
+	@if [[ -f libwolfssl.ko ]]; then touch -r libwolfssl.ko "$(RELOC_TMP)"; fi
+	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
+	# if the above make didn't build a fresh libwolfssl.ko, then the module is already up to date and we leave it untouched, assuring stability for purposes of module-update-fips-hash.
+	@if [[ ! libwolfssl.ko -nt "$(RELOC_TMP)" ]]; then rm "$(RELOC_TMP)"; exit 0; fi
+	@$(GENERATE_RELOC_TAB) >| wc_linuxkm_pie_reloc_tab.c
+	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	@$(GENERATE_RELOC_TAB) >| $(RELOC_TMP)
 	@if diff wc_linuxkm_pie_reloc_tab.c $(RELOC_TMP); then echo " Relocation table is stable."; else echo "PIE failed: relocation table is unstable." 1>&2; rm $(RELOC_TMP); exit 1; fi
 	@rm $(RELOC_TMP)

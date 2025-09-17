@@ -131,6 +131,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # using inline retpolines leads to "unannotated intra-function call"
     # warnings from objtool without this:
     $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
+    ifdef FORCE_GLOBAL_OBJTOOL_OFF
+        undefine CONFIG_OBJTOOL
+    endif
 endif
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE
@@ -176,8 +179,6 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
 LDFLAGS_libwolfssl.o += -T $(src)/wolfcrypt.lds
 
-rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
-
 ifndef NM
     NM := nm
 endif
@@ -186,31 +187,30 @@ ifndef OBJCOPY
     OBJCOPY := objcopy
 endif
 
-.PHONY: rename-pie-text-and-data-sections
-rename-pie-text-and-data-sections:
-ifneq "$(quiet)" "silent_"
-	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
-endif
-	@cd "$(obj)" || exit $$?
-	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?
-	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?
-	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2
-	rm wolfcrypt_test_link.o
-	if [ -n "$$undefined" ]; then
-	    echo "wolfCrypt container has unresolved symbols:" 1>&2
-	    echo "$$undefined" 1>&2
-	    exit 1
-	fi
-	if [ -n "$$GOT_relocs" ]; then
-	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2
-	    echo "$$GOT_relocs" 1>&2
-	    exit 1
-	fi
-ifneq "$(quiet)" "silent_"
-	echo 'OK.'
-endif
-	cd "$(obj)" || exit $$?
-	for file in $(WOLFCRYPT_PIE_FILES); do
+RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '; \
+	fi; \
+	cd "$(obj)" || exit $$?; \
+	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
+	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?; \
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | grep -E '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
+	rm wolfcrypt_test_link.o; \
+	if [ -n "$$undefined" ]; then \
+	    echo "wolfCrypt container has unresolved symbols:" 1>&2; \
+	    echo "$$undefined" 1>&2; \
+	    exit 1; \
+	fi; \
+	if [ -n "$$GOT_relocs" ]; then \
+	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2; \
+	    echo "$$GOT_relocs" 1>&2; \
+	    exit 1; \
+	fi; \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo 'OK.'; \
+	fi; \
+	cd "$(obj)" || exit $$?; \
+	for file in $(WOLFCRYPT_PIE_FILES); do			\
 	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt	\
 	    --rename-section .text.unlikely=.text.wolfcrypt	\
 	    --rename-section .rodata=.rodata.wolfcrypt		\
@@ -220,8 +220,8 @@ endif
 	    --rename-section .rodata.cst32=.rodata.wolfcrypt	\
 	    --rename-section .data=.data.wolfcrypt		\
 	    --rename-section .data.rel.local=.data.wolfcrypt    \
-	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?
-	done
+	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?; \
+	done; \
 	[ "$(KERNEL_ARCH_X86)" != "yes" ] ||			\
 	{ $(READELF) --sections --syms --wide $(WOLFCRYPT_PIE_FILES) |	\
 	$(AWK) -v obj="$(obj)" '					\
@@ -295,19 +295,16 @@ endif
 		} else {						\
 		    exit(0);						\
 	    }}'; } || \
-	{ echo 'Error: symbol(s) missed by containerization.' >&2; exit 1; }
-ifneq "$(quiet)" "silent_"
-	echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
+	{ echo 'Error: symbol(s) missed by containerization.' >&2; exit 1; }; \
+	if [[ "$(quiet)" != "silent_" ]]; then \
+	    echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'; \
+	fi
 endif
-
-$(obj)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
-
-endif
-
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
 $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS) $(obj)/linuxkm/module_hooks.o
+	@$(RENAME_PIE_TEXT_AND_DATA_SECTIONS)
 	@cp $< $@ || exit $$?
 	if [[ "$${VERSION}" -gt 6 || ("$${VERSION}" -eq 6 && "$${PATCHLEVEL}" -ge 13) ]]; then
 	    # use ASCII octal escape to avoid syntax disruption in the awk script.
