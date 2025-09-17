@@ -2877,6 +2877,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #ifndef WOLFSSL_NO_CA_NAMES
         wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
         ctx->client_ca_names = NULL;
+        wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
+        ctx->ca_names = NULL;
     #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
@@ -8789,6 +8791,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_CA_NAMES
     wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
     ssl->client_ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+    ssl->ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+    ssl->peer_ca_names = NULL;
 #endif
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
@@ -24823,7 +24829,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
 #ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -24915,7 +24921,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
 #ifndef WOLFSSL_NO_CA_NAMES
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -31745,10 +31751,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return BUFFER_ERROR;
 
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-        if (ssl->client_ca_names != ssl->ctx->client_ca_names)
-            wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
-        ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-        if (ssl->client_ca_names == NULL) {
+        wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+        ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+        if (ssl->peer_ca_names == NULL) {
             return MEMORY_ERROR;
         }
     #endif
@@ -31793,7 +31798,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 }
 
                 if (ret == 0) {
-                    if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
+                    if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name)
                         <= 0)
                     {
                         ret = MEMORY_ERROR;

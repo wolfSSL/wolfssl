@@ -7427,18 +7427,9 @@ static word16 TLSX_CA_Names_GetSize(void* data)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
     word16 size = 0;
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        /* To add support use a different member like ssl->ca_names and
-         * add accessor functions:
-         * - *_set0_CA_list
-         * - *_get0_CA_list */
-        WOLFSSL_MSG("We don't currently support sending the client's list.");
-        return 0;
-    }
-
     /* Length of names */
     size += OPAQUE16_LEN;
-    for (names = SSL_CA_NAMES(ssl); names != NULL; names = names->next) {
+    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
@@ -7457,19 +7448,10 @@ static word16 TLSX_CA_Names_Write(void* data, byte* output)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
     byte* len;
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        /* To add support use a different member like ssl->ca_names and
-         * add accessor functions:
-         * - *_set0_CA_list
-         * - *_get0_CA_list */
-        WOLFSSL_MSG("We don't currently support sending the client's list.");
-        return 0;
-    }
-
     /* Reserve space for the length value */
     len = output;
     output += OPAQUE16_LEN;
-    for (names = SSL_CA_NAMES(ssl); names != NULL; names = names->next) {
+    for (names = SSL_PRIORITY_CA_NAMES(ssl); names != NULL; names = names->next) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
 
@@ -7494,19 +7476,9 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
     (void)isRequest;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        /* To add support use a different member like ssl->ca_names and
-         * add accessor functions:
-         * - *_set0_CA_list
-         * - *_get0_CA_list */
-        WOLFSSL_MSG("We don't currently support parsing the client's list.");
-        return 0;
-    }
-
-    if (ssl->client_ca_names != ssl->ctx->client_ca_names)
-        wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
-    ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-    if (ssl->client_ca_names == NULL)
+    wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+    ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+    if (ssl->peer_ca_names == NULL)
         return MEMORY_ERROR;
 
     if (length < OPAQUE16_LEN)
@@ -7558,7 +7530,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
         if (ret == 0) {
             CopyDecodedName(name, cert, ASN_SUBJECT);
-            if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name) <= 0)
+            if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0)
                 ret = MEMORY_ERROR;
         }
 
@@ -14745,13 +14717,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (isServer && IsAtLeastTLSv1_3(ssl->version)) {
-            if (SSL_CA_NAMES(ssl) != NULL) {
-                WOLFSSL_MSG("Adding certificate authorities extension");
-                if ((ret = TLSX_Push(&ssl->extensions,
-                        TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {
-                        return ret;
-                }
+        if (IsAtLeastTLSv1_3(ssl->version)) {
+            WOLFSSL_MSG("Adding certificate authorities extension");
+            if ((ret = TLSX_Push(&ssl->extensions,
+                    TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {
+                    return ret;
             }
         }
     #endif
@@ -15237,10 +15207,13 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_POST_HANDSHAKE_AUTH));
         #endif
-        #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
+        }
+    #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
+        if (!IsAtLeastTLSv1_3(ssl->version) ||
+                SSL_CA_NAMES(ssl) == NULL) {
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
-        #endif
         }
     #endif
 #endif /* WOLFSSL_TLS13 */
@@ -15263,8 +15236,10 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_CA_NAMES(ssl) != NULL)
-            TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
+        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
+            TURN_OFF(semaphore,
+                    TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
+        }
 #endif
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP, OID_FILTERS
          *       TLSX_STATUS_REQUEST
@@ -15477,14 +15452,16 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_POST_HANDSHAKE_AUTH));
         #endif
-        #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-            TURN_ON(semaphore,
-                    TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
-        #endif
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             TURN_ON(semaphore,
                     TLSX_ToSemaphore(TLSX_CKS));
         #endif
+        }
+    #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
+        if (!IsAtLeastTLSv1_3(ssl->version) || SSL_CA_NAMES(ssl) == NULL) {
+            TURN_ON(semaphore,
+                    TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
     #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -15513,7 +15490,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (SSL_CA_NAMES(ssl) != NULL) {
+        if (SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
             TURN_OFF(semaphore,
                     TLSX_ToSemaphore(TLSX_CERTIFICATE_AUTHORITIES));
         }
