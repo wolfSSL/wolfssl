@@ -4095,7 +4095,7 @@ exit:
         wolfSSL_Debugging_ON();
 #endif
         wolfSSL_Init();
-#ifdef WC_RNG_SEED_CB
+#if defined(WC_RNG_SEED_CB) && !defined(WC_NO_HASHDRBG)
         wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
         ChangeToWolfRoot();
