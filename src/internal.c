@@ -6669,9 +6669,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     byte haveAnon = 0;
     byte haveRSA = 0;
     byte haveMcast = 0;
+    byte haveCertSetupCb = 0;
 
     (void)haveAnon; /* Squash unused var warnings */
     (void)haveMcast;
+    (void)haveCertSetupCb;
 
     if (!ssl)
         return BAD_FUNC_ARG;
@@ -6690,6 +6692,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
 #endif /* !NO_CERTS && !WOLFSSL_SESSION_EXPORT */
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    if (ssl->ctx->certSetupCb != NULL)
+        haveCertSetupCb = 1;
+#endif /* WOLFSSL_TLS13 && !NO_CERTS && OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -6717,10 +6723,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-    /* make sure server has cert and key unless using PSK, Anon, or
-     * Multicast. This should be true even if just switching ssl ctx */
+    /* make sure server has cert and key unless using PSK, Anon,
+     * Multicast or cert setup callback. This should be true even if just
+     * switching ssl ctx */
     if (ssl->options.side == WOLFSSL_SERVER_END &&
-            !havePSK && !haveAnon && !haveMcast) {
+            !havePSK && !haveAnon && !haveMcast && !haveCertSetupCb) {
 
         /* server certificate must be loaded */
         if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
