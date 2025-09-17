@@ -23009,7 +23009,7 @@ long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
 
     ctx->cm->ocsp_stapling->statusCbArg = arg;
 #else
-    (void)cb;
+    (void)arg;
 #endif
 
     return WOLFSSL_SUCCESS;
