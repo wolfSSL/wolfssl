@@ -16748,10 +16748,12 @@ static wc_test_ret_t aesccm_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     /* Clear c2 to compare against p2. p2 should be set to zero in case of
-     * authentication fail. */
+     * authentication fail. With ACVP_VECTOR_TESTING, this is not cleared */
+#ifndef ACVP_VECTOR_TESTING
     XMEMSET(c2, 0, sizeof(c2));
     if (XMEMCMP(p2, c2, sizeof(p2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 #endif
 
     XMEMSET(t2, 0, sizeof(t2));
