@@ -771,7 +771,8 @@ int test_wc_RsaKeyToPublicDer(void)
 int test_wc_RsaPublicEncryptDecrypt(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     RsaKey key;
     WC_RNG rng;
     const char inStr[] = TEST_STRING;
@@ -840,14 +841,16 @@ int test_wc_RsaPublicEncryptDecrypt_ex(void)
     WC_RNG  rng;
     const char inStr[] = TEST_STRING;
     const word32 inLen = (word32)TEST_STRING_SZ;
-    const word32 plainSz = (word32)TEST_STRING_SZ;
-    byte*   res = NULL;
     int     idx = 0;
     int          bits = TEST_RSA_BITS;
     const word32 cipherSz = TEST_RSA_BYTES;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    const word32 plainSz = (word32)TEST_STRING_SZ;
+    byte*   res = NULL;
 
-    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+#endif
+    WC_DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
     WC_DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
 
     WC_ALLOC_VAR(in, byte, TEST_STRING_SZ, NULL);
