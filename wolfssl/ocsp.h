@@ -77,7 +77,9 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
 WOLFSSL_LOCAL int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert,
                                      void* vp);
 
-WOLFSSL_API int  wc_InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm);
+/* Allocates and initializes a WOLFSSL_OCSP object */
+WOLFSSL_API WOLFSSL_OCSP* wc_NewOCSP(WOLFSSL_CERT_MANAGER* cm);
+/* Frees a WOLFSSL_OCSP object allocated by wc_NewOCSP */
 WOLFSSL_API void wc_FreeOCSP(WOLFSSL_OCSP* ocsp);
 WOLFSSL_API int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,
         byte *response, int responseSz, void* heap);
