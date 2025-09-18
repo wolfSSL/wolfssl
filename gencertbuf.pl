@@ -13,7 +13,8 @@ use warnings;
 # ---- SCRIPT SETTINGS -------------------------------------------------------
 
 # output C header file to write cert/key buffers to
-my $outputFile = "./wolfssl/certs_test.h";
+my $outputFile   = "./wolfssl/certs_test.h";
+my $outputFileSM = "./wolfssl/certs_test_sm.h";
 
 # ecc keys and certs to be converted
 # Used with HAVE_ECC && USE_CERT_BUFFERS_256
@@ -109,6 +110,42 @@ my @fileList_4096 = (
         [ "./certs/dh4096.der", "dh_key_der_4096" ],
         );
 
+# SM ciphers PRM format in certs/sm2
+my @fileList_sm2 = (
+        [ "./certs/sm2/ca-sm2.pem",          "ca_sm2"          ],
+        [ "./certs/sm2/ca-sm2-key.pem",      "ca_sm2_key"      ],
+        [ "./certs/sm2/ca-sm2-priv.pem",     "ca_sm2_priv"     ],
+        [ "./certs/sm2/client-sm2.pem",      "client_sm2"      ],
+        [ "./certs/sm2/client-sm2-key.pem",  "client_sm2_key"  ],
+        [ "./certs/sm2/client-sm2-priv.pem", "client_sm2_priv" ],
+        [ "./certs/sm2/root-sm2.pem",        "root_sm2"        ],
+        [ "./certs/sm2/root-sm2-key.pem",    "root_sm2_key"    ],
+        [ "./certs/sm2/root-sm2-priv.pem",   "root_sm2_priv"   ],
+        [ "./certs/sm2/self-sm2-cert.pem",   "self_sm2_cert"   ],
+        [ "./certs/sm2/self-sm2-key.pem",    "self_sm2_key"    ],
+        [ "./certs/sm2/self-sm2-priv.pem",   "self_sm2_priv"   ],
+        [ "./certs/sm2/server-sm2.pem",      "server_sm2"      ],
+        [ "./certs/sm2/server-sm2-cert.pem", "server_sm2_cert" ],
+        [ "./certs/sm2/server-sm2-key.pem",  "server_sm2_key"  ],
+        [ "./certs/sm2/server-sm2-priv.pem", "server_sm2_priv" ],
+        );
+
+my @fileList_sm2_der = (
+        [ "./certs/sm2/ca-sm2.der",          "ca_sm2_der"          ],
+        [ "./certs/sm2/ca-sm2-key.der",      "ca_sm2_key_der"      ],
+        [ "./certs/sm2/ca-sm2-priv.der",     "ca_sm2_priv_der"     ],
+        [ "./certs/sm2/client-sm2.der",      "client_sm2_der"      ],
+        [ "./certs/sm2/client-sm2-key.der",  "client_sm2_key_der"  ],
+        [ "./certs/sm2/client-sm2-priv.der", "client_sm2_priv_der" ],
+        [ "./certs/sm2/root-sm2.der",        "root_sm2_der"        ],
+        [ "./certs/sm2/root-sm2-key.der",    "root_sm2_key_der"    ],
+        [ "./certs/sm2/root-sm2-priv.der",   "root_sm2_priv_der"   ],
+        [ "./certs/sm2/server-sm2.der",      "server_sm2_der"      ],
+        [ "./certs/sm2/server-sm2-cert.der", "server_sm2_cert_der" ],
+        [ "./certs/sm2/server-sm2-key.der",  "server_sm2_key_der"  ],
+        [ "./certs/sm2/server-sm2-priv.der", "server_sm2_priv_der" ],
+        );
+
 #Falcon Post-Quantum Keys
 #Used with HAVE_PQC
 my @fileList_falcon = (
@@ -130,15 +167,17 @@ my @fileList_sphincs = (
 
 # ----------------------------------------------------------------------------
 
-my $num_ecc = @fileList_ecc;
-my $num_ed = @fileList_ed;
-my $num_x = @fileList_x;
-my $num_1024 = @fileList_1024;
-my $num_2048 = @fileList_2048;
-my $num_3072 = @fileList_3072;
-my $num_4096 = @fileList_4096;
-my $num_falcon = @fileList_falcon;
-my $num_sphincs = @fileList_sphincs;
+my $num_ecc      = @fileList_ecc;
+my $num_ed       = @fileList_ed;
+my $num_x        = @fileList_x;
+my $num_1024     = @fileList_1024;
+my $num_2048     = @fileList_2048;
+my $num_3072     = @fileList_3072;
+my $num_4096     = @fileList_4096;
+my $num_sm2      = @fileList_sm2;
+my $num_sm2_der  = @fileList_sm2_der;
+my $num_falcon   = @fileList_falcon;
+my $num_sphincs  = @fileList_sphincs;
 
 # open our output file, "+>" creates and/or truncates
 open OUT_FILE, "+>", $outputFile  or die $!;
@@ -2202,9 +2241,68 @@ print OUT_FILE "#endif /* WOLFSSL_CERTS_TEST_H */\n\n";
 # close certs_test.h file
 close OUT_FILE or die $!;
 
+#---------------------------------------------------------------------------
+# open our output file, "+>" creates and/or truncates
+open OUT_FILE_SM, "+>", $outputFileSM  or die $!;
+
+print OUT_FILE_SM "/* certs_test_sm.h */\n";
+print OUT_FILE_SM "/* This file was generated using: ./gencertbuf.pl */\n\n";
+print OUT_FILE_SM "#ifndef WOLFSSL_CERTS_TEST_SM_H\n";
+print OUT_FILE_SM "#define WOLFSSL_CERTS_TEST_SM_H\n\n";
+print OUT_FILE_SM "#if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)\n\n";
+print OUT_FILE_SM "    /* DER Certs Begin */\n\n";
+
+# convert and print SM2 DER format certs/keys
+for (my $i = 0; $i < $num_sm2_der; $i++) {
+
+    my $fname = $fileList_sm2_der[$i][0];
+    my $sname = $fileList_sm2_der[$i][1];
+
+    print OUT_FILE_SM "/* $fname */\n";
+    print OUT_FILE_SM "static const unsigned char $sname\[] =\n";
+    print OUT_FILE_SM "{\n";
+    file_to_hex($fname, \*OUT_FILE_SM);
+    print OUT_FILE_SM "};\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE_SM "#define sizeof_$sname (sizeof($sname))\n\n";
+}
+print OUT_FILE_SM "    /* DER Certs End */\n\n";
+
+
+# convert and print SM2 PEM format certs/keys
+print OUT_FILE_SM "#ifdef WOLFSSL_NO_PEM\n\n";
+print OUT_FILE_SM "    /* SM PEM Certs disabled */\n\n";
+print OUT_FILE_SM "#else\n\n";
+
+for (my $i = 0; $i < $num_sm2; $i++) {
+
+    my $fname = $fileList_sm2[$i][0];
+    my $sname = $fileList_sm2[$i][1];
+
+    print OUT_FILE_SM "/* $fname */\n";
+    print OUT_FILE_SM "static const unsigned char $sname\[] =\n";
+    print OUT_FILE_SM "{\n";
+    file_to_hex($fname, \*OUT_FILE_SM);
+    print OUT_FILE_SM "};\n";
+    # In C89/C90 (which Watcom generally defaults to), sizeof must be a
+    # compile-time constant expression when used in a static initializer.
+    # So don't use `static const int sizeof_` here:
+    print OUT_FILE_SM "#define sizeof_$sname (sizeof($sname))\n\n";
+}
+
+print OUT_FILE_SM "#endif /* WOLFSSL_NO_PEM */\n\n";
+print OUT_FILE_SM "#endif /* WOLFSSL_SM2 || WOLFSSL_SM3 || WOLFSSL_SM4 */\n";
+print OUT_FILE_SM "#endif /* WOLFSSL_CERTS_TEST_SM_H */\n";
+
+# close certs_test_sm.h file
+close OUT_FILE_SM or die $!;
+
 # print file as hex, comma-separated, as needed by C buffer
 sub file_to_hex {
-    my $fileName = $_[0];
+    my ($fileName, $out_fh) = @_;
+    $out_fh //= \*OUT_FILE;   # default handle
 
     open my $fp, "<", $fileName or die $!;
     binmode($fp);
@@ -2215,26 +2313,27 @@ sub file_to_hex {
     for (my $i = 0, my $j = 1; $i < $fileLen; $i++, $j++)
     {
         if ($j == 1) {
-            print OUT_FILE "        ";
+            print {$out_fh} "        ";
         }
         if ($j != 1) {
-            print OUT_FILE " ";
+            print {$out_fh} " ";
         }
         read($fp, $byte, 1) or die "Error reading $fileName";
         my $output = sprintf("0x%02X", ord($byte));
-        print OUT_FILE $output;
+        print {$out_fh} $output;
 
         if ($i != ($fileLen - 1)) {
-            print OUT_FILE ",";
+            print {$out_fh} ",";
         }
 
         if ($j == 10) {
             $j = 0;
-            print OUT_FILE "\n";
+            print {$out_fh} "\n";
         }
     }
 
-    print OUT_FILE "\n";
+    print {$out_fh} "\n";
 
     close($fp);
 }
+
