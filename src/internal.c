@@ -7396,6 +7396,7 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
             DYNAMIC_TYPE_SECRET);
         if (ssl->arrays->preMasterSecret == NULL) {
+            WOLFSSL_MSG("preMasterSecret Memory error");
             return MEMORY_E;
         }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
