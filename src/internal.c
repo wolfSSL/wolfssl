@@ -5013,7 +5013,8 @@ int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf)
 }
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
+    (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
             word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
             DerBuffer* keyBufInfo)
@@ -5317,7 +5318,8 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 
 #ifndef WOLFSSL_NO_TLS12
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
@@ -5382,6 +5384,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 }
 #endif /* !NO_WOLFSSL_SERVER) || !WOLFSSL_NO_CLIENT_AUTH */
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
 int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
     RsaKey* key, buffer* keyBufInfo)
 {
@@ -5441,6 +5444,7 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
 
     return ret;
 }
+#endif
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
@@ -34074,7 +34078,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         {
             switch(ssl->specs.kea)
             {
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
                 case rsa_kea:
                 {
                         ret = RsaEnc(ssl,
@@ -34090,7 +34094,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     break;
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
@@ -34921,7 +34925,8 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 );
             }
         #endif /* HAVE_ED448 && !NO_ED448_CLIENT_AUTH */
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(WOLFSSL_RSA_VERIFY_ONLY)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 RsaKey* key = (RsaKey*)ssl->hsKey;
 
@@ -34935,7 +34940,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.key
                 );
             }
-        #endif /* !NO_RSA */
+        #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
             /* Check for error */
             if (ret != 0) {
@@ -36999,7 +37004,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         /* Sign hash to create signature */
                         switch (ssl->options.sigAlgo)
                         {
-                        #ifndef NO_RSA
+                        #if !defined(NO_RSA) && \
+                            !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                            !defined(WOLFSSL_RSA_VERIFY_ONLY)
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
                         #endif
@@ -37018,7 +37025,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 );
                                 break;
                             }
-                        #endif /* !NO_RSA */
+                        #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY
+                                  && !WOLFSSL_RSA_VERIFY_ONLY */
                         #ifdef HAVE_ECC
                         #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                             case sm2_sa_algo:
@@ -37112,7 +37120,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         /* Sign hash to create signature */
                         switch (ssl->options.sigAlgo)
                         {
-                        #ifndef NO_RSA
+                        #if !defined(NO_RSA) && \
+                            !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                            !defined(WOLFSSL_RSA_VERIFY_ONLY)
                         #ifdef WC_RSA_PSS
                             case rsa_pss_sa_algo:
                         #endif
@@ -37135,7 +37145,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 );
                                 break;
                             }
-                        #endif /* NO_RSA */
+                        #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY
+                                  && !WOLFSSL_RSA_VERIFY_ONLY */
                             default:
                                 break;
                         } /* switch (ssl->options.sigAlgo) */
@@ -41815,7 +41826,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
             case TLS_ASYNC_DO:
             {
                 switch (ssl->specs.kea) {
-                #ifndef NO_RSA
+                #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
                     case rsa_kea:
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -41851,7 +41862,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         ret = 0;
                         break;
                     } /* rsa_kea */
-                #endif /* !NO_RSA */
+                #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
                 #ifndef NO_PSK
                     case psk_kea:
                     {
