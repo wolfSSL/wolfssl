@@ -27555,6 +27555,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void)
         return WC_TEST_RET_ENC_EC(ret);
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return WC_TEST_RET_ENC_NC;
+
+    ret = wc_scrypt(derived,(byte*)"pleaseletmein", 13,
+                    (byte*)"SodiumChloride", 14, 22, 8, 1, sizeof(derived));
+    if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
+        return WC_TEST_RET_ENC_EC(ret);
 #endif
 #else
 #ifdef SCRYPT_TEST_ALL
