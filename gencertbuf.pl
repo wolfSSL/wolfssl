@@ -141,6 +141,7 @@ my @fileList_sm2_der = (
         [ "./certs/sm2/root-sm2-key.der",    "root_sm2_key_der"    ],
         [ "./certs/sm2/root-sm2-priv.der",   "root_sm2_priv_der"   ],
         [ "./certs/sm2/server-sm2.der",      "server_sm2_der"      ],
+        [ "./certs/sm2/server-sm2-cert.der", "server_sm2_cert_der" ],
         [ "./certs/sm2/server-sm2-key.der",  "server_sm2_key_der"  ],
         [ "./certs/sm2/server-sm2-priv.der", "server_sm2_priv_der" ],
         );

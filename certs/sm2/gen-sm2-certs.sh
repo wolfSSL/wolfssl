@@ -91,7 +91,7 @@ openssl x509 -req -in server-sm2.csr -days 1000 -extfile ../renewcerts/wolfssl.c
 check_result $? "Generate certificate"
 rm server-sm2.csr
 
-openssl x509 -in server-sm2-cert.pem -outform DER > server-sm2.der
+openssl x509 -in server-sm2-cert.pem -outform DER > server-sm2-cert.der
 check_result $? "Convert to DER"
 openssl x509 -in server-sm2-cert.pem -text > tmp.pem
 check_result $? "Add text"
