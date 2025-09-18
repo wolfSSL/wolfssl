@@ -4,6 +4,8 @@
 
 EXTRA_DIST += \
 	     certs/intermediate/genintcerts.sh \
+	     certs/intermediate/ca-ecc-bad-aki.der \
+	     certs/intermediate/ca-ecc-bad-aki.pem \
 	     certs/intermediate/ca-int-cert.der \
 	     certs/intermediate/ca-int-cert.pem \
 	     certs/intermediate/ca-int-ecc-cert.der \
