@@ -44,15 +44,26 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-
-int  wc_InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm)
+/* Allocates and initializes a WOLFSSL_OCSP object. Returns pointer on success, NULL on failure. */
+WOLFSSL_OCSP* wc_NewOCSP(WOLFSSL_CERT_MANAGER* cm)
 {
-    return InitOCSP(ocsp, cm);
+    WOLFSSL_OCSP* ocsp = NULL;
+    ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP), cm ? cm->heap : NULL, DYNAMIC_TYPE_OCSP);
+    if (ocsp == NULL)
+        return NULL;
+    if (InitOCSP(ocsp, cm) != 0) {
+        XFREE(ocsp, cm ? cm->heap : NULL, DYNAMIC_TYPE_OCSP);
+        return NULL;
+    }
+    return ocsp;
 }
 
+/* Frees a WOLFSSL_OCSP object allocated by wc_NewOCSP. */
 void wc_FreeOCSP(WOLFSSL_OCSP* ocsp)
 {
-    FreeOCSP(ocsp, 0);
+    if (ocsp) {
+        FreeOCSP(ocsp, 1);
+    }
 }
 
 int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,

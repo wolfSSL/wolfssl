@@ -765,8 +765,7 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
         WOLFSSL_CERT_MANAGER* cm = NULL;
         DecodedCert cert;
         byte certInit = 0;
-        WOLFSSL_OCSP ocsp;
-        byte ocspInit = 0;
+        WOLFSSL_OCSP* ocsp = NULL;
 
         ret = 1;
         cm = wolfSSL_CertManagerNew();
@@ -798,19 +797,16 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
             if (ret == 1 && (ocspStaple == NULL || ocspStaple->buffer == NULL ||
                     ocspStaple->length == 0))
                 ret = 0;
-            if (ret == 1 && wc_InitOCSP(&ocsp, cm) != 0)
+            if (ret == 1 && (ocsp = wc_NewOCSP(cm)) == NULL)
                 ret = 0;
-            if (ret == 1)
-                ocspInit = 1;
             if (ret == 1 &&
-                    wc_CheckCertOcspResponse(&ocsp, &cert, ocspStaple->buffer,
-                            ocspStaple->length, NULL) != 0)
+                wc_CheckCertOcspResponse(ocsp, &cert, ocspStaple->buffer,
+                        ocspStaple->length, NULL) != 0)
                 ret = 0;
         }
 #endif
 
-        if (ocspInit)
-            wc_FreeOCSP(&ocsp);
+        wc_FreeOCSP(ocsp);
         if (certInit)
             wc_FreeDecodedCert(&cert);
         wolfSSL_CertManagerFree(cm);
@@ -829,8 +825,7 @@ static int test_ocsp_tls_cert_cb_ocsp_verify_cb(WOLFSSL* ssl, int err,
         WOLFSSL_CERT_MANAGER* cm = NULL;
         DecodedCert cert;
         byte certInit = 0;
-        WOLFSSL_OCSP ocsp;
-        byte ocspInit = 0;
+        WOLFSSL_OCSP* ocsp = NULL;
         WOLFSSL_X509_CHAIN* peerCerts;
 
         cm = wolfSSL_CertManagerNew();
@@ -855,16 +850,14 @@ static int test_ocsp_tls_cert_cb_ocsp_verify_cb(WOLFSSL* ssl, int err,
         certInit = 1;
         if (wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm) != 0)
             goto cleanup;
-        if (wc_InitOCSP(&ocsp, cm) != 0)
+        if ((ocsp = wc_NewOCSP(cm)) == NULL)
             goto cleanup;
-        ocspInit = 1;
-        if (wc_CheckCertOcspResponse(&ocsp, &cert, staple, stapleSz, NULL) != 0)
+        if (wc_CheckCertOcspResponse(ocsp, &cert, staple, stapleSz, NULL) != 0)
             goto cleanup;
 
         err = 0;
 cleanup:
-        if (ocspInit)
-            wc_FreeOCSP(&ocsp);
+        wc_FreeOCSP(ocsp);
         if (certInit)
             wc_FreeDecodedCert(&cert);
         wolfSSL_CertManagerFree(cm);
