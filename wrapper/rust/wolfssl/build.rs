@@ -26,6 +26,7 @@ fn setup_wolfssl_link() -> Result<()> {
 
     println!("cargo:rustc-link-search={}", wolfssl_lib_dir);
     println!("cargo:rustc-link-lib=wolfssl");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", wolfssl_lib_dir);
 
     Ok(())
 }
