@@ -1606,6 +1606,20 @@ int wolfSSL_HmacCopy(Hmac* dst, Hmac* src)
     #endif /* WOLFSSL_NO_SHA3_512 */
 #endif /* WOLFSSL_SHA3 */
 
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            rc = wc_Sm3Copy(&src->hash.sm3, &dst->hash.sm3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sm3Copy(&src->i_hash.sm3, &dst->i_hash.sm3);
+            }
+            if (rc == 0) {
+                rc = wc_Sm3Copy(&src->o_hash.sm3, &dst->o_hash.sm3);
+            }
+        #endif
+            break;
+    #endif /* WOLFSSL_SM3 */
+
         default:
             /* Digest algorithm not supported. */
             rc = BAD_FUNC_ARG;
