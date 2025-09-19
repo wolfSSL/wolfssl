@@ -8193,12 +8193,18 @@ then
     fi
 elif test "$ENABLED_CURL" = "tiny"
 then
+    # basic config to support tiny-curl.
+    # OPENSSL_EXTRA_X509_SMALL is sufficient.
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="x509small"
     fi
 
+    # expose a bit more compat API without full OPENSSL_EXTRA.
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURL"
+
+    # session cache is necessary, but can be small or micro.
+    AM_CFLAGS="$AM_CFLAGS -DSMALL_SESSION_CACHE"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
