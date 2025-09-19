@@ -28,3 +28,6 @@ jobs:
     - name: Build Rust Wrapper
       working-directory: wolfssl
       run: make -C wrapper/rust
+    - name: Run Rust Wrapper Tests
+      working-directory: wolfssl
+      run: make -C wrapper/rust test
