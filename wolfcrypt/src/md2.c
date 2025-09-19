@@ -137,25 +137,16 @@ void wc_Md2Final(wc_Md2* md2, byte* hash)
 
 int wc_Md2Hash(const byte* data, word32 len, byte* hash)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Md2* md2;
-#else
-    wc_Md2 md2[1];
-#endif
+    WC_DECLARE_VAR(md2, wc_Md2, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    md2 = (wc_Md2*)XMALLOC(sizeof(wc_Md2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (md2 == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(md2, wc_Md2, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     wc_InitMd2(md2);
     wc_Md2Update(md2, data, len);
     wc_Md2Final(md2, hash);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(md2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(md2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
