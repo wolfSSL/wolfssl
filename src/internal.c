@@ -32307,6 +32307,8 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             else {
                 SendAlert(ssl, alert_fatal, illegal_parameter);
             }
+#else
+            (void)ret;
 #endif
             return ECC_PEERKEY_ERROR;
         }
@@ -32349,6 +32351,8 @@ static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
             else {
                 SendAlert(ssl, alert_fatal, illegal_parameter);
             }
+#else
+            (void)ret;
 #endif
             return ECC_PEERKEY_ERROR;
         }
