@@ -5765,7 +5765,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
 #endif
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         return ret;
 #endif
@@ -7170,7 +7170,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     case TLS_ASYNC_DO:
     {
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_CERT_SETUP_CB
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         goto exit_dch;
 #endif
@@ -8676,6 +8676,97 @@ static word32 AddCertExt(WOLFSSL* ssl, byte* cert, word32 len, word16 extSz,
     return i;
 }
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
+static int SetupOcspResp(WOLFSSL* ssl)
+{
+    DecodedCert* cert = NULL;
+    CertificateStatusRequest* csr = NULL;
+    TLSX* extension = NULL;
+    int ret = 0;
+    OcspRequest* request = NULL;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    if (extension == NULL)
+        return 0; /* peer didn't signal ocsp support */
+    csr = extension ?
+        (CertificateStatusRequest*)extension->data : NULL;
+    if (csr == NULL)
+        return MEMORY_ERROR;
+
+    if (SSL_CM(ssl) != NULL &&
+            SSL_CM(ssl)->ocsp_stapling != NULL &&
+            SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
+        return TLSX_CSR_SetResponseWithStatusCB(ssl);
+    }
+
+    if (ssl->buffers.certificate == NULL) {
+        WOLFSSL_MSG("Certificate buffer not set!");
+        return BUFFER_ERROR;
+    }
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                 DYNAMIC_TYPE_DCERT);
+    if (cert == NULL) {
+        return MEMORY_E;
+    }
+    InitDecodedCert(cert, ssl->buffers.certificate->buffer,
+                    ssl->buffers.certificate->length, ssl->heap);
+    ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, SSL_CM(ssl));
+    if (ret != 0) {
+        FreeDecodedCert(cert);
+        XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+        return ret;
+    }
+    ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+    FreeDecodedCert(cert);
+    XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+    if (ret != 0 )
+        return ret;
+
+    request = &csr->request.ocsp[0];
+    ret = CreateOcspResponse(ssl, &request, &csr->responses[0]);
+    if (request != &csr->request.ocsp[0] &&
+            ssl->buffers.weOwnCert) {
+        /* request will be allocated in CreateOcspResponse() */
+        FreeOcspRequest(request);
+        XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
+    if (ret != 0)
+        return ret;
+
+    if (csr->responses[0].buffer)
+        extension->resp = 1;
+#if defined(WOLFSSL_TLS_OCSP_MULTI)
+    /* process OCSP request in certificate chain */
+    if ((ret = ProcessChainOCSPRequest(ssl)) != 0) {
+        WOLFSSL_MSG("Process Cert Chain OCSP request failed");
+        WOLFSSL_ERROR_VERBOSE(ret);
+        return ret;
+    }
+#endif
+    return ret;
+}
+
+WOLFSSL_BUFFER_INFO* wolfSSL_GetTls13OcspStatusResp(const WOLFSSL* ssl,
+        word32 idx)
+{
+    TLSX* extension = NULL;
+    CertificateStatusRequest* csr = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_GetTls13OcspStatusResp");
+
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version) ||
+            idx >= MAX_CERT_EXTENSIONS)
+        return NULL;
+
+    extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
+    if (csr == NULL)
+        return NULL;
+
+    return &csr->responses[idx];
+}
+#endif
+
 /* handle generation TLS v1.3 certificate (11) */
 /* Send the certificate for this end and any CAs that help with validation.
  * This message is always encrypted in TLS v1.3.
@@ -8720,7 +8811,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_SETUP_CB)
     /* call client cert callback if no cert has been loaded */
     if ((ssl->ctx->CBClientCert != NULL) &&
         (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)) {
@@ -8763,6 +8854,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
          * is populated with the server response. We would be sending the server
          * its own stapling data. */
         if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ret = SetupOcspResp(ssl);
+            if (ret != 0)
+                return ret;
+
             ret = WriteCSRToBuffer(ssl, &ssl->buffers.certExts[0], &extSz[0],
                     1 /* +1 for leaf */ + ssl->buffers.certChainCnt);
             if (ret < 0)

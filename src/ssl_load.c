@@ -249,10 +249,8 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = AllocCopyDer(&ssl->buffers.certChain, chainBuffer, len, type,
             heap);
         ssl->buffers.weOwnCertChain = (ret == 0);
-    #ifdef WOLFSSL_TLS13
         /* Update count of certificates in chain. */
         ssl->buffers.certChainCnt = cnt;
-    #endif
     }
     /* Store in SSL context object if available. */
     else if (ctx != NULL) {
@@ -260,10 +258,8 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         FreeDer(&ctx->certChain);
         /* Allocate and copy the buffer into SSL context object. */
         ret = AllocCopyDer(&ctx->certChain, chainBuffer, len, type, heap);
-    #ifdef WOLFSSL_TLS13
         /* Update count of certificates in chain. */
         ctx->certChainCnt = cnt;
-    #endif
     }
 
     return ret;
