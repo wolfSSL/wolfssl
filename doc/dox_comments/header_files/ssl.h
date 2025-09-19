@@ -15259,6 +15259,239 @@ const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
 
 /*!
     \ingroup TLS
+    \brief On the server, this sets a list of CA names to be sent to clients in
+    certificate requests as a hint for which CA's are supported by the server.
+
+    On the client, this function has no effect.
+
+    \param [in] ctx Pointer to the wolfSSL context
+    \param [in] names List of names to be set
+
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
+                                    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names);
+
+/*!
+    \ingroup TLS
+    \brief This retrieves the list previously set via
+     wolfSSL_CTX_set_client_CA_list, or NULL if no list has been set.
+
+    \param [in] ctx Pointer to the wolfSSL context
+    \return A stack of WOLFSSL_X509_NAMEs containing the CA names
+
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+WOLFSSL_STACK *wolfSSL_CTX_get_client_CA_list(
+        const WOLFSSL_CTX *ctx);
+
+/*!
+    \ingroup TLS
+    \brief Same as wolfSSL_CTX_set_client_CA_list, but specific to a session.
+    If a CA list is set on both the context and the session, the list on the
+    session is used.
+
+    \param [in] ssl Pointer to the WOLFSSL object
+    \param [in] names List of names to be set.
+
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
+                                    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names);
+
+/*!
+    \ingroup TLS
+    \brief On the server, this retrieves the list previously set via
+    wolfSSL_set_client_CA_list. If none was set, returns the list previosusly
+    set via wolfSSL_CTX_set_client_CA_list. If no list at all was set, returns
+    NULL.
+
+    On the client, this retrieves the list that was received from the server,
+    or NULL if none was received. wolfSSL_CTX_set_cert_cb can be used to
+    register a callback to dynamically load certificates when a certificate
+    request is received from the server.
+
+    \param [in] ssl Pointer to the WOLFSSL object
+    \return A stack of WOLFSSL_X509_NAMEs containing the CA names
+
+    \sa wolfSSL_CTX_set_cert_cb
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+WOLFSSL_STACK* wolfSSL_get_client_CA_list(
+            const WOLFSSL* ssl);
+
+/*!
+    \ingroup TLS
+    \brief This function sets a list of CA names to be sent to the peer as a
+    hint for which CA's are supported for its authentication.
+
+    In TLS >= 1.3, this is supported in both directions between the client and
+    the server. On the server, the CA names will be sent as part of a
+    CertificateRequest, making this function an equivalent of *_set_client_CA_list;
+    on the client, these are sent as part of ClientHello.
+
+    In TLS < 1.3, sending CA names from the client to the server is not
+    supported, therefore this function is equivalent to
+    wolfSSL_CTX_set_client_CA_list.
+
+    Note that the lists set via *_set_client_CA_list and *_set0_CA_list are
+    separate internally, i.e. calling *_get_client_CA_list will not retrieve a
+    list set via *_set0_CA_list and vice versa. If both are set, the server will
+    ignore *_set0_CA_list when sending CA names to the client.
+
+    \param [in] ctx Pointer to the wolfSSL context
+    \param [in] names List of names to be set
+
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+void wolfSSL_CTX_set0_CA_list(WOLFSSL_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names);
+
+/*!
+    \ingroup TLS
+    \brief This retrieves the list previously set via
+    wolfSSL_CTX_set0_CA_list, or NULL if no list has been set.
+
+    \param [in] ctx Pointer to the wolfSSL context
+    \return A stack of WOLFSSL_X509_NAMEs containing the CA names
+
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+WOLFSSL_STACK *wolfSSL_CTX_get0_CA_list(
+        const WOLFSSL_CTX *ctx);
+
+/*!
+    \ingroup TLS
+    \brief Same as wolfSSL_CTX_set0_CA_list, but specific to a session.
+    If a CA list is set on both the context and the session, the list on the
+    session is used.
+
+    \param [in] ssl Pointer to the WOLFSSL object
+    \param [in] names List of names to be set.
+
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+void wolfSSL_set0_CA_list(WOLFSSL *ssl,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME) *names);
+
+/*!
+    \ingroup TLS
+    \brief This retrieves the list previously set via wolfSSL_set0_CA_list. If
+    none was set, returns the list previosusly set via
+    wolfSSL_CTX_set0_CA_list. If no list at all was set, returns NULL.
+
+    \param [in] ssl Pointer to the WOLFSSL object
+    \return A stack of WOLFSSL_X509_NAMEs containing the CA names
+
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_peer_CA_list
+*/
+WOLFSSL_STACK *wolfSSL_get0_CA_list(
+        const WOLFSSL *ssl);
+
+/*!
+    \ingroup TLS
+    \brief This returns the CA list received from the peer.
+
+    On the client, this is the list sent by the server in a CertificateRequest,
+    and this function is equivalent to wolfSSL_get_client_CA_list.
+
+    On the server, this is the list sent by the client in the ClientHello message
+    in TLS >= 1.3; in TLS < 1.3, the function always returns NULL on the server
+    side.
+
+    wolfSSL_CTX_set_cert_cb can be used to register a callback to dynamically
+    load certificates when a CA list is received from the peer.
+
+    \param [in] ssl Pointer to the WOLFSSL object
+    \return A stack of WOLFSSL_X509_NAMEs containing the CA names
+
+    \sa wolfSSL_CTX_set_cert_cb
+    \sa wolfSSL_CTX_set_client_CA_list
+    \sa wolfSSL_set_client_CA_list
+    \sa wolfSSL_CTX_get_client_CA_list
+    \sa wolfSSL_get_client_CA_list
+    \sa wolfSSL_CTX_set0_CA_list
+    \sa wolfSSL_set0_CA_list
+    \sa wolfSSL_CTX_get0_CA_list
+    \sa wolfSSL_get0_CA_list
+*/
+WOLFSSL_STACK *wolfSSL_get0_peer_CA_list(const WOLFSSL *ssl);
+
+/*!
+    \ingroup TLS
+    \brief This function sets a callback that will be called whenever a
+    certificate is about to be used, to allow the application to inspect, set
+    or clear any certificates, for example to react to a CA list sent from the
+    peer.
+
+    \param [in] ctx Pointer to the wolfSSL context
+    \param [in] cb Function pointer to the callback
+    \param [in] arg Pointer that will be passed to the callback
+
+    \sa wolfSSL_get0_peer_CA_list
+    \sa wolfSSL_get_client_CA_list
+*/
+void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
+    int (*cb)(WOLFSSL *, void *), void *arg);
+
+/*!
+    \ingroup TLS
 
     \brief This function returns the raw list of ciphersuites and signature
     algorithms offered by the client. The lists are only stored and returned

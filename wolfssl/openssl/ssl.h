@@ -1044,6 +1044,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_get_client_CA_list      wolfSSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
+#define SSL_CTX_get0_CA_list            wolfSSL_CTX_get0_CA_list
+#define SSL_CTX_set0_CA_list            wolfSSL_CTX_set0_CA_list
 #define SSL_CTX_set_client_cert_cb      wolfSSL_CTX_set_client_cert_cb
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
 #ifdef OPENSSL_ALL
@@ -1054,6 +1056,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((x))
 #define SSL_get_client_CA_list          wolfSSL_get_client_CA_list
 #define SSL_set_client_CA_list          wolfSSL_set_client_CA_list
+#define SSL_get0_CA_list                wolfSSL_get0_CA_list
+#define SSL_set0_CA_list                wolfSSL_set0_CA_list
+#define SSL_get0_peer_CA_list           wolfSSL_get0_peer_CA_list
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
 
@@ -1743,6 +1748,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #ifdef OPENSSL_EXTRA
 #define SSL_CTX_add_client_CA           wolfSSL_CTX_add_client_CA
+#define SSL_add_client_CA               wolfSSL_add_client_CA
+#define SSL_CTX_add1_to_CA_list         wolfSSL_CTX_add1_to_CA_list
+#define SSL_add1_to_CA_list             wolfSSL_add1_to_CA_list
 #define SSL_CTX_set_srp_password        wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username        wolfSSL_CTX_set_srp_username
 #define SSL_CTX_set_srp_strength        wolfSSL_CTX_set_srp_strength
