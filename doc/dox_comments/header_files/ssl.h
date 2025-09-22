@@ -15323,7 +15323,7 @@ void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
 /*!
     \ingroup TLS
     \brief On the server, this retrieves the list previously set via
-    wolfSSL_set_client_CA_list. If none was set, returns the list previosusly
+    wolfSSL_set_client_CA_list. If none was set, returns the list previously
     set via wolfSSL_CTX_set_client_CA_list. If no list at all was set, returns
     NULL.
 
@@ -15426,7 +15426,7 @@ void wolfSSL_set0_CA_list(WOLFSSL *ssl,
 /*!
     \ingroup TLS
     \brief This retrieves the list previously set via wolfSSL_set0_CA_list. If
-    none was set, returns the list previosusly set via
+    none was set, returns the list previously set via
     wolfSSL_CTX_set0_CA_list. If no list at all was set, returns NULL.
 
     \param [in] ssl Pointer to the WOLFSSL object

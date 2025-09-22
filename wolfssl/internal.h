@@ -1098,11 +1098,14 @@
     #define SSL_CA_NAMES(ssl) ((ssl)->ca_names != NULL ? \
         (ssl)->ca_names : \
         (ssl)->ctx->ca_names)
-    /* On the server, client_ca_names has priority over ca_names if both are set */
-    #define SSL_PRIORITY_CA_NAMES(ssl) (((ssl)->options.side == WOLFSSL_SERVER_END && \
+    /* On the server, client_ca_names has priority over ca_names if both are
+     * set. This mimics OpenSSL's API:
+     * https://docs.openssl.org/3.6/man3/SSL_CTX_set0_CA_list/ */
+    #define SSL_PRIORITY_CA_NAMES(ssl) \
+        (((ssl)->options.side == WOLFSSL_SERVER_END && \
         SSL_CLIENT_CA_NAMES(ssl) != NULL) ? \
-        SSL_CLIENT_CA_NAMES(ssl) : \
-        SSL_CA_NAMES(ssl))
+            SSL_CLIENT_CA_NAMES(ssl) : \
+            SSL_CA_NAMES(ssl))
 #else
     #undef  WOLFSSL_NO_CA_NAMES
     #define WOLFSSL_NO_CA_NAMES

@@ -14717,7 +14717,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 #ifdef WOLFSSL_TLS13
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-        if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (IsAtLeastTLSv1_3(ssl->version) &&
+                SSL_PRIORITY_CA_NAMES(ssl) != NULL) {
             WOLFSSL_MSG("Adding certificate authorities extension");
             if ((ret = TLSX_Push(&ssl->extensions,
                     TLSX_CERTIFICATE_AUTHORITIES, ssl, ssl->heap)) != 0) {

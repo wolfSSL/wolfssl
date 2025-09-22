@@ -12529,8 +12529,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->client_ca_names;
     }
 
-    /* On server side: returns the CA's set via *_set_client_CA_list();
-     * On client side: returns the CA's received from server -- same as
+    /* On server side: returns the CAs set via *_set_client_CA_list();
+     * On client side: returns the CAs received from server -- same as
      * wolfSSL_get0_peer_CA_list() */
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl)

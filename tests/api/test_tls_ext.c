@@ -132,10 +132,9 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
     !defined(NO_CERTS) && !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
-            defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(WOLFSSL_TLS13) || \
-            (!defined(WOLFSSL_NO_TLS12) && (defined(OPENSSL_ALL) || \
-            defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)))) && \
-    !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
+    defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
 struct client_cb_arg {
     WOLF_STACK_OF(X509_NAME) *names1;
     WOLF_STACK_OF(X509_NAME) *names2;
@@ -159,9 +158,9 @@ int test_certificate_authorities_certificate_request(void) {
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
     !defined(NO_CERTS) && !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
-            defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(WOLFSSL_TLS13) || \
-            (!defined(WOLFSSL_NO_TLS12) && (defined(OPENSSL_ALL) || \
-                defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY))))
+    defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
     struct test_params {
         method_provider client_meth;
         method_provider server_meth;
@@ -187,15 +186,32 @@ int test_certificate_authorities_certificate_request(void) {
     size_t i;
 
     for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
-        WOLFSSL_CTX *ctx = NULL;
-        WOLFSSL *ssl = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_srv = NULL;
+        WOLFSSL *ssl_srv = NULL;
+        WOLFSSL_CTX *ctx_cli = NULL;
+        WOLFSSL *ssl_cli = NULL;
         WOLF_STACK_OF(X509_NAME) *names1 = NULL, *names2 = NULL;
         X509_NAME *name = NULL;
+        struct client_cb_arg cb_arg = { NULL, NULL };
 
         if (EXPECT_FAIL())
             break;
 
-        ExpectNotNull(ctx = wolfSSL_CTX_new(params[i].server_meth()));
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+                    &ssl_cli, NULL, params[i].client_meth,
+                    params[i].server_meth));
+
+        wolfSSL_CTX_set_verify(ctx_srv,
+                SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+        ExpectIntEQ(WOLFSSL_SUCCESS,
+                wolfSSL_CTX_load_verify_locations(ctx_srv, cliCertFile, NULL));
+
+        ExpectNotNull(ssl_srv = wolfSSL_new(ctx_srv));
+        wolfSSL_SetIOReadCtx(ssl_srv, &test_ctx);
+        wolfSSL_SetIOWriteCtx(ssl_srv, &test_ctx);
 
         names1 = wolfSSL_load_client_CA_file(cliCertFile);
         ExpectNotNull(names1);
@@ -212,24 +228,17 @@ int test_certificate_authorities_certificate_request(void) {
         ExpectNotNull(names2);
 
         /* Check that client_CA_list and CA_list are separate internally */
-        wolfSSL_CTX_set_client_CA_list(ctx, names1);
-        wolfSSL_CTX_set0_CA_list(ctx, names2);
-        ExpectNotNull(names1 = wolfSSL_CTX_get_client_CA_list(ctx));
-        ExpectNotNull(names2 = wolfSSL_CTX_get0_CA_list(ctx));
+        wolfSSL_CTX_set_client_CA_list(ctx_srv, names1);
+        wolfSSL_CTX_set0_CA_list(ctx_srv, names2);
+        ExpectNotNull(names1 = wolfSSL_CTX_get_client_CA_list(ctx_srv));
+        ExpectNotNull(names2 = wolfSSL_CTX_get0_CA_list(ctx_srv));
         ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(names1));
         ExpectIntEQ(1, wolfSSL_sk_X509_NAME_num(names2));
 
-        /* Create ssl */
-        ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
-                    SSL_FILETYPE_PEM));
-        ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                    SSL_FILETYPE_PEM));
-        ExpectNotNull(ssl = wolfSSL_new(ctx));
-
         /* Check that get_client_CA_list and get0_CA_list on ssl return same as
          * ctx when not set */
-        ExpectNotNull(names1 = wolfSSL_get_client_CA_list(ssl));
-        ExpectNotNull(names2 = wolfSSL_get0_CA_list(ssl));
+        ExpectNotNull(names1 = wolfSSL_get_client_CA_list(ssl_srv));
+        ExpectNotNull(names2 = wolfSSL_get0_CA_list(ssl_srv));
         ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(names1));
         ExpectIntEQ(1, wolfSSL_sk_X509_NAME_num(names2));
 
@@ -248,75 +257,37 @@ int test_certificate_authorities_certificate_request(void) {
         names2 = wolfSSL_load_client_CA_file(caCertFile);
         ExpectNotNull(names2);
 
-        wolfSSL_set_client_CA_list(ssl, names1);
-        wolfSSL_set0_CA_list(ssl, names2);
-        ExpectNotNull(names1 = wolfSSL_get_client_CA_list(ssl));
-        ExpectNotNull(names2 = wolfSSL_get0_CA_list(ssl));
+        wolfSSL_set_client_CA_list(ssl_srv, names1);
+        wolfSSL_set0_CA_list(ssl_srv, names2);
+        ExpectNotNull(names1 = wolfSSL_get_client_CA_list(ssl_srv));
+        ExpectNotNull(names2 = wolfSSL_get0_CA_list(ssl_srv));
         ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(names1));
         ExpectIntEQ(1, wolfSSL_sk_X509_NAME_num(names2));
 
-#if !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
-        {
-            tcp_ready ready;
-            func_args server_args;
-            callback_functions server_cb;
-            THREAD_TYPE server_thread;
-            WOLFSSL *ssl_client = NULL;
-            WOLFSSL_CTX *ctx_client = NULL;
-            SOCKET_T sockfd = 0;
-            struct client_cb_arg client_cb_arg = { NULL, NULL };
 
-            StartTCP();
-            InitTcpReady(&ready);
-            XMEMSET(&server_args, 0, sizeof(func_args));
-            XMEMSET(&server_cb, 0, sizeof(callback_functions));
+        /* Certs will be loaded in callback */
+        wolfSSL_CTX_set_cert_cb(ctx_cli,
+                certificate_authorities_client_cb, &cb_arg);
 
-            server_args.signal = &ready;
-            server_args.callbacks = &server_cb;
+        ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
 
-            server_cb.ctx = ctx;
-            server_cb.isSharedCtx = 1;
-            server_cb.doUdp = params[i].doUdp;
+        ExpectNotNull(cb_arg.names1);
+        ExpectNotNull(cb_arg.names2);
+        ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(cb_arg.names1));
+        ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(cb_arg.names2));
 
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx,
-                        cliCertFile, NULL));
-
-            start_thread(test_server_nofail, &server_args, &server_thread);
-
-            ExpectNotNull(ctx_client = wolfSSL_CTX_new(
-                        params[i].client_meth()));
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(
-                        ctx_client, caCertFile, NULL));
-            /* Certs will be loaded in callback */
-            wolfSSL_CTX_set_cert_cb(ctx_client,
-                    certificate_authorities_client_cb, &client_cb_arg);
-
-            ExpectNotNull(ssl_client = wolfSSL_new(ctx_client));
-
-            wait_tcp_ready(&server_args);
-            tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port,
-                    params[i].doUdp, 0, ssl_client);
-
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl_client, sockfd));
-            ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_connect(ssl_client));
-
-            ExpectNotNull(client_cb_arg.names1);
-            ExpectNotNull(client_cb_arg.names2);
-            ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(client_cb_arg.names1));
-            ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(client_cb_arg.names2));
-
-            wolfSSL_shutdown(ssl_client);
-            wolfSSL_free(ssl_client);
-            wolfSSL_CTX_free(ctx_client);
-
-            CloseSocket(sockfd);
-
-            join_thread(server_thread);
-            FreeTcpReady(&ready);
+        if (EXPECT_SUCCESS()) {
+            ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg.names1, 0)->name,
+                    wolfSSL_sk_X509_NAME_value(names1, 0)->name);
+            ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg.names1, 1)->name,
+                    wolfSSL_sk_X509_NAME_value(names1, 1)->name);
         }
-#endif
-        wolfSSL_free(ssl);
-        wolfSSL_CTX_free(ctx);
+
+        wolfSSL_shutdown(ssl_cli);
+        wolfSSL_free(ssl_cli);
+        wolfSSL_CTX_free(ctx_cli);
+        wolfSSL_free(ssl_srv);
+        wolfSSL_CTX_free(ctx_srv);
     }
 #endif
     return EXPECT_RESULT();
@@ -325,13 +296,13 @@ int test_certificate_authorities_certificate_request(void) {
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
-    !defined(NO_CERTS) && defined(WOLFSSL_TLS13) && (defined(OPENSSL_EXTRA) || \
-            defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
+    !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && defined(WOLFSSL_TLS13)
 static int certificate_authorities_server_cb(WOLFSSL *ssl, void *_arg) {
-    int *names_num = (int *)_arg;
+    WOLF_STACK_OF(X509_NAME) **names_out = (WOLF_STACK_OF(X509_NAME) **)_arg;
     WOLF_STACK_OF(X509_NAME) *names = wolfSSL_get0_peer_CA_list(ssl);
-    *names_num = wolfSSL_sk_X509_NAME_num(names);
+    *names_out = names;
     if (!wolfSSL_use_certificate_file(ssl, svrCertFile, SSL_FILETYPE_PEM))
         return 0;
     if (!wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, SSL_FILETYPE_PEM))
@@ -344,9 +315,9 @@ int test_certificate_authorities_client_hello(void) {
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
-    !defined(NO_CERTS) && defined(WOLFSSL_TLS13) && (defined(OPENSSL_EXTRA) || \
-            defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    !defined(SINGLE_THREADED) && defined(SESSION_CERTS)
+    !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && defined(WOLFSSL_TLS13)
 
     struct test_params {
         method_provider client_meth;
@@ -364,50 +335,26 @@ int test_certificate_authorities_client_hello(void) {
     size_t i;
 
     for (i = 0; i < sizeof(params) / sizeof(*params); i++) {
-        WOLFSSL_CTX *ctx = NULL;
-        int server_cb_arg;
-        tcp_ready ready;
-        func_args server_args;
-        callback_functions server_cb;
-        THREAD_TYPE server_thread;
-        WOLFSSL *ssl_client = NULL;
-        WOLFSSL_CTX *ctx_client = NULL;
-        SOCKET_T sockfd = 0;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_srv = NULL;
+        WOLFSSL *ssl_srv = NULL;
+        WOLFSSL_CTX *ctx_cli = NULL;
+        WOLFSSL *ssl_cli = NULL;
+        WOLF_STACK_OF(X509_NAME) *cb_arg = NULL;
         WOLF_STACK_OF(X509_NAME) *names1 = NULL, *names2 = NULL;
         X509_NAME *name = NULL;
 
         if (EXPECT_FAIL())
             break;
 
-        ExpectNotNull(ctx = wolfSSL_CTX_new(params[i].server_meth()));
-        wolfSSL_CTX_set_cert_cb(ctx, certificate_authorities_server_cb,
-                &server_cb_arg);
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
-        StartTCP();
-        InitTcpReady(&ready);
-        XMEMSET(&server_args, 0, sizeof(func_args));
-        XMEMSET(&server_cb, 0, sizeof(callback_functions));
+        ExpectIntEQ(0, test_memio_setup(&test_ctx, &ctx_cli, &ctx_srv,
+                    &ssl_cli, &ssl_srv, params[i].client_meth,
+                    params[i].server_meth));
 
-        server_args.signal = &ready;
-        server_args.callbacks = &server_cb;
-
-        server_cb.ctx = ctx;
-        server_cb.isSharedCtx = 1;
-        server_cb.doUdp = params[i].doUdp;
-
-        start_thread(test_server_nofail, &server_args, &server_thread);
-
-        ExpectNotNull(ctx_client = wolfSSL_CTX_new(
-                    params[i].client_meth()));
-        ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(
-                    ctx_client, caCertFile, NULL));
-
-        ExpectNotNull(ssl_client = wolfSSL_new(ctx_client));
-
-        AssertTrue(wolfSSL_use_certificate_file(ssl_client, cliCertFile,
-                SSL_FILETYPE_PEM));
-        AssertTrue(wolfSSL_use_PrivateKey_file(ssl_client, cliKeyFile,
-                SSL_FILETYPE_PEM));
+        wolfSSL_CTX_set_cert_cb(ctx_srv, certificate_authorities_server_cb,
+                &cb_arg);
 
         names1 = wolfSSL_load_client_CA_file(caCertFile);
         ExpectNotNull(names1);
@@ -424,26 +371,25 @@ int test_certificate_authorities_client_hello(void) {
         ExpectNotNull(names2);
 
         /* verify that set0_CA_list takes precedence */
-        wolfSSL_set0_CA_list(ssl_client, names1);
-        wolfSSL_CTX_set0_CA_list(ctx_client, names2);
+        wolfSSL_set0_CA_list(ssl_cli, names1);
+        wolfSSL_CTX_set0_CA_list(ctx_cli, names2);
 
-        wait_tcp_ready(&server_args);
-        tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port,
-                params[i].doUdp, 0, ssl_client);
+        ExpectIntEQ(0, test_memio_do_handshake(ssl_cli, ssl_srv, 10, NULL));
 
-        ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl_client, sockfd));
-        ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_connect(ssl_client));
+        ExpectIntEQ(wolfSSL_sk_X509_NAME_num(cb_arg), 2);
 
-        wolfSSL_shutdown(ssl_client);
-        wolfSSL_free(ssl_client);
-        wolfSSL_CTX_free(ctx_client);
+        if (EXPECT_SUCCESS()) {
+            ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg, 0)->name,
+                    wolfSSL_sk_X509_NAME_value(names1, 0)->name);
+            ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg, 1)->name,
+                    wolfSSL_sk_X509_NAME_value(names1, 1)->name);
+        }
 
-        CloseSocket(sockfd);
-
-        join_thread(server_thread);
-        FreeTcpReady(&ready);
-        ExpectIntEQ(2, server_cb_arg);
-        wolfSSL_CTX_free(ctx);
+        wolfSSL_shutdown(ssl_cli);
+        wolfSSL_free(ssl_cli);
+        wolfSSL_CTX_free(ctx_cli);
+        wolfSSL_free(ssl_srv);
+        wolfSSL_CTX_free(ctx_srv);
     }
 #endif
     return EXPECT_RESULT();
