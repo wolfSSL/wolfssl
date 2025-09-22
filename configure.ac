@@ -48,9 +48,7 @@ AC_SUBST([WOLFSSL_CONFIG_ARGS])
 
 # Store configure options and CFLAGS for debian rules generation
 CONFIGURE_OPTIONS="$ac_configure_args"
-CONFIGURE_CFLAGS="$CFLAGS"
 AC_SUBST([CONFIGURE_OPTIONS])
-AC_SUBST([CONFIGURE_CFLAGS])
 
 # shared library versioning
 # The three numbers in the libwolfssl.so.*.*.* file name. Unfortunately
