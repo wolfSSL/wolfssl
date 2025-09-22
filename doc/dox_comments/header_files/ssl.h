@@ -5466,7 +5466,8 @@ void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx, CertSetupCallback cb, void *arg);
 
     This function allows the application to register a callback that will be invoked
     when an OCSP status request is received during the TLS handshake. The callback
-    can provide an OCSP response to be stapled to the handshake.
+    can provide an OCSP response to be stapled to the handshake. This API is only
+    useful on the server side.
 
     \param ctx The WOLFSSL_CTX object.
     \param cb  The callback function to handle OCSP status requests.
