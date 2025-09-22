@@ -6201,7 +6201,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         if (ret != 0)
             return ret;
         if (binderLen != current->binderLen ||
-                             XMEMCMP(binder, current->binder, binderLen) != 0) {
+                             ConstantCompare(binder, current->binder,
+                                binderLen) != 0) {
             WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
             return BAD_BINDER;
         }
