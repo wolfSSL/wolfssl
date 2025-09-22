@@ -1387,6 +1387,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 #elif defined(STM32_HASH_SHA512)
+#elif defined(WOLFSSL_SILABS_SHA512)
 #else
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
