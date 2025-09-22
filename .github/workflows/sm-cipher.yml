@@ -1,0 +1,194 @@
+name: SM Cipher Test (1 of 2)
+#
+# Test fetches wolfssl-examples/Arduino and uses local, latest github master branch wolfssl
+#
+# These 4 workflows across 3 repos are interdependent for the current $REPO_OWNER:
+#
+# THIS sm-cipher CI Build 1: https://github.com/$REPO_OWNER/wolfssl  #  /.github/workflows/sm-cipher.yml
+#   - Builds SM-enabled library from local clone of wolfssl master branch
+#   - Fetches examples from https://github.com/$REPO_OWNER/wolfsm
+#
+# sm-cipher CI Build 2: https://github.com/$REPO_OWNER/wolfsm        #  /.github/workflows/sm-cipher.yml
+#   - Builds SM-enabled library from fresh clone of wolfssl master branch here
+#
+#                                   ** NOTE TO MAINTAINERS **
+#
+#           Consider using winmerge or similar tool to keep the 2 sm-cipher.yml files in relative sync.
+#           Although there are some specific differences, most of the contents are otherwise identical.
+#
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ '**', 'master', 'main', 'release/**' ]
+    paths:
+      - '.github/workflows/sm-cipher.yml'
+      - './**'
+  pull_request:
+    # Run after merge on protected branches
+    branches: [ "main", "master", "release/**" ]
+    paths:
+      - '.github/workflows/sm-cipher.yml'
+      - './**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set job environment variables
+        run: |
+          # Script to assign some common environment variables after everything is installed
+
+          ICON_OK=$(printf "\xE2\x9C\x85")
+          ICON_FAIL=$(printf "\xE2\x9D\x8C")
+
+          # Show predefined summary:
+
+          # For the wolfssl repo, the GITHUB_WORKSPACE is the directory of wolfssl
+          echo "GITHUB_WORKSPACE       = $GITHUB_WORKSPACE"
+
+          # Show assigned build:env values (e.g. "wolfssl", "gojimmpi" or other owners):
+          echo "REPO_OWNER             = $REPO_OWNER"
+
+          # Update environment variables, not available here in this step yet
+          echo "GITHUB_WORK=$(realpath  "$GITHUB_WORKSPACE/../..")"       >> "$GITHUB_ENV"
+          echo "WOLFSM_ROOT=$(realpath  "$GITHUB_WORKSPACE/../wolfsm")"   >> "$GITHUB_ENV"
+          echo "WOLFSSL_ROOT=$(realpath "$GITHUB_WORKSPACE/../wolfssl")"  >> "$GITHUB_ENV"
+
+          echo "GITHUB_ENV=$GITHUB_ENV"
+
+          git status
+
+          echo "contents..."
+          # typically "/home/runner/work/wolfssl/wolfssl" contains wolfssl source
+          pwd
+          ls
+          # ** END ** Set job environment variables
+
+      - name: Get wolfsm
+        run: |
+          # We are in wolfssl repo, fetch SM code from the wolfsm repo
+
+          # Show our custom values:
+          echo "GITHUB_WORK            = $GITHUB_WORK"
+
+          # WOLFSM_ROOT is the repo root for wolfsm clone
+          echo "WOLFSM_ROOT            = $WOLFSM_ROOT"
+
+          echo "Start pwd:"
+          pwd
+          # we're typically in $GITHUB_WORKSPACE=/home/runner/work/wolfssl/wolfssl
+          # goto /home/runner/work to fetch wolfsm
+
+          echo "Current pwd for wolfsm clone fetch: $(pwd)"
+          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+
+
+          pushd ../
+            echo "Updated pwd for wolfsm clone fetch: $(pwd)"
+
+            echo "clone --depth 1 https://github.com/$REPO_OWNER/wolfsm.git wolfsm"
+
+            git   clone --depth 1 https://github.com/$REPO_OWNER/wolfsm.git wolfsm
+
+            cd ./wolfsm
+            echo "Contents of this path for wolfsm = $(pwd)"
+            ls
+          popd
+
+          # ** END ** Get wolfsm
+
+      - name: Install wolfsm
+        run: |
+          # Run the local install.sh install script to install wolfsm code
+
+          echo "Current pwd for wolfsm clone fetch: $(pwd)"
+          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+
+          # Typically /home/runner/work
+          echo "GITHUB_WORK=$GITHUB_WORK"
+          pwd
+          echo "pushd $WOLFSM_ROOT"
+          pushd "$WOLFSM_ROOT"
+            pwd
+            ls
+
+            echo "wolfssl check"
+            ls ../wolfssl
+
+            echo "Call wolfsm/install.sh to install wolfsm code into $WOLFSSL_ROOT"
+            ./install.sh "$WOLFSSL_ROOT"
+          popd
+
+          echo "contents..."
+          pwd
+          ls
+
+          # ** END ** Install wolfsm
+
+      - name: Compile wolfssl
+        run: |
+          # Compile fresh wolfSSL with wolfsm code
+
+          # We're already in $WOLFSSL_ROOT
+          echo "Current directory:           $PWD"
+
+          ./autogen.sh
+          ./configure --enable-sm3 --enable-sm4-ecb --enable-sm4-cbc --enable-sm4-ctr --enable-sm4-gcm --enable-sm4-ccm --enable-sm2
+          make
+
+          # ** END ** Compile wolfssl
+
+      - name: make check
+        run: |
+          # make check
+
+          # We're already in $WOLFSSL_ROOT
+          echo "Current directory:           $PWD"
+
+          make check
+
+          # ** END ** make check
+
+      - name: Unit test
+        run: |
+          # Run unit.test ./tests/test-sm2.conf
+
+          # We're already in $WOLFSSL_ROOT
+          echo "Current directory:           $PWD"
+
+          echo "looking for test-sm2.conf"
+          ls ./tests/test-sm2.conf
+
+          echo "Run unit test: ./tests/unit.test ./tests/test-sm2.conf"
+          ./tests/unit.test ./tests/test-sm2.conf
+
+          # ** END ** Unit test
+
+      - name: Run SM benchmark
+        shell: bash
+        run: |
+          # Run benchmark from cloned wolfssl directory
+
+          # We're already in $WOLFSSL_ROOT
+          echo "Current directory:           $PWD"
+
+          set -euo pipefail
+
+          ./wolfcrypt/benchmark/benchmark
+
+          # ** END ** un SM benchmark
