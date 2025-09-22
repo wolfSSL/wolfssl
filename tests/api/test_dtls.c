@@ -1503,7 +1503,7 @@ int test_dtls_bogus_finished_epoch_zero(void)
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
-    /* setting up dtls 1.2 contexts with psk */
+    /* setting up dtls 1.2 contexts */
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
 
