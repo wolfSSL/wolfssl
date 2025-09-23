@@ -473,11 +473,7 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
 
 int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int *v = NULL;
-#else
-    mp_int v[1];
-#endif
+    WC_DECLARE_VAR(v, mp_int, 1, 0);
     int r;
 
     if (!srp || !verifier || !size || srp->side != SRP_CLIENT_SIDE)
@@ -501,9 +497,7 @@ int wc_SrpGetVerifier(Srp* srp, byte* verifier, word32* size)
     if (!r) *size = (word32)mp_unsigned_bin_size(v);
 
     mp_clear(v);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(v, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(v, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
 }
@@ -518,11 +512,7 @@ int wc_SrpSetVerifier(Srp* srp, const byte* verifier, word32 size)
 
 int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int *p = NULL;
-#else
-    mp_int p[1];
-#endif
+    WC_DECLARE_VAR(p, mp_int, 1, 0);
     int r;
 
     if (!srp || !priv || !size)
@@ -544,9 +534,7 @@ int wc_SrpSetPrivate(Srp* srp, const byte* priv, word32 size)
     if (!r) r = mp_iszero(&srp->priv) == MP_YES ? SRP_BAD_KEY_E : 0;
 
     mp_clear(p);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(p, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(p, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
 }
@@ -566,11 +554,7 @@ static int wc_SrpGenPrivate(Srp* srp, byte* priv, word32 size)
 
 int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int *pubkey = NULL;
-#else
-    mp_int pubkey[1];
-#endif
+    WC_DECLARE_VAR(pubkey, mp_int, 1, 0);
     word32 modulusSz;
     int r;
     int hashSize;
@@ -649,9 +633,7 @@ int wc_SrpGetPublic(Srp* srp, byte* pub, word32* size)
     if (!r) *size = (word32)mp_unsigned_bin_size(pubkey);
 
     mp_clear(pubkey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pubkey, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(pubkey, srp->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return r;
 }

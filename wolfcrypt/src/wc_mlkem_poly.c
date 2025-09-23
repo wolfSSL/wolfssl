@@ -2369,10 +2369,8 @@ static int mlkem_gen_matrix_k2_avx2(sword16* a, byte* seed, int transposed)
             p, XOF_BLOCK_SIZE);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -2525,10 +2523,8 @@ static int mlkem_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
             XOF_BLOCK_SIZE);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -2637,10 +2633,8 @@ static int mlkem_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
         a += 4 * MLKEM_N;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4208,17 +4202,10 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
     sword16* vec2, sword16* poly, byte* seed)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte *rand;
-#else
-    byte rand[4 * PRF_RAND_SZ];
-#endif
+    WC_DECLARE_VAR(rand, byte, 4 * PRF_RAND_SZ, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    rand = (byte*)XMALLOC(4 * PRF_RAND_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (rand == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(rand, byte, 4*PRF_RAND_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     mlkem_get_noise_x4_eta3_avx2(rand, seed);
     mlkem_cbd_eta3_avx2(vec1          , rand + 0 * PRF_RAND_SZ);
@@ -4235,9 +4222,7 @@ static int mlkem_get_noise_k2_avx2(MLKEM_PRF_T* prf, sword16* vec1,
         ret = mlkem_get_noise_eta2_avx2(prf, poly, seed);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
