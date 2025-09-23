@@ -66,6 +66,9 @@ set(WOLFSSL_DEFINITIONS)
 set(WOLFSSL_LINK_LIBS)
 set(WOLFSSL_INCLUDE_DIRS)
 
+# Initialize pkg-config private variables
+set(PC_LIBS_PRIVATE "")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
@@ -2968,6 +2971,16 @@ if(WOLFSSL_INSTALL)
             set(LIBM)
         endif()
     endif()
+
+    # Add required frameworks for static linking on Apple platforms
+    if(APPLE AND NOT BUILD_SHARED_LIBS)
+        if(WOLFSSL_SYS_CA_CERTS)
+            list(APPEND PC_LIBS_PRIVATE "-framework CoreFoundation" "-framework Security")
+        endif()
+    endif()
+
+    # Convert lists to space-separated strings for pkg-config
+    string(JOIN " " PC_LIBS_PRIVATE ${PC_LIBS_PRIVATE})
 
     configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
