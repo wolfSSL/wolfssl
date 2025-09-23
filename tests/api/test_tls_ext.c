@@ -194,6 +194,12 @@ int test_certificate_authorities_certificate_request(void) {
         WOLF_STACK_OF(X509_NAME) *names1 = NULL, *names2 = NULL;
         X509_NAME *name = NULL;
         struct client_cb_arg cb_arg = { NULL, NULL };
+        const char *expected_names[] = {
+            "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048"
+                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com",
+            "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting"
+                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+        };
 
         if (EXPECT_FAIL())
             break;
@@ -278,9 +284,9 @@ int test_certificate_authorities_certificate_request(void) {
 
         if (EXPECT_SUCCESS()) {
             ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg.names1, 0)->name,
-                    wolfSSL_sk_X509_NAME_value(names1, 0)->name);
+                    expected_names[0]);
             ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg.names1, 1)->name,
-                    wolfSSL_sk_X509_NAME_value(names1, 1)->name);
+                    expected_names[1]);
         }
 
         wolfSSL_shutdown(ssl_cli);
@@ -343,6 +349,12 @@ int test_certificate_authorities_client_hello(void) {
         WOLF_STACK_OF(X509_NAME) *cb_arg = NULL;
         WOLF_STACK_OF(X509_NAME) *names1 = NULL, *names2 = NULL;
         X509_NAME *name = NULL;
+        const char *expected_names[] = {
+            "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting"
+                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com",
+            "/C=US/ST=Montana/L=Bozeman/O=wolfSSL_2048/OU=Programming-2048"
+                "/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+        };
 
         if (EXPECT_FAIL())
             break;
@@ -380,9 +392,9 @@ int test_certificate_authorities_client_hello(void) {
 
         if (EXPECT_SUCCESS()) {
             ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg, 0)->name,
-                    wolfSSL_sk_X509_NAME_value(names1, 0)->name);
+                    expected_names[0]);
             ExpectStrEQ(wolfSSL_sk_X509_NAME_value(cb_arg, 1)->name,
-                    wolfSSL_sk_X509_NAME_value(names1, 1)->name);
+                    expected_names[1]);
         }
 
         wolfSSL_shutdown(ssl_cli);

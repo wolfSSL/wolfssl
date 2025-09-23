@@ -12632,14 +12632,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_MSG("Bad argument");
             return WOLFSSL_FAILURE;
         }
-        if (SSL_CLIENT_CA_NAMES(ssl) == NULL) {
+        if (ssl->client_ca_names == NULL) {
             ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
             if (ssl->client_ca_names == NULL) {
                 WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
                 return WOLFSSL_FAILURE;
             }
         }
-        return add_to_CA_list(SSL_CLIENT_CA_NAMES(ssl), x509);
+        return add_to_CA_list(ssl->client_ca_names, x509);
     }
 
     int wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
@@ -12666,14 +12666,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_MSG("Bad argument");
             return WOLFSSL_FAILURE;
         }
-        if (SSL_CA_NAMES(ssl) == NULL) {
+        if (ssl->ca_names == NULL) {
             ssl->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
             if (ssl->ca_names == NULL) {
                 WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
                 return WOLFSSL_FAILURE;
             }
         }
-        return add_to_CA_list(SSL_CA_NAMES(ssl), x509);
+        return add_to_CA_list(ssl->ca_names, x509);
     }
     #endif /* !NO_CERTS */
 
