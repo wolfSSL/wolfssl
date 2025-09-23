@@ -401,7 +401,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         goto out;
     }
 
-    if (dst_len <= 0 || (long int)dst_space < dst_len) {
+    if (dst_len < 0 || (long int)dst_space < dst_len) {
         ret = BUFFER_E;
         goto out;
     }
