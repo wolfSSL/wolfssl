@@ -3970,7 +3970,7 @@ time_t stm32_hal_time(time_t *t1)
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-char* mystrnstr(const char* s1, const char* s2, unsigned int n)
+char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 {
     unsigned int s2_len = (unsigned int)XSTRLEN(s2);
 

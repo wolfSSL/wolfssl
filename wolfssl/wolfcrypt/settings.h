@@ -1356,7 +1356,7 @@
     #define XSTRLEN(s1)            uStrlen((s1))
     #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
     #define XSTRSTR(s1,s2)         strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n)      wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
     #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
