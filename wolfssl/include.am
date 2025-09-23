@@ -18,6 +18,7 @@ nobase_include_HEADERS+= \
                          wolfssl/sniffer.h \
                          wolfssl/callbacks.h \
                          wolfssl/certs_test.h \
+                         wolfssl/certs_test_sm.h \
                          wolfssl/test.h \
                          wolfssl/version.h \
                          wolfssl/ocsp.h \
