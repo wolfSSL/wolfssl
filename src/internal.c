@@ -16051,8 +16051,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 /* Do verify callback. Don't call it on error as the callback
                  * will still be called later. */
-                if (ret != 0)
-                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                if (ret != 0) {
+                    args->leafVerifyErr = ret =
+                            DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+                }
 
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
@@ -16941,8 +16943,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #endif /* defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS) */
 
-            /* Do verify callback */
-            ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+            /* Do leaf verify callback when it wasn't called yet */
+            if (ret == 0 || ret != args->leafVerifyErr)
+                ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
 
             if (ssl->options.verifyNone &&
                               (ret == WC_NO_ERR_TRACE(CRL_MISSING) ||

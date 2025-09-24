@@ -2764,6 +2764,7 @@ typedef struct ProcPeerCertArgs {
     int    count;
     int    certIdx;
     int    lastErr;
+    int    leafVerifyErr;
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
