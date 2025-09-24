@@ -6242,68 +6242,43 @@ static int X509_ACERT_print_name_entry(WOLFSSL_BIO* bio,
 
         if (entry->type == ASN_DNS_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "DNS:%s", entry->name);
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         else if (entry->type == ASN_IP_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
                     entry->ipString);
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
     #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
         else if (entry->type == ASN_RFC822_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "email:%s",
                     entry->name);
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
         else if (entry->type == ASN_DIR_TYPE) {
             len = X509PrintDirType(scratch, MAX_WIDTH, entry);
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
         else if (entry->type == ASN_URI_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
                 entry->name);
-             if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
     #if defined(OPENSSL_ALL)
         else if (entry->type == ASN_RID_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
                 entry->ridString);
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
     #endif
         else if (entry->type == ASN_OTHER_TYPE) {
             len = XSNPRINTF(scratch, MAX_WIDTH,
                 "othername <unsupported>");
-            if (len >= MAX_WIDTH) {
-                ret = WOLFSSL_FAILURE;
-                break;
-            }
         }
         else {
             WOLFSSL_MSG("Bad alt name type.");
             ret = WOLFSSL_FAILURE;
             break;
         }
-
+        if (len >= MAX_WIDTH) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
         if (wolfSSL_BIO_write(bio, scratch, (int)XSTRLEN(scratch))
                 <= 0) {
             ret = WOLFSSL_FAILURE;
@@ -6323,123 +6298,11 @@ static int X509_ACERT_print_name_entry(WOLFSSL_BIO* bio,
 #endif /* if WOLFSSL_ACERT*/
 
 static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
-        int indent)
+                                int indent)
 {
-    int ret = WOLFSSL_SUCCESS;
-    DNS_entry* entry;
-
-    if (bio == NULL || x509 == NULL) {
-        ret = WOLFSSL_FAILURE;
-    }
-
-    if (ret == WOLFSSL_SUCCESS && x509->subjAltNameSet &&
-            x509->altNames != NULL) {
-        char scratch[MAX_WIDTH];
-        int len;
-
-        len = XSNPRINTF(scratch, MAX_WIDTH, "%*s", indent, "");
-        if (len >= MAX_WIDTH)
-            ret = WOLFSSL_FAILURE;
-        if (ret == WOLFSSL_SUCCESS) {
-            if (wolfSSL_BIO_write(bio, scratch, (int)XSTRLEN(scratch)) <= 0) {
-                ret = WOLFSSL_FAILURE;
-            }
-        }
-        if (ret == WOLFSSL_SUCCESS) {
-            int nameCount = 0;
-
-            entry = x509->altNames;
-            while (entry != NULL) {
-                ++nameCount;
-                if (nameCount > 1) {
-                    if (wolfSSL_BIO_write(bio, ", ", 2) <= 0) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-
-                if (entry->type == ASN_DNS_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH, "DNS:%s", entry->name);
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-            #ifdef WOLFSSL_IP_ALT_NAME
-                else if (entry->type == ASN_IP_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
-                            entry->ipString);
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-            #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
-                else if (entry->type == ASN_RFC822_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH, "email:%s",
-                            entry->name);
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-                else if (entry->type == ASN_DIR_TYPE) {
-                    /* @TODO entry->name in ASN1 syntax */
-                    len = XSNPRINTF(scratch, MAX_WIDTH,
-                        "DirName:<print out not supported yet>");
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-                else if (entry->type == ASN_URI_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH, "URI:%s",
-                        entry->name);
-                     if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-            #if defined(OPENSSL_ALL)
-                else if (entry->type == ASN_RID_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH, "Registered ID:%s",
-                        entry->ridString);
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-            #endif
-                else if (entry->type == ASN_OTHER_TYPE) {
-                    len = XSNPRINTF(scratch, MAX_WIDTH,
-                        "othername <unsupported>");
-                    if (len >= MAX_WIDTH) {
-                        ret = WOLFSSL_FAILURE;
-                        break;
-                    }
-                }
-                else {
-                    WOLFSSL_MSG("Bad alt name type.");
-                    ret = WOLFSSL_FAILURE;
-                    break;
-                }
-
-                if (wolfSSL_BIO_write(bio, scratch, (int)XSTRLEN(scratch))
-                        <= 0) {
-                    ret = WOLFSSL_FAILURE;
-                    break;
-                }
-
-                entry = entry->next;
-            }
-        }
-
-        if (ret == WOLFSSL_SUCCESS && wolfSSL_BIO_write(bio, "\n", 1) <= 0) {
-            ret = WOLFSSL_FAILURE;
-        }
-    }
-
-    return ret;
+    if (!x509 || !x509->altNames || !x509->subjAltNameSet)
+        return WOLFSSL_FAILURE;
+    return X509_ACERT_print_name_entry(bio, x509->altNames, indent);
 }
 
 #ifdef XSNPRINTF
