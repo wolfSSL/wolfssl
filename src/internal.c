@@ -11180,8 +11180,10 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         return BUFFER_E;
     if (! WC_SAFE_SUM_WORD32(newSz, (word32)size, newSz))
         return BUFFER_E;
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     if (! WC_SAFE_SUM_WORD32(newSz, align, newSz))
         return BUFFER_E;
+#endif
     tmp = (byte*)XMALLOC(newSz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     newSz -= align;
     WOLFSSL_MSG("growing output buffer");
