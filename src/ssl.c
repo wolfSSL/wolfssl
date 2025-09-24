@@ -22972,7 +22972,7 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
     return WOLFSSL_SUCCESS;
 }
 
-void wolfSSL_CTX_set_tls12_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
+void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
         ocspVerifyStatusCb cb, void* cbArg)
 {
     if (ctx != NULL) {

@@ -15686,14 +15686,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif
                     }
 
-                    if (ret == 0) {
                 #ifdef HAVE_OCSP
+                    {
+                        /* If we are processing OCSP staples then always
+                         * initialize the corresponding request. */
+                        int ocspRet = 0;
                     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                         addToPendingCAs = 0;
                         if (ssl->options.side == WOLFSSL_CLIENT_END &&
                             ssl->status_request_v2 &&
                             TLSX_CSR2_IsMulti(ssl->extensions)) {
-                            ret = TLSX_CSR2_InitRequests(ssl->extensions,
+                            ocspRet = TLSX_CSR2_InitRequests(ssl->extensions,
                                                     args->dCert, 0, ssl->heap);
                             addToPendingCAs = 1;
                         }
@@ -15707,12 +15710,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                              * Server. Server side will check client
                              * certificates by traditional OCSP if enabled
                              */
-                            ret = TLSX_CSR_InitRequest_ex(ssl->extensions,
+                            ocspRet = TLSX_CSR_InitRequest_ex(ssl->extensions,
                                     args->dCert, ssl->heap, args->certIdx);
                         }
                         else
                     #endif
-                        if (SSL_CM(ssl)->ocspEnabled &&
+                        if (ret == 0 && SSL_CM(ssl)->ocspEnabled &&
                                             SSL_CM(ssl)->ocspCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
                             ret = CheckCertOCSP_ex(SSL_CM(ssl)->ocsp,
@@ -15728,8 +15731,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 WOLFSSL_MSG("\tOCSP Lookup not ok");
                             }
                         }
+                        if (ocspRet != 0) {
+                            ret = ocspRet;
+                            WOLFSSL_ERROR_VERBOSE(ret);
+                            goto exit_ppc;
+                        }
+                    }
                 #endif /* HAVE_OCSP */
 
+                    if (ret == 0) {
                 #ifdef HAVE_CRL
                         if (SSL_CM(ssl)->crlEnabled &&
                                 SSL_CM(ssl)->crlCheckAll) {
@@ -16038,6 +16048,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     goto exit_ppc;
             #endif
+
+                /* Do verify callback. Don't call it on error as the callback
+                 * will still be called later. */
+                if (ret != 0)
+                    ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -16129,19 +16145,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     #endif
 
-                    if (ssl->verifyCallback) {
-                        WOLFSSL_MSG(
-                            "\tCallback override available, will continue");
-                        /* check if fatal error */
-                        args->fatal = (args->verifyErr) ? (word16)(1)
-                                                        : (word16)(0);
-                        if (args->fatal)
-                            DoCertFatalAlert(ssl, ret);
-                    }
                     #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
                     /* Disregard failure to verify peer cert, as we will verify
                      * the whole chain with the native API later */
-                    else if (ssl->ctx->doAppleNativeCertValidationFlag) {
+                    if (ssl->ctx->doAppleNativeCertValidationFlag) {
                         WOLFSSL_MSG("\tApple native CA validation override"
                                     " available, will continue");
                         /* check if fatal error */
@@ -16149,8 +16156,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (args->fatal)
                             DoCertFatalAlert(ssl, ret);
                     }
+                    else
                     #endif/*defined(__APPLE__)&& defined(WOLFSSL_SYS_CA_CERTS)*/
-                    else {
+                    {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
                         args->fatal = 1;
                         DoCertFatalAlert(ssl, ret);

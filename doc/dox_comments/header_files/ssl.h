@@ -5559,19 +5559,7 @@ int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
 /*!
     \ingroup OCSP
 
-    \brief Gets the OCSP status response for a specific certificate in TLS 1.3.
-
-    \param ssl The WOLFSSL session.
-    \param idx Index of the certificate chain.
-
-    \return Pointer to WOLFSSL_BUFFER_INFO containing the response, or NULL on error.
-*/
-WOLFSSL_BUFFER_INFO* wolfSSL_GetTls13OcspStatusResp(const WOLFSSL* ssl, word32 idx);
-
-/*!
-    \ingroup OCSP
-
-    \brief Sets a callback to verify the OCSP status response for TLS 1.2.
+    \brief Sets a callback to verify the OCSP status response.
 
     This callback is only useful when SESSION_CERTS is enabled.
 
@@ -5584,10 +5572,10 @@ WOLFSSL_BUFFER_INFO* wolfSSL_GetTls13OcspStatusResp(const WOLFSSL* ssl, word32 i
     _Example_
     \code
     void my_ocsp_verify_cb(WOLFSSL* ssl, int err, byte* resp, word32 respSz, word32 idx, void* arg) { ... }
-    wolfSSL_CTX_set_tls12_ocsp_status_verify_cb(ctx, my_ocsp_verify_cb, NULL);
+    wolfSSL_CTX_set_ocsp_status_verify_cb(ctx, my_ocsp_verify_cb, NULL);
     \endcode
 */
-void wolfSSL_CTX_set_tls12_ocsp_status_verify_cb(WOLFSSL_CTX* ctx, ocspVerifyStatusCb cb, void* cbArg);
+void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx, ocspVerifyStatusCb cb, void* cbArg);
 
 /*!
     \ingroup Setup

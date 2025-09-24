@@ -8746,26 +8746,6 @@ static int SetupOcspResp(WOLFSSL* ssl)
 #endif
     return ret;
 }
-
-WOLFSSL_BUFFER_INFO* wolfSSL_GetTls13OcspStatusResp(const WOLFSSL* ssl,
-        word32 idx)
-{
-    TLSX* extension = NULL;
-    CertificateStatusRequest* csr = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_GetTls13OcspStatusResp");
-
-    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version) ||
-            idx >= MAX_CERT_EXTENSIONS)
-        return NULL;
-
-    extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-    csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
-    if (csr == NULL)
-        return NULL;
-
-    return &csr->responses[idx];
-}
 #endif
 
 /* handle generation TLS v1.3 certificate (11) */

@@ -662,7 +662,8 @@ int test_ocsp_certid_enc_dec(void)
 #if defined(HAVE_OCSP) && defined(WOLFSSL_CERT_SETUP_CB) && \
     defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
     (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    defined(SESSION_CERTS)
 
 static struct {
     size_t chainLen;
@@ -792,15 +793,9 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
 #endif
             ) {
         WOLFSSL_BUFFER_INFO* bInfo = &store->certs[idx];
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-        WOLFSSL* ssl = (WOLFSSL*)store->userCtx;
-        WOLFSSL_BUFFER_INFO* ocspStaple =
-                wolfSSL_GetTls13OcspStatusResp(ssl, (word32)idx);
-#endif
         WOLFSSL_CERT_MANAGER* cm = NULL;
         DecodedCert cert;
         byte certInit = 0;
-        WOLFSSL_OCSP* ocsp = NULL;
 
         ret = 1;
         cm = wolfSSL_CertManagerNew();
@@ -824,24 +819,6 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
         if (ret == 1 && wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm) != 0)
             ret = 0;
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-        /* In this test we only expect a staple on the leaf cert */
-        if (wolfSSL_version(ssl) == TLS1_3_VERSION ||
-                wolfSSL_version(ssl) == DTLS1_3_VERSION) {
-            /* Verify OCSP with CA */
-            if (ret == 1 && (ocspStaple == NULL || ocspStaple->buffer == NULL ||
-                    ocspStaple->length == 0))
-                ret = 0;
-            if (ret == 1 && (ocsp = wc_NewOCSP(cm)) == NULL)
-                ret = 0;
-            if (ret == 1 &&
-                wc_CheckCertOcspResponse(ocsp, &cert, ocspStaple->buffer,
-                        ocspStaple->length, NULL) != 0)
-                ret = 0;
-        }
-#endif
-
-        wc_FreeOCSP(ocsp);
         if (certInit)
             wc_FreeDecodedCert(&cert);
         wolfSSL_CertManagerFree(cm);
@@ -850,7 +827,6 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
     return ret;
 }
 
-#ifdef SESSION_CERTS
 static int test_ocsp_tls_cert_cb_ocsp_verify_cb(WOLFSSL* ssl, int err,
         byte* staple, word32 stapleSz, word32 idx, void* arg)
 {
@@ -899,7 +875,6 @@ cleanup:
     }
     return err;
 }
-#endif
 
 static int test_ocsp_tls_cert_cb_ctx_ready(WOLFSSL_CTX* ctx)
 {
@@ -931,7 +906,7 @@ int test_ocsp_tls_cert_cb(void)
         byte useV2multi:1;
         byte maxFail:2;
     } params[] = {
-#if !defined(WOLFSSL_NO_TLS12) && defined(SESSION_CERTS)
+#if !defined(WOLFSSL_NO_TLS12)
         { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 0, 0, 1 },
         { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 0, 1 },
         { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 1, 1 },
@@ -1000,13 +975,9 @@ int test_ocsp_tls_cert_cb(void)
                 /* client: request stapling */
                 wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT,
                         test_ocsp_tls_cert_cb_verify_cb);
-    #ifdef SESSION_CERTS
-                if (wolfSSL_version(test_ctx.c_ssl) == TLS1_2_VERSION ||
-                        wolfSSL_version(test_ctx.c_ssl) == DTLS1_2_VERSION) {
-                    wolfSSL_CTX_set_tls12_ocsp_status_verify_cb(test_ctx.c_ctx,
-                            test_ocsp_tls_cert_cb_ocsp_verify_cb, NULL);
-                }
-    #endif
+                wolfSSL_CTX_set_ocsp_status_verify_cb(test_ctx.c_ctx,
+                        test_ocsp_tls_cert_cb_ocsp_verify_cb, NULL);
+
                 /* No way to get ssl from the store without OPENSSL_EXTRA */
                 wolfSSL_SetCertCbCtx(test_ctx.c_ssl, test_ctx.c_ssl);
                 ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);

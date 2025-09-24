@@ -5657,13 +5657,10 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char
 WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp, int len);
 WOLFSSL_API int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
         int len, word32 idx);
-#ifdef WOLFSSL_TLS13
-WOLFSSL_API WOLFSSL_BUFFER_INFO* wolfSSL_GetTls13OcspStatusResp(const WOLFSSL* ssl, word32 idx);
-#endif
 typedef int(*ocspVerifyStatusCb)(WOLFSSL* ssl, int err, byte* resp, word32 respSz,
         word32 idx, void* arg);
 /* This callback is only useful when SESSION_CERTS is enabled */
-WOLFSSL_API void wolfSSL_CTX_set_tls12_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
+WOLFSSL_API void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
         ocspVerifyStatusCb cb, void* cbArg);
 #endif
 
