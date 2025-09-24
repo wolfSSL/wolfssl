@@ -3059,6 +3059,13 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_KEY_EXPORT
         #define HAVE_ECC_KEY_EXPORT
     #endif
+    #if !defined (WOLFSSL_NO_VALIDATE_ECC_IMPORT) && \
+        !defined (WOLFSSL_VALIDATE_ECC_IMPORT)
+        #define WOLFSSL_VALIDATE_ECC_IMPORT
+    #elif defined(WOLFSSL_NO_VALIDATE_ECC_IMPORT) && \
+        defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+        #error Conflicting settings for WOLFSSL_VALIDATE_ECC_IMPORT.
+    #endif
 #endif /* HAVE_ECC */
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
