@@ -551,7 +551,7 @@ void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb)
    wc_Memory** list is the list that new buckets are prepended to
  */
 static int wc_create_memory_buckets(byte* buffer, word32 bufSz,
-                              word32 buckSz, byte buckNum, wc_Memory** list) {
+                              word32 buckSz, word32 buckNum, wc_Memory** list) {
     byte*  pt  = buffer;
     int    ret = 0;
     byte memSz   = (byte)sizeof(wc_Memory);
