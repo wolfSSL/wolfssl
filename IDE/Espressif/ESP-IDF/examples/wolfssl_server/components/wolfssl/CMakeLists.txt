@@ -19,7 +19,7 @@
 #
 # cmake for wolfssl Espressif projects
 #
-# Version 5.8.0 Espressif ESP-IDF + PlatformIO integration (2)
+# Version 5.8.2 Espressif ESP-IDF + PlatformIO integration (1)
 #
 # See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html
 #
@@ -27,8 +27,17 @@ message(STATUS "Begin wolfssl ${CONFIG_CUSTOM_SETTING_WOLFSSL_ROOT}")
 cmake_minimum_required(VERSION 3.16)
 
 # The scope of this CMAKE_C_FLAGS is just this component:
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DWOLFSSL_USER_SETTINGS")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
+message(STATUS "Peek CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG = $ENV{CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG}")
+if(  "$ENV{CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG}" STREQUAL "1" )
+    message(STATUS "Setting CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG from environment variable")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DCONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG=1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG=1")
+else()
+    message(STATUS "CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG not set, not using private config.")
+endif()
 
 set(CMAKE_CURRENT_SOURCE_DIR ".")
 
@@ -48,6 +57,7 @@ set(THIS_ESP_TLS "")
 # LIBWOLFSSL_CMAKE_OUTPUT can be printed at runtime
 set(LIBWOLFSSL_CMAKE_OUTPUT "")
 
+set(git_cmd "git")
 
 if(CMAKE_BUILD_EARLY_EXPANSION)
     message(STATUS "Skipping libwolfssl_output.h update during CMAKE_BUILD_EARLY_EXPANSION")
@@ -66,6 +76,19 @@ else()
                "#define _LIBWOLFSSL_OUTPUT_H_\n\n")
 endif()
 
+# CMakeLists.txt (project or component)
+# Known RISC-V families in ESP-IDF: esp32c2, esp32c3, esp32c6, esp32h2, esp32p4
+set(_riscv_targets esp32c2 esp32c3 esp32c6 esp32h2 esp32p4)
+
+list(FIND _riscv_targets "${IDF_TARGET}" _idx)
+if(_idx GREATER -1)
+  set(IS_RISCV TRUE)
+else()
+  set(IS_RISCV FALSE)
+endif()
+
+message(STATUS "IDF target: ${IDF_TARGET}  (RISC-V: ${IS_RISCV})")
+
 # Append messages with:
 # LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_CMAKE_OUTPUT "${LIBWOLFSSL_CMAKE_OUTPUT}\n"message" "0")
 # See function: APPEND_LIBWOLFSSL_CMAKE_OUTPUT
@@ -73,8 +96,7 @@ endif()
 # function: IS_ESP_IDF_COMPONENT
 #  output:    RESULT = 1 (true) if this component is located in the ESP-IDF components
 #             otherwise 0 (false)
-function( IS_ESP_IDF_COMPONENT
-          RESULT)
+function( IS_ESP_IDF_COMPONENT  RESULT )
     # NOTE: Component location is based on the location of the CMakeList.txt
     # and *not* the location of the wolfSSL source code. (which may be anywhere)
 
@@ -110,60 +132,60 @@ function ( LIBWOLFSSL_SAVE_INFO VAR_OUTPUT THIS_VAR VAR_RESULT )
     # if we had a successful operation, save the THIS_VAR in VAR_OUTPUT
     if(${IS_VALID_VALUE})
 
-    if(0)
-        # Optional debug
-        message(STATUS "Looking for LF in ${THIS_VAR}")
-    endif()
+        if(0)
+            # Optional debug
+            message(STATUS "Looking for LF in ${THIS_VAR}")
+        endif()
 
-    # Check if the text to print in THIS_VAR is multi-line
-    string(REPLACE "\n" ";" LINES "${THIS_VAR}")
-    list(LENGTH LINES LINE_COUNT)
+        # Check if the text to print in THIS_VAR is multi-line
+        string(REPLACE "\r" ""  THIS_VAR "${THIS_VAR}")
+        string(REPLACE "\n" ";" LINES    "${THIS_VAR}")
+        list(LENGTH LINES LINE_COUNT)
 
-    # Save var to "libwolfssl_output.h" header if multi-line, otherwise a simple compile def
-    if(LINE_COUNT GREATER 1)
-        message(STATUS "Setting HAVE_LIBWOLFSSL_OUTPUT_HEADER=1 for ${VAR_OUTPUT}")
-        add_compile_definitions(HAVE_LIBWOLFSSL_OUTPUT_HEADER=1)
-        file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "#undef  ${VAR_OUTPUT}\n")
-        file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "#define ${VAR_OUTPUT} \\\n")
+        # Save var to "libwolfssl_output.h" header if multi-line, otherwise a simple compile def
+        if(LINE_COUNT GREATER 1)
+            message(STATUS "Setting HAVE_LIBWOLFSSL_OUTPUT_HEADER=1 for ${VAR_OUTPUT}")
+            add_compile_definitions(HAVE_LIBWOLFSSL_OUTPUT_HEADER=1)
+            file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "#undef  ${VAR_OUTPUT}\n")
+            file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "#define ${VAR_OUTPUT} \\\n")
 
-        # Split into lines
-        string(REPLACE "\n" ";" LINES "${THIS_VAR}")
-        foreach(LINE IN LISTS LINES)
-            file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "\"${LINE}\\n\" \\\n")
-        endforeach()
+            # Split into lines
+            string(REPLACE "\n" ";" LINES "${THIS_VAR}")
+            foreach(LINE IN LISTS LINES)
+                file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "\"${LINE}\\n\" \\\n")
+            endforeach()
 
-        # Final empty line to close the macro
-        file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "\n")
+            # Final empty line to close the macro
+            file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h" "\n")
 
-        message(STATUS "COMPONENT_LIB=${COMPONENT_LIB}")
-        target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_BINARY_DIR}")
-    else()
-        message(STATUS "No HAS_LIBWOLFSSL_OUTPUT_HEADER")
-        # We should not have any, but just to be sure:
-        # Strip newline chars in THIS_VAR parameter and save in VAR_VALUE
-        string(REPLACE "\n" ""  VAR_VALUE  "${THIS_VAR}")
+            message(STATUS "COMPONENT_LIB=${COMPONENT_LIB}")
+            target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_BINARY_DIR}")
+        else() # 1 or zero lines in THIS_VAR
+            message(STATUS "Result line count=${LINE_COUNT}; Not setting HAS_LIBWOLFSSL_OUTPUT_HEADER")
+            # We should not have any, but just to be sure:
+            # Strip newline chars in THIS_VAR parameter and save in VAR_VALUE
+            string(REPLACE "\n" ""  THIS_VAR   "${THIS_VAR}")
+            string(REPLACE "\r" ""  VAR_VALUE  "${THIS_VAR}")
 
-        # we'll could percolate the value to the parent for possible later use
-        # set(${VAR_OUTPUT} ${VAR_VALUE} PARENT_SCOPE)
+            # we could percolate the value to the parent for possible later use
+            # set(${VAR_OUTPUT} ${VAR_VALUE} PARENT_SCOPE)
 
-        # but we're only using it here in this function
-        set(${VAR_OUTPUT} ${VAR_VALUE})
+            # but we're only using it here in this function
+            set(${VAR_OUTPUT} ${VAR_VALUE})
 
-        # we'll print what we found to the console
-        message(STATUS "Found ${VAR_OUTPUT}=${VAR_VALUE}")
+            # we'll print what we found to the console
+            message(STATUS "Found ${VAR_OUTPUT}=${VAR_VALUE}")
 
-        # the interesting part is defining the VAR_OUTPUT name a value to use in the app
-        add_compile_definitions(${VAR_OUTPUT}=\"${VAR_VALUE}\")
+            # the interesting part is defining the VAR_OUTPUT name a value to use in the app
+            add_compile_definitions(${VAR_OUTPUT}=\"${VAR_VALUE}\")
 
         endif()
-    else()
+    else() # !IS_VALID_VALUE
         # if we get here, check the execute_process command and parameters.
-        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT")
+        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT=${VAR_RESULT} for THIS_VAR=${THIS_VAR}")
         set(${VAR_OUTPUT} "Unknown")
-    endif()
-
-
-endfunction() # LIBWOLFSSL_SAVE_INFO
+    endif()  # IS_VALID_VALUE
+endfunction()# LIBWOLFSSL_SAVE_INFO
 
 #
 # APPEND_LIBWOLFSSL_CMAKE_OUTPUT(THIS_MESSAGE OUTPUT_VALUE)
@@ -558,7 +580,7 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
                                           "${THIS_INCLUDE_TIMER}"
                                           "${THIS_INCLUDE_DRIVER}" # this will typically only be needed for wolfSSL benchmark
                            )
-
+    # Do not set compile options during early expansion
 else()
     # not CMAKE_BUILD_EARLY_EXPANSION
     message(STATUS "************************************************************************************************")
@@ -596,6 +618,15 @@ else()
 
     if(WOLFSSL_ROOT)
         message(STATUS "Confirmed wolfssl directory at: ${WOLFSSL_ROOT}")
+            # Once WOLFSSL_ROOT has been determined, see if there's a Espressif.cmake file to include
+
+        set(WOLFSSL_ROOT_ESPRESSIF_CMAKE "${WOLFSSL_ROOT}/cmake/modules/Espressif.cmake")
+        if( EXISTS "${WOLFSSL_ROOT_ESPRESSIF_CMAKE}")
+            message(STATUS "Found WOLFSSL_ROOT_ESPRESSIF_CMAKE: ${WOLFSSL_ROOT_ESPRESSIF_CMAKE}")
+            include("${WOLFSSL_ROOT_ESPRESSIF_CMAKE}")
+        else()
+            message(STATUS "Not found WOLFSSL_ROOT_ESPRESSIF_CMAKE: ${WOLFSSL_ROOT_ESPRESSIF_CMAKE}")
+        endif()
     else()
         # Try to allow a more intuitive error that the source code was not found in cmake:
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_WARNING_SOURCE_NOT_FOUND")
@@ -896,6 +927,25 @@ else()
                                   "${THIS_INCLUDE_TIMER}"
                                   "${THIS_INCLUDE_DRIVER}" # this will typically only be needed for wolfSSL benchmark
                                )
+
+        message(STATUS "Checking wolfSSL Component CONFIG_WOLFSSL_FORCE_V6_INTELLISENSE_FIX=$ENV{CONFIG_WOLFSSL_FORCE_V6_INTELLISENSE_FIX}")
+        # Optionally force syntax highlighting fix in Visual Studio 2022 for ESP-IDF v6
+        # See https://sysprogs.com/w/forums/topic/espressif-esp-idf-v6-0-intellisense-error-invalid-value-gnu2b-in-stdgnu2b/
+        # To resolve, enter the text in VisualGDB Project Properties - Intellisense Settings Tab, "Additional flags for C files":
+        #   -std=gnu17
+        # And set here:
+        if(  "$ENV{CONFIG_WOLFSSL_FORCE_V6_INTELLISENSE_FIX}" STREQUAL "1" )
+            set(PREFERRED_DIALECT "gnu17")
+            if(DEFINED IDF_VERSION_MAJOR AND IDF_VERSION_MAJOR GREATER_EQUAL 6)
+                message(STATUS "-- Setting -std=${PREFERRED_DIALECT} with target_compile_options $<$<COMPILE_LANGUAGE:C>:-std=${PREFERRED_DIALECT}>")
+                target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:C>:-std=${PREFERRED_DIALECT}>)
+            else()
+                message(STATUS "-- Visual Studio Intellisense Fix not needed for this ESP-IDF version=${IDF_VERSION_MAJOR}")
+            endif()
+        else()
+            message(STATUS "-- Not setting -std=${PREFERRED_DIALECT} with target_compile_options for Visual Studio Intellisense Fix")
+            message(STATUS "-- To enable, define environment variable: CONFIG_WOLFSSL_FORCE_V6_INTELLISENSE_FIX=1")
+        endif()
     else()
         # Register the component simply to allow CMake to complete, but there's no wolfSSL source.
         # Expect many other errors, but the project should at least be loadable and UI can edit Kconfig settings.
@@ -906,8 +956,7 @@ else()
 # function(WOLFSSL_INIT_CERT_BUNDLE)
 if( CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     AND NOT CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE
-    AND NOT ("${CONFIG_TARGET_PLATFORM}" STREQUAL "esp8266")
-  )
+    AND NOT ("${CONFIG_TARGET_PLATFORM}" STREQUAL "esp8266") )
     APPEND_LIBWOLFSSL_CMAKE_OUTPUT("wolfSSL Certificate Bundles Enabled")
 
     if (CMAKE_BUILD_EARLY_EXPANSION)
@@ -1154,49 +1203,71 @@ if( EXISTS "${WOLFSSL_PROJECT_DIR}" AND EXISTS "$ENV{IDF_PATH}/components/wolfss
 endif()
 # end multiple component check
 
-
+message(STATUS "Checking for github with git_cmd='${git_cmd}' ...")
 execute_process(
     COMMAND ${git_cmd} "rev-parse" "--is-inside-work-tree"
     OUTPUT_VARIABLE IS_GIT_REPO
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_QUIET
 )
+message(STATUS "Checking for github result IS_GIT_REPO='${IS_GIT_REPO}'")
 
 # create some programmatic #define values that will be used by ShowExtendedSystemInfo().
 # see wolfcrypt\src\port\Espressif\esp32_utl.c
+message(STATUS "Checking for macro definitions:")
 if(NOT CMAKE_BUILD_EARLY_EXPANSION AND WOLFSSL_ROOT AND (IS_GIT_REPO STREQUAL "true"))
     set (git_cmd "git")
     message(STATUS "Adding macro definitions:")
 
+    # LIBWOLFSSL_VERSION_GIT_TAG: git config describe --tags --abbrev=0
+    execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd} "describe" "--tags" "--abbrev=0"
+                    OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET  )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
+    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_TAG "${TMP_OUT}" "${TMP_RES}")
+
     # LIBWOLFSSL_VERSION_GIT_ORIGIN: git config --get remote.origin.url
     execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd} "config" "--get" "remote.origin.url"
                     OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET  )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_ORIGIN "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_BRANCH: git rev-parse --abbrev-ref HEAD
     execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd} "rev-parse" "--abbrev-ref" "HEAD"
                     OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET  )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_BRANCH "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_HASH: git rev-parse HEAD
     execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd} "rev-parse" "HEAD"
                     OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET  )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_SHORT_HASH: git rev-parse --short HEAD
     execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd} "rev-parse" "--short" "HEAD"
                     OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_SHORT_HASH "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_HASH_DATE git show --no-patch --no-notes --pretty=\'\%cd\'
     execute_process(WORKING_DIRECTORY ${WOLFSSL_ROOT} COMMAND ${git_cmd}
                     "show" "--no-patch" "--no-notes" "--pretty=\'\%cd\'"
                     OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES  )
+    string(REPLACE "\r" "" TMP_OUT "${TMP_OUT}")
+    string(REPLACE "\n" "" TMP_OUT "${TMP_OUT}")
     LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH_DATE "${TMP_OUT}" "${TMP_RES}")
 
-    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_WOLFSSL_ROOT "${WOLFSSL_ROOT}" "${TMP_RES}")
-
+else()
+    message(STATUS "CMAKE_BUILD_EARLY_EXPANSION=${CMAKE_BUILD_EARLY_EXPANSION}; WOLFSSL_ROOT=${WOLFSSL_ROOT}; IS_GIT_REPO=${IS_GIT_REPO};")
 endif()
+
+LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_WOLFSSL_ROOT "${WOLFSSL_ROOT}"  "0")
+LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_IDF_PATH     "${THIS_IDF_PATH}" "0")
 
 # Ensure flag "-DWOLFSSL_ESPIDF" is already in CMAKE_C_FLAGS if not yet found from project
 string(FIND "${CMAKE_C_FLAGS}" "-DWOLFSSL_ESPIDF" FLAG_ALRREADY_FOUND_WOLFSSL_ESPIDF)
@@ -1245,6 +1316,26 @@ LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_CMAKE_OUTPUT "${LIBWOLFSSL_CMAKE_OUTPUT}" "0")
 file(APPEND "${CMAKE_BINARY_DIR}/libwolfssl_output.h"
             "\n"
             "#endif\n" )
+
+# Memory peek helper
+set(LINKER_REGION_PEEK "${CMAKE_CURRENT_LIST_DIR}/ld/region_peek.ld")
+if( CMAKE_BUILD_EARLY_EXPANSION AND EXISTS "${LINKER_REGION_PEEK}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_HAVE_LINKER_REGION_PEEK")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_HAVE_LINKER_REGION_PEEK")
+
+    message(STATUS "Found linker region peek helper file: ${LINKER_REGION_PEEK}")
+    if (COMMAND target_linker_scripts)
+        message(STATUS "target_linker_scripts(${COMPONENT_LIB} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ld/region_peek.ld)")
+        target_linker_scripts(${COMPONENT_LIB} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/ld/region_peek.ld)
+    else()
+        # Fallback if target_linker_scripts isn't available
+        message(STATUS "target_linker_scripts not available, using target_link_options")
+        target_link_options(${COMPONENT_LIB} INTERFACE -T${CMAKE_CURRENT_LIST_DIR}/ld/region_peek.ld)
+        set_property(TARGET ${COMPONENT_LIB} APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/ld/region_peek.ld)
+    endif()
+else()
+    message(STATUS "Found linker region peek helper NOT FOUND: ${LINKER_REGION_PEEK}")
+endif()
 
 message(STATUS "************************************************************************************************")
 message(STATUS "wolfSSL component config complete!")

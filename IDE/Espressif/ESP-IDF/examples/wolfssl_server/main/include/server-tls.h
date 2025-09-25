@@ -30,11 +30,8 @@
         /* Use smaller certs for low-memory devices */
         #define USE_CERT_BUFFERS_1024
     #else
-        #define USE_CERT_BUFFERS_2048
+        // #define USE_CERT_BUFFERS_2048
     #endif
-
-    /* always include smallest testing 32 byte RSA/ECC keys */
-    #define USE_CERT_BUFFERS_256
 #else
     /* define your own certificate macros; see user_settings.h */
 #endif

@@ -113,16 +113,18 @@ WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.1
 WRK_IDF_PATH=/mnt/c/SysGCC/esp32-12.4/esp-idf/v5.2.1
 
 # The most recent version:
-# ESP-IDF v5.2 uses toolchain v13.2
-WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.2
+# ESP-IDF v6 from GitHub
+WRK_IDF_PATH=/mnt/c/SysGCC/esp32-master/esp-idf/master
 
-
+pushd $WRK_IDF_PATH
 . $WRK_IDF_PATH/export.sh
+popd
 
 # Set target SoC
 idf.py set-target esp32c3
 
 # Optionally erase
+idf.py -p /dev/ttyS20 -b 115200 erase-flash
 
 # Build and flash
 idf.py build flash -p /dev/ttyS20 -b 115200 monitor

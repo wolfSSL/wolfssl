@@ -21,7 +21,7 @@
 
 # Kconfig File Version 5.7.2.001 for wolfssl_template
 
-menu "Example Configuration"
+menu "Example wolfSSL Configuration"
 
 choice WOLFSSL_EXAMPLE_CHOOSE
     prompt "Choose Example (See wolfssl/include/user_settings.h)"
