@@ -5495,7 +5495,7 @@ int sp_exch(sp_int* a, sp_int* b)
 int sp_cond_swap_ct_ex(sp_int* a, sp_int* b, int cnt, int swap, sp_int* t)
 {
     unsigned int i;
-    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
+    volatile sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)swap;
 
     /* XOR other fields in sp_int into temp - mask set when swapping. */
     t->used = (a->used ^ b->used) & (sp_size_t)mask;
@@ -5765,7 +5765,7 @@ static int _sp_cmp_ct(const sp_int* a, const sp_int* b, unsigned int n)
 {
     int ret = MP_EQ;
     int i;
-    int mask = -1;
+    volatile int mask = -1;
 
     for (i = n - 1; i >= 0; i--) {
         sp_int_digit ad = a->dp[i] & ((sp_int_digit)0 - (i < (int)a->used));
@@ -7298,7 +7298,8 @@ static void _sp_div_2(const sp_int* a, sp_int* r)
 
     /* Shift down each word by 1 and include bottom bit of next at top. */
     for (i = 0; i < (int)a->used - 1; i++) {
-        r->dp[i] = (a->dp[i] >> 1) | (a->dp[i+1] << (SP_WORD_SIZE - 1));
+        r->dp[i]  = a->dp[i] >> 1;
+        r->dp[i] |= a->dp[i+1] << (SP_WORD_SIZE - 1);
     }
     /* Last word only needs to be shifted down. */
     r->dp[i] = a->dp[i] >> 1;
@@ -7378,7 +7379,7 @@ int sp_div_2_mod_ct(const sp_int* a, const sp_int* m, sp_int* r)
         sp_int_digit t;
     #endif
         /* Mask to apply to modulus. */
-        sp_int_digit mask = (sp_int_digit)0 - (a->dp[0] & 1);
+        volatile sp_int_digit mask = (sp_int_digit)0 - (a->dp[0] & 1);
         sp_size_t i;
 
     #if 0
@@ -7389,7 +7390,7 @@ int sp_div_2_mod_ct(const sp_int* a, const sp_int* m, sp_int* r)
         /* Add a to m, if a is odd, into r in constant time. */
         for (i = 0; i < m->used; i++) {
             /* Mask to apply to a - set when used value at index. */
-            sp_int_digit mask_a = (sp_int_digit)0 - (i < a->used);
+            volatile sp_int_digit mask_a = (sp_int_digit)0 - (i < a->used);
 
         #ifndef SQR_MUL_ASM
             /* Conditionally add modulus. */
@@ -8013,7 +8014,7 @@ static void sp_clamp_ct(sp_int* a)
 {
     int i;
     sp_size_t used = a->used;
-    sp_size_t mask = (sp_size_t)-1;
+    volatile sp_size_t mask = (sp_size_t)-1;
 
     for (i = (int)a->used - 1; i >= 0; i--) {
 #if ((SP_WORD_SIZE == 64) && \
@@ -8062,9 +8063,9 @@ int sp_addmod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
     sp_int_digit sh;
     sp_int_digit t;
 #endif
-    sp_int_digit mask;
-    sp_int_digit mask_a = (sp_int_digit)-1;
-    sp_int_digit mask_b = (sp_int_digit)-1;
+    volatile sp_int_digit mask;
+    volatile sp_int_digit mask_a = (sp_int_digit)-1;
+    volatile sp_int_digit mask_b = (sp_int_digit)-1;
     sp_size_t i;
 
     /* Check result is as big as modulus. */
@@ -8226,9 +8227,9 @@ static void _sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m,
     sp_int_digit h;
     sp_int_digit t;
 #endif
-    sp_int_digit mask;
-    sp_int_digit mask_a = (sp_int_digit)-1;
-    sp_int_digit mask_b = (sp_int_digit)-1;
+    volatile sp_int_digit mask;
+    volatile sp_int_digit mask_a = (sp_int_digit)-1;
+    volatile sp_int_digit mask_b = (sp_int_digit)-1;
     unsigned int i;
 
     /* In constant time, subtract b from a putting result in r. */
@@ -17449,7 +17450,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
         /* 1. mask = (1 << (NumBits(m) % WORD_SIZE)) - 1
          *    Mask when last digit of modulus doesn't have highest bit set.
          */
-        sp_int_digit mask = (sp_int_digit)
+        volatile sp_int_digit mask = (sp_int_digit)
             (((sp_int_digit)1 << (bits & (SP_WORD_SIZE - 1))) - 1);
         /* Overflow. */
         sp_int_word o = 0;
@@ -17530,7 +17531,7 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct)
     int bits;
     sp_int_digit mu;
     sp_int_digit o;
-    sp_int_digit mask;
+    volatile sp_int_digit mask;
 
 #if 0
     sp_print(a, "a");
@@ -18032,7 +18033,7 @@ int sp_unsigned_bin_size(const sp_int* a)
     int cnt = 0;
 
     if (a != NULL) {
-        cnt = (sp_count_bits(a) + 7) / 8;
+        cnt = (sp_count_bits(a) + 7) >> 3;
     }
 
     return cnt;
@@ -18256,20 +18257,22 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
         /* Start at the end of the buffer - least significant byte. */
         int j;
         unsigned int i;
-        sp_int_digit mask = (sp_int_digit)-1;
+        volatile sp_int_digit mask = (sp_int_digit)-1;
         sp_int_digit d;
 
         /* Put each digit in. */
         i = 0;
         for (j = outSz - 1; j >= 0; ) {
             unsigned int b;
+            volatile unsigned int notFull = (i < (unsigned int)a->used - 1);
+
             d = a->dp[i];
             /* Place each byte of a digit into the buffer. */
             for (b = 0; (j >= 0) && (b < SP_WORD_SIZEOF); b++) {
                 out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= (sp_int_digit)0 - (i < (unsigned int)a->used - 1);
+            mask &= (sp_int_digit)0 - notFull;
             i += (unsigned int)(1 & mask);
         }
     }
@@ -18280,7 +18283,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
     if (err == MP_OKAY) {
         unsigned int i;
         int j;
-        sp_int_digit mask = (sp_int_digit)-1;
+        volatile sp_int_digit mask = (sp_int_digit)-1;
 
         i = 0;
         for (j = outSz - 1; j >= 0; j--) {
@@ -18351,11 +18354,12 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
     /* Step through string a character at a time starting at end - least
      * significant byte. */
     for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
+        volatile char c = in[i];
         /* Convert character from hex. */
-        int ch = (int)HexCharToByte(in[i]);
+        int ch = (int)HexCharToByte(c);
         /* Check for invalid character. */
         if (ch < 0) {
-            if (!eol_done && CharIsWhiteSpace(in[i]))
+            if (!eol_done && CharIsWhiteSpace(c))
                 continue;
             err = MP_VAL;
             break;
@@ -18415,7 +18419,6 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 {
     int  err = MP_OKAY;
     int  i;
-    char ch;
 
     /* Start with a being zero. */
     _sp_zero(a);
@@ -18423,7 +18426,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
     /* Process all characters. */
     for (i = 0; in[i] != '\0'; i++) {
         /* Get character. */
-        ch = in[i];
+        volatile char ch = in[i];
         /* Check character is valid. */
         if ((ch >= '0') && (ch <= '9')) {
             /* Assume '0'..'9' are continuous values as characters. */
@@ -18785,7 +18788,7 @@ int sp_radix_size(const sp_int* a, int radix, int* size)
         }
         else {
             /* Count of nibbles. */
-            int cnt = (sp_count_bits(a) + 3) / 4;
+            int cnt = (sp_count_bits(a) + 3) >> 2;
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
             /* Must have even number of nibbles to have complete bytes. */
             if (cnt & 1) {
@@ -19393,7 +19396,7 @@ static int _sp_prime_random_trials(const sp_int* a, int trials, int* result,
 {
     int err = MP_OKAY;
     int bits = sp_count_bits(a);
-    word32 baseSz = ((word32)bits + 7) / 8;
+    word32 baseSz = ((word32)bits + 7) >> 3;
     DECL_SP_INT_ARRAY(ds, a->used + 1, 2);
     DECL_SP_INT_ARRAY(d, a->used * 2 + 1, 2);
 
