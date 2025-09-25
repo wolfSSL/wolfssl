@@ -7396,6 +7396,7 @@ int ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
             DYNAMIC_TYPE_SECRET);
         if (ssl->arrays->preMasterSecret == NULL) {
+            WOLFSSL_MSG("preMasterSecret Memory error");
             return MEMORY_E;
         }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -11179,8 +11180,10 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         return BUFFER_E;
     if (! WC_SAFE_SUM_WORD32(newSz, (word32)size, newSz))
         return BUFFER_E;
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     if (! WC_SAFE_SUM_WORD32(newSz, align, newSz))
         return BUFFER_E;
+#endif
     tmp = (byte*)XMALLOC(newSz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     newSz -= align;
     WOLFSSL_MSG("growing output buffer");
@@ -32243,6 +32246,188 @@ exit_gdpk:
     return ret;
 }
 #endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+static int GetEcDiffieHellmanKea(WOLFSSL *ssl,
+                                 const byte *input, word32 size, DskeArgs *args)
+{
+    int ret;
+    byte b;
+#ifdef HAVE_ECC
+    int curveId;
+#endif
+    int curveOid;
+    word16 length;
+
+    if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
+        OPAQUE8_LEN > size) {
+        return BUFFER_ERROR;
+    }
+
+    b = input[args->idx++];
+    if (b != named_curve) {
+        return ECC_CURVETYPE_ERROR;
+    }
+
+    args->idx += 1;     /* curve type, eat leading 0 */
+    b = input[args->idx++];
+    if ((curveOid = CheckCurveId(b)) < 0) {
+        return ECC_CURVE_ERROR;
+    }
+    ssl->ecdhCurveOID = (word32) curveOid;
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+    ssl->namedGroup = 0;
+#endif
+
+    length = input[args->idx++];
+    if ((args->idx - args->begin) + length > size) {
+        return BUFFER_ERROR;
+    }
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+        if (ssl->peerX25519Key == NULL) {
+            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                           (void **)&ssl->peerX25519Key);
+            if (ret != 0) {
+                return ret;
+            }
+        }
+        else if (ssl->peerX25519KeyPresent) {
+            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519, ssl->peerX25519Key);
+            ssl->peerX25519KeyPresent = 0;
+            if (ret != 0) {
+                return ret;
+            }
+        }
+
+        if ((ret = wc_curve25519_check_public(input + args->idx, length,
+                                              EC25519_LITTLE_ENDIAN)) != 0) {
+#ifdef WOLFSSL_EXTRA_ALERTS
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                SendAlert(ssl, alert_fatal, decode_error);
+            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
+                SendAlert(ssl, alert_fatal, bad_record_mac);
+            else {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+            }
+#else
+            (void)ret;
+#endif
+            return ECC_PEERKEY_ERROR;
+        }
+
+        if (wc_curve25519_import_public_ex(input + args->idx,
+                                           length, ssl->peerX25519Key,
+                                           EC25519_LITTLE_ENDIAN) != 0) {
+            return ECC_PEERKEY_ERROR;
+        }
+
+        args->idx += length;
+        ssl->peerX25519KeyPresent = 1;
+        return 0;
+    }
+#endif
+#ifdef HAVE_CURVE448
+    if (ssl->ecdhCurveOID == ECC_X448_OID) {
+        if (ssl->peerX448Key == NULL) {
+            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
+                           (void **)&ssl->peerX448Key);
+            if (ret != 0) {
+                return ret;
+            }
+        }
+        else if (ssl->peerX448KeyPresent) {
+            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448, ssl->peerX448Key);
+            ssl->peerX448KeyPresent = 0;
+            if (ret != 0) {
+                return ret;
+            }
+        }
+
+        if ((ret = wc_curve448_check_public(input + args->idx, length,
+                                            EC448_LITTLE_ENDIAN)) != 0) {
+#ifdef WOLFSSL_EXTRA_ALERTS
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                SendAlert(ssl, alert_fatal, decode_error);
+            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
+                SendAlert(ssl, alert_fatal, bad_record_mac);
+            else {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+            }
+#else
+            (void)ret;
+#endif
+            return ECC_PEERKEY_ERROR;
+        }
+
+        if (wc_curve448_import_public_ex(input + args->idx,
+                                         length, ssl->peerX448Key,
+                                         EC448_LITTLE_ENDIAN) != 0) {
+            return ECC_PEERKEY_ERROR;
+        }
+
+        args->idx += length;
+        ssl->peerX448KeyPresent = 1;
+        return 0;
+    }
+#endif
+#ifdef HAVE_ECC
+    if (ssl->peerEccKey == NULL) {
+        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC, (void **)&ssl->peerEccKey);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+    else if (ssl->peerEccKeyPresent) {
+        ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
+        ssl->peerEccKeyPresent = 0;
+        if (ret != 0) {
+            return ret;
+        }
+    }
+
+    curveId = wc_ecc_get_oid((word32) curveOid, NULL, NULL);
+    if (wc_ecc_import_x963_ex(input + args->idx, length,
+                              ssl->peerEccKey, curveId) != 0) {
+#ifdef WOLFSSL_EXTRA_ALERTS
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+#endif
+        return ECC_PEERKEY_ERROR;
+    }
+
+    args->idx += length;
+    ssl->peerEccKeyPresent = 1;
+#endif
+    return 0;
+}
+#endif /* def(HAVE_ECC) || def(HAVE_CURVE25519) || def(HAVE_CURVE448)) */
+
+#if !defined(NO_PSK)
+static int GetPSKServerHint(WOLFSSL *ssl, const byte *input, word32 size,
+                            DskeArgs *args)
+{
+    int srvHintLen;
+    word16 length;
+
+    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        return BUFFER_ERROR;
+    }
+
+    ato16(input + args->idx, &length);
+    args->idx += OPAQUE16_LEN;
+
+    if ((args->idx - args->begin) + length > size) {
+        return BUFFER_ERROR;
+    }
+
+    /* get PSK server hint from the wire */
+    srvHintLen = (int)min(length, MAX_PSK_ID_LEN);
+    XMEMCPY(ssl->arrays->server_hint, input + args->idx, (size_t)(srvHintLen));
+    ssl->arrays->server_hint[srvHintLen] = '\0';        /* null term */
+
+    args->idx += length;
+    return 0;
+}
+#endif /* !defined(NO_PSK) */
 
 /* handle processing of server_key_exchange (12) */
 static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
@@ -32310,26 +32495,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             #ifndef NO_PSK
                 case psk_kea:
                 {
-                    int srvHintLen;
-                    word16 length;
-
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    /* get PSK server hint from the wire */
-                    srvHintLen = (int)min(length, MAX_PSK_ID_LEN);
-                    XMEMCPY(ssl->arrays->server_hint, input + args->idx,
-                            (size_t)(srvHintLen));
-                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
-                    args->idx += length;
+                    ret = GetPSKServerHint(ssl, input, size, args);
                     break;
                 }
             #endif /* !NO_PSK */
@@ -32337,8 +32503,6 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 {
                     ret = GetDhPublicKey(ssl, input, size, args);
-                    if (ret != 0)
-                        goto exit_dske;
                     break;
                 }
             #endif /* !NO_DH */
@@ -32346,181 +32510,16 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                                           defined(HAVE_CURVE448)
                 case ecc_diffie_hellman_kea:
                 {
-                    byte b;
-                #ifdef HAVE_ECC
-                    int curveId;
-                #endif
-                    int curveOid;
-                    word16 length;
-
-                    if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
-                                                        OPAQUE8_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    b = input[args->idx++];
-                    if (b != named_curve) {
-                        ERROR_OUT(ECC_CURVETYPE_ERROR, exit_dske);
-                    }
-
-                    args->idx += 1;   /* curve type, eat leading 0 */
-                    b = input[args->idx++];
-                    if ((curveOid = CheckCurveId(b)) < 0) {
-                        ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
-                    }
-                    ssl->ecdhCurveOID = (word32)curveOid;
-                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-                    ssl->namedGroup = 0;
-                #endif
-
-                    length = input[args->idx++];
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->peerX25519Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           (void**)&ssl->peerX25519Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerX25519KeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           ssl->peerX25519Key);
-                            ssl->peerX25519KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
-
-                        if ((ret = wc_curve25519_check_public(
-                                input + args->idx, length,
-                                EC25519_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                SendAlert(ssl, alert_fatal, decode_error);
-                            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                SendAlert(ssl, alert_fatal, bad_record_mac);
-                            else {
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                            }
-                        #endif
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        if (wc_curve25519_import_public_ex(input + args->idx,
-                                length, ssl->peerX25519Key,
-                                EC25519_LITTLE_ENDIAN) != 0) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        args->idx += length;
-                        ssl->peerX25519KeyPresent = 1;
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        if (ssl->peerX448Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                           (void**)&ssl->peerX448Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerX448KeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                           ssl->peerX448Key);
-                            ssl->peerX448KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
-
-                        if ((ret = wc_curve448_check_public(
-                                input + args->idx, length,
-                                EC448_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                SendAlert(ssl, alert_fatal, decode_error);
-                            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                SendAlert(ssl, alert_fatal, bad_record_mac);
-                            else {
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                            }
-                        #endif
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        if (wc_curve448_import_public_ex(input + args->idx,
-                                length, ssl->peerX448Key,
-                                EC448_LITTLE_ENDIAN) != 0) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        args->idx += length;
-                        ssl->peerX448KeyPresent = 1;
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->peerEccKey == NULL) {
-                        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                       (void**)&ssl->peerEccKey);
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    } else if (ssl->peerEccKeyPresent) {
-                        ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
-                        ssl->peerEccKeyPresent = 0;
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    }
-
-                    curveId = wc_ecc_get_oid((word32)curveOid, NULL, NULL);
-                    if (wc_ecc_import_x963_ex(input + args->idx, length,
-                                        ssl->peerEccKey, curveId) != 0) {
-                    #ifdef WOLFSSL_EXTRA_ALERTS
-                        SendAlert(ssl, alert_fatal, illegal_parameter);
-                    #endif
-                        ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                    }
-
-                    args->idx += length;
-                    ssl->peerEccKeyPresent = 1;
-                #endif
+                    ret = GetEcDiffieHellmanKea(ssl, input, size, args);
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
             #if !defined(NO_DH) && !defined(NO_PSK)
                 case dhe_psk_kea:
                 {
-                    int srvHintLen;
-                    word16 length;
-
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    /* get PSK server hint from the wire */
-                    srvHintLen = (int)min(length, MAX_PSK_ID_LEN);
-                    XMEMCPY(ssl->arrays->server_hint, input + args->idx,
-                                                                srvHintLen);
-                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
-                    args->idx += length;
-
-                    ret = GetDhPublicKey(ssl, input, size, args);
-                    if (ret != 0)
-                        goto exit_dske;
+                    ret = GetPSKServerHint(ssl, input, size, args);
+                    if (ret == 0)
+                        ret = GetDhPublicKey(ssl, input, size, args);
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
@@ -32528,169 +32527,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
-                    byte b;
-                    int curveOid, curveId;
-                    int srvHintLen;
-                    word16 length;
-
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    /* get PSK server hint from the wire */
-                    srvHintLen = (int)min(length, MAX_PSK_ID_LEN);
-                    XMEMCPY(ssl->arrays->server_hint, input + args->idx,
-                                                    (size_t)(srvHintLen));
-                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
-
-                    args->idx += length;
-
-                    if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
-                        OPAQUE8_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    /* Check curve name and ID */
-                    b = input[args->idx++];
-                    if (b != named_curve) {
-                        ERROR_OUT(ECC_CURVETYPE_ERROR, exit_dske);
-                    }
-
-                    args->idx += 1;   /* curve type, eat leading 0 */
-                    b = input[args->idx++];
-                    if ((curveOid = CheckCurveId(b)) < 0) {
-                        ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
-                    }
-                    ssl->ecdhCurveOID = (word32)curveOid;
-                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-                    ssl->namedGroup = 0;
-                #endif
-
-                    length = input[args->idx++];
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->peerX25519Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           (void**)&ssl->peerX25519Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerX25519KeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           ssl->peerX25519Key);
-                            ssl->peerX25519KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
-
-                        if ((ret = wc_curve25519_check_public(
-                                input + args->idx, length,
-                                EC25519_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                SendAlert(ssl, alert_fatal, decode_error);
-                            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                SendAlert(ssl, alert_fatal, bad_record_mac);
-                            else {
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                            }
-                        #endif
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        if (wc_curve25519_import_public_ex(input + args->idx,
-                                length, ssl->peerX25519Key,
-                                EC25519_LITTLE_ENDIAN) != 0) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        args->idx += length;
-                        ssl->peerX25519KeyPresent = 1;
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        if (ssl->peerX448Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                           (void**)&ssl->peerX448Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerX448KeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                           ssl->peerX448Key);
-                            ssl->peerX448KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
-
-                        if ((ret = wc_curve448_check_public(
-                                input + args->idx, length,
-                                EC448_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                SendAlert(ssl, alert_fatal, decode_error);
-                            else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                SendAlert(ssl, alert_fatal, bad_record_mac);
-                            else {
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                            }
-                        #endif
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        if (wc_curve448_import_public_ex(input + args->idx,
-                                length, ssl->peerX448Key,
-                                EC448_LITTLE_ENDIAN) != 0) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                        }
-
-                        args->idx += length;
-                        ssl->peerX448KeyPresent = 1;
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->peerEccKey == NULL) {
-                        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                 (void**)&ssl->peerEccKey);
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    } else if (ssl->peerEccKeyPresent) {
-                        ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
-                        ssl->peerEccKeyPresent = 0;
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    }
-
-                    curveId = wc_ecc_get_oid((word32)curveOid, NULL, NULL);
-                    if (wc_ecc_import_x963_ex(input + args->idx, length,
-                        ssl->peerEccKey, curveId) != 0) {
-                    #ifdef WOLFSSL_EXTRA_ALERTS
-                        SendAlert(ssl, alert_fatal, illegal_parameter);
-                    #endif
-                        ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
-                    }
-
-                    args->idx += length;
-                    ssl->peerEccKeyPresent = 1;
-                #endif
+                    ret = GetPSKServerHint(ssl, input, size, args);
+                    if (ret == 0)
+                        ret = GetEcDiffieHellmanKea(ssl, input, size, args);
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */

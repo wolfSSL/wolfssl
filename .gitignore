@@ -33,7 +33,7 @@ aclocal.m4
 aminclude.am
 lt*.m4
 Makefile.in
-Makefile
+/Makefile
 depcomp
 missing
 libtool
@@ -449,6 +449,7 @@ MagicCrypto
 # debian packaging
 debian/changelog
 debian/control
+debian/rules
 *.deb
 
 # Ada/Alire files
@@ -456,6 +457,9 @@ wrapper/Ada/alire/
 wrapper/Ada/config/
 wrapper/Ada/lib/
 wrapper/Ada/obj/
+
+# Rust wrapper files
+/wrapper/rust/*/target/
 
 # PlatformIO
 /**/.pio

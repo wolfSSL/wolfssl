@@ -1830,7 +1830,7 @@ double current_time(void)
     (void) date;
 
     /* return seconds.milliseconds */
-    return ((double) time.Hours * 24) + ((double) time.Minutes * 60)
+    return ((double) time.Hours * 3600) + ((double) time.Minutes * 60)
             + (double) time.Seconds + ((double) subsec / 1000);
 }
 #endif /* HAL_RTC_MODULE_ENABLED */

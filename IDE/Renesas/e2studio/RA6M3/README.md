@@ -21,7 +21,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Board|EK-RA6M3|
 |Device|R7FA6M3AH3CFC|
 |Toolchain|GCC ARM Embedded|
-|FSP Version|3.5.0|
+|FSP Version|6.1.0|
 
 #### Selected software components
 
@@ -64,8 +64,8 @@ The following steps explain how to generate the missing files and where to place
 
 |Property|Value|
 |:--|:--|
-|Thread Symbol|wolfssl_tst_thread|
-|Thread Name|wolf_tst_thread|
+|Thread Symbol|wolfssl_tst_thd|
+|Thread Name|wolf_tst_thd|
 |Thread Stack size|increase depending on your environment<br> e.g. 0xA000|
 |Thread Memory Allocation Support Dynamic Allocation|Enabled|
 |Memory Allocation Total Heap Size|increase depending on your environment<br> e.g. 0x20000|
@@ -76,7 +76,7 @@ The following steps explain how to generate the missing files and where to place
 + Add `Heap 4` stack to sce_tst_thread from `New Stack` -> `RTOS` -> `FreeRTOS Heap 4`
 + Add `FreeRTOS + TCP` stack to sce_tst_thread from `New Stack` -> `Networking` -> `FreeRTOS+TCP` and set properties. Go to `Add Ethernet Driver` box, and click the box to select `New` -> `Ethernet (r_ether)`
 . Set properties.
-+ Increase `BSP` heap size. Go to `BSP` tab and increase `RA Common` Heap size. e.g. 0x1000
+
 |Property|Value|
 |:--|:--|
 |Network Events call vApplicationIPNetworkEventHook|Disable|
