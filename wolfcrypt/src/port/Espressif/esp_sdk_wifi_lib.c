@@ -31,13 +31,27 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
-#if defined(USE_WOLFSSL_ESP_SDK_WIFI) && ESP_IDF_VERSION_MAJOR > 4
+#if defined(USE_WOLFSSL_ESP_SDK_WIFI) && \
+    (ESP_IDF_VERSION_MAJOR >= 4 || defined(CONFIG_IDF_TARGET_ESP8266))
 
 /* Espressif */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
 #include <esp_err.h>
 #include <esp_wifi.h>
+
+/* Includes for showing IP address in esp_sdk_wifi_show_ip() */
+#if __has_include("esp_netif.h")
+    /* IDF v4.1+ (esp_netif), required on v5+ */
+    #include "esp_netif.h"
+    #include "lwip/ip4_addr.h"
+    #include "lwip/inet.h"
+#else
+    /* Older stacks including ESP8266 RTOS SDK 3.4 (tcpip_adapter) */
+    #include "tcpip_adapter.h"
+    #include "lwip/ip4_addr.h"
+    #include "lwip/inet.h"
+#endif
 
 
 /* wolfSSL */
@@ -60,13 +74,16 @@ esp_err_t esp_sdk_wifi_lib_init(void)
 #define WIFI_LOW_HEAP_WARNING 21132
 
 #if defined(CONFIG_IDF_TARGET_ESP8266)
+    /*  No special ESP83266 setting */
 #elif ESP_IDF_VERSION_MAJOR >= 5 && defined(FOUND_PROTOCOL_EXAMPLES_DIR)
     /* example path set in cmake file */
 #elif ESP_IDF_VERSION_MAJOR > 4
 /*    #include "protocol_examples_common.h" */
 #else
-    const static int CONNECTED_BIT = BIT0;
-    static EventGroupHandle_t wifi_event_group;
+    #if (0)
+        const static int CONNECTED_BIT = BIT0;
+        static EventGroupHandle_t wifi_event_group;
+    #endif
 #endif
 
 #if defined(CONFIG_IDF_TARGET_ESP8266)
@@ -79,7 +96,7 @@ esp_err_t esp_sdk_wifi_lib_init(void)
         const static int CONNECTED_BIT = BIT0;
         static EventGroupHandle_t wifi_event_group;
     #endif
-    #if (ESP_IDF_VERSION_MAJOR == 5)
+    #if (ESP_IDF_VERSION_MAJOR >= 5)
         #define HAS_WPA3_FEATURES
     #else
         #undef HAS_WPA3_FEATURES
@@ -89,9 +106,11 @@ esp_err_t esp_sdk_wifi_lib_init(void)
 #endif
 
 #if defined(CONFIG_IDF_TARGET_ESP8266)
+
 #ifndef CONFIG_ESP_MAX_STA_CONN
     #define CONFIG_ESP_MAX_STA_CONN 4
 #endif
+
 #define EXAMPLE_MAX_STA_CONN       CONFIG_ESP_MAX_STA_CONN
 
 #define WIFI_CONNECTED_BIT BIT0
@@ -129,37 +148,38 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 #else
+static volatile bool WiFiEthernetReady = 0;
+
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data)
 {
-    if (event_base == WIFI_EVENT) {
-        if (event_id == WIFI_EVENT_STA_START) {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        WiFiEthernetReady = 0;
+        esp_wifi_connect();
+    }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
             esp_wifi_connect();
-            ESP_LOGV(TAG, "Connect event!!");
+            s_retry_num++;
+            ESP_LOGI(TAG, "retry to connect to the AP");
         }
         else {
-            if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
-                if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
-                    esp_wifi_connect();
-                    s_retry_num++;
-                    ESP_LOGI(TAG, ">> Retry to connect to the AP");
-                }
-                else {
-                    xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-                }
-                ESP_LOGI(TAG, ">> Connect to the AP fail");
-            } /* WIFI_EVENT_STA_DISCONNECTED */
-            else if(event_id == IP_EVENT_STA_GOT_IP) {
-                ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-                ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
-                s_retry_num = 0;
-                xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-            } /* IP_EVENT_STA_GOT_IP */
-        } /* not WIFI_EVENT_STA_START */
-    } /* event_base == WIFI_EVENT */
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        }
+        ESP_LOGI(TAG, "connect to the AP fail");
+        WiFiEthernetReady = 0;
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
+        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        WiFiEthernetReady = 1;
+    }
 } /* event_handler */
 
 #endif
+
 esp_err_t esp_sdk_wifi_init_sta(void)
 {
     word32 this_heap;
@@ -191,6 +211,10 @@ esp_err_t esp_sdk_wifi_init_sta(void)
      * can be enabled by commenting below line */
     if (strlen((char *)wifi_config.sta.password)) {
         wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+#if (0)
+        /* optional pmf_cfg */
+        wifi_config.pmf_cfg = { .capable = true, .required = false };
+#endif
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
@@ -201,12 +225,14 @@ esp_err_t esp_sdk_wifi_init_sta(void)
     this_heap = esp_get_free_heap_size();
     ESP_LOGI(TAG, "this heap = %d", this_heap);
     if (this_heap < WIFI_LOW_HEAP_WARNING) {
+        ESP_LOGW(TAG, "esp_get_free_heap_size: %d", this_heap);
         ESP_LOGW(TAG, "Warning: WiFi low heap: %d", WIFI_LOW_HEAP_WARNING);
     }
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT)
      * or connection failed for the maximum number of re-tries (WIFI_FAIL_BIT).
      * The bits are set by event_handler()
      * (see above) */
+    ESP_LOGI(TAG, "xEventGroupWaitBits ...");
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
             pdFALSE,
@@ -252,6 +278,28 @@ esp_err_t esp_sdk_wifi_init_sta(void)
     return ESP_OK;
 }
 
+esp_err_t esp_sdk_wifi_show_ip(void)
+{
+    int ret = ESP_OK;
+    /* tcpip_adapter path (ESP8266 RTOS SDK 3.4 / old IDF) */
+    tcpip_adapter_ip_info_t ipi;
+    if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipi) == ESP_OK) {
+        ip4_addr_t ip = { .addr = ipi.ip.addr };
+        ip4_addr_t mask = { .addr = ipi.netmask.addr };
+        ip4_addr_t gw = { .addr = ipi.gw.addr };
+        ESP_LOGI(TAG,
+            "IPv4 " IPSTR "  mask " IPSTR "  gw " IPSTR,
+            IP2STR(&ip),
+            IP2STR(&mask),
+            IP2STR(&gw));
+    }
+    else {
+        ESP_LOGW(TAG, "tcpip_adapter_get_ip_info failed");
+        ret = ESP_FAIL;
+    }
+    return ret;
+} /* esp_sdk_wifi_show_ip */
+
 #elif ESP_IDF_VERSION_MAJOR < 4
 /* event handler for wifi events */
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
@@ -281,6 +329,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     }
     return ESP_OK;
 }
+
 #else
 
 #ifdef CONFIG_ESP_MAXIMUM_RETRY
@@ -308,7 +357,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 #endif
 
 #ifndef ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
-    #define CONFIG_ESP_WIFI_AUTH_WPA2_PSK 1
+    #define CONFIG_ESP_WIFI_AUTH_WPA2_PSK WIFI_AUTH_WPA2_PSK
     #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD CONFIG_ESP_WIFI_AUTH_WPA2_PSK
 #endif
 
@@ -355,8 +404,18 @@ static void event_handler(void* arg,
     }
 }
 
-esp_err_t wc_wifi_init_sta(void)
+esp_err_t esp_sdk_wifi_init_sta(void)
 {
+    wifi_country_t country = {
+        .cc     = "US",
+        .schan  = 1,
+        .nchan  = 11,
+        .max_tx_power = 0, /* optional */
+        .policy = WIFI_COUNTRY_POLICY_MANUAL,
+#if CONFIG_SOC_WIFI_SUPPORT_5G
+        .wifi_5g_channel_mask = 0,
+#endif
+    };
     esp_err_t ret = ESP_OK;
 
     s_wifi_event_group = xEventGroupCreate();
@@ -368,6 +427,7 @@ esp_err_t wc_wifi_init_sta(void)
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_country(&country));
 
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
@@ -401,7 +461,11 @@ esp_err_t wc_wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
 
-#ifdef CONFIG_EXAMPLE_WIFI_SSID
+#if defined(CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG) && \
+            CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG
+    /* Using local private config file, ignore myssid default warning */
+#else
+#if defined(CONFIG_EXAMPLE_WIFI_SSID)
     if (XSTRCMP(CONFIG_EXAMPLE_WIFI_SSID, "myssid") == 0) {
         ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID is \"myssid\".");
         ESP_LOGW(TAG, "  Do you have a WiFi AP called \"myssid\", ");
@@ -410,6 +474,7 @@ esp_err_t wc_wifi_init_sta(void)
 #else
     ESP_LOGW(TAG, "WARNING: CONFIG_EXAMPLE_WIFI_SSID not defined.");
 #endif
+#endif /* CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG */
 
     ESP_ERROR_CHECK(esp_wifi_start() );
 
@@ -457,12 +522,67 @@ esp_err_t wc_wifi_init_sta(void)
     return ret;
 }
 
-esp_err_t wc_wifi_show_ip(void)
+esp_err_t esp_sdk_wifi_show_ip(void)
 {
-    /* TODO Causes panic: ESP_LOGI(TAG, "got ip:" IPSTR,
-     * IP2STR(&event->ip_info.ip)); */
-    return ESP_OK;
-}
+    int ret = ESP_OK;
+#if __has_include("esp_netif.h")
+    /* esp_netif path (modern IDF) */
+    esp_netif_t *nif = NULL;
+
+    if ((nif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF")) != NULL) {
+        /* found WIFI_STA_DEF */
+    }
+    else if ((nif = esp_netif_get_handle_from_ifkey("WIFI_STA")) != NULL) {
+        /* found WIFI_STA */
+    }
+    else if ((nif = esp_netif_get_handle_from_ifkey("ETH_DEF")) != NULL) {
+        /* found ETH_DEF */
+    }
+    else {
+        nif = esp_netif_get_handle_from_ifkey("PPP_DEF");
+    }
+
+    if (!nif) {
+        ESP_LOGW(TAG, "No esp_netif handle found");
+        ret = ESP_FAIL;
+    }
+
+    esp_netif_ip_info_t ipi;
+    if (esp_netif_get_ip_info(nif, &ipi) == ESP_OK) {
+        /* Convert esp_ip4_addr_t to lwIP ip4_addr_t for IPSTR/IP2STR */
+        ip4_addr_t ip = { .addr = ipi.ip.addr };
+        ip4_addr_t mask = { .addr = ipi.netmask.addr };
+        ip4_addr_t gw = { .addr = ipi.gw.addr };
+        ESP_LOGI(TAG,
+            "IPv4 " IPSTR "  mask " IPSTR "  gw " IPSTR,
+            IP2STR(&ip),
+            IP2STR(&mask),
+            IP2STR(&gw));
+    }
+    else {
+        ESP_LOGW(TAG, "esp_netif_get_ip_info failed");
+        ret = ESP_FAIL;
+    }
+#else
+    /* tcpip_adapter path (ESP8266 RTOS SDK 3.4 / old IDF) */
+    tcpip_adapter_ip_info_t ipi;
+    if (tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipi) == ESP_OK) {
+        ip4_addr_t ip = { .addr = ipi.ip.addr };
+        ip4_addr_t mask = { .addr = ipi.netmask.addr };
+        ip4_addr_t gw = { .addr = ipi.gw.addr };
+        ESP_LOGI(TAG,
+            "IPv4 " IPSTR "  mask " IPSTR "  gw " IPSTR,
+            IP2STR(&ip),
+            IP2STR(&mask),
+            IP2STR(&gw));
+    }
+    else {
+        ESP_LOGW(TAG, "tcpip_adapter_get_ip_info failed");
+        ret = ESP_FAIL;
+    }
+#endif /* Old SDK - ESP8266 */
+    return ret;
+} /* esp_sdk_wifi_show_ip */
 
 #endif
 
