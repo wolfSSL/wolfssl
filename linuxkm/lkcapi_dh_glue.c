@@ -36,9 +36,8 @@
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_DH) && \
-    (!defined(WOLFSSL_DH_EXTRA) ||         \
-     !defined(WOLFSSL_DH_GEN_PUB))
-     /* not supported without WOLFSSL_DH_EXTRA && WOLFSSL_DH_GEN_PUB */
+    !defined(WOLFSSL_DH_EXTRA)
+     /* not supported without WOLFSSL_DH_EXTRA */
     #undef LINUXKM_LKCAPI_REGISTER_DH
 
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DH)
