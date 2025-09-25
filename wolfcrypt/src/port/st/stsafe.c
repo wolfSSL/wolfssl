@@ -120,7 +120,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
 {
     int err;
     byte sigRS[STSAFE_MAX_SIG_LEN];
-    byte *r, *s;
+    byte *r = NULL, *s = NULL;
     word32 r_len = STSAFE_MAX_SIG_LEN/2, s_len = STSAFE_MAX_SIG_LEN/2;
     byte pubKeyX[STSAFE_MAX_PUBKEY_RAW_LEN/2];
     byte pubKeyY[STSAFE_MAX_PUBKEY_RAW_LEN/2];
@@ -130,6 +130,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     word32 inOutIdx = 0;
     StSafeA_CurveId curve_id = STSAFE_A_NIST_P_256;
     int ecc_curve;
+    int key_sz = 0;
 
     (void)ssl;
     (void)ctx;
@@ -151,23 +152,34 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
             pubKeyY, &pubKeyY_len);
     }
     if (err == 0) {
-        int key_sz;
-
         /* determine curve */
         ecc_curve = key.dp->id;
         curve_id = stsafe_get_ecc_curve_id(ecc_curve);
         key_sz = stsafe_get_key_size(curve_id);
-
+        if (key_sz <= 0 || key_sz > STSAFE_MAX_KEY_LEN) {
+            err = BAD_FUNC_ARG;
+        }
+    }
+    if (err == 0) {
         /* Extract R and S from signature */
         XMEMSET(sigRS, 0, sizeof(sigRS));
         r = &sigRS[0];
         s = &sigRS[key_sz];
         err = wc_ecc_sig_to_rs(sig, sigSz, r, &r_len, s, &s_len);
-        (void)r_len;
-        (void)s_len;
     }
-
     if (err == 0) {
+        /* make sure R and S are not too large */
+        if (r_len > key_sz || s_len > key_sz) {
+            err = BAD_FUNC_ARG;
+        }
+    }
+    if (err == 0) {
+        /* make sure R and S are zero padded on front */
+        XMEMMOVE(&sigRS[key_sz-r_len], r, r_len);
+        XMEMSET(&sigRS[0], 0, key_sz-r_len);
+        XMEMMOVE(&sigRS[key_sz + (key_sz-s_len)], s, s_len);
+        XMEMSET(&sigRS[key_sz], 0, key_sz-s_len);
+
         /* Verify signature */
         err = stsafe_interface_verify(curve_id, (uint8_t*)hash, sigRS,
             pubKeyX, pubKeyY, (int32_t*)result);
@@ -474,7 +486,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         }
         else if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
             byte sigRS[STSAFE_MAX_SIG_LEN];
-            byte *r, *s;
+            byte *r = NULL, *s = NULL;
             word32 r_len = STSAFE_MAX_SIG_LEN/2, s_len = STSAFE_MAX_SIG_LEN/2;
             byte pubKeyX[STSAFE_MAX_PUBKEY_RAW_LEN/2];
             byte pubKeyY[STSAFE_MAX_PUBKEY_RAW_LEN/2];
@@ -485,13 +497,18 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 
             WOLFSSL_MSG("STSAFE: ECC Verify");
 
-            if (info->pk.eccverify.key == NULL)
+            if (info->pk.eccverify.key == NULL ||
+                info->pk.eccverify.key->dp == NULL) {
                 return BAD_FUNC_ARG;
+            }
 
             /* determine curve */
             ecc_curve = info->pk.eccverify.key->dp->id;
             curve_id = stsafe_get_ecc_curve_id(ecc_curve);
             key_sz = stsafe_get_key_size(curve_id);
+            if (key_sz <= 0 || key_sz > STSAFE_MAX_KEY_LEN) {
+                return BAD_FUNC_ARG;
+            }
 
             /* Extract Raw X and Y coordinates of the public key */
             rc = wc_ecc_export_public_raw(info->pk.eccverify.key,
@@ -504,10 +521,20 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 s = &sigRS[key_sz];
                 rc = wc_ecc_sig_to_rs(info->pk.eccverify.sig,
                     info->pk.eccverify.siglen, r, &r_len, s, &s_len);
-                (void)r_len;
-                (void)s_len;
             }
             if (rc == 0) {
+                /* make sure R and S are not too large */
+                if (r_len > key_sz || s_len > key_sz) {
+                    rc = BAD_FUNC_ARG;
+                }
+            }
+            if (rc == 0) {
+                /* make sure R and S are zero padded on front */
+                XMEMMOVE(&sigRS[key_sz-r_len], r, r_len);
+                XMEMSET(&sigRS[0], 0, key_sz-r_len);
+                XMEMMOVE(&sigRS[key_sz + (key_sz-s_len)], s, s_len);
+                XMEMSET(&sigRS[key_sz], 0, key_sz-s_len);
+
                 /* Verify signature */
                 rc = stsafe_interface_verify(curve_id,
                     (uint8_t*)info->pk.eccverify.hash, sigRS, pubKeyX, pubKeyY,

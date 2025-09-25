@@ -25,7 +25,7 @@
 */
 
 /* Define a macro to display user settings version in example code: */
-#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.7.6"
+#define WOLFSSL_USER_SETTINGS_ID "Arduino user_settings.h v5.8.2"
 
 /* Disable wolfcrypt cryptographic security hardening. Comment out to enable: */
 /* #define WC_NO_HARDEN */
@@ -40,7 +40,6 @@
 #define WOLFSSL_IGNORE_FILE_WARN
 
 #define NO_FILESYSTEM
-#define USE_CERT_BUFFERS_2048
 
 /* Make sure this is not an ESP-IDF file */
 #undef  WOLFSSL_ESPIDF
@@ -58,22 +57,149 @@
 #define RSA_LOW_MEM
 
 #define NO_OLD_TLS
-/* TLS 1.3                                 */
-/* #define WOLFSSL_TLS13 */
-#if defined(WOLFSSL_TLS13)
+
+/* To see board properties & definitions:
+ * arduino-cli compile --fqbn [] --show-properties ./sketches/wolfssl_client */
+
+#if defined(ARDUINO_AVR_ETHERNET)
+    /* TODO: optimize client / server to fit in 32K flash?
+     * currently 164K too big: */
+    #define WOLFSSL_NO_TLS13
+    #define WOLFSSL_MIN_CONFIG
+    #define WOLFSSL_USER_IO
+    #define WOLFSSL_NO_WRITEV
+    #define NO_FILESYSTEM
+    #define WOLFSSL_NO_CERTS
+    #define HAVE_TLS
+    #define NO_RC4
+    #define NO_PSK
+    #define NO_SESSION_CACHE
+    #define NO_CERT_VERIFY
+
+    #define NO_MAIN_DRIVER
+    #define WOLFSSL_NO_SP
+    #define WOLFSSL_NO_SIG_WRAPPER
+    #define TFM_TIMING_RESISTANT
+
+    #undef WOLFSSL_DTLS
+    #undef WOLFSSL_DTLS13
+#endif
+
+#if defined(ARDUINO_AVR_LEONARDO_ETH)
+    /* No time available */
+    /* Used only here in Arduino, WOLFSSL_NO_TLS13 is not a wolfssl macro */
+    #undef  WOLFSSL_NO_TLS13
+    #define WOLFSSL_NO_TLS13
+
+    #define NO_TLS
+    #undef  WOLFSSL_TLS13
+
+    #define WOLFSSL_NO_TLS12
+#endif
+
+#if defined(ESP8266) || defined(__SAM3X8E__) || \
+    defined(ARDUINO_AVR_ETHERNET) || defined(ARDUINO_AVR_LEONARDO_ETH)
+    #define WOLFSSL_NO_SOCK
+    #define WOLFSSL_USER_IO
+    #define NO_WRITEV
+
+    /* There's limited RAM on these devices */
+    #define USE_CERT_BUFFERS_1024
+
+    /* SNI, Supported Groups (elliptic curves), ALPN: */
     #define HAVE_TLS_EXTENSIONS
-    #define WC_RSA_PSS
-    #define HAVE_HKDF
-    #define HAVE_AEAD
+
+    #define HAVE_SUPPORTED_CURVES
+
+    #if defined(WOLFSSL_NO_TLS13) && defined(WOLFSSL_NO_TLS12)
+        /* NO TLS */
+        #define NO_TLS
+    #elif defined(WOLFSSL_NO_TLS13)
+        /* Only TLS 1.2*/
+        /* enabled by default, for clarity: */
+        #undef WOLFSSL_NO_TLS12
+
+        /* Ensure TLS 1.3 is not enabled */
+        #undef WOLFSSL_TLS13
+    #elif defined(WOLFSSL_NO_TLS12)
+        /* Only TLS 1.3*/
+        #define WOLFSSL_TLS13
+        #if defined(WOLFSSL_TLS13)
+            #define WC_RSA_PSS
+            #define HAVE_HKDF
+            #define HAVE_AEAD
+        #endif
+    #else
+        /* Both TLS 1.2 and TLS 1.3 */
+
+        /* TLS 1.2 enabled by default, for clarity: */
+        #undef WOLFSSL_NO_TLS12
+
+        /* Enable only TLS 1.3 on small memory devices */
+        #define WOLFSSL_TLS13
+        #if defined(WOLFSSL_TLS13)
+            #define WC_RSA_PSS
+            #define HAVE_HKDF
+            #define HAVE_AEAD
+        #endif
+    #endif
+
+    #undef WOLFSSL_DTLS
+    #undef WOLFSSL_DTLS13
+#elif defined(ESP32)  || \
+    defined(WIFI_101) || defined(WIFI_NINA) || defined(WIFIESPAT) || \
+    defined(ETHERNET_H) || defined(ARDUINO_TEENSY41) || \
+    defined(ARDUINO_SAMD_MKR1000)
+
+    #define USE_CERT_BUFFERS_2048
+
+    /* Only boards known to have networking will have TLS / DTLS enabled */
+
+    #define HAVE_TLS_EXTENSIONS
+    #define HAVE_SUPPORTED_CURVES
+
+    /* Enable TLS 1.3                                 */
+    #define WOLFSSL_TLS13
+    #if defined(WOLFSSL_TLS13)
+        #define HAVE_TLS_EXTENSIONS
+        #define WC_RSA_PSS
+        #define HAVE_HKDF
+        #define HAVE_AEAD
+    #endif
+
+    /* Enable DTLS */
+    #define WOLFSSL_DTLS 1
+    #if defined(WOLFSSL_DTLS)
+        #define WOLFSSL_DTLS13
+
+        /* WOLFSSL_DTLS13 requires WOLFSSL_TLS13 */
+        #undef  WOLFSSL_TLS13
+        #define WOLFSSL_TLS13
+        #define USE_WOLFSSL_IO
+
+        /* WOLFSSL_SEND_HRR_COOKIE is needed to use DTLS 1.3 server */
+        #define WOLFSSL_SEND_HRR_COOKIE
+    #endif
+#elif defined (__AVR__) || defined(__AVR_ARCH__) || defined(__MEGAAVR__)
+    /* Do not enable TLS on platforms without networking */
+
+    /* We'll assume all AVR targets are small: 8 or 16 bit */
+    #define WC_16BIT_CPU
+    #define NO_TLS
+#elif (defined(__SAMD21__) || defined(__SAMD51__)) && defined(ARDUINO_SAMD_ZERO)
+    /* No networking on ARDUINO_SAMD_ZERO */
+#elif defined(ARDUINO_TEENSY40)
+    /* No networking on TEENSY boards */
+
+#else
+    /* other / unknown board */
+    #define USE_CERT_BUFFERS_1024
 #endif
 
 /*  #define HAVE_SUPPORTED_CURVES  */
 
 /* Cannot use WOLFSSL_NO_MALLOC with small stack */
 /* #define WOLFSSL_NO_MALLOC */
-
-#define HAVE_TLS_EXTENSIONS
-#define HAVE_SUPPORTED_CURVES
 
 /* To further reduce size, client or server functionality can be disabled.
  * Here, we check if the example code gave us a hint.
@@ -503,6 +629,20 @@
         #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_1024
         #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
     #else
-        #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
+        #define USE_CERT_BUFFERS_256
     #endif
+#endif
+
+/* Final checks */
+
+/* This should already be done in settings.h for newer versions of wolfSSL:
+ *
+ * There's currently no 100% reliable "smaller than 32 bit" detection.
+ * The user can specify: WC_16BIT_CPU
+ * Lower 16 bits of new OID values may collide on some 16 bit platforms.
+ *   e.g  Arduino Mega, fqbn=arduino:avr:mega  */
+#if defined(WC_16BIT_CPU)
+    /* Force the old, 16 bit OIDs to be used in wolfcrypt/oid_sum.h */
+    #undef  WOLFSSL_OLD_OID_SUM
+    #define WOLFSSL_OLD_OID_SUM
 #endif

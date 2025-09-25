@@ -79,6 +79,7 @@ jobs:
           lookup-only: true
 
       - name: Checkout hostap
+        if: steps.cache.outputs.cache-hit != 'true'
         run: git clone git://w1.fi/hostap.git hostap
 
   build_uml_linux:

@@ -212,7 +212,7 @@ static wolfSSL_Mutex zeroMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(zeroMutex);
 
 /* Initialize the table of addresses and the mutex.
  */
-void wc_MemZero_Init()
+void wc_MemZero_Init(void)
 {
     /* Clear the table to more easily see what is valid. */
     XMEMSET(memZero, 0, sizeof(memZero));
@@ -226,7 +226,7 @@ void wc_MemZero_Init()
 
 /* Free the mutex and check we have not any uncheck addresses.
  */
-void wc_MemZero_Free()
+void wc_MemZero_Free(void)
 {
     /* Free mutex. */
 #ifndef WOLFSSL_MUTEX_INITIALIZER
@@ -302,7 +302,9 @@ void wc_MemZero_Check(void* addr, size_t len)
                 fprintf(stderr, "\n[MEM_ZERO] %s:%p + %ld is not zero\n",
                     memZero[i].name, memZero[i].addr, j);
                 fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
+            #ifndef TEST_ALWAYS_RUN_TO_END
                 abort();
+            #endif
             }
         }
         /* Update next index to write to. */
@@ -549,7 +551,7 @@ void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb)
    wc_Memory** list is the list that new buckets are prepended to
  */
 static int wc_create_memory_buckets(byte* buffer, word32 bufSz,
-                              word32 buckSz, byte buckNum, wc_Memory** list) {
+                              word32 buckSz, word32 buckNum, wc_Memory** list) {
     byte*  pt  = buffer;
     int    ret = 0;
     byte memSz   = (byte)sizeof(wc_Memory);

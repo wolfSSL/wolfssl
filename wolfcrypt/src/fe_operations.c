@@ -24,7 +24,7 @@
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
-#if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
+#if !defined(CURVE25519_SMALL) && !defined(ED25519_SMALL)
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
 
@@ -1479,5 +1479,5 @@ void fe_cmov(fe f, const fe g, int b)
 }
 #endif
 
-#endif /* !CURVE25519_SMALL || !ED25519_SMALL */
+#endif /* !CURVE25519_SMALL && !ED25519_SMALL */
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */

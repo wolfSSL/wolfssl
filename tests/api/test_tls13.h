@@ -1,4 +1,4 @@
-/* linuxkm/pie_last.c -- memory fenceposts for checking binary image stability
+/* test_tls13.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,20 +19,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef __PIE__
-    #error pie_last.c must be compiled -fPIE.
-#endif
+#ifndef WOLFCRYPT_TEST_TLS13_H
+#define WOLFCRYPT_TEST_TLS13_H
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <tests/api/api_decl.h>
 
-#include <wolfssl/ssl.h>
+int test_tls13_apis(void);
+int test_tls13_cipher_suites(void);
+int test_tls13_bad_psk_binder(void);
+int test_tls13_rpk_handshake(void);
+int test_tls13_pq_groups(void);
+int test_tls13_early_data(void);
 
-int wolfCrypt_PIE_last_function(void);
-int wolfCrypt_PIE_last_function(void) {
-    return 1;
-}
+#define TEST_TLS13_DECLS                                   \
+    TEST_DECL_GROUP("tls13", test_tls13_apis),             \
+    TEST_DECL_GROUP("tls13", test_tls13_cipher_suites),    \
+    TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),   \
+    TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),    \
+    TEST_DECL_GROUP("tls13", test_tls13_pq_groups),        \
+    TEST_DECL_GROUP("tls13", test_tls13_early_data)
 
-const unsigned int wolfCrypt_PIE_rodata_end[];
-const unsigned int wolfCrypt_PIE_rodata_end[] =
-/* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
-{ 0xa4aaaf71, 0x55c4b7d0 };
+#endif /* WOLFCRYPT_TEST_TLS13_H */

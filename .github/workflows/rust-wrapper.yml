@@ -1,0 +1,33 @@
+name: Build Rust Wrapper
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL Rust Wrapper
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-24.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+    - name: Build wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
+      with:
+        path: wolfssl
+        configure: --enable-all
+    - name: Build Rust Wrapper
+      working-directory: wolfssl
+      run: make -C wrapper/rust
+    - name: Run Rust Wrapper Tests
+      working-directory: wolfssl
+      run: make -C wrapper/rust test

@@ -255,7 +255,7 @@ int test_wolfSSL_BIO_puts(void)
 int test_wolfSSL_BIO_dump(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
     BIO* bio;
     static const unsigned char data[] = {
         0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE,
@@ -1136,7 +1136,7 @@ int test_wolfSSL_BIO_reset(void)
 int test_wolfSSL_BIO_get_len(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && !defined(NO_FILESYSTEM)
     BIO *bio = NULL;
     const char txt[] = "Some example text to push to the BIO.";
 

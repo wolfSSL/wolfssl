@@ -4,5 +4,6 @@
 
 include wrapper/Ada/include.am
 include wrapper/CSharp/include.am
+include wrapper/rust/include.am
 
 EXTRA_DIST+= wrapper/python/README.md
