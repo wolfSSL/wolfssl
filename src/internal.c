@@ -16049,13 +16049,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     goto exit_ppc;
             #endif
 
-                /* Do verify callback. Don't call it on error as the callback
-                 * will still be called later. */
-                if (ret != 0) {
-                    args->leafVerifyErr = ret =
-                            DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
-                }
-
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -16147,6 +16140,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     #endif
 
+                    /* Do verify callback. */
+                    args->leafVerifyErr = ret =
+                            DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+
                     #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
                     /* Disregard failure to verify peer cert, as we will verify
                      * the whole chain with the native API later */
@@ -16160,8 +16157,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else
                     #endif/*defined(__APPLE__)&& defined(WOLFSSL_SYS_CA_CERTS)*/
-                    {
-                        WOLFSSL_MSG("\tNo callback override available, fatal");
+                    if (ret != 0) {
+                        WOLFSSL_MSG("\tfatal cert error");
                         args->fatal = 1;
                         DoCertFatalAlert(ssl, ret);
                     }
