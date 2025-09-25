@@ -7584,12 +7584,8 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     ExpectNotNull(ctx->c_ssl = wolfSSL_new(ctx->c_ctx));
     wolfSSL_SetIOWriteCtx(ctx->c_ssl, ctx);
     wolfSSL_SetIOReadCtx(ctx->c_ssl, ctx);
-    if (0
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-     || c_sharedCtx
-#endif
-        )
-    {
+    if (c_sharedCtx) {
         if (*clientCertFile != '\0') {
             ExpectIntEQ(wolfSSL_use_certificate_chain_file(ctx->c_ssl,
                     clientCertFile), WOLFSSL_SUCCESS);
@@ -7599,6 +7595,7 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         }
     }
+#endif
     if (ctx->c_cb.ssl_ready != NULL) {
         ExpectIntEQ(ctx->c_cb.ssl_ready(ctx->c_ssl), TEST_SUCCESS);
     }
@@ -7609,12 +7606,8 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     ExpectNotNull(ctx->s_ssl = wolfSSL_new(ctx->s_ctx));
     wolfSSL_SetIOWriteCtx(ctx->s_ssl, ctx);
     wolfSSL_SetIOReadCtx(ctx->s_ssl, ctx);
-    if (0
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
-     || s_sharedCtx
-#endif
-        )
-    {
+    if (s_sharedCtx) {
         if (*serverCertFile != '\0') {
             ExpectIntEQ(wolfSSL_use_certificate_chain_file(ctx->s_ssl,
                     serverCertFile), WOLFSSL_SUCCESS);
@@ -7624,6 +7617,7 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
         }
     }
+#endif
 #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
     wolfSSL_SetTmpDH_file(ctx->s_ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
 #elif !defined(NO_DH)
