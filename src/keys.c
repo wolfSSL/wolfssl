@@ -2377,6 +2377,12 @@ static int SetPrefix(byte* sha_input, int idx)
     do {var = (ty*)XMALLOC(sizeof(ty), heap, type); \
         if (var == NULL) return MEMORY_E; }while(0)
 
+#define write_key  server == decode ? keys->client_write_key \
+                                    : keys->server_write_key
+#define write_IV   server == decode ? keys->client_write_IV  \
+                                    : keys->server_write_IV
+#define imp_IV     decode ? keys->aead_dec_imp_IV \
+                          : keys->aead_enc_imp_IV
 #ifdef BUILD_ARC4
 #define IF_ARC4(a,b) a
 static int rc4_init(Ciphers* c, CipherSpecs* specs,
@@ -2397,9 +2403,7 @@ static int rc4_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)rng;
     (void)tls13;
-    wc_Arc4SetKey(c->arc4,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key, specs->key_size);
+    wc_Arc4SetKey(c->arc4, write_key, specs->key_size);
     return 0;
 }
 #else
@@ -2434,15 +2438,10 @@ static int chacha_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)rng;
     (void)tls13;
-    int ret = wc_Chacha_SetKey(c->chacha,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key, specs->key_size);
+    int ret = wc_Chacha_SetKey(c->chacha, write_key, specs->key_size);
     if (ret != 0)
         return ret;
-    XMEMCPY(decode ? keys->aead_dec_imp_IV
-                   : keys->aead_enc_imp_IV,
-       server == decode ? keys->client_write_IV
-                        : keys->server_write_IV, CHACHA20_IMP_IV_SZ);
+    XMEMCPY(imp_IV, write_IV, CHACHA20_IMP_IV_SZ);
     return 0;
 }
 #else
@@ -2475,11 +2474,7 @@ static int des3_setkey(Ciphers* c, int decode, int server, Keys* keys,
     (void)specs;
     (void)rng;
     (void)tls13;
-    return wc_Des3_SetKey(c->des3,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        server == decode ? keys->client_write_IV
-                         : keys->server_write_IV,
+    return wc_Des3_SetKey(c->des3, write_key, write_IV,
         decode ? DES_DECRYPTION : DES_ENCRYPTION);
 }
 #else
@@ -2513,13 +2508,8 @@ static int aes_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)rng;
     (void)tls13;
-    return wc_AesSetKey(c->aes,
-       server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-       specs->key_size,
-       server == decode ? keys->client_write_IV
-                        : keys->server_write_IV,
-       decode ? AES_DECRYPTION : AES_ENCRYPTION);
+    return wc_AesSetKey(c->aes, write_key, specs->key_size,
+       write_IV, decode ? AES_DECRYPTION : AES_ENCRYPTION);
 }
 #else
 #define IF_AES(a,b) a
@@ -2558,25 +2548,16 @@ static int aes_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
     CipherSpecs* specs, WC_RNG* rng, int tls13)
 {
     int ret;
-    ret = wc_AesGcmSetKey(c->aes,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        specs->key_size);
+    ret = wc_AesGcmSetKey(c->aes, write_key, specs->key_size);
     if (ret != 0)
         return ret;
-    XMEMCPY(decode ? keys->aead_dec_imp_IV
-                   : keys->aead_enc_imp_IV,
-        server == decode ? keys->client_write_IV
-                         : keys->server_write_IV,
-        AEAD_MAX_IMP_SZ);
+    XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
 #if !defined(NO_PUBLIC_GCM_SET_IV) && \
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     if (!decode && !tls13)
         return wc_AesGcmSetIV(c->aes, AESGCM_NONCE_SZ,
-                server ? keys->server_write_IV
-                       : keys->client_write_IV,
-                AESGCM_IMP_IV_SZ, rng);
+                write_IV, AESGCM_IMP_IV_SZ, rng);
 #endif
     return 0;
 }
@@ -2618,24 +2599,15 @@ static int aes_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)rng;
     int ret;
-    ret = wc_AesCcmSetKey(c->aes,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        specs->key_size);
+    ret = wc_AesCcmSetKey(c->aes, write_key, specs->key_size);
     if (ret != 0)
         return ret;
-    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
-            server == decode ? keys->client_write_IV
-                             : keys->server_write_IV,
-            AEAD_MAX_IMP_SZ);
+    XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
 #if !defined(NO_PUBLIC_CCM_SET_NONCE) && \
     ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     if (!decode && !tls13)
-        return wc_AesCcmSetNonce(c->aes,
-                                 server ? keys->server_write_IV
-                                        : keys->client_write_IV,
-                                 AEAD_MAX_IMP_SZ);
+        return wc_AesCcmSetNonce(c->aes, write_IV, AEAD_MAX_IMP_SZ);
 #endif
     return 0;
 }
@@ -2688,14 +2660,10 @@ static int aria_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)specs;
     int ret;
-    ret = wc_AriaSetKey(c->aria,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key);
+    ret = wc_AriaSetKey(c->aria, write_key);
     if (ret != 0)
         return ret;
-    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
-            server == decode ? keys->client_write_IV : keys->server_write_IV,
-            AEAD_MAX_IMP_SZ);
+    XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
     if (!decode && !tls13) {
         return wc_AriaGcmSetIV(c->aria, AESGCM_NONCE_SZ,
                 server ? keys->server_write_IV : keys->client_write_IV,
@@ -2728,12 +2696,7 @@ static int camellia_setkey(Ciphers* c, int decode, int server, Keys* keys,
 {
     (void)rng;
     (void)tls13;
-    return wc_CamelliaSetKey(c->cam,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        specs->key_size,
-        server == decode ? keys->client_write_IV
-                         : keys->server_write_IV);
+    return wc_CamelliaSetKey(c->cam, write_key, specs->key_size, write_IV);
 }
 #else
 #define IF_CAMELLIA(a,b) b
@@ -2767,15 +2730,10 @@ static int sm4_cbc_setkey(Ciphers* c, int decode, int server, Keys* keys,
     (void)rng;
     (void)tls13;
     int ret;
-    ret = wc_Sm4SetKey(c->sm4,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        specs->key_size);
+    ret = wc_Sm4SetKey(c->sm4, write_key, specs->key_size);
     if (ret != 0)
         return ret;
-    return wc_Sm4SetIV(c->sm4,
-                       server == decode ? keys->client_write_IV
-                                        : keys->server_write_IV);
+    return wc_Sm4SetIV(c->sm4, write_IV);
 }
 #else
 #define IF_SM4_CBC(a,b) b
@@ -2805,15 +2763,10 @@ static int sm4_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
     (void)rng;
     (void)tls13;
     int ret;
-    ret = wc_Sm4GcmSetKey(c->sm4,
-        server == decode ? keys->client_write_key
-                         : keys->server_write_key,
-        specs->key_size);
+    ret = wc_Sm4GcmSetKey(c->sm4, write_key, specs->key_size);
     if (ret != 0)
         return ret;
-    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
-            server == decode ? keys->client_write_IV : keys->server_write_IV,
-            AEAD_MAX_IMP_SZ);
+    XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
     return 0;
 }
 #else
@@ -2887,13 +2840,8 @@ static int null_setkey(Ciphers* c, int decode, int server, Keys* keys,
                 break;
         }
 
-        XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
-               server == decode ? keys->client_write_IV : keys->server_write_IV,
-               AEAD_MAX_IMP_SZ);
-        return wc_HmacSetKey(c->hmac, hashType,
-                             server == decode ? keys->client_write_key
-                                              : keys->server_write_key,
-                             specs->key_size);
+        XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
+        return wc_HmacSetKey(c->hmac, hashType, write_key, specs->key_size);
     }
     #endif
     return 0;
