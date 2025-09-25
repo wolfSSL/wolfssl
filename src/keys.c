@@ -2369,59 +2369,42 @@ static int SetPrefix(byte* sha_input, int idx)
 }
 #endif
 
+/* MALLOC
+    -- maybe not appropriate..
+    -- would you like me to expand this where it is used?
+*/
+#define MALLOC(var, ty, heap, type) \
+    do {var = (ty*)XMALLOC(sizeof(ty), heap, type); \
+        if (var == NULL) return MEMORY_E; }while(0)
 
-int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   int side, void* heap, int devId, WC_RNG* rng, int tls13)
+#ifdef BUILD_ARC4
+#define IF_ARC4(a,b) a
+static int rc4_init(Ciphers* c, CipherSpecs* specs,
+                    void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    if (c->arc4 == NULL)
+        MALLOC(c->arc4, Arc4, heap, DYNAMIC_TYPE_CIPHER);
+    if (wc_Arc4Init(c->arc4, heap, devId) != 0) {
+        WOLFSSL_MSG("Arc4Init failed in rc4_init");
+        return ASYNC_INIT_E;
+    }
+    return 0;
+}
+static int rc4_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
 {
     (void)rng;
     (void)tls13;
-
-#ifdef BUILD_ARC4
-    if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
-        word32 sz = specs->key_size;
-        if (enc && enc->arc4 == NULL) {
-            enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->arc4 == NULL)
-                 return MEMORY_E;
-        }
-        if (dec && dec->arc4 == NULL) {
-            dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->arc4 == NULL)
-                return MEMORY_E;
-        }
-
-        if (enc) {
-            if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Arc4Init(dec->arc4, heap, devId) != 0) {
-                WOLFSSL_MSG("Arc4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->client_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->server_write_key, sz);
-        }
-        else {
-            if (enc)
-                wc_Arc4SetKey(enc->arc4, keys->server_write_key, sz);
-            if (dec)
-                wc_Arc4SetKey(dec->arc4, keys->client_write_key, sz);
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
+    wc_Arc4SetKey(c->arc4,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key, specs->key_size);
+    return 0;
+}
+#else
+#define IF_ARC4(a,b) b
 #endif /* BUILD_ARC4 */
-
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD)
     /* Check that the max implicit iv size is sufficient */
@@ -2431,135 +2414,76 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 12) /* CHACHA20_IMP_IV_SZ */
         #error MAX_WRITE_IV_SZ is too small for ChaCha20
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_chacha) {
-        int chachaRet;
-        if (enc && enc->chacha == NULL)
-            enc->chacha =
-                    (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->chacha == NULL)
-            return MEMORY_E;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        if (enc) {
-            wc_MemZero_Add("SSL keys enc chacha", enc->chacha, sizeof(ChaCha));
-        }
-    #endif
-        if (dec && dec->chacha == NULL)
-            dec->chacha =
-                    (ChaCha*)XMALLOC(sizeof(ChaCha), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->chacha == NULL)
-            return MEMORY_E;
-    #ifdef WOLFSSL_CHECK_MEM_ZERO
-        if (dec) {
-            wc_MemZero_Add("SSL keys dec chacha", dec->chacha, sizeof(ChaCha));
-        }
-    #endif
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->client_write_key,
-                                          specs->key_size);
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        CHACHA20_IMP_IV_SZ);
-                if (chachaRet != 0) return chachaRet;
-            }
-            if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->server_write_key,
-                                          specs->key_size);
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        CHACHA20_IMP_IV_SZ);
-                if (chachaRet != 0) return chachaRet;
-            }
-        }
-        else {
-            if (enc) {
-                chachaRet = wc_Chacha_SetKey(enc->chacha, keys->server_write_key,
-                                          specs->key_size);
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        CHACHA20_IMP_IV_SZ);
-                if (chachaRet != 0) return chachaRet;
-            }
-            if (dec) {
-                chachaRet = wc_Chacha_SetKey(dec->chacha, keys->client_write_key,
-                                          specs->key_size);
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        CHACHA20_IMP_IV_SZ);
-                if (chachaRet != 0) return chachaRet;
-            }
-        }
-
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
-#endif /* HAVE_CHACHA && HAVE_POLY1305 */
+#define IF_CHACHA(a,b) a
+static int chacha_init(Ciphers* c, CipherSpecs* specs,
+                       void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    (void)devId;
+    if (c->chacha == NULL)
+        MALLOC(c->chacha, ChaCha, heap, DYNAMIC_TYPE_CIPHER);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Add("SSL keys enc/dec chacha",
+                   c->chacha, sizeof(ChaCha));
+#endif
+    return 0;
+}
+static int chacha_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    (void)tls13;
+    int ret = wc_Chacha_SetKey(c->chacha,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key, specs->key_size);
+    if (ret != 0)
+        return ret;
+    XMEMCPY(decode ? keys->aead_dec_imp_IV
+                   : keys->aead_enc_imp_IV,
+       server == decode ? keys->client_write_IV
+                        : keys->server_write_IV, CHACHA20_IMP_IV_SZ);
+    return 0;
+}
+#else
+#define IF_CHACHA(a,b) b
+#endif
 
 #ifdef BUILD_DES3
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 8) /* DES_IV_SIZE */
         #error MAX_WRITE_IV_SZ too small for 3DES
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_triple_des) {
-        int desRet = 0;
-
-        if (enc) {
-            if (enc->des3 == NULL)
-                enc->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-            if (enc->des3 == NULL)
-                return MEMORY_E;
-            XMEMSET(enc->des3, 0, sizeof(Des3));
-        }
-        if (dec) {
-            if (dec->des3 == NULL)
-                dec->des3 = (Des3*)XMALLOC(sizeof(Des3), heap, DYNAMIC_TYPE_CIPHER);
-            if (dec->des3 == NULL)
-                return MEMORY_E;
-            XMEMSET(dec->des3, 0, sizeof(Des3));
-        }
-
-        if (enc) {
-            if (wc_Des3Init(enc->des3, heap, devId) != 0) {
-                WOLFSSL_MSG("Des3Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Des3Init(dec->des3, heap, devId) != 0) {
-                WOLFSSL_MSG("Des3Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                desRet = wc_Des3_SetKey(enc->des3, keys->client_write_key,
-                                     keys->client_write_IV, DES_ENCRYPTION);
-                if (desRet != 0) return desRet;
-            }
-            if (dec) {
-                desRet = wc_Des3_SetKey(dec->des3, keys->server_write_key,
-                                     keys->server_write_IV, DES_DECRYPTION);
-                if (desRet != 0) return desRet;
-            }
-        }
-        else {
-            if (enc) {
-                desRet = wc_Des3_SetKey(enc->des3, keys->server_write_key,
-                                     keys->server_write_IV, DES_ENCRYPTION);
-                if (desRet != 0) return desRet;
-            }
-            if (dec) {
-                desRet = wc_Des3_SetKey(dec->des3, keys->client_write_key,
-                                     keys->client_write_IV, DES_DECRYPTION);
-                if (desRet != 0) return desRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+#define IF_DES3(a,b) a
+static int des3_init(Ciphers* c, CipherSpecs* specs,
+                     void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    if (c->des3 == NULL)
+        MALLOC(c->des3, Des3, heap, DYNAMIC_TYPE_CIPHER);
+    XMEMSET(c->des3, 0, sizeof(Des3));
+    if (wc_Des3Init(c->des3, heap, devId) != 0) {
+        WOLFSSL_MSG("Des3Init failed in des3_init");
+        return ASYNC_INIT_E;
     }
+    return 0;
+}
+static int des3_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)specs;
+    (void)rng;
+    (void)tls13;
+    return wc_Des3_SetKey(c->des3,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        server == decode ? keys->client_write_IV
+                         : keys->server_write_IV,
+        decode ? DES_DECRYPTION : DES_ENCRYPTION);
+}
+#else
+#define IF_DES3(a,b) b
 #endif /* BUILD_DES3 */
 
 #ifdef BUILD_AES
@@ -2567,78 +2491,38 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
         #error MAX_WRITE_IV_SZ too small for AES
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_aes) {
-        int aesRet = 0;
-
-        if (enc) {
-            if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (enc->aes == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AesFree(enc->aes);
-            }
-
-            XMEMSET(enc->aes, 0, sizeof(Aes));
-        }
-        if (dec) {
-            if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (dec->aes == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AesFree(dec->aes);
-            }
-
-            XMEMSET(dec->aes, 0, sizeof(Aes));
-        }
-        if (enc) {
-            if (wc_AesInit(enc->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_AesInit(dec->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                aesRet = wc_AesSetKey(enc->aes, keys->client_write_key,
-                                   specs->key_size, keys->client_write_IV,
-                                   AES_ENCRYPTION);
-                if (aesRet != 0) return aesRet;
-            }
-            if (dec) {
-                aesRet = wc_AesSetKey(dec->aes, keys->server_write_key,
-                                   specs->key_size, keys->server_write_IV,
-                                   AES_DECRYPTION);
-                if (aesRet != 0) return aesRet;
-            }
-        }
-        else {
-            if (enc) {
-                aesRet = wc_AesSetKey(enc->aes, keys->server_write_key,
-                                   specs->key_size, keys->server_write_IV,
-                                   AES_ENCRYPTION);
-                if (aesRet != 0) return aesRet;
-            }
-            if (dec) {
-                aesRet = wc_AesSetKey(dec->aes, keys->client_write_key,
-                                   specs->key_size, keys->client_write_IV,
-                                   AES_DECRYPTION);
-                if (aesRet != 0) return aesRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+#define IF_AES(a,b) a
+static int aes_init(Ciphers* c, CipherSpecs* specs,
+                    void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    if (c->aes == NULL)
+        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
+    else
+        wc_AesFree(c->aes);
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_init");
+        return ASYNC_INIT_E;
     }
+    return 0;
+}
+static int aes_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    (void)tls13;
+    return wc_AesSetKey(c->aes,
+       server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+       specs->key_size,
+       server == decode ? keys->client_write_IV
+                        : keys->server_write_IV,
+       decode ? AES_DECRYPTION : AES_ENCRYPTION);
+}
+#else
+#define IF_AES(a,b) a
 #endif /* BUILD_AES */
 
 #ifdef BUILD_AESGCM
@@ -2652,101 +2536,52 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 4) /* AESGCM_IMP_IV_SZ */
         #error MAX_WRITE_IV_SZ too small for AESGCM
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_aes_gcm) {
-        int gcmRet;
-
-        if (enc) {
-            if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (enc->aes == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AesFree(enc->aes);
-            }
-
-            XMEMSET(enc->aes, 0, sizeof(Aes));
-        }
-        if (dec) {
-            if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (dec->aes == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AesFree(dec->aes);
-            }
-
-            XMEMSET(dec->aes, 0, sizeof(Aes));
-        }
-
-        if (enc) {
-            if (wc_AesInit(enc->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_AesInit(dec->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                gcmRet = wc_AesGcmSetKey(enc->aes, keys->client_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-#if !defined(NO_PUBLIC_GCM_SET_IV) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-                if (!tls13) {
-                    gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
-                            keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
-                    if (gcmRet != 0) return gcmRet;
-                }
-#endif
-            }
-            if (dec) {
-                gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        else {
-            if (enc) {
-                gcmRet = wc_AesGcmSetKey(enc->aes, keys->server_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-#if !defined(NO_PUBLIC_GCM_SET_IV) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-                if (!tls13) {
-                    gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
-                            keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
-                    if (gcmRet != 0) return gcmRet;
-                }
-#endif
-            }
-            if (dec) {
-                gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+#define IF_AES_GCM(a,b) a
+static int aes_gcm_init(Ciphers* c, CipherSpecs* specs,
+                        void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    (void)devId;
+    if (c->aes == NULL)
+        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
+    else
+        wc_AesFree(c->aes);
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_gcm_init");
+        return ASYNC_INIT_E;
     }
+    return 0;
+}
+static int aes_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    int ret;
+    ret = wc_AesGcmSetKey(c->aes,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        specs->key_size);
+    if (ret != 0)
+        return ret;
+    XMEMCPY(decode ? keys->aead_dec_imp_IV
+                   : keys->aead_enc_imp_IV,
+        server == decode ? keys->client_write_IV
+                         : keys->server_write_IV,
+        AEAD_MAX_IMP_SZ);
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    if (!decode && !tls13)
+        return wc_AesGcmSetIV(c->aes, AESGCM_NONCE_SZ,
+                server ? keys->server_write_IV
+                       : keys->client_write_IV,
+                AESGCM_IMP_IV_SZ, rng);
+#endif
+    return 0;
+}
+#else
+#define IF_AES_GCM(a,b) b
 #endif /* BUILD_AESGCM */
 
 #ifdef HAVE_AESCCM
@@ -2760,208 +2595,116 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 4) /* AESGCM_IMP_IV_SZ */
         #error MAX_WRITE_IV_SZ too small for AESCCM
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_aes_ccm) {
-        int CcmRet;
-
-        if (enc) {
-            if (enc->aes == NULL) {
-                enc->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (enc->aes == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AesFree(enc->aes);
-            }
-
-            XMEMSET(enc->aes, 0, sizeof(Aes));
-        }
-        if (dec) {
-            if (dec->aes == NULL) {
-                dec->aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_CIPHER);
-                if (dec->aes == NULL)
-                return MEMORY_E;
-            } else {
-                wc_AesFree(dec->aes);
-            }
-            XMEMSET(dec->aes, 0, sizeof(Aes));
-        }
-
-        if (enc) {
-            if (wc_AesInit(enc->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_AesInit(dec->aes, heap, devId) != 0) {
-                WOLFSSL_MSG("AesInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                CcmRet = wc_AesCcmSetKey(enc->aes, keys->client_write_key,
-                                         specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-#if !defined(NO_PUBLIC_CCM_SET_NONCE) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-                if (!tls13) {
-                    CcmRet = wc_AesCcmSetNonce(enc->aes, keys->client_write_IV,
-                            AEAD_MAX_IMP_SZ);
-                    if (CcmRet != 0) return CcmRet;
-                }
-#endif
-            }
-            if (dec) {
-                CcmRet = wc_AesCcmSetKey(dec->aes, keys->server_write_key,
-                                         specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        else {
-            if (enc) {
-                CcmRet = wc_AesCcmSetKey(enc->aes, keys->server_write_key,
-                                         specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-#if !defined(NO_PUBLIC_CCM_SET_NONCE) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-                if (!tls13) {
-                    CcmRet = wc_AesCcmSetNonce(enc->aes, keys->server_write_IV,
-                            AEAD_MAX_IMP_SZ);
-                    if (CcmRet != 0) return CcmRet;
-                }
-#endif
-            }
-            if (dec) {
-                CcmRet = wc_AesCcmSetKey(dec->aes, keys->client_write_key,
-                                         specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+#define IF_AES_CCM(a,b) a
+static int aes_ccm_init(Ciphers* c, CipherSpecs* specs,
+                        void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    (void)devId;
+    if (c->aes == NULL)
+        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
+    else
+        wc_AesFree(c->aes);
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_ccm_init");
+        return ASYNC_INIT_E;
     }
+    return 0;
+}
+static int aes_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    int ret;
+    ret = wc_AesCcmSetKey(c->aes,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        specs->key_size);
+    if (ret != 0)
+        return ret;
+    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
+            server == decode ? keys->client_write_IV
+                             : keys->server_write_IV,
+            AEAD_MAX_IMP_SZ);
+#if !defined(NO_PUBLIC_CCM_SET_NONCE) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    if (!decode && !tls13)
+        return wc_AesCcmSetNonce(c->aes,
+                                 server ? keys->server_write_IV
+                                        : keys->client_write_IV,
+                                 AEAD_MAX_IMP_SZ);
+#endif
+    return 0;
+}
+#else
+#define IF_AES_CCM(a,b) b
 #endif /* HAVE_AESCCM */
 
-#ifdef HAVE_ARIA
+/*
+   !! unable to test aria
+*/
+#if defined(HAVE_ARIA)
     /* check that buffer sizes are sufficient */
     #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
         #error MAX_WRITE_IV_SZ too small for AES
     #endif
+#define IF_ARIA(a,b) a
+static int aria_init(Ciphers* c, CipherSpecs* specs,
+                     void* heap, int devId, int tls13)
+{
+    (void)tls13;
+    MC_ALGID algo;
 
-    if (specs->bulk_cipher_algorithm == wolfssl_aria_gcm) {
-        int ret = 0;
-        MC_ALGID algo;
-
-        switch(specs->key_size) {
-            case ARIA_128_KEY_SIZE:
-                algo = MC_ALGID_ARIA_128BITKEY;
-                break;
-            case ARIA_192_KEY_SIZE:
-                algo = MC_ALGID_ARIA_192BITKEY;
-                break;
-            case ARIA_256_KEY_SIZE:
-                algo = MC_ALGID_ARIA_256BITKEY;
-                break;
-            default:
-                return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
-        }
-
-        if (enc) {
-            if (enc->aria == NULL) {
-                enc->aria = (wc_Aria*)XMALLOC(sizeof(wc_Aria), heap, DYNAMIC_TYPE_CIPHER);
-                if (enc->aria == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AriaFreeCrypt(enc->aria);
-            }
-
-            XMEMSET(enc->aria, 0, sizeof(wc_Aria));
-            if (wc_AriaInitCrypt(enc->aria, algo) != 0) {
-                WOLFSSL_MSG("AriaInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (dec->aria == NULL) {
-                dec->aria = (wc_Aria*)XMALLOC(sizeof(wc_Aria), heap, DYNAMIC_TYPE_CIPHER);
-                if (dec->aria == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_AriaFreeCrypt(dec->aria);
-            }
-
-            XMEMSET(dec->aria, 0, sizeof(wc_Aria));
-            if (wc_AriaInitCrypt(dec->aria, algo) != 0) {
-                WOLFSSL_MSG("AriaInit failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                ret = wc_AriaSetKey(enc->aria, keys->client_write_key);
-                if (ret != 0) return ret;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-                if (!tls13) {
-                    ret = wc_AriaGcmSetIV(enc->aria, AESGCM_NONCE_SZ,
-                            keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
-                    if (ret != 0) return ret;
-                }
-            }
-            if (dec) {
-                ret = wc_AriaSetKey(dec->aria, keys->server_write_key);
-                if (ret != 0) return ret;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        else {
-            if (enc) {
-                ret = wc_AriaSetKey(enc->aria, keys->server_write_key);
-                if (ret != 0) return ret;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-                if (!tls13) {
-                    ret = wc_AriaGcmSetIV(enc->aria, AESGCM_NONCE_SZ,
-                            keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
-                    if (ret != 0) return ret;
-                }
-            }
-            if (dec) {
-                ret = wc_AriaSetKey(dec->aria, keys->client_write_key);
-                if (ret != 0) return ret;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+    switch(specs->key_size) {
+        case ARIA_128_KEY_SIZE:
+            algo = MC_ALGID_ARIA_128BITKEY;
+            break;
+        case ARIA_192_KEY_SIZE:
+            algo = MC_ALGID_ARIA_192BITKEY;
+            break;
+        case ARIA_256_KEY_SIZE:
+            algo = MC_ALGID_ARIA_256BITKEY;
+            break;
+        default:
+            return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
     }
+
+    if (c->aria == NULL)
+        MALLOC(c->aria, wc_Aria, heap, DYNAMIC_TYPE_CIPHER);
+    else
+        wc_AriaFreeCrypt(c->aria);
+    XMEMSET(c->aria, 0, sizeof(wc_Aria));
+    if (wc_AriaInitCrypt(c->aria, algo) != 0) {
+         WOLFSSL_MSG("AriaInit failed in aria_init");
+         return ASYNC_INIT_E;
+    }
+    return 0;
+}
+static int aria_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)specs;
+    int ret;
+    ret = wc_AriaSetKey(c->aria,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key);
+    if (ret != 0)
+        return ret;
+    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
+            server == decode ? keys->client_write_IV : keys->server_write_IV,
+            AEAD_MAX_IMP_SZ);
+    if (!decode && !tls13) {
+        return wc_AriaGcmSetIV(c->aria, AESGCM_NONCE_SZ,
+                server ? keys->server_write_IV : keys->client_write_IV,
+                AESGCM_IMP_IV_SZ, rng);
+    }
+    return 0;
+}
+#else
+#define IF_ARIA(a,b) b
 #endif /* HAVE_ARIA */
 
 #ifdef HAVE_CAMELLIA
@@ -2969,51 +2712,31 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 16) /* CAMELLIA_IV_SIZE */
         #error MAX_WRITE_IV_SZ too small for CAMELLIA
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_camellia) {
-        int camRet;
-
-        if (enc && enc->cam == NULL)
-            enc->cam =
-                (wc_Camellia*)XMALLOC(sizeof(wc_Camellia), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->cam == NULL)
-            return MEMORY_E;
-
-        if (dec && dec->cam == NULL)
-            dec->cam =
-                (wc_Camellia*)XMALLOC(sizeof(wc_Camellia), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->cam == NULL)
-            return MEMORY_E;
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                camRet = wc_CamelliaSetKey(enc->cam, keys->client_write_key,
-                                        specs->key_size, keys->client_write_IV);
-                if (camRet != 0) return camRet;
-            }
-            if (dec) {
-                camRet = wc_CamelliaSetKey(dec->cam, keys->server_write_key,
-                                        specs->key_size, keys->server_write_IV);
-                if (camRet != 0) return camRet;
-            }
-        }
-        else {
-            if (enc) {
-                camRet = wc_CamelliaSetKey(enc->cam, keys->server_write_key,
-                                        specs->key_size, keys->server_write_IV);
-                if (camRet != 0) return camRet;
-            }
-            if (dec) {
-                camRet = wc_CamelliaSetKey(dec->cam, keys->client_write_key,
-                                        specs->key_size, keys->client_write_IV);
-                if (camRet != 0) return camRet;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
+#define IF_CAMELLIA(a,b) a
+static int camellia_init(Ciphers* c, CipherSpecs* specs,
+                         void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    (void)devId;
+    if (c->cam == NULL)
+        MALLOC(c->cam, wc_Camellia, heap, DYNAMIC_TYPE_CIPHER);
+    return 0;
+}
+static int camellia_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    (void)tls13;
+    return wc_CamelliaSetKey(c->cam,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        specs->key_size,
+        server == decode ? keys->client_write_IV
+                         : keys->server_write_IV);
+}
+#else
+#define IF_CAMELLIA(a,b) b
 #endif /* HAVE_CAMELLIA */
 
 #ifdef WOLFSSL_SM4_CBC
@@ -3021,86 +2744,41 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 16) /* AES_IV_SIZE */
         #error MAX_WRITE_IV_SZ too small for SM4_CBC
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_sm4_cbc) {
-        int sm4Ret = 0;
-
-        if (enc) {
-            if (enc->sm4 == NULL) {
-                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                    DYNAMIC_TYPE_CIPHER);
-                if (enc->sm4 == NULL)
-                    return MEMORY_E;
-            }
-            else {
-                wc_Sm4Free(enc->sm4);
-            }
-
-            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
-        }
-        if (dec) {
-            if (dec->sm4 == NULL) {
-                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                    DYNAMIC_TYPE_CIPHER);
-                if (dec->sm4 == NULL)
-                    return MEMORY_E;
-            }
-            else {
-                wc_Sm4Free(dec->sm4);
-            }
-
-            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
-        }
-        if (enc) {
-            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                sm4Ret = wc_Sm4SetKey(enc->sm4, keys->client_write_key,
-                    specs->key_size);
-                if (sm4Ret != 0) return sm4Ret;
-                sm4Ret = wc_Sm4SetIV(enc->sm4, keys->client_write_IV);
-                if (sm4Ret != 0) return sm4Ret;
-            }
-            if (dec) {
-                sm4Ret = wc_Sm4SetKey(dec->sm4, keys->server_write_key,
-                    specs->key_size);
-                if (sm4Ret != 0) return sm4Ret;
-                sm4Ret = wc_Sm4SetIV(dec->sm4, keys->server_write_IV);
-                if (sm4Ret != 0) return sm4Ret;
-            }
-        }
-        else {
-            if (enc) {
-                sm4Ret = wc_Sm4SetKey(enc->sm4, keys->server_write_key,
-                    specs->key_size);
-                if (sm4Ret != 0) return sm4Ret;
-                sm4Ret = wc_Sm4SetIV(enc->sm4, keys->server_write_IV);
-                if (sm4Ret != 0) return sm4Ret;
-            }
-            if (dec) {
-                sm4Ret = wc_Sm4SetKey(dec->sm4, keys->client_write_key,
-                    specs->key_size);
-                if (sm4Ret != 0) return sm4Ret;
-                sm4Ret = wc_Sm4SetIV(dec->sm4, keys->client_write_IV);
-                if (sm4Ret != 0) return sm4Ret;
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
+#define IF_SM4_CBC(a,b) a
+static int sm4_cbc_init(Ciphers* c, CipherSpecs* specs,
+                        void* heap, int devId, int tls13)
+{
+    (void)specs;
+    (void)tls13;
+    if (c->sm4 == NULL)
+        MALLOC(c->sm4, wc_Sm4, heap, DYNAMIC_TYPE_CIPHER);
+    else
+        wc_Sm4Free(c->sm4);
+    XMEMSET(c->sm4, 0, sizeof(wc_Sm4));
+    if (wc_Sm4Init(c->sm4, heap, devId) != 0) {
+        WOLFSSL_MSG("Sm4Init failed in sm4_cbc_init");
+        return ASYNC_INIT_E;
     }
+    return 0;
+}
+static int sm4_cbc_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    (void)tls13;
+    int ret;
+    ret = wc_Sm4SetKey(c->sm4,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        specs->key_size);
+    if (ret != 0)
+        return ret;
+    return wc_Sm4SetIV(c->sm4,
+                       server == decode ? keys->client_write_IV
+                                        : keys->server_write_IV);
+}
+#else
+#define IF_SM4_CBC(a,b) b
 #endif /* WOLFSSL_SM4_CBC */
 
 #ifdef WOLFSSL_SM4_GCM
@@ -3114,85 +2792,32 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 4) /* SM4-GCM_IMP_IV_SZ */
         #error MAX_WRITE_IV_SZ too small for SM4-GCM
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_sm4_gcm) {
-        int gcmRet;
-
-        if (enc) {
-            if (enc->sm4 == NULL) {
-                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                                            DYNAMIC_TYPE_CIPHER);
-                if (enc->sm4 == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_Sm4Free(enc->sm4);
-            }
-
-            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
-        }
-        if (dec) {
-            if (dec->sm4 == NULL) {
-                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                                            DYNAMIC_TYPE_CIPHER);
-                if (dec->sm4 == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_Sm4Free(dec->sm4);
-            }
-
-            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
-        }
-
-        if (enc) {
-            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                gcmRet = wc_Sm4GcmSetKey(enc->sm4, keys->client_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-            if (dec) {
-                gcmRet = wc_Sm4GcmSetKey(dec->sm4, keys->server_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        else {
-            if (enc) {
-                gcmRet = wc_Sm4GcmSetKey(enc->sm4, keys->server_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-            if (dec) {
-                gcmRet = wc_Sm4GcmSetKey(dec->sm4, keys->client_write_key,
-                                      specs->key_size);
-                if (gcmRet != 0) return gcmRet;
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
+#define IF_SM4_GCM(a,b) a
+static int sm4_gcm_init(Ciphers* c, CipherSpecs* specs,
+                        void* heap, int devId, int tls13)
+{
+    return sm4_cbc_init(c, specs, heap, devId, tls13);
+}
+static int sm4_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)specs;
+    (void)rng;
+    (void)tls13;
+    int ret;
+    ret = wc_Sm4GcmSetKey(c->sm4,
+        server == decode ? keys->client_write_key
+                         : keys->server_write_key,
+        specs->key_size);
+    if (ret != 0)
+        return ret;
+    XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
+            server == decode ? keys->client_write_IV : keys->server_write_IV,
+            AEAD_MAX_IMP_SZ);
+    return 0;
+}
+#else
+#define IF_SM4_GCM(a,b) b
 #endif /* WOLFSSL_SM4_GCM */
 
 #ifdef WOLFSSL_SM4_CCM
@@ -3206,181 +2831,133 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     #if (MAX_WRITE_IV_SZ < 4) /* SM4-CCM_IMP_IV_SZ */
         #error MAX_WRITE_IV_SZ too small for SM4-CCM
     #endif
-
-    if (specs->bulk_cipher_algorithm == wolfssl_sm4_ccm) {
-        int CcmRet;
-
-        if (enc) {
-            if (enc->sm4 == NULL) {
-                enc->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                                            DYNAMIC_TYPE_CIPHER);
-                if (enc->sm4 == NULL)
-                    return MEMORY_E;
-            } else {
-                wc_Sm4Free(enc->sm4);
-            }
-
-            XMEMSET(enc->sm4, 0, sizeof(wc_Sm4));
-        }
-        if (dec) {
-            if (dec->sm4 == NULL) {
-                dec->sm4 = (wc_Sm4*)XMALLOC(sizeof(wc_Sm4), heap,
-                                            DYNAMIC_TYPE_CIPHER);
-                if (dec->sm4 == NULL)
-                return MEMORY_E;
-            } else {
-                wc_Sm4Free(dec->sm4);
-            }
-            XMEMSET(dec->sm4, 0, sizeof(wc_Sm4));
-        }
-
-        if (enc) {
-            if (wc_Sm4Init(enc->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-        if (dec) {
-            if (wc_Sm4Init(dec->sm4, heap, devId) != 0) {
-                WOLFSSL_MSG("Sm4Init failed in SetKeys");
-                return ASYNC_INIT_E;
-            }
-        }
-
-        if (side == WOLFSSL_CLIENT_END) {
-            if (enc) {
-                CcmRet = wc_Sm4SetKey(enc->sm4, keys->client_write_key,
-                                      specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-            if (dec) {
-                CcmRet = wc_Sm4SetKey(dec->sm4, keys->server_write_key,
-                                      specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        else {
-            if (enc) {
-                CcmRet = wc_Sm4SetKey(enc->sm4, keys->server_write_key,
-                                      specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-            if (dec) {
-                CcmRet = wc_Sm4SetKey(dec->sm4, keys->client_write_key,
-                                      specs->key_size);
-                if (CcmRet != 0) {
-                    return CcmRet;
-                }
-                XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-            }
-        }
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
-    }
+#define IF_SM4_CCM(a,b) a
+static int sm4_ccm_init(Ciphers* c, CipherSpecs* specs,
+                        void* heap, int devId, int tls13)
+{
+    return sm4_cbc_init(c, specs, heap, devId, tls13);
+}
+static int sm4_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    return sm4_gcm_setkey(c, decode, server, keys, specs, rng, tls13);
+}
+#else
+#define IF_SM4_CCM(a,b) b
 #endif /* WOLFSSL_SM4_CCM */
 
 #ifdef HAVE_NULL_CIPHER
-    if (specs->bulk_cipher_algorithm == wolfssl_cipher_null) {
+#define IF_NULL(a,b) a
+static int null_init(Ciphers* c, CipherSpecs* specs,
+                     void* heap, int devId, int tls13)
+{
+    (void)specs;
     #ifdef WOLFSSL_TLS13
-        if (tls13) {
-            int hmacRet;
-            int hashType = WC_HASH_TYPE_NONE;
-
-            switch (specs->mac_algorithm) {
-                case sha256_mac:
-                    hashType = WC_SHA256;
-                    break;
-                case sha384_mac:
-                    hashType = WC_SHA384;
-                    break;
-                default:
-                    break;
-            }
-
-            if (enc && enc->hmac == NULL) {
-                enc->hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap,
-                                                           DYNAMIC_TYPE_CIPHER);
-                if (enc->hmac == NULL)
-                    return MEMORY_E;
-
-                if (wc_HmacInit(enc->hmac, heap, devId) != 0) {
-                    WOLFSSL_MSG("HmacInit failed in SetKeys");
-                    XFREE(enc->hmac, heap, DYNAMIC_TYPE_CIPHER);
-                    enc->hmac = NULL;
-                    return ASYNC_INIT_E;
-                }
-            }
-
-            if (dec && dec->hmac == NULL) {
-                dec->hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap,
-                                                           DYNAMIC_TYPE_CIPHER);
-                if (dec->hmac == NULL)
-                    return MEMORY_E;
-
-                if (wc_HmacInit(dec->hmac, heap, devId) != 0) {
-                    WOLFSSL_MSG("HmacInit failed in SetKeys");
-                    XFREE(dec->hmac, heap, DYNAMIC_TYPE_CIPHER);
-                    dec->hmac = NULL;
-                    return ASYNC_INIT_E;
-                }
-            }
-
-            if (side == WOLFSSL_CLIENT_END) {
-                if (enc) {
-                    XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                            HMAC_NONCE_SZ);
-                    hmacRet = wc_HmacSetKey(enc->hmac, hashType,
-                                       keys->client_write_key, specs->key_size);
-                    if (hmacRet != 0) return hmacRet;
-                }
-                if (dec) {
-                    XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                            HMAC_NONCE_SZ);
-                    hmacRet = wc_HmacSetKey(dec->hmac, hashType,
-                                       keys->server_write_key, specs->key_size);
-                    if (hmacRet != 0) return hmacRet;
-                }
-            }
-            else {
-                if (enc) {
-                    XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                            HMAC_NONCE_SZ);
-                    hmacRet = wc_HmacSetKey(enc->hmac, hashType,
-                                       keys->server_write_key, specs->key_size);
-                    if (hmacRet != 0) return hmacRet;
-                }
-                if (dec) {
-                    XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                            HMAC_NONCE_SZ);
-                    hmacRet = wc_HmacSetKey(dec->hmac, hashType,
-                                       keys->client_write_key, specs->key_size);
-                    if (hmacRet != 0) return hmacRet;
-                }
+    if (tls13) {
+        if (c->hmac == NULL) {
+            MALLOC(c->hmac, Hmac, heap, DYNAMIC_TYPE_CIPHER);
+            if (wc_HmacInit(c->hmac, heap, devId) != 0) {
+                WOLFSSL_MSG("HmacInit failed in null_init");
+                XFREE(c->hmac, heap, DYNAMIC_TYPE_CIPHER);
+                c->hmac = NULL;
+                return ASYNC_INIT_E;
             }
         }
-    #endif
-        if (enc)
-            enc->setup = 1;
-        if (dec)
-            dec->setup = 1;
     }
+    #endif
+    return 0;
+}
+static int null_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, WC_RNG* rng, int tls13)
+{
+    (void)rng;
+    (void)tls13;
+    #ifdef WOLFSSL_TLS13
+    if (tls13) {
+        int hashType = WC_HASH_TYPE_NONE;
+
+        switch (specs->mac_algorithm) {
+            case sha256_mac:
+                hashType = WC_SHA256;
+                break;
+            case sha384_mac:
+                hashType = WC_SHA384;
+                break;
+            default:
+                break;
+        }
+
+        XMEMCPY(decode ? keys->aead_dec_imp_IV : keys->aead_enc_imp_IV,
+               server == decode ? keys->client_write_IV : keys->server_write_IV,
+               AEAD_MAX_IMP_SZ);
+        return wc_HmacSetKey(c->hmac, hashType,
+                             server == decode ? keys->client_write_key
+                                              : keys->server_write_key,
+                             specs->key_size);
+    }
+    #endif
+    return 0;
+}
+#else
+#define IF_NULL(a,b) b
 #endif
 
+static int (*CipherInits[])(Ciphers*, CipherSpecs* specs, void*, int, int) = {
+    IF_NULL(null_init,0),            /*  wolfssl_cipher_null = 0,  */
+    IF_ARC4(rc4_init,0),             /*  wolfssl_rc4         = 1,  */
+    0,                               /*  wolfssl_rc2         = 2,  */
+    0,                               /*  wolfssl_des         = 3,  */
+    IF_DES3(des3_init,0),            /*  wolfssl_triple_des  = 4,  */
+    0,                               /*  wolfssl_des40       = 5,  */
+    IF_AES(aes_init,0),              /*  wolfssl_aes         = 6,  */
+    IF_AES_GCM(aes_gcm_init,0),      /*  wolfssl_aes_gcm     = 7,  */
+    IF_AES_CCM(aes_ccm_init,0),      /*  wolfssl_aes_ccm     = 8,  */
+    IF_CHACHA(chacha_init,0),        /*  wolfssl_chacha      = 9,  */
+    IF_CAMELLIA(camellia_init,0),    /*  wolfssl_camellia    = 10, */
+    IF_SM4_CBC(sm4_cbc_init,0),      /*  wolfssl_sm4_cbc     = 11, */
+    IF_SM4_GCM(sm4_gcm_init,0),      /*  wolfssl_sm4_gcm     = 12, */
+    IF_SM4_CCM(sm4_ccm_init,0),      /*  wolfssl_sm4_ccm     = 13, */
+    IF_ARIA(aria_init,0)};           /*  wolfssl_aria_gcm    = 14  */
+
+static int (*CipherSetKeys[])(Ciphers*, int, int, Keys*, CipherSpecs*,
+                              WC_RNG*, int) = {
+    IF_NULL(null_setkey,0),          /*  wolfssl_cipher_null = 0,  */
+    IF_ARC4(rc4_setkey,0),           /*  wolfssl_rc4         = 1,  */
+    0,                               /*  wolfssl_rc2         = 2,  */
+    0,                               /*  wolfssl_des         = 3,  */
+    IF_DES3(des3_setkey,0),          /*  wolfssl_triple_des  = 4,  */
+    0,                               /*  wolfssl_des40       = 5,  */
+    IF_AES(aes_setkey,0),            /*  wolfssl_aes         = 6,  */
+    IF_AES_GCM(aes_gcm_setkey,0),    /*  wolfssl_aes_gcm     = 7,  */
+    IF_AES_CCM(aes_ccm_setkey,0),    /*  wolfssl_aes_ccm     = 8,  */
+    IF_CHACHA(chacha_setkey,0),      /*  wolfssl_chacha      = 9,  */
+    IF_CAMELLIA(camellia_setkey,0),  /*  wolfssl_camellia    = 10, */
+    IF_SM4_CBC(sm4_cbc_setkey,0),    /*  wolfssl_sm4_cbc     = 11, */
+    IF_SM4_CBC(sm4_gcm_setkey,0),    /*  wolfssl_sm4_gcm     = 12, */
+    IF_SM4_CBC(sm4_ccm_setkey,0),    /*  wolfssl_sm4_ccm     = 13, */
+    IF_ARIA(aria_setkey,0)};         /*  wolfssl_aria_gcm    = 14  */
+
+int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
+                   int side, void* heap, int devId, WC_RNG* rng, int tls13)
+{
+    Ciphers* ed[] = {enc, dec};
+    int i, ret;
+    int server = side != WOLFSSL_CLIENT_END;
+    int algo = specs->bulk_cipher_algorithm;
+    if (algo < 0 || algo > wolfssl_aria_gcm)
+        return BAD_FUNC_ARG;
+    for (i = 0; i < 2; i++) {
+        if (ed[i]) {
+            if (!CipherInits[algo] || !CipherSetKeys[algo])
+                return NOT_COMPILED_IN;
+            if ((ret = CipherInits[algo](ed[i], specs, heap, devId, tls13)))
+                return ret;
+            if ((ret = CipherSetKeys[algo](ed[i], i, server, keys, specs,
+                                           rng, tls13)))
+                return ret;
+            ed[i]->setup = 1;
+        }
+    }
     if (enc) {
         keys->sequence_number_hi      = 0;
         keys->sequence_number_lo      = 0;
@@ -3389,13 +2966,6 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
         keys->peer_sequence_number_hi = 0;
         keys->peer_sequence_number_lo = 0;
     }
-    (void)side;
-    (void)heap;
-    (void)enc;
-    (void)dec;
-    (void)specs;
-    (void)devId;
-
     return 0;
 }
 
