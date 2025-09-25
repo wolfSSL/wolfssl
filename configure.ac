@@ -441,6 +441,8 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   rand - wolfRand
 #   v5 - FIPS 140-3 Cert 4718
 #   cert4718 - alias for v5
+#   v5.2.3 -- FIPS 140-3 with support for ARM acceleration, derived from Cert 4718
+#   v5.2.4 -- FIPS 140-3 with support for Linux kernel mode, derived from v5.2.3
 #   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
 #   v5-ready - Alias for ready.
@@ -496,6 +498,24 @@ AS_CASE([$ENABLED_FIPS],
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
+    ],
+    [v5.2.3],[
+        FIPS_VERSION="v5"
+        HAVE_FIPS_VERSION_MAJOR=5
+        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=3
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="yes"
+        DEF_FAST_MATH="no"
+    ],
+    [v5.2.4],[
+        FIPS_VERSION="v5"
+        HAVE_FIPS_VERSION_MAJOR=5
+        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=4
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="yes"
+        DEF_FAST_MATH="no"
     ],
     [v5-RC12],[
         FIPS_VERSION="v5-RC12"
@@ -1105,6 +1125,7 @@ then
         AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
     fi
 
+    test "$enable_wolfguard" = "" && enable_wolfguard=yes
     test "$enable_webserver" = "" && enable_webserver=yes
 
     if test "$ENABLED_SP_MATH" != "yes"
@@ -1380,7 +1401,7 @@ then
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
-        test "$enable_compkey" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_compkey=yes
+        test "$enable_compkey" = "" && enable_compkey=yes
         # AFALG lacks AES-ECB
         test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
     fi
@@ -1407,6 +1428,24 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+fi
+
+# wolfGuard
+AC_ARG_ENABLE([wolfguard],
+    [AS_HELP_STRING([--enable-wolfguard],[Enable wolfGuard dependencies (default: disabled)])],
+    [ ENABLED_WOLFGUARD=$enableval ],
+    [ ENABLED_WOLFGUARD=no ]
+    )
+if test "$ENABLED_WOLFGUARD" = "yes"
+then
+    test "$enable_ecc" = "" && enable_ecc=yes
+    test "$enable_sha256" = "" && enable_sha256=yes
+    test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_compkey" = "" && enable_compkey=yes
+        test "$enable_aesgcm_stream" = "" && enable_aesgcm_stream=yes
+    fi
 fi
 
 # liboqs
@@ -3790,6 +3829,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDRAND"
 fi
 
+# INTEL RDSEED
+AC_ARG_ENABLE([intelrdseed],
+    [AS_HELP_STRING([--enable-intelrdseed],[Enable Intel rdseed as preferred RNG seeding source (default: disabled)])],
+    [ ENABLED_INTELRDSEED=$enableval ],
+    [ ENABLED_INTELRDSEED=no ]
+    )
+
+if test "$ENABLED_INTELRDSEED" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDSEED"
+fi
+
 # AMD RDSEED
 AC_ARG_ENABLE([amdrand],
     [AS_HELP_STRING([--enable-amdrand],[Enable AMD rdseed as preferred RNG seeding source (default: disabled)])],
@@ -5667,6 +5718,9 @@ AC_ARG_ENABLE([pwdbased],
 # wolfEntropy Software Jitter SP800-90B certifiable entropy source
 
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && \
+   test "$ENABLED_AMDRDSEED" != "yes" && \
+   test "$ENABLED_INTELRDRAND" != "yes" && \
+   test "$ENABLED_INTELRDSEED" != "yes" && \
    (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
 then
     ENABLED_ENTROPY_MEMUSE_DEFAULT=yes
@@ -5758,7 +5812,7 @@ AS_CASE([$FIPS_VERSION],
                (test "$FIPS_VERSION" != "dev" || test "$enable_keygen" != "no")],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
-#        AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
+#        AS_IF([test "$ENABLED_COMPKEY" != "yes" &&
 #               (test "$FIPS_VERSION" != "dev" || test "$enable_compkey" != "yes")],
 #            [ENABLED_COMPKEY="yes"])
 
@@ -10648,6 +10702,17 @@ if test "$enable_shared" = "no"; then
     fi
 fi
 
+if test "$ENABLED_WOLFGUARD" = "yes"; then
+    if test "$ENABLED_ECC" = "no" ||
+       test "$ENABLED_SHA256" = "no" ||
+       test "$ENABLED_AESGCM" = "no" ||
+       test "$ENABLED_HMAC" = "no" ||
+       test "$ENABLED_RNG" = "no"
+    then
+        AC_MSG_ERROR([--enable-wolfguard requires ECC, SHA256-HMAC, AES-GCM, and RNG.])
+    fi
+fi
+
 if test "x$ENABLED_LINUXKM" = "xyes"; then
     AX_SIMD_CC_COMPILER_FLAGS
     AC_SUBST([CFLAGS_FPU_DISABLE])
@@ -10711,9 +10776,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
     if test "$ENABLED_STACKLOG" = "yes"; then
         AC_MSG_ERROR([--enable-stacklog is incompatible with --enable-linuxkm.])
-    fi
-    if test "$ENABLED_COMPKEY" = "yes"; then
-        AC_MSG_ERROR([--enable-compkey is incompatible with --enable-linuxkm.])
     fi
 fi
 
