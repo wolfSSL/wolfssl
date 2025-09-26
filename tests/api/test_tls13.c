@@ -2141,3 +2141,53 @@ int test_tls13_early_data(void)
     return EXPECT_RESULT();
 }
 
+
+/* Check that the client won't send the same CH after a HRR. An HRR without
+ * a KeyShare or a Cookie extension will trigger the error. */
+int test_tls13_same_ch(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_AES_128) && \
+    defined(HAVE_AESGCM) && !defined(NO_SHA256) && \
+    /* middlebox compat requires that the session ID is echoed */ \
+    !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+    /* Transport Layer Security
+     *     TLSv1.3 Record Layer: Handshake Protocol: Hello Retry Request
+     *         Content Type: Handshake (22)
+     *         Version: TLS 1.2 (0x0303)
+     *         Length: 50
+     *         Handshake Protocol: Hello Retry Request
+     *             Handshake Type: Server Hello (2)
+     *             Length: 46
+     *             Version: TLS 1.2 (0x0303)
+     *             Random: cf21ad74e59a6111be1d8c021e65b891c2a211167abb8c5e079e09e2c8a8339c (HelloRetryRequest magic)
+     *             Session ID Length: 0
+     *             Cipher Suite: TLS_AES_128_GCM_SHA256 (0x1301)
+     *             Compression Method: null (0)
+     *             Extensions Length: 6
+     *             Extension: supported_versions (len=2) TLS 1.3 */
+    unsigned char hrr[] = {
+      0x16, 0x03, 0x03, 0x00, 0x32, 0x02, 0x00, 0x00, 0x2e, 0x03, 0x03, 0xcf,
+      0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
+      0x65, 0xb8, 0x91, 0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e, 0x07,
+      0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c, 0x00, 0x13, 0x01, 0x00, 0x00,
+      0x06, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+            wolfTLSv1_3_client_method, NULL), 0);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (char*)hrr,
+            sizeof(hrr)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), DUPLICATE_MSG_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
