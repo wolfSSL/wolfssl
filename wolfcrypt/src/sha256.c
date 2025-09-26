@@ -114,7 +114,6 @@ on the specific device platform.
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
 
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
 
 #elif defined(MAX3266X_SHA)
     /* Already brought in by sha256.h */
@@ -221,7 +220,7 @@ on the specific device platform.
     ((!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
       !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) || \
      defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
+    !defined(PSOC6_HASH_SHA2) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_HASH) && !defined(WOLFSSL_SE050_HASH) && \
     ((!defined(WOLFSSL_RENESAS_SCEPROTECT) && \
       !defined(WOLFSSL_RENESAS_RSIP)) \
@@ -1048,8 +1047,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
-
+#elif defined(PSOC6_HASH_SHA2)
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #elif defined(WOLFSSL_IMXRT_DCP)
@@ -2004,6 +2002,8 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+#elif defined(PSOC6_HASH_SHA2)
+    /* Implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
 
@@ -2259,6 +2259,9 @@ static int Transform_Sha256(wc_Sha256* sha256, const byte* data)
             sha224->msg = NULL;
         }
     #endif
+    #if defined(PSOC6_HASH_SHA2)
+        wc_Psoc6_Sha_Free();
+    #endif
         ForceZero(sha224, sizeof(*sha224));
     }
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)  */
@@ -2376,6 +2379,11 @@ void wc_Sha256Free(wc_Sha256* sha256)
         ESP_LOGV(TAG, "Hardware unlock not needed in wc_Sha256Free.");
     }
 #endif
+
+#if defined(PSOC6_HASH_SHA2)
+    wc_Psoc6_Sha_Free();
+#endif
+
     ForceZero(sha256, sizeof(*sha256));
 } /* wc_Sha256Free */
 
@@ -2498,6 +2506,9 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
         }
     #endif
 
+    #if defined(PSOC6_HASH_SHA2)
+        wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA224, 0);
+    #endif
         return ret;
     }
 
@@ -2539,9 +2550,6 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
      && !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
-
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
-    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #elif defined(WOLFSSL_IMXRT_DCP)
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 #elif defined(WOLFSSL_KCAPI_HASH)

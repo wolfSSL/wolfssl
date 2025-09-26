@@ -50,10 +50,12 @@
 #endif
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
-#include "cy_crypto_core_sha.h"
-#include "cy_device_headers.h"
-#include "cy_crypto_common.h"
-#include "cy_crypto_core.h"
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+
+    #include "cy_crypto_core_sha.h"
+    #include "cy_device_headers.h"
+    #include "cy_crypto_common.h"
+    #include "cy_crypto_core.h"
 #endif
 
 #ifdef __cplusplus
@@ -163,6 +165,7 @@ enum {
     #include "mcapi_error.h"
 #endif
 
+
 /* wc_Sha256 digest */
 struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
@@ -176,9 +179,8 @@ struct wc_Sha256 {
 #elif defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
     dcp_hash_ctx_t ctx;
-#elif defined(WOLFSSL_PSOC6_CRYPTO)
+#elif defined(PSOC6_HASH_SHA2)
     cy_stc_crypto_sha_state_t hash_state;
-    cy_en_crypto_sha_mode_t sha_mode;
     cy_stc_crypto_v2_sha256_buffers_t sha_buffers;
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     psa_hash_operation_t psa_ctx;
