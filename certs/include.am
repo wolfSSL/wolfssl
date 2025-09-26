@@ -36,6 +36,7 @@ EXTRA_DIST += \
              certs/dh2048.pem \
              certs/server-cert.pem \
              certs/server-ecc.pem \
+             certs/server-ecc-cert.pem \
              certs/server-ecc-self.pem \
              certs/server-ecc-comp.pem \
              certs/server-ecc-rsa.pem \
