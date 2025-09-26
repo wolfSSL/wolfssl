@@ -1441,6 +1441,8 @@ then
     test "$enable_ecc" = "" && enable_ecc=yes
     test "$enable_sha256" = "" && enable_sha256=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_base64encode" = "" && enable_base64encode=yes
+    test "$enable_base16" = "" && enable_base16=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_compkey" = "" && enable_compkey=yes
