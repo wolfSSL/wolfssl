@@ -35365,6 +35365,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return handshake_failure;
             case WC_NO_ERR_TRACE(VERSION_ERROR):
                 return wolfssl_alert_protocol_version;
+            case WC_NO_ERR_TRACE(BAD_CERTIFICATE_STATUS_ERROR):
+                return bad_certificate_status_response;
             default:
                 return invalid_alert;
         }

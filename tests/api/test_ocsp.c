@@ -1008,6 +1008,13 @@ int test_ocsp_tls_cert_cb(void)
                 if (!skip) {
                     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
                             j == 0 ? TEST_SUCCESS : TEST_FAIL);
+                    if (j != 0) {
+                        WOLFSSL_ALERT_HISTORY h = {0};
+                        ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                                WOLFSSL_SUCCESS);
+                        ExpectIntEQ(h.last_rx.level, alert_fatal);
+                        ExpectIntEQ(h.last_rx.code, bad_certificate_status_response);
+                    }
                 }
                 else {
                     printf("\tskipping test case\n");
