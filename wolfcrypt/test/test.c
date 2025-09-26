@@ -2889,6 +2889,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         { WC_SPAN1_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
         { WC_SPAN2_LAST_E - 1, WC_SPAN2_MIN_CODE_E }
     };
+#if defined(WOLFSSL_MAX_ERROR_SZ) && (WOLFSSL_MAX_ERROR_SZ < 64)
+    /* If too small, the error_test() will fail.
+     * See fixed length strings returned in wc_GetErrorString() */
+    WOLFSSL_MSG("WOLFSSL_MAX_ERROR_SZ is too small");
+#endif
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
