@@ -115,7 +115,8 @@ static int esp_aes_hw_InUse(void)
             DPORT_REG_WRITE(AES_DMA_ENABLE_REG, 0);
         }
         #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
-              defined(CONFIG_IDF_TARGET_ESP32C6)
+              defined(CONFIG_IDF_TARGET_ESP32C6) || \
+              defined(CONFIG_IDF_TARGET_ESP32C61)
         {
             /* Select working mode. Can be typical or DMA.
              * 0 => typical
@@ -216,7 +217,7 @@ static int esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
         ESP_LOGE(TAG, "esp_aes_hw_Set_KeyMode unsupported mode: %i", mode_);
         ret = BAD_FUNC_ARG;
     }
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32C61)
     #define TARGET_AES_KEY_BASE AES_KEY_0_REG
     if (mode_ == 1 || mode_ == 3 || mode_ == 5 || mode_ > 6) {
         /* this should have been detected in aes.c and fall back to SW */
@@ -303,7 +304,7 @@ static void esp_aes_bk(const byte* in, byte* out)
 
     /* read-out blocks */
     esp_dport_access_read_buffer((uint32_t*)outwords, AES_TEXT_OUT_BASE, 4);
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32C61)
     /* See ESP32-C6 technical reference manual:
     ** 18.4.3 Operation process using CPU working mode.
     ** The ESP32-C6 also supports a DMA mode. (not ywt implemented)
@@ -380,7 +381,7 @@ int wc_esp32AesSupportedKeyLenValue(int keylen)
         ret = ESP_OK; /* keylen 24 (192 bit) not supported */
     }
 
-#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#elif defined(CONFIG_IDF_TARGET_ESP32C6) || defined(CONFIG_IDF_TARGET_ESP32C61)
     if (keylen == 16 || keylen == 32) {
         ret = 1;
     }

@@ -380,7 +380,8 @@
                             .resolution_hz = CONFIG_XTAL_FREQ * 100000,
                          };
     #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
-          defined(CONFIG_IDF_TARGET_ESP32C6)
+          defined(CONFIG_IDF_TARGET_ESP32C6) || \
+          defined(CONFIG_IDF_TARGET_ESP32C61)
         #include <esp_cpu.h>
         #if ESP_IDF_VERSION_MAJOR >= 5
             #include <driver/gptimer.h>
@@ -1494,7 +1495,8 @@ static const char* bench_result_words3[][5] = {
     #endif
     #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
         defined(CONFIG_IDF_TARGET_ESP32C3) || \
-        defined(CONFIG_IDF_TARGET_ESP32C6)
+        defined(CONFIG_IDF_TARGET_ESP32C6) || \
+        defined(CONFIG_IDF_TARGET_ESP32C61)
 
         #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
             ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer, &thisTimerVal));
@@ -1651,7 +1653,8 @@ static const char* bench_result_words3[][5] = {
          * for the next measurement. */
         #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
             defined(CONFIG_IDF_TARGET_ESP32C3) || \
-            defined(CONFIG_IDF_TARGET_ESP32C6)
+            defined(CONFIG_IDF_TARGET_ESP32C6) || \
+            defined(CONFIG_IDF_TARGET_ESP32C61)
         {
             #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
                 ESP_ERROR_CHECK(gptimer_get_raw_count(esp_gptimer,
@@ -15664,7 +15667,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
     {
     #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
         defined(CONFIG_IDF_TARGET_ESP32C3) || \
-        defined(CONFIG_IDF_TARGET_ESP32C6)
+        defined(CONFIG_IDF_TARGET_ESP32C6) || \
+        defined(CONFIG_IDF_TARGET_ESP32C61)
         {
         #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
             if (esp_gptimer == NULL) {
@@ -15687,7 +15691,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 
     #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
         defined(CONFIG_IDF_TARGET_ESP32C3) || \
-        defined(CONFIG_IDF_TARGET_ESP32C6)
+        defined(CONFIG_IDF_TARGET_ESP32C6) || \
+        defined(CONFIG_IDF_TARGET_ESP32C61)
         {
             #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
                 ESP_ERROR_CHECK(gptimer_stop(esp_gptimer));

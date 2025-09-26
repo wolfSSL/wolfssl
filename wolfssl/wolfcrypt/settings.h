@@ -577,6 +577,9 @@
 #if defined(WOLFSSL_ESPIDF)
     #define SIZEOF_LONG_LONG 8
 
+    /* Avoid any "load/store address misaligned" for all Espressif devices  */
+    #define WOLFSSL_USE_ALIGN
+
     #ifndef WOLFSSL_MAX_ERROR_SZ
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
@@ -795,27 +798,7 @@
             defined(CONFIG_IDF_TARGET_ESP32H2) || \
             defined(CONFIG_IDF_TARGET_ESP8266)
 
-            #if defined(CONFIG_IDF_TARGET_ESP8266)
-                #undef HAVE_ECC
-                #undef HAVE_ECC_CDH
-                #undef HAVE_CURVE25519
-
-                #ifdef HAVE_CHACHA
-                    #error "HAVE_CHACHA not supported on ESP8266"
-                #endif
-                #ifdef HAVE_XCHACHA
-                    #error "HAVE_XCHACHA not supported on ESP8266"
-                #endif
-            #else
-                #define HAVE_XCHACHA
-                #define HAVE_CHACHA
-                /* TODO Not enabled at this time, needs further testing:
-                 *   #define WC_SRTP_KDF
-                 *   #define HAVE_COMP_KEY
-                 *   #define WOLFSSL_HAVE_XMSS
-                 */
-            #endif
-            /* TODO AES-EAX needs stesting on this platform */
+            /* TODO AES-EAX needs testing on this platform */
 
             /* Optionally disable DH
              *   #undef HAVE_DH

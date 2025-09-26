@@ -117,7 +117,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
     #define PRINT_HEAP_ADDRESS(p) WC_DO_NOTHING;
 #endif /* WOLFSSL_TRACK_MEMORY_VERBOSE && !WOLFSSL_STATIC_MEMORY */
 
-#ifdef WOLFSSL_ESPIDF
+#if defined(WOLFSSL_ESPIDF) && defined(DEBUG_WOLFSSL_MALLOC)
     #undef  PRINT_HEAP_CHECKPOINT
     #undef  PRINT_HEAP_ADDRESS
     static int esp_start_heap = 0;
@@ -158,7 +158,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 
         #define PRINT_HEAP_ADDRESS(p) WC_DO_NOTHING;
     #endif
-#endif /* WOLFSSL_ESPIDF */
+#endif /* WOLFSSL_ESPIDF && DEBUG_WOLFSSL_MALLOC */
 
 
 #ifdef USE_FLAT_TEST_H
