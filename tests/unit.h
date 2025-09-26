@@ -344,12 +344,6 @@
 #define DoExpectBufEQ(x, y, z) DoExpectBuf(x, y, z, ==, !=)
 #define DoExpectBufNE(x, y, z) DoExpectBuf(x, y, z, !=, ==)
 
-#ifdef WOLFSSL_PEM_TO_DER
-    #define CERT_FILETYPE WOLFSSL_FILETYPE_PEM
-#else
-    #define CERT_FILETYPE WOLFSSL_FILETYPE_ASN1
-#endif
-
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \

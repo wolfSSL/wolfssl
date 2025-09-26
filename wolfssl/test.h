@@ -671,6 +671,11 @@ err_sys_with_errno(const char* msg)
 #endif
 #endif
 
+#ifdef WOLFSSL_PEM_TO_DER
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_PEM
+#else
+    #define CERT_FILETYPE WOLFSSL_FILETYPE_ASN1
+#endif
 
 #ifdef TEST_IPV6
     typedef struct sockaddr_in6 SOCKADDR_IN_T;

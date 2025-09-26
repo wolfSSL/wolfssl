@@ -105,11 +105,6 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     int    argc = ((func_args*)args)->argc;
     char** argv = ((func_args*)args)->argv;
     char   buffer[WOLFSSL_MAX_ERROR_SZ];
-#ifdef WOLFSSL_PEM_TO_DER
-    int filetype = WOLFSSL_FILETYPE_PEM;
-#else
-    int filetype = WOLFSSL_FILETYPE_ASN1;
-#endif
 #ifdef HAVE_TEST_SESSION_TICKET
     MyTicketCtx myTicketCtx;
 #endif
@@ -185,12 +180,12 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     if (doPSK == 0) {
     #if defined(HAVE_ECC) && !defined(WOLFSSL_SNIFFER)
         /* ecc */
-        if (wolfSSL_CTX_use_certificate_file(ctx, eccCertFile, filetype)
+        if (wolfSSL_CTX_use_certificate_file(ctx, eccCertFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, filetype)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -201,7 +196,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, filetype)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -213,19 +208,19 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                     "Please run from wolfSSL home dir");
 
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ed448KeyFile,
-                filetype) != WOLFSSL_SUCCESS)
+                CERT_FILETYPE) != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
     #elif defined(NO_CERTS)
         /* do nothing, just don't load cert files */
     #else
         /* normal */
-        if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, filetype)
+        if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, filetype)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -314,7 +309,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
         if (ssl == NULL) err_sys("SSL_new failed");
         wolfSSL_set_fd(ssl, clientfd);
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            wolfSSL_SetTmpDH_file(ssl, dhParamFile, filetype);
+            wolfSSL_SetTmpDH_file(ssl, dhParamFile, CERT_FILETYPE);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
