@@ -5411,6 +5411,173 @@ int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
 long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
 
 /*!
+    \ingroup CertsKeys
+
+    \brief Sets a callback to select the client certificate and private key.
+
+    This function allows the application to register a callback that will be invoked
+    when a client certificate is requested during the handshake. The callback can
+    select and provide the certificate and key to use.
+
+    \param ctx The WOLFSSL_CTX object.
+    \param cb  The callback function to select the client certificate and key.
+
+    \return void
+
+    _Example_
+    \code
+    int my_client_cert_cb(WOLFSSL *ssl, WOLFSSL_X509 **x509, WOLFSSL_EVP_PKEY **pkey) { ... }
+    wolfSSL_CTX_set_client_cert_cb(ctx, my_client_cert_cb);
+    \endcode
+
+    \sa wolfSSL_CTX_set_cert_cb
+*/
+void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets a generic certificate setup callback.
+
+    This function allows the application to register a callback that will be invoked
+    during certificate setup. The callback can perform custom certificate selection
+    or loading logic.
+
+    \param ctx The WOLFSSL_CTX object.
+    \param cb  The callback function for certificate setup.
+    \param arg User argument to pass to the callback.
+
+    \return void
+
+    _Example_
+    \code
+    int my_cert_setup_cb(WOLFSSL* ssl, void* arg) { ... }
+    wolfSSL_CTX_set_cert_cb(ctx, my_cert_setup_cb, NULL);
+    \endcode
+
+    \sa wolfSSL_CTX_set_client_cert_cb
+*/
+void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx, CertSetupCallback cb, void *arg);
+
+/*!
+    \ingroup OCSP
+
+    \brief Sets the callback to be used for handling OCSP status requests (OCSP stapling).
+
+    This function allows the application to register a callback that will be invoked
+    when an OCSP status request is received during the TLS handshake. The callback
+    can provide an OCSP response to be stapled to the handshake. This API is only
+    useful on the server side.
+
+    \param ctx The WOLFSSL_CTX object.
+    \param cb  The callback function to handle OCSP status requests.
+
+    \return SSL_SUCCESS on success, SSL_FAILURE otherwise.
+
+    _Example_
+    \code
+    int my_ocsp_status_cb(WOLFSSL* ssl, void* arg) { ... }
+    wolfSSL_CTX_set_tlsext_status_cb(ctx, my_ocsp_status_cb);
+    \endcode
+
+    \sa wolfSSL_CTX_get_tlsext_status_cb
+    \sa wolfSSL_CTX_set_tlsext_status_arg
+*/
+int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb);
+
+/*!
+    \ingroup OCSP
+
+    \brief Gets the currently set OCSP status callback for the context.
+
+    \param ctx The WOLFSSL_CTX object.
+    \param cb  Pointer to receive the callback function.
+
+    \return SSL_SUCCESS on success, SSL_FAILURE otherwise.
+
+    \sa wolfSSL_CTX_set_tlsext_status_cb
+*/
+int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb);
+
+/*!
+    \ingroup OCSP
+
+    \brief Sets the argument to be passed to the OCSP status callback.
+
+    \param ctx The WOLFSSL_CTX object.
+    \param arg The user argument to pass to the callback.
+
+    \return SSL_SUCCESS on success, SSL_FAILURE otherwise.
+
+    \sa wolfSSL_CTX_set_tlsext_status_cb
+*/
+long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
+
+/*!
+    \ingroup OCSP
+
+    \brief Gets the OCSP response that will be sent (stapled) to the peer.
+
+    \param ssl The WOLFSSL session.
+    \param resp Pointer to receive the response buffer.
+
+    \return Length of the response, or negative value on error.
+
+    \sa wolfSSL_set_tlsext_status_ocsp_resp
+*/
+long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char **resp);
+
+/*!
+    \ingroup OCSP
+
+    \brief Sets the OCSP response to be sent (stapled) to the peer.
+
+    \param ssl The WOLFSSL session.
+    \param resp Pointer to the response buffer.
+    \param len  Length of the response buffer.
+
+    \return SSL_SUCCESS on success, SSL_FAILURE otherwise.
+
+    \sa wolfSSL_get_tlsext_status_ocsp_resp
+*/
+long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp, int len);
+
+/*!
+    \ingroup OCSP
+
+    \brief Sets multiple OCSP responses for TLS multi-certificate chains.
+
+    \param ssl The WOLFSSL session.
+    \param resp Pointer to the response buffer.
+    \param len  Length of the response buffer.
+    \param idx  Index of the certificate chain.
+
+    \return SSL_SUCCESS on success, SSL_FAILURE otherwise.
+*/
+int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp, int len, word32 idx);
+
+/*!
+    \ingroup OCSP
+
+    \brief Sets a callback to verify the OCSP status response.
+
+    This callback is only useful when SESSION_CERTS is enabled.
+
+    \param ctx   The WOLFSSL_CTX object.
+    \param cb    The callback function.
+    \param cbArg User argument to pass to the callback.
+
+    \return void
+
+    _Example_
+    \code
+    void my_ocsp_verify_cb(WOLFSSL* ssl, int err, byte* resp, word32 respSz, word32 idx, void* arg) { ... }
+    wolfSSL_CTX_set_ocsp_status_verify_cb(ctx, my_ocsp_verify_cb, NULL);
+    \endcode
+*/
+void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx, ocspVerifyStatusCb cb, void* cbArg);
+
+/*!
     \ingroup Setup
 
     \brief This function sets the optional argument to be passed to

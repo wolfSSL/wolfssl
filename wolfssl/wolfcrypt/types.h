@@ -802,7 +802,7 @@ enum {
     /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
         * not required for wolfCrypt only */
     #define XSTRSTR(s1,s2)    strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n) wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
     #define XSTRCMP(s1,s2)    strcmp((s1),(s2))
     #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
