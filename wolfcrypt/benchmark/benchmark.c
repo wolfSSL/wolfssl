@@ -3656,7 +3656,7 @@ static void* benchmarks_do(void* args)
 
 #if !defined(NO_RSA) && !defined(WC_NO_RNG)
 #ifndef HAVE_RENESAS_SYNC
-    #if defined(WOLFSSL_KEY_GEN)
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
@@ -3686,7 +3686,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
 
-    #ifdef WOLFSSL_KEY_GEN
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (bench_asym_algs & BENCH_RSA_SZ) {
     #ifndef NO_SW_BENCH
         bench_rsa_key(0, bench_size);
@@ -8763,7 +8763,7 @@ void bench_srtpkdf(void)
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
 {
     WC_DECLARE_ARRAY(genKey, RsaKey, BENCH_MAX_PENDING,
@@ -8871,7 +8871,7 @@ void bench_rsaKeyGen_size(int useDeviceID, word32 keySz)
 {
     bench_rsaKeyGen_helper(useDeviceID, keySz);
 }
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -9341,7 +9341,7 @@ exit:
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* bench any size of RSA key */
 void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 {

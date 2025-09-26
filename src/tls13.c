@@ -9549,7 +9549,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = (word16)args->sigLen;
             }
         #endif /* HAVE_DILITHIUM */
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(WOLFSSL_RSA_VERIFY_ONLY)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 args->toSign = rsaSigBuf->buffer;
                 args->toSignSz = (word32)rsaSigBuf->length;
@@ -9570,7 +9571,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     XMEMCPY(args->sigData, sigOut, args->sigLen);
                 }
             }
-        #endif /* !NO_RSA */
+        #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
             /* Check for error */
             if (ret != 0) {
@@ -9603,7 +9604,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                   );
                 }
             #endif /* HAVE_ECC */
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                !defined(WOLFSSL_RSA_VERIFY_ONLY)
                 if (ssl->hsAltType == DYNAMIC_TYPE_RSA) {
                     args->toSign = rsaSigBuf->buffer;
                     args->toSignSz = (word32)rsaSigBuf->length;
@@ -9625,7 +9627,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                         XMEMCPY(args->altSigData, sigOut, args->altSigLen);
                     }
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
             #if defined(HAVE_FALCON)
                 if (ssl->hsAltType == DYNAMIC_TYPE_FALCON) {
                     ret = wc_falcon_sign_msg(args->altSigData,
