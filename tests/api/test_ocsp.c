@@ -786,11 +786,6 @@ static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
             || err == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
             || err == WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
 #endif
-#ifdef WOLFSSL_ALT_CERT_CHAINS
-            /* Non-leaf cert errors are ignored with WOLFSSL_ALT_CERT_CHAINS so
-             * we need to always check them anyway. */
-            || idx != 0
-#endif
             ) {
         WOLFSSL_BUFFER_INFO* bInfo = &store->certs[idx];
         WOLFSSL_CERT_MANAGER* cm = NULL;
@@ -891,13 +886,6 @@ int test_ocsp_tls_cert_cb(void)
 {
     EXPECT_DECLS;
     size_t i, j, chainLen;
-/* With WOLFSSL_ALT_CERT_CHAINS errors in non-leaf certs of the chain are
- * ignored. */
-#if !defined(WOLFSSL_ALT_CERT_CHAINS) || defined(WOLFSSL_VERIFY_CB_ALL_CERTS)
-#define MAXFAIL 3
-#else
-#define MAXFAIL 1
-#endif
     struct {
         method_provider client_meth;
         method_provider server_meth;
@@ -923,10 +911,10 @@ int test_ocsp_tls_cert_cb(void)
 #endif
 #endif
 #ifdef WOLFSSL_TLS13
-        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3", 0, 0, MAXFAIL },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3", 0, 0, 3 },
         { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3", 0, 0, 1 },
 #ifdef WOLFSSL_DTLS13
-        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3", 0, 0, MAXFAIL },
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3", 0, 0, 3 },
         { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3", 0, 0, 1 },
 #endif
 #endif
