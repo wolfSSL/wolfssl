@@ -15416,18 +15416,19 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
             ret = TLSX_Write(ssl->ctx->extensions, output + *pOffset, semaphore,
                 msgType, pOffset);
         }
+    }
 
-        if (serverNameX != NULL) {
-            /* remove the public name SNI */
-            TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
+    if (serverNameX != NULL) {
+        int r;
+        /* remove the public name SNI */
+        TLSX_Remove(extensions, TLSX_SERVER_NAME, ssl->heap);
 
-            ret = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME, tmpServerName,
-                XSTRLEN(tmpServerName), ssl->heap);
+        /* restore the inner server name */
+        r = TLSX_UseSNI(extensions, WOLFSSL_SNI_HOST_NAME, tmpServerName,
+            XSTRLEN(tmpServerName), ssl->heap);
 
-            /* restore the inner server name */
-            if (ret == WOLFSSL_SUCCESS)
-                ret = 0;
-        }
+        if (ret == 0 && r != WOLFSSL_SUCCESS)
+            ret = r;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
