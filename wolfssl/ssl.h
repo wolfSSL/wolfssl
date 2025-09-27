@@ -2425,6 +2425,17 @@ WOLFSSL_API void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
                                                WOLF_STACK_OF(WOLFSSL_X509_NAME)*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl);
+
+WOLFSSL_API void wolfSSL_CTX_set0_CA_list(WOLFSSL_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names);
+WOLFSSL_API void wolfSSL_set0_CA_list(WOLFSSL *ssl,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME) *names);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_CTX_get0_CA_list(
+        const WOLFSSL_CTX *ctx);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_get0_CA_list(
+        const WOLFSSL *ssl);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_get0_peer_CA_list(
+        const WOLFSSL *ssl);
 #endif /* !WOLFSSL_NO_CA_NAMES */
 
 typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
@@ -2536,6 +2547,9 @@ WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
         WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API int  wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
+WOLFSSL_API int  wolfSSL_add_client_CA(WOLFSSL *ssl, WOLFSSL_X509 *x509);
+WOLFSSL_API int  wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x509);
+WOLFSSL_API int  wolfSSL_add1_to_CA_list(WOLFSSL *ssl, WOLFSSL_X509 *x509);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_password(WOLFSSL_CTX* ctx, char* password);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_username(WOLFSSL_CTX* ctx, char* username);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_strength(WOLFSSL_CTX *ctx, int strength);

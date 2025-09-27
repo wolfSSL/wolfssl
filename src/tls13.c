@@ -5765,11 +5765,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
 #endif
 
-#ifdef OPENSSL_EXTRA
-    if ((ret = CertSetupCbWrapper(ssl)) != 0)
-        return ret;
-#endif
-
     if (OPAQUE8_LEN > size)
         return BUFFER_ERROR;
 
@@ -5813,6 +5808,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return ret;
     }
     *inOutIdx += len;
+
+#ifdef OPENSSL_EXTRA
+    if ((ret = CertSetupCbWrapper(ssl)) != 0)
+        return ret;
+#endif
 
     if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)
