@@ -2369,40 +2369,57 @@ static int SetPrefix(byte* sha_input, int idx)
 }
 #endif
 
-/* MALLOC
-    -- maybe not appropriate..
-    -- would you like me to expand this where it is used?
+#define MALLOC_ENC_DEC(name, type)\
+    (void)tls13;\
+    int enc_malloced = 0;\
+    if (enc && enc->name == NULL) {\
+        enc->name = (type*)XMALLOC(sizeof(type), heap, DYNAMIC_TYPE_CIPHER);\
+        if (enc->name == NULL)\
+            return MEMORY_E;\
+        enc_malloced = 1;\
+    }\
+    if (dec && dec->name == NULL) {\
+        dec->name = (type*)XMALLOC(sizeof(type), heap, DYNAMIC_TYPE_CIPHER);\
+        if (dec->name == NULL) {\
+            if (enc_malloced) {\
+                XFREE(enc->name, heap, DYNAMIC_TYPE_CIPHER);\
+                enc->name = NULL;\
+            }\
+            return MEMORY_E;\
+        }\
+    }
+#define FREE_ENC_DEC(name, type)\
+    if (enc && enc->name)\
+        wc_##type##Free(enc->name);\
+    if (dec && dec->name)\
+        wc_##type##Free(dec->name);
+#define IGNORE_VARS (void)decode, (void)server, (void)keys, (void)specs,\
+    (void)heap, (void)devId, (void)rng, (void)tls13
+/*
+  short hand macros for *_setkey functions
 */
-#define MALLOC(var, ty, heap, type) \
-    do {var = (ty*)XMALLOC(sizeof(ty), heap, type); \
-        if (var == NULL) return MEMORY_E; }while(0)
-
 #define write_key  server == decode ? keys->client_write_key \
                                     : keys->server_write_key
 #define write_IV   server == decode ? keys->client_write_IV  \
                                     : keys->server_write_IV
 #define imp_IV     decode ? keys->aead_dec_imp_IV \
                           : keys->aead_enc_imp_IV
+
 #ifdef BUILD_ARC4
 #define IF_ARC4(a,b) a
-static int rc4_init(Ciphers* c, CipherSpecs* specs,
-                    void* heap, int devId, int tls13)
+static int rc4_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    if (c->arc4 == NULL)
-        MALLOC(c->arc4, Arc4, heap, DYNAMIC_TYPE_CIPHER);
-    if (wc_Arc4Init(c->arc4, heap, devId) != 0) {
-        WOLFSSL_MSG("Arc4Init failed in rc4_init");
-        return ASYNC_INIT_E;
-    }
+    MALLOC_ENC_DEC(arc4, Arc4);
     return 0;
 }
 static int rc4_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
-    (void)tls13;
+    IGNORE_VARS;
+    if (wc_Arc4Init(c->arc4, heap, devId) != 0) {
+        WOLFSSL_MSG("Arc4Init failed in rc4_setkey");
+        return ASYNC_INIT_E;
+    }
     wc_Arc4SetKey(c->arc4, write_key, specs->key_size);
     return 0;
 }
@@ -2419,26 +2436,21 @@ static int rc4_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ is too small for ChaCha20
     #endif
 #define IF_CHACHA(a,b) a
-static int chacha_init(Ciphers* c, CipherSpecs* specs,
-                       void* heap, int devId, int tls13)
+static int chacha_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    (void)devId;
-    if (c->chacha == NULL)
-        MALLOC(c->chacha, ChaCha, heap, DYNAMIC_TYPE_CIPHER);
+    MALLOC_ENC_DEC(chacha, ChaCha);
+    return 0;
+}
+static int chacha_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
+{
+    int ret;
+    IGNORE_VARS;
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("SSL keys enc/dec chacha",
                    c->chacha, sizeof(ChaCha));
 #endif
-    return 0;
-}
-static int chacha_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
-{
-    (void)rng;
-    (void)tls13;
-    int ret = wc_Chacha_SetKey(c->chacha, write_key, specs->key_size);
+    ret = wc_Chacha_SetKey(c->chacha, write_key, specs->key_size);
     if (ret != 0)
         return ret;
     XMEMCPY(imp_IV, write_IV, CHACHA20_IMP_IV_SZ);
@@ -2454,26 +2466,20 @@ static int chacha_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for 3DES
     #endif
 #define IF_DES3(a,b) a
-static int des3_init(Ciphers* c, CipherSpecs* specs,
-                     void* heap, int devId, int tls13)
+static int des3_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    if (c->des3 == NULL)
-        MALLOC(c->des3, Des3, heap, DYNAMIC_TYPE_CIPHER);
-    XMEMSET(c->des3, 0, sizeof(Des3));
-    if (wc_Des3Init(c->des3, heap, devId) != 0) {
-        WOLFSSL_MSG("Des3Init failed in des3_init");
-        return ASYNC_INIT_E;
-    }
+    MALLOC_ENC_DEC(des3, Des3);
     return 0;
 }
 static int des3_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)specs;
-    (void)rng;
-    (void)tls13;
+    IGNORE_VARS;
+    XMEMSET(c->des3, 0, sizeof(Des3));
+    if (wc_Des3Init(c->des3, heap, devId) != 0) {
+        WOLFSSL_MSG("Des3Init failed in des3_setkey");
+        return ASYNC_INIT_E;
+    }
     return wc_Des3_SetKey(c->des3, write_key, write_IV,
         decode ? DES_DECRYPTION : DES_ENCRYPTION);
 }
@@ -2487,27 +2493,21 @@ static int des3_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for AES
     #endif
 #define IF_AES(a,b) a
-static int aes_init(Ciphers* c, CipherSpecs* specs,
-                    void* heap, int devId, int tls13)
+static int aes_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    if (c->aes == NULL)
-        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
-    else
-        wc_AesFree(c->aes);
-    XMEMSET(c->aes, 0, sizeof(Aes));
-    if (wc_AesInit(c->aes, heap, devId) != 0) {
-        WOLFSSL_MSG("AesInit failed in aes_init");
-        return ASYNC_INIT_E;
-    }
+    FREE_ENC_DEC(aes, Aes);
+    MALLOC_ENC_DEC(aes, Aes);
     return 0;
 }
 static int aes_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
-    (void)tls13;
+    IGNORE_VARS;
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_setkey");
+        return ASYNC_INIT_E;
+    }
     return wc_AesSetKey(c->aes, write_key, specs->key_size,
        write_IV, decode ? AES_DECRYPTION : AES_ENCRYPTION);
 }
@@ -2527,27 +2527,20 @@ static int aes_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for AESGCM
     #endif
 #define IF_AES_GCM(a,b) a
-static int aes_gcm_init(Ciphers* c, CipherSpecs* specs,
-                        void* heap, int devId, int tls13)
+static int aes_gcm_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    (void)devId;
-    if (c->aes == NULL)
-        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
-    else
-        wc_AesFree(c->aes);
-    XMEMSET(c->aes, 0, sizeof(Aes));
-    if (wc_AesInit(c->aes, heap, devId) != 0) {
-        WOLFSSL_MSG("AesInit failed in aes_gcm_init");
-        return ASYNC_INIT_E;
-    }
-    return 0;
+    return aes_alloc(enc, dec, heap, tls13);
 }
 static int aes_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
     int ret;
+    IGNORE_VARS;
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_gcm_setkey");
+        return ASYNC_INIT_E;
+    }
     ret = wc_AesGcmSetKey(c->aes, write_key, specs->key_size);
     if (ret != 0)
         return ret;
@@ -2577,28 +2570,20 @@ static int aes_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for AESCCM
     #endif
 #define IF_AES_CCM(a,b) a
-static int aes_ccm_init(Ciphers* c, CipherSpecs* specs,
-                        void* heap, int devId, int tls13)
+static int aes_ccm_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    (void)devId;
-    if (c->aes == NULL)
-        MALLOC(c->aes, Aes, heap, DYNAMIC_TYPE_CIPHER);
-    else
-        wc_AesFree(c->aes);
-    XMEMSET(c->aes, 0, sizeof(Aes));
-    if (wc_AesInit(c->aes, heap, devId) != 0) {
-        WOLFSSL_MSG("AesInit failed in aes_ccm_init");
-        return ASYNC_INIT_E;
-    }
-    return 0;
+    return aes_alloc(enc, dec, heap, tls13);
 }
 static int aes_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
     int ret;
+    IGNORE_VARS;
+    XMEMSET(c->aes, 0, sizeof(Aes));
+    if (wc_AesInit(c->aes, heap, devId) != 0) {
+        WOLFSSL_MSG("AesInit failed in aes_ccm_setkey");
+        return ASYNC_INIT_E;
+    }
     ret = wc_AesCcmSetKey(c->aes, write_key, specs->key_size);
     if (ret != 0)
         return ret;
@@ -2624,10 +2609,17 @@ static int aes_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for AES
     #endif
 #define IF_ARIA(a,b) a
-static int aria_init(Ciphers* c, CipherSpecs* specs,
-                     void* heap, int devId, int tls13)
+static int aria_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)tls13;
+    FREE_ENC_DEC(aria, Aria);
+    MALLOC_ENC_DEC(aria, wc_Aria);
+    return 0;
+}
+static int aria_setkey(Ciphers* c, int decode, int server, Keys* keys,
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
+{
+    int ret;
+    IGNORE_VARS;
     MC_ALGID algo;
 
     switch(specs->key_size) {
@@ -2644,22 +2636,11 @@ static int aria_init(Ciphers* c, CipherSpecs* specs,
             return WOLFSSL_NOT_IMPLEMENTED; /* This should never happen */
     }
 
-    if (c->aria == NULL)
-        MALLOC(c->aria, wc_Aria, heap, DYNAMIC_TYPE_CIPHER);
-    else
-        wc_AriaFreeCrypt(c->aria);
     XMEMSET(c->aria, 0, sizeof(wc_Aria));
     if (wc_AriaInitCrypt(c->aria, algo) != 0) {
-         WOLFSSL_MSG("AriaInit failed in aria_init");
+         WOLFSSL_MSG("AriaInit failed in aria_setkey");
          return ASYNC_INIT_E;
     }
-    return 0;
-}
-static int aria_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
-{
-    (void)specs;
-    int ret;
     ret = wc_AriaSetKey(c->aria, write_key);
     if (ret != 0)
         return ret;
@@ -2681,21 +2662,15 @@ static int aria_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for CAMELLIA
     #endif
 #define IF_CAMELLIA(a,b) a
-static int camellia_init(Ciphers* c, CipherSpecs* specs,
-                         void* heap, int devId, int tls13)
+static int camellia_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    (void)devId;
-    if (c->cam == NULL)
-        MALLOC(c->cam, wc_Camellia, heap, DYNAMIC_TYPE_CIPHER);
+    MALLOC_ENC_DEC(cam, wc_Camellia);
     return 0;
 }
 static int camellia_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
-    (void)tls13;
+    IGNORE_VARS;
     return wc_CamelliaSetKey(c->cam, write_key, specs->key_size, write_IV);
 }
 #else
@@ -2708,28 +2683,22 @@ static int camellia_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for SM4_CBC
     #endif
 #define IF_SM4_CBC(a,b) a
-static int sm4_cbc_init(Ciphers* c, CipherSpecs* specs,
-                        void* heap, int devId, int tls13)
+static int sm4_cbc_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
-    (void)tls13;
-    if (c->sm4 == NULL)
-        MALLOC(c->sm4, wc_Sm4, heap, DYNAMIC_TYPE_CIPHER);
-    else
-        wc_Sm4Free(c->sm4);
-    XMEMSET(c->sm4, 0, sizeof(wc_Sm4));
-    if (wc_Sm4Init(c->sm4, heap, devId) != 0) {
-        WOLFSSL_MSG("Sm4Init failed in sm4_cbc_init");
-        return ASYNC_INIT_E;
-    }
+    FREE_ENC_DEC(sm4, Sm4)
+    MALLOC_ENC_DEC(sm4, wc_Sm4);
     return 0;
 }
 static int sm4_cbc_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
-    (void)tls13;
     int ret;
+    IGNORE_VARS;
+    XMEMSET(c->sm4, 0, sizeof(wc_Sm4));
+    if (wc_Sm4Init(c->sm4, heap, devId) != 0) {
+        WOLFSSL_MSG("Sm4Init failed in sm4_cbc_setkey");
+        return ASYNC_INIT_E;
+    }
     ret = wc_Sm4SetKey(c->sm4, write_key, specs->key_size);
     if (ret != 0)
         return ret;
@@ -2751,18 +2720,15 @@ static int sm4_cbc_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for SM4-GCM
     #endif
 #define IF_SM4_GCM(a,b) a
-static int sm4_gcm_init(Ciphers* c, CipherSpecs* specs,
-                        void* heap, int devId, int tls13)
+static int sm4_gcm_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    return sm4_cbc_init(c, specs, heap, devId, tls13);
+    return sm4_cbc_alloc(enc, dec, heap, tls13);
 }
 static int sm4_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)specs;
-    (void)rng;
-    (void)tls13;
     int ret;
+    IGNORE_VARS;
     ret = wc_Sm4GcmSetKey(c->sm4, write_key, specs->key_size);
     if (ret != 0)
         return ret;
@@ -2785,15 +2751,15 @@ static int sm4_gcm_setkey(Ciphers* c, int decode, int server, Keys* keys,
         #error MAX_WRITE_IV_SZ too small for SM4-CCM
     #endif
 #define IF_SM4_CCM(a,b) a
-static int sm4_ccm_init(Ciphers* c, CipherSpecs* specs,
-                        void* heap, int devId, int tls13)
+static int sm4_ccm_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    return sm4_cbc_init(c, specs, heap, devId, tls13);
+    return sm4_cbc_alloc(enc, dec, heap, tls13);
 }
 static int sm4_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    return sm4_gcm_setkey(c, decode, server, keys, specs, rng, tls13);
+    return sm4_gcm_setkey(c, decode, server, keys, specs, heap, devId,
+                          rng, tls13);
 }
 #else
 #define IF_SM4_CCM(a,b) b
@@ -2801,30 +2767,19 @@ static int sm4_ccm_setkey(Ciphers* c, int decode, int server, Keys* keys,
 
 #ifdef HAVE_NULL_CIPHER
 #define IF_NULL(a,b) a
-static int null_init(Ciphers* c, CipherSpecs* specs,
-                     void* heap, int devId, int tls13)
+static int null_alloc(Ciphers* enc, Ciphers* dec, void* heap, int tls13)
 {
-    (void)specs;
     #ifdef WOLFSSL_TLS13
     if (tls13) {
-        if (c->hmac == NULL) {
-            MALLOC(c->hmac, Hmac, heap, DYNAMIC_TYPE_CIPHER);
-            if (wc_HmacInit(c->hmac, heap, devId) != 0) {
-                WOLFSSL_MSG("HmacInit failed in null_init");
-                XFREE(c->hmac, heap, DYNAMIC_TYPE_CIPHER);
-                c->hmac = NULL;
-                return ASYNC_INIT_E;
-            }
-        }
+        MALLOC_ENC_DEC(hmac, Hmac);
     }
     #endif
     return 0;
 }
 static int null_setkey(Ciphers* c, int decode, int server, Keys* keys,
-    CipherSpecs* specs, WC_RNG* rng, int tls13)
+    CipherSpecs* specs, void* heap, int devId, WC_RNG* rng, int tls13)
 {
-    (void)rng;
-    (void)tls13;
+    IGNORE_VARS;
     #ifdef WOLFSSL_TLS13
     if (tls13) {
         int hashType = WC_HASH_TYPE_NONE;
@@ -2840,6 +2795,10 @@ static int null_setkey(Ciphers* c, int decode, int server, Keys* keys,
                 break;
         }
 
+        if (wc_HmacInit(c->hmac, heap, devId) != 0) {
+            WOLFSSL_MSG("HmacInit failed in null_setkey");
+            return ASYNC_INIT_E;
+        }
         XMEMCPY(imp_IV, write_IV, AEAD_MAX_IMP_SZ);
         return wc_HmacSetKey(c->hmac, hashType, write_key, specs->key_size);
     }
@@ -2850,25 +2809,25 @@ static int null_setkey(Ciphers* c, int decode, int server, Keys* keys,
 #define IF_NULL(a,b) b
 #endif
 
-static int (*CipherInits[])(Ciphers*, CipherSpecs* specs, void*, int, int) = {
-    IF_NULL(null_init,0),            /*  wolfssl_cipher_null = 0,  */
-    IF_ARC4(rc4_init,0),             /*  wolfssl_rc4         = 1,  */
+static int (*CipherAllocs[])(Ciphers*, Ciphers*, void*, int) = {
+    IF_NULL(null_alloc,0),           /*  wolfssl_cipher_null = 0,  */
+    IF_ARC4(rc4_alloc,0),            /*  wolfssl_rc4         = 1,  */
     0,                               /*  wolfssl_rc2         = 2,  */
     0,                               /*  wolfssl_des         = 3,  */
-    IF_DES3(des3_init,0),            /*  wolfssl_triple_des  = 4,  */
+    IF_DES3(des3_alloc,0),           /*  wolfssl_triple_des  = 4,  */
     0,                               /*  wolfssl_des40       = 5,  */
-    IF_AES(aes_init,0),              /*  wolfssl_aes         = 6,  */
-    IF_AES_GCM(aes_gcm_init,0),      /*  wolfssl_aes_gcm     = 7,  */
-    IF_AES_CCM(aes_ccm_init,0),      /*  wolfssl_aes_ccm     = 8,  */
-    IF_CHACHA(chacha_init,0),        /*  wolfssl_chacha      = 9,  */
-    IF_CAMELLIA(camellia_init,0),    /*  wolfssl_camellia    = 10, */
-    IF_SM4_CBC(sm4_cbc_init,0),      /*  wolfssl_sm4_cbc     = 11, */
-    IF_SM4_GCM(sm4_gcm_init,0),      /*  wolfssl_sm4_gcm     = 12, */
-    IF_SM4_CCM(sm4_ccm_init,0),      /*  wolfssl_sm4_ccm     = 13, */
-    IF_ARIA(aria_init,0)};           /*  wolfssl_aria_gcm    = 14  */
+    IF_AES(aes_alloc,0),             /*  wolfssl_aes         = 6,  */
+    IF_AES_GCM(aes_gcm_alloc,0),     /*  wolfssl_aes_gcm     = 7,  */
+    IF_AES_CCM(aes_ccm_alloc,0),     /*  wolfssl_aes_ccm     = 8,  */
+    IF_CHACHA(chacha_alloc,0),       /*  wolfssl_chacha      = 9,  */
+    IF_CAMELLIA(camellia_alloc,0),   /*  wolfssl_camellia    = 10, */
+    IF_SM4_CBC(sm4_cbc_alloc,0),     /*  wolfssl_sm4_cbc     = 11, */
+    IF_SM4_GCM(sm4_gcm_alloc,0),     /*  wolfssl_sm4_gcm     = 12, */
+    IF_SM4_CCM(sm4_ccm_alloc,0),     /*  wolfssl_sm4_ccm     = 13, */
+    IF_ARIA(aria_alloc,0)};          /*  wolfssl_aria_gcm    = 14  */
 
 static int (*CipherSetKeys[])(Ciphers*, int, int, Keys*, CipherSpecs*,
-                              WC_RNG*, int) = {
+                              void*, int, WC_RNG*, int) = {
     IF_NULL(null_setkey,0),          /*  wolfssl_cipher_null = 0,  */
     IF_ARC4(rc4_setkey,0),           /*  wolfssl_rc4         = 1,  */
     0,                               /*  wolfssl_rc2         = 2,  */
@@ -2894,14 +2853,14 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
     int algo = specs->bulk_cipher_algorithm;
     if (algo < 0 || algo > wolfssl_aria_gcm)
         return BAD_FUNC_ARG;
+    if (!CipherAllocs[algo] || !CipherSetKeys[algo])
+        return NOT_COMPILED_IN;
+    if ((ret = CipherAllocs[algo](enc, dec, heap, devId)))
+        return ret;
     for (i = 0; i < 2; i++) {
         if (ed[i]) {
-            if (!CipherInits[algo] || !CipherSetKeys[algo])
-                return NOT_COMPILED_IN;
-            if ((ret = CipherInits[algo](ed[i], specs, heap, devId, tls13)))
-                return ret;
             if ((ret = CipherSetKeys[algo](ed[i], i, server, keys, specs,
-                                           rng, tls13)))
+                                           heap, devId, rng, tls13)))
                 return ret;
             ed[i]->setup = 1;
         }
