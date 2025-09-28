@@ -755,7 +755,16 @@
 
         const unsigned char *_ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_node_align_noprof) *krealloc_node_align_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
+        typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+        #ifdef HAVE_KVREALLOC
+            typeof(kvrealloc_node_align_noprof) *kvrealloc_node_align_noprof;
+        #endif
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
@@ -1036,7 +1045,17 @@
 
     #define _ctype WC_LKM_INDIRECT_SYM(_ctype)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
+    #define krealloc_node_align_noprof WC_LKM_INDIRECT_SYM(krealloc_node_align_noprof)
+    #define kzalloc_noprof WC_LKM_INDIRECT_SYM(kzalloc_noprof)
+    #define __kvmalloc_node_noprof WC_LKM_INDIRECT_SYM(__kvmalloc_node_noprof)
+    #define __kmalloc_cache_noprof WC_LKM_INDIRECT_SYM(__kmalloc_cache_noprof)
+    #ifdef HAVE_KVREALLOC
+        #define kvrealloc_node_align_noprof WC_LKM_INDIRECT_SYM(kvrealloc_node_align_noprof)
+    #endif
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof WC_LKM_INDIRECT_SYM(kmalloc_noprof)
     #define krealloc_noprof WC_LKM_INDIRECT_SYM(krealloc_noprof)
