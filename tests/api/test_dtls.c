@@ -1525,3 +1525,41 @@ int test_dtls_replay(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_DTLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_SRTP)
+static int test_dtls_srtp_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_use_srtp(ctx, "SRTP_AEAD_AES_256_GCM:"
+         "SRTP_AEAD_AES_128_GCM:SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32"),
+          0);
+    return EXPECT_RESULT();
+}
+
+int test_dtls_srtp(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    client_cbf.method = wolfDTLSv1_3_client_method;
+    client_cbf.ctx_ready = test_dtls_srtp_ctx_ready;
+    server_cbf.method = wolfDTLSv1_3_server_method;
+    server_cbf.ctx_ready = test_dtls_srtp_ctx_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_dtls_srtp(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif

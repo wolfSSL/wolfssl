@@ -10836,8 +10836,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.dtls   = 1;
             ssl->options.tls    = 1;
             ssl->options.tls1_1 = 1;
-            if (!IsDtlsNotSctpMode(ssl) || !IsDtlsNotSrtpMode(ssl) ||
-                    IsSCR(ssl))
+            if (!IsDtlsNotSctpMode(ssl) || IsSCR(ssl))
                 ssl->options.dtlsStateful = 1;
         }
     #endif
