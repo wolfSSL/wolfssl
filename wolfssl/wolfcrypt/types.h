@@ -374,7 +374,9 @@ typedef struct w64wrapper {
 #ifdef WC_PTR_TYPE /* Allow user supplied type */
     typedef WC_PTR_TYPE wc_ptr_t;
 #elif defined(HAVE_UINTPTR_T)
-    #include <stdint.h>
+    #ifndef NO_STDINT_H
+        #include <stdint.h>
+    #endif
     typedef uintptr_t wc_ptr_t;
 #else /* fallback to architecture size_t for pointer size */
     #include <stddef.h> /* included for getting size_t type */
@@ -786,9 +788,7 @@ enum {
 #endif
 
 #ifndef STRING_USER
-    #if defined(WOLFSSL_LINUXKM)
-        #include <linux/string.h>
-    #else
+    #ifndef NO_STRING_H
         #include <string.h>
     #endif
 
@@ -1047,7 +1047,7 @@ binding for XSNPRINTF
 #endif /* !NO_FILESYSTEM && !NO_STDIO_FILESYSTEM */
 
 #ifndef CTYPE_USER
-    #ifndef WOLFSSL_LINUXKM
+    #ifndef NO_CTYPE_H
         #include <ctype.h>
     #endif
     #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
@@ -1725,7 +1725,6 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     typedef size_t        THREAD_TYPE;
     #define WOLFSSL_THREAD __stdcall
 #endif
-
 
 #ifndef SINGLE_THREADED
     /* Necessary headers should already be included. */

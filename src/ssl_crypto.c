@@ -3102,7 +3102,7 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
     else
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)) \
-    || defined(WOLFSSL_LINUXKM))
+    || defined(WOLFSSL_KERNEL_MODE))
     /* Encrypt a block with wolfCrypt AES. */
     if (wc_AesEncryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesEncryptDirect failed");

@@ -151,101 +151,10 @@
     #include <signal.h>
 #endif
 
-#ifdef __WATCOMC__
-    #if defined(__OS2__)
-    #elif defined(__NT__)
-        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
-        #include <windows.h>
-        #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
-    #elif defined(__LINUX__)
-        #ifndef SINGLE_THREADED
-            #define WOLFSSL_PTHREADS
-            #include <pthread.h>
-        #endif
-    #endif
-#elif defined(USE_WINDOWS_API)
-    #ifdef WOLFSSL_GAME_BUILD
-        #include "system/xtl.h"
-    #else
-        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
-        #include <windows.h>
-        #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
-    #endif
-#elif defined(THREADX)
-    #ifndef SINGLE_THREADED
-        #include "tx_api.h"
-    #endif
-
-#elif defined(WOLFSSL_DEOS)
-    /* do nothing, just don't pick Unix */
-#elif defined(MICRIUM)
-    /* do nothing, just don't pick Unix */
-#elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
-    /* do nothing */
-#elif defined(RTTHREAD)
-    /* do nothing */
-#elif defined(EBSNET)
-    /* do nothing */
-#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    /* do nothing */
-#elif defined(FREESCALE_FREE_RTOS)
-    #include "fsl_os_abstraction.h"
-#elif defined(WOLFSSL_uITRON4)
-        /* do nothing */
-#elif defined(WOLFSSL_uTKERNEL2)
-        /* do nothing */
-#elif defined(WOLFSSL_CMSIS_RTOS)
-    #include "cmsis_os.h"
-#elif defined(WOLFSSL_CMSIS_RTOSv2)
-    #include "cmsis_os2.h"
-#elif defined(WOLFSSL_MDK_ARM)
-    #if defined(WOLFSSL_MDK5)
-        #include "cmsis_os.h"
-    #else
-        #include <rtl.h>
-    #endif
-#elif defined(MBED)
-#elif defined(WOLFSSL_TIRTOS)
-    /* do nothing */
-#elif defined(INTIME_RTOS)
-    #include <rt.h>
-#elif defined(WOLFSSL_NUCLEUS_1_2)
-    /* do nothing */
-#elif defined(WOLFSSL_APACHE_MYNEWT)
+#ifdef WOLFSSL_APACHE_MYNEWT
     #if !defined(WOLFSSL_LWIP)
         void mynewt_ctx_clear(void *ctx);
         void* mynewt_ctx_new();
-    #endif
-#elif defined(WOLFSSL_ZEPHYR)
-    #ifndef SINGLE_THREADED
-        #include <version.h>
-        #if KERNEL_VERSION_NUMBER >= 0x30100
-            #include <zephyr/kernel.h>
-        #else
-            #include <kernel.h>
-        #endif
-    #endif
-#elif defined(WOLFSSL_TELIT_M2MB)
-    /* do nothing */
-#elif defined(WOLFSSL_EMBOS)
-    /* do nothing */
-#else
-    #ifndef SINGLE_THREADED
-        #if defined(WOLFSSL_LINUXKM)
-            /* setup is in linuxkm/linuxkm_wc_port.h */
-        #elif defined(WOLFSSL_USER_MUTEX)
-            /* do nothing */
-        #else
-            #define WOLFSSL_PTHREADS
-            #include <pthread.h>
-        #endif
-    #endif
-    #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
-        #ifdef FUSION_RTOS
-            #include <fclunistd.h>
-        #else
-            #include <unistd.h>      /* for close of BIO */
-        #endif
     #endif
 #endif
 

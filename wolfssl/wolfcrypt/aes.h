@@ -306,13 +306,13 @@ struct Aes {
 #endif
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
-    #if defined(WOLFSSL_LINUXKM) || defined(WC_WANT_FLAG_DONT_USE_AESNI)
-        /* Note, we can't support WC_FLAG_DONT_USE_AESNI by default because we
-         * need to support legacy applications that call wc_AesSetKey() on
+    #if defined(WOLFSSL_KERNEL_MODE) || defined(WC_WANT_FLAG_DONT_USE_VECTOR_OPS)
+        /* Note, we can't support WC_FLAG_DONT_USE_VECTOR_OPS by default because
+         * we need to support legacy applications that call wc_AesSetKey() on
          * uninited struct Aes.  For details see the software implementation of
          * wc_AesSetKeyLocal() (aes.c).
          */
-        #define WC_FLAG_DONT_USE_AESNI 2
+        #define WC_FLAG_DONT_USE_VECTOR_OPS 2
     #endif
 #endif /* WOLFSSL_AESNI */
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \

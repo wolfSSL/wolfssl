@@ -682,12 +682,12 @@ static int InitSha512_256(wc_Sha512* sha512)
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha512_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         ret = (*Transform_Sha512_p)(sha512);
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
     #endif
@@ -695,12 +695,12 @@ static int InitSha512_256(wc_Sha512* sha512)
     }
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
         int ret;
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha512_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         ret = (*Transform_Sha512_Len_p)(sha512, len);
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
     #endif

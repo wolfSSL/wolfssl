@@ -366,7 +366,7 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
 
-#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
 
@@ -1025,15 +1025,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
-#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_restore_vector_registers_x86 = wc_restore_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_save_vector_registers_x86 = wc_save_vector_registers_x86;
-#elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
-    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
-#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
+#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
