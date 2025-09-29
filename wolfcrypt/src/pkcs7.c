@@ -11974,8 +11974,14 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
             ret = wc_PKCS7_DecryptKtri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz,
                                       recipFound);
-            if (ret != 0)
-                return ret;
+            if (ret != 0) {
+                if (ret != WC_PKCS7_WANT_READ_E && *recipFound == 0) {
+                    continue; /* try next recipient */
+                }
+                else {
+                    return ret; /* found recipient and failed decrypt */
+                }
+            }
         #else
             return NOT_COMPILED_IN;
         #endif
@@ -12096,8 +12102,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                                           recipFound);
                 if (ret != 0)
                     return ret;
-
-            } else {
+            }
+            else {
                 /* failed to find RecipientInfo, restore idx and continue */
                 *idx = savedIdx;
                 break;
@@ -12497,8 +12503,6 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
             tmpIdx = idx;
         #endif
-            pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
-
             ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, in, inSz, &idx,
                                         decryptedKey, &decryptedKeySz,
                                         &recipFound);
