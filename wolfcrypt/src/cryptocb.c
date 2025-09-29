@@ -174,7 +174,7 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
 static const char* GetKdfTypeStr(int type)
 {
     switch (type) {
@@ -251,7 +251,7 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
 #endif
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
         printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
                GetKdfTypeStr(info->kdf.type), info->kdf.type);
@@ -1964,7 +1964,7 @@ int wc_CryptoCb_DefaultDevID(void)
     return ret;
 }
 
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
 int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
                      const byte* salt, word32 saltSz, const byte* info,
                      word32 infoSz, byte* out, word32 outSz, int devId)
@@ -1996,6 +1996,6 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* HAVE_HKDF */
+#endif /* HAVE_HKDF && !NO_HMAC */
 
 #endif /* WOLF_CRYPTO_CB */

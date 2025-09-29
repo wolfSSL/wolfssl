@@ -60806,7 +60806,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         info->cmac.cmac->devId = devIdArg;
     }
 #endif /* WOLFSSL_CMAC && !(NO_AES) && WOLFSSL_AES_DIRECT */
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
         if (info->kdf.type == WC_KDF_TYPE_HKDF) {
             /* Redirect to software implementation for testing */
@@ -60818,7 +60818,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                            NULL, INVALID_DEVID);
         }
     }
-#endif /* HAVE_HKDF */
+#endif /* HAVE_HKDF && !NO_HMAC */
 
     (void)devIdArg;
     (void)myCtx;
