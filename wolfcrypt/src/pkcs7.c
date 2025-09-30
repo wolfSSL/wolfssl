@@ -12518,7 +12518,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
         #ifndef NO_PKCS7_STREAM
             /* advance idx past recipient info set if not all recipients
              * parsed */
-            if (pkcs7->stream->totalRd < (pkcs7->stream->recipientSz +
+            if (pkcs7->stream->totalRd < ((word32)pkcs7->stream->recipientSz +
                     tmpIdx)) {
                 idx = tmpIdx + (word32)pkcs7->stream->recipientSz;
 
