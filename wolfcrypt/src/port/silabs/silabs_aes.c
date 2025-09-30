@@ -48,11 +48,11 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         return BUFFER_E;
     }
 
-    XMEMSET(aes, 0, sizeof(*aes));
-
-    if (keylen > sizeof(aes->key)) {
+    if (aes == NULL || keylen > sizeof(aes->key)) {
         return BAD_FUNC_ARG;
     }
+
+    XMEMSET(aes, 0, sizeof(*aes));
 
     ret = wc_AesSetIV(aes, iv);
     aes->rounds = keylen/4 + 6;
