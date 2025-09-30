@@ -35,14 +35,16 @@
 #ifdef HASH_DIGEST
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
-    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13)
+    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
+        defined(WOLFSSL_STM32N6)
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
     #else
         #define HASH_CR_SIZE    54
         #define HASH_MAX_DIGEST 32
     #endif
-    #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S)
+    #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
+        defined(WOLFSSL_STM32N6)
         #define STM32_HASH_SHA512
         #define STM32_HASH_SHA512_224
         #define STM32_HASH_SHA512_256
@@ -137,6 +139,10 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
 #endif
 
+#if defined(WOLFSSL_STM32N6)
+    #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
+#endif
+
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
@@ -193,7 +199,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #ifndef STM_CRYPT_HEADER_WIDTH
         /* newer crypt HAL requires auth header size as 4 bytes (word) */
         #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && \
-            !defined(WOLFSSL_STM32MP13) && !defined(WOLFSSL_STM32H7S)
+            !defined(WOLFSSL_STM32MP13) && !defined(WOLFSSL_STM32H7S) && \
+            !defined(WOLFSSL_STM32N6)
             #define STM_CRYPT_HEADER_WIDTH 1
         #else
             #define STM_CRYPT_HEADER_WIDTH 4
