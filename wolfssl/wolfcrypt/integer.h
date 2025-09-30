@@ -46,12 +46,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 
-#ifndef CHAR_BIT
-    #if defined(WOLFSSL_LINUXKM)
-        #include <linux/limits.h>
-    #else
-        #include <limits.h>
-    #endif
+#if !defined(CHAR_BIT) && !defined(NO_LIMITS_H)
+    #include <limits.h>
 #endif
 
 #include <wolfssl/wolfcrypt/mpi_class.h>

@@ -176,6 +176,10 @@
                 #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */
             #endif
+        #elif defined(__NT__)
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
+            #include <windows.h>
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
         #elif defined(__OS2__)
             #define INCL_DOSSEMAPHORES
             #define INCL_DOSPROCESS
@@ -258,6 +262,8 @@
     #endif
 #elif defined(WOLFSSL_CMSIS_RTOS)
     #include "cmsis_os.h"
+#elif defined(MBED)
+    /* do nothing */
 #elif defined(WOLFSSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Task.h>

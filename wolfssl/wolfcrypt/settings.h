@@ -3652,6 +3652,10 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_KERNEL_MODE
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
@@ -3696,8 +3700,13 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
     #undef HAVE_STRINGS_H
+    #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
+    #define NO_LIMITS_H
+    #define NO_STDLIB_H
+    #define NO_STDINT_H
+    #define NO_CTYPE_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT

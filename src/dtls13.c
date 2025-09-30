@@ -255,7 +255,7 @@ static int Dtls13GetRnMask(WOLFSSL* ssl, const byte* ciphertext, byte* mask,
             return BAD_STATE_E;
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)) \
-    || defined(WOLFSSL_LINUXKM))
+    || defined(WOLFSSL_KERNEL_MODE))
         return wc_AesEncryptDirect(c->aes, mask, ciphertext);
 #else
         wc_AesEncryptDirect(c->aes, mask, ciphertext);

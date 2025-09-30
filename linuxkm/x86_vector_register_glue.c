@@ -23,7 +23,7 @@
 /* included by linuxkm/module_hooks.c */
 #ifndef WC_SKIP_INCLUDED_C_FILES
 
-#if !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
     #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
 #endif
 
@@ -39,7 +39,7 @@
  * checks in __kernel_fpu_begin(), and lacks TIF_NEED_FPU_LOAD.
  */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
+    #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
 #endif
 
 static unsigned int wc_linuxkm_fpu_states_n_tracked = 0;

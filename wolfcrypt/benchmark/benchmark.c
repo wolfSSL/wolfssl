@@ -2343,7 +2343,7 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 #endif
 }
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #define bench_stats_start(count, start) do {                               \
         SAVE_VECTOR_REGISTERS(pr_err(                                          \
             "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
@@ -2746,7 +2746,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -3009,7 +3009,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -5021,7 +5021,7 @@ static void bench_aesecb_internal(int useDeviceID,
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
-                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
                     ret = wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
                     if (ret != 0)
                         goto exit_aes_enc;
@@ -5078,7 +5078,7 @@ exit_aes_enc:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
-                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
                     ret = wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
                     if (ret != 0)
                         goto exit_aes_dec;

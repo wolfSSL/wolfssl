@@ -32,7 +32,9 @@
 
 #ifdef WOLFSSL_QUIC
 
-#include <stdint.h>
+#ifndef NO_STDINT_H
+    #include <stdint.h>
+#endif
 
 /* QUIC operates on three encryption levels which determine
  * which keys/algos are used for de-/encryption. These are

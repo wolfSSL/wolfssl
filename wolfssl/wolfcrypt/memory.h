@@ -29,7 +29,7 @@
 #ifndef WOLFSSL_MEMORY_H
 #define WOLFSSL_MEMORY_H
 
-#if !defined(STRING_USER) && !defined(WOLFSSL_LINUXKM)
+#if !defined(STRING_USER) && !defined(NO_STDLIB_H)
 #include <stdlib.h>
 #endif
 

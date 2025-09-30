@@ -373,7 +373,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 #else
     wc_Sha256 sha[1];
 #endif
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     byte* digest;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
@@ -383,7 +383,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         return DRBG_FAILURE;
     }
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
         DYNAMIC_TYPE_DIGEST);
     if (digest == NULL)
@@ -444,7 +444,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
@@ -660,7 +660,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_NEED_RESEED;
     }
     else {
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
         byte* digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
             DYNAMIC_TYPE_DIGEST);
         if (digest == NULL)
@@ -709,7 +709,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
         XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
     #endif
     }

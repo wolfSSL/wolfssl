@@ -241,7 +241,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
         ret = allocate_wolfcrypt_linuxkm_fpu_states();
         if (ret != 0) {
             WOLFSSL_MSG("allocate_wolfcrypt_linuxkm_fpu_states failed");
@@ -540,7 +540,7 @@ int wolfCrypt_Cleanup(void)
         rpcmem_deinit();
         wolfSSL_CleanupHandle();
     #endif
-    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
         free_wolfcrypt_linuxkm_fpu_states();
     #endif
 
