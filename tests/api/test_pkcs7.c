@@ -2182,7 +2182,11 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+    #if defined(NO_AES) || defined(NO_AES_256)
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
         ExpectIntGT(ret, 0);
+    #endif
         wc_PKCS7_Free(pkcs7);
     }
 
@@ -2197,7 +2201,11 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
 
         ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+    #if defined(NO_AES) || defined(NO_AES_256)
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
         ExpectIntGT(ret, 0);
+    #endif
         wc_PKCS7_Free(pkcs7);
     }
 

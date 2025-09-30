@@ -11975,7 +11975,8 @@ static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                                       decryptedKey, decryptedKeySz,
                                       recipFound);
             if (ret != 0) {
-                if (ret != WC_PKCS7_WANT_READ_E && *recipFound == 0) {
+                if (ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E) &&
+                        *recipFound == 0) {
                     continue; /* try next recipient */
                 }
                 else {
