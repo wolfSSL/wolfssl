@@ -185,8 +185,7 @@ int wc_RsaDirect(const byte* in, word32 inLen, byte* out, word32* outSz,
     to out in outLen.
 
     \return Success Upon successfully encrypting the input message, returns
-    0 for success and less than zero for failure. Also returns the number
-    bytes written to out by storing the value in outLen
+    the number of bytes written on success and less than zero for failure.
     \return BAD_FUNC_ARG Returned if any of the input parameters are invalid
     \return RSA_BUFFER_E Returned if the output buffer is too small to store
     the ciphertext
@@ -1514,7 +1513,7 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
     \param e exponent parameter to use for generating the key. A secure
     choice is 65537
     \param rng pointer to an RNG structure to use for random number generation
-    while making the ke
+    while making the key
 
     _Example_
     \code

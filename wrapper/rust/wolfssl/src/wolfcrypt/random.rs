@@ -1,5 +1,5 @@
 /*!
-This crate provides a Rust wrapper for the wolfCrypt library's random number
+This module provides a Rust wrapper for the wolfCrypt library's random number
 generator (RNG).
 
 It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
@@ -38,7 +38,7 @@ use std::mem::{size_of, MaybeUninit};
 /// ensures that the underlying wolfSSL RNG context is correctly freed when the
 /// `RNG` struct goes out of scope, preventing memory leaks.
 pub struct RNG {
-    wc_rng: ws::WC_RNG,
+    pub(crate) wc_rng: ws::WC_RNG,
 }
 
 impl RNG {

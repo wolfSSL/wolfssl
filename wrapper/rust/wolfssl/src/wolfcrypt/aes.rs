@@ -1,5 +1,5 @@
 /*!
-This crate provides a Rust wrapper for the wolfCrypt library's Advanced
+This module provides a Rust wrapper for the wolfCrypt library's Advanced
 Encryption Standard (AES) functionality.
 
 It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
