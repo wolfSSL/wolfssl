@@ -20546,6 +20546,50 @@ static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
     X509_STORE_free(store);
     return EXPECT_RESULT();
 }
+
+static int test_wolfSSL_X509_STORE_CTX_ex12(void)
+{
+    EXPECT_DECLS;
+#ifdef HAVE_ECC
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    X509* rootEccX509 = NULL;
+    X509* badAkiX509 = NULL;
+    X509* ca1X509 = NULL;
+
+    const char* intCARootECCFile    = "./certs/ca-ecc-cert.pem";
+    const char* intCA1ECCFile       = "./certs/intermediate/ca-int-ecc-cert.pem";
+    const char* intCABadAKIECCFile = "./certs/intermediate/ca-ecc-bad-aki.pem";
+
+    /* Test case 12, multiple CAs with the same SKI including 1 with intentionally
+       bad/unregistered AKI.  x509_verify_cert should still form a valid chain
+       using the valid CA, ignoring the bad CA. Developed from customer provided
+       reproducer. */
+
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(rootEccX509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCARootECCFile));
+    ExpectIntEQ(X509_STORE_add_cert(store, rootEccX509), 1);
+    ExpectNotNull(badAkiX509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCABadAKIECCFile));
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, badAkiX509, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 0);
+    X509_STORE_CTX_cleanup(ctx);
+
+    ExpectIntEQ(X509_STORE_add_cert(store, badAkiX509), 1);
+    ExpectNotNull(ca1X509 = test_wolfSSL_X509_STORE_CTX_ex_helper(intCA1ECCFile));
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, ca1X509, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(rootEccX509);
+    X509_free(badAkiX509);
+    X509_free(ca1X509);
+#endif
+    return EXPECT_RESULT();
+}
 #endif
 
 static int test_wolfSSL_X509_STORE_CTX_ex(void)
@@ -20585,6 +20629,7 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
+    test_wolfSSL_X509_STORE_CTX_ex12();
 
     if(testData.x509Ca) {
         X509_free(testData.x509Ca);

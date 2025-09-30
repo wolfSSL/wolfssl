@@ -14375,7 +14375,7 @@ int CalcHashId_ex(const byte* data, word32 len, byte* hash, int hashAlg)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
+int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 {
     int ret;
 
