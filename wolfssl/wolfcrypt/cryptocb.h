@@ -468,6 +468,29 @@ typedef struct wc_CryptoInfo {
         void *ctx;
     } cmd;
 #endif
+#ifdef HAVE_HKDF
+    struct {
+        int type; /* enum wc_KdfType */
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        union {
+#endif
+            struct {                  /* HKDF one-shot */
+                int         hashType; /* WC_SHA256, etc. */
+                const byte* inKey;    /* Input keying material */
+                word32      inKeySz;
+                const byte* salt; /* Optional salt */
+                word32      saltSz;
+                const byte* info; /* Optional info */
+                word32      infoSz;
+                byte*       out; /* Output key material */
+                word32      outSz;
+            } hkdf;
+            /* Future KDF type structures here */
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        };
+#endif
+    } kdf;
+#endif
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
@@ -665,6 +688,14 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
     word32 inSz, byte* digest);
 #endif /* !NO_HMAC */
+
+#ifdef HAVE_HKDF
+WOLFSSL_LOCAL int wc_CryptoCb_Hkdf(int hashType, const byte* inKey,
+                                   word32 inKeySz, const byte* salt,
+                                   word32 saltSz, const byte* info,
+                                   word32 infoSz, byte* out, word32 outSz,
+                                   int devId);
+#endif
 
 #ifndef WC_NO_RNG
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
