@@ -23614,6 +23614,15 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
+    /* wc_DhGeneratePublic_fips() was added in 5.2.3, but some customers are
+     * building with configure scripts that set version to 5.2.1, but with 5.2.3
+     * wolfCrypt sources.
+     */
+#if !(defined(HAVE_SELFTEST) || \
+      (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,2,3)) || \
+      FIPS_VERSION3_EQ(6,0,0) || \
+      defined(NO_WC_DHGENERATEPUBLIC))
+
     /* additional test for wc_DhGeneratePublic:
      *   1. reset key2.
      *   2. using priv from dh key 1, generate pub2 with
@@ -23645,6 +23654,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (pubSz != pubSz2 || XMEMCMP(pub, pub2, pubSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
+#endif /* !(HAVE_SELFTEST || FIPS <5.2.3 || FIPS == 6.0.0 || NO_WC_DHGENERATEPUBLIC */
 
 #if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
     !defined(HAVE_INTEL_QA)
