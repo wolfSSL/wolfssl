@@ -5635,6 +5635,21 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     }
     else {
+        /* https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.4
+         * Clients MUST abort the handshake with an
+         * "illegal_parameter" alert if the HelloRetryRequest would not result
+         * in any change in the ClientHello.
+         */
+        /* Check if the HRR contained a cookie or a keyshare */
+        if (!ssl->options.hrrSentKeyShare
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+                && !ssl->options.hrrSentCookie
+#endif
+                ) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            return DUPLICATE_MSG_E;
+        }
+
         ssl->options.tls1_3 = 1;
         ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
 
@@ -5765,11 +5780,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
 #endif
 
-#ifdef OPENSSL_EXTRA
-    if ((ret = CertSetupCbWrapper(ssl)) != 0)
-        return ret;
-#endif
-
     if (OPAQUE8_LEN > size)
         return BUFFER_ERROR;
 
@@ -5813,6 +5823,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return ret;
     }
     *inOutIdx += len;
+
+#ifdef OPENSSL_EXTRA
+    if ((ret = CertSetupCbWrapper(ssl)) != 0)
+        return ret;
+#endif
 
     if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)

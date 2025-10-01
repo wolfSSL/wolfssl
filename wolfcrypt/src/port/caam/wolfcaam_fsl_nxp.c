@@ -849,8 +849,8 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
 #endif
 
     default:
-        WOLFSSL_MSG("Unknown/unsupported type");
-        return -1;
+        WOLFSSL_MSG("Unknown/unsupported type. Returning unavailable");
+        return CRYPTOCB_UNAVAILABLE;
     }
 
     if (ret != 0) {

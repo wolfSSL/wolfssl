@@ -1474,6 +1474,80 @@ int test_dtls_drop_client_ack(void)
     return EXPECT_RESULT();
 }
 
+int test_dtls_bogus_finished_epoch_zero(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_AES_CBC) && \
+    defined(WOLFSSL_AES_128) && !defined(NO_SHA256)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int error;
+
+    /* bogus Finished message bytes from the original bug report (epoch 0)
+     * https://github.com/wolfSSL/wolfssl/issues/9188 */
+    static const unsigned char bogus_finished[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x18, 0x14, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x0c, 0xd9, 0xc6, 0xe3, 0x01, 0x59, 0xf2, 0xc2, 0x4f, 0xfa, 0xfd, 0x20,
+        0xd7
+    };
+
+    /* serverHelloDone message bytes */
+    static const unsigned char server_hello_done_message[] = {
+        0x16, 0xfe, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+        0x0c, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00
+    };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* setting up dtls 1.2 contexts */
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* start handshake, send first ClientHelloDone */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* clearing server buffer to inject the wrong Finished packet */
+    test_memio_clear_buffer(&test_ctx, 1);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)bogus_finished, sizeof(bogus_finished)), 0);
+
+    /* continue client handshake to process it */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+
+    /* client should terminate with dtls sequence error */
+    error = wolfSSL_get_error(ssl_c, -1);
+
+    /* check if the error is SEQUENCE_ERROR, handshake should not
+     * expect a finished packet in that moment, in particular should not
+     * be in epoch = 0 (should be epoch = 1) */
+    ExpectTrue(error == WC_NO_ERR_TRACE(SEQUENCE_ERROR) ||
+               error == WC_NO_ERR_TRACE(WOLFSSL_ERROR_WANT_READ));
+
+    /* forcing injection ServerHelloDone to test if client would replay
+     * ClientHello */
+    test_memio_clear_buffer(&test_ctx, 0);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
+            (const char*)server_hello_done_message, sizeof(server_hello_done_message)), 0);
+    wolfSSL_connect(ssl_c);
+
+    /* verifying no ClientHello replay occurred,
+     * buffer should empty since we exit early on
+     * because of the bogus finished packet */
+    ExpectIntLE(test_ctx.s_len, 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_dtls_replay(void)
 {
     EXPECT_DECLS;
@@ -1525,3 +1599,41 @@ int test_dtls_replay(void)
 #endif
     return EXPECT_RESULT();
 }
+
+#if defined(WOLFSSL_DTLS13) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_SRTP)
+static int test_dtls_srtp_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    ExpectIntEQ(wolfSSL_CTX_set_tlsext_use_srtp(ctx, "SRTP_AEAD_AES_256_GCM:"
+         "SRTP_AEAD_AES_128_GCM:SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32"),
+          0);
+    return EXPECT_RESULT();
+}
+
+int test_dtls_srtp(void)
+{
+    EXPECT_DECLS;
+    test_ssl_cbf client_cbf;
+    test_ssl_cbf server_cbf;
+
+    XMEMSET(&client_cbf, 0, sizeof(client_cbf));
+    XMEMSET(&server_cbf, 0, sizeof(server_cbf));
+
+    client_cbf.method = wolfDTLSv1_3_client_method;
+    client_cbf.ctx_ready = test_dtls_srtp_ctx_ready;
+    server_cbf.method = wolfDTLSv1_3_server_method;
+    server_cbf.ctx_ready = test_dtls_srtp_ctx_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
+        &server_cbf, NULL), TEST_SUCCESS);
+
+    return EXPECT_RESULT();
+}
+#else
+int test_dtls_srtp(void)
+{
+    EXPECT_DECLS;
+    return EXPECT_RESULT();
+}
+#endif

@@ -2771,7 +2771,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     wolfSSL_CTX_set_TicketEncCtx(ctx, &myTicketCtx);
 #endif
 
-#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_STATIC_EPHEMERAL)
+#if defined(WOLFSSL_SNIFFER) && defined(WOLFSSL_STATIC_EPHEMERAL) && \
+    defined(WOLFSSL_PEM_TO_DER)
     /* used for testing only to set a static/fixed ephemeral key
         for use with the sniffer */
 #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
@@ -2804,7 +2805,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(runWithErrors, "error loading static X25519 key");
     }
 #endif
-#endif /* WOLFSSL_SNIFFER && WOLFSSL_STATIC_EPHEMERAL */
+#endif /* WOLFSSL_SNIFFER && WOLFSSL_STATIC_EPHEMERAL && WOLFSSL_PEM_TO_DER */
 
     if (cipherList && !useDefCipherList) {
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != WOLFSSL_SUCCESS)
@@ -2849,8 +2850,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
+        #if defined(WOLFSSL_PEM_TO_DER)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != WOLFSSL_SUCCESS)
+        #else
+        if (wolfSSL_CTX_use_certificate_chain_file_format(ctx, ourCert,
+                WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        #endif
             err_sys_ex(catastrophic, "can't load server cert file, check file "
                        "and run from wolfSSL home dir");
     #else
@@ -2892,8 +2898,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             sizeof_server_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
+        #if defined(WOLFSSL_PEM_TO_DER)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
+        #else
+        if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_ASN1)
+                                         != WOLFSSL_SUCCESS)
+        #endif
             err_sys_ex(catastrophic, "can't load server private key file, "
                        "check file and run from wolfSSL home dir");
         #ifdef WOLFSSL_DUAL_ALG_CERTS

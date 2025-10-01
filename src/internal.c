@@ -2877,6 +2877,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #ifndef WOLFSSL_NO_CA_NAMES
         wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
         ctx->client_ca_names = NULL;
+        wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
+        ctx->ca_names = NULL;
     #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
@@ -6671,9 +6673,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     byte haveAnon = 0;
     byte haveRSA = 0;
     byte haveMcast = 0;
+    byte haveCertSetupCb = 0;
 
     (void)haveAnon; /* Squash unused var warnings */
     (void)haveMcast;
+    (void)haveCertSetupCb;
 
     if (!ssl)
         return BAD_FUNC_ARG;
@@ -6692,6 +6696,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
 #endif /* !NO_CERTS && !WOLFSSL_SESSION_EXPORT */
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    if (ssl->ctx->certSetupCb != NULL)
+        haveCertSetupCb = 1;
+#endif /* WOLFSSL_TLS13 && !NO_CERTS && OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -6719,10 +6727,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-    /* make sure server has cert and key unless using PSK, Anon, or
-     * Multicast. This should be true even if just switching ssl ctx */
+    /* make sure server has cert and key unless using PSK, Anon,
+     * Multicast or cert setup callback. This should be true even if just
+     * switching ssl ctx */
     if (ssl->options.side == WOLFSSL_SERVER_END &&
-            !havePSK && !haveAnon && !haveMcast) {
+            !havePSK && !haveAnon && !haveMcast && !haveCertSetupCb) {
 
         /* server certificate must be loaded */
         if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
@@ -8794,6 +8803,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_CA_NAMES
     wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
     ssl->client_ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+    ssl->ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+    ssl->peer_ca_names = NULL;
 #endif
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
@@ -18929,8 +18942,9 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (type == finished && ssl->keys.dtls_peer_handshake_number >=
                             ssl->keys.dtls_expected_peer_handshake_number &&
-                            ssl->keys.curEpoch == ssl->keys.dtls_epoch) {
-        /* finished msg should be ignore from the current epoch
+                            ssl->keys.curEpoch == ssl->keys.dtls_epoch &&
+                            ssl->keys.curEpoch != 0) {
+        /* finished msg should be ignored from the current epoch
          * if it comes from a previous handshake */
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             ignoreFinished = ssl->options.connectState < FINISHED_DONE;
@@ -21000,7 +21014,7 @@ static byte MaskPadding(const byte* data, int sz, int macSz)
         checkSz = TLS_MAX_PAD_SZ;
 
     for (i = 0; i < checkSz; i++) {
-        byte mask = ctMaskLTE(i, paddingSz);
+        volatile byte mask = ctMaskLTE(i, paddingSz);
         good |= mask & (data[sz - 1 - i] ^ paddingSz);
     }
 
@@ -21020,16 +21034,21 @@ static byte MaskPadding(const byte* data, int sz, int macSz)
 static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
 {
     int i, j;
-    unsigned char mac[WC_MAX_DIGEST_SIZE];
-    int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
-    int macEnd = sz - 1 - data[sz - 1];
-    int macStart = macEnd - macSz;
     int r = 0;
-    unsigned char started, notEnded;
+    unsigned char mac[WC_MAX_DIGEST_SIZE];
+    volatile int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
+    volatile int macEnd = sz - 1 - data[sz - 1];
+    volatile int macStart = macEnd - macSz;
+    volatile int maskScanStart;
+    volatile int maskMacStart;
+    volatile unsigned char started;
+    volatile unsigned char notEnded;
     unsigned char good = 0;
 
-    scanStart &= ctMaskIntGTE(scanStart, 0);
-    macStart &= ctMaskIntGTE(macStart, 0);
+    maskScanStart = ctMaskIntGTE(scanStart, 0);
+    maskMacStart = ctMaskIntGTE(macStart, 0);
+    scanStart &= maskScanStart;
+    macStart &= maskMacStart;
 
     /* Div on Intel has different speeds depending on value.
      * Use a bitwise AND or mod a specific value (converted to mul). */
@@ -21999,22 +22018,19 @@ static int DoDecrypt(WOLFSSL *ssl)
 
                 /* Last of padding bytes - indicates length. */
                 ssl->keys.padSz = in->buffer[off];
-                /* Constant time checking of padding - don't leak
-                    * the length of the data.
-                    */
+                /* Constant time checking of padding - don't leak the length of
+                 * the data. */
                 /* Compare max pad bytes or at most data + pad. */
                 for (i = 1; i < MAX_PAD_SIZE && off >= i; i++) {
-                    /* Mask on indicates this is expected to be a
-                        * padding byte.
-                        */
-                    padding &= ctMaskLTE((int)i,
-                                            (int)ssl->keys.padSz);
-                    /* When this is a padding byte and not equal
-                        * to length then mask is set.
-                        */
-                    invalid |= padding &
-                                ctMaskNotEq(in->buffer[off - i],
-                                            (int)ssl->keys.padSz);
+                    /* Mask on indicates this is expected to be a padding byte.
+                     */
+                    volatile byte maskPadByte = ctMaskLTE((int)i,
+                                                          (int)ssl->keys.padSz);
+                    padding &= maskPadByte;
+                    /* When this is a padding byte and not equal to length then
+                     * mask is set. */
+                    invalid |= padding & ctMaskNotEq(in->buffer[off - i],
+                                                     (int)ssl->keys.padSz);
                 }
                 /* If mask is set then there was an error. */
                 if (invalid) {
@@ -24830,7 +24846,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
 #ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -24922,7 +24938,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
 #ifndef WOLFSSL_NO_CA_NAMES
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -31752,10 +31768,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return BUFFER_ERROR;
 
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-        if (ssl->client_ca_names != ssl->ctx->client_ca_names)
-            wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
-        ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-        if (ssl->client_ca_names == NULL) {
+        wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+        ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+        if (ssl->peer_ca_names == NULL) {
             return MEMORY_ERROR;
         }
     #endif
@@ -31800,7 +31815,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 }
 
                 if (ret == 0) {
-                    if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
+                    if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name)
                         <= 0)
                     {
                         ret = MEMORY_ERROR;
@@ -41668,7 +41683,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case rsa_kea:
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
-                        int lenErrMask;
+                        volatile int lenErrMask;
 
                         ret = RsaDec(ssl,
                             input + args->idx,
@@ -41882,7 +41897,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case rsa_kea:
                     {
                         byte *tmpRsa;
-                        byte mask;
+                        volatile byte mask;
 
                         /* Add the signature length to idx */
                         args->idx += args->length;
