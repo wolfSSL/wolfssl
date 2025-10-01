@@ -7318,9 +7318,11 @@ static int TLSX_Cookie_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (length - idx != len)
         return BUFFER_E;
 
-    if (msgType == hello_retry_request)
+    if (msgType == hello_retry_request) {
+        ssl->options.hrrSentCookie = 1;
         return TLSX_Cookie_Use(ssl, input + idx, len, NULL, 0, 1,
                                &ssl->extensions);
+    }
 
     /* client_hello */
     extension = TLSX_Find(ssl->extensions, TLSX_COOKIE);
@@ -10144,6 +10146,8 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     else if (msgType == hello_retry_request) {
         if (length != OPAQUE16_LEN)
             return BUFFER_ERROR;
+
+        ssl->options.hrrSentKeyShare = 1;
 
         /* The data is the named group the server wants to use. */
         ato16(input, &group);

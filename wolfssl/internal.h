@@ -5061,6 +5061,12 @@ struct Options {
 #if defined(HAVE_DANE)
     word16            useDANE:1;
 #endif /* HAVE_DANE */
+#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    word16            hrrSentCookie:1;    /* HRR sent with cookie */
+#endif
+    word16            hrrSentKeyShare:1;  /* HRR sent with key share */
+#endif
     word16            disableRead:1;
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
