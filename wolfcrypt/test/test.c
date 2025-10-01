@@ -23614,7 +23614,6 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-#if defined(WOLFSSL_DH_GEN_PUB) && defined(WOLFSSL_DH_EXTRA)
     /* additional test for wc_DhGeneratePublic:
      *   1. reset key2.
      *   2. using priv from dh key 1, generate pub2 with
@@ -23646,7 +23645,6 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (pubSz != pubSz2 || XMEMCMP(pub, pub2, pubSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* WOLFSSL_DH_GEN_PUB && WOLFSSL_DH_EXTRA */
 
 #if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
     !defined(HAVE_INTEL_QA)
