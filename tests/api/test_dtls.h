@@ -41,4 +41,5 @@ int test_dtls_drop_client_ack(void);
 int test_dtls_bogus_finished_epoch_zero(void);
 int test_dtls_replay(void);
 int test_dtls_srtp(void);
+int test_dtls_timeout(void);
 #endif /* TESTS_API_DTLS_H */
