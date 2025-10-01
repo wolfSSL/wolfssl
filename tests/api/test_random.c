@@ -325,8 +325,8 @@ int test_wc_RNG_TestSeed(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_HASHDRBG) && \
-    !(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+    (!(defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     byte seed[16];
     byte i;
 
