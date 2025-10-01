@@ -2877,6 +2877,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #ifndef WOLFSSL_NO_CA_NAMES
         wolfSSL_sk_X509_NAME_pop_free(ctx->client_ca_names, NULL);
         ctx->client_ca_names = NULL;
+        wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
+        ctx->ca_names = NULL;
     #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->x509Chain) {
@@ -6671,9 +6673,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     byte haveAnon = 0;
     byte haveRSA = 0;
     byte haveMcast = 0;
+    byte haveCertSetupCb = 0;
 
     (void)haveAnon; /* Squash unused var warnings */
     (void)haveMcast;
+    (void)haveCertSetupCb;
 
     if (!ssl)
         return BAD_FUNC_ARG;
@@ -6692,6 +6696,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
 #endif /* !NO_CERTS && !WOLFSSL_SESSION_EXPORT */
+#if defined(WOLFSSL_TLS13) && !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+    if (ssl->ctx->certSetupCb != NULL)
+        haveCertSetupCb = 1;
+#endif /* WOLFSSL_TLS13 && !NO_CERTS && OPENSSL_EXTRA */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -6719,10 +6727,11 @@ int InitSSL_Suites(WOLFSSL* ssl)
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-    /* make sure server has cert and key unless using PSK, Anon, or
-     * Multicast. This should be true even if just switching ssl ctx */
+    /* make sure server has cert and key unless using PSK, Anon,
+     * Multicast or cert setup callback. This should be true even if just
+     * switching ssl ctx */
     if (ssl->options.side == WOLFSSL_SERVER_END &&
-            !havePSK && !haveAnon && !haveMcast) {
+            !havePSK && !haveAnon && !haveMcast && !haveCertSetupCb) {
 
         /* server certificate must be loaded */
         if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
@@ -8794,6 +8803,10 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifndef WOLFSSL_NO_CA_NAMES
     wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
     ssl->client_ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+    ssl->ca_names = NULL;
+    wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+    ssl->peer_ca_names = NULL;
 #endif
 #ifdef WOLFSSL_DTLS13
     Dtls13FreeFsmResources(ssl);
@@ -24830,7 +24843,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
 #ifndef WOLFSSL_NO_CA_NAMES
     /* Certificate Authorities */
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -24922,7 +24935,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
 #ifndef WOLFSSL_NO_CA_NAMES
-    names = SSL_CA_NAMES(ssl);
+    names = SSL_PRIORITY_CA_NAMES(ssl);
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
         WOLFSSL_X509_NAME* name = names->data.name;
@@ -31752,10 +31765,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             return BUFFER_ERROR;
 
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
-        if (ssl->client_ca_names != ssl->ctx->client_ca_names)
-            wolfSSL_sk_X509_NAME_pop_free(ssl->client_ca_names, NULL);
-        ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-        if (ssl->client_ca_names == NULL) {
+        wolfSSL_sk_X509_NAME_pop_free(ssl->peer_ca_names, NULL);
+        ssl->peer_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+        if (ssl->peer_ca_names == NULL) {
             return MEMORY_ERROR;
         }
     #endif
@@ -31800,7 +31812,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 }
 
                 if (ret == 0) {
-                    if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
+                    if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name)
                         <= 0)
                     {
                         ret = MEMORY_ERROR;

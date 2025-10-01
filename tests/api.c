@@ -51119,6 +51119,8 @@ TEST_DECL(test_wc_RsaPSS_DigitalSignVerify),
 #endif
     TEST_DECL(test_tls_ems_downgrade),
     TEST_DECL(test_wolfSSL_DisableExtendedMasterSecret),
+    TEST_DECL(test_certificate_authorities_certificate_request),
+    TEST_DECL(test_certificate_authorities_client_hello),
     TEST_DECL(test_wolfSSL_wolfSSL_UseSecureRenegotiation),
     TEST_DECL(test_wolfSSL_SCR_Reconnect),
     TEST_DECL(test_tls_ext_duplicate),
