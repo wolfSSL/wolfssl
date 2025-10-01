@@ -203,7 +203,7 @@ int test_tls13_apis(void)
     #if !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverTls12Ctx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverTls12Ctx, ourKey,
-        WOLFSSL_FILETYPE_PEM);
+        CERT_FILETYPE);
     #elif defined(USE_CERT_BUFFERS_2048)
     wolfSSL_CTX_use_certificate_chain_buffer_format(serverTls12Ctx,
         server_cert_der_2048, sizeof_server_cert_der_2048,
@@ -231,7 +231,7 @@ int test_tls13_apis(void)
     /* ignore load failures, since we just need the server to have a cert set */
     #if !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverCtx, ourCert);
-    wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
+    wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, CERT_FILETYPE);
     #elif defined(USE_CERT_BUFFERS_2048)
     wolfSSL_CTX_use_certificate_chain_buffer_format(serverCtx,
         server_cert_der_2048, sizeof_server_cert_der_2048,
@@ -946,9 +946,9 @@ int test_tls13_cipher_suites(void)
     /* Set up wolfSSL context. */
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
     ExpectTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
-        WOLFSSL_FILETYPE_PEM));
+        CERT_FILETYPE));
     ExpectTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
-        WOLFSSL_FILETYPE_PEM));
+        CERT_FILETYPE));
     /* Read from 'msg'. */
     wolfSSL_SetIORecv(ctx, CsRecv);
     /* No where to send to - dummy sender. */
@@ -1264,10 +1264,10 @@ int test_tls13_rpk_handshake(void)
         test_rpk_memio_setup(
             &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
-            cliCertFile,     WOLFSSL_FILETYPE_PEM,
-            svrCertFile,     WOLFSSL_FILETYPE_PEM,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM)
+            cliCertFile,     CERT_FILETYPE,
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE)
         , 0);
 
 
@@ -1322,10 +1322,10 @@ int test_tls13_rpk_handshake(void)
         test_rpk_memio_setup(
             &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
-            cliCertFile,     WOLFSSL_FILETYPE_PEM,
-            svrCertFile,     WOLFSSL_FILETYPE_PEM,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliCertFile,     CERT_FILETYPE,
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* set client certificate type in client end */
@@ -1382,8 +1382,8 @@ int test_tls13_rpk_handshake(void)
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
             clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
             svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* set client certificate type in client end */
@@ -1450,8 +1450,8 @@ int test_tls13_rpk_handshake(void)
             wolfTLSv1_2_client_method, wolfTLSv1_2_server_method,
             clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
             svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* set client certificate type in client end */
@@ -1518,10 +1518,10 @@ int test_tls13_rpk_handshake(void)
         test_rpk_memio_setup(
             &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
-            cliCertFile,     WOLFSSL_FILETYPE_PEM,
-            svrCertFile,     WOLFSSL_FILETYPE_PEM,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliCertFile,     CERT_FILETYPE,
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* set client certificate type in client end
@@ -1600,9 +1600,9 @@ int test_tls13_rpk_handshake(void)
             &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
             clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
-            svrCertFile,     WOLFSSL_FILETYPE_PEM,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            svrCertFile,     CERT_FILETYPE,
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* have client tell to use RPK cert */
@@ -1674,8 +1674,8 @@ int test_tls13_rpk_handshake(void)
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
             clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
             svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1, /* server sends RPK cert */
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* have client tell to use RPK cert */
@@ -1755,10 +1755,10 @@ int test_tls13_rpk_handshake(void)
         test_rpk_memio_setup(
             &test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
-            cliCertFile,     WOLFSSL_FILETYPE_PEM,
+            cliCertFile,     CERT_FILETYPE,
             svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* have client tell to use RPK cert intentionally */
@@ -1841,8 +1841,8 @@ int test_tls13_rpk_handshake(void)
             wolfTLSv1_3_client_method, wolfTLSv1_3_server_method,
             clntRpkCertFile, WOLFSSL_FILETYPE_ASN1,
             svrRpkCertFile,  WOLFSSL_FILETYPE_ASN1,
-            cliKeyFile,      WOLFSSL_FILETYPE_PEM,
-            svrKeyFile,      WOLFSSL_FILETYPE_PEM )
+            cliKeyFile,      CERT_FILETYPE,
+            svrKeyFile,      CERT_FILETYPE )
         , 0);
 
     /* set client certificate type in client end */
