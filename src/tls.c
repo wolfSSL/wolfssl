@@ -16723,12 +16723,30 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ssl->options.noPskDheKe = 1;
     }
 #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+    /* RFC 8446 Section 9.2: ClientHello with KeyShare must
+     * contain SupportedGroups and vice-versa. */
+    if (IsAtLeastTLSv1_3(ssl->version) && msgType == client_hello && isRequest) {
+        int hasKeyShare = !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+        int hasSupportedGroups = !IS_OFF(seenType, TLSX_ToSemaphore(TLSX_SUPPORTED_GROUPS));
+
+        if (hasKeyShare && !hasSupportedGroups) {
+            WOLFSSL_MSG("ClientHello with KeyShare extension missing required SupportedGroups extension");
+            return MISSING_HANDSHAKE_DATA;
+        }
+        if (hasSupportedGroups && !hasKeyShare) {
+            WOLFSSL_MSG("ClientHello with SupportedGroups extension missing required KeyShare extension");
+            return MISSING_HANDSHAKE_DATA;
+        }
+    }
+#endif
 
     if (ret == 0)
         ret = SNI_VERIFY_PARSE(ssl, isRequest);
     if (ret == 0)
         ret = TCA_VERIFY_PARSE(ssl, isRequest);
 
+    WOLFSSL_LEAVE("Leaving TLSX_Parse", ret);
     return ret;
 }
 
