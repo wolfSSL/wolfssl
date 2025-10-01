@@ -620,8 +620,7 @@
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
-    /* stub the sleep macro */
-    #define TEST_SLEEP() WC_DO_NOTHING
+    #define TEST_SLEEP() WC_RELAX_LONG_LOOP()
 #endif
 
 #define TEST_STRING    "Everyone gets Friday off."
@@ -2344,11 +2343,19 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 #endif
 }
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #define bench_stats_start(count, start) do {                               \
         SAVE_VECTOR_REGISTERS(pr_err(                                          \
-            "SAVE_VECTOR_REGISTERS failed for benchmark run.");                \
+            "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
                               return; );                                       \
+        bench_stats_start(count, start);                                       \
+    } while (0)
+#elif defined(WOLFSSL_LINUXKM)
+    /* we're using floating point to figure the statistics, so we need to
+     * FPU save+lock even without SIMD.
+     */
+    #define bench_stats_start(count, start) do {                               \
+        kernel_fpu_begin();                                                    \
         bench_stats_start(count, start);                                       \
     } while (0)
 #endif
@@ -2739,8 +2746,10 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#elif defined(WOLFSSL_LINUXKM)
+    kernel_fpu_end();
 #endif
 
     TEST_SLEEP();
@@ -3000,8 +3009,10 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
+#elif defined(WOLFSSL_LINUXKM)
+    kernel_fpu_end();
 #endif
 
     TEST_SLEEP();
@@ -3645,7 +3656,7 @@ static void* benchmarks_do(void* args)
 
 #if !defined(NO_RSA) && !defined(WC_NO_RNG)
 #ifndef HAVE_RENESAS_SYNC
-    #if defined(WOLFSSL_KEY_GEN)
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
@@ -3675,7 +3686,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
 
-    #ifdef WOLFSSL_KEY_GEN
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (bench_asym_algs & BENCH_RSA_SZ) {
     #ifndef NO_SW_BENCH
         bench_rsa_key(0, bench_size);
@@ -4063,7 +4074,7 @@ int benchmark_init(void)
 #endif
 
 #ifdef WC_RNG_SEED_CB
-    wc_SetSeed_Cb(wc_GenerateSeed);
+    wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
 
     bench_stats_init();
@@ -5010,7 +5021,13 @@ static void bench_aesecb_internal(int useDeviceID,
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
+                    ret = wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
+                    if (ret != 0)
+                        goto exit_aes_enc;
+                    #else
                     wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
+                    #endif
                 #else
                     wc_AesEcbEncrypt(enc[i], bench_cipher, bench_plain,
                         benchSz);
@@ -5061,7 +5078,13 @@ exit_aes_enc:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
+                    ret = wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
+                    if (ret != 0)
+                        goto exit_aes_dec;
+                    #else
                     wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
+                    #endif
                 #else
                     wc_AesEcbDecrypt(enc[i], bench_plain, bench_cipher,
                         benchSz);
@@ -8740,7 +8763,7 @@ void bench_srtpkdf(void)
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
 {
     WC_DECLARE_ARRAY(genKey, RsaKey, BENCH_MAX_PENDING,
@@ -8848,7 +8871,7 @@ void bench_rsaKeyGen_size(int useDeviceID, word32 keySz)
 {
     bench_rsaKeyGen_helper(useDeviceID, keySz);
 }
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -9318,7 +9341,7 @@ exit:
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* bench any size of RSA key */
 void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 {
@@ -9814,8 +9837,13 @@ exit_decap:
 
 void bench_mlkem(int type)
 {
-    KyberKey key1;
-    KyberKey key2;
+#ifdef WOLFSSL_SMALL_STACK
+    KyberKey *key1 = NULL;
+    KyberKey *key2 = NULL;
+#else
+    KyberKey key1[1];
+    KyberKey key2[1];
+#endif
     const char* name = NULL;
     int keySize = 0;
 
@@ -9864,14 +9892,30 @@ void bench_mlkem(int type)
         return;
     }
 
-    bench_mlkem_keygen(type, name, keySize, &key1);
-#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
-    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
-    bench_mlkem_encap(type, name, keySize, &key1, &key2);
+#ifdef WOLFSSL_SMALL_STACK
+    key1 = (KyberKey *)XMALLOC(sizeof(*key1), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key1 == NULL)
+        return;
+    key2 = (KyberKey *)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key2 == NULL) {
+        XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return;
+    }
 #endif
 
-    wc_KyberKey_Free(&key2);
-    wc_KyberKey_Free(&key1);
+    bench_mlkem_keygen(type, name, keySize, key1);
+#if !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE)
+    bench_mlkem_encap(type, name, keySize, key1, key2);
+#endif
+
+    wc_KyberKey_Free(key2);
+    wc_KyberKey_Free(key1);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 }
 #endif
 
@@ -10079,7 +10123,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
     ret = wc_InitRng(&rng);
 #endif
     if (ret != 0) {
-        fprintf(stderr, "error: wc_InitRng failed: %d\n", ret);
+        printf("error: wc_InitRng failed: %d\n", ret);
         return;
     }
 
@@ -10113,27 +10157,27 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 
             ret = wc_LmsKey_GetParameters(&key, &levels, &height, &winternitz);
             if (ret) {
-                fprintf(stderr, "error: wc_LmsKey_GetParameters failed: %d\n",
+                printf("error: wc_LmsKey_GetParameters failed: %d\n",
                     ret);
                 goto exit_lms_keygen;
             }
 
             ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
             if (ret) {
-                fprintf(stderr, "error: wc_LmsKey_SetWriteCb failed: %d\n",
+                printf("error: wc_LmsKey_SetWriteCb failed: %d\n",
                     ret);
                 goto exit_lms_keygen;
             }
 
             ret = wc_LmsKey_SetReadCb(&key, lms_read_key_mem);
             if (ret) {
-                fprintf(stderr, "error: wc_LmsKey_SetReadCb failed: %d\n", ret);
+                printf("error: wc_LmsKey_SetReadCb failed: %d\n", ret);
                 goto exit_lms_keygen;
             }
 
             ret = wc_LmsKey_SetContext(&key, (void*)lms_priv);
             if (ret) {
-                fprintf(stderr, "error: wc_LmsKey_SetContext failed: %d\n",
+                printf("error: wc_LmsKey_SetContext failed: %d\n",
                     ret);
                 goto exit_lms_keygen;
             }
@@ -10162,7 +10206,7 @@ static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 
     ret = wc_LmsKey_ExportPubRaw(&key, pub, &pubLen);
     if (ret) {
-        fprintf(stderr, "error: wc_LmsKey_ExportPubRaw failed: %d\n", ret);
+        printf("error: wc_LmsKey_ExportPubRaw failed: %d\n", ret);
     }
 
 exit_lms_keygen:
@@ -10296,19 +10340,19 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 
     ret = wc_LmsKey_SetWriteCb(&key, lms_write_key_mem);
     if (ret) {
-        fprintf(stderr, "error: wc_LmsKey_SetWriteCb failed: %d\n", ret);
+        printf("error: wc_LmsKey_SetWriteCb failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
 
     ret = wc_LmsKey_SetReadCb(&key, lms_read_key_mem);
     if (ret) {
-        fprintf(stderr, "error: wc_LmsKey_SetReadCb failed: %d\n", ret);
+        printf("error: wc_LmsKey_SetReadCb failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
 
     ret = wc_LmsKey_SetContext(&key, (void*)lms_priv);
     if (ret) {
-        fprintf(stderr, "error: wc_LmsKey_SetContext failed: %d\n", ret);
+        printf("error: wc_LmsKey_SetContext failed: %d\n", ret);
         goto exit_lms_sign_verify;
     }
 
@@ -10609,7 +10653,7 @@ static void bench_xmss_sign_verify(const char * params)
     ret = wc_InitRng(&rng);
 #endif
     if (ret != 0) {
-        fprintf(stderr, "error: wc_InitRng failed: %d\n", ret);
+        printf("error: wc_InitRng failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
@@ -10617,24 +10661,24 @@ static void bench_xmss_sign_verify(const char * params)
 
     ret = wc_XmssKey_Init(&key, NULL, INVALID_DEVID);
     if (ret != 0) {
-        fprintf(stderr, "wc_XmssKey_Init failed: %d\n", ret);
+        printf("wc_XmssKey_Init failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_SetParamStr(&key, params);
     if (ret != 0) {
-        fprintf(stderr, "wc_XmssKey_SetParamStr failed: %d\n", ret);
+        printf("wc_XmssKey_SetParamStr failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_GetPubLen(&key, &pkSz);
     if (ret != 0) {
-        fprintf(stderr, "wc_XmssKey_GetPubLen failed: %d\n", ret);
+        printf("wc_XmssKey_GetPubLen failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 #ifndef WOLFSSL_WC_XMSS
     if (pkSz != XMSS_SHA256_PUBLEN) {
-        fprintf(stderr, "error: xmss pub len: got %u, expected %d\n", pkSz,
+        printf("error: xmss pub len: got %u, expected %d\n", pkSz,
                 XMSS_SHA256_PUBLEN);
         goto exit_xmss_sign_verify;
     }
@@ -10642,53 +10686,53 @@ static void bench_xmss_sign_verify(const char * params)
 
     ret = wc_XmssKey_GetPrivLen(&key, &skSz);
     if (ret != 0 || skSz <= 0) {
-        fprintf(stderr, "error: wc_XmssKey_GetPrivLen failed\n");
+        printf("error: wc_XmssKey_GetPrivLen failed\n");
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_GetSigLen(&key, &sigSz);
     if (ret != 0 || sigSz <= 0) {
-        fprintf(stderr, "error: wc_XmssKey_GetSigLen failed\n");
+        printf("error: wc_XmssKey_GetSigLen failed\n");
         goto exit_xmss_sign_verify;
     }
 
     /* Allocate secret keys.*/
     sk = (unsigned char *)XMALLOC(skSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sk == NULL) {
-        fprintf(stderr, "error: allocate xmss sk failed\n");
+        printf("error: allocate xmss sk failed\n");
         goto exit_xmss_sign_verify;
     }
 
     /* Allocate signature array. */
     sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
-        fprintf(stderr, "error: allocate xmss sig failed\n");
+        printf("error: allocate xmss sig failed\n");
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_SetWriteCb(&key, xmss_write_key_mem);
     if (ret != 0) {
-        fprintf(stderr, "error: wc_XmssKey_SetWriteCb failed: %d\n", ret);
+        printf("error: wc_XmssKey_SetWriteCb failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_SetReadCb(&key, xmss_read_key_mem);
     if (ret != 0) {
-        fprintf(stderr, "error: wc_XmssKey_SetReadCb failed: %d\n", ret);
+        printf("error: wc_XmssKey_SetReadCb failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
     ret = wc_XmssKey_SetContext(&key, (void *)sk);
     if (ret != 0) {
-        fprintf(stderr, "error: wc_XmssKey_SetContext failed: %d\n", ret);
+        printf("error: wc_XmssKey_SetContext failed: %d\n", ret);
         goto exit_xmss_sign_verify;
     }
 
 #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_NONBLOCK)
-    fprintf(stderr, "params: %s\n", params);
-    fprintf(stderr, "pkSz:   %d\n", pkSz);
-    fprintf(stderr, "skSz:   %d\n", skSz);
-    fprintf(stderr, "sigSz:  %d\n", sigSz);
+    printf("params: %s\n", params);
+    printf("pkSz:   %d\n", pkSz);
+    printf("skSz:   %d\n", skSz);
+    printf("sigSz:  %d\n", sigSz);
 #endif
 
     /* Making the private key is the bottleneck for larger heights. */
@@ -14232,17 +14276,67 @@ static const int sizeof_bench_dilithium_level5_sig =
 void bench_dilithiumKeySign(byte level)
 {
     int    ret = 0;
-    dilithium_key key;
     double start;
     int    i, count;
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
-    byte   sig[DILITHIUM_MAX_SIG_SIZE];
-    byte   msg[512];
     word32 x = 0;
 #endif
+
+#define DILITHIUM_BENCH_MSG_SIZE 512
+#ifdef WOLFSSL_SMALL_STACK
+    dilithium_key *key = NULL;
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    byte   *sig = NULL;
+    byte   *msg = NULL;
+    #endif
+#else
+    dilithium_key key[1];
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    byte   sig[DILITHIUM_MAX_SIG_SIZE];
+    byte   msg[DILITHIUM_BENCH_MSG_SIZE];
+    #endif
+#endif
+
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
     byte params = 0;
+
+#ifdef WOLFSSL_SMALL_STACK
+    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    sig = (byte *)XMALLOC(DILITHIUM_MAX_SIG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    msg = (byte *)XMALLOC(DILITHIUM_BENCH_MSG_SIZE, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+    if (key == NULL) {
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        sig = NULL;
+        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        msg = NULL;
+    #endif
+        goto out;
+    }
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+        !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    if ((sig == NULL) || (msg == NULL)) {
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        key = NULL;
+        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        sig = NULL;
+        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        msg = NULL;
+        goto out;
+    }
+    #endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     if (level == 2) {
         params = 44;
@@ -14256,18 +14350,18 @@ void bench_dilithiumKeySign(byte level)
 
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
     /* make dummy msg */
-    for (i = 0; i < (int)sizeof(msg); i++) {
+    for (i = 0; i < DILITHIUM_BENCH_MSG_SIZE; i++) {
         msg[i] = (byte)i;
     }
 #endif
 
-    ret = wc_dilithium_init(&key);
+    ret = wc_dilithium_init(key);
     if (ret != 0) {
         printf("wc_dilithium_init failed %d\n", ret);
-        return;
+        goto out;
     }
 
-    ret = wc_dilithium_set_level(&key, level);
+    ret = wc_dilithium_set_level(key, level);
     if (ret != 0) {
         printf("wc_dilithium_set_level() failed %d\n", ret);
     }
@@ -14276,10 +14370,10 @@ void bench_dilithiumKeySign(byte level)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < agreeTimes; i++) {
-            ret = wc_dilithium_make_key(&key, GLOBAL_RNG);
+            ret = wc_dilithium_make_key(key, GLOBAL_RNG);
             if (ret != 0) {
                 printf("wc_dilithium_import_private_key failed %d\n", ret);
-                return;
+                goto out;
             }
         }
         count += i;
@@ -14302,24 +14396,24 @@ void bench_dilithiumKeySign(byte level)
 #ifndef WOLFSSL_NO_ML_DSA_44
     if (level == 2) {
         ret = wc_dilithium_import_private(bench_dilithium_level2_key,
-            sizeof_bench_dilithium_level2_key, &key);
+            sizeof_bench_dilithium_level2_key, key);
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
     if (level == 3) {
         ret = wc_dilithium_import_private(bench_dilithium_level3_key,
-            sizeof_bench_dilithium_level3_key, &key);
+            sizeof_bench_dilithium_level3_key, key);
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
     if (level == 5) {
         ret = wc_dilithium_import_private(bench_dilithium_level5_key,
-            sizeof_bench_dilithium_level5_key, &key);
+            sizeof_bench_dilithium_level5_key, key);
     }
 #endif
     if (ret != 0) {
         printf("Failed to load private key\n");
-        return;
+        goto out;
     }
 
 #endif
@@ -14341,7 +14435,7 @@ void bench_dilithiumKeySign(byte level)
     do {
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
-                ret = wc_dilithium_sign_msg(msg, sizeof(msg), sig, &x, &key,
+                ret = wc_dilithium_sign_msg(msg, DILITHIUM_BENCH_MSG_SIZE, sig, &x, key,
                                             GLOBAL_RNG);
                 if (ret != 0) {
                     printf("wc_dilithium_sign_msg failed\n");
@@ -14377,7 +14471,7 @@ void bench_dilithiumKeySign(byte level)
         XMEMCPY(sig, bench_dilithium_level2_sig, x);
     #endif
         ret = wc_dilithium_import_public(bench_dilithium_level2_pubkey,
-            sizeof_bench_dilithium_level2_pubkey, &key);
+            sizeof_bench_dilithium_level2_pubkey, key);
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_65
@@ -14387,7 +14481,7 @@ void bench_dilithiumKeySign(byte level)
         XMEMCPY(sig, bench_dilithium_level3_sig, x);
     #endif
         ret = wc_dilithium_import_public(bench_dilithium_level3_pubkey,
-            sizeof_bench_dilithium_level3_pubkey, &key);
+            sizeof_bench_dilithium_level3_pubkey, key);
     }
 #endif
 #ifndef WOLFSSL_NO_ML_DSA_87
@@ -14397,12 +14491,12 @@ void bench_dilithiumKeySign(byte level)
         XMEMCPY(sig, bench_dilithium_level5_sig, x);
     #endif
         ret = wc_dilithium_import_public(bench_dilithium_level5_pubkey,
-            sizeof_bench_dilithium_level5_pubkey, &key);
+            sizeof_bench_dilithium_level5_pubkey, key);
     }
 #endif
     if (ret != 0) {
         printf("Failed to load public key\n");
-        return;
+        goto out;
     }
 
 #endif
@@ -14415,8 +14509,8 @@ void bench_dilithiumKeySign(byte level)
         for (i = 0; i < agreeTimes; i++) {
             if (ret == 0) {
                 int verify = 0;
-                ret = wc_dilithium_verify_msg(sig, x, msg, sizeof(msg),
-                                              &verify, &key);
+                ret = wc_dilithium_verify_msg(sig, x, msg, DILITHIUM_BENCH_MSG_SIZE,
+                                              &verify, key);
 
                 if (ret != 0 || verify != 1) {
                     printf("wc_dilithium_verify_msg failed %d, verify %d\n",
@@ -14442,7 +14536,22 @@ void bench_dilithiumKeySign(byte level)
     }
 #endif
 
-    wc_dilithium_free(&key);
+out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (key)
+#endif
+    {
+        wc_dilithium_free(key);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+#endif
 }
 #endif /* HAVE_DILITHIUM */
 

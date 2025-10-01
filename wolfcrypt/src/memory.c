@@ -22,9 +22,18 @@
 /* inhibit "#undef current" in linuxkm_wc_port.h, included from wc_port.h,
  * because needed in linuxkm_memory.c, included below.
  */
-#define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
+#ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
+#endif
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 /*
 Possible memory options:
@@ -205,7 +214,7 @@ static wolfSSL_Mutex zeroMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(zeroMutex);
 
 /* Initialize the table of addresses and the mutex.
  */
-void wc_MemZero_Init()
+void wc_MemZero_Init(void)
 {
     /* Clear the table to more easily see what is valid. */
     XMEMSET(memZero, 0, sizeof(memZero));
@@ -219,7 +228,7 @@ void wc_MemZero_Init()
 
 /* Free the mutex and check we have not any uncheck addresses.
  */
-void wc_MemZero_Free()
+void wc_MemZero_Free(void)
 {
     /* Free mutex. */
 #ifndef WOLFSSL_MUTEX_INITIALIZER
@@ -295,7 +304,9 @@ void wc_MemZero_Check(void* addr, size_t len)
                 fprintf(stderr, "\n[MEM_ZERO] %s:%p + %ld is not zero\n",
                     memZero[i].name, memZero[i].addr, j);
                 fprintf(stderr, "[MEM_ZERO] Checking %p:%ld\n", addr, len);
+            #ifndef TEST_ALWAYS_RUN_TO_END
                 abort();
+            #endif
             }
         }
         /* Update next index to write to. */
@@ -542,7 +553,7 @@ void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb)
    wc_Memory** list is the list that new buckets are prepended to
  */
 static int wc_create_memory_buckets(byte* buffer, word32 bufSz,
-                              word32 buckSz, byte buckNum, wc_Memory** list) {
+                              word32 buckSz, word32 buckNum, wc_Memory** list) {
     byte*  pt  = buffer;
     int    ret = 0;
     byte memSz   = (byte)sizeof(wc_Memory);
@@ -1015,13 +1026,13 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             #endif
 
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "[HEAP %p] Alloc: %p -> %u at %s:%d\n", heap,
+                fprintf(stderr, "[HEAP %p] Alloc: %p -> %u at %s:%u\n", heap,
                     res, (word32)size, func, line);
             #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
             #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "ERROR: at %s:%d\n", func, line);
+            fprintf(stderr, "ERROR: at %s:%u\n", func, line);
             #endif
         #endif /* WOLFSSL_NO_MALLOC */
         #endif /* WOLFSSL_HEAP_TEST */
@@ -1100,7 +1111,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
         #ifdef WOLFSSL_DEBUG_MEMORY
             pt->szUsed = size;
-            fprintf(stderr, "[HEAP %p] Alloc: %p -> %lu at %s:%d\n", heap,
+            fprintf(stderr, "[HEAP %p] Alloc: %p -> %lu at %s:%u\n", heap,
                 pt->buffer, size, func, line);
         #endif
         #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
@@ -1130,7 +1141,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             WOLFSSL_MSG("ERROR ran out of static memory");
             res = NULL;
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "Looking for %lu bytes at %s:%d\n",
+                fprintf(stderr, "Looking for %lu bytes at %s:%u\n",
                     (unsigned long) size, func, line);
             #endif
             #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
@@ -1167,14 +1178,14 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
 #endif
 {
     int i;
-    wc_Memory* pt;
+    wc_Memory* pt = NULL;
 
     if (ptr) {
         /* check for testing heap hint was set */
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%u\n", heap, pt, func,
                 line);
         #endif
             return free(ptr); /* native heap */
@@ -1194,7 +1205,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #endif
         #ifndef WOLFSSL_NO_MALLOC
             #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%u\n", heap, pt, func,
                 line);
             #endif
             #ifdef FREERTOS
@@ -1275,7 +1286,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #endif
 
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "[HEAP %p] Free: %p -> %u at %s:%d\n", heap,
+            fprintf(stderr, "[HEAP %p] Free: %p -> %u at %s:%u\n", heap,
                 pt->buffer, pt->szUsed, func, line);
         #endif
 
@@ -1376,7 +1387,9 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
                 WOLFSSL_MSG("Error IO memory was not large enough");
                 res = NULL; /* return NULL in error case */
             }
-            res = pt->buffer;
+            else {
+                res = pt->buffer;
+            }
         }
         else
     #endif
@@ -1655,6 +1668,14 @@ void __attribute__((no_instrument_function))
     register void* sp asm("sp");
     fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(wc_ptr_t)func, sp);
     (void)caller;
+}
+#endif
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+/* Exported version of ForceZero(). */
+void wc_ForceZero(void *mem, size_t len)
+{
+    ForceZero(mem, len);
 }
 #endif
 

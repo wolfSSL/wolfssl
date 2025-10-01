@@ -40,6 +40,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfio.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NUCLEUS_PLUS_2_3
 /* Holds last Nucleus networking error number */
@@ -182,7 +183,8 @@ static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
  */
 static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 {
-#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE)
+#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE) && \
+    !defined(INTIME_RTOS)
     size_t errstr_offset;
     char errstr[WOLFSSL_STRERROR_BUFFER_SIZE];
 #endif /* _WIN32 */
@@ -241,7 +243,8 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
         return WOLFSSL_CBIO_ERR_CONN_CLOSE;
     }
 
-#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE)
+#if defined(_WIN32) && !defined(__WATCOMC__) && !defined(_WIN32_WCE) && \
+    !defined(INTIME_RTOS)
     strcpy_s(errstr, sizeof(errstr), "\tGeneral error: ");
     errstr_offset = strlen(errstr);
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -1347,7 +1350,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     char strPort[6];
 #else
     /* use gethostbyname */
-#if !defined(WOLFSSL_USE_POPEN_HOST)
 #if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
     !defined(SINGLE_THREADED)
     HOSTENT entry_buf, *entry = NULL;
@@ -1356,7 +1358,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #else
     HOSTENT *entry;
 #endif
-#endif /* !WOLFSSL_USE_POPEN_HOST */
 #ifdef WOLFSSL_IPV6
     SOCKADDR_IN6 *sin;
 #else
@@ -1405,67 +1406,6 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     sockaddr_len = answer->ai_addrlen;
     XMEMCPY(&addr, answer->ai_addr, (size_t)sockaddr_len);
     freeaddrinfo(answer);
-#elif defined(WOLFSSL_USE_POPEN_HOST) && !defined(WOLFSSL_IPV6)
-    {
-        char host_ipaddr[4] = { 127, 0, 0, 1 };
-        int found = 1;
-
-        if ((XSTRNCMP(ip, "localhost", 10) != 0) &&
-            (XSTRNCMP(ip, "127.0.0.1", 10) != 0)) {
-            FILE* fp;
-            char host_out[100];
-            char cmd[100];
-
-            XSTRNCPY(cmd, "host ", 6);
-            XSTRNCAT(cmd, ip, 99 - XSTRLEN(cmd));
-            found = 0;
-            fp = popen(cmd, "r");
-            if (fp != NULL) {
-                while (fgets(host_out, sizeof(host_out), fp) != NULL) {
-                    int i;
-                    int j = 0;
-                    for (j = 0; host_out[j] != '\0'; j++) {
-                        if ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            break;
-                        }
-                    }
-                    found = (host_out[j] >= '0') && (host_out[j] <= '9');
-                    if (!found) {
-                        continue;
-                    }
-
-                    for (i = 0; i < 4; i++) {
-                        host_ipaddr[i] = atoi(host_out + j);
-                        while ((host_out[j] >= '0') && (host_out[j] <= '9')) {
-                            j++;
-                        }
-                        if (host_out[j] == '.') {
-                            j++;
-                            found &= (i != 3);
-                        }
-                        else {
-                            found &= (i == 3);
-                            break;
-                        }
-                    }
-                    if (found) {
-                        break;
-                    }
-                }
-                pclose(fp);
-            }
-        }
-        if (found) {
-            sin = (SOCKADDR_IN *)&addr;
-            sin->sin_family = AF_INET;
-            sin->sin_port = XHTONS(port);
-            XMEMCPY(&sin->sin_addr.s_addr, host_ipaddr, sizeof(host_ipaddr));
-        }
-        else {
-            WOLFSSL_MSG("no addr info for responder");
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
 #else
 #if defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_MISC) && \
     !defined(SINGLE_THREADED)
@@ -2121,7 +2061,7 @@ static const char* ocspAppStrList[] = {
     NULL
 };
 
-WOLFSSL_API int wolfIO_HttpProcessResponseOcspGenericIO(
+int wolfIO_HttpProcessResponseOcspGenericIO(
     WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, unsigned char** respBuf,
     unsigned char* httpBuf, int httpBufSz, void* heap)
 {

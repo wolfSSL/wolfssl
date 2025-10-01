@@ -1,0 +1,54 @@
+name: Kernel Module Build
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_library:
+    strategy:
+      matrix:
+        config: [
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
+        ]
+    name: build module
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Prepare target kernel for module builds
+        run: |
+          echo "updating linux-headers"
+          sudo apt-get update || $(exit 2)
+          sudo apt-get install linux-headers-$(uname -r) -y || $(exit 3)
+          echo "preparing target kernel $(uname -r)"
+          pushd "/lib/modules/$(uname -r)/build" || $(exit 4)
+          if [ -f /proc/config.gz ]; then gzip -dc /proc/config.gz > /tmp/.config && sudo mv /tmp/.config . || $(exit 5); elif [ -f "/boot/config-$(uname -r)" ]; then sudo cp -p "/boot/config-$(uname -r)" .config || $(exit 6); fi
+          sudo make -j 4 oldconfig || $(exit 7)
+          sudo make M="$(pwd)" modules_prepare || $(exit 8)
+          popd >/dev/null
+
+      - name: autogen.sh
+        run: |
+          ./autogen.sh || $(exit 9)
+
+      - name: Build libwolfssl.ko, targeting GitHub ubuntu-latest, with --enable-all, PQC, and smallstack and stack depth warnings
+        run: |
+          echo "running ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }}"
+          ./configure --with-linux-source=/lib/modules/$(uname -r)/build ${{ matrix.config }} || $(exit 10)
+          # try to remove profiling (-pg) because it leads to "_mcleanup: gmon.out: Permission denied"
+          make -j 4 KERNEL_EXTRA_CFLAGS_REMOVE=-pg FORCE_NO_MODULE_SIG=1 || $(exit 11)
+          ls -l linuxkm/libwolfssl.ko || $(exit 12)
+          echo "Successful linuxkm build."

@@ -57,12 +57,12 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(USE_INTEL_SPEEDUP)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
     #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 const curve25519_set_type curve25519_sets[] = {

@@ -504,11 +504,6 @@ typedef struct KeyShareInfo {
     int         curve_id;
 } KeyShareInfo;
 
-/* maximum previous acks to capture */
-#ifndef WC_SNIFFER_HS_ACK_HIST_MAX
-#define WC_SNIFFER_HS_ACK_HIST_MAX 10
-#endif
-
 /* Sniffer Session holds info for each client/server SSL/TLS session */
 typedef struct SnifferSession {
     SnifferServer* context;         /* server context */
@@ -520,10 +515,10 @@ typedef struct SnifferSession {
     word16         cliPort;         /* client port */
     word32         cliSeqStart;     /* client start sequence */
     word32         srvSeqStart;     /* server start sequence */
+    word32         cliSeqLast;      /* client last sequence */
+    word32         srvSeqLast;      /* server last sequence */
     word32         cliExpected;     /* client expected sequence (relative) */
     word32         srvExpected;     /* server expected sequence (relative) */
-    word32         cliAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
-    word32         srvAcks[WC_SNIFFER_HS_ACK_HIST_MAX]; /* history of acks during handshake */
     FinCapture     finCapture;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
     time_t         lastUsed;        /* last used ticks */
@@ -2230,8 +2225,23 @@ static int GetRecordHeader(const byte* input, RecordLayerHeader* rh, int* size)
     XMEMCPY(rh, input, RECORD_HEADER_SZ);
     *size = (rh->length[0] << 8) | rh->length[1];
 
+    /* make sure length is valid */
     if (*size > (MAX_RECORD_SIZE + COMP_EXTRA + MAX_MSG_EXTRA))
         return LENGTH_ERROR;
+    /* make sure the record type is valid */
+    if (rh->type < change_cipher_spec ||
+    #ifdef WOLFSSL_DTLS13
+        rh->type > ack
+    #else
+        rh->type > dtls12_cid
+    #endif
+        ) {
+        return UNKNOWN_RECORD_TYPE;
+    }
+    /* make sure version is valid */
+    if (rh->pvMajor > SSLv3_MAJOR || rh->pvMinor > TLSv1_3_MINOR) {
+        return VERSION_ERROR;
+    }
 
     return 0;
 }
@@ -5623,47 +5633,6 @@ static int AddFinCapture(SnifferSession* session, word32 sequence)
     return 1;
 }
 
-static int FindPrevAck(SnifferSession* session, word32 realAck)
-{
-    int i;
-    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
-        session->cliAcks : session->srvAcks;
-    /* if previous ack found return 1, otherwise 0 */
-    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
-        if (acks[i] == realAck) {
-            return 1;
-        }
-
-    }
-    return 0;
-}
-static void AddAck(SnifferSession* session, word32 realAck)
-{
-    int i;
-    word32* acks = (session->flags.side == WOLFSSL_SERVER_END) ?
-        session->cliAcks : session->srvAcks;
-    /* find first empty ack slot */
-    for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
-        if (acks[i] == 0) {
-            break;
-        }
-    }
-    /* if out of slots, find oldest */
-    if (i == WC_SNIFFER_HS_ACK_HIST_MAX) {
-        int idx = 0;
-        word32 lastAck = realAck;
-        for (i=0; i<WC_SNIFFER_HS_ACK_HIST_MAX; i++) {
-            if (acks[i] < lastAck) {
-                idx = i;
-                lastAck = acks[i];
-            }
-        }
-        i  = idx;
-    }
-
-    acks[i] = realAck;
-}
-
 /* Adjust incoming sequence based on side */
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
@@ -5671,7 +5640,9 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
 {
     int ret = 0;
     word32  seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
-                                     session->cliSeqStart :session->srvSeqStart;
+                                    session->cliSeqStart : session->srvSeqStart;
+    word32* seqLast = (session->flags.side == WOLFSSL_SERVER_END) ?
+                                    &session->cliSeqLast : &session->srvSeqLast;
     word32  real     = tcpInfo->sequence - seqStart;
     word32* expected = (session->flags.side == WOLFSSL_SERVER_END) ?
                                   &session->cliExpected : &session->srvExpected;
@@ -5688,6 +5659,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
     TraceRelativeSequence(*expected, real);
 
     if (real < *expected) {
+        int overlap = *expected - real;
 
         if (real + *sslBytes > *expected) {
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -5702,7 +5674,6 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
              * same action but for a different setup case. If changing this
              * block be sure to also update the block below. */
             if (reassemblyList) {
-                int overlap = *expected - real;
                 word32 newEnd;
 
                 /* adjust to expected, remove duplicate */
@@ -5731,11 +5702,23 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
                                  newEnd - reassemblyList->end, session, error);
                 }
             }
-            else {
-                /* DUP overlap, allow */
-                if (*sslBytes > 0) {
-                    skipPartial = 0; /* do not reset sslBytes */
+            else if (*sslBytes > 0) {
+                if (real + *sslBytes - 1 > *seqLast) {
+                    /* fix segment overlap */
+                #ifdef DEBUG_SNIFFER
+                    WOLFSSL* ssl = (session->flags.side == WOLFSSL_SERVER_END) ?
+                                    session->sslServer : session->sslClient;
+                    printf("\tSegment %d overlap (%d -> %d)\n",
+                        *sslBytes,
+                        ssl->buffers.inputBuffer.length - overlap,
+                        ssl->buffers.inputBuffer.length + *sslBytes - overlap - 1);
+                #endif
+                    *sslBytes -= overlap;
+                    *sslFrame += overlap;
                 }
+
+                /* DUP overlap, allow */
+                skipPartial = 0; /* do not reset sslBytes */
             }
             ret = 0;
         }
@@ -5744,13 +5727,13 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
              * possible spurious retransmission. */
             if (*sslBytes > 0) {
                 /* If packet has data attempt to process packet, if hasn't
-                 * already been ack'd during handshake */
+                 * already been received */
                 if (
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     session->sslServer->error != WC_NO_ERR_TRACE(WC_PENDING_E) &&
                     session->pendSeq != tcpInfo->sequence &&
                 #endif
-                                                   FindPrevAck(session, real)) {
+                    real + *sslBytes -1 <= *seqLast) {
                     Trace(DUPLICATE_STR);
                     ret = 1;
                 }
@@ -5822,7 +5805,7 @@ static int AdjustSequence(TcpInfo* tcpInfo, SnifferSession* session,
             *expected += 1;
     }
     if (*sslBytes > 0) {
-        AddAck(session, real);
+        *seqLast = real + *sslBytes - 1;
     }
     if (*sslBytes > 0 && skipPartial) {
         *sslBytes = 0;
@@ -6402,7 +6385,7 @@ doPart:
                             ivExtra = AESGCM_EXP_IV_SZ;
                     }
 
-                    ret -= ivExtra;;
+                    ret -= ivExtra;
 
                 #if defined(HAVE_ENCRYPT_THEN_MAC) && \
                     !defined(WOLFSSL_AEAD_ONLY)
@@ -6410,7 +6393,7 @@ doPart:
                         ret -= MacSize(ssl);
                 #endif
                     TraceGotData(ret);
-                    if (ret) {  /* may be blank message */
+                    if (ret > 0) {  /* may be blank message */
                         if (data != NULL) {
                             byte* tmpData;  /* don't leak on realloc free */
                             /* add an extra byte at end of allocation in case
@@ -6464,10 +6447,20 @@ doPart:
                         decoded += ret;
                         ssl->buffers.clearOutputBuffer.length = 0;
                     }
+                    else if (ret < 0){
+                    #ifdef DEBUG_SNIFFER
+                        printf("Invalid data offset calculation! "
+                            "ret %d, inOutIdx %d, ivExtra %d\n",
+                            ret, inOutIdx, ivExtra);
+                    #endif
+                        /* set error, but do not treat fatal */
+                        SetError(BAD_APP_DATA_STR, error, session, 0);
+                        return WOLFSSL_FATAL_ERROR;
+                    }
                 }
                 else {
                     /* set error, but do not treat fatal */
-                    SetError(BAD_APP_DATA_STR, error,session, 0);
+                    SetError(BAD_APP_DATA_STR, error, session, 0);
                     return WOLFSSL_FATAL_ERROR;
                 }
                 if (ssl->buffers.outputBuffer.dynamicFlag)
@@ -6496,8 +6489,9 @@ doPart:
             return WOLFSSL_FATAL_ERROR;
     }
 
-    /* do we have another msg in record ? */
-    if (sslFrame < recordEnd) {
+    /* do we have another msg in record (if app data did we decode bytes?) */
+    if (sslFrame < recordEnd && ((enum ContentType)rh.type != application_data ||
+        ((enum ContentType)rh.type == application_data && decoded))) {
         Trace(ANOTHER_MSG_STR);
         goto doPart;
     }

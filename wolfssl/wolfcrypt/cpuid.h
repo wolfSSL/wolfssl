@@ -44,6 +44,17 @@
     #define HAVE_CPUID_AARCH64
 #endif
 
+#define WC_CPUID_INITIALIZER 0xffffffffU
+typedef word32 cpuid_flags_t;
+#if !defined(WOLFSSL_NO_ATOMICS) && !defined(SINGLE_THREADED)
+    typedef wolfSSL_Atomic_Uint cpuid_flags_atomic_t;
+    #define WC_CPUID_ATOMIC_INITIALIZER \
+        WOLFSSL_ATOMIC_INITIALIZER(WC_CPUID_INITIALIZER)
+#else
+    typedef word32 cpuid_flags_atomic_t;
+    #define WC_CPUID_ATOMIC_INITIALIZER WC_CPUID_INITIALIZER
+#endif
+
 #ifdef HAVE_CPUID_INTEL
 
     #define CPUID_AVX1   0x0001
@@ -57,16 +68,16 @@
     #define CPUID_BMI1   0x0100   /* ANDN */
     #define CPUID_SHA    0x0200   /* SHA-1 and SHA-256 instructions */
 
-    #define IS_INTEL_AVX1(f)    ((f) & CPUID_AVX1)
-    #define IS_INTEL_AVX2(f)    ((f) & CPUID_AVX2)
-    #define IS_INTEL_RDRAND(f)  ((f) & CPUID_RDRAND)
-    #define IS_INTEL_RDSEED(f)  ((f) & CPUID_RDSEED)
-    #define IS_INTEL_BMI2(f)    ((f) & CPUID_BMI2)
-    #define IS_INTEL_AESNI(f)   ((f) & CPUID_AESNI)
-    #define IS_INTEL_ADX(f)     ((f) & CPUID_ADX)
-    #define IS_INTEL_MOVBE(f)   ((f) & CPUID_MOVBE)
-    #define IS_INTEL_BMI1(f)    ((f) & CPUID_BMI1)
-    #define IS_INTEL_SHA(f)     ((f) & CPUID_SHA)
+    #define IS_INTEL_AVX1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX1)
+    #define IS_INTEL_AVX2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AVX2)
+    #define IS_INTEL_RDRAND(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_RDRAND)
+    #define IS_INTEL_RDSEED(f)  (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_RDSEED)
+    #define IS_INTEL_BMI2(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_BMI2)
+    #define IS_INTEL_AESNI(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AESNI)
+    #define IS_INTEL_ADX(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_ADX)
+    #define IS_INTEL_MOVBE(f)   (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_MOVBE)
+    #define IS_INTEL_BMI1(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_BMI1)
+    #define IS_INTEL_SHA(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA)
 
 #elif defined(HAVE_CPUID_AARCH64)
 
@@ -80,26 +91,51 @@
     #define CPUID_SM4         0x0080    /* SM4 enc/dec */
     #define CPUID_SB          0x0100    /* Speculation barrier */
 
-    #define IS_AARCH64_AES(f)       ((f) & CPUID_AES)
-    #define IS_AARCH64_PMULL(f)     ((f) & CPUID_PMULL)
-    #define IS_AARCH64_SHA256(f)    ((f) & CPUID_SHA256)
-    #define IS_AARCH64_SHA512(f)    ((f) & CPUID_SHA512)
-    #define IS_AARCH64_RDM(f)       ((f) & CPUID_RDM)
-    #define IS_AARCH64_SHA3(f)      ((f) & CPUID_SHA3)
-    #define IS_AARCH64_SM3(f)       ((f) & CPUID_SM3)
-    #define IS_AARCH64_SM4(f)       ((f) & CPUID_SM4)
-    #define IS_AARCH64_SB(f)        ((f) & CPUID_SB)
+    #define IS_AARCH64_AES(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_AES)
+    #define IS_AARCH64_PMULL(f)     (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_PMULL)
+    #define IS_AARCH64_SHA256(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA256)
+    #define IS_AARCH64_SHA512(f)    (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA512)
+    #define IS_AARCH64_RDM(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_RDM)
+    #define IS_AARCH64_SHA3(f)      (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SHA3)
+    #define IS_AARCH64_SM3(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SM3)
+    #define IS_AARCH64_SM4(f)       (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SM4)
+    #define IS_AARCH64_SB(f)        (WOLFSSL_ATOMIC_COERCE_UINT(f) & CPUID_SB)
 
 #endif
 
 #ifdef HAVE_CPUID
-    void cpuid_set_flags(void);
-    word32 cpuid_get_flags(void);
+    cpuid_flags_t cpuid_get_flags(void);
+
+    /* Idempotent flag getter -- fast, but return value (whether updated) is not
+     * strictly reliable.
+     */
+    static WC_INLINE int cpuid_get_flags_ex(cpuid_flags_t *flags) {
+        if (*flags == WC_CPUID_INITIALIZER) {
+            *flags = cpuid_get_flags();
+            return 1;
+        }
+        else
+            return 0;
+    }
+
+    /* Strictly race-free flag getter -- slow, but the return value is strictly
+     * accurate.
+     */
+    static WC_INLINE int cpuid_get_flags_atomic(cpuid_flags_atomic_t *flags) {
+        if (WOLFSSL_ATOMIC_LOAD(*flags) == WC_CPUID_INITIALIZER) {
+            cpuid_flags_t old_cpuid_flags = WC_CPUID_INITIALIZER;
+            return wolfSSL_Atomic_Uint_CompareExchange
+                (flags, &old_cpuid_flags, cpuid_get_flags());
+        }
+        else
+            return 0;
+    }
+
 
     /* Public APIs to modify flags. */
-    WOLFSSL_API void cpuid_select_flags(word32 flags);
-    WOLFSSL_API void cpuid_set_flag(word32 flag);
-    WOLFSSL_API void cpuid_clear_flag(word32 flag);
+    WOLFSSL_API void cpuid_select_flags(cpuid_flags_t flags);
+    WOLFSSL_API void cpuid_set_flag(cpuid_flags_t flag);
+    WOLFSSL_API void cpuid_clear_flag(cpuid_flags_t flag);
 
 #endif
 

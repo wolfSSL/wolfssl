@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_aes_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -67,8 +70,13 @@
 
 #include <wolfssl/wolfcrypt/aes.h>
 
-#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(WC_FLAG_DONT_USE_AESNI)
-    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_AESNI is missing.
+#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+    /* backward compat */
+    #define WC_FLAG_DONT_USE_VECTOR_OPS WC_FLAG_DONT_USE_AESNI
+#endif
+
+#if defined(WC_LINUXKM_C_FALLBACK_IN_SHIMS) && !defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+    #error WC_LINUXKM_C_FALLBACK_IN_SHIMS is defined but WC_FLAG_DONT_USE_VECTOR_OPS is missing.
 #endif
 
 /* note the FIPS code will be returned on failure even in non-FIPS builds. */
@@ -497,7 +505,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
 
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesSetKey(ctx->aes_encrypt_C, in_key, key_len, NULL, AES_ENCRYPTION);
 
@@ -513,7 +521,7 @@ static int km_AesSetKeyCommon(struct km_AesCtx * ctx, const u8 *in_key,
     }
 
     if (ctx->aes_decrypt_C && ctx->aes_decrypt->use_aesni) {
-        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_decrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesSetKey(ctx->aes_decrypt_C, in_key, key_len, NULL,
                            AES_DECRYPTION);
@@ -924,7 +932,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
 
@@ -972,7 +980,7 @@ static int km_AesGcmSetKey_Rfc4106(struct crypto_aead *tfm, const u8 *in_key,
 
 #ifdef WC_LINUXKM_C_FALLBACK_IN_SHIMS
     if (ctx->aes_encrypt->use_aesni) {
-        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_AESNI;
+        ctx->aes_encrypt_C->use_aesni = WC_FLAG_DONT_USE_VECTOR_OPS;
 
         err = wc_AesGcmSetKey(ctx->aes_encrypt_C, in_key, key_len);
 
@@ -1609,7 +1617,7 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     }
 
     /* It's possible to set ctx->aesXts->{tweak,aes,aes_decrypt}.use_aesni to
-     * WC_FLAG_DONT_USE_AESNI here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
+     * WC_FLAG_DONT_USE_VECTOR_OPS here, for WC_LINUXKM_C_FALLBACK_IN_SHIMS in
      * AES-XTS, but we can use the WC_C_DYNAMIC_FALLBACK mechanism
      * unconditionally because there's no AES-XTS in Cert 4718.
      */
@@ -4312,3 +4320,5 @@ static int linuxkm_test_aesecb(void) {
 #endif /* LINUXKM_LKCAPI_REGISTER_AESECB */
 
 #endif /* LINUXKM_LKCAPI_REGISTER_AES */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

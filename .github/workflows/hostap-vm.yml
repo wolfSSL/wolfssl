@@ -79,6 +79,7 @@ jobs:
           lookup-only: true
 
       - name: Checkout hostap
+        if: steps.cache.outputs.cache-hit != 'true'
         run: git clone git://w1.fi/hostap.git hostap
 
   build_uml_linux:
@@ -176,9 +177,6 @@ jobs:
           key: hostap-linux-${{ env.LINUX_REF }}
           fail-on-cache-miss: true
 
-      - name: show file structure
-        run: tree
-
         # No way to view the full strategy in the browser (really weird)
       - name: Print strategy
         run: |
@@ -232,7 +230,12 @@ jobs:
 
       - name: Update certs
         working-directory: hostap/tests/hwsim/auth_serv
-        run: ./update.sh
+        run: |
+          ./update.sh
+          # Force regeneration of rsa3072-ca.key to get rsa3072-generate.sh to
+          # correctly update all the certs
+          rm rsa3072-ca.key
+          ./rsa3072-generate.sh
 
       - if: ${{ matrix.config.osp_ref }}
         name: Checkout OSP

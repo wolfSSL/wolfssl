@@ -57,12 +57,12 @@
     }
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
     #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 /*
@@ -1373,12 +1373,11 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     return ret;
 }
 
-#if defined(WOLFSSL_DH_GEN_PUB)
 /**
  * Given a DhKey with set params and a priv key, generate the corresponding
  * public key. If fips, does pub key validation.
  * */
-WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
+int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
     byte* pub, word32* pubSz)
 {
     int ret = 0;
@@ -1403,7 +1402,6 @@ WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
 
     return ret;
 }
-#endif /* WOLFSSL_DH_GEN_PUB */
 
 static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)
@@ -2114,7 +2112,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         }
 
         if ((ret == 0) && ct) {
-            word16 mask = 0xff;
+            volatile word16 mask = 0xff;
             sword16 o = (sword16)(*agreeSz - 1);
 
             *agreeSz = (word32)(i + 1);

@@ -1043,7 +1043,6 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
     int ret = 1;
     byte* data;
     byte* oldData = a->intData;
-    int oldLen = a->length;
 
     if (a->isDynamic && (len > (int)a->dataMax)) {
         oldData = a->data;
@@ -1051,7 +1050,6 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
         a->data = a->intData;
         a->dataMax = (unsigned int)sizeof(a->intData);
     }
-    a->length = 0;
     if ((!a->isDynamic) && (len > (int)a->dataMax)) {
         /* Create a new buffer to hold large integer value. */
         data = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -1068,10 +1066,10 @@ static int wolfssl_asn1_integer_require_len(WOLFSSL_ASN1_INTEGER* a, int len,
     if (keepOldData) {
          if (oldData != a->data) {
              /* Copy old data into new buffer. */
-             XMEMCPY(a->data, oldData, (size_t)oldLen);
+             XMEMCPY(a->data, oldData, (size_t)a->length);
          }
-         /* Restore old length. */
-         a->length = oldLen;
+    } else {
+        a->length = 0;
     }
     if (oldData != a->intData) {
          /* Dispose of the old dynamic data. */
@@ -2087,11 +2085,13 @@ int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
     }
     if (!err) {
         /* Length at least 1, parameters valid - cannot fail to get tag. */
-        GetASNTag(*in, &inOutIdx, &t, (word32)inLen);
-        /* Get length in DER encoding. */
-        if (GetLength_ex(*in, &inOutIdx, &l, (word32)inLen, 0) < 0) {
-            WOLFSSL_MSG("GetLength error");
-            err = 1;
+        err = GetASNTag(*in, &inOutIdx, &t, (word32)inLen);
+        if (!err){
+            /* Get length in DER encoding. */
+            if (GetLength_ex(*in, &inOutIdx, &l, (word32)inLen, 0) < 0) {
+                WOLFSSL_MSG("GetLength error");
+                err = 1;
+            }
         }
     }
     if (!err) {
@@ -3549,7 +3549,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str,
         }
     }
 
-    if ((!err) && (str_len != -1)) {
+    if ((!err) && (str_len >= 0)) {
         /* Include any characters written for type. */
         str_len += type_len;
     }

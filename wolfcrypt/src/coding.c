@@ -171,12 +171,8 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
     word32 j = 0;
-    word32 plainSz = inLen - ((inLen + (BASE64_LINE_SZ - 1)) / BASE64_LINE_SZ );
     int ret;
     const byte maxIdx = BASE64DECODE_TABLE_SZ + BASE64_MIN - 1;
-
-    plainSz = (plainSz * 3 + 3) / 4;
-    if (plainSz > *outLen) return BAD_FUNC_ARG;
 
     while (inLen > 3) {
         int pad3 = 0;
@@ -233,7 +229,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (i + 1 + !pad3 + !pad4 > *outLen) {
             WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
-            return BAD_FUNC_ARG;
+            return BUFFER_E;
         }
 
         e1 = Base64_Char2Val_by_table(e1);
@@ -263,6 +259,7 @@ int Base64_Decode_nonCT(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (out && *outLen > i)
         out[i]= '\0';
 
+    /* Note, *outLen won't reflect the optional terminating null. */
     *outLen = i;
 
     return 0;
@@ -274,11 +271,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
     word32 j = 0;
-    word32 plainSz = inLen - ((inLen + (BASE64_LINE_SZ - 1)) / BASE64_LINE_SZ );
     int ret;
-
-    plainSz = (plainSz * 3 + 3) / 4;
-    if (plainSz > *outLen) return BAD_FUNC_ARG;
 
     while (inLen > 3) {
         int pad3 = 0;
@@ -324,7 +317,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         if (i + 1 + !pad3 + !pad4 > *outLen) {
             WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
-            return BAD_FUNC_ARG;
+            return BUFFER_E;
         }
 
         e1 = Base64_Char2Val_CT(e1);
@@ -354,6 +347,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     if (out && *outLen > i)
         out[i]= '\0';
 
+    /* Note, *outLen won't reflect the optional terminating null. */
     *outLen = i;
 
     return 0;
@@ -630,7 +624,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     if (*outLen < (inLen / 2))
-        return BAD_FUNC_ARG;
+        return BUFFER_E;
 
     while (inLen) {
         byte b  = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */

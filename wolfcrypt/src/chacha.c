@@ -109,8 +109,7 @@ Public domain.
         #define HAVE_INTEL_AVX2
     #endif
 
-    static int cpuidFlagsSet = 0;
-    static word32 cpuidFlags = 0;
+    static cpuid_flags_t cpuidFlags = WC_CPUID_INITIALIZER;
 #endif
 
 /**
@@ -332,10 +331,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         return 0;
     }
 
-    if (!cpuidFlagsSet) {
-        cpuidFlags = cpuid_get_flags();
-        cpuidFlagsSet = 1;
-    }
+    cpuid_get_flags_ex(&cpuidFlags);
 
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(cpuidFlags)) {

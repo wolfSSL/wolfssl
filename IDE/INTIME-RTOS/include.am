@@ -10,4 +10,7 @@ EXTRA_DIST += \
     IDE/INTIME-RTOS/wolfExamples.c \
     IDE/INTIME-RTOS/wolfExamples.h \
     IDE/INTIME-RTOS/wolfExamples.vcxproj \
-    IDE/INTIME-RTOS/wolfExamples.sln
+    IDE/INTIME-RTOS/wolfExamples.sln \
+    IDE/INTIME-RTOS/wolfssl-lib.sln \
+    IDE/INTIME-RTOS/wolfssl-lib.vcxproj \
+    IDE/INTIME-RTOS/Makefile

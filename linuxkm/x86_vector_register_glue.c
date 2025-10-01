@@ -21,8 +21,9 @@
  */
 
 /* included by linuxkm/module_hooks.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
 
-#if !defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
+#if !defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) || !defined(CONFIG_X86)
     #error x86_vector_register_glue.c included in non-vectorized/non-x86 project.
 #endif
 
@@ -38,7 +39,7 @@
  * checks in __kernel_fpu_begin(), and lacks TIF_NEED_FPU_LOAD.
  */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
+    #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
 #endif
 
 static unsigned int wc_linuxkm_fpu_states_n_tracked = 0;
@@ -233,7 +234,7 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
     if (unlikely(wc_linuxkm_fpu_states == NULL)) {
         if (! assume_fpu_began) {
             /* this was just a quick check for whether we're in a recursive
-             * save_vector_registers_x86().  we're not.
+             * wc_save_vector_registers_x86().  we're not.
              */
             return NULL;
         }
@@ -253,7 +254,7 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
     }
     if (! assume_fpu_began) {
         /* this was just a quick check for whether we're in a recursive
-         * save_vector_registers_x86().  we're not.
+         * wc_save_vector_registers_x86().  we're not.
          *
          * if we're in a softirq context, we'll always wind up here, because
          * processes with entries in wc_linuxkm_fpu_states[] always have
@@ -296,7 +297,7 @@ static inline void wc_linuxkm_fpu_state_release(
     __atomic_store_n(&ent->pid, 0, __ATOMIC_RELEASE);
 }
 
-WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
+WARN_UNUSED_RESULT int wc_can_save_vector_registers_x86(void)
 {
     struct wc_thread_fpu_count_ent *pstate;
 
@@ -329,7 +330,7 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
         return 0;
 }
 
-WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
+WARN_UNUSED_RESULT int wc_save_vector_registers_x86(enum wc_svr_flags flags)
 {
     struct wc_thread_fpu_count_ent *pstate;
 
@@ -338,7 +339,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
      * a second look at preempt_count().
      */
     if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0)) {
-        VRG_PR_WARN_X("WARNING: save_vector_registers_x86 called with preempt_count 0x%x and pid %d on CPU %d.\n", preempt_count(), task_pid_nr(current), raw_smp_processor_id());
+        VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86 called with preempt_count 0x%x and pid %d on CPU %d.\n", preempt_count(), task_pid_nr(current), raw_smp_processor_id());
         return WC_ACCEL_INHIBIT_E;
     }
 
@@ -346,31 +347,39 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
 
     /* allow for nested calls */
     if (pstate && (pstate->fpu_state != 0U)) {
-        if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
-            if (flags & WC_SVR_FLAG_INHIBIT) {
-                /* allow recursive inhibit calls as long as the whole stack of
-                 * them is inhibiting.
-                 */
-                ++pstate->fpu_state;
-                return 0;
-            }
-            else
-                return WC_ACCEL_INHIBIT_E;
+        if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG) {
+            /* don't allow recursive inhibit calls when already inhibited --
+             * it would add no functionality and require keeping a separate
+             * count of inhibit recursions.
+             */
+            return WC_ACCEL_INHIBIT_E;
         }
-        if (unlikely(flags & WC_SVR_FLAG_INHIBIT))
-            return BAD_STATE_E;
         if (unlikely((pstate->fpu_state & WC_FPU_COUNT_MASK)
                      == WC_FPU_COUNT_MASK))
         {
-            pr_err("ERROR: save_vector_registers_x86 recursion register overflow for "
+            pr_err("ERROR: wc_save_vector_registers_x86 recursion register overflow for "
                    "pid %d on CPU %d.\n", pstate->pid, raw_smp_processor_id());
             return BAD_STATE_E;
-        } else {
+        }
+        if (flags & WC_SVR_FLAG_INHIBIT) {
+            ++pstate->fpu_state;
+            pstate->fpu_state |= WC_FPU_INHIBITED_FLAG;
+            return 0;
+        }
+        else {
             ++pstate->fpu_state;
             return 0;
         }
         __builtin_unreachable();
     }
+
+    {
+        int ret = WC_CHECK_FOR_INTR_SIGNALS();
+        if (ret)
+            return ret;
+    }
+
+    WC_RELAX_LONG_LOOP();
 
     if (flags & WC_SVR_FLAG_INHIBIT) {
         if ((preempt_count() != 0) && !may_use_simd())
@@ -388,7 +397,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
         local_bh_disable();
 
         if (preempt_count() == 0) {
-            VRG_PR_ERR_X("BUG: save_vector_registers_x86(): zero preempt_count after local_bh_disable() on CPU %d.\n",
+            VRG_PR_ERR_X("BUG: wc_save_vector_registers_x86(): zero preempt_count after local_bh_disable() on CPU %d.\n",
                    raw_smp_processor_id());
             #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
                 (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
@@ -451,13 +460,13 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
         pstate->fpu_state = 1U;
 
         if (preempt_count() == 0) {
-            VRG_PR_ERR_X("BUG: save_vector_registers_x86(): zero preempt_count after kernel_fpu_begin() on CPU %d.\n",
+            VRG_PR_ERR_X("BUG: wc_save_vector_registers_x86(): zero preempt_count after kernel_fpu_begin() on CPU %d.\n",
                          raw_smp_processor_id());
         }
 
         return 0;
     } else  {
-        VRG_PR_WARN_X("WARNING: save_vector_registers_x86 called with no saved state and nonzero preempt_count 0x%x on CPU %d.\n", preempt_count(), raw_smp_processor_id());
+        VRG_PR_WARN_X("WARNING: wc_save_vector_registers_x86 called with no saved state and nonzero preempt_count 0x%x on CPU %d.\n", preempt_count(), raw_smp_processor_id());
         #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         dump_stack();
         #endif
@@ -467,25 +476,33 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(enum wc_svr_flags flags)
     __builtin_unreachable();
 }
 
-void restore_vector_registers_x86(void)
+void wc_restore_vector_registers_x86(enum wc_svr_flags flags)
 {
     struct wc_thread_fpu_count_ent *pstate;
 
     if (((preempt_count() & (NMI_MASK | HARDIRQ_MASK)) != 0) || (task_pid_nr(current) == 0)) {
-        VRG_PR_WARN_X("BUG: restore_vector_registers_x86() called from interrupt handler on CPU %d.\n",
+        VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called from interrupt handler on CPU %d.\n",
                 raw_smp_processor_id());
         return;
     }
 
     pstate = wc_linuxkm_fpu_state_assoc(0, 1);
     if (unlikely(pstate == NULL)) {
-        VRG_PR_WARN_X("BUG: restore_vector_registers_x86() called by pid %d on CPU %d "
+        VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
                "with no saved state.\n", task_pid_nr(current),
                raw_smp_processor_id());
         return;
     }
 
     if ((--pstate->fpu_state & WC_FPU_COUNT_MASK) > 0U) {
+        if (flags & WC_SVR_FLAG_INHIBIT) {
+            if (pstate->fpu_state & WC_FPU_INHIBITED_FLAG)
+                pstate->fpu_state &= ~WC_FPU_INHIBITED_FLAG;
+            else
+                VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                              "with _INHIBIT flag but saved state isn't _INHIBITED_.\n", task_pid_nr(current),
+                              raw_smp_processor_id());
+        }
         return;
     }
 
@@ -497,6 +514,10 @@ void restore_vector_registers_x86(void)
         #endif
         local_bh_enable();
     } else if (unlikely(pstate->fpu_state & WC_FPU_INHIBITED_FLAG)) {
+        if (unlikely(! (flags & WC_SVR_FLAG_INHIBIT)))
+            VRG_PR_WARN_X("BUG: wc_restore_vector_registers_x86() called by pid %d on CPU %d "
+                          "without _INHIBIT flag but saved state is _INHIBITED_.\n", task_pid_nr(current),
+                          raw_smp_processor_id());
         pstate->fpu_state = 0U;
         wc_linuxkm_fpu_state_release(pstate);
         local_bh_enable();
@@ -507,5 +528,9 @@ void restore_vector_registers_x86(void)
     migrate_enable();
     #endif
 
+    WC_RELAX_LONG_LOOP();
+
     return;
 }
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

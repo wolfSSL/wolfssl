@@ -38,4 +38,7 @@ int test_records_span_network_boundaries(void);
 int test_dtls_record_cross_boundaries(void);
 int test_dtls_rtx_across_epoch_change(void);
 int test_dtls_drop_client_ack(void);
+int test_dtls_bogus_finished_epoch_zero(void);
+int test_dtls_replay(void);
+int test_dtls_srtp(void);
 #endif /* TESTS_API_DTLS_H */

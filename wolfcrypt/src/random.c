@@ -142,7 +142,7 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_RENESAS_TSIP)
     /* for wc_tsip_GenerateRandBlock */
-    #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas_tsip_internal.h"
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #elif defined(WOLFSSL_IMXRT1170_CAAM)
 #elif defined(CY_USING_HAL) && defined(COMPONENT_WOLFSSL)
@@ -184,10 +184,10 @@ This library contains implementation for the random number generator.
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED) || \
     defined(HAVE_AMD_RDSEED)
-    static word32 intel_flags = 0;
+    static cpuid_flags_t intel_flags = WC_CPUID_INITIALIZER;
     static void wc_InitRng_IntelRD(void)
     {
-        intel_flags = cpuid_get_flags();
+        cpuid_get_flags_ex(&intel_flags);
     }
     #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_AMD_RDSEED)
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
@@ -373,7 +373,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 #else
     wc_Sha256 sha[1];
 #endif
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     byte* digest;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
@@ -383,7 +383,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         return DRBG_FAILURE;
     }
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
         DYNAMIC_TYPE_DIGEST);
     if (digest == NULL)
@@ -444,7 +444,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
 
     ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
     XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
@@ -660,7 +660,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_NEED_RESEED;
     }
     else {
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
         byte* digest = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, drbg->heap,
             DYNAMIC_TYPE_DIGEST);
         if (digest == NULL)
@@ -709,7 +709,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
             drbg->reseedCtr++;
         }
         ForceZero(digest, WC_SHA256_DIGEST_SIZE);
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_LINUXKM)
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_KERNEL_MODE)
         XFREE(digest, drbg->heap, DYNAMIC_TYPE_DIGEST);
     #endif
     }

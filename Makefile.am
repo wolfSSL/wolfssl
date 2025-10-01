@@ -225,6 +225,9 @@ if BUILD_LINUXKM
 module:
 	+$(MAKE) -C linuxkm libwolfssl.ko
 
+module-update-fips-hash:
+	+$(MAKE) -C linuxkm module-update-fips-hash
+
 clean_module:
 	+$(MAKE) -C linuxkm clean
 

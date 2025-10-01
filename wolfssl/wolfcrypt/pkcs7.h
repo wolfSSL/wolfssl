@@ -213,6 +213,8 @@ typedef int (*CallbackWrapCEK)(wc_PKCS7* pkcs7, byte* cek, word32 cekSz,
                                   byte* originKey, word32 originKeySz,
                                   byte* out, word32 outSz,
                                   int keyWrapAlgo, int type, int dir);
+typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, int wrap, byte* out, word32 outSz);
 
 /* Callbacks for supporting different stream cases */
 typedef int (*CallbackGetContent)(wc_PKCS7* pkcs7, byte** content, void* ctx);
@@ -371,6 +373,8 @@ struct wc_PKCS7 {
     } decryptKey;
 #endif
 
+    CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb;
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -498,6 +502,8 @@ WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(wc_PKCS7* pkcs7, CallbackOriEncrypt c
                                            int options);
 WOLFSSL_API int  wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7,
         CallbackWrapCEK wrapCEKCb);
+WOLFSSL_API int  wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
+        CallbackAESKeyWrapUnwrap aesKeyWrapUnwrapCb);
 
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
 WOLFSSL_API int  wc_PKCS7_SetRsaSignRawDigestCb(wc_PKCS7* pkcs7,
@@ -510,6 +516,8 @@ WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
+WOLFSSL_API int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
+        byte * out, word32 * outSz);
 
 /* CMS/PKCS#7 AuthEnvelopedData */
 WOLFSSL_API int  wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7,
@@ -552,10 +560,18 @@ WOLFSSL_API int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg,
                                               word32 outputSz);
 #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
+WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz);
+WOLFSSL_API int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz);
+WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz);
+WOLFSSL_API int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 #endif /* HAVE_PKCS7 */
 #endif /* WOLF_CRYPT_PKCS7_H */
-

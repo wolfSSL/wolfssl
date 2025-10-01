@@ -38,7 +38,10 @@ To enable the RNG acceleration add the following:
 ```c
 #define WC_NO_HASHDRBG
 #define CUSTOM_RAND_GENERATE_BLOCK wc_pico_rng_gen_block
+#define WC_RESEED_INTERVAL (1000000)
 ```
+NOTE: the value for `WC_RESEED_INTERVAL` here is just an example. You should find what is
+most appropriate for your application and use case.
 
 In CMake you should add the following linking to both wolfSSL and the end
 application:

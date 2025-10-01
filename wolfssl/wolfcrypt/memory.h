@@ -29,7 +29,7 @@
 #ifndef WOLFSSL_MEMORY_H
 #define WOLFSSL_MEMORY_H
 
-#if !defined(STRING_USER) && !defined(WOLFSSL_LINUXKM)
+#if !defined(STRING_USER) && !defined(NO_STDLIB_H)
 #include <stdlib.h>
 #endif
 
@@ -340,6 +340,10 @@ WOLFSSL_LOCAL void wc_MemZero_Free(void);
 WOLFSSL_LOCAL void wc_MemZero_Add(const char* name, const void* addr,
     size_t len);
 WOLFSSL_LOCAL void wc_MemZero_Check(void* addr, size_t len);
+#endif
+
+#ifndef WOLFSSL_NO_FORCE_ZERO
+WOLFSSL_API void wc_ForceZero(void *mem, size_t len);
 #endif
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE

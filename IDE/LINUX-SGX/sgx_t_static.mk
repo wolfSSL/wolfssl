@@ -44,7 +44,8 @@ endif
 
 Crypto_Library_Name := sgx_tcrypto
 
-Wolfssl_C_Extra_Flags := -DWOLFSSL_SGX
+Wolfssl_C_Extra_Flags := -DWOLFSSL_SGX\
+			 -DWOLFSSL_CUSTOM_CONFIG
 
 Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/arc4.c\
@@ -52,6 +53,7 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/blake2b.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/camellia.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/coding.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/cpuid.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/chacha.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/chacha20_poly1305.c\
 					$(WOLFSSL_ROOT)/src/crl.c\
@@ -88,11 +90,40 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/signature.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c32.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c64.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_x86_64.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_int.c\
 					$(WOLFSSL_ROOT)/src/ssl.c\
 					$(WOLFSSL_ROOT)/src/tls.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_encrypt.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/src/wolfevent.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/wolfevent.c
+
+
+ifeq ($(HAVE_WOLFSSL_ASSEMBLY), 1)
+	Wolfssl_ASM_Files := $(WOLFSSL_ROOT)/wolfcrypt/src/aes_asm.asm\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/sp_x86_64_asm.asm
+
+	Wolfssl_S_Files := $(WOLFSSL_ROOT)/wolfcrypt/src/aes_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/aes_gcm_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/poly1305_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/sha256_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/sp_x86_64_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/aes_xts_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/sha3_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/wc_mlkem_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/chacha_asm.S\
+               $(WOLFSSL_ROOT)/wolfcrypt/src/sha512_asm.S
+
+
+	Wolfssl_C_Extra_Flags += -DWOLFSSL_X86_64_BUILD\
+               -DWOLFSSL_AESNI\
+               -maes -mavx -mavx2 -msse4.2
+
+ifeq ($(HAVE_WOLFSSL_SP), 1)
+    Wolfssl_C_Extra_Flags += -DWOLFSSL_SP_X86_64_ASM\
+			   -DWOLFSSL_SP_X86_64\
+			   -DWOLFSSL_SP_ASM
+endif
+endif
 
 Wolfssl_Include_Paths := -I$(WOLFSSL_ROOT)/ \
 						 -I$(WOLFSSL_ROOT)/wolfcrypt/ \
@@ -111,7 +142,8 @@ endif
 ifeq ($(HAVE_WOLFSSL_SP), 1)
     Wolfssl_C_Extra_Flags += -DWOLFSSL_HAVE_SP_RSA \
                              -DWOLFSSL_HAVE_SP_DH  \
-                             -DWOLFSSL_HAVE_SP_ECC
+                             -DWOLFSSL_HAVE_SP_ECC \
+                             -DWOLFSSL_SP_MATH_ALL
 endif
 
 
@@ -128,6 +160,8 @@ Wolfssl_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefau
 	-Wl,--version-script=trusted/wolfcrypt.lds
 
 Wolfssl_C_Objects := $(Wolfssl_C_Files:.c=.o)
+Wolfssl_C_Objects += $(Wolfssl_S_Files:.S=.o)
+Wolfssl_C_Objects += $(Wolfssl_ASM_Files:.asm=.o)
 
 ifeq ($(SGX_MODE), HW)
 ifneq ($(SGX_DEBUG), 1)
@@ -137,17 +171,17 @@ endif
 endif
 endif
 
-override CFLAGS += $(Wolfssl_C_Flags)
+override CPPFLAGS += $(Wolfssl_C_Flags)
 
 .PHONY: all run
 
 all: libwolfssl.sgx.static.lib.a
 
 ######## WolfSSL Objects ########
-
 libwolfssl.sgx.static.lib.a: $(Wolfssl_C_Objects)
 	ar rcs libwolfssl.sgx.static.lib.a $(Wolfssl_C_Objects)
 	@echo "LINK =>  $@"
+	@echo "Built with AES-NI ? $(HAVE_WOLFSSL_ASSEMBLY)"
 
 clean:
 	@rm -f $(WOLFSSL_ROOT)/wolfcrypt/benchmark/*.o $(WOLFSSL_ROOT)/wolfcrypt/test/*.o static_trusted/wolfssl_t.* libwolfssl.sgx.static.lib.a  $(Wolfssl_C_Objects)

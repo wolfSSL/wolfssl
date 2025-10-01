@@ -44,7 +44,7 @@ void wolfssl_test(void)
     test_func_args args = {0};
 
 #ifdef WC_RNG_SEED_CB
-    wc_SetSeed_Cb(wc_GenerateSeed);
+    wc_SetSeed_Cb(WC_GENERATE_SEED_DEFAULT);
 #endif
 
     printf("Run wolfCrypt Test:\n");

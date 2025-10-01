@@ -20,13 +20,10 @@
  */
 #include "rzn2l_tst_thread.h"
 
-#include "um_common_cfg.h"
-#include "um_common_api.h"
-#include "um_serial_io_api.h"
-#include "um_serial_io.h"
-
 #include "wolfssl_demo.h"
 #include "user_settings.h"
+#include "sio_char.h"
+#include <stdio.h>
 
 typedef struct func_args {
     int    argc;
@@ -34,22 +31,19 @@ typedef struct func_args {
     int    return_code;
 } func_args;
 
-static serial_io_instance_ctrl_t g_serial_io0_ctrl;
-static serial_io_cfg_t const g_serial_io0_cfg =
-{
-    .p_uart_instance = &g_uart0,
-};
-serial_io_instance_t const g_serial_io0 =
-{
-    .p_ctrl = &g_serial_io0_ctrl,
-    .p_cfg  = &g_serial_io0_cfg,
-    .p_api  = &g_serial_io_on_serial_io,
-};
-
 FSP_CPP_HEADER
 void R_BSP_WarmStart(bsp_warm_start_event_t event)
 BSP_PLACE_IN_SECTION(".warm_start");
 FSP_CPP_FOOTER
+
+void user_uart_callback (uart_callback_args_t * p_args);
+void Clr_CallbackCtx(FSPSM_ST *g);
+void RSIP_KeyGeneration(FSPSM_ST *g);
+
+uint32_t volatile g_tx_complete = 0;
+uint32_t volatile g_rx_complete  = 0;
+uint32_t g_ofband_index = 0;
+uint8_t  g_ofband_received[TRANSFER_LENGTH];
 
 void R_BSP_WarmStart(bsp_warm_start_event_t event)
 {
@@ -61,8 +55,47 @@ void R_BSP_WarmStart(bsp_warm_start_event_t event)
     }
 }
 
-#if defined(TLS_CLIENT) || \
-    defined(TLS_SERVER)
+void user_uart_callback (uart_callback_args_t* p_args)
+{
+    /* Handle the UART event */
+    switch (p_args->event)
+    {
+        /* Received a character */
+        case UART_EVENT_RX_CHAR:
+            /* Only put the next character in the receive
+             * buffer if there is space for it
+             */
+            if (sizeof(g_ofband_received) > g_ofband_index)
+            {
+                /* Write either the next one or two bytes
+                 * depending on the receive data size
+                 */
+                if ((UART_DATA_BITS_7 == g_uart0_cfg.data_bits) ||
+                                    (UART_DATA_BITS_8 == g_uart0_cfg.data_bits))
+                {
+                    g_ofband_received[g_ofband_index++] =
+                                                        (uint8_t) p_args->data;
+                } else {
+                    uint16_t * p_dest =
+                                (uint16_t *)&g_ofband_received[g_ofband_index];
+                    *p_dest = (uint16_t) p_args->data;
+                    g_ofband_index += 2;
+                }
+            }
+            break;
+        /* Receive complete */
+        case UART_EVENT_RX_COMPLETE:
+            g_rx_complete = 1;
+            break;
+        /* Transmit complete */
+        case UART_EVENT_TX_COMPLETE:
+            g_tx_complete = 1;
+            break;
+        default:break;
+    }
+}
+
+#if defined(TLS_CLIENT) || defined(TLS_SERVER)
     extern uint8_t g_ether0_mac_address[6];
     const byte ucIPAddress[4]          = { 192, 168, 11, 241 };
     const byte ucNetMask[4]            = { 255, 255, 255, 0 };
@@ -81,9 +114,6 @@ void R_BSP_WarmStart(bsp_warm_start_event_t event)
     && defined(HAVE_RENESAS_SYNC) && defined(HAVE_AES_CBC)
     FSPSM_ST guser_PKCbInfo;
 #endif
-
-void Clr_CallbackCtx(FSPSM_ST *g);
-void RSIP_KeyGeneration(FSPSM_ST *g);
 
 void RSIP_KeyGeneration(FSPSM_ST *g)
 {
@@ -201,39 +231,16 @@ void wolfSSL_TLS_cleanup()
 
 #endif
 
-serial_io_instance_t   const * gp_serial_io0   = &g_serial_io0;
-static void serial_init()
-{
-    usr_err_t usr_err;
-
-    /** Open Serial I/O module. */
-    usr_err = gp_serial_io0->p_api->open
-            (gp_serial_io0->p_ctrl, gp_serial_io0->p_cfg );
-    if( USR_SUCCESS != usr_err )
-    {
-      USR_DEBUG_BLOCK_CPU();
-    }
-
-    /** Start Serial I/O module. */
-    usr_err = gp_serial_io0->p_api->start( gp_serial_io0->p_ctrl );
-    if( USR_SUCCESS != usr_err )
-    {
-      USR_DEBUG_BLOCK_CPU();
-    }
-    printf( " Started Serial I/O interface." );
-}
 
 /* rzn2l_tst_thread entry function */
 /* pvParameters contains TaskHandle_t */
 void rzn2l_tst_thread_entry(void *pvParameters)
 {
     FSP_PARAMETER_NOT_USED (pvParameters);
-
-
-    serial_init();
+    /* Open the transfer instance with initial configuration. */
+    R_SCI_UART_Open(&g_uart0_ctrl, &g_uart0_cfg);
 
 #if defined(UNIT_TEST)
-
     int ret;
 
     printf("\n");
@@ -368,8 +375,7 @@ void rzn2l_tst_thread_entry(void *pvParameters)
     TCPInit();
 
     int TCP_connect_retry = 0;
-
-    printf("\n Start TLS Connection to %s port(%d)\n", SERVER_IP, DEFAULT_PORT);
+    printf("Start TLS Connection to %s port(%d)\n", SERVER_IP, DEFAULT_PORT);
     wolfSSL_TLS_client_init();
 
     do {
@@ -403,7 +409,7 @@ void rzn2l_tst_thread_entry(void *pvParameters)
 
     int TCP_connect_retry = 0;
 
-    printf("\n Start TLS Accept at %03d.%03d.%03d.%03d port(%d)\n",
+    printf("Start TLS Accept at %03d.%03d.%03d.%03d port(%d)\n",
                                                    ucIPAddress[0],
                                                    ucIPAddress[1],
                                                    ucIPAddress[2],

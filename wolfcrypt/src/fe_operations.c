@@ -24,7 +24,7 @@
  /* Based On Daniel J Bernstein's curve25519 Public Domain ref10 work. */
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
-#if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
+#if !defined(CURVE25519_SMALL) && !defined(ED25519_SMALL)
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
 
@@ -697,11 +697,11 @@ void fe_invert(fe out,const fe z)
   int i = 0;
 
   /* pow225521 */
-  fe_sq(t0,z); for (i = 1;i < 1;++i) fe_sq(t0,t0);
+  fe_sq(t0,z);
   fe_sq(t1,t0); for (i = 1;i < 2;++i) fe_sq(t1,t1);
   fe_mul(t1,z,t1);
   fe_mul(t0,t0,t1);
-  fe_sq(t2,t0); for (i = 1;i < 1;++i) fe_sq(t2,t2);
+  fe_sq(t2,t0);
   fe_mul(t1,t1,t2);
   fe_sq(t2,t1); for (i = 1;i < 5;++i) fe_sq(t2,t2);
   fe_mul(t1,t2,t1);
@@ -1313,11 +1313,11 @@ void fe_pow22523(fe out,const fe z)
   fe t2 = {0};
   int i = 0;
 
-  fe_sq(t0,z); for (i = 1;i < 1;++i) fe_sq(t0,t0);
+  fe_sq(t0,z);
   fe_sq(t1,t0); for (i = 1;i < 2;++i) fe_sq(t1,t1);
   fe_mul(t1,z,t1);
   fe_mul(t0,t0,t1);
-  fe_sq(t0,t0); for (i = 1;i < 1;++i) fe_sq(t0,t0);
+  fe_sq(t0,t0);
   fe_mul(t0,t1,t0);
   fe_sq(t1,t0); for (i = 1;i < 5;++i) fe_sq(t1,t1);
   fe_mul(t0,t1,t0);
@@ -1479,5 +1479,5 @@ void fe_cmov(fe f, const fe g, int b)
 }
 #endif
 
-#endif /* !CURVE25519_SMALL || !ED25519_SMALL */
+#endif /* !CURVE25519_SMALL && !ED25519_SMALL */
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */

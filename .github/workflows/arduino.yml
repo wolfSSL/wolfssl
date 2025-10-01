@@ -1,0 +1,325 @@
+name: Arduino CI Build (1 of 4) wolfssl
+
+#
+# Test fetches wolfssl-examples/Arduino and uses local, latest github master branch wolfssl
+#
+# These 4 workflows across 3 repos are interdependent for the current $REPO_OWNER:
+#
+# THIS Arduino CI Build 1: https://github.com/$REPO_OWNER/wolfssl          #  /.github/workflows/arduino.yml
+#   - Builds Arduino library from local clone of wolfssl master branch
+#   - Fetches examples from https://github.com/$REPO_OWNER/wolfssl-examples
+#
+# Arduino CI Build 2: https://github.com/$REPO_OWNER/wolfssl-examples      #  /.github/workflows/arduino-release.yml
+#    - Tests examples based on latest published release of Arduino library, NOT latest on wolfssl github.
+#    - Should be identical to Arduino CI Build 3 in every way but wolfssl install.
+#    - Copies only compile script from wolfssl-examples
+#    - Builds local examples
+#    - No other repos used
+#
+# Arduino CI Build 3: https://github.com/$REPO_OWNER/wolfssl-examples      #  /.github/workflows/arduino.yml
+#   - Fetches current wolfSSL from https://github.com/$REPO_OWNER/wolfssl
+#   - Creates an updated Arduino library
+#   - Compiles local examples
+#   - Contains the source of `compile-all-examples.sh` and respective board-list.txt
+#
+# Arduino CI Build 4: https://github.com/$REPO_OWNER/Arduino-wolfssl       #  /.github/workflows/arduino.yml
+#    - Assembles and installs an updated Arduino wolfssl library from LOCAL wolfssl master source
+#    - Copies only compile script copied from wolfssl-examples
+#    - Builds local examples
+#    - No other repos used
+#
+#
+#                                   ** NOTE TO MAINTAINERS **
+#
+#           Consider using winmerge or similar tool to keep the 4 arduino[-release].yml files in relative sync.
+#           Although there are some specific differences, most of the contents are otherwise identical.
+#
+# See https://github.com/wolfSSL/Arduino-wolfSSL
+#
+# To test locally:
+# cd [your WOLFSSL_ROOT], e.g. cd /mnt/c/workspace/wolfssl-$USER
+# [optional checkout]     e.g. git checkout tags/v5.8.2-stable
+# pushd ./IDE/ARDUINO
+# export ARDUINO_ROOT="$HOME/Arduino/libraries"
+# ./wolfssl-arduino.sh INSTALL
+# cd [your WOLFSSL_EXAMPLES_ROOT] e.g. /mnt/c/workspace/wolfssl-examples-$USER
+#
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ '**', 'master', 'main', 'release/**' ]
+    paths:
+      - '.github/workflows/arduino.yml'
+      - 'IDE/ARDUINO/**'
+      - 'src/**'
+      - 'wolfcrypt/**'
+      - 'wolfssl/**'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'github/workflows/arduino.yml'
+      - 'IDE/ARDUINO/**'
+      - 'src/**'
+      - 'wolfcrypt/**'
+      - 'wolfssl/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build:
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Arduino CLI
+        run: |
+          # Script to fetch and run install.sh from arduino/arduino-cli
+
+          # The install script will test to see if the recently installed apps in in the path
+          # So set it up in advance:
+          mkdir -p "${PWD}/bin"
+          echo "${PWD}/bin" >> $GITHUB_PATH
+
+          # Sets the install directory to a consistent path at the repo root.
+          ROOT_BIN="$GITHUB_WORKSPACE/bin"
+
+          # Ensures that BINDIR exists before the installer runs
+          mkdir -p "$ROOT_BIN"
+
+          # Save as a lobal environment variable
+          echo "$ROOT_BIN" >> "$GITHUB_PATH"
+
+          # Download and run install script from Arduino:
+          # -S show errors; -L follow redirects; -v Verbose
+          set +e                 # don't abort on error
+          set -o pipefail
+
+          curl -vSL --retry 5 --retry-delay 10 \
+             https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh  \
+             | sh -x
+          rc=$?
+          c_rc=${PIPESTATUS[0]}  # curl's exit code
+          s_rc=${PIPESTATUS[1]}  # sh's  exit code
+
+          set -e                 # restore default abort-on-error
+
+          # If there was a curl error, we have our own local copy that is more reliable and can add our own debugging
+          if [ "$rc" -ne 0 ]; then
+            echo "Primary install failed: curl=$c_rc, sh=$s_rc. Falling back..." >&2
+            echo "Using local copy of arduino_install.sh"
+            pushd ./Arduino/sketches
+              chmod +x ./arduino_install.sh
+
+              # Mimic curl install, does not use current directory:
+              BINDIR="$ROOT_BIN" sh -x ./arduino_install.sh
+            popd
+          else
+            echo "Alternative install script not needed."
+          fi
+
+      - name: Confirm Arduino CLI install
+        run: arduino-cli version
+
+      - name: Setup Arduino CLI
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli config add board_manager.additional_urls https://www.pjrc.com/teensy/package_teensy_index.json
+          arduino-cli core update-index
+          arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32            # ESP32
+          arduino-cli core install arduino:avr            # Arduino Uno, Mega, Nano
+          arduino-cli core install arduino:sam            # Arduino Due
+          arduino-cli core install arduino:samd           # Arduino Zero
+          arduino-cli core install teensy:avr             # PJRC Teensy
+          arduino-cli core install esp8266:esp8266        # ESP8266
+          arduino-cli core install arduino:mbed_nano      # nanorp2040connect
+          arduino-cli core install arduino:mbed_portenta  # portenta_h7_m7
+          arduino-cli core install arduino:mbed_edge
+          # sudo "/home/$USER/.arduino15/packages/arduino/hardware/mbed_nano/4.2.4/post_install.sh"
+          arduino-cli core install arduino:renesas_uno
+          arduino-cli lib install "ArduinoJson"           # Example dependency
+          arduino-cli lib install "WiFiNINA"              # ARDUINO_SAMD_NANO_33_IOT
+          arduino-cli lib install "Ethernet"              # Install Ethernet library
+          arduino-cli lib install "Bridge"                # Pseudo-network for things like arduino:samd:tian
+
+      - name: Set job environment variables
+        run: |
+          # Script to assign some common environment variables after everything is installed
+
+          ICON_OK=$(printf "\xE2\x9C\x85")
+          ICON_FAIL=$(printf "\xE2\x9D\x8C")
+
+          echo "GITHUB_WORK=$(realpath           "$GITHUB_WORKSPACE/../..")"  >> "$GITHUB_ENV"
+          echo "ARDUINO_ROOT=$(realpath          "$HOME/Arduino/libraries")"  >> "$GITHUB_ENV"
+
+          # Show predefined summary:
+          echo "GITHUB_WORKSPACE      = $GITHUB_WORKSPACE"
+
+          # Show assigned build:env values (e.g. "wolfssl", "gojimmpi" or other owners):
+          echo "REPO_OWNER            = $REPO_OWNER"
+
+          echo "GITHUB_ENV=$GITHUB_ENV"
+
+          # Show our custom values:
+          echo "GITHUB_WORK           = $GITHUB_WORK"
+          echo "ARDUINO_ROOT          = $ARDUINO_ROOT"
+
+          # WOLFSSL_EXAMPLES_ROOT is the repo root, not example location
+          echo "WOLFSSL_EXAMPLES_ROOT = $WOLFSSL_EXAMPLES_ROOT"
+
+      - name: Get wolfssl-examples
+        run: |
+          # Fetch Arduino examples from the wolfssl-examples repo
+          echo "Start pwd:"
+          pwd
+          # we're typically in $GITHUB_WORKSPACE=/home/runner/work/wolfssl/wolfssl
+          # goto /home/runner/work to fetch wolfssl-examples
+
+          echo "Current pwd for wolfssl-examples clone fetch: $(pwd)"
+          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+
+          # Typically /home/runner/work
+          echo "GITHUB_WORK=$GITHUB_WORK"
+
+          pushd "$GITHUB_WORK"
+            echo "Updated pwd for wolfssl-examples clone fetch: $(pwd)"
+
+            git clone --depth 1 https://github.com/$REPO_OWNER/wolfssl-examples.git wolfssl-examples-publish
+
+            cd ./wolfssl-examples-publish
+            echo "WOLFSSL_EXAMPLES_ROOT=$(pwd)"
+
+            echo "Path for wolfssl-examples-publish: $(pwd)"
+          popd # GITHUB_WORK
+
+
+          # ** END ** Get wolfssl-examples
+
+      - name: Install wolfSSL Arduino library
+        run: |
+          # Run the local wolfssl-arduino.sh install script to install wolfssl Arduino library.
+
+          # Methods of installing Arduino library:
+          #   1) arduino-cli lib install "wolfSSL"
+          #   2) manual copy of files (typical of the Arduino-wolfssl repo)
+          #   3) run ./wolfssl-arduino.sh INSTALL (typical of the wolfssl repo)
+
+          echo "Current pwd for wolfssl-examples clone fetch: $(pwd)"
+          GITHUB_WORK=$(realpath "$GITHUB_WORKSPACE/../..")
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+
+          # Typically /home/runner/work
+          echo "GITHUB_WORK=$GITHUB_WORK"
+          pwd
+          pushd ./IDE/ARDUINO
+
+            # Set default ARDUINO_ROOT to Arduino library.
+            export ARDUINO_ROOT="$HOME/Arduino/libraries"
+            export WOLFSSL_EXAMPLES_ROOT="$GITHUB_WORK/wolfssl-examples-publish"
+
+            echo "ARDUINO_ROOT:          $WOLFSSL_EXAMPLES_ROOT"
+            echo "WOLFSSL_EXAMPLES_ROOT: $WOLFSSL_EXAMPLES_ROOT"
+
+            bash ./wolfssl-arduino.sh INSTALL  # Install wolfSSL library
+          popd
+
+          # ** END ** Install wolfSSL Arduino library
+
+      - name: List installed Arduino libraries
+        run: arduino-cli lib list
+
+      - name: Get compile-all-examples.sh
+        run: |
+          # Fetch compile script FROM THE CURRENT OWNER.
+          # This repo is Arduino-wolfssl; we'll fetch the script from the wolfssl-examples for the same repository owner.
+          echo "Repository owner: $REPO_OWNER"
+          echo "Current directory: $PWD"
+          echo "Current pwd for wolfssl-examples clone fetch: $PWD"
+          WOLFSSL_EXAMPLES_DIRECTORY="$ARDUINO_ROOT/wolfssl/examples"
+          THIS_BOARD_LIST="board_list.txt"
+          echo "WOLFSSL_EXAMPLES_DIRECTORY=$WOLFSSL_EXAMPLES_DIRECTORY"
+
+          # Fetch script and board list into WOLFSSL_EXAMPLES_DIRECTORY
+          echo "Fetching board_list.txt from REPO_OWNER=$REPO_OWNER"
+          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/board_list.txt"          -o "$WOLFSSL_EXAMPLES_DIRECTORY/$THIS_BOARD_LIST"
+
+          # Check if the first line is "404: Not Found" - which would indicate the curl path above is bad.
+          FILE="$WOLFSSL_EXAMPLES_DIRECTORY/board_list.txt"
+
+          # Ensure the file exists
+          if [[ ! -f "$FILE" ]]; then
+              echo "File not found: $FILE"
+              exit 1
+          fi
+
+          # Check if the first line is "404: Not Found"
+          if [[ $(head -n 1 "$FILE") == "404: Not Found" ]]; then
+              echo "The first line is '404: Not Found'"
+              exit 1
+          fi
+
+          # Fetch the compile script from repo: https://github.com/[$USER]/wolfssl-examples/
+          echo "Fetching compile-all-examples.sh from REPO_OWNER=$REPO_OWNER"
+          curl -L "https://raw.githubusercontent.com/$REPO_OWNER/wolfssl-examples/master/Arduino/sketches/compile-all-examples.sh" -o "$WOLFSSL_EXAMPLES_DIRECTORY/compile-all-examples.sh"
+
+          # Check if the first line is "404: Not Found" - which would indicate the curl path above is bad.
+          FILE="$WOLFSSL_EXAMPLES_DIRECTORY/compile-all-examples.sh"
+
+          # Ensure the file exists
+          if [[ ! -f "$FILE" ]]; then
+              echo "File not found: $FILE"
+              exit 1
+          fi
+
+          # Check if the first line is "404: Not Found"
+          if [[ $(head -n 1 "$FILE") == "404: Not Found" ]]; then
+              echo "The first line is '404: Not Found'"
+              exit 1
+          fi
+
+          pushd "$WOLFSSL_EXAMPLES_DIRECTORY"
+            echo "Current directory:           $PWD"
+
+            echo "Current directory $PWD"
+            echo "Contents:"
+            ls -al
+            find ./ -type f | sort
+
+            # ensure we can execute the script here (permissions lost during curl fetch)
+            chmod +x ./compile-all-examples.sh
+            echo "Found compile script: $(ls -al ./compile-all-examples.sh ./$THIS_BOARD_LIST)"
+          popd
+
+          # ** END ** Get compile-all-examples.sh
+
+      # This will fail with Arduino published wolfSSL v5.7.6 and older
+      # as the examples moved. See https://github.com/wolfSSL/wolfssl/pull/8514
+      #
+      - name: Compile Arduino Sketches for Various Boards
+        run: |
+          # Call the compile-all-examples.sh script to compile all the examples for each of the fqbn names in the local copy of board_list.txt
+
+          echo "Current directory:           $PWD"
+          echo "ARDUINO_ROOT:                $ARDUINO_ROOT"
+          WOLFSSL_EXAMPLES_DIRECTORY="$ARDUINO_ROOT/wolfssl/examples"
+          echo "WOLFSSL_EXAMPLES_DIRECTORY:  $WOLFSSL_EXAMPLES_DIRECTORY"
+
+          echo "Change directory to Arduino examples..."
+          pushd "$WOLFSSL_EXAMPLES_DIRECTORY"
+            echo "Current directory:           $PWD"
+            echo "Calling ./compile-all-examples.sh"
+            bash ./compile-all-examples.sh
+          popd
+          # End Compile Arduino Sketches for Various Boards

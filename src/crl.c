@@ -39,8 +39,9 @@ CRL Options:
 
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
-#ifndef WOLFSSL_LINUXKM
+#ifndef NO_STRING_H
     #include <string.h>
 #endif
 
@@ -209,20 +210,23 @@ static CRL_Entry* CRL_Entry_new(void* heap)
 /* Free all CRL Entry resources */
 static void CRL_Entry_free(CRL_Entry* crle, void* heap)
 {
-#ifdef CRL_STATIC_REVOKED_LIST
-    if (crle != NULL) {
-        XMEMSET(crle->certs, 0, CRL_MAX_REVOKED_CERTS*sizeof(RevokedCert));
+    WOLFSSL_ENTER("CRL_Entry_free");
+    if (crle == NULL) {
+        WOLFSSL_MSG("CRL Entry is null");
+        return;
     }
+#ifdef CRL_STATIC_REVOKED_LIST
+    XMEMSET(crle->certs, 0, CRL_MAX_REVOKED_CERTS*sizeof(RevokedCert));
 #else
-    RevokedCert* tmp = crle->certs;
-    RevokedCert* next;
+    {
+        RevokedCert* tmp;
+        RevokedCert* next;
 
-    WOLFSSL_ENTER("FreeCRL_Entry");
+        for (tmp = crle->certs; tmp != NULL; tmp = next) {
+            next = tmp->next;
+            XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
+        }
 
-    while (tmp != NULL) {
-        next = tmp->next;
-        XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
-        tmp = next;
     }
 #endif
     XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
@@ -791,7 +795,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     crl->currentEntry = CRL_Entry_new(crl->heap);
     if (crl->currentEntry == NULL) {
-        WOLFSSL_MSG("alloc CRL Entry failed");
+        WOLFSSL_MSG_CERT_LOG("alloc CRL Entry failed");
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(dcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
@@ -802,9 +806,11 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(crl->currentEntry->certs, dcrl, myBuffer, (word32)sz,
                    verify, crl->cm);
+
     if (ret != 0 && !(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)
                       && verify == NO_VERIFY)) {
-        WOLFSSL_MSG("ParseCRL error");
+        WOLFSSL_MSG_CERT_LOG("ParseCRL error");
+        WOLFSSL_MSG_CERT_EX("ParseCRL verify = %d, ret = %d", verify, ret);
         CRL_Entry_free(crl->currentEntry, crl->heap);
         crl->currentEntry = NULL;
     }
@@ -812,7 +818,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         ret = AddCRL(crl, dcrl, myBuffer,
                      ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
         if (ret != 0) {
-            WOLFSSL_MSG("AddCRL error");
+            WOLFSSL_MSG_CERT_LOG("AddCRL error");
             crl->currentEntry = NULL;
         }
     }
@@ -1636,7 +1642,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 
 #ifdef DEBUG_WOLFSSL
 #define SHOW_WINDOWS_ERROR() do {                               \
-    LPVOID lpMsgBuf;                                            \
+    LPVOID lpMsgBuf = NULL;                                     \
     DWORD dw = GetLastError();                                  \
     FormatMessageA(                                             \
         FORMAT_MESSAGE_ALLOCATE_BUFFER |                        \

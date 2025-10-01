@@ -422,44 +422,44 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_512
-            if (XSTRCMP(pqcAlg, "P256_ML_KEM_512") == 0) {
-                group = WOLFSSL_P256_ML_KEM_512;
+            if (XSTRCMP(pqcAlg, "SecP256r1MLKEM512") == 0) {
+                group = WOLFSSL_SECP256R1MLKEM512;
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_768
-            if (XSTRCMP(pqcAlg, "P384_ML_KEM_768") == 0) {
-                group = WOLFSSL_P384_ML_KEM_768;
+            if (XSTRCMP(pqcAlg, "SecP384r1MLKEM768") == 0) {
+                group = WOLFSSL_SECP384R1MLKEM768;
             }
-            else if (XSTRCMP(pqcAlg, "P256_ML_KEM_768") == 0) {
-                group = WOLFSSL_P256_ML_KEM_768;
+            else if (XSTRCMP(pqcAlg, "SecP256r1MLKEM768") == 0) {
+                group = WOLFSSL_SECP256R1MLKEM768;
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_1024
-            if (XSTRCMP(pqcAlg, "P521_ML_KEM_1024") == 0) {
-                group = WOLFSSL_P521_ML_KEM_1024;
+            if (XSTRCMP(pqcAlg, "SecP521r1MLKEM1024") == 0) {
+                group = WOLFSSL_SECP521R1MLKEM1024;
             }
-            else if (XSTRCMP(pqcAlg, "P384_ML_KEM_1024") == 0) {
-                group = WOLFSSL_P384_ML_KEM_1024;
+            else if (XSTRCMP(pqcAlg, "SecP384r1MLKEM1024") == 0) {
+                group = WOLFSSL_SECP384R1MLKEM1024;
             }
             else
         #endif
         #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
-            if (XSTRCMP(pqcAlg, "X25519_ML_KEM_512") == 0) {
-                group = WOLFSSL_X25519_ML_KEM_512;
+            if (XSTRCMP(pqcAlg, "X25519MLKEM512") == 0) {
+                group = WOLFSSL_X25519MLKEM512;
             }
             else
         #endif
         #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
-            if (XSTRCMP(pqcAlg, "X25519_ML_KEM_768") == 0) {
-                group = WOLFSSL_X25519_ML_KEM_768;
+            if (XSTRCMP(pqcAlg, "X25519MLKEM768") == 0) {
+                group = WOLFSSL_X25519MLKEM768;
             }
             else
         #endif
         #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
-            if (XSTRCMP(pqcAlg, "X448_ML_KEM_768") == 0) {
-                group = WOLFSSL_X448_ML_KEM_768;
+            if (XSTRCMP(pqcAlg, "X448MLKEM768") == 0) {
+                group = WOLFSSL_X448MLKEM768;
             }
             else
         #endif
@@ -554,19 +554,8 @@ static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
     int err;
     int ret;
 
-    do {
-        err = 0; /* reset error */
-        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
-        if (ret <= 0) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz),
+                                ret <= 0);
     if (ret != msgSz) {
         LOG_ERROR("SSL_write_early_data msg error %d, %s\n", err,
                                          wolfSSL_ERR_error_string((unsigned long)err, buffer));
@@ -666,20 +655,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
                 EarlyData(ctx, ssl, kEarlyMsg, sizeof(kEarlyMsg)-1, buffer);
             }
     #endif
-            do {
-                err = 0; /* reset error */
-                ret = wolfSSL_connect(ssl);
-                if (ret != WOLFSSL_SUCCESS) {
-                    err = wolfSSL_get_error(ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        /* returns the number of polled items or <0 for error */
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+            WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                        ret != WOLFSSL_SUCCESS);
         #ifdef WOLFSSL_EARLY_DATA
             EarlyDataStatus(ssl);
         #endif
@@ -770,19 +747,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     }
 #endif
 
-    do {
-        err = 0; /* reset error */
-        ret = wolfSSL_connect(ssl);
-        if (ret != WOLFSSL_SUCCESS) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                ret != WOLFSSL_SUCCESS);
     if (ret == WOLFSSL_SUCCESS) {
         /* Perform throughput test */
         char *tx_buffer, *rx_buffer;
@@ -822,19 +788,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
                     /* Perform TX */
                     start = current_time(1);
-                    do {
-                        err = 0; /* reset error */
-                        ret = wolfSSL_write(ssl, tx_buffer, len);
-                        if (ret <= 0) {
-                            err = wolfSSL_get_error(ssl, 0);
-                        #ifdef WOLFSSL_ASYNC_CRYPT
-                            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                                if (ret < 0) break;
-                            }
-                        #endif
-                        }
-                    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+                    WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write(ssl, tx_buffer, len),
+                                                ret <= 0);
                     if (ret != len) {
                         LOG_ERROR("SSL_write bench error %d!\n", err);
                         if (!exitWithRet)
@@ -1012,35 +967,17 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
 
     /* C: QUIT */
-    do {
-        ret = wolfSSL_write(ssl, starttlsCmd[5], (int)XSTRLEN(starttlsCmd[5]));
-        if (ret < 0) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(
+       ret = wolfSSL_write(ssl, starttlsCmd[5], (int)XSTRLEN(starttlsCmd[5])),
+       ret < 0);
     if (ret != (int)XSTRLEN(starttlsCmd[5])) {
         err_sys("failed to send SMTP QUIT command\n");
     }
 
     /* S: 221 2.0.0 Service closing transmission channel */
-    do {
-        ret = wolfSSL_read(ssl, tmpBuf, sizeof(tmpBuf)-1);
-        if (ret < 0) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(
+       ret = wolfSSL_read(ssl, tmpBuf, sizeof(tmpBuf)-1),
+       ret < 0);
     if (ret < 0) {
         err_sys("failed to read SMTP closing down response\n");
     }
@@ -1421,12 +1358,16 @@ static const char* client_usage_msg[][78] = {
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only:\n"
 #ifndef WOLFSSL_NO_ML_KEM
-            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
-            "\n"
-            "            P384_ML_KEM_768, P256_ML_KEM_768, P521_ML_KEM_1024,\n"
-            "            P384_ML_KEM_1024, X25519_ML_KEM_512, "
-            "X25519_ML_KEM_768,\n"
-            "            X448_ML_KEM_768\n"
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024,\n"
+            "            SecP256r1MLKEM512,\n"
+            "            SecP384r1MLKEM768,\n"
+            "            SecP521r1MLKEM1024,\n"
+            "            SecP256r1MLKEM768,\n"
+            "            SecP521r1MLKEM1024,\n"
+            "            SecP384r1MLKEM1024,\n"
+            "            X25519MLKEM512,\n"
+            "            X25519MLKEM768,\n"
+            "            X448MLKEM768\n"
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
             "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
@@ -1675,9 +1616,16 @@ static const char* client_usage_msg[][78] = {
 #ifdef HAVE_PQC
         "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ:\n"
 #ifndef WOLFSSL_NO_ML_KEM
-            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
-            "\n"
-            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024,\n"
+            "            SecP256r1MLKEM512,\n"
+            "            SecP384r1MLKEM768,\n"
+            "            SecP521r1MLKEM1024,\n"
+            "            SecP256r1MLKEM768,\n"
+            "            SecP521r1MLKEM1024,\n"
+            "            SecP384r1MLKEM1024,\n"
+            "            X25519MLKEM512,\n"
+            "            X25519MLKEM768,\n"
+            "            X448MLKEM768\n"
 #endif
 #ifdef WOLFSSL_MLKEM_KYBER
             "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
@@ -2273,7 +2221,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_RPK
     int useRPK = 0;
 #endif /* HAVE_RPK */
+#ifdef WOLFSSL_PEM_TO_DER
     int fileFormat = WOLFSSL_FILETYPE_PEM;
+#else
+    int fileFormat = WOLFSSL_FILETYPE_ASN1;
+#endif
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
     const char * policy = NULL;
 #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
@@ -4133,19 +4085,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (usePsk && earlyData)
             EarlyData(ctx, ssl, kEarlyMsg, sizeof(kEarlyMsg)-1, buffer);
 #endif
-        do {
-            err = 0; /* reset error */
-            ret = wolfSSL_connect(ssl);
-            if (ret != WOLFSSL_SUCCESS) {
-                err = wolfSSL_get_error(ssl, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_connect(ssl),
+                                    ret != WOLFSSL_SUCCESS);
     }
 #else
     timeoutConnect.tv_sec  = DEFAULT_TIMEOUT_SEC;

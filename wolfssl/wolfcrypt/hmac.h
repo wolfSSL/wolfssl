@@ -169,11 +169,11 @@ struct Hmac {
 
 /* does init */
 WOLFSSL_API int wc_HmacSetKey(Hmac* hmac, int type, const byte* key,
-                              word32 keySz);
+                              word32 length);
 WOLFSSL_API int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key,
                                  word32 length, int allowFlag);
-WOLFSSL_API int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz);
-WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* out);
+WOLFSSL_API int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length);
+WOLFSSL_API int wc_HmacFinal(Hmac* hmac, byte* hash);
 #ifdef WOLFSSL_KCAPI_HMAC
 WOLFSSL_API int wc_HmacSetKey_Software(Hmac* hmac, int type, const byte* key,
                                        word32 keySz);
@@ -216,6 +216,10 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     const byte* salt, word32 saltSz,
                     const byte* info, word32 infoSz,
                     byte* out, word32 outSz);
+WOLFSSL_API int wc_HKDF_ex(int type, const byte* inKey, word32 inKeySz,
+                       const byte* salt, word32 saltSz,
+                       const byte* info, word32 infoSz,
+                       byte* out, word32 outSz, void* heap, int devId);
 
 #endif /* HAVE_HKDF */
 

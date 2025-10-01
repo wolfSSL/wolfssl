@@ -148,7 +148,7 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #endif
 
 #if defined(WOLFSSL_RENESAS_FSPSM)
-    #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_fspsm_internal.h>
 #endif
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
@@ -286,7 +286,10 @@ struct Aes {
 #endif
 #ifdef HAVE_AESGCM
     Gcm gcm;
-
+#ifdef WOLFSSL_STM32U5_DHUK
+    byte dhukIV[16]; /* Used when unwrapping an encrypted key */
+    int dhukIVLen;
+#endif
 #ifdef WOLFSSL_SE050
     sss_symmetric_t aes_ctx; /* used as the function context */
     int ctxInitDone;
@@ -303,13 +306,13 @@ struct Aes {
 #endif
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
-    #if defined(WOLFSSL_LINUXKM) || defined(WC_WANT_FLAG_DONT_USE_AESNI)
-        /* Note, we can't support WC_FLAG_DONT_USE_AESNI by default because we
-         * need to support legacy applications that call wc_AesSetKey() on
+    #if defined(WOLFSSL_KERNEL_MODE) || defined(WC_WANT_FLAG_DONT_USE_VECTOR_OPS)
+        /* Note, we can't support WC_FLAG_DONT_USE_VECTOR_OPS by default because
+         * we need to support legacy applications that call wc_AesSetKey() on
          * uninited struct Aes.  For details see the software implementation of
          * wc_AesSetKeyLocal() (aes.c).
          */
-        #define WC_FLAG_DONT_USE_AESNI 2
+        #define WC_FLAG_DONT_USE_VECTOR_OPS 2
     #endif
 #endif /* WOLFSSL_AESNI */
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
@@ -320,7 +323,7 @@ struct Aes {
     byte use_sha3_hw_crypto;
 #endif
 #endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STM32U5_DHUK)
     int    devId;
     void*  devCtx;
 #endif

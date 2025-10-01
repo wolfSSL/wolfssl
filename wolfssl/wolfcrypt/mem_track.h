@@ -67,9 +67,6 @@
 #if defined(WOLFSSL_TRACK_MEMORY) || defined(HAVE_STACK_SIZE) || \
     defined(HAVE_STACK_SIZE_VERBOSE)
     #ifdef NO_STDIO_FILESYSTEM
-        /* if wc_port.h/linuxkm_wc_port.h doesn't define printf, then the user
-         * needs to define it.
-         */
         #define wc_mem_printf(...) printf(__VA_ARGS__)
     #else
         #include <stdio.h>
@@ -82,7 +79,7 @@
     !defined(WOLFSSL_STATIC_MEMORY)
 
 #define DO_MEM_STATS
-#if (defined(__linux__) && !defined(WOLFSSL_LINUXKM)) || defined(__MACH__)
+#if (defined(__linux__) && !defined(WOLFSSL_KERNEL_MODE)) || defined(__MACH__)
     #define DO_MEM_LIST
 #endif
 

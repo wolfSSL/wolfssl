@@ -8,6 +8,8 @@ include wolfssl/openssl/include.am
 endif
 
 EXTRA_DIST+= wolfssl/sniffer_error.rc
+EXTRA_DIST+= wolfssl/debug-trace-error-codes.h
+EXTRA_DIST+= wolfssl/debug-untrace-error-codes.h
 
 nobase_include_HEADERS+= \
                          wolfssl/error-ssl.h \
@@ -16,6 +18,7 @@ nobase_include_HEADERS+= \
                          wolfssl/sniffer.h \
                          wolfssl/callbacks.h \
                          wolfssl/certs_test.h \
+                         wolfssl/certs_test_sm.h \
                          wolfssl/test.h \
                          wolfssl/version.h \
                          wolfssl/ocsp.h \
@@ -36,6 +39,3 @@ endif
 
 wolfssl/debug-trace-error-codes.h wolfssl/debug-untrace-error-codes.h: wolfssl/wolfcrypt/error-crypt.h wolfssl/error-ssl.h
 	@support/gen-debug-trace-error-codes.sh
-
-DISTCLEANFILES += wolfssl/debug-trace-error-codes.h \
-                  wolfssl/debug-untrace-error-codes.h

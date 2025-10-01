@@ -3993,6 +3993,42 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
     }
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
+    if (!clientHello) {
+        TLSX* ext;
+        word32 modes;
+        KeyShareEntry* kse = NULL;
+
+        /* Get the PSK key exchange modes the client wants to negotiate. */
+        ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
+        if (ext == NULL) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        modes = ext->val;
+
+        ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
+        if (ext != NULL) {
+            kse = (KeyShareEntry*)ext->data;
+        }
+        /* Use (EC)DHE for forward-security if possible. */
+        if (((modes & (1 << PSK_DHE_KE)) != 0) && (!ssl->options.noPskDheKe) &&
+                                                (kse != NULL) && kse->derived) {
+            if ((kse->session != 0) && (kse->session != kse->group)) {
+                WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+                return PSK_KEY_ERROR;
+            }
+        }
+        else if (ssl->options.onlyPskDheKe) {
+            WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
+            return PSK_KEY_ERROR;
+        }
+        else if (ssl->options.noPskDheKe) {
+            ssl->arrays->preMasterSz = 0;
+        }
+    }
+    else
+#endif
     if (ssl->options.noPskDheKe) {
         ssl->arrays->preMasterSz = 0;
     }
@@ -5599,6 +5635,21 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     }
     else {
+        /* https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.4
+         * Clients MUST abort the handshake with an
+         * "illegal_parameter" alert if the HelloRetryRequest would not result
+         * in any change in the ClientHello.
+         */
+        /* Check if the HRR contained a cookie or a keyshare */
+        if (!ssl->options.hrrSentKeyShare
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+                && !ssl->options.hrrSentCookie
+#endif
+                ) {
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+            return DUPLICATE_MSG_E;
+        }
+
         ssl->options.tls1_3 = 1;
         ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
 
@@ -5729,11 +5780,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
 #endif
 
-#ifdef OPENSSL_EXTRA
-    if ((ret = CertSetupCbWrapper(ssl)) != 0)
-        return ret;
-#endif
-
     if (OPAQUE8_LEN > size)
         return BUFFER_ERROR;
 
@@ -5777,6 +5823,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return ret;
     }
     *inOutIdx += len;
+
+#ifdef OPENSSL_EXTRA
+    if ((ret = CertSetupCbWrapper(ssl)) != 0)
+        return ret;
+#endif
 
     if ((ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
         ((ssl->buffers.key && ssl->buffers.key->buffer)
@@ -6165,7 +6216,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
         if (ret != 0)
             return ret;
         if (binderLen != current->binderLen ||
-                             XMEMCMP(binder, current->binder, binderLen) != 0) {
+                             ConstantCompare(binder, current->binder,
+                                binderLen) != 0) {
             WOLFSSL_ERROR_VERBOSE(BAD_BINDER);
             return BAD_BINDER;
         }
@@ -6826,6 +6878,23 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS13 */
 
     if (!ssl->options.dtls) {
+#ifndef WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION
+        /* Check for TLS 1.3 version (0x0304) in legacy version field. RFC 8446
+         * Section 4.2.1 allows this action:
+         *
+         * "Servers MAY abort the handshake upon receiving a ClientHello with
+         * legacy_version 0x0304 or later."
+         *
+         * Note that if WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION is defined then the
+         * semantics of RFC 5246 Appendix E will be followed. A ServerHello with
+         * version 1.2 will be sent. The same is true if TLS 1.3 is not enabled.
+         */
+        if (args->pv.major == SSLv3_MAJOR && args->pv.minor >= TLSv1_3_MINOR) {
+            WOLFSSL_MSG("Legacy version field is TLS 1.3 or later. Aborting.");
+            ERROR_OUT(VERSION_ERROR, exit_dch);
+        }
+#endif /* WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION */
+
         /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
         if (args->pv.major > SSLv3_MAJOR || (args->pv.major == SSLv3_MAJOR &&
                                              args->pv.minor >= TLSv1_3_MINOR)) {
@@ -9495,7 +9564,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = (word16)args->sigLen;
             }
         #endif /* HAVE_DILITHIUM */
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+            !defined(WOLFSSL_RSA_VERIFY_ONLY)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 args->toSign = rsaSigBuf->buffer;
                 args->toSignSz = (word32)rsaSigBuf->length;
@@ -9516,7 +9586,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     XMEMCPY(args->sigData, sigOut, args->sigLen);
                 }
             }
-        #endif /* !NO_RSA */
+        #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
             /* Check for error */
             if (ret != 0) {
@@ -9549,7 +9619,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                   );
                 }
             #endif /* HAVE_ECC */
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                !defined(WOLFSSL_RSA_VERIFY_ONLY)
                 if (ssl->hsAltType == DYNAMIC_TYPE_RSA) {
                     args->toSign = rsaSigBuf->buffer;
                     args->toSignSz = (word32)rsaSigBuf->length;
@@ -9571,7 +9642,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                         XMEMCPY(args->altSigData, sigOut, args->altSigLen);
                     }
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
             #if defined(HAVE_FALCON)
                 if (ssl->hsAltType == DYNAMIC_TYPE_FALCON) {
                     ret = wc_falcon_sign_msg(args->altSigData,
@@ -10101,10 +10172,24 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_BUILD:
         {
             int validSigAlgo;
+            const Suites* suites = WOLFSSL_SUITES(ssl);
+            word16 i;
 
             /* Signature algorithm. */
             if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > totalSz) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
+            }
+
+            validSigAlgo = 0;
+            for (i = 0; i < suites->hashSigAlgoSz; i += 2) {
+                 if ((suites->hashSigAlgo[i + 0] == input[args->idx + 0]) &&
+                         (suites->hashSigAlgo[i + 1] == input[args->idx + 1])) {
+                     validSigAlgo = 1;
+                     break;
+                 }
+            }
+            if (!validSigAlgo) {
+                ERROR_OUT(INVALID_PARAMETER, exit_dcv);
             }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -10470,28 +10555,17 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if ((ssl->options.peerSigAlgo == ecc_dsa_sa_algo) &&
-                (ssl->peerEccDsaKeyPresent)) {
-            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                if (ssl->options.peerSigAlgo == sm2_sa_algo) {
-                    ret = Sm2wSm3Verify(ssl, TLS13_SM2_SIG_ID,
-                        TLS13_SM2_SIG_ID_SZ, sig, args->sigSz,
-                        args->sigData, args->sigDataSz,
-                        ssl->peerEccDsaKey, NULL);
-                }
-                else
-            #endif
-                {
-                    WOLFSSL_MSG("Doing ECC peer cert verify");
-                    ret = EccVerify(ssl, sig, args->sigSz,
-                        args->sigData, args->sigDataSz,
-                        ssl->peerEccDsaKey,
-                    #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerEccDsaKey
-                    #else
-                        NULL
-                    #endif
-                        );
-                }
+                    ssl->peerEccDsaKeyPresent) {
+                WOLFSSL_MSG("Doing ECC peer cert verify");
+                ret = EccVerify(ssl, sig, args->sigSz,
+                    args->sigData, args->sigDataSz,
+                    ssl->peerEccDsaKey,
+                #ifdef HAVE_PK_CALLBACKS
+                    &ssl->buffers.peerEccDsaKey
+                #else
+                    NULL
+                #endif
+                    );
 
                 if (ret >= 0) {
                     /* CLIENT/SERVER: data verified with public key from
@@ -10503,6 +10577,23 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif /* HAVE_ECC */
+        #if defined(HAVE_ECC) && defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+            if ((ssl->options.peerSigAlgo == sm2_sa_algo) &&
+                   ssl->peerEccDsaKeyPresent) {
+                WOLFSSL_MSG("Doing SM2/SM3 peer cert verify");
+                ret = Sm2wSm3Verify(ssl, TLS13_SM2_SIG_ID, TLS13_SM2_SIG_ID_SZ,
+                    sig, args->sigSz, args->sigData, args->sigDataSz,
+                    ssl->peerEccDsaKey, NULL);
+                if (ret >= 0) {
+                    /* CLIENT/SERVER: data verified with public key from
+                     * certificate. */
+                    ssl->options.peerAuthGood = 1;
+
+                    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
+                    ssl->peerEccDsaKeyPresent = 0;
+                }
+            }
+        #endif
         #ifdef HAVE_ED25519
             if ((ssl->options.peerSigAlgo == ed25519_sa_algo) &&
                 (ssl->peerEd25519KeyPresent)) {

@@ -1835,7 +1835,7 @@ WOLFSSL_API int   wolfSSL_ERR_GET_LIB(unsigned long err);
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long errNumber,char* data);
 WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
-                                           unsigned long sz);
+                                           unsigned long len);
 WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long e);
@@ -2425,6 +2425,17 @@ WOLFSSL_API void wolfSSL_set_client_CA_list(WOLFSSL* ssl,
                                                WOLF_STACK_OF(WOLFSSL_X509_NAME)*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl);
+
+WOLFSSL_API void wolfSSL_CTX_set0_CA_list(WOLFSSL_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names);
+WOLFSSL_API void wolfSSL_set0_CA_list(WOLFSSL *ssl,
+        WOLF_STACK_OF(WOLFSSL_X509_NAME) *names);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_CTX_get0_CA_list(
+        const WOLFSSL_CTX *ctx);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_get0_CA_list(
+        const WOLFSSL *ssl);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_get0_peer_CA_list(
+        const WOLFSSL *ssl);
 #endif /* !WOLFSSL_NO_CA_NAMES */
 
 typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
@@ -2536,6 +2547,9 @@ WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
         WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API int  wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
+WOLFSSL_API int  wolfSSL_add_client_CA(WOLFSSL *ssl, WOLFSSL_X509 *x509);
+WOLFSSL_API int  wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x509);
+WOLFSSL_API int  wolfSSL_add1_to_CA_list(WOLFSSL *ssl, WOLFSSL_X509 *x509);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_password(WOLFSSL_CTX* ctx, char* password);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_username(WOLFSSL_CTX* ctx, char* username);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_strength(WOLFSSL_CTX *ctx, int strength);
@@ -3719,8 +3733,9 @@ enum {
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
-    WOLFSSL_TEMP_CA = 3            /* Temp intermediate CA, only for use by
+    WOLFSSL_TEMP_CA  = 3,          /* Temp intermediate CA, only for use by
                                     * X509_STORE */
+    WOLFSSL_USER_INTER = 4         /* user added intermediate cert */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
@@ -4202,6 +4217,9 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm,
         const char* f, const char* d);
+    WOLFSSL_API int wolfSSL_CertManagerLoadCABufferType(WOLFSSL_CERT_MANAGER* cm,
+        const unsigned char* buff, long sz, int format, int userChain,
+        word32 flags, int type);
     WOLFSSL_API int wolfSSL_CertManagerLoadCABuffer_ex(WOLFSSL_CERT_MANAGER* cm,
         const unsigned char* buff, long sz, int format, int userChain,
         word32 flags);
@@ -4209,6 +4227,8 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
         const unsigned char* buff, long sz, int format);
 
     WOLFSSL_API int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wolfSSL_CertManagerUnloadTypeCerts(
+                                WOLFSSL_CERT_MANAGER* cm, byte type);
     WOLFSSL_API int wolfSSL_CertManagerUnloadIntermediateCerts(
         WOLFSSL_CERT_MANAGER* cm);
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -4226,7 +4246,7 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
     WOLFSSL_API int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm);
 #ifndef NO_WOLFSSL_CM_VERIFY
     WOLFSSL_API void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
-        VerifyCallback vc);
+        VerifyCallback verify_callback);
 #endif
     WOLFSSL_API int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm,
         const char* path, int type, int monitor);
@@ -4618,9 +4638,9 @@ enum {
      * https://github.com/post-quantum-cryptography/
      *      draft-kwiatkowski-tls-ecdhe-mlkem/
      */
-    WOLFSSL_P256_ML_KEM_768       = 4587,
-    WOLFSSL_X25519_ML_KEM_768     = 4588,
-    WOLFSSL_P384_ML_KEM_1024      = 4589,
+    WOLFSSL_SECP256R1MLKEM768     = 4587,
+    WOLFSSL_X25519MLKEM768        = 4588,
+    WOLFSSL_SECP384R1MLKEM1024    = 4589,
 
     /* Taken from OQS's openssl provider, see:
      * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
@@ -4631,11 +4651,11 @@ enum {
     WOLFSSL_P384_ML_KEM_768_OLD   = 12104,
     WOLFSSL_P521_ML_KEM_1024_OLD  = 12105,
 #endif
-    WOLFSSL_P256_ML_KEM_512       = 12107,
-    WOLFSSL_P384_ML_KEM_768       = 12108,
-    WOLFSSL_P521_ML_KEM_1024      = 12109,
-    WOLFSSL_X25519_ML_KEM_512     = 12214,
-    WOLFSSL_X448_ML_KEM_768       = 12215,
+    WOLFSSL_SECP256R1MLKEM512     = 12107,
+    WOLFSSL_SECP384R1MLKEM768     = 12108,
+    WOLFSSL_SECP521R1MLKEM1024    = 12109,
+    WOLFSSL_X25519MLKEM512        = 12214,
+    WOLFSSL_X448MLKEM768          = 12215,
 #endif /* WOLFSSL_NO_ML_KEM */
 #endif /* HAVE_PQC */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)
@@ -5550,7 +5570,24 @@ WOLFSSL_API void* wolfSSL_get_jobject(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags);
 WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int maxEvents,
     WOLF_EVENT_FLAG flags, int* eventCount);
+#define WOLFSSL_ASYNC_IF_PENDING                                \
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {                 \
+        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);  \
+        if (ret < 0) break;                                     \
+    }
+#else
+#define WOLFSSL_ASYNC_IF_PENDING if(0)(void)0;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#define WOLFSSL_ASYNC_WHILE_PENDING(call, cond)                 \
+    do {                                                        \
+        err = 0;                                                \
+        call;                                                   \
+        if (cond) {                                             \
+            err = wolfSSL_get_error(ssl, 0);                    \
+            WOLFSSL_ASYNC_IF_PENDING                            \
+        }                                                       \
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E))
 
 typedef void (*Rem_Sess_Cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 

@@ -180,12 +180,12 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     if (doPSK == 0) {
     #if defined(HAVE_ECC) && !defined(WOLFSSL_SNIFFER)
         /* ecc */
-        if (wolfSSL_CTX_use_certificate_file(ctx, eccCertFile, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_certificate_file(ctx, eccCertFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -196,7 +196,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -208,19 +208,19 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                     "Please run from wolfSSL home dir");
 
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ed448KeyFile,
-                WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS)
+                CERT_FILETYPE) != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
     #elif defined(NO_CERTS)
         /* do nothing, just don't load cert files */
     #else
         /* normal */
-        if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server cert file, "
                     "Please run from wolfSSL home dir");
 
-        if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM)
+        if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, CERT_FILETYPE)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -309,24 +309,13 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
         if (ssl == NULL) err_sys("SSL_new failed");
         wolfSSL_set_fd(ssl, clientfd);
         #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
-            wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
+            wolfSSL_SetTmpDH_file(ssl, dhParamFile, CERT_FILETYPE);
         #elif !defined(NO_DH)
             SetDH(ssl);  /* will repick suites with DHE, higher than PSK */
         #endif
 
-        do {
-            err = 0; /* Reset error */
-            ret = wolfSSL_accept(ssl);
-            if (ret != WOLFSSL_SUCCESS) {
-                err = wolfSSL_get_error(ssl, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_accept(ssl),
+                                    ret != WOLFSSL_SUCCESS);
         if (ret != WOLFSSL_SUCCESS) {
             fprintf(stderr, "SSL_accept error = %d, %s\n", err,
                 wolfSSL_ERR_error_string((unsigned long)err, buffer));
@@ -354,19 +343,8 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
         while (1) {
             int echoSz;
 
-            do {
-                err = 0; /* reset error */
-                ret = wolfSSL_read(ssl, command, sizeof(command)-1);
-                if (ret <= 0) {
-                    err = wolfSSL_get_error(ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+            WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_read(ssl, command, sizeof(command)-1),
+                                        ret <= 0);
             if (ret <= 0) {
                 if (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_ZERO_RETURN){
                     fprintf(stderr, "SSL_read echo error %d, %s!\n", err,
@@ -417,19 +395,8 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                 }
                 strncpy(command, resp, sizeof(command));
 
-                do {
-                    err = 0; /* reset error */
-                    ret = wolfSSL_write(write_ssl, command, echoSz);
-                    if (ret <= 0) {
-                        err = wolfSSL_get_error(write_ssl, 0);
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                            ret = wolfSSL_AsyncPoll(write_ssl, WOLF_POLL_FLAG_CHECK_HW);
-                            if (ret < 0) break;
-                        }
-                    #endif
-                    }
-                } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+                WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write(write_ssl, command, echoSz),
+                                            ret <= 0);
                 if (ret != echoSz) {
                     fprintf(stderr, "SSL_write get error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((unsigned long)err, buffer));
@@ -443,20 +410,8 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
             LIBCALL_CHECK_RET(fputs(command, fout));
         #endif
 
-            do {
-                err = 0; /* reset error */
-                ret = wolfSSL_write(write_ssl, command, echoSz);
-                if (ret <= 0) {
-                    err = wolfSSL_get_error(write_ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        ret = wolfSSL_AsyncPoll(write_ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
-
+            WOLFSSL_ASYNC_WHILE_PENDING(ret = wolfSSL_write(write_ssl, command, echoSz),
+                                        ret <= 0);
             if (ret != echoSz) {
                 fprintf(stderr, "SSL_write echo error = %d, %s\n", err,
                         wolfSSL_ERR_error_string((unsigned long)err, buffer));

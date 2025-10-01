@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_sha_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -374,10 +377,7 @@
         !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG)
         #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG
     #endif
-    #if (defined(LINUXKM_LKCAPI_REGISTER_ALL) && !defined(LINUXKM_LKCAPI_DONT_REGISTER_HASH_DRBG_DEFAULT)) && \
-        !defined(LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT)
-        #define LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT
-    #endif
+    /* setup for LINUXKM_LKCAPI_REGISTER_HASH_DRBG_DEFAULT is in linuxkm_wc_port.h */
 #else
     #undef LINUXKM_LKCAPI_REGISTER_HASH_DRBG
 #endif
@@ -980,6 +980,9 @@ static inline void wc_linuxkm_drbg_ctx_clear(struct wc_linuxkm_drbg_ctx * ctx)
             if (ctx->rngs[i].lock != 0) {
                 /* better to leak than to crash. */
                 pr_err("BUG: wc_linuxkm_drbg_ctx_clear called with DRBG #%d still locked.", i);
+                ctx->rngs = NULL;
+                ctx->n_rngs = 0;
+                return;
             }
             else
                 wc_FreeRng(&ctx->rngs[i].rng);
@@ -1289,7 +1292,7 @@ static int wc_linuxkm_drbg_loaded = 0;
 #ifdef LINUXKM_DRBG_GET_RANDOM_BYTES
 
 #if !(defined(HAVE_ENTROPY_MEMUSE) || defined(HAVE_INTEL_RDSEED) ||    \
-    defined(HAVE_AMD_RDSEED))
+      defined(HAVE_AMD_RDSEED) || defined(WC_LINUXKM_RDSEED_IN_GLUE_LAYER))
     #error LINUXKM_DRBG_GET_RANDOM_BYTES requires a native or intrinsic entropy source.
 #endif
 
@@ -2045,3 +2048,5 @@ static int wc_linuxkm_drbg_cleanup(void) {
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_HASH_DRBG */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

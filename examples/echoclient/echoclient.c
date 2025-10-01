@@ -228,19 +228,7 @@ void echoclient_test(void* args)
 
     SSL_set_fd(ssl, sockfd);
 
-    do {
-        err = 0; /* Reset error */
-        ret = SSL_connect(ssl);
-        if (ret != WOLFSSL_SUCCESS) {
-            err = SSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+    WOLFSSL_ASYNC_WHILE_PENDING(ret = SSL_connect(ssl), ret != WOLFSSL_SUCCESS);
     if (ret != WOLFSSL_SUCCESS) {
         fprintf(stderr, "SSL_connect error %d, %s\n", err,
             ERR_error_string((unsigned long)err, buffer));
@@ -251,19 +239,7 @@ void echoclient_test(void* args)
 
         sendSz = (int)XSTRLEN(msg);
 
-        do {
-            err = 0; /* reset error */
-            ret = SSL_write(ssl, msg, sendSz);
-            if (ret <= 0) {
-                err = SSL_get_error(ssl, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                    ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+        WOLFSSL_ASYNC_WHILE_PENDING(ret = SSL_write(ssl, msg, sendSz), ret <= 0);
         if (ret != sendSz) {
             fprintf(stderr, "SSL_write msg error %d, %s\n", err,
                 ERR_error_string((unsigned long)err, buffer));
@@ -286,19 +262,8 @@ void echoclient_test(void* args)
         while (sendSz)
     #endif
         {
-            do {
-                err = 0; /* reset error */
-                ret = SSL_read(ssl, reply, sizeof(reply)-1);
-                if (ret <= 0) {
-                    err = SSL_get_error(ssl, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
+            WOLFSSL_ASYNC_WHILE_PENDING(
+                ret = SSL_read(ssl, reply, sizeof(reply)-1), ret <= 0);
             if (ret > 0) {
                 reply[ret] = 0;
                 LIBCALL_CHECK_RET(fputs(reply, fout));

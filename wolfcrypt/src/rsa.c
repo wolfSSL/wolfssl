@@ -42,6 +42,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_AFALG_XILINX_RSA
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
@@ -56,12 +57,12 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)
     #undef RESTORE_VECTOR_REGISTERS
-    #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
+    #define RESTORE_VECTOR_REGISTERS() RESTORE_NO_VECTOR_REGISTERS()
 #endif
 
 /*
@@ -1561,11 +1562,11 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
                             byte* optLabel, word32 labelLen, void* heap)
 {
     word32 hLen;
-    int ret;
+    volatile int ret;
     byte h[WC_MAX_DIGEST_SIZE]; /* max digest size */
     word32 idx;
     word32 i;
-    word32 inc;
+    volatile word32 inc;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* tmp  = NULL;
@@ -1850,9 +1851,11 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     else {
-        unsigned int j;
-        word16 pastSep = 0;
-        byte   invalid = 0;
+        unsigned int    j;
+        volatile word16 pastSep = 0;
+        volatile byte   invalid = 0;
+        volatile byte   minPad;
+        volatile int    invalidMask;
 
         i = 0;
         /* Decrypted with private key - unpad must be constant time. */
@@ -1864,7 +1867,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         }
 
         /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
-        invalid |= ctMaskLT(i, RSA_MIN_PAD_SZ);
+        minPad = ctMaskLT(i, RSA_MIN_PAD_SZ);
+        invalid |= minPad;
         /* Must have seen separator. */
         invalid |= (byte)~pastSep;
         /* First byte must be 0x00. */
@@ -1873,7 +1877,8 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
 
         *output = (byte *)(pkcsBlock + i);
-        ret = ((int)-1 + (int)(invalid >> 7)) & ((int)pkcsBlockLen - i);
+        invalidMask = (int)-1 + (int)(invalid >> 7);
+        ret = invalidMask & ((int)pkcsBlockLen - i);
     }
 #endif
 
@@ -2593,7 +2598,7 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
     }
 #else
     if (ret == 0 && (mp_iszero(&key->p) || mp_iszero(&key->q) ||
-            mp_iszero(&key->dP) || mp_iszero(&key->dQ))) {
+            mp_iszero(&key->dP) || mp_iszero(&key->dQ) || mp_iszero(&key->u))) {
         if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY) {
             ret = MP_EXPTMOD_E;
         }
@@ -2748,7 +2753,7 @@ static int RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         case RSA_PUBLIC_ENCRYPT:
         case RSA_PUBLIC_DECRYPT:
             if (mp_exptmod_nct(tmp, &key->e, &key->n, tmp) != MP_OKAY) {
-                WOLFSSL_MSG("mp_exptmod_nct failed");
+                WOLFSSL_MSG_CERT_LOG("mp_exptmod_nct failed");
                 ret = MP_EXPTMOD_E;
             }
             break;
@@ -2845,7 +2850,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     *outLen = keyLen;
     return RsaFunctionSync(in, inLen, out, outLen, type, key, rng);
 #endif /* WOLFSSL_SP_MATH */
-}
+} /* wc_RsaFunctionSync */
 #endif /* WOLF_CRYPTO_CB_ONLY_RSA */
 #endif
 
@@ -3601,6 +3606,9 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
         ret = wc_CryptoCb_RsaPad(in, inLen, out,
                             &outLen, rsa_type, key, rng, &padding);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            if (outPtr != NULL) {
+                *outPtr = out;
+            }
             if (ret == 0) {
                 ret = (int)outLen;
             }
@@ -4465,7 +4473,7 @@ int wc_RsaExportKey(RsaKey* key,
 #endif
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 
 /* Check that |p-q| > 2^((size/2)-100) */
 static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size, int* valid)
@@ -4759,12 +4767,11 @@ int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
     if (ret == MP_OKAY)
         ret = mp_read_unsigned_bin(e, eRaw, eRawSz);
 
-    if (ret == MP_OKAY) {
+    if (ret == MP_OKAY)
         SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == MP_OKAY)
-            ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
-
+    if (ret == 0) {
+        ret = _CheckProbablePrime(p, Q, e, nlen, isPrime, rng);
         RESTORE_VECTOR_REGISTERS();
     }
 
@@ -5169,7 +5176,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 #endif
 
-    RESTORE_VECTOR_REGISTERS();
+    if (err != WC_NO_ERR_TRACE(WC_ACCEL_INHIBIT_E))
+        RESTORE_VECTOR_REGISTERS();
 
     /* Last value p - 1. */
     mp_forcezero(tmp1);

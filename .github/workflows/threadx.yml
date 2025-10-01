@@ -1,0 +1,57 @@
+name: ThreadXBuild Test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+    - name: Cache NetXDuo bundle
+      id: cache-netxduo
+      uses: actions/cache@v3
+      with:
+        path: ./v6.4.3_rel.tar.gz
+        key: netxduo-bundle-v6.4.3_rel
+
+    - name: Download NetXDuo bundle if not cached
+      if: steps.cache-netxduo.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/eclipse-threadx/netxduo/archive/refs/tags/v6.4.3_rel.tar.gz
+
+    - name: Extract NetXDuo bundle
+      run: |
+        mkdir -p netxduo_src
+        tar -xzf v6.4.3_rel.tar.gz -C netxduo_src --strip-components=1
+
+    - name: Install NetXDuo Dependencies
+      working-directory: ./netxduo_src
+      run: |
+        ./scripts/install.sh
+
+    - name: Configure NetX with DNS Client Support
+      working-directory: ./netxduo_src
+      run: |
+        cp addons/dns/nxd_dns.h ./common/inc/
+        cp addons/dns/nxd_dns.c ./common/src/
+
+    - name: Build NetXDuo with DNS Support
+      working-directory: ./netxduo_src
+      run: |
+        rm -rf test/cmake/threadx
+        rm -rf test/cmake/filex
+        ./scripts/build_nxd64.sh
+
+    - name: Build wolfSSL
+      uses: wolfSSL/actions-build-autotools-project@v1
+      with:
+        path: wolfssl
+        configure: --enable-enckeys --disable-examples --disable-benchmark --disable-crypttests CPPFLAGS="-DTHREADX -DHAVE_NETX -DWOLFSSL_USER_IO -I${{ github.workspace }}/netxduo_src/common/inc -I${{ github.workspace }}/netxduo_src/ports/linux/gnu/inc -I${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/inc" LDFLAGS="-L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/default_build_coverage/netxduo -L${{ github.workspace }}/netxduo_src/test/cmake/netxduo64/build/libs/threadx"  LIBS="-lnetxduo -lthreadx"
+        install: false
+

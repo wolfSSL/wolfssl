@@ -28,6 +28,7 @@
  */
 
 #ifdef WOLFSSL_SYS_CA_CERTS
+/* Will be turned off automatically when NO_FILESYSTEM is defined */
 
 #ifdef _WIN32
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
@@ -58,6 +59,8 @@
         #warning ssl_load.c does not need to be compiled separately from ssl.c
     #endif
 #else
+
+#include <wolfssl/wolfcrypt/logging.h>
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* PSK field of context when it exists. */
@@ -2721,7 +2724,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         &sz);
     if ((ret == 0) && (type == DETECT_CERT_TYPE) &&
             (format != WOLFSSL_FILETYPE_PEM)) {
-        WOLFSSL_MSG("Cannot detect certificate type when not PEM");
+        WOLFSSL_MSG_CERT_LOG("Cannot detect certificate type when not PEM");
         ret = WOLFSSL_BAD_CERTTYPE;
     }
     /* Try to detect type by parsing cert header and footer. */
@@ -2729,17 +2732,24 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #if !defined(NO_CODING) && !defined(WOLFSSL_NO_PEM)
         const char* header = NULL;
         const char* footer = NULL;
+#ifdef HAVE_CRL
+        WOLFSSL_MSG_CERT("Detecting cert type... (including CRL_TYPE)");
+#else
+        WOLFSSL_MSG_CERT("Detecting cert type... (HAVE_CRL not defined)");
+#endif
 
         /* Look for CA header and footer - same as CERT_TYPE. */
         if (wc_PemGetHeaderFooter(CA_TYPE, &header, &footer) == 0 &&
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
             type = CA_TYPE;
+            WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CA_TYPE = %d:", type);
         }
 #ifdef HAVE_CRL
         /* Look for CRL header and footer. */
         else if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) != NULL)) {
             type = CRL_TYPE;
+            WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CRL_TYPE = %d:", type);
         }
 #endif
         /* Look for cert header and footer - same as CA_TYPE. */
@@ -2747,12 +2757,13 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                 (XSTRNSTR((char*)content.buffer, header, (word32)sz) !=
                     NULL)) {
             type = CERT_TYPE;
+            WOLFSSL_MSG_CERT_LOG_EX("Detected cert type CERT_TYPE = %d:", type);
         }
         else
-#endif
+#endif /* !NO_CODING && !WOLFSSL_NO_PEM */
         {
             /* Not a header that we support. */
-            WOLFSSL_MSG("Failed to detect certificate type");
+            WOLFSSL_MSG_CERT_LOG("Failed to detect certificate type");
 #ifdef WOLFSSL_DEBUG_CERTIFICATE_LOADS
             WOLFSSL_DEBUG_PRINTF(
                 "ERROR: ProcessFile: Failed to detect certificate type"
@@ -2761,17 +2772,19 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #endif
             ret = WOLFSSL_BAD_CERTTYPE;
         }
-    }
+    } /* (ret == 0) && (type == DETECT_CERT_TYPE) */
+
     if (ret == 0) {
         /* When CA or trusted peer and PEM - process as a chain buffer. */
         if (((type == CA_TYPE) || (type == TRUSTED_PEER_TYPE)) &&
                 (format == WOLFSSL_FILETYPE_PEM)) {
+            WOLFSSL_MSG_CERT("Processing cert chain buffer...");
             ret = ProcessChainBuffer(ctx, ssl, content.buffer, sz, type,
                 verify, fname);
         }
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE) {
-            /* Load the CRL. */
+            WOLFSSL_MSG_CERT("Loading CRL...");
             ret = BufferLoadCRL(crl, content.buffer, sz, format, verify);
         }
 #endif
@@ -3005,9 +3018,15 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         }
 
         if (file != NULL) {
+#ifdef WOLFSSL_PEM_TO_DER
             /* Load the PEM formatted CA file */
             ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0,
                 NULL, verify);
+#else
+            /* Load the DER formatted CA file */
+            ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_ASN1, CA_TYPE, NULL, 0,
+                NULL, verify);
+#endif
 #ifndef NO_WOLFSSL_DIR
             if (ret == 1) {
                 /* Include success in overall count. */
@@ -3016,7 +3035,11 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
 #endif
 #if defined(WOLFSSL_TRUST_PEER_CERT) && defined(OPENSSL_COMPATIBLE_DEFAULTS)
             /* Load CA as a trusted peer certificate. */
+#ifdef WOLFSSL_PEM_TO_DER
             ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_PEM);
+#else
+            ret = wolfSSL_CTX_trust_peer_cert(ctx, file, WOLFSSL_FILETYPE_ASN1);
+#endif
             if (ret != 1) {
                 WOLFSSL_MSG("wolfSSL_CTX_trust_peer_cert error");
             }
@@ -3579,8 +3602,13 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
     /* process up to MAX_CHAIN_DEPTH plus subject cert */
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file");
 
+#ifdef WOLFSSL_PEM_TO_DER
     ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE, NULL, 1, NULL,
         GET_VERIFY_SETTING_CTX(ctx));
+#else
+    ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_ASN1, CERT_TYPE, NULL, 1, NULL,
+        GET_VERIFY_SETTING_CTX(ctx));
+#endif
 
     /* Return 1 on success or 0 on failure. */
     return WS_RC(ret);
@@ -3882,8 +3910,13 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
         ret = BAD_FUNC_ARG;
     }
     else {
+#ifdef WOLFSSL_PEM_TO_DER
         ret = ProcessFile(ssl->ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE, ssl,
             1, NULL, GET_VERIFY_SETTING_SSL(ssl));
+#else
+        ret = ProcessFile(ssl->ctx, file, WOLFSSL_FILETYPE_ASN1, CERT_TYPE, ssl,
+            1, NULL, GET_VERIFY_SETTING_SSL(ssl));
+#endif
         /* Return 1 on success or 0 on failure. */
         ret = WS_RC(ret);
     }
@@ -4470,8 +4503,13 @@ int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
 int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
     const unsigned char* in, long sz)
 {
+#ifdef WOLFSSL_PEM_TO_DER
     return wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, in, sz,
         WOLFSSL_FILETYPE_PEM);
+#else
+    return wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, in, sz,
+        WOLFSSL_FILETYPE_ASN1);
+#endif
 }
 
 /* Load a user certificate in a buffer into SSL.
@@ -4810,8 +4848,13 @@ int wolfSSL_use_certificate_chain_buffer_format(WOLFSSL* ssl,
 int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl, const unsigned char* in,
     long sz)
 {
+#ifdef WOLFSSL_PEM_TO_DER
     return wolfSSL_use_certificate_chain_buffer_format(ssl, in, sz,
         WOLFSSL_FILETYPE_PEM);
+#else
+    return wolfSSL_use_certificate_chain_buffer_format(ssl, in, sz,
+        WOLFSSL_FILETYPE_ASN1);
+#endif
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \

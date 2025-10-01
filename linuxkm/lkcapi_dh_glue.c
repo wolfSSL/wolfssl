@@ -20,6 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* included by linuxkm/lkcapi_glue.c */
+#ifndef WC_SKIP_INCLUDED_C_FILES
+
 #ifndef LINUXKM_LKCAPI_REGISTER
     #error lkcapi_dh_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
@@ -33,9 +36,8 @@
 #endif
 
 #if defined(LINUXKM_LKCAPI_REGISTER_DH) && \
-    (!defined(WOLFSSL_DH_EXTRA) ||         \
-     !defined(WOLFSSL_DH_GEN_PUB))
-     /* not supported without WOLFSSL_DH_EXTRA && WOLFSSL_DH_GEN_PUB */
+    !defined(WOLFSSL_DH_EXTRA)
+     /* not supported without WOLFSSL_DH_EXTRA */
     #undef LINUXKM_LKCAPI_REGISTER_DH
 
     #if defined(LINUXKM_LKCAPI_REGISTER_ALL_KCONFIG) && defined(CONFIG_CRYPTO_DH)
@@ -2966,3 +2968,5 @@ test_kpp_end:
 }
 
 #endif /* LINUXKM_LKCAPI_REGISTER_DH */
+
+#endif /* !WC_SKIP_INCLUDED_C_FILES */

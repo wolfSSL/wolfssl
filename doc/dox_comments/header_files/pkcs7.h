@@ -1,6 +1,26 @@
 /*!
     \ingroup PKCS7
 
+    \brief Callback used for a custom AES key wrap/unwrap operation.
+
+    \return The size of the wrapped/unwrapped key written to the output buffer
+    should be returned on success. A 0 return value or error code (< 0)
+    indicates a failure.
+
+    \param[in] key Specify the key to use.
+    \param[in] keySz Size of the key to use.
+    \param[in] in Specify the input data to wrap/unwrap.
+    \param[in] inSz Size of the input data.
+    \param[in] wrap 1 if the requested operation is a key wrap, 0 for unwrap.
+    \param[out] out Specify the output buffer.
+    \param[out] outSz Size of the output buffer.
+*/
+typedef int (*CallbackAESKeyWrapUnwrap)(const byte* key, word32 keySz,
+        const byte* in, word32 inSz, int wrap, byte* out, word32 outSz);
+
+/*!
+    \ingroup PKCS7
+
     \brief This function initializes a PKCS7 structure with a DER-formatted
     certificate. To initialize an empty PKCS7 structure, one can pass in a NULL
     cert and 0 for certSz.
@@ -480,6 +500,21 @@ int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
 /*!
     \ingroup PKCS7
 
+    \brief Set the callback function to be used to perform a custom AES key
+    wrap/unwrap operation.
+
+    \retval 0 Callback function was set successfully
+    \retval BAD_FUNC_ARG Parameter pkcs7 is NULL
+
+    \param pkcs7 pointer to the PKCS7 structure
+    \param aesKeyWrapCb pointer to custom AES key wrap/unwrap function
+*/
+int wc_PKCS7_SetAESKeyWrapUnwrapCb(wc_PKCS7* pkcs7,
+        CallbackAESKeyWrapUnwrap aesKeyWrapCb);
+
+/*!
+    \ingroup PKCS7
+
     \brief This function builds the PKCS7 enveloped data content type, encoding
     the PKCS7 structure into a buffer containing a parsable PKCS7 enveloped
     data packet.
@@ -497,6 +532,8 @@ int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     number generator for encryption
     \return DRBG_FAILED Returned if there is an error generating numbers with
     the random number generator used for encryption
+    \return NOT_COMPILED_IN may be returned if using an ECC key and wolfssl was
+    built without HAVE_X963_KDF support
 
     \param pkcs7 pointer to the PKCS7 structure to encode
     \param output pointer to the buffer in which to store the encoded
@@ -538,6 +575,13 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     type, decoding the message into output. It uses the private key of the
     PKCS7 object passed in to decrypt the message.
 
+    Note that if the EnvelopedData is encrypted using an ECC key and the
+    KeyAgreementRecipientInfo structure, then either the HAVE_AES_KEYWRAP
+    build option should be enabled to enable the wolfcrypt built-in AES key
+    wrap/unwrap functionality, or a custom AES key wrap/unwrap callback should
+    be set with wc_PKCS7_SetAESKeyWrapUnwrapCb(). If neither of these is true,
+    decryption will fail.
+
     \return On successfully extracting the information from the message,
     returns the bytes written to output
     \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
@@ -575,6 +619,8 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
     verification
     \return MP_MEM may be returned if there is an error during signature
     verification
+    \return NOT_COMPILED_IN may be returned if the EnvelopedData is encrypted
+    using an ECC key and wolfssl was built without HAVE_X963_KDF support
 
     \param pkcs7 pointer to the PKCS7 structure containing the private key with
     which to decode the enveloped data package
@@ -607,6 +653,31 @@ int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
 */
 int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         word32 pkiMsgSz, byte* output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function extracts the KeyAgreeRecipientIdentifier object from
+    an EnvelopedData package containing a KeyAgreeRecipientInfo RecipientInfo
+    object. Only the first KeyAgreeRecipientIdentifer found in the first
+    RecipientInfo is copied. This function does not support multiple
+    RecipientInfo objects or multiple RecipientEncryptedKey objects within an
+    KeyAgreeRecipientInfo.
+
+    \return Returns 0 on success.
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid.
+    \return ASN_PARSE_E Returned if there is an error parsing the input message.
+    \return PKCS7_OID_E Returned if the input message is not an enveloped
+    data type.
+    \return BUFFER_E Returned if there is not enough room in the output buffer.
+
+    \param[in] in Input buffer containing the EnvelopedData ContentInfo message.
+    \param[in] inSz Size of the input buffer.
+    \param[out] out Output buffer.
+    \param[in,out] outSz Output buffer size on input, Size written on output.
+*/
+int wc_PKCS7_GetEnvelopedDataKariRid(const byte * in, word32 inSz,
+        byte * out, word32 * outSz);
 
 /*!
     \ingroup PKCS7
@@ -712,3 +783,97 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
 */
 int wc_PKCS7_DecodeEncryptedKeyPackage(wc_PKCS7 * pkcs7,
         byte * pkiMsg, word32 pkiMsgSz, byte * output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a SymmetricKeyPackage attribute.
+
+    \return 0 The requested attribute has been successfully located.
+    attr and attrSz output variables are populated with the address and size of
+    the attribute. The attribute will be in the same buffer passed in via the
+    skp input pointer.
+    \return BAD_FUNC_ARG One of the input parameters is invalid.
+    \return ASN_PARSE_E An error was encountered parsing the input object.
+    \return BAD_INDEX_E The requested attribute index was invalid.
+
+    \param[in] skp Input buffer containing the SymmetricKeyPackage object.
+    \param[in] skpSz Size of the SymmetricKeyPackage object.
+    \param[in] index Index of the attribute to access.
+    \param[out] attr Buffer in which to store the pointer to the requested
+    attribute object.
+    \param[out] attrSz Buffer in which to store the size of the requested
+    attribute object.
+*/
+int wc_PKCS7_DecodeSymmetricKeyPackageAttribute(const byte * skp,
+        word32 skpSz, size_t index, const byte ** attr, word32 * attrSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a SymmetricKeyPackage key.
+
+    \return 0 The requested key has been successfully located.
+    key and keySz output variables are populated with the address and size of
+    the key. The key will be in the same buffer passed in via the
+    skp input pointer.
+    \return BAD_FUNC_ARG One of the input parameters is invalid.
+    \return ASN_PARSE_E An error was encountered parsing the input object.
+    \return BAD_INDEX_E The requested key index was invalid.
+
+    \param[in] skp Input buffer containing the SymmetricKeyPackage object.
+    \param[in] skpSz Size of the SymmetricKeyPackage object.
+    \param[in] index Index of the key to access.
+    \param[out] key Buffer in which to store the pointer to the requested
+    key object.
+    \param[out] keySz Buffer in which to store the size of the requested
+    key object.
+*/
+int wc_PKCS7_DecodeSymmetricKeyPackageKey(const byte * skp,
+        word32 skpSz, size_t index, const byte ** key, word32 * keySz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a OneSymmetricKey attribute.
+
+    \return 0 The requested attribute has been successfully located.
+    attr and attrSz output variables are populated with the address and size of
+    the attribute. The attribute will be in the same buffer passed in via the
+    osk input pointer.
+    \return BAD_FUNC_ARG One of the input parameters is invalid.
+    \return ASN_PARSE_E An error was encountered parsing the input object.
+    \return BAD_INDEX_E The requested attribute index was invalid.
+
+    \param[in] osk Input buffer containing the OneSymmetricKey object.
+    \param[in] oskSz Size of the OneSymmetricKey object.
+    \param[in] index Index of the attribute to access.
+    \param[out] attr Buffer in which to store the pointer to the requested
+    attribute object.
+    \param[out] attrSz Buffer in which to store the size of the requested
+    attribute object.
+*/
+int wc_PKCS7_DecodeOneSymmetricKeyAttribute(const byte * osk,
+        word32 oskSz, size_t index, const byte ** attr, word32 * attrSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function provides access to a OneSymmetricKey key.
+
+    \return 0 The requested key has been successfully located.
+    key and keySz output variables are populated with the address and size of
+    the key. The key will be in the same buffer passed in via the
+    osk input pointer.
+    \return BAD_FUNC_ARG One of the input parameters is invalid.
+    \return ASN_PARSE_E An error was encountered parsing the input object.
+
+    \param[in] osk Input buffer containing the OneSymmetricKey object.
+    \param[in] oskSz Size of the OneSymmetricKey object.
+    \param[out] key Buffer in which to store the pointer to the requested
+    key object.
+    \param[out] keySz Buffer in which to store the size of the requested
+    key object.
+*/
+int wc_PKCS7_DecodeOneSymmetricKeyKey(const byte * osk,
+        word32 oskSz, const byte ** key, word32 * keySz);

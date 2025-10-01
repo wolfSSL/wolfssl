@@ -90,7 +90,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #if defined(WOLFSSL_RENESAS_FSPSM)
-    #include <wolfssl/wolfcrypt/port/renesas/renesas-fspsm-crypt.h>
+    #include <wolfssl/wolfcrypt/port/renesas/renesas_fspsm_internal.h>
 #endif
 
 #ifdef __cplusplus
@@ -395,8 +395,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                        RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
-#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)
+#ifdef WOLFSSL_KEY_TO_DER
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
 #endif
 

@@ -650,6 +650,12 @@ const char* wc_GetErrorString(int error)
     case WC_ACCEL_INHIBIT_E:
         return "Crypto acceleration is currently inhibited";
 
+    case BAD_INDEX_E:
+        return "Bad index";
+
+    case INTERRUPTED_E:
+        return "Process interrupted";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

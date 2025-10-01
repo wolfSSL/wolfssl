@@ -1,4 +1,4 @@
-/* linuxkm/pie_first.c -- memory fenceposts for checking binary image stability
+/* test_pkcs12.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,20 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef __PIE__
-    #error pie_first.c must be compiled -fPIE.
-#endif
+#ifndef WOLFCRYPT_TEST_PKCS12_H
+#define WOLFCRYPT_TEST_PKCS12_H
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <tests/api/api_decl.h>
 
-#include <wolfssl/ssl.h>
+int test_wc_i2d_PKCS12(void);
+int test_wc_PKCS12_create(void);
 
-int wolfCrypt_PIE_first_function(void);
-int wolfCrypt_PIE_first_function(void) {
-    return 0;
-}
+#define TEST_PKCS12_DECLS                                       \
+    TEST_DECL_GROUP("pkcs12", test_wc_i2d_PKCS12),              \
+    TEST_DECL_GROUP("pkcs12", test_wc_PKCS12_create)
 
-const unsigned int wolfCrypt_PIE_rodata_start[];
-const unsigned int wolfCrypt_PIE_rodata_start[] =
-/* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
-{ 0x8208f9ca, 0x9daf4ac9 };
+#endif /* WOLFCRYPT_TEST_PKCS12_H */

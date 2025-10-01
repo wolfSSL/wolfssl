@@ -1,4 +1,4 @@
-/* linuxkm/pie_last.c -- memory fenceposts for checking binary image stability
+/* test_ossl_dsa.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,20 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef __PIE__
-    #error pie_last.c must be compiled -fPIE.
-#endif
+#ifndef WOLFCRYPT_TEST_OSSL_DSA_H
+#define WOLFCRYPT_TEST_OSSL_DSA_H
 
-#include <wolfssl/wolfcrypt/libwolfssl_sources.h>
+#include <tests/api/api_decl.h>
 
-#include <wolfssl/ssl.h>
+int test_DSA_do_sign_verify(void);
+int test_wolfSSL_DSA_generate_parameters(void);
+int test_wolfSSL_DSA_SIG(void);
 
-int wolfCrypt_PIE_last_function(void);
-int wolfCrypt_PIE_last_function(void) {
-    return 1;
-}
+#define TEST_OSSL_DSA_DECLS                                             \
+    TEST_DECL_GROUP("ossl_dsa", test_DSA_do_sign_verify),               \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_generate_parameters),  \
+    TEST_DECL_GROUP("ossl_dsa", test_wolfSSL_DSA_SIG)
 
-const unsigned int wolfCrypt_PIE_rodata_end[];
-const unsigned int wolfCrypt_PIE_rodata_end[] =
-/* random values, analogous to wolfCrypt_FIPS_ro_{start,end} */
-{ 0xa4aaaf71, 0x55c4b7d0 };
+#endif /* WOLFCRYPT_TEST_OSSL_DSA_H */
+

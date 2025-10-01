@@ -9,7 +9,7 @@ NOTE: * wolfSSL is now GPLv3 instead of GPLv2
             * MD5 is now disabled by default
 
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request number where the code change was added.
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request number where the code change was added.
 
 ## Vulnerabilities
 
@@ -68,7 +68,8 @@ Blinding enabled by default in PR https://github.com/wolfSSL/wolfssl/pull/8736
 * Implemented distro fix for the Linux Kernel Module. (PR #8994)
 * Fixed page-flags-h in the Linux Kernel Module. (PR #9001)
 * Added MODULE_LICENSE for the Linux Kernel Module. (PR #9005)
-* Post-Quantum Cryptography (PQC) & Asymmetric Algorithms
+
+### Post-Quantum Cryptography (PQC) & Asymmetric Algorithms
 * Kyber has been updated to the MLKEM ARM file for Zephyr (PR #8781)
 * Backward compatibility has been implemented for ML_KEM IDs (PR #8827)
 * ASN.1 is now ensured to be enabled when only building PQ algorithms (PR #8884)
@@ -207,7 +208,7 @@ https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assur
 
 NOTE: * --enable-heapmath is deprecated
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 
@@ -423,7 +424,7 @@ NOTE:
  user_settings.h.
 
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 
@@ -543,7 +544,7 @@ https://www.wolfssl.com/about/wolfssl-software-development-process-quality-assur
 
 NOTE: * --enable-heapmath is being deprecated and will be removed by end of 2024
 
-PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
+PR stands for Pull Request, and PR (NUMBER) references a GitHub pull request
  number where the code change was added.
 
 

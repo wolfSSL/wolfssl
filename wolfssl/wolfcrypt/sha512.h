@@ -129,7 +129,7 @@ enum {
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
-    #include "wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h"
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas_fspsm_internal.h"
 
 #else
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
@@ -209,6 +209,9 @@ struct wc_Sha512 {
 #if defined(STM32_HASH_SHA512)
     STM32_HASH_Context stmCtx;
 #endif
+#if defined(WOLFSSL_SHA512_HASHTYPE)
+    int hashType; /* used to determine which SHA512 is used */
+#endif /* WOLFSSL_SHA512_HASHTYPE */
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 

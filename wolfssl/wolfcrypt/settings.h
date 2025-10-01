@@ -319,11 +319,24 @@
         #define WOLFSSL_USER_IO
         #define WOLFSSL_NO_SOCK
         #define NO_WRITEV
+
+        /* boards less than 32 bit int get tripped up on long OID values */
+        #define WC_16BIT_CPU
+        #define WOLFSSL_OLD_OID_SUM
+    #elif defined(__SAM3X8E__)
+        #define WOLFSSL_NO_ATOMIC
+        #define WOLFSSL_NO_SOCK
+        #define WOLFSSL_USER_IO
+        #define NO_WRITEV
     #elif defined(__arm__)
         #define WOLFSSL_NO_SOCK
         #define NO_WRITEV
-    #elif defined(ESP32) || defined(ESP8266)
+    #elif defined(ESP32)
         /* assume sockets available */
+    #elif defined(ESP8266)
+        #define WOLFSSL_NO_SOCK
+        #define WOLFSSL_USER_IO
+        #define NO_WRITEV
     #else
         #define WOLFSSL_NO_SOCK
     #endif
@@ -354,6 +367,12 @@
      * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
      */
     #warning "No configuration for wolfSSL detected, check header order"
+#endif
+
+/* Ensure WOLFSSL_DEBUG_CERTS is always set when DEBUG_WOLFSSL is enabled */
+#ifdef DEBUG_WOLFSSL
+    #undef  WOLFSSL_DEBUG_CERTS
+    #define WOLFSSL_DEBUG_CERTS
 #endif
 
 #include <wolfssl/wolfcrypt/visibility.h>
@@ -562,6 +581,9 @@
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
     #endif
+
+    /* Debug message do not need an additional LF for ESP_LOG */
+    #define WOLFSSL_DEBUG_LINE_ENDING ""
 
     /* Parse any Kconfig / menuconfig items into wolfSSL macro equivalents.
      * Macros may or may not be defined. If defined, they may have a value of
@@ -1497,27 +1519,53 @@ extern void uITRON4_free(void *p) ;
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_TRACK_MEMORY)
 
-        /* XMALLOC */
-        #if defined(WOLFSSL_ESPIDF) && \
-           (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+        #if defined(WOLFSSL_ESPIDF)
             #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
-            #define XMALLOC(s, h, type)  \
-                           ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
-                           (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+        #endif
+
+        /* XMALLOC */
+        #if defined(WOLFSSL_ESPIDF)
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XMALLOC(s, h, type)  \
+                              ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
+                               (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                #define XMALLOC(s, h, type)  \
+                        ((void)(h), (void)(type), wc_pvPortMalloc((s))) /* native heap */
+            #endif
         #else
             #define XMALLOC(s, h, type)  \
                            ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
         #endif
 
         /* XFREE */
-        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p))) /* native heap */
+        #if defined(WOLFSSL_ESPIDF)
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XFREE(p, h, type)   \
+                        ((void)(h), (void)(type), wc_debug_pvPortFree( \
+                                 (p), (__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                #define XFREE(p, h, type)   \
+                        ((void)(h), (void)(type), wc_pvPortFree((p)))
+            #endif
+        #else
+            #define XFREE(p, h, type)   \
+                     ((void)(h), (void)(type), vPortFree((p))) /* native heap */
+        #endif
 
         /* XREALLOC */
         #if defined(WOLFSSL_ESPIDF)
-            /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
-             *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
-             * There's no pvPortRealloc available:  */
-            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n))) /* native heap */
+            #if (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+                #define XREALLOC(p, n, h, t) \
+                        ((void)(h), (void)(t), wc_debug_pvPortRealloc( \
+                        (p), (n),(__FILE__), (__LINE__), (__FUNCTION__) ))
+            #else
+                /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
+                 *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
+                 * There's no pvPortRealloc available, use native heap:  */
+                #define XREALLOC(p, n, h, t) \
+                       ((void)(h), (void)(t), wc_pvPortRealloc((p), (n)))
+            #endif
         #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA) || \
               defined(OPENSSL_ALL)
             /* FreeRTOS pvPortRealloc() implementation can be found here:
@@ -3390,12 +3438,6 @@ extern void uITRON4_free(void *p) ;
     #if defined(NO_AES) && defined(NO_DES3)
         #error PKCS7 needs either AES or 3DES enabled, please enable one
     #endif
-    #ifndef HAVE_AES_KEYWRAP
-        #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
-    #endif
-    #if defined(HAVE_ECC) && !defined(HAVE_X963_KDF)
-        #error PKCS7 requires X963 KDF please define HAVE_X963_KDF
-    #endif
 #endif
 
 #ifndef NO_PKCS12
@@ -3610,6 +3652,10 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_KERNEL_MODE
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
@@ -3654,8 +3700,13 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
     #undef HAVE_STRINGS_H
+    #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
+    #define NO_LIMITS_H
+    #define NO_STDLIB_H
+    #define NO_STDINT_H
+    #define NO_CTYPE_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
@@ -3727,10 +3778,13 @@ extern void uITRON4_free(void *p) ;
          * NIST SP 800-90A Rev. 1, to avoid unnecessary delays in DRBG
          * generation.
          */
-        #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+        #if defined(HAVE_FIPS) && FIPS_VERSION_LT(6,0)
+            #define WC_RESEED_INTERVAL UINT_MAX
+        #else
+            #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
+        #endif
     #endif
 #endif
-
 
 /* Place any other flags or defines here */
 
@@ -4018,7 +4072,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
     !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
     !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL) \
-    && !defined(USE_FAST_MATH) && defined(NO_SHA256)
+    && !defined(USE_FAST_MATH) && defined(NO_SHA256) && \
+    !defined(WOLFSSL_USE_FORCE_ZERO)
     #undef  WOLFSSL_NO_FORCE_ZERO
     #define WOLFSSL_NO_FORCE_ZERO
 #endif
@@ -4369,6 +4424,31 @@ extern void uITRON4_free(void *p) ;
     #undef XREALLOC
 #endif
 
+/* There's currently no 100% reliable "smaller than 32 bit" detection.
+ * The user can specify: WC_16BIT_CPU
+ * Lower 16 bits of new OID values may collide on some 16 bit platforms.
+ *   e.g  Arduino Mega, fqbn=arduino:avr:mega  */
+#if defined(WC_16BIT_CPU)
+    /* Force the old, 16 bit OIDs to be used in wolfcrypt/oid_sum.h */
+    #undef  WOLFSSL_OLD_OID_SUM
+    #define WOLFSSL_OLD_OID_SUM
+#endif
+
+/* Support for Key to DER conversion */
+#if !defined(NO_RSA) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
+     defined(WOLFSSL_KCAPI_RSA) || defined(OPENSSL_EXTRA) || \
+     defined(WOLFSSL_SE050))
+    /* FIPS v2 has the wc_RsaKeyToDer in rsa.h (in boundary),
+     * so with FIPS or self test only allow with WOLFSSL_KEY_GEN */
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        defined(WOLFSSL_KEY_GEN)
+
+        #undef  WOLFSSL_KEY_TO_DER
+        #define WOLFSSL_KEY_TO_DER
+    #endif
+#endif
+
 
 /* ---------------------------------------------------------------------------
  * Deprecated Algorithm Handling
@@ -4404,6 +4484,12 @@ extern void uITRON4_free(void *p) ;
         #undef WOLFSSL_SYS_CA_CERTS
     #endif
 #endif /* WOLFSSL_SYS_CA_CERTS */
+
+#ifdef NO_WOLFSSL_DEBUG_CERTS
+    /* Simplify certificate debugging gate check with only WOLFSSL_DEBUG_CERTS.
+     * NO_WOLFSSL_DEBUG_CERTS prioritized over WOLFSSL_DEBUG_CERTS; disable: */
+    #undef WOLFSSL_DEBUG_CERTS
+#endif
 
 #if defined(SESSION_CACHE_DYNAMIC_MEM) && defined(PERSIST_SESSION_CACHE)
 #error "Dynamic session cache currently does not support persistent session cache."

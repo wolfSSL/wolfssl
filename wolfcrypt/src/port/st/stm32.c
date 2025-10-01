@@ -448,7 +448,100 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #ifndef NO_AES
 #ifdef WOLFSSL_STM32_CUBEMX
-int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
+
+#if defined(WOLFSSL_STM32U5_DHUK)
+/* Set the DHUK IV to be used when unwrapping an AES key
+ * return 0 on success */
+int wc_Stm32_Aes_SetDHUK_IV(struct Aes* aes, const byte* iv, int ivSz)
+{
+    if (ivSz != sizeof(aes->dhukIV)) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(aes->dhukIV, iv, ivSz);
+    aes->dhukIVLen = ivSz;
+    return 0;
+}
+
+/* Wrap an AES key using the DHUK */
+int wc_Stm32_Aes_Wrap(struct Aes* aes, const byte* in, word32 inSz, byte* out,
+    word32* outSz, const byte* iv, int ivSz)
+{
+    CRYP_HandleTypeDef hcryp;
+    int ret = 0;
+    byte key[AES_256_KEY_SIZE];
+
+    /* SAES requires use of the RNG -- HAL_RNG_DeInit() calls from random.c
+        turn off the RNG clock -- re-enable the clock here */
+    __HAL_RCC_RNG_CLK_ENABLE();
+    ByteReverseWords((word32*)key, (word32*)in, inSz);
+    XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
+    if (ret == 0) {
+        hcryp.Instance       = SAES;
+        hcryp.Init.DataType  = CRYP_DATATYPE_8B;
+        hcryp.Init.KeySize   = CRYP_KEYSIZE_256B;
+        hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+        hcryp.Init.KeySelect = CRYP_KEYSEL_HW; /* use DHUK to unwrap with use */
+        hcryp.Init.KeyMode   = CRYP_KEYMODE_WRAPPED;
+        if (iv != NULL) {
+            hcryp.Init.pInitVect = (uint32_t *)iv;
+            hcryp.Init.Algorithm = CRYP_AES_CBC;
+        }
+        else {
+            hcryp.Init.Algorithm = CRYP_AES_ECB;
+        }
+        ret = HAL_CRYP_Init(&hcryp);
+    }
+
+    if (ret == HAL_OK) {
+        ret = HAL_CRYPEx_WrapKey(&hcryp, (uint32_t*)key, (uint32_t*)out, 100);
+        HAL_CRYP_DeInit(&hcryp);
+    }
+
+    ByteReverseWords((word32*)out, (word32*)out, inSz);
+    *outSz = inSz;
+    (void)aes;
+    return ret;
+}
+
+
+int wc_Stm32_Aes_UnWrap(struct Aes* aes, CRYP_HandleTypeDef* hcryp,
+        const byte* in, word32 inSz, const byte* iv, int ivSz)
+{
+    int ret = 0;
+
+    /* SAES requires use of the RNG -- HAL_RNG_DeInit() calls from random.c
+    turn off the RNG clock -- re-enable the clock here */
+    __HAL_RCC_RNG_CLK_ENABLE();
+
+    /* setup for key unwrapping */
+    XMEMSET(hcryp, 0, sizeof(CRYP_HandleTypeDef));
+    hcryp->Instance       = SAES;
+    hcryp->Init.DataType  = CRYP_DATATYPE_8B;
+    hcryp->Init.KeySize   = CRYP_KEYSIZE_256B;
+    hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+    if (ivSz > 0 && iv != NULL) {
+        hcryp->Init.pInitVect = (uint32_t *)iv;
+        hcryp->Init.Algorithm = CRYP_AES_CBC;
+    }
+    else {
+        hcryp->Init.Algorithm = CRYP_AES_ECB;
+    }
+    hcryp->Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ALWAYS;
+    hcryp->Init.KeySelect = CRYP_KEYSEL_HW; /* use DHUK to unwrap with use */
+    hcryp->Init.KeyMode   = CRYP_KEYMODE_WRAPPED;
+    ret = HAL_CRYP_Init(hcryp);
+    if (ret == HAL_OK) {
+        /* On success the key is placed into a location where the next encrypt/decrypt
+         * calls using hcryp make use of the key */
+        ret = HAL_CRYPEx_UnwrapKey(hcryp, (uint32_t*)in, 100);
+    }
+    return ret;
+}
+
+#endif
+
+int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp, int useSaes)
 {
     int ret;
     word32 keySize;
@@ -477,9 +570,35 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
         default:
             break;
     }
-    hcryp->Instance = CRYP;
-    hcryp->Init.DataType = CRYP_DATATYPE_8B;
-    hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
+
+#ifdef WOLFSSL_STM32U5_DHUK
+    /* Use hardware key */
+    if (useSaes && (aes->devId == WOLFSSL_STM32U5_DHUK_DEVID ||
+            aes->devId == WOLFSSL_STM32U5_SAES_DEVID)) {
+
+            /* SAES requires use of the RNG -- HAL_RNG_DeInit() calls from
+               random.c turn off the RNG clock -- re-enable the clock here */
+            __HAL_RCC_RNG_CLK_ENABLE();
+
+            hcryp->Instance       = SAES;
+            hcryp->Init.DataType  = CRYP_DATATYPE_8B;
+
+            /* Key select (HW, or Normal) */
+            if (aes->devId == WOLFSSL_STM32U5_DHUK_DEVID) {
+                hcryp->Init.KeySelect = CRYP_KEYSEL_HW;
+            }
+            else {
+                hcryp->Init.KeySelect = CRYP_KEYSEL_NORMAL;
+                hcryp->Init.KeyMode   = CRYP_KEYMODE_NORMAL;
+                hcryp->Init.pKey      = (uint32_t*)aes->key;
+            }
+    } else
+#endif
+    {
+        hcryp->Instance = CRYP;
+        hcryp->Init.DataType = CRYP_DATATYPE_8B;
+        hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
+    }
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
     #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && defined(STM_CRYPT_HEADER_WIDTH)

@@ -1,0 +1,363 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|INtime">
+      <Configuration>Debug</Configuration>
+      <Platform>INtime</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|INtime">
+      <Configuration>Release</Configuration>
+      <Platform>INtime</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\bio.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\conf.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\dtls.c" />
+    <ClCompile Include="..\..\src\dtls13.c" />
+    <ClCompile Include="..\..\src\pk.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\quic.c" />
+    <ClCompile Include="..\..\src\ssl_asn1.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_bn.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_certman.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_crypto.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_load.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_misc.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_p7p12.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ssl_sess.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\tls13.c" />
+    <ClCompile Include="..\..\src\x509.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\x509_str.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\async.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\blake2s.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\cpuid.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\cryptocb.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\curve448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dilithium.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\eccsi.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ed448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\evp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\ext_kyber.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ext_lms.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ext_xmss.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\falcon.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fips.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fips_test.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\hpke.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\kdf.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\misc.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\rc2.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sakke.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\selftest.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sha3.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\siphash.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sm2.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sm3.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sm4.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sphincs.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_arm32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_arm64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_armthumb.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_c32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_c64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_cortexm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_dsp32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_int.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_arm32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_arm64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_armthumb.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_c32.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_c64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_cortexm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_sm2_x86_64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sp_x86_64.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_dsp.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_kyber.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_kyber_poly.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_lms_impl.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_pkcs11.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_xmss_impl.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_first.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_last.c" />
+    <ClCompile Include="libwolfssl.c" />
+    <ClCompile Include="..\..\src\crl.c" />
+    <ClCompile Include="..\..\src\internal.c" />
+    <ClCompile Include="..\..\src\wolfio.c" />
+    <ClCompile Include="..\..\src\keys.c" />
+    <ClCompile Include="..\..\src\ocsp.c" />
+    <ClCompile Include="..\..\src\sniffer.c" />
+    <ClCompile Include="..\..\src\ssl.c" />
+    <ClCompile Include="..\..\src\tls.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\aes.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\arc4.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\asm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\blake2b.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\camellia.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\chacha.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\chacha20_poly1305.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\cmac.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\coding.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\compress.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\curve25519.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\des3.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\dsa.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ecc_fp.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ed25519.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\error.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_low_mem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_operations.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_low_mem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_operations.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\hash.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\hmac.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\integer.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\logging.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\md2.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\md4.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\md5.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\memory.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\pkcs12.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\pkcs7.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\poly1305.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\pwdbased.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\random.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ripemd.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\rsa.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sha.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sha256.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\sha512.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\signature.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\srp.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfevent.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\wolfcrypt\src\chacha_asm.asm" />
+    <None Include="..\..\wolfcrypt\src\chacha_asm.S" />
+    <None Include="..\..\wolfcrypt\src\fe_x25519_asm.S" />
+    <None Include="..\..\wolfcrypt\src\fp_mont_small.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_12.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_17.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_20.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_24.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_28.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_3.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_32.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_4.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_48.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_6.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_64.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_7.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_8.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_9.i" />
+    <None Include="..\..\wolfcrypt\src\fp_mul_comba_small_set.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_12.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_17.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_20.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_24.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_28.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_3.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_32.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_4.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_48.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_6.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_64.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_7.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_8.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_9.i" />
+    <None Include="..\..\wolfcrypt\src\fp_sqr_comba_small_set.i" />
+    <None Include="..\..\wolfcrypt\src\include.am" />
+    <None Include="..\..\wolfcrypt\src\poly1305_asm.asm" />
+    <None Include="..\..\wolfcrypt\src\poly1305_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sha256_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sha3_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sha512_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sm3_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sp_sm2_x86_64_asm.S" />
+    <None Include="..\..\wolfcrypt\src\sp_x86_64_asm.asm" />
+    <None Include="..\..\wolfcrypt\src\sp_x86_64_asm.S" />
+    <None Include="..\..\wolfcrypt\src\wc_kyber_asm.S" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\wolfcrypt\src\fe_x25519_128.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3BBA3633-A077-4A57-A242-0A22328E5CF6}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|INtime'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">
+    <INtimeDseg>0</INtimeDseg>
+    <INtimeNode>Local</INtimeNode>
+    <INtimeOdir>0</INtimeOdir>
+    <TargetName>libwolfssl572</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">
+    <INtimeDseg>0</INtimeDseg>
+    <INtimeNode>Local</INtimeNode>
+    <INtimeOdir>0</INtimeOdir>
+    <TargetName>libwolfssl572</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>DEBUG_WOLFSSL;_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_DEBUG;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <OpenMPSupport>false</OpenMPSupport>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <ErrorReporting>Prompt</ErrorReporting>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;$(intime)\rt\include\network7;$(intime)\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>rt.lib;pcibus.lib;netlib.lib;clib.lib;vshelper.lib</AdditionalDependencies>
+      <HeapReserveSize>0</HeapReserveSize>
+      <Version>21076.20052</Version>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
+      <GenerateManifest>false</GenerateManifest>
+      <AssemblyDebug>false</AssemblyDebug>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <TurnOffAssemblyGeneration>false</TurnOffAssemblyGeneration>
+      <LinkErrorReporting>PromptImmediately</LinkErrorReporting>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <Lib>
+      <OutputFile>$(SolutionDir)$(Configuration)\$(TargetName).lib</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;INTIME_RTOS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <StringPooling>true</StringPooling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <ErrorReporting>Prompt</ErrorReporting>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;$(intime)\rt\include\network7;$(intime)\rt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>None</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <AdditionalDependencies>rt.lib;pcibus.lib;netlib.lib;clib.lib;vshelper.lib</AdditionalDependencies>
+      <HeapReserveSize>0</HeapReserveSize>
+      <Version>21076.20052</Version>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
+      <GenerateManifest>false</GenerateManifest>
+      <AssemblyDebug>false</AssemblyDebug>
+      <HeapCommitSize>0</HeapCommitSize>
+      <StackReserveSize>0</StackReserveSize>
+      <StackCommitSize>0</StackCommitSize>
+      <LinkErrorReporting>PromptImmediately</LinkErrorReporting>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <Lib>
+      <OutputFile>$(SolutionDir)$(Configuration)\$(TargetName).lib</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

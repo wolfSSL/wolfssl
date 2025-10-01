@@ -513,7 +513,8 @@ const char *wc_GetMathInfo(void)
     #endif
 
     /* ARM Assembly speedups */
-    #if defined(WOLFSSL_ARMASM) || defined(USE_INTEL_SPEEDUP)
+    #if defined(WOLFSSL_ARMASM) || defined(USE_INTEL_SPEEDUP) || \
+        defined(WOLFSSL_RISCV_ASM) || defined(WOLFSSL_PPC32_ASM)
         "\n\tAssembly Speedups:"
 
         #ifdef WOLFSSL_ARMASM
@@ -533,7 +534,7 @@ const char *wc_GetMathInfo(void)
             #ifdef WOLFSSL_ARM_ARCH
                 " ARM ARCH=" WC_STRINGIFY(WOLFSSL_ARM_ARCH)
             #endif
-        #endif
+        #endif /* WOLFSSL_ARMASM */
 
         #ifdef USE_INTEL_SPEEDUP
             " INTELASM"
@@ -541,6 +542,50 @@ const char *wc_GetMathInfo(void)
                 " AES"
             #endif
         #endif
+
+        #ifdef WOLFSSL_RISCV_ASM
+            " RISCVASM"
+            #ifdef WOLFSSL_RISCV_BASE_BIT_MANIPULATION
+                " REV8"
+            #endif
+            #ifdef WOLFSSL_RISCV_CARRYLESS
+                " CLMUL CLMULH"
+            #endif
+            #ifdef WOLFSSL_RISCV_BIT_MANIPULATION
+                " PACK"
+            #endif
+            #ifdef WOLFSSL_RISCV_BIT_MANIPULATION_TERNARY
+                " FSL FSR FSRI CMOV CMIX"
+            #endif
+            #ifdef WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION
+                " VBREV8"
+            #endif
+            #ifdef WOLFSSL_RISCV_VECTOR_CARRYLESS
+                " VCLMUL VCLMULH"
+            #endif
+            #ifdef WOLFSSL_RISCV_VECTOR_GCM
+                " VGMUL VHHSH"
+            #endif
+            #ifdef WOLFSSL_RISCV_VECTOR_CRYPTO_ASM
+                " Vector AES SHA-2"
+            #endif
+            #ifdef WOLFSSL_RISCV_SCALAR_CRYPTO_ASM
+                " AES encrypt/decrpyt SHA-2"
+            #endif
+        #endif /* WOLFSSL_RISCV_ASM */
+
+        #ifdef WOLFSSL_PPC32_ASM
+            " PPC32ASM"
+            #ifdef WOLFSSL_PPC32_ASM_INLINE
+                " INLINE"
+            #endif
+            #ifdef WOLFSSL_PPC32_ASM_SMALL
+                " SMALL"
+            #endif
+            #ifdef WOLFSSL_PPC32_ASM_SPE
+                " SPE"
+            #endif
+        #endif /* WOLFSSL_PPC32_ASM */
 
         #ifdef WOLFSSL_USE_ALIGN
             " ALIGN"
