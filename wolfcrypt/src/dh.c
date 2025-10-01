@@ -1373,7 +1373,6 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     return ret;
 }
 
-#if defined(WOLFSSL_DH_GEN_PUB)
 /**
  * Given a DhKey with set params and a priv key, generate the corresponding
  * public key. If fips, does pub key validation.
@@ -1403,7 +1402,6 @@ int wc_DhGeneratePublic(DhKey* key, byte* priv, word32 privSz,
 
     return ret;
 }
-#endif /* WOLFSSL_DH_GEN_PUB */
 
 static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
     byte* priv, word32* privSz, byte* pub, word32* pubSz)

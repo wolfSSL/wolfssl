@@ -171,17 +171,8 @@ WOLFSSL_API int wc_DhCmpNamedKey(int name, int noQ,
         const byte* q, word32 qSz);
 WOLFSSL_API int wc_DhCopyNamedKey(int name,
         byte* p, word32* pSz, byte* g, word32* gSz, byte* q, word32* qSz);
-
-#ifndef WOLFSSL_NO_DH_GEN_PUB
-    #if defined(WOLFSSL_DH_EXTRA) && !defined(WOLFSSL_DH_GEN_PUB)
-        #define WOLFSSL_DH_GEN_PUB
-    #endif
-    #ifdef WOLFSSL_DH_GEN_PUB
-        WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv,
-                                            word32 privSz, byte* pub,
-                                            word32* pubSz);
-    #endif /* WOLFSSL_DH_GEN_PUB */
-#endif /* !WOLFSSL_NO_DH_GEN_PUB */
+WOLFSSL_API int wc_DhGeneratePublic(DhKey* key, byte* priv,
+        word32 privSz, byte* pub, word32* pubSz);
 
 #ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_API int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
