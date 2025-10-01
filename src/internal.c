@@ -22799,7 +22799,12 @@ default:
                                 return ZERO_RETURN;
                             }
 #endif /* WOLFSSL_EARLY_DATA */
-
+                            if (ret == 0 ||
+                                ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                                /* Reset timeout as we have received a valid
+                                 * DTLS handshake message */
+                                ssl->dtls_timeout = ssl->dtls_timeout_init;
+                            }
                         }
 #endif /* WOLFSSL_DTLS13 */
                     }
