@@ -2114,7 +2114,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
         }
 
         if ((ret == 0) && ct) {
-            word16 mask = 0xff;
+            volatile word16 mask = 0xff;
             sword16 o = (sword16)(*agreeSz - 1);
 
             *agreeSz = (word32)(i + 1);
