@@ -19,7 +19,9 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 12
     container:
-      image: espressif/idf:latest
+      # The latest stable release is v5.5
+      image: espressif/idf:release-v5.5
+      # image: espressif/idf:latest # The "latest" has breaking changes for ESP-IDF V6
     steps:
       - uses: actions/checkout@v4
       - name: Initialize Espressif IDE and build examples
