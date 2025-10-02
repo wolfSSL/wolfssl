@@ -1599,9 +1599,8 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
         /* Perform SHA3 on the input data and update the hash state */
         ret = wc_Psoc6_Sha3_Update(shake, data, len, WC_SHA3_128_COUNT);
         if (ret == 0) {
-            byte hash[1];
             /* Finalize SHA3 operations and produce digest */
-            ret = wc_Psoc6_Sha3_Final(shake, 0x1f, hash, WC_SHA3_128_COUNT, 0);
+            ret = wc_Psoc6_Sha3_Final(shake, 0x1f, NULL, WC_SHA3_128_COUNT, 0);
         }
         /* Release the lock */
         wolfSSL_CryptHwMutexUnLock();
@@ -1847,9 +1846,8 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
         /* Perform SHA3 on the input data and update the hash state */
         ret = wc_Psoc6_Sha3_Update(shake, data, len, WC_SHA3_256_COUNT);
         if (ret == 0) {
-            byte hash[1];
             /* Finalize SHA3 operations and produce digest */
-            ret = wc_Psoc6_Sha3_Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, 0);
+            ret = wc_Psoc6_Sha3_Final(shake, 0x1f, NULL, WC_SHA3_256_COUNT, 0);
         }
         /* Release the lock */
         wolfSSL_CryptHwMutexUnLock();
