@@ -23616,10 +23616,12 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
 
     /* wc_DhGeneratePublic_fips() was added in 5.2.3, but some customers are
      * building with configure scripts that set version to 5.2.1, but with 5.2.3
-     * wolfCrypt sources.
+     * wolfCrypt sources.  5.3.0 is used for both fips-v5-ready and v5-kcapi,
+     * and are also missing wc_DhGeneratePublic().
      */
 #if !(defined(HAVE_SELFTEST) || \
       (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,2,3)) || \
+      FIPS_VERSION3_EQ(5,3,0) || \
       FIPS_VERSION3_EQ(6,0,0) || \
       defined(NO_WC_DHGENERATEPUBLIC))
 
@@ -23654,7 +23656,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (pubSz != pubSz2 || XMEMCMP(pub, pub2, pubSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* !(HAVE_SELFTEST || FIPS <5.2.3 || FIPS == 6.0.0 || NO_WC_DHGENERATEPUBLIC */
+#endif /* !(NO_WC_DHGENERATEPUBLIC || HAVE_SELFTEST || FIPS <5.2.3 || == 5.3.0 || == 6.0.0 */
 
 #if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
     !defined(HAVE_INTEL_QA)
