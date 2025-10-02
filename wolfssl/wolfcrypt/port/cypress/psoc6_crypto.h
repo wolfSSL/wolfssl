@@ -43,7 +43,7 @@ typedef enum
     WC_PSOC6_SHA384      = 3,
     WC_PSOC6_SHA512      = 4,
     WC_PSOC6_SHA512_224  = 5,
-    WC_PSOC6_SHA512_256  = 6,
+    WC_PSOC6_SHA512_256  = 6
 } wc_psoc6_hash_sha1_sha2_t;
 
 #if defined(PSOC6_HASH_SHA1) || defined(PSOC6_HASH_SHA2)
