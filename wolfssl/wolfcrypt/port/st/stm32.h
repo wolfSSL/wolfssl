@@ -35,20 +35,18 @@
 #ifdef HASH_DIGEST
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
-    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
-        defined(WOLFSSL_STM32N6)
+    #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
+        defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H5)
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
-    #else
-        #define HASH_CR_SIZE    54
-        #define HASH_MAX_DIGEST 32
-    #endif
-    #if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
-        defined(WOLFSSL_STM32N6)
+
         #define STM32_HASH_SHA512
         #define STM32_HASH_SHA512_224
         #define STM32_HASH_SHA512_256
         #define STM32_HASH_SHA384
+    #else
+        #define HASH_CR_SIZE    54
+        #define HASH_MAX_DIGEST 32
     #endif
     #if defined(WOLFSSL_STM32MP13)
         #define STM32_HASH_SHA3
@@ -56,6 +54,20 @@
 #else
     #define HASH_CR_SIZE    50
     #define HASH_MAX_DIGEST 20
+#endif
+
+#ifdef WOLFSSL_STM32MP13
+    /* From stm32_hal_legacy.h, but that MP13 header has a bug in it */
+    #define HASH_AlgoSelection_MD5       HASH_ALGOSELECTION_MD5
+    #define HASH_AlgoSelection_SHA1      HASH_ALGOSELECTION_SHA1
+    #define HASH_AlgoSelection_SHA224    HASH_ALGOSELECTION_SHA224
+    #define HASH_AlgoSelection_SHA256    HASH_ALGOSELECTION_SHA256
+#endif
+
+/* These HASH HAL's have no MD5 implementation */
+#if defined(WOLFSSL_STM32MP13) || defined(WOLFSSL_STM32H7S) || \
+    defined(WOLFSSL_STM32N6) || defined(WOLFSSL_STM32H5)
+    #define STM32_NOMD5
 #endif
 
 /* Handle hash differences between CubeMX and StdPeriLib */
@@ -130,17 +142,6 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #define __HAL_RCC_RNG_CLK_ENABLE __HAL_RCC_RNG1_CLK_ENABLE
     #define __HAL_RCC_HASH_CLK_ENABLE __HAL_RCC_HASH1_CLK_ENABLE
     #define __HAL_RCC_HASH_CLK_DISABLE __HAL_RCC_HASH1_CLK_DISABLE
-    /* From stm32_hal_legacy.h, but that header has a bug in it */
-    #define HASH_AlgoSelection_MD5       HASH_ALGOSELECTION_MD5
-    #define HASH_AlgoSelection_SHA1      HASH_ALGOSELECTION_SHA1
-    #define HASH_AlgoSelection_SHA224    HASH_ALGOSELECTION_SHA224
-    #define HASH_AlgoSelection_SHA256    HASH_ALGOSELECTION_SHA256
-
-    #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
-#endif
-
-#if defined(WOLFSSL_STM32N6)
-    #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
 #endif
 
 #ifndef NO_AES
