@@ -1533,7 +1533,7 @@ int test_dtls_bogus_finished_epoch_zero(void)
     test_memio_clear_buffer(&test_ctx, 0);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
             (const char*)server_hello_done_message, sizeof(server_hello_done_message)), 0);
-    wolfSSL_connect(ssl_c);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
 
     /* verifying no ClientHello replay occurred,
      * buffer should empty since we exit early on
