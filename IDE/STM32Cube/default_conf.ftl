@@ -299,6 +299,7 @@ extern ${variable.value} ${variable.name};
 /* ------------------------------------------------------------------------- */
 #if defined(WOLF_CONF_RTOS) && WOLF_CONF_RTOS == 2
     #define FREERTOS
+    #define WOLFSSL_NO_REALLOC
 #else
     #define SINGLE_THREADED
 #endif
@@ -788,12 +789,6 @@ extern ${variable.value} ${variable.name};
 
 /* Base16 / Base64 encoding */
 //#define NO_CODING
-
-/* bypass certificate date checking, due to lack of properly configured RTC source */
-#ifndef HAL_RTC_MODULE_ENABLED
-    #define NO_ASN_TIME
-#endif
-
 
 #ifdef __cplusplus
 }
