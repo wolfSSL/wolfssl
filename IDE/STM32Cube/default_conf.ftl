@@ -221,6 +221,7 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_STM32H5
     #define STM32_HAL_V2
     #undef  NO_STM32_HASH
+    #define WOLFSSL_STM32_PKA
     #ifndef HAL_CONSOLE_UART
     #define HAL_CONSOLE_UART huart3
     #endif
