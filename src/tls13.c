@@ -306,7 +306,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     int         ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashAlgo) {
-#ifndef NO_WOLFSSL_SHA256
+#ifndef NO_SHA256
         case sha256_mac:
             ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, ssl->devId);
             if (ret == 0) {
@@ -3601,14 +3601,21 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
         cookieSz += OPAQUE16_LEN;
     }
 
-#if !defined(NO_SHA) && defined(NO_SHA256)
-    cookieType = SHA;
-    macSz = WC_SHA_DIGEST_SIZE;
-#endif /* NO_SHA */
 #ifndef NO_SHA256
     cookieType = WC_SHA256;
     macSz = WC_SHA256_DIGEST_SIZE;
-#endif /* NO_SHA256 */
+#elif defined(WOLFSSL_SHA384)
+    cookieType = WC_SHA384;
+    macSz = WC_SHA384_DIGEST_SIZE;
+#elif defined(WOLFSSL_TLS13_SHA512)
+    cookieType = WC_SHA512;
+    macSz = WC_SHA512_DIGEST_SIZE;
+#elif defined(WOLFSSL_SM3)
+    cookieType = WC_SM3;
+    macSz = WC_SM3_DIGEST_SIZE;
+#else
+    #error "No digest to available to use with HMAC for cookies."
+#endif /* NO_SHA */
 
     ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
@@ -6456,14 +6463,21 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
         return COOKIE_ERROR;
     }
 
-#if !defined(NO_SHA) && defined(NO_SHA256)
-    cookieType = SHA;
-    macSz = WC_SHA_DIGEST_SIZE;
-#endif /* NO_SHA */
 #ifndef NO_SHA256
     cookieType = WC_SHA256;
     macSz = WC_SHA256_DIGEST_SIZE;
-#endif /* NO_SHA256 */
+#elif defined(WOLFSSL_SHA384)
+    cookieType = WC_SHA384;
+    macSz = WC_SHA384_DIGEST_SIZE;
+#elif defined(WOLFSSL_TLS13_SHA512)
+    cookieType = WC_SHA512;
+    macSz = WC_SHA512_DIGEST_SIZE;
+#elif defined(WOLFSSL_SM3)
+    cookieType = WC_SM3;
+    macSz = WC_SM3_DIGEST_SIZE;
+#else
+    #error "No digest to available to use with HMAC for cookies."
+#endif /* NO_SHA */
 
     if (cookieSz < ssl->specs.hash_size + macSz)
         return HRR_COOKIE_ERROR;
@@ -8389,7 +8403,7 @@ int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
 
     /* Digest the signature data. */
     switch (hashAlgo) {
-#ifndef NO_WOLFSSL_SHA256
+#ifndef NO_SHA256
         case sha256_mac:
             ret = wc_InitSha256(&digest.sha256);
             if (ret == 0) {
@@ -8454,7 +8468,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
 
     /* Digest the signature data. */
     switch (hashAlgo) {
-#ifndef NO_WOLFSSL_SHA256
+#ifndef NO_SHA256
         case sha256_mac:
             ret = wc_InitSha256(&digest.sha256);
             if (ret == 0) {
@@ -13608,12 +13622,17 @@ int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
         return SIDE_ERROR;
 
     if (secretSz == 0) {
-    #if !defined(NO_SHA) && defined(NO_SHA256)
-        secretSz = WC_SHA_DIGEST_SIZE;
-    #endif /* NO_SHA */
     #ifndef NO_SHA256
         secretSz = WC_SHA256_DIGEST_SIZE;
-    #endif /* NO_SHA256 */
+    #elif defined(WOLFSSL_SHA384)
+        secretSz = WC_SHA384_DIGEST_SIZE;
+    #elif defined(WOLFSSL_TLS13_SHA512)
+        secretSz = WC_SHA512_DIGEST_SIZE;
+    #elif defined(WOLFSSL_SM3)
+        secretSz = WC_SM3_DIGEST_SIZE;
+    #else
+        #error "No digest to available to use with HMAC for cookies."
+    #endif /* NO_SHA */
     }
 
     if (secretSz != ssl->buffers.tls13CookieSecret.length) {
