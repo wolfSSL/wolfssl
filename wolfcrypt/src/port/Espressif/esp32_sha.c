@@ -55,6 +55,9 @@
 
     #include <hal/sha_ll.h>
     #include <hal/clk_gate_ll.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C61)
+    #include <hal/sha_hal.h>
+    #include <hal/sha_ll.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32)   || \
       defined(CONFIG_IDF_TARGET_ESP32S2) || \
       defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -89,7 +92,8 @@ static const char* TAG = "wolf_hw_sha";
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /* Keep track of the currently active SHA hash object for interleaving. */
     const static word32 ** _active_digest_address = 0;
 #endif
@@ -250,7 +254,8 @@ int esp_sha_need_byte_reversal(WC_ESP32SHA* ctx)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     if (ctx == NULL) {
         ESP_LOGE(TAG, " ctx is null");
         /* Return true for bad params */
@@ -494,7 +499,8 @@ int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst)
         #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
             defined(CONFIG_IDF_TARGET_ESP8684) || \
             defined(CONFIG_IDF_TARGET_ESP32C3) || \
-            defined(CONFIG_IDF_TARGET_ESP32C6)
+            defined(CONFIG_IDF_TARGET_ESP32C6) || \
+            defined(CONFIG_IDF_TARGET_ESP32C61)
             /* Reverse digest for C2/C3/C6 RISC-V platform
              * only when HW enabled but fallback to SW. */
             ByteReverseWords(dst->digest, dst->digest, WC_SHA_DIGEST_SIZE);
@@ -582,7 +588,8 @@ int esp_sha256_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst)
             #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
                 defined(CONFIG_IDF_TARGET_ESP8684) || \
                 defined(CONFIG_IDF_TARGET_ESP32C3) || \
-                defined(CONFIG_IDF_TARGET_ESP32C6)
+                defined(CONFIG_IDF_TARGET_ESP32C6) || \
+                defined(CONFIG_IDF_TARGET_ESP32C61)
             {
                 /* Reverse digest byte order for C3 fallback to SW. */
                 ByteReverseWords(dst->digest,
@@ -630,7 +637,8 @@ int esp_sha384_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     {
         /* We should ever be calling the HW sHA384 copy for this target. */
         ESP_LOGW(TAG, "Warning: esp_sha384_ctx_copy() called for %s!",
@@ -700,7 +708,8 @@ int esp_sha512_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst)
 #if defined(CONFIG_IDF_TARGET_ESP32C2)   || \
     defined(CONFIG_IDF_TARGET_ESP8684)   || \
     defined(CONFIG_IDF_TARGET_ESP32C3)   || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6)   || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /* There's no SHA512 HW on these RISC-V SoC so there's nothing to do.
      * (perhaps a future one will?) */
 #elif defined(CONFIG_IDF_TARGET_ESP32)   || \
@@ -736,7 +745,8 @@ int esp_sha512_ctx_copy(struct wc_Sha512* src, struct wc_Sha512* dst)
         ** but we need to set our initializer breadcrumb: */
     #if !defined(CONFIG_IDF_TARGET_ESP32C2) && \
         !defined(CONFIG_IDF_TARGET_ESP32C3) && \
-        !defined(CONFIG_IDF_TARGET_ESP32C6)
+        !defined(CONFIG_IDF_TARGET_ESP32C6) && \
+        !defined(CONFIG_IDF_TARGET_ESP32C61)
         dst->ctx.initializer = (uintptr_t)&(dst->ctx);
     #endif
     #if defined(ESP_MONITOR_HW_TASK_LOCK) && !defined(SINGLE_THREADED)
@@ -858,7 +868,8 @@ static int wc_esp_wait_until_idle(void)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /* ESP32-C3 and ESP32-C6 RISC-V */
     while ((sha_ll_busy() == 1) && (loop_ct > 0)) {
         loop_ct--;
@@ -916,7 +927,8 @@ int esp_unroll_sha_module_enable(WC_ESP32SHA* ctx)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /*************  RISC-V Architecture *************/
     (void)max_unroll_count;
     (void)_active_digest_address;
@@ -1517,7 +1529,8 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
         #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
             defined(CONFIG_IDF_TARGET_ESP8684) || \
             defined(CONFIG_IDF_TARGET_ESP32C3) || \
-            defined(CONFIG_IDF_TARGET_ESP32C6)
+            defined(CONFIG_IDF_TARGET_ESP32C6) || \
+            defined(CONFIG_IDF_TARGET_ESP32C61)
         {
             ESP_LOGV(TAG, "ets_sha_enable for RISC-V");
             ets_sha_enable();
@@ -1575,7 +1588,8 @@ int esp_sha_hw_unlock(WC_ESP32SHA* ctx)
     #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
         defined(CONFIG_IDF_TARGET_ESP8684) || \
         defined(CONFIG_IDF_TARGET_ESP32C3) || \
-        defined(CONFIG_IDF_TARGET_ESP32C6)
+        defined(CONFIG_IDF_TARGET_ESP32C6) || \
+        defined(CONFIG_IDF_TARGET_ESP32C61)
         ets_sha_disable(); /* disable also resets active, ongoing hash */
         ESP_LOGV(TAG, "ets_sha_disable in esp_sha_hw_unlock()");
     #else
@@ -1656,7 +1670,8 @@ int esp_sha_hw_unlock(WC_ESP32SHA* ctx)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /* ESP32-C3 HAL has built-in process start, nothing to declare here. */
 #else
     /* Everything else uses esp_sha_start_process() */
@@ -1677,7 +1692,8 @@ static int esp_sha_start_process(WC_ESP32SHA* sha)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     ESP_LOGV(TAG, "SHA1 SHA_START_REG");
     if (sha->isfirstblock) {
         sha_ll_start_block(SHA2_256);
@@ -1903,7 +1919,8 @@ static int wc_esp_process_block(WC_ESP32SHA* ctx, /* see ctx->sha_type */
 #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
       defined(CONFIG_IDF_TARGET_ESP8684) || \
       defined(CONFIG_IDF_TARGET_ESP32C3) || \
-      defined(CONFIG_IDF_TARGET_ESP32C6)
+      defined(CONFIG_IDF_TARGET_ESP32C6) || \
+      defined(CONFIG_IDF_TARGET_ESP32C61)
    /************* RISC-V Architecture *************
     *
     *  SHA_M_1_REG is not a macro:
@@ -2033,7 +2050,8 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
       defined(CONFIG_IDF_TARGET_ESP32C3) || \
       defined(CONFIG_IDF_TARGET_ESP32S2) || \
       defined(CONFIG_IDF_TARGET_ESP32S3) || \
-      defined(CONFIG_IDF_TARGET_ESP32C6)
+      defined(CONFIG_IDF_TARGET_ESP32C6) || \
+      defined(CONFIG_IDF_TARGET_ESP32C61)
     if (ctx->sha_type >= SHA_TYPE_MAX) {
 #else
     ESP_LOGE(TAG, "unexpected target for wc_esp_digest_state");
@@ -2092,7 +2110,8 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
         wc_esp_sha_digest_size(ctx->sha_type) / sizeof(word32)
     );
 #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
-      defined(CONFIG_IDF_TARGET_ESP32C6)
+      defined(CONFIG_IDF_TARGET_ESP32C6) || \
+      defined(CONFIG_IDF_TARGET_ESP32C61)
     wc_esp_wait_until_idle();
     sha_ll_read_digest(
         ctx->sha_type,
@@ -2108,7 +2127,8 @@ int wc_esp_digest_state(WC_ESP32SHA* ctx, byte* hash)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
 
 #elif  defined(CONFIG_IDF_TARGET_ESP32S2)
 
@@ -2232,6 +2252,7 @@ int esp_sha_digest_process(struct wc_Sha* sha, byte blockprocess)
     if (blockprocess) {
         ESP_LOGV(TAG, "esp_sha_digest_process NEW UNLOCK");
         esp_sha_hw_unlock(&sha->ctx); /* also unlocks mutex */
+
         ESP_LOGV(TAG, "sha blockprocess mutex_ctx_owner = NULLPTR");
         mutex_ctx_owner = NULLPTR;
     }
@@ -2337,7 +2358,8 @@ int esp_sha512_block(struct wc_Sha512* sha, const word32* data, byte isfinal)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     /* No SHA-512 HW on RISC-V SoC, so nothing to do. */
 #else
     /* note that in SW mode, wolfSSL uses 64 bit words */
@@ -2398,7 +2420,8 @@ int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc)
 #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
     defined(CONFIG_IDF_TARGET_ESP8684) || \
     defined(CONFIG_IDF_TARGET_ESP32C3) || \
-    defined(CONFIG_IDF_TARGET_ESP32C6)
+    defined(CONFIG_IDF_TARGET_ESP32C6) || \
+    defined(CONFIG_IDF_TARGET_ESP32C61)
     {
         ESP_LOGW(TAG, "Warning: no SHA512 HW to digest on %s",
                       CONFIG_IDF_TARGET);

@@ -53,6 +53,12 @@
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
 #include <esp_err.h>
+#ifdef CONFIG_IDF_TARGET_ESP8266
+    #include <esp_system.h>
+#else
+    #include <freertos/FreeRTOS.h>
+    #include <freertos/task.h>
+#endif
 
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
@@ -76,8 +82,8 @@ extern wc_ptr_t _rtc_bss_end[];
 extern wc_ptr_t _iram_start[];
 extern wc_ptr_t _iram_end[];
 #if defined(CONFIG_IDF_TARGET_ESP8266)
-extern wc_ptr_t _init_start[];
-extern wc_ptr_t _init_end[];
+    extern wc_ptr_t _init_start[];
+    extern wc_ptr_t _init_end[];
 #endif
 extern wc_ptr_t _iram_text_start[];
 extern wc_ptr_t _iram_text_end[];
@@ -105,28 +111,54 @@ extern wc_ptr_t _heap_end[];
     extern void* _thread_local_end;
 #endif
 
-/* See https://github.com/esp8266/esp8266-wiki/wiki/Memory-Map */
-#define MEM_MAP_IO_START  ((void*)(0x3FF00000))
-#define MEM_MAP_IO_END    ((void*)(0x3FF0FFFF))
-#define USER_DATA_START   ((void*)(0x3FFE8000))
-#define USER_DATA_END     ((void*)(0x3FFE8000 + 0x14000))
-#define ETS_SYS_START     ((void*)(0x3FFFC000))
-#define ETS_SYS_END       ((void*)(0x3FFFC000 + 0x4000))
-#define IRAM1_START       ((void*)(0x40100000))
-#define IRAM1_END         ((void*)(0x40100000 + 0x8000))
-#define IRAMF1_START      ((void*)(0x40108000))
-#define IRAMF1_END        ((void*)(0x40108000 + 0x4000))
-#define IRAMF2_START      ((void*)(0x4010C000))
-#define IRAMF2_END        ((void*)(0x4010C000 + 0x4000))
+#ifdef WOLFSSL_HAVE_LINKER_REGION_PEEK
+    /* cmake may have found a ld/region_peek.ld helper file */
+    extern wc_ptr_t __dram0_start[]   __attribute__((weak));
+    extern wc_ptr_t __dram0_end[]     __attribute__((weak));
+    extern wc_ptr_t __drom0_start[]   __attribute__((weak));
+    extern wc_ptr_t __drom0_end[]     __attribute__((weak));
 
-#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
-    /* Skipping for ESP-IDF v6.0 */
+    #define MEM_MAP_IO_START  ((void*)(0x3FF00000))
+    #define MEM_MAP_IO_END    ((void*)(0x3FF0FFFF))
+    #define USER_DATA_START   ((void*)(0x3FFE8000))
+    #define USER_DATA_END     ((void*)(0x3FFE8000 + 0x14000))
+    #define ETS_SYS_START     ((void*)(0x3FFFC000))
+    #define ETS_SYS_END       ((void*)(0x3FFFC000 + 0x4000))
+    #define IRAM1_START       ((void*)(0x40100000))
+    #define IRAM1_END         ((void*)(0x40100000 + 0x8000))
+    #define IRAMF1_START      ((void*)(0x40108000))
+    #define IRAMF1_END        ((void*)(0x40108000 + 0x4000))
+    #define IRAMF2_START      ((void*)(0x4010C000))
+    #define IRAMF2_END        ((void*)(0x4010C000 + 0x4000))
+    #define DRAM0_START        __dram0_start
+    #define DRAM0_END          __dram0_end
+    #define DROM0_START        __drom0_start
+    #define DROM0_END          __drom0_end
 #else
+    /* See https://github.com/esp8266/esp8266-wiki/wiki/Memory-Map */
+    #define MEM_MAP_IO_START  ((void*)(0x3FF00000))
+    #define MEM_MAP_IO_END    ((void*)(0x3FF0FFFF))
+    #define USER_DATA_START   ((void*)(0x3FFE8000))
+    #define USER_DATA_END     ((void*)(0x3FFE8000 + 0x14000))
+    #define ETS_SYS_START     ((void*)(0x3FFFC000))
+    #define ETS_SYS_END       ((void*)(0x3FFFC000 + 0x4000))
+    #define IRAM1_START       ((void*)(0x40100000))
+    #define IRAM1_END         ((void*)(0x40100000 + 0x8000))
+    #define IRAMF1_START      ((void*)(0x40108000))
+    #define IRAMF1_END        ((void*)(0x40108000 + 0x4000))
+    #define IRAMF2_START      ((void*)(0x4010C000))
+    #define IRAMF2_END        ((void*)(0x4010C000 + 0x4000))
+#endif
+#if 0
+    /* Optional Stack Debugging */
+    extern void *xPortSupervisorStackPointer;
+#endif
+
 enum sdk_memory_segment
 {
     /* Ensure this list exactly matches order in sdk_memory_segment_text */
     mem_map_io = 0,
-    thread_local,
+    thread_local_mem,
     data,
     user_data_ram,
     bss,
@@ -142,6 +174,8 @@ enum sdk_memory_segment
     text,
     rodata,
     rtc_data,
+    dram_org,
+    drom_org,
     SDK_MEMORY_SEGMENT_COUNT
 };
 
@@ -165,6 +199,8 @@ static const char* sdk_memory_segment_text[SDK_MEMORY_SEGMENT_COUNT + 1] = {
     "* text          ",
     "* rodata        ",
     "* rtc data      ",
+    "C dram_org      ",
+    "C drom_org      ",
     "last item",
 };
 
@@ -173,7 +209,7 @@ static const char* sdk_memory_segment_text[SDK_MEMORY_SEGMENT_COUNT + 1] = {
 int sdk_log_meminfo(enum sdk_memory_segment m, void* start, void* end)
 {
     const char* str;
-    word32 len = 0;
+    size_t len = 0;
     str = sdk_memory_segment_text[m];
     sdk_memory_segment_start[m] = start;
     sdk_memory_segment_end[m] = end;
@@ -185,26 +221,31 @@ int sdk_log_meminfo(enum sdk_memory_segment m, void* start, void* end)
         ESP_LOGI(TAG, "                  Start         End          Length");
     }
     else {
-        len = (word32)end - (word32)start;
-        ESP_LOGI(TAG, "%s: %p ~ %p : 0x%05x (%d)", str, start, end, len, len );
+        if (end == NULL) {
+            /* The weak attribute: linker probably didn't find a value */
+            len = 0;
+            ESP_LOGV(TAG, "Value not found for: %s", str);
+        }
+        else {
+            len = (size_t)end - (size_t)start;
+            ESP_LOGI(TAG, "%s: %p ~ %p : 0x%05x (%d)",
+                          str, start, end, len, len );
+        }
     }
+
     return ESP_OK;
 }
-#endif
 
 /* Show all known linker memory segment names, starting & ending addresses. */
 int sdk_init_meminfo(void)
 {
-#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
-    ESP_LOGI(TAG, "sdk_init_meminfo not available for ESP-IDF V6.0");
-#else
     void* sample_heap_var;
     int sample_stack_var = 0;
 
     sdk_log_meminfo(SDK_MEMORY_SEGMENT_COUNT, NULL, NULL); /* print header */
     sdk_log_meminfo(mem_map_io,    MEM_MAP_IO_START,    MEM_MAP_IO_END);
 #if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
-    sdk_log_meminfo(thread_local,  _thread_local_start, _thread_local_end);
+    sdk_log_meminfo(thread_local_mem,  _thread_local_start, _thread_local_end);
 #endif
     sdk_log_meminfo(data,          _data_start,         _data_end);
     sdk_log_meminfo(user_data_ram, USER_DATA_START,     USER_DATA_END);
@@ -212,6 +253,10 @@ int sdk_init_meminfo(void)
     /* TODO: Find ESP32-S2 equivalent of bss */
 #else
     sdk_log_meminfo(bss,           _bss_start,          _bss_end);
+#endif
+#if defined(WOLFSSL_HAVE_LINKER_REGION_PEEK)
+    sdk_log_meminfo(dram_org,      DRAM0_START,         DRAM0_END);
+    sdk_log_meminfo(drom_org,      DROM0_START,         DROM0_END);
 #endif
     sdk_log_meminfo(noinit,        _noinit_start,       _noinit_end);
     sdk_log_meminfo(ets_system,    ETS_SYS_START,       ETS_SYS_END);
@@ -235,6 +280,7 @@ int sdk_init_meminfo(void)
 #else
     sdk_log_meminfo(rtc_data,      _rtc_data_start,     _rtc_data_end);
 #endif
+
     ESP_LOGI(TAG, "-----------------------------------------------------");
     sample_heap_var = malloc(1);
     if (sample_heap_var == NULL) {
@@ -245,7 +291,6 @@ int sdk_init_meminfo(void)
         sdk_var_whereis("sample_heap_var", sample_heap_var);
         free(sample_heap_var);
     }
-#endif
     return ESP_OK;
 }
 
@@ -253,9 +298,6 @@ int sdk_init_meminfo(void)
 esp_err_t sdk_var_whereis(const char* v_name, void* v)
 {
     esp_err_t ret = ESP_FAIL;
-#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
-    ESP_LOGI(TAG, "sdk_var_whereis not available for ESP-IDF V6.0");
-#else
 
     for (enum sdk_memory_segment m = 0 ;m < SDK_MEMORY_SEGMENT_COUNT; m++) {
         if (v >= sdk_memory_segment_start[m] &&
@@ -268,7 +310,6 @@ esp_err_t sdk_var_whereis(const char* v_name, void* v)
                 }
             }
     }
-#endif
 
     if (ret == ESP_FAIL) {
         ESP_LOGW(TAG, "%s not found in known memory map: %p", v_name, v);
@@ -303,6 +344,205 @@ esp_err_t esp_sdk_mem_lib_init(void)
     return ret;
 }
 
+static size_t free_heap        = 0; /* current free heap */
+static size_t min_free_heap    = 0; /* current minumim heap size */
+static size_t min_x_free_heap  = 0; /* smallest seen free_heap  */
+static size_t max_x_free_heap  = 0; /* largest seen free_heap */
+
+static size_t last_free_heap   = 0; /* prior         esp_get_free_heap_size */
+static size_t last_min_heap    = 0; /* prior esp_get_minimum_free_heap_size */
+static size_t heap_peek_ct     = 0;
+static size_t stack_hwm        = 0;
+static size_t min_stack_hwm    = 0;
+static size_t max_stack_hwm    = 0;
+
+static heap_track_reset_t heap_reset_reason = HEAP_TRACK_RESET_NONE;
+
+static size_t largest_allocable(size_t limit) {
+    size_t lo = 0, hi = limit, best = 0;
+    while (lo <= hi) {
+        size_t mid = (lo + hi) / 2;
+        void *p = malloc(mid);
+        if (p) {
+            free(p);
+            best = mid;
+            lo = mid + 1;
+        }
+        else {
+            hi = (mid == 0 ? 0 : mid - 1);
+        }
+    }
+    return best;
+}
+
+static size_t largest_allocable_wolf(size_t limit)
+{
+    size_t best = 0;
+#ifdef WOLFSSL_NO_MALLOC
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGE(TAG, "Error: largest_allocable_wolf called with no malloc");
+    #endif
+#else
+    size_t lo;
+    size_t hi;
+    void* (*mc)(size_t);
+    void  (*fc)(void*);
+    void* (*rc)(void*, size_t);
+
+    mc = NULL;
+    fc = NULL;
+    rc = NULL;
+    wolfSSL_GetAllocators(&mc, &fc, &rc);
+
+    /* Fallback: if no custom allocators are set, use system malloc/free. */
+    if (mc == NULL) {
+        mc = malloc;
+    }
+    if (fc == NULL) {
+        fc = free;
+    }
+
+    lo = 0;
+    hi = limit;
+    best = 0;
+
+    while (lo <= hi) {
+        size_t mid = (lo + hi) / 2;
+        void* p = mc(mid);
+        if (p != NULL) {
+            fc(p);
+            best = mid;
+            lo = mid + 1;
+        }
+        else {
+            hi = (mid == 0 ? 0 : mid - 1);
+        }
+    }
+#endif
+    return best;
+}
+
+static esp_err_t esp_sdk_stack_info(heap_track_reset_t reset)
+{
+    int ret = ESP_OK;
+    const char* this_task;
+    size_t max_alloc = 0;
+
+    max_alloc = largest_allocable(10 * 1024);
+    ESP_LOGI(TAG, "max_alloc = %d", max_alloc);
+
+    max_alloc = largest_allocable_wolf(12 * 1024);
+    ESP_LOGI(TAG, "max_alloc wolf = %d", max_alloc);
+#ifdef CONFIG_IDF_TARGET_ESP8266
+     /* words not bytes! */
+    stack_hwm = uxTaskGetStackHighWaterMark(NULL) * sizeof(StackType_t);
+    if (min_stack_hwm == 0) {
+        min_stack_hwm = stack_hwm;
+    }
+    if (stack_hwm < min_stack_hwm) {
+        ESP_LOGW(TAG, "New min high watermark:   %u bytes, delta = %d",
+                                 min_stack_hwm, stack_hwm - min_stack_hwm);
+        min_stack_hwm = stack_hwm;
+    }
+    if (stack_hwm > max_stack_hwm) {
+        ESP_LOGW(TAG, "New max high watermark:   %u bytes, delta = %d",
+                                 max_stack_hwm, stack_hwm - max_stack_hwm);
+        max_stack_hwm = stack_hwm;
+    }
+    this_task = "ESP8266";
+#elif defined(CONFIG_FREERTOS_USE_TRACE_FACILITY)
+    TaskStatus_t status;
+    vTaskGetInfo(NULL, &status, pdTRUE, eInvalid);
+    stack_hwm = (unsigned)status.usStackHighWaterMark;
+    if (status.pcTaskName == NULL || status.pcTaskName[0] == '\0') {
+        this_task = "unknown";
+        ret = ESP_FAIL;
+    }
+    else {
+        this_task = status.pcTaskName;
+    }
+#else
+    this_task = "unknown";
+    ESP_LOGW(TAG, "vTaskGetInfo not available");
+#endif
+
+    ESP_LOGI(TAG, "Task: %s, High watermark: %u bytes", this_task, stack_hwm);
+    ESP_LOGI(TAG, "Min high watermark:      %u bytes", min_stack_hwm);
+    ESP_LOGI(TAG, "Max high watermark:      %u bytes", max_stack_hwm);
+    return ret;
+} /*  esp_sdk_stack_info */
+
+static esp_err_t esp_sdk_heap_info(heap_track_reset_t reset)
+{
+    int ret = ESP_OK;
+
+    if (reset != HEAP_TRACK_RESET_NONE) {
+        free_heap        = 0;
+        min_free_heap    = 0;
+        min_x_free_heap  = 0;
+        max_x_free_heap  = 0;
+
+        last_free_heap   = 0;
+        last_min_heap    = 0;
+        heap_peek_ct     = 0;
+        heap_reset_reason = reset;
+    } /* heap track metric reset */
+    heap_peek_ct++;
+
+#ifdef CONFIG_IDF_TARGET_ESP8266
+    free_heap     = (unsigned)esp_get_free_heap_size();
+    min_free_heap = (unsigned)esp_get_minimum_free_heap_size();
+#else
+    free_heap     = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+    min_free_heap = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
+#endif
+    if (last_free_heap > 0) {
+
+        if (last_free_heap != free_heap) {
+            ESP_LOGW(TAG, "LAST free heap:          %u bytes, delta = %d",
+                           last_free_heap,    free_heap - last_free_heap);
+        }
+        if (free_heap < min_x_free_heap) {
+            min_x_free_heap = free_heap;
+            ESP_LOGW(TAG, "New min ever free heap   %u bytes", min_x_free_heap);
+        }
+        if (free_heap > max_x_free_heap) {
+            max_x_free_heap = free_heap;
+            ESP_LOGW(TAG, "New max ever free heap:  %u bytes", max_x_free_heap);
+        }
+    }
+    else {
+        min_x_free_heap = free_heap;
+        max_x_free_heap = free_heap;
+    }
+
+    if ((last_min_heap > 0) && (last_min_heap != min_free_heap)) {
+        ESP_LOGW(TAG, "LAST minimum free heap:  %u bytes", last_min_heap);
+    }
+
+    ESP_LOGI(TAG, "Current free heap:       %u bytes", free_heap);
+    ESP_LOGI(TAG, "Minimum free heap:       %u bytes", min_free_heap);
+    ESP_LOGI(TAG, "Minimum ever free heap:  %u bytes", min_x_free_heap);
+    ESP_LOGI(TAG, "Maximum ever free heap:  %u bytes", max_x_free_heap);
+
+    /* Save current values for next query */
+    last_free_heap = free_heap;
+    last_min_heap = min_free_heap;
+
+    return ret;
+} /* esp_sdk_heap_info */
+
+esp_err_t esp_sdk_stack_heap_info(heap_track_reset_t reset)
+{
+    int ret = ESP_OK;
+    ret = esp_sdk_heap_info(reset) +
+          esp_sdk_stack_info(reset);
+    if (ret != ESP_OK) {
+        ret = ESP_FAIL;
+    }
+    return ret;
+}
+
 #if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
 void* wc_debug_pvPortMalloc(size_t size,
                            const char* file, int line, const char* fname)
@@ -311,6 +551,11 @@ void* wc_pvPortMalloc(size_t size)
 #endif
 {
     void* ret = NULL;
+#ifdef WOLFSSL_NO_MALLOC
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGE(TAG, "Error: wc_pvPortMalloc called with no malloc");
+    #endif
+#else
     wolfSSL_Malloc_cb  mc;
     wolfSSL_Free_cb    fc;
     wolfSSL_Realloc_cb rc;
@@ -326,12 +571,18 @@ void* wc_pvPortMalloc(size_t size)
         ret = pvPortMalloc(size);
 #endif
     }
-
+#endif
 #if defined(DEBUG_WOLFSSL_MALLOC) || defined(DEBUG_WOLFSSL)
     if (ret == NULL) {
         ESP_LOGE("malloc", "%s:%d (%s)", file, line, fname);
         ESP_LOGE("malloc", "Failed Allocating memory of size: %d bytes", size);
     }
+#ifdef DEBUG_WOLFSSL_MALLOC_VERBOSE
+    else {
+        ESP_LOGI("malloc", "%s:%d (%s)", file, line, fname);
+        ESP_LOGI("malloc", "Allocate memory at %p of size: %d bytes", ret, size);
+    }
+#endif /* DEBUG_WOLFSSL_MALLOC_VERBOSE */
 #endif
     return ret;
 } /* wc_debug_pvPortMalloc */
@@ -343,6 +594,11 @@ void wc_debug_pvPortFree(void *ptr,
 void wc_pvPortFree(void *ptr)
 #endif
 {
+#ifdef WOLFSSL_NO_MALLOC
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGE(TAG, "Error: wc_pvPortFree called with no malloc");
+    #endif
+#else
     wolfSSL_Malloc_cb  mc;
     wolfSSL_Free_cb    fc;
     wolfSSL_Realloc_cb rc;
@@ -352,6 +608,9 @@ void wc_pvPortFree(void *ptr)
 #endif
     }
     else {
+#ifdef DEBUG_WOLFSSL_MALLOC_VERBOSE
+        ESP_LOGI("malloc", "free %p %s:%d (%s)", ptr, file, line, fname);
+#endif
         wolfSSL_GetAllocators(&mc, &fc, &rc);
 
         if (fc == NULL) {
@@ -365,6 +624,7 @@ void wc_pvPortFree(void *ptr)
 #endif
         }
     }
+#endif /* WOLFSSL_NO_MALLOC check */
 } /* wc_debug_pvPortFree */
 
 #ifndef WOLFSSL_NO_REALLOC
@@ -377,6 +637,11 @@ void* wc_pvPortRealloc(void* ptr, size_t size)
 #endif
 {
     void* ret = NULL;
+#ifdef WOLFSSL_NO_MALLOC
+    #ifdef DEBUG_WOLFSSL
+        ESP_LOGE(TAG, "Error: wc_pvPortRealloc called with no malloc");
+    #endif
+#else
     wolfSSL_Malloc_cb  mc;
     wolfSSL_Free_cb    fc;
     wolfSSL_Realloc_cb rc;
@@ -404,7 +669,8 @@ void* wc_pvPortRealloc(void* ptr, size_t size)
         ESP_LOGE("realloc", "Failed Re-allocating memory of size: %d bytes",
                                                                   size);
     }
-#endif
+#endif /* debug */
+#endif /* WOLFSSL_NO_MALLOC check */
     return ret;
 } /* wc_debug_pvPortRealloc */
 #endif /* WOLFSSL_NO_REALLOC */
