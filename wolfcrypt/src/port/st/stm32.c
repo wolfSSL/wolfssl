@@ -721,7 +721,7 @@ static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
         XMEMSET(dst, 0, offset);
 
     /* convert mp_int to array of bytes */
-    res = mp_to_unsigned_bin((mp_int*)a, dst + offset);
+    res = mp_to_unsigned_bin(a, dst + offset);
     return res;
 }
 
