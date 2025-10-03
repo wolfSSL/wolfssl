@@ -1850,7 +1850,7 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_SERVER_END)
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
 
     ssl->options.mutualAuth = (word16)req;

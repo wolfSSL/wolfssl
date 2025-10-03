@@ -408,6 +408,21 @@ int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
 int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
         char *out, int *out_sz, int msg_pos)
 {
+    const char* buff = NULL;
+    int buff_sz = 0;
+
+    if (test_memio_get_message(ctx, client, &buff, &buff_sz, msg_pos) != 0)
+        return -1;
+    if (*out_sz < buff_sz)
+        return -1;
+    XMEMCPY(out, buff, (size_t)buff_sz);
+    *out_sz = buff_sz;
+    return 0;
+}
+
+int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
+        const char **out, int *out_sz, int msg_pos)
+{
     int msg_count;
     const int* msg_sizes;
     int i;
@@ -426,14 +441,72 @@ int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
     if (msg_pos < 0 || msg_pos >= msg_count) {
         return -1;
     }
-    if (*out_sz < msg_sizes[msg_pos]) {
-        return -1;
-    }
     for (i = 0; i < msg_pos; i++) {
         buff += msg_sizes[i];
     }
-    XMEMCPY(out, buff, (size_t)msg_sizes[msg_pos]);
+    *out = (const char*)buff;
     *out_sz = msg_sizes[msg_pos];
+    return 0;
+}
+
+int test_memio_move_message(struct test_memio_ctx *ctx, int client,
+        int msg_pos_in, int msg_pos_out)
+{
+    int msg_count;
+    int* msg_sizes;
+    int i;
+    byte* buff;
+    byte* buff_in;
+    byte* buff_out;
+    int total_size = 0;
+    int msg_in_size;
+
+    if (client) {
+        buff = buff_in = buff_out = ctx->c_buff;
+        msg_count = ctx->c_msg_count;
+        msg_sizes = ctx->c_msg_sizes;
+    }
+    else {
+        buff = buff_in = buff_out = ctx->s_buff;
+        msg_count = ctx->s_msg_count;
+        msg_sizes = ctx->s_msg_sizes;
+    }
+    if (msg_pos_in < 0 || msg_pos_in >= msg_count)
+        return -1;
+    if (msg_pos_out < 0 || msg_pos_out >= msg_count)
+        msg_pos_out = msg_count-1;
+    if (msg_pos_in == msg_pos_out)
+        return 0;
+    msg_in_size = msg_sizes[msg_pos_in];
+    for (i = 0; i < msg_count; i++)
+        total_size += msg_sizes[i];
+    if (total_size + msg_in_size > TEST_MEMIO_BUF_SZ)
+        return -1;
+    for (i = 0; i < msg_pos_in; i++)
+        buff_in += msg_sizes[i];
+    for (i = 0; i < msg_pos_out + (msg_pos_out > msg_pos_in ? 1 : 0); i++)
+        buff_out += msg_sizes[i];
+    XMEMMOVE(buff_out + msg_in_size, buff_out,
+            total_size - (buff_out - buff));
+    total_size += msg_in_size;
+    if (buff_in > buff_out)
+        buff_in += msg_in_size;
+    XMEMCPY(buff_out, buff_in, msg_in_size);
+    XMEMMOVE(buff_in, buff_in + msg_in_size,
+            total_size - (buff_in - buff) - msg_in_size);
+    if (msg_pos_in < msg_pos_out) {
+        XMEMMOVE(msg_sizes + msg_pos_in, msg_sizes + msg_pos_in + 1,
+                sizeof(*msg_sizes) *
+                    ((msg_sizes + msg_pos_out) - (msg_sizes + msg_pos_in)));
+        msg_sizes[msg_pos_out] = msg_in_size;
+    }
+    else {
+        XMEMMOVE(msg_sizes + msg_pos_out + 1, msg_sizes + msg_pos_out,
+                sizeof(*msg_sizes) *
+                    ((msg_sizes + msg_pos_in) - (msg_sizes + msg_pos_out)));
+        msg_sizes[msg_pos_out] = msg_in_size;
+    }
+
     return 0;
 }
 

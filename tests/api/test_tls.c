@@ -32,6 +32,42 @@
 #include <tests/api/test_tls.h>
 
 
+int test_utils_memio_move_message(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    /* start handshake, send first ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* send server's flight */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Move messages around but they should be the same at the end */
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 1, 2), 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 2, 1), 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 1, 3), 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 3, 1), 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 0, 2), 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, 2, 0), 0);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 int test_tls12_unexpected_ccs(void)
 {
     EXPECT_DECLS;
@@ -254,3 +290,56 @@ int test_tls13_curve_intersection(void) {
 #endif
     return EXPECT_RESULT();
 }
+
+
+int test_tls_certreq_order(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AES_256) && defined(WOLFSSL_SHA384) && !defined(NO_RSA) && \
+    defined(HAVE_ECC)
+    /* This test checks that a certificate request message
+     * received before server certificate message is properly detected.
+     */
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    int i = 0;
+    const char* msg = NULL;
+    int msgSz = 0;
+    int certIdx = 0;
+    int certReqIdx = 0;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                    wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+
+    /* start handshake, send first ClientHello */
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* send server's flight */
+    ExpectIntEQ(wolfSSL_accept(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    for (i = 0; test_memio_get_message(&test_ctx, 1, &msg, &msgSz, i) == 0; i++) {
+        if (msg[5] == 11) /* cert */
+            certIdx = i;
+        if (msg[5] == 13) /* certreq */
+            certReqIdx = i;
+    }
+    ExpectIntNE(certIdx, 0);
+    ExpectIntNE(certReqIdx, 0);
+    ExpectIntEQ(test_memio_move_message(&test_ctx, 1, certReqIdx, certIdx), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), OUT_OF_ORDER_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+

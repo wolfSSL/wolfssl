@@ -68,6 +68,10 @@ void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client);
 int test_memio_inject_message(struct test_memio_ctx *ctx, int client, const char *data, int sz);
 int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
         char *out, int *out_sz, int msg_pos);
+int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
+        const char **out, int *out_sz, int msg_pos);
+int test_memio_move_message(struct test_memio_ctx *ctx, int client,
+        int msg_pos_in, int msg_pos_out);
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos);
 int test_memio_modify_message_len(struct test_memio_ctx *ctx, int client, int msg_pos, int new_len);
 int test_memio_remove_from_buffer(struct test_memio_ctx *ctx, int client, int off, int sz);
