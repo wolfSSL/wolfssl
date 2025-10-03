@@ -4184,7 +4184,7 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 #endif
 }
 
-int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
+int fp_to_unsigned_bin(const fp_int *a, unsigned char *b)
 {
   int     x;
 #ifndef WOLFSSL_SMALL_STACK
@@ -4882,7 +4882,7 @@ int mp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 }
 
 /* store in unsigned [big endian] format */
-int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
+int mp_to_unsigned_bin(const mp_int * a, unsigned char *b)
 {
   return fp_to_unsigned_bin(a,b);
 }
@@ -4968,14 +4968,14 @@ void fp_copy(const fp_int *a, fp_int *b)
     }
 }
 
-int mp_init_copy(fp_int * a, fp_int * b)
+int mp_init_copy(fp_int * a, const fp_int * b)
 {
     fp_init_copy(a, b);
     return MP_OKAY;
 }
 
 /* Copy (dst = a) from (src = b) */
-void fp_init_copy(fp_int *a, fp_int* b)
+void fp_init_copy(fp_int *a, const fp_int* b)
 {
     if (a != b) {
         fp_init(a);
