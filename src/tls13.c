@@ -1948,7 +1948,12 @@ end:
         t = k_uptime_get(); /* returns current uptime in milliseconds */
         return (word32)t;
     }
-
+#elif defined(FREERTOS)
+    word32 TimeNowInMilliseconds(void)
+    {
+        return (word32)((uint64_t)(xTaskGetTickCount() * 1000) /
+            configTICK_RATE_HZ);
+    }
 #else
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -2241,7 +2246,12 @@ end:
         t = k_uptime_get(); /* returns current uptime in milliseconds */
         return (sword64)t;
     }
-
+#elif defined(FREERTOS)
+    sword64 TimeNowInMilliseconds(void)
+    {
+        return (sword64)((uint64_t)(xTaskGetTickCount() * 1000) /
+            configTICK_RATE_HZ);
+    }
 #else
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
