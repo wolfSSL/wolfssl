@@ -4459,7 +4459,7 @@ WOLFSSL_LOCAL int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes);
 
 #ifdef WOLFSSL_TLS13
 typedef union Digest {
-#ifndef NO_WOLFSSL_SHA256
+#ifndef NO_SHA256
     wc_Sha256 sha256;
 #endif
 #ifdef WOLFSSL_SHA384

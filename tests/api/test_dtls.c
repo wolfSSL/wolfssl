@@ -1247,7 +1247,8 @@ int test_dtls_record_cross_boundaries(void)
 }
 #endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) */
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256)
 /* This test that the DTLS record boundary check doesn't interfere with TLS
  * records processing */
 int test_records_span_network_boundaries(void)

@@ -42,7 +42,7 @@ int test_wc_i2d_PKCS12(void)
     EXPECT_DECLS;
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
     && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
-    && !defined(NO_AES) && !defined(NO_SHA)
+    && !defined(NO_AES) && !defined(NO_SHA) && !defined(NO_SHA256)
     WC_PKCS12* pkcs12 = NULL;
     unsigned char der[FOURK_BUF * 2];
     unsigned char* pt;
@@ -163,6 +163,7 @@ int test_wc_PKCS12_create(void)
 {
     EXPECT_DECLS;
 
+#ifndef NO_SHA256
     EXPECT_TEST(test_wc_PKCS12_create_once(-1, -1));
 #if !defined(NO_RC4) && !defined(NO_SHA)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_SHA1_RC4_128, PBE_SHA1_RC4_128));
@@ -187,6 +188,7 @@ int test_wc_PKCS12_create(void)
 #if defined(HAVE_AES_CBC) && !defined(NO_AES) && !defined(NO_AES_256) && \
     !defined(NO_SHA) && defined(WOLFSSL_ASN_TEMPLATE) && !defined(NO_DES3)
     EXPECT_TEST(test_wc_PKCS12_create_once(PBE_AES256_CBC, PBE_SHA1_DES3));
+#endif
 #endif
 
     (void) test_wc_PKCS12_create_once;
