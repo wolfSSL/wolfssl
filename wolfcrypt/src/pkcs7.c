@@ -12412,9 +12412,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     int recipFound = 0;
     int ret, length = 0;
     word32 idx = 0;
-#ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
-#endif
+    word32 recipientSetSz = 0;
     word32 contentType = 0, encOID = 0;
     word32 decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
@@ -12473,11 +12472,12 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             if (decryptedKey == NULL)
                 return MEMORY_E;
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_2);
-        #ifndef NO_PKCS7_STREAM
             tmpIdx = idx;
+            recipientSetSz = (word32)ret;
+        #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = decryptedKey;
             /* get the full recipient set */
-            pkcs7->stream->expected     = (word32)ret;
+            pkcs7->stream->expected     = recipientSetSz;
             pkcs7->stream->recipientSz  = ret;
         #endif
             FALL_THROUGH;
@@ -12532,6 +12532,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             pkcs7->stream->aadSz = decryptedKeySz;
             pkcs7->stream->expected = MAX_LENGTH_SZ + MAX_VERSION_SZ +
                 ASN_TAG_SZ + MAX_LENGTH_SZ;
+        #else
+            idx = tmpIdx + recipientSetSz;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_3);
             FALL_THROUGH;
