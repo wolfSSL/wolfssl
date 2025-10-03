@@ -19,6 +19,34 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 #
 
+PROJECT_NAME := wolfssl_client
+$(info *************  wolfssl_client *************)
+
+# ------------- BEGIN COMMON SECTION -------------
+
+ifeq ($(strip $(IDF_PATH)),)
+  $(error IDF_PATH is not set. Please export it before running make)
+endif
+
+# Default compiler flags
+CFLAGS   ?=
+CXXFLAGS ?=
+
+CFLAGS += -DWOLFSSL_USER_SETTINGS
+
+# Some of the tests are CPU intenstive, so we'll force the watchdog timer off.
+# There's an espressif NO_WATCHDOG; we don't use it, as it is reset by sdkconfig.
+CFLAGS += -DWOLFSSL_ESP_NO_WATCHDOG=1
+
+# Check if CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG is set to 1 in environment
+ifeq ($(CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG),1)
+    $(info Setting CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG from environment variablev for Makefile)
+    CFLAGS   += -DCONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG=1
+    CXXFLAGS += -DCONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG=1
+else
+    $(info CONFIG_WOLFSSL_USE_MY_PRIVATE_CONFIG not set, not using private config.)
+endif
+
 #
 # This is a project Makefile.
 # It is assumed the directory this Makefile resides in is a
@@ -37,7 +65,6 @@
 #    USE_MY_PRIVATE_WINDOWS_CONFIG      /workspace/my_private_config.h
 #
 #
-PROJECT_NAME := wolfssl_client
 
 # Optionally include component source when print path (needs work to then properly build)
 #
@@ -53,7 +80,6 @@ USE_MY_PRIVATE_WINDOWS_CONFIG ?= n
 #     OS := $(shell uname -s)
 #
 # But OS, or MY_PRIVATE_CONFIG should already be defined:
-$(info *************  wolfssl_client *************)
 
 ifeq ($(MY_PRIVATE_CONFIG),y)
 	CFLAGS += -DMY_PRIVATE_CONFIG
@@ -128,12 +154,8 @@ else
 	endif
 endif
 
-# It is essential that the build process sees the WOLFSSL_USER_SETTINGS
-CFLAGS += -DWOLFSSL_USER_SETTINGS
-
 # if directory not available, please disable the line below.
 EXTRA_COMPONENT_DIRS = $(IDF_PATH)/examples/common_components/protocol_examples_common
 
 # The Standard Espressif IDF include:
 include $(IDF_PATH)/make/project.mk
-
