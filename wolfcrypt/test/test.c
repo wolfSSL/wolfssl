@@ -2765,10 +2765,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #endif /* NO_MAIN_DRIVER */
 
-#if defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLF_CRYPTO_CB_ONLY_RSA)
-    #undef  NO_WRITE_TEMP_FILES
-    #define NO_WRITE_TEMP_FILES
-#endif
 
 /* helper to save DER, convert to PEM and save PEM */
 #if !defined(NO_ASN) && (defined(HAVE_ECC) || !defined(NO_DSA) || \
