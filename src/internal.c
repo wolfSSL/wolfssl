@@ -17470,6 +17470,15 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
+            if (!ssl->msgsReceived.got_server_hello ||
+                    ssl->msgsReceived.got_change_cipher ||
+                    ssl->msgsReceived.got_finished ||
+                    (!ssl->options.resuming &&
+                            !ssl->msgsReceived.got_server_hello_done)) {
+                WOLFSSL_MSG("session_ticket received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
             ssl->msgsReceived.got_session_ticket = 1;
 
             break;
@@ -17485,8 +17494,16 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                if ( ssl->msgsReceived.got_server_hello == 0) {
+                if (!ssl->msgsReceived.got_server_hello) {
                     WOLFSSL_MSG("No ServerHello before Cert");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                if (ssl->msgsReceived.got_certificate_status ||
+                        ssl->msgsReceived.got_server_key_exchange ||
+                        ssl->msgsReceived.got_certificate_request ||
+                        ssl->msgsReceived.got_server_hello_done) {
+                    WOLFSSL_MSG("Cert received in wrong order");
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
@@ -17494,8 +17511,16 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 #endif
 #ifndef NO_WOLFSSL_SERVER
             if (ssl->options.side == WOLFSSL_SERVER_END) {
-                if ( ssl->msgsReceived.got_client_hello == 0) {
+                if (!ssl->msgsReceived.got_client_hello) {
                     WOLFSSL_MSG("No ClientHello before Cert");
+                    WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                    return OUT_OF_ORDER_E;
+                }
+                if (ssl->msgsReceived.got_client_key_exchange ||
+                        ssl->msgsReceived.got_certificate_verify ||
+                        ssl->msgsReceived.got_change_cipher ||
+                        ssl->msgsReceived.got_finished) {
+                    WOLFSSL_MSG("Cert received in wrong order");
                     WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                     return OUT_OF_ORDER_E;
                 }
@@ -17517,7 +17542,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_certificate_status = 1;
 
             if (ssl->msgsReceived.got_certificate == 0) {
                 WOLFSSL_MSG("No Certificate before CertificateStatus");
@@ -17529,7 +17553,15 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (ssl->msgsReceived.got_server_key_exchange ||
+                    ssl->msgsReceived.got_certificate_request ||
+                    ssl->msgsReceived.got_server_hello_done) {
+                WOLFSSL_MSG("CertificateStatus received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
 
+            ssl->msgsReceived.got_certificate_status = 1;
             break;
 #endif
 
@@ -17547,14 +17579,19 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_server_key_exchange = 1;
-
             if (ssl->msgsReceived.got_server_hello == 0) {
                 WOLFSSL_MSG("No ServerHello before ServerKeyExchange");
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (ssl->msgsReceived.got_certificate_request ||
+                    ssl->msgsReceived.got_server_hello_done) {
+                WOLFSSL_MSG("ServerKeyExchange received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
 
+            ssl->msgsReceived.got_server_key_exchange = 1;
             break;
 #endif
 
@@ -17571,6 +17608,16 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("Duplicate CertificateRequest received");
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
+            }
+            if (ssl->msgsReceived.got_server_hello == 0) {
+                WOLFSSL_MSG("No ServerHello before CertificateRequest");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            if (ssl->msgsReceived.got_server_hello_done) {
+                WOLFSSL_MSG("CertificateRequest received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
             }
             ssl->msgsReceived.got_certificate_request = 1;
 
@@ -17691,13 +17738,18 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_certificate_verify = 1;
-
             if ( ssl->msgsReceived.got_certificate == 0) {
                 WOLFSSL_MSG("No Cert before CertVerify");
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (ssl->msgsReceived.got_change_cipher ||
+                    ssl->msgsReceived.got_finished) {
+                WOLFSSL_MSG("CertVerify received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            ssl->msgsReceived.got_certificate_verify = 1;
             break;
 #endif
 
@@ -17715,13 +17767,19 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(DUPLICATE_MSG_E);
                 return DUPLICATE_MSG_E;
             }
-            ssl->msgsReceived.got_client_key_exchange = 1;
-
             if (ssl->msgsReceived.got_client_hello == 0) {
                 WOLFSSL_MSG("No ClientHello before ClientKeyExchange");
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (ssl->msgsReceived.got_certificate_verify||
+                    ssl->msgsReceived.got_change_cipher ||
+                    ssl->msgsReceived.got_finished) {
+                WOLFSSL_MSG("ClientKeyExchange received in wrong order");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            ssl->msgsReceived.got_client_key_exchange = 1;
             break;
 #endif
 
@@ -17740,13 +17798,12 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 }
             }
 #endif
-            ssl->msgsReceived.got_finished = 1;
-
             if (ssl->msgsReceived.got_change_cipher == 0) {
                 WOLFSSL_MSG("Finished received before ChangeCipher");
                 WOLFSSL_ERROR_VERBOSE(NO_CHANGE_CIPHER_E);
                 return NO_CHANGE_CIPHER_E;
             }
+            ssl->msgsReceived.got_finished = 1;
             break;
 
         case change_cipher_hs:
