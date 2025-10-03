@@ -177,7 +177,7 @@ endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
-LDFLAGS_libwolfssl.o += -T $(src)/wolfcrypt.lds
+ldflags-y += -T $(src)/wolfcrypt.lds
 
 ifndef NM
     NM := nm
