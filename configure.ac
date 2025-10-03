@@ -9857,6 +9857,13 @@ AC_ARG_ENABLE([rpk],
     [ ENABLED_RPK=no ]
     )
 
+# Allows dynamically loading the certificate
+AC_ARG_ENABLE([cert-setup-cb],
+    [AS_HELP_STRING([--enable-cert-setup-cb],[Enable support for dynamically loading TLS certificates (default: disabled)])],
+    [ ENABLED_CERT_SETUP_CB=$enableval ],
+    [ ENABLED_CERT_SETUP_CB=no ]
+    )
+
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
@@ -10277,6 +10284,9 @@ AS_IF([test "x$ENABLED_DUAL_ALG_CERTS" = "xyes"],
 
 AS_IF([test "x$ENABLED_RPK" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_RPK"])
+
+AS_IF([test "x$ENABLED_CERT_SETUP_CB" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_SETUP_CB"])
 
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
