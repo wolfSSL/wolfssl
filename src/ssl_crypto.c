@@ -1048,11 +1048,7 @@ unsigned char* wolfSSL_SHA1(const unsigned char* data, size_t len,
 {
     /* Buffer to use when hash is NULL. */
     static byte dgst[WC_SHA_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha* sha;
-#else
-    wc_Sha sha[1];
-#endif
+    WC_DECLARE_VAR(sha, wc_Sha, 1, 0);
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA1");
@@ -1064,13 +1060,9 @@ unsigned char* wolfSSL_SHA1(const unsigned char* data, size_t len,
         hash = dgst;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate dynamic memory for a wolfSSL SHA object. */
-    sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_DIGEST);
-    if (sha == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha, wc_Sha, 1, NULL, DYNAMIC_TYPE_DIGEST,
+        ret=MEMORY_E);
 
     if (ret == 0) {
         /* Initialize wolfCrypt SHA object. */
@@ -1100,10 +1092,7 @@ unsigned char* wolfSSL_SHA1(const unsigned char* data, size_t len,
         wc_ShaFree(sha);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL SHA object. */
-    XFREE(sha, NULL, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha, NULL, DYNAMIC_TYPE_DIGEST);
     return hash;
 }
 #endif /* ! NO_SHA */
@@ -1126,11 +1115,7 @@ unsigned char* wolfSSL_SHA224(const unsigned char* data, size_t len,
 {
     /* Buffer to use when hash is NULL. */
     static byte dgst[WC_SHA224_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha224* sha224;
-#else
-    wc_Sha224 sha224[1];
-#endif
+    WC_DECLARE_VAR(sha224, wc_Sha224, 1, 0);
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA224");
@@ -1142,13 +1127,9 @@ unsigned char* wolfSSL_SHA224(const unsigned char* data, size_t len,
         hash = dgst;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate dynamic memory for a wolfSSL SHA-224 object. */
-    sha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL, DYNAMIC_TYPE_DIGEST);
-    if (sha224 == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha224, wc_Sha224, 1, NULL, DYNAMIC_TYPE_DIGEST,
+        ret=MEMORY_E);
 
     if (ret == 0) {
         /* Initialize wolfCrypt SHA224 object. */
@@ -1178,10 +1159,7 @@ unsigned char* wolfSSL_SHA224(const unsigned char* data, size_t len,
         wc_Sha224Free(sha224);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL SHA-224 object. */
-    XFREE(sha224, NULL, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha224, NULL, DYNAMIC_TYPE_DIGEST);
     return hash;
 }
 #endif
@@ -1204,11 +1182,7 @@ unsigned char* wolfSSL_SHA256(const unsigned char* data, size_t len,
 {
     /* Buffer to use when hash is NULL. */
     static byte dgst[WC_SHA256_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha256* sha256;
-#else
-    wc_Sha256 sha256[1];
-#endif
+    WC_DECLARE_VAR(sha256, wc_Sha256, 1, 0);
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA256");
@@ -1220,13 +1194,9 @@ unsigned char* wolfSSL_SHA256(const unsigned char* data, size_t len,
         hash = dgst;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate dynamic memory for a wolfSSL SHA-256 object. */
-    sha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL, DYNAMIC_TYPE_DIGEST);
-    if (sha256 == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha256, wc_Sha256, 1, NULL, DYNAMIC_TYPE_DIGEST,
+        ret=MEMORY_E);
 
     if (ret == 0) {
         /* Initialize wolfCrypt SHA256 object. */
@@ -1256,10 +1226,7 @@ unsigned char* wolfSSL_SHA256(const unsigned char* data, size_t len,
         wc_Sha256Free(sha256);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL SHA object. */
-    XFREE(sha256, NULL, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha256, NULL, DYNAMIC_TYPE_DIGEST);
     return hash;
 }
 #endif /* ! NO_SHA256 */
@@ -1282,11 +1249,7 @@ unsigned char* wolfSSL_SHA384(const unsigned char* data, size_t len,
 {
     /* Buffer to use when hash is NULL. */
     static byte dgst[WC_SHA384_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha384* sha384;
-#else
-    wc_Sha384 sha384[1];
-#endif
+    WC_DECLARE_VAR(sha384, wc_Sha384, 1, 0);
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA384");
@@ -1298,13 +1261,9 @@ unsigned char* wolfSSL_SHA384(const unsigned char* data, size_t len,
         hash = dgst;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate dynamic memory for a wolfSSL SHA-384 object. */
-    sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), NULL, DYNAMIC_TYPE_DIGEST);
-    if (sha384 == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_DIGEST,
+        ret=MEMORY_E);
 
     if (ret == 0) {
         /* Initialize wolfCrypt SHA384 object. */
@@ -1334,10 +1293,7 @@ unsigned char* wolfSSL_SHA384(const unsigned char* data, size_t len,
         wc_Sha384Free(sha384);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL SHA-384 object. */
-    XFREE(sha384, NULL, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha384, NULL, DYNAMIC_TYPE_DIGEST);
     return hash;
 }
 #endif /* WOLFSSL_SHA384  */
@@ -1360,11 +1316,7 @@ unsigned char* wolfSSL_SHA512(const unsigned char* data, size_t len,
 {
     /* Buffer to use when hash is NULL. */
     static byte dgst[WC_SHA512_DIGEST_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha512* sha512;
-#else
-    wc_Sha512 sha512[1];
-#endif
+    WC_DECLARE_VAR(sha512, wc_Sha512, 1, 0);
     int ret = 0;
 
     WOLFSSL_ENTER("wolfSSL_SHA512");
@@ -1376,13 +1328,9 @@ unsigned char* wolfSSL_SHA512(const unsigned char* data, size_t len,
         hash = dgst;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate dynamic memory for a wolfSSL SHA-512 object. */
-    sha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL, DYNAMIC_TYPE_DIGEST);
-    if (sha512 == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(sha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_DIGEST,
+        ret=MEMORY_E);
 
     if (ret == 0) {
         /* Initialize wolfCrypt SHA512 object. */
@@ -1412,10 +1360,7 @@ unsigned char* wolfSSL_SHA512(const unsigned char* data, size_t len,
         wc_Sha512Free(sha512);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL SHA-512 object. */
-    XFREE(sha512, NULL, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha512, NULL, DYNAMIC_TYPE_DIGEST);
     return hash;
 }
 #endif /* WOLFSSL_SHA512 */
@@ -2062,11 +2007,7 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
     int rc = 0;
     int type = 0;
     int hmacLen = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Hmac* hmac = NULL;
-#else
-    Hmac  hmac[1];
-#endif
+    WC_DECLARE_VAR(hmac, Hmac, 1, 0);
     void* heap = NULL;
 
     /* Validate parameters. */
@@ -2116,10 +2057,7 @@ unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
         wc_HmacFree(hmac);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamic memory of a wolfSSL HMAC object. */
-    XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
-#endif
+    WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
     return ret;
 }
 
@@ -2715,11 +2653,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
     long length, WOLFSSL_DES_key_schedule* schedule, WOLFSSL_DES_cblock* ivec,
     int enc)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Des* des = NULL;
-#else
-    Des  des[1];
-#endif
+    WC_DECLARE_VAR(des, Des, 1, 0);
     byte lastBlock[DES_BLOCK_SIZE];
 
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
@@ -2767,9 +2701,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(des, NULL, DYNAMIC_TYPE_CIPHER);
 }
 
 /* Encrypt/decrypt data with DES-CBC. Sets the IV for following operation.
@@ -2834,11 +2766,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
     WOLFSSL_DES_key_schedule* ks2, WOLFSSL_DES_key_schedule* ks3,
     WOLFSSL_DES_cblock* ivec, int enc)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Des3* des3;
-#else
-    Des3  des3[1];
-#endif
+    WC_DECLARE_VAR(des3, Des3, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
 
@@ -2943,9 +2871,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
         wc_Des3Free(des3);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des3, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(des3, NULL, DYNAMIC_TYPE_CIPHER);
 }
 
 #ifdef WOLFSSL_DES_ECB
@@ -2959,11 +2885,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
 void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
     WOLFSSL_DES_key_schedule* key, int enc)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Des* des = NULL;
-#else
-    Des  des[1];
-#endif
+    WC_DECLARE_VAR(des, Des, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_DES_ecb_encrypt");
 
@@ -3001,9 +2923,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(des, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(des, NULL, DYNAMIC_TYPE_CIPHER);
 }
 #endif
 #endif /* NO_DES3 */

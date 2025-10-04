@@ -1329,17 +1329,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Md5* md5;
-    #else
-        wc_Md5  md5[1];
-    #endif
+        WC_DECLARE_VAR(md5, wc_Md5, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(md5, wc_Md5, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitMd5_ex(md5, heap, devId)) != 0) {
             WOLFSSL_MSG("InitMd5 failed");
@@ -1354,9 +1347,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Md5Free(md5);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1378,17 +1369,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha* sha;
-    #else
-        wc_Sha sha[1];
-    #endif
+        WC_DECLARE_VAR(sha, wc_Sha, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha, wc_Sha, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha_ex(sha, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha failed");
@@ -1403,9 +1387,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_ShaFree(sha);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1427,18 +1409,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha224* sha224;
-    #else
-        wc_Sha224 sha224[1];
-    #endif
+        WC_DECLARE_VAR(sha224, wc_Sha224, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha224 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha224, wc_Sha224, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha224_ex(sha224, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha224 failed");
@@ -1453,9 +1427,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha224Free(sha224);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1531,18 +1503,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha512* sha512;
-    #else
-        wc_Sha512 sha512[1];
-    #endif
+        WC_DECLARE_VAR(sha512, wc_Sha512, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha512 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha512_ex(sha512, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha512 failed");
@@ -1557,9 +1521,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha512Free(sha512);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1580,18 +1542,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha512* sha512;
-    #else
-        wc_Sha512 sha512[1];
-    #endif
+        WC_DECLARE_VAR(sha512, wc_Sha512, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha512 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha512_224_ex(sha512, heap, devId)) != 0) {
             WOLFSSL_MSG("wc_InitSha512_224 failed");
@@ -1606,9 +1560,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha512_224Free(sha512);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1632,18 +1584,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha512* sha512;
-    #else
-        wc_Sha512 sha512[1];
-    #endif
+        WC_DECLARE_VAR(sha512, wc_Sha512, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha512 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha512_256_ex(sha512, heap, devId)) != 0) {
             WOLFSSL_MSG("wc_InitSha512_256 failed");
@@ -1658,9 +1602,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha512_256Free(sha512);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1685,18 +1627,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha384* sha384;
-    #else
-        wc_Sha384 sha384[1];
-    #endif
+        WC_DECLARE_VAR(sha384, wc_Sha384, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha384 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha384_ex(sha384, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha384 failed");
@@ -1711,9 +1645,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha384Free(sha384);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1736,18 +1668,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha3* sha3;
-    #else
-        wc_Sha3 sha3[1];
-    #endif
+        WC_DECLARE_VAR(sha3, wc_Sha3, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha3 = (wc_Sha3*)XMALLOC(sizeof(wc_Sha3), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha3 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha3, wc_Sha3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha3_224(sha3, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha3_224 failed");
@@ -1762,9 +1686,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha3_224_Free(sha3);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1786,18 +1708,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha3* sha3;
-    #else
-        wc_Sha3 sha3[1];
-    #endif
+        WC_DECLARE_VAR(sha3, wc_Sha3, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha3 = (wc_Sha3*)XMALLOC(sizeof(wc_Sha3), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha3 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha3, wc_Sha3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha3_256(sha3, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha3_256 failed");
@@ -1812,9 +1726,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha3_256_Free(sha3);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1836,18 +1748,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha3* sha3;
-    #else
-        wc_Sha3 sha3[1];
-    #endif
+        WC_DECLARE_VAR(sha3, wc_Sha3, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha3 = (wc_Sha3*)XMALLOC(sizeof(wc_Sha3), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha3 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha3, wc_Sha3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha3_384(sha3, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha3_384 failed");
@@ -1862,9 +1766,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha3_384_Free(sha3);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1886,18 +1788,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sha3* sha3;
-    #else
-        wc_Sha3 sha3[1];
-    #endif
+        WC_DECLARE_VAR(sha3, wc_Sha3, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sha3 = (wc_Sha3*)XMALLOC(sizeof(wc_Sha3), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha3 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sha3, wc_Sha3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSha3_512(sha3, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSha3_512 failed");
@@ -1912,9 +1806,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sha3_512_Free(sha3);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sha3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1936,18 +1828,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
                         word32 hashLen, void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Shake* shake;
-    #else
-        wc_Shake shake[1];
-    #endif
+        WC_DECLARE_VAR(shake, wc_Shake, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        shake = (wc_Shake*)XMALLOC(sizeof(wc_Shake), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (shake == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(shake, wc_Shake, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitShake128(shake, heap, devId)) != 0) {
             WOLFSSL_MSG("InitShake128 failed");
@@ -1962,9 +1846,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Shake128_Free(shake);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -1988,18 +1870,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
                         word32 hashLen, void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Shake* shake;
-    #else
-        wc_Shake shake[1];
-    #endif
+        WC_DECLARE_VAR(shake, wc_Shake, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        shake = (wc_Shake*)XMALLOC(sizeof(wc_Shake), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (shake == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(shake, wc_Shake, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitShake256(shake, heap, devId)) != 0) {
             WOLFSSL_MSG("InitShake256 failed");
@@ -2014,9 +1888,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Shake256_Free(shake);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -2041,17 +1913,10 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         void* heap, int devId)
     {
         int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        wc_Sm3* sm3;
-    #else
-        wc_Sm3 sm3[1];
-    #endif
+        WC_DECLARE_VAR(sm3, wc_Sm3, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        sm3 = (wc_Sm3*)XMALLOC(sizeof(wc_Sm3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sm3 == NULL)
-            return MEMORY_E;
-    #endif
+        WC_ALLOC_VAR_EX(sm3, wc_Sm3, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
 
         if ((ret = wc_InitSm3(sm3, heap, devId)) != 0) {
             WOLFSSL_MSG("InitSm3 failed");
@@ -2066,9 +1931,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             wc_Sm3Free(sm3);
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(sm3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(sm3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }

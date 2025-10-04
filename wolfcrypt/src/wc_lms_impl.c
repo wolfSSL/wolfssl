@@ -1797,25 +1797,16 @@ static int wc_lms_treehash(LmsState* state, const byte* id, const byte* seed,
     byte* dp = rp + LMS_R_LEN;
     byte* left = dp + LMS_D_LEN;
     byte* temp = left + params->hash_len;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* stack = NULL;
-#else
-    byte stack[(LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN];
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
     byte* sp;
     word32 i;
 
     /* I || ... */
     XMEMCPY(buffer, id, LMS_I_LEN);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = XMALLOC((params->height + 1) * params->hash_len, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (stack == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_ALLOC_VAR_EX(stack, byte, (params->height+1)*params->hash_len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
     sp = stack;
 
     /* Compute all nodes requested. */
@@ -1863,9 +1854,7 @@ static int wc_lms_treehash(LmsState* state, const byte* id, const byte* seed,
         /* Public key, root node, is top of data stack. */
         XMEMCPY(pub, stack, params->hash_len);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_FREE_VAR_EX(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -1936,11 +1925,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
     byte* dp = rp + LMS_R_LEN;
     byte* left = dp + LMS_D_LEN;
     byte* temp = left + params->hash_len;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* stack = NULL;
-#else
-    byte stack[(LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN];
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
     word32 spi = 0;
     word32 i;
     word32 max_h = (word32)1 << params->height;
@@ -1957,14 +1942,9 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
     /* I || ... */
     XMEMCPY(buffer, id, LMS_I_LEN);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (stack == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_ALLOC_VAR_EX(stack, byte, (params->height+1)*params->hash_len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
 
     /* Compute all nodes requested. */
     for (i = 0; (ret == 0) && (i < max_h); i++) {
@@ -2024,9 +2004,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_FREE_VAR_EX(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -2071,11 +2049,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     byte* dp = rp + LMS_R_LEN;
     byte* left = dp + LMS_D_LEN;
     byte* temp = left + params->hash_len;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* stack = NULL;
-#else
-    byte stack[(LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN];
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_DECLARE_VAR(stack, byte, (LMS_MAX_HEIGHT + 1) * LMS_MAX_NODE_LEN, 0);
     byte* sp;
     word32 max_cb = (word32)1 << params->cacheBits;
     word32 i;
@@ -2083,14 +2057,9 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
     /* I || ... */
     XMEMCPY(buffer, id, LMS_I_LEN);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (stack == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_ALLOC_VAR_EX(stack, byte, (params->height+1)*params->hash_len, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER, ret=MEMORY_E);
 
     /* Public key, root node, is top of data stack. */
     if (ret == 0) {
@@ -2197,9 +2166,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
         stackCache->offset = (word32)((size_t)sp - (size_t)stack);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_FREE_VAR_EX(stack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* WOLFSSL_WC_LMS_SMALL */

@@ -1097,32 +1097,21 @@ void wc_ShaFree(wc_Sha* sha)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha* tmpSha;
-#else
-    wc_Sha  tmpSha[1];
-#endif
+    WC_DECLARE_VAR(tmpSha, wc_Sha, 1, 0);
 
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpSha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpSha == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(tmpSha, wc_Sha, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_ShaCopy(sha, tmpSha);
     if (ret == 0) {
         ret = wc_ShaFinal(tmpSha, hash);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpSha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

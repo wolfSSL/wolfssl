@@ -197,11 +197,7 @@ int CheckCertOCSP_ex(WOLFSSL_OCSP* ocsp, DecodedCert* cert, WOLFSSL* ssl)
 {
     int ret = WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL);
 
-#ifdef WOLFSSL_SMALL_STACK
-    OcspRequest* ocspRequest;
-#else
-    OcspRequest ocspRequest[1];
-#endif
+    WC_DECLARE_VAR(ocspRequest, OcspRequest, 1, 0);
 
     WOLFSSL_ENTER("CheckCertOCSP");
 
@@ -223,9 +219,7 @@ int CheckCertOCSP_ex(WOLFSSL_OCSP* ocsp, DecodedCert* cert, WOLFSSL* ssl)
         FreeOcspRequest(ocspRequest);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(ocspRequest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(ocspRequest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     WOLFSSL_LEAVE("CheckCertOCSP", ret);
     return ret;
@@ -475,11 +469,9 @@ end:
     }
 
     FreeOcspResponse(ocspResponse);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(newStatus,    NULL, DYNAMIC_TYPE_OCSP_STATUS);
-    XFREE(newSingle,    NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-    XFREE(ocspResponse, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-#endif
+    WC_FREE_VAR_EX(newStatus, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+    WC_FREE_VAR_EX(newSingle, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+    WC_FREE_VAR_EX(ocspResponse, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
     return ret;
 }
 
@@ -780,11 +772,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     int ret = -1;
     DerBuffer* derCert = NULL;
     int dgstType;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *cert = NULL;
-#else
-    DecodedCert cert[1];
-#endif
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     if (dgst == NULL) {
         dgstType = WC_HASH_TYPE_SHA;
@@ -803,11 +791,8 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
             || issuer  == NULL || issuer->derCert  == NULL)
         goto out;
 
-#ifdef WOLFSSL_SMALL_STACK
-    cert = (DecodedCert *)XMALLOC(sizeof(*cert), cm->heap, DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
-        goto out;
-#endif
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
+        goto out);
 
     ret = AllocDer(&derCert, issuer->derCert->length,
         issuer->derCert->type, NULL);
@@ -1027,21 +1012,14 @@ static int OcspFindSigner(WOLFSSL_OCSP_BASICRESP *resp,
 static int OcspVerifySigner(WOLFSSL_OCSP_BASICRESP *resp, DecodedCert *cert,
      WOLFSSL_X509_STORE *st, unsigned long flags)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *c = NULL;
-#else
-    DecodedCert c[1];
-#endif
+    WC_DECLARE_VAR(c, DecodedCert, 1, 0);
 
     int ret = -1;
     if (st == NULL)
         return ASN_OCSP_CONFIRM_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    c = (DecodedCert *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_DCERT);
-    if (c == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(c, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
+        return MEMORY_E);
 
     InitDecodedCert(c, cert->source, cert->maxIdx, NULL);
     if (ParseCertRelative(c, CERT_TYPE, VERIFY, st->cm, NULL) != 0) {
@@ -1063,9 +1041,7 @@ static int OcspVerifySigner(WOLFSSL_OCSP_BASICRESP *resp, DecodedCert *cert,
 
 err:
     FreeDecodedCert(c);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(c, NULL, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_DCERT);
     return ret;
 }
 /* Signature verified in DecodeBasicOcspResponse.
