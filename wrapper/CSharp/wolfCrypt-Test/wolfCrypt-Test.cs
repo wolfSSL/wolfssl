@@ -648,6 +648,201 @@ public class wolfCrypt_Test_CSharp
         if (publicKeyB != IntPtr.Zero) wolfcrypt.Curve25519FreeKey(publicKeyB);
     } /* END curve25519_test */
 
+    private static void mlkem_test(wolfcrypt.MlKemTypes type)
+    {
+        int ret;
+        IntPtr keyA = IntPtr.Zero;
+        IntPtr keyB = IntPtr.Zero;
+        IntPtr heap = IntPtr.Zero;
+        int devId = wolfcrypt.INVALID_DEVID;
+        byte[] pubA, privA, cipherText, sharedSecretA, sharedSecretB;
+
+        try
+        {
+            Console.WriteLine("\nStarting " + type + " shared secret test ...");
+
+            /* Generate Key Pair */
+            Console.WriteLine("Testing ML-KEM Key Generation...");
+
+            Console.WriteLine("Generate Key Pair A...");
+            keyA = wolfcrypt.MlKemMakeKey(type, heap, devId);
+            if (keyA == IntPtr.Zero)
+            {
+                Console.Error.WriteLine("Failed to generate key pair A.");
+            }
+
+            Console.WriteLine("Generate Key Pair B...");
+            keyB = wolfcrypt.MlKemMakeKey(type, heap, devId);
+            if (keyB == IntPtr.Zero)
+            {
+                Console.Error.WriteLine("Failed to generate key pair B.");
+            }
+
+            Console.WriteLine("ML-KEM Key Generation test passed.");
+
+            /* Encode */
+            Console.WriteLine("Testing ML-KEM Key Encode...");
+            ret = wolfcrypt.MlKemEncodePublicKey(keyA, out pubA);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to encode public key of A.");
+            }
+            ret = wolfcrypt.MlKemEncodePrivateKey(keyA, out privA);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to encode private key of A.");
+            }
+            Console.WriteLine("ML-KEM Key Encode test passed.");
+
+            /* Encapsulate */
+            Console.WriteLine("Testing ML-KEM Encapsulation...");
+            ret = wolfcrypt.MlKemEncapsulate(keyA, out cipherText, out sharedSecretA);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to encapsulate.");
+            }
+            Console.WriteLine("ML-KEM Encapsulation test passed.");
+
+            /* Decode */
+            Console.WriteLine("Testing ML-KEM Decode...");
+            ret = wolfcrypt.MlKemDecodePrivateKey(keyB, privA);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to decode private key of A.");
+            }
+            ret = wolfcrypt.MlKemDecodePublicKey(keyB, pubA);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to decode public key of B.");
+            }
+            Console.WriteLine("ML-KEM Decode test passed.");
+
+            /* Decapsulate */
+            Console.WriteLine("Testing ML-KEM Decapsulation...");
+            ret = wolfcrypt.MlKemDecapsulate(keyB, cipherText, out sharedSecretB);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("Failed to decapsulate.");
+            }
+            Console.WriteLine("ML-KEM Decapsulation test passed.");
+
+            /* Check */
+            Console.WriteLine("Comparing Shared Secrets...");
+            if (!wolfcrypt.ByteArrayVerify(sharedSecretA, sharedSecretB))
+            {
+                Console.Error.WriteLine("Shared secrets do not match.");
+            }
+            else
+            {
+                Console.WriteLine("ML-KEM shared secret match.");
+            }
+        }
+        finally
+        {
+            /* Cleanup */
+            if (keyA != IntPtr.Zero)
+            {
+                ret = wolfcrypt.MlKemFreeKey(keyA);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine("Failed to free MlKem key A. Error code: " + ret);
+                }
+            }
+            if (keyB != IntPtr.Zero)
+            {
+                ret = wolfcrypt.MlKemFreeKey(keyB);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine("Failed to free MlKem key B. Error code: " + ret);
+                }
+            }
+        }
+    } /* END mlkem_test */
+
+    private static void mldsa_test(wolfcrypt.MlDsaTypes type)
+    {
+        int ret;
+        IntPtr key = IntPtr.Zero;
+        IntPtr heap = IntPtr.Zero;
+        int devId = wolfcrypt.INVALID_DEVID;
+        byte[] privateKey;
+        byte[] publicKey;
+        byte[] message = Encoding.UTF8.GetBytes("This is some data to sign with ML-DSA");
+        byte[] signature;
+
+        try
+        {
+            Console.WriteLine("\nStarting " + type + " shared secret test ...");
+
+            /* Generate Key Pair */
+            Console.WriteLine("Testing ML-DSA Key Generation...");
+            key = wolfcrypt.DilithiumMakeKey(heap, devId, type);
+            if (key == IntPtr.Zero)
+            {
+                Console.Error.WriteLine("DilithiumMakeKey failed");
+            }
+            Console.WriteLine("ML-DSA Key Generation test passed.");
+
+            /* Export */
+            Console.WriteLine("Testing ML-DSA Key Export...");
+            ret = DilithiumExportPrivateKey(key, out privateKey);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumExportPrivateKey failed");
+            }
+            ret = DilithiumExportPublicKey(key, out publicKey);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumExportPublicKey failed");
+            }
+            Console.WriteLine("ML-DSA Key Export test passed.");
+
+            /* Import */
+            Console.WriteLine("Testing ML-DSA Key Import...");
+            ret = DilithiumImportPrivateKey(privateKey, key);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumImportPrivateKey failed");
+            }
+            ret = DilithiumImportPublicKey(publicKey, key);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumImportPrivateKey failed");
+            }
+            Console.WriteLine("ML-DSA Key Import test passed.");
+
+            /* Sign */
+            Console.WriteLine("Testing ML-DSA Signature Creation...");
+            ret = wolfcrypt.DilithiumSignMsg(key, message, out signature);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumSign failed");
+            }
+            Console.WriteLine($"ML-DSA Signature Creation test passed. Signature Length: {signature.Length}");
+
+            /* Verify */
+            Console.WriteLine("Testing ML-DSA Signature Verification...");
+            ret = wolfcrypt.DilithiumVerifyMsg(key, message, signature);
+            if (ret != 0)
+            {
+                Console.Error.WriteLine("DilithiumVerify failed");
+            }
+            Console.WriteLine("ML-DSA Signature Verification test passed.");
+        }
+        finally
+        {
+            if (key != IntPtr.Zero)
+            {
+                ret = wolfcrypt.DilithiumFreeKey(key);
+                if (ret != 0)
+                {
+                    Console.Error.WriteLine("Failed to free Dilithium key. Error code: " + ret);
+                }
+            }
+        }
+
+    } /* END mldsa_test */
+
     private static void aes_gcm_test()
     {
         IntPtr aes = IntPtr.Zero;
@@ -903,6 +1098,18 @@ public class wolfCrypt_Test_CSharp
             Console.WriteLine("\nStarting curve25519 test");
 
             curve25519_test(); /* curve25519 shared secret test */
+
+            Console.WriteLine("\nStarting ML-KEM test");
+
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_512); /* ML-KEM test */
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_768); /* ML-KEM test */
+            mlkem_test(wolfcrypt.MlKemTypes.ML_KEM_1024); /* ML-KEM test */
+
+            Console.WriteLine("\nStarting ML-DSA test");
+
+            mldsa_test(wolfcrypt.MlDsaTypes.ML_DSA_44); /* ML-DSA test */
+            mldsa_test(wolfcrypt.MlDsaTypes.ML_DSA_65); /* ML-DSA test */
+            mldsa_test(wolfcrypt.MlDsaTypes.ML_DSA_87); /* ML-DSA test */
 
             Console.WriteLine("\nStarting AES-GCM test");
 
