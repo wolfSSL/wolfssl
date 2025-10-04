@@ -50,6 +50,10 @@
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam_fsl_nxp.h>
 #endif
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif
+
 /* Assume no hash HW available until supporting HW found. */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
 
@@ -388,6 +392,8 @@
 
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
 /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
+#elif defined(PSOC6_HASH_SHA1)
+    /* Implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #else
     /* Software implementation */
     #define USE_SHA_SOFTWARE_IMPL
@@ -1074,6 +1080,10 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);
 #endif
+
+#if defined(PSOC6_HASH_SHA1)
+    wc_Psoc6_Sha_Free();
+#endif
 }
 
 #endif /* !MAX3266X_SHA */
@@ -1162,6 +1172,10 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     if (ret != 0) {
         return ret;
     }
+#endif
+
+#if defined(PSOC6_HASH_SHA1)
+    wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA1, 0);
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS

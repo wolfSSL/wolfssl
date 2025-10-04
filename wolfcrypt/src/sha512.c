@@ -23,7 +23,7 @@
 
 #if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && \
     (!defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_RISCV_ASM)
+    !defined(WOLFSSL_RISCV_ASM)
 
 /* determine if we are using Espressif SHA hardware acceleration */
 #undef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
@@ -91,6 +91,10 @@
 #if defined(MAX3266X_SHA)
     /* Already brought in by sha512.h */
     /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
+#endif
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
@@ -260,6 +264,8 @@
 
         return ret;
     }
+#elif defined(PSOC6_HASH_SHA2)
+    /* Functions defined in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
 
@@ -1224,6 +1230,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 #elif defined(STM32_HASH_SHA512)
+#elif defined(PSOC6_HASH_SHA2)
 #else
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
@@ -1387,6 +1394,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 #elif defined(STM32_HASH_SHA512)
+#elif defined(PSOC6_HASH_SHA2)
 #else
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, word32 digestSz)
@@ -1519,6 +1527,10 @@ void wc_Sha512Free(wc_Sha512* sha512)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#if defined(PSOC6_HASH_SHA2)
+    wc_Psoc6_Sha_Free();
+#endif
 
     ForceZero(sha512, sizeof(*sha512));
 }
@@ -1702,6 +1714,9 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
         return ret;
     }
+
+#elif defined(PSOC6_HASH_SHA2)
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
 
@@ -2091,6 +2106,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     }
 #endif
 
+#if defined(PSOC6_HASH_SHA2)
+    wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA512, 0);
+#endif
+
     return ret;
 }
 
@@ -2174,12 +2193,14 @@ int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash)
 
     return ret;
 }
+#elif defined(PSOC6_HASH_SHA2)
+    /* functions defined in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #endif
 int wc_InitSha512_224(wc_Sha512* sha)
 {
     return wc_InitSha512_224_ex(sha, NULL, INVALID_DEVID);
 }
-#if !defined(STM32_HASH_SHA512_224)
+#if !defined(STM32_HASH_SHA512_224) && !defined(PSOC6_HASH_SHA2)
 int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
@@ -2193,6 +2214,8 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 #elif defined(STM32_HASH_SHA512_224)
+#elif defined(PSOC6_HASH_SHA2)
+    /* functions defined in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
@@ -2313,12 +2336,14 @@ int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
 
         return ret;
     }
+#elif defined(PSOC6_HASH_SHA2)
+    /* functions defined in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #endif
 int wc_InitSha512_256(wc_Sha512* sha)
 {
     return wc_InitSha512_256_ex(sha, NULL, INVALID_DEVID);
 }
-#if !defined(STM32_HASH_SHA512_256)
+#if !defined(STM32_HASH_SHA512_256) && !defined(PSOC6_HASH_SHA2)
 int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
@@ -2332,6 +2357,8 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 #elif defined(STM32_HASH_SHA512_256)
+#elif defined(PSOC6_HASH_SHA2)
+    /* functions defined in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #else
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
 {
@@ -2504,6 +2531,10 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     if (ret != 0) {
         return ret;
     }
+#endif
+
+#if defined(PSOC6_HASH_SHA2)
+    wc_Psoc6_Sha1_Sha2_Init(dst, WC_PSOC6_SHA384, 0);
 #endif
 
     return ret;
