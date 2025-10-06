@@ -1007,6 +1007,7 @@ int test_ocsp_tls_cert_cb(void)
                     }
                 }
                 else {
+                    /* coverity[deadcode] - skip is only set for some build configs */
                     printf("\tskipping test case\n");
                 }
 

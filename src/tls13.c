@@ -8719,8 +8719,7 @@ static int SetupOcspResp(WOLFSSL* ssl)
     extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     if (extension == NULL)
         return 0; /* peer didn't signal ocsp support */
-    csr = extension ?
-        (CertificateStatusRequest*)extension->data : NULL;
+    csr = (CertificateStatusRequest*)extension->data;
     if (csr == NULL)
         return MEMORY_ERROR;
 
