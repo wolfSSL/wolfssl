@@ -10488,6 +10488,14 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 XMEMCPY(encryptedKey, &pkiMsg[*idx], (word32)encryptedKeySz);
             *idx += (word32)encryptedKeySz;
 
+            /* If this is not the correct recipient then do not try to decode
+             * the encrypted key */
+            if (*recipFound == 0) {
+                XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+                ret = PKCS7_RECIP_E;
+                break;
+            }
+
             /* load private key */
         #ifdef WOLFSSL_SMALL_STACK
             privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
