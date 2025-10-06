@@ -25185,7 +25185,7 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl, byte status_type)
                 for (cnt = XELEM_CNT(ssl->ocspCsrResp);
                         cnt > 0 && ssl->ocspCsrResp[cnt-1].buffer == NULL;
                         cnt--);
-                cnt = MIN(cnt, ssl->buffers.certChainCnt + 1);
+                cnt = (byte)MIN((int)cnt, ssl->buffers.certChainCnt + 1);
             }
 #endif
             ret = BuildCertificateStatus(ssl, status_type, ssl->ocspCsrResp,
