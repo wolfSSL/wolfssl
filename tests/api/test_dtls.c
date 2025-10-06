@@ -1676,16 +1676,19 @@ int test_dtls_timeout(void)
             ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
 #endif
         ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 2);
         ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
         ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
         ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 1);
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
         /* will return 0 when not 1.3 */
         if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
             ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
 #endif
         ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 2);
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
         wolfSSL_free(ssl_s);
