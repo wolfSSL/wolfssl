@@ -25091,7 +25091,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
-                                                                     byte count)
+                                                                   word32 count)
 {
     byte*  output  = NULL;
     word32 idx     = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -25099,7 +25099,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     word32 headerSz= idx;
     int    sendSz  = 0;
     int    ret     = 0;
-    int    i       = 0;
+    word32 i       = 0;
 
     WOLFSSL_ENTER("BuildCertificateStatus");
 
@@ -25178,14 +25178,14 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl, byte status_type)
     ret = ocsp->statusCb(ssl, ocsp->statusCbArg);
     switch (ret) {
         case WOLFSSL_OCSP_STATUS_CB_OK: {
-            byte cnt = 1;
+            word32 cnt = 1;
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (status_type == WOLFSSL_CSR2_OCSP_MULTI) {
                 /* Find last response set */
                 for (cnt = XELEM_CNT(ssl->ocspCsrResp);
                         cnt > 0 && ssl->ocspCsrResp[cnt-1].buffer == NULL;
                         cnt--);
-                cnt = MIN(cnt, ssl->buffers.certChainCnt + 1);
+                cnt = MIN(cnt, (word32)ssl->buffers.certChainCnt + 1);
             }
 #endif
             ret = BuildCertificateStatus(ssl, status_type, ssl->ocspCsrResp,
@@ -25286,7 +25286,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             OcspRequest* request = ssl->ctx->certOcspRequest;
             buffer responses[1 + MAX_CHAIN_DEPTH];
             byte ctxOwnsRequest = 0;
-            int i = 0;
+            word32 i = 0;
 
             XMEMSET(responses, 0, sizeof(responses));
 
@@ -25388,7 +25388,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             if (responses[0].buffer) {
                 if (ret == 0) {
                     ret = BuildCertificateStatus(ssl, status_type, responses,
-                                                                   (byte)i + 1);
+                                                                         i + 1);
                 }
 
                 for (i = 0; i < 1 + MAX_CHAIN_DEPTH; i++) {
