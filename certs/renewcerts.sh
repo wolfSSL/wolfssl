@@ -888,6 +888,11 @@ run_renewcerts(){
     openssl cms -encrypt -in ca-cert.pem -recip client-cert.pem -out test-stream-dec.p7b -outform DER -stream
     check_result $? ""
 
+    echo "Creating test-multiple-recipients.p7b..."
+    echo ""
+    openssl smime -encrypt -binary -aes-256-cbc -in ./client-key.pem  -out ./test-multiple-recipients.p7b -outform DER ./client-cert.pem ./server-cert.pem
+    check_result $? ""
+
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
