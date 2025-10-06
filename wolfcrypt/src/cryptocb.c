@@ -1753,7 +1753,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
           cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_224;
           ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
           ret = wc_CryptoCb_TranslateErrorCode(ret);
-          if (ret != CRYPTOCB_UNAVAILABLE)
+          if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         }
 #endif
@@ -1762,7 +1762,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
           cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_256;
           ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
           ret = wc_CryptoCb_TranslateErrorCode(ret);
-          if (ret != CRYPTOCB_UNAVAILABLE)
+          if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         }
 #endif
