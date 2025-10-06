@@ -1192,7 +1192,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     if (sha512->devId != INVALID_DEVID)
     #endif
     {
-        int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL);
+        int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL, 0);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1429,10 +1429,8 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     if (sha512->devId != INVALID_DEVID)
     #endif
     {
-        byte localHash[WC_SHA512_DIGEST_SIZE];
-        ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, localHash);
+        ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, hash, digestSz);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
-            XMEMCPY(hash, localHash, digestSz);
             return ret;
         }
         /* fall-through when unavailable */

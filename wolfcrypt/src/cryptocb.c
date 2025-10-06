@@ -1720,7 +1720,7 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 
 #ifdef WOLFSSL_SHA512
 int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
-    word32 inSz, byte* digest)
+    word32 inSz, byte* digest, size_t digestSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -1738,16 +1738,43 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     }
 
     if (dev && dev->cb) {
+        byte localHash[WC_SHA512_DIGEST_SIZE];
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
-        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
         cryptoInfo.hash.sha512 = sha512;
         cryptoInfo.hash.in = in;
         cryptoInfo.hash.inSz = inSz;
         cryptoInfo.hash.digest = digest;
 
+        /* try the specific family callbacks first */
+#if !defined(WOLFSSL_NOSHA512_224)
+        if (digest != NULL && digestSz == WC_SHA512_224_DIGEST_SIZE) {
+          cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_224;
+          ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+          ret = wc_CryptoCb_TranslateErrorCode(ret);
+          if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        }
+#endif
+#if !defined(WOLFSSL_NOSHA512_256)
+        if (digest != NULL && digestSz == WC_SHA512_256_DIGEST_SIZE) {
+          cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_256;
+          ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+          ret = wc_CryptoCb_TranslateErrorCode(ret);
+          if (ret != CRYPTOCB_UNAVAILABLE)
+            return ret;
+        }
+#endif
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
+        /* use local buffer if not full size */
+        if (digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
+            cryptoInfo.hash.digest = localHash;
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        ret = wc_CryptoCb_TranslateErrorCode(ret);
+        if (ret == 0 && digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
+            XMEMCPY(digest, localHash, digestSz);
+        return ret;
     }
 
     return wc_CryptoCb_TranslateErrorCode(ret);
