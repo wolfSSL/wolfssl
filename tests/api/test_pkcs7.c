@@ -2145,6 +2145,94 @@ int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 #endif
 } /* END test_wc_PKCS7_DecodeEnvelopedData_stream() */
 
+
+/*
+ * Testing wc_PKCS7_DecodeEnvelopedData with streaming
+ */
+int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
+{
+#if defined(HAVE_PKCS7)
+    EXPECT_DECLS;
+    PKCS7*      pkcs7 = NULL;
+    int ret = 0;
+    XFILE f = XBADFILE;
+    const char* testFile = "./certs/test-multiple-recipients.p7b";
+    byte testDerBuffer[8192]; /* test-multiple-recipients is currently 6433
+                                 bytes */
+    size_t testDerBufferSz = 0;
+    byte decodedData[8192];
+
+    ExpectTrue((f = XFOPEN(testFile, "rb")) != XBADFILE);
+    if (f != XBADFILE) {
+        testDerBufferSz = XFREAD(testDerBuffer, 1,
+                    sizeof(testDerBuffer), f);
+        ExpectIntGT(testDerBufferSz, 0);
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+
+    /* test with server cert recipient */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (pkcs7) {
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)server_cert_der_2048,
+            sizeof_server_cert_der_2048), 0);
+
+        ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)server_key_der_2048,
+            sizeof_server_key_der_2048), 0);
+
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
+            (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+    #if defined(NO_AES) || defined(NO_AES_256)
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
+        ExpectIntGT(ret, 0);
+    #endif
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* test with client cert recipient */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (pkcs7) {
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)client_cert_der_2048,
+            sizeof_client_cert_der_2048), 0);
+
+        ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)client_key_der_2048,
+            sizeof_client_key_der_2048), 0);
+
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
+            (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+    #if defined(NO_AES) || defined(NO_AES_256)
+        ExpectIntEQ(ret, ALGO_ID_E);
+    #else
+        ExpectIntGT(ret, 0);
+    #endif
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    /* test with ca cert recipient (which should fail) */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    if (pkcs7) {
+        ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)ca_cert_der_2048,
+            sizeof_ca_cert_der_2048), 0);
+
+        ExpectIntEQ(wc_PKCS7_SetKey(pkcs7, (byte*)ca_key_der_2048,
+            sizeof_ca_key_der_2048), 0);
+
+        ret = wc_PKCS7_DecodeEnvelopedData(pkcs7, testDerBuffer,
+            (word32)testDerBufferSz, decodedData, sizeof(decodedData));
+        ExpectIntLT(ret, 0);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+    }
+
+    return EXPECT_RESULT();
+#else
+    return TEST_SKIPPED;
+#endif
+} /* END test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients() */
+
 /*
  * Testing wc_PKCS7_EncodeEnvelopedData(), wc_PKCS7_DecodeEnvelopedData()
  */

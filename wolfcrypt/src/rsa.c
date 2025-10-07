@@ -2934,7 +2934,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 /* Performs direct RSA computation without padding. The input and output must
  * match the key size (ex: 2048-bits = 256 bytes). Returns the size of the
  * output on success or negative value on failure. */
-int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
+int wc_RsaDirect(const byte* in, word32 inLen, byte* out, word32* outSz,
         RsaKey* key, int type, WC_RNG* rng)
 {
     int ret;
@@ -4002,7 +4002,7 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
  */
-int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
+int wc_RsaPSS_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                      enum wc_HashType hash, int mgf, RsaKey* key)
 {
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
@@ -4027,7 +4027,7 @@ int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
  *          indicates salt length is determined from the data.
  * returns the length of the PSS data on success and negative indicates failure.
  */
-int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
+int wc_RsaPSS_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
                         enum wc_HashType hash, int mgf, int saltLen,
                         RsaKey* key)
 {
@@ -4062,7 +4062,7 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
  */
-int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
+int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, const byte* sig,
                            word32 sigSz, enum wc_HashType hashType)
 {
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
@@ -4087,7 +4087,7 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
  */
-int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
+int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, const byte* sig,
                                word32 sigSz, enum wc_HashType hashType,
                                int saltLen, int bits, void* heap)
 {
@@ -4186,7 +4186,7 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
     (void)heap; /* unused if memory is disabled */
     return ret;
 }
-int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
+int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, const byte* sig,
                                word32 sigSz, enum wc_HashType hashType,
                                int saltLen, int bits)
 {
@@ -4257,7 +4257,7 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
  * key    Public RSA key.
  * returns the length of the PSS data on success and negative indicates failure.
  */
-int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
+int wc_RsaPSS_VerifyCheck(const byte* in, word32 inLen, byte* out, word32 outLen,
                           const byte* digest, word32 digestLen,
                           enum wc_HashType hash, int mgf,
                           RsaKey* key)
@@ -4383,7 +4383,7 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 /* flatten RsaKey structure into individual elements (e, n) */
-int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
+int wc_RsaFlattenPublicKey(const RsaKey* key, byte* e, word32* eSz, byte* n,
                                                                    word32* nSz)
 {
     int sz, ret;
@@ -4413,7 +4413,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
 #endif
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
+static int RsaGetValue(const mp_int* in, byte* out, word32* outSz)
 {
     word32 sz;
     int ret = 0;
@@ -4434,7 +4434,7 @@ static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
 }
 
 
-int wc_RsaExportKey(RsaKey* key,
+int wc_RsaExportKey(const RsaKey* key,
                     byte* e, word32* eSz, byte* n, word32* nSz,
                     byte* d, word32* dSz, byte* p, word32* pSz,
                     byte* q, word32* qSz)
@@ -4820,7 +4820,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
 #if !defined(WOLFSSL_CRYPTOCELL) && \
-    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA))
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA)) && \
+    !defined(WOLF_CRYPTO_CB_ONLY_RSA)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *p = NULL;
     mp_int *q = NULL;
@@ -4911,6 +4912,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         /* fall-through when unavailable */
     #endif
     }
+    #if !defined(WOLF_CRYPTO_CB_FIND) && defined(WOLF_CRYPTO_CB_ONLY_RSA)
+    else {
+        err = NO_VALID_DEVID;
+    }
+    #endif
 #endif
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA

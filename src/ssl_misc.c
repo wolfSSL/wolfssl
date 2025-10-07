@@ -81,8 +81,18 @@ static int wolfssl_read_bio_file(WOLFSSL_BIO* bio, char** data)
             }
             else {
                 /* No space left for more data to be read - add a chunk. */
+            #ifdef WOLFSSL_NO_REALLOC
+                p = (char*)XMALLOC(ret + READ_BIO_FILE_CHUNK, NULL,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+                if (p != NULL) {
+                    XMEMCPY(p, mem, ret);
+                    XFREE(mem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    mem = NULL;
+                }
+            #else
                 p = (char*)XREALLOC(mem, ret + READ_BIO_FILE_CHUNK, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
                 if (p == NULL) {
                     sz = MEMORY_E;
                     break;

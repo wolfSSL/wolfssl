@@ -228,6 +228,14 @@
 
     #include <linux/kconfig.h>
 
+    #if defined(CONFIG_FORTIFY_SOURCE) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+        /* fortify-source causes all sorts of awkward problems for the PIE
+         * build, up to and including stubborn external references and multiple
+         * definitions of string functions.
+         */
+        #undef CONFIG_FORTIFY_SOURCE
+    #endif
+
     #if defined(__PIE__) && defined(CONFIG_ARM64)
         #define alt_cb_patch_nops my__alt_cb_patch_nops
         #define queued_spin_lock_slowpath my__queued_spin_lock_slowpath

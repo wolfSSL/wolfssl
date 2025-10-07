@@ -1840,12 +1840,35 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_func_error_string(unsigned long e);
 WOLFSSL_API const char* wolfSSL_ERR_lib_error_string(unsigned long e);
 
-/* -------- EXTRAS BEGIN -------- */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_EXTRA)
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx);
+/* -------- EXTRAS BEGIN -------- */
+
+#ifdef WOLFSSL_CERT_SETUP_CB
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
+                              WOLFSSL_EVP_PKEY **pkey);
+WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);
 #endif
+
+typedef int (*CertSetupCallback)(WOLFSSL* ssl, void*);
+WOLFSSL_API void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
+    CertSetupCallback cb, void *arg);
+WOLFSSL_API int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
+        const byte** suites, word16* suiteSz,
+        const byte** hashSigAlgo, word16* hashSigAlgoSz);
+typedef struct WOLFSSL_CIPHERSUITE_INFO {
+    WC_BITFIELD rsaAuth:1;
+    WC_BITFIELD eccAuth:1;
+    WC_BITFIELD eccStatic:1;
+    WC_BITFIELD psk:1;
+} WOLFSSL_CIPHERSUITE_INFO;
+WOLFSSL_API WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
+        byte second);
+WOLFSSL_API int wolfSSL_get_sigalg_info(byte first,
+        byte second, int* hashAlgo, int* sigAlgo);
+WOLFSSL_LOCAL int CertSetupCbWrapper(WOLFSSL* ssl);
+#endif /* WOLFSSL_CERT_SETUP_CB */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
@@ -2438,28 +2461,6 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_get0_peer_CA_list(
         const WOLFSSL *ssl);
 #endif /* !WOLFSSL_NO_CA_NAMES */
 
-typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
-                              WOLFSSL_EVP_PKEY **pkey);
-WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb);
-
-typedef int (*CertSetupCallback)(WOLFSSL* ssl, void*);
-WOLFSSL_API void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
-    CertSetupCallback cb, void *arg);
-WOLFSSL_API int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
-        const byte** suites, word16* suiteSz,
-        const byte** hashSigAlgo, word16* hashSigAlgoSz);
-typedef struct WOLFSSL_CIPHERSUITE_INFO {
-    WC_BITFIELD rsaAuth:1;
-    WC_BITFIELD eccAuth:1;
-    WC_BITFIELD eccStatic:1;
-    WC_BITFIELD psk:1;
-} WOLFSSL_CIPHERSUITE_INFO;
-WOLFSSL_API WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
-        byte second);
-WOLFSSL_API int wolfSSL_get_sigalg_info(byte first,
-        byte second, int* hashAlgo, int* sigAlgo);
-WOLFSSL_LOCAL int CertSetupCbWrapper(WOLFSSL* ssl);
-
 WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(
         WOLFSSL_X509_STORE_CTX* ctx, int idx);
 WOLFSSL_API int  wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx,
@@ -2543,7 +2544,6 @@ WOLFSSL_API int  wolfSSL_get_read_ahead(const WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_set_read_ahead(WOLFSSL* ssl, int v);
 WOLFSSL_API int  wolfSSL_CTX_get_read_ahead(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_CTX_set_read_ahead(WOLFSSL_CTX* ctx, int v);
-WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
         WOLFSSL_CTX* ctx, void* arg);
 WOLFSSL_API int  wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509);
@@ -2564,8 +2564,6 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_type(WOLFSSL *s);
 WOLFSSL_API long wolfSSL_set_tlsext_status_exts(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_get_tlsext_status_ids(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_set_tlsext_status_ids(WOLFSSL *s, void *arg);
-WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp);
-WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len);
 WOLFSSL_API int wolfSSL_set_tlsext_max_fragment_length
                                                 (WOLFSSL *s, unsigned char mode);
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_max_fragment_length
@@ -5659,6 +5657,27 @@ WOLFSSL_API long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
 WOLFSSL_API long wolfSSL_get_timeout(WOLFSSL* ssl);
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#define WOLFSSL_OCSP_STATUS_CB_OK            0
+#define WOLFSSL_OCSP_STATUS_CB_ALERT_WARNING 1
+#define WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL   2
+#define WOLFSSL_OCSP_STATUS_CB_NOACK         3
+typedef int(*tlsextStatusCb)(WOLFSSL* ssl, void*);
+WOLFSSL_API int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb);
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb);
+WOLFSSL_API long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg);
+WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char **resp);
+WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp, int len);
+WOLFSSL_API int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
+        int len, word32 idx);
+typedef int(*ocspVerifyStatusCb)(WOLFSSL* ssl, int err, byte* resp, word32 respSz,
+        word32 idx, void* arg);
+/* This callback is only useful when SESSION_CERTS is enabled */
+WOLFSSL_API void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
+        ocspVerifyStatusCb cb, void* cbArg);
+#endif
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl);
@@ -5700,14 +5719,10 @@ typedef int (*ticketCompatCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX* ctx, ticketCompatCb cb);
 #endif
 
-#if defined(HAVE_OCSP) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_API int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx,
     WOLF_STACK_OF(X509)** chain);
-typedef int(*tlsextStatusCb)(WOLFSSL* ssl, void*);
-WOLFSSL_API int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb);
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb);
-
 WOLFSSL_API int wolfSSL_CTX_get0_chain_certs(WOLFSSL_CTX *ctx,
         WOLF_STACK_OF(WOLFSSL_X509) **sk);
 WOLFSSL_API int wolfSSL_get0_chain_certs(WOLFSSL *ssl,

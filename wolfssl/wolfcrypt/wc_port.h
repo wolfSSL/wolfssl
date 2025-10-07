@@ -1182,7 +1182,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XCLEARERR(fp) WC_DO_NOTHING
     #endif
 
-    WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf,
+    WOLFSSL_API int wc_FileLoad(const char* fname, unsigned char** buf,
         size_t* bufLen, void* heap);
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \
@@ -1603,7 +1603,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
+    WOLFSSL_TEST_VIS char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n);
 #endif
 
 #ifndef FILE_BUFFER_SIZE

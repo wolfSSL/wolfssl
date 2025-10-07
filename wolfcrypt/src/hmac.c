@@ -1415,7 +1415,7 @@ void wc_HmacFree(Hmac* hmac)
             wc_Sm3Free(&hmac->hash.sm3);
         #ifdef WOLFSSL_HMAC_COPY_HASH
             wc_Sm3Free(&hmac->i_hash.sm3);
-            wc_Sm3Free(&hmac->i_hash.sm3);
+            wc_Sm3Free(&hmac->o_hash.sm3);
         #endif
             break;
     #endif

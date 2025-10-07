@@ -79,12 +79,12 @@ WOLFSSL_API int wc_AsconHash256_Update(wc_AsconHash256* a, const byte* data,
                                        word32 dataSz);
 WOLFSSL_API int wc_AsconHash256_Final(wc_AsconHash256* a, byte* hash);
 
+/* AsconAEAD API */
+
 WOLFSSL_API wc_AsconAEAD128* wc_AsconAEAD128_New(void);
 WOLFSSL_API void wc_AsconAEAD128_Free(wc_AsconAEAD128* a);
 WOLFSSL_API int wc_AsconAEAD128_Init(wc_AsconAEAD128* a);
 WOLFSSL_API void wc_AsconAEAD128_Clear(wc_AsconAEAD128* a);
-
-/* AsconAEAD API */
 
 WOLFSSL_API int wc_AsconAEAD128_SetKey(wc_AsconAEAD128* a, const byte* key);
 WOLFSSL_API int wc_AsconAEAD128_SetNonce(wc_AsconAEAD128* a, const byte* nonce);

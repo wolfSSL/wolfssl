@@ -1247,7 +1247,8 @@ int test_dtls_record_cross_boundaries(void)
 }
 #endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) */
 
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256)
 /* This test that the DTLS record boundary check doesn't interfere with TLS
  * records processing */
 int test_records_span_network_boundaries(void)
@@ -1533,7 +1534,7 @@ int test_dtls_bogus_finished_epoch_zero(void)
     test_memio_clear_buffer(&test_ctx, 0);
     ExpectIntEQ(test_memio_inject_message(&test_ctx, 1,
             (const char*)server_hello_done_message, sizeof(server_hello_done_message)), 0);
-    wolfSSL_connect(ssl_c);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
 
     /* verifying no ClientHello replay occurred,
      * buffer should empty since we exit early on
@@ -1637,3 +1638,65 @@ int test_dtls_srtp(void)
     return EXPECT_RESULT();
 }
 #endif
+
+int test_dtls_timeout(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    size_t i;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+    } params[] = {
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+#if !defined(NO_OLD_TLS) && defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_client_method, wolfDTLSv1_server_method },
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+                params[i].client_meth, params[i].server_meth), 0);
+        ExpectIntEQ(wolfSSL_dtls_set_timeout_max(ssl_c, 2), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        /* will return 0 when not 1.3 */
+        if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+#endif
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 2);
+        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 1);
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DTLS13)
+        /* will return 0 when not 1.3 */
+        if (wolfSSL_dtls13_use_quick_timeout(ssl_c))
+            ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+#endif
+        ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_dtls_get_current_timeout(ssl_c), 2);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+        wolfSSL_free(ssl_s);
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_s);
+        wolfSSL_CTX_free(ctx_c);
+    }
+#endif
+    return EXPECT_RESULT();
+}

@@ -70,6 +70,9 @@
 #elif defined(WOLFSSL_STM32N6)
 #include <stm32n6xx_hal_conf.h>
 #include <stm32n6xx_hal_pka.h>
+#elif defined(WOLFSSL_STM32H5)
+#include <stm32h5xx_hal_conf.h>
+#include <stm32h5xx_hal_pka.h>
 #else
 #error Please add the hal_pk.h include
 #endif
@@ -261,11 +264,11 @@ static int wc_Stm32_Hash_WaitDataReady(STM32_HASH_Context* stmCtx)
     (void)stmCtx;
 
     /* wait until not busy and data input buffer ready */
-    while ((HASH->SR & HASH_SR_BUSY)
-        #ifdef HASH_IMR_DCIE
-            && (HASH->SR & HASH_SR_DCIS) == 0
+    while (((HASH->SR & HASH_SR_BUSY)
+        #ifdef HASH_IMR_DINIE
+            || (HASH->SR & HASH_SR_DINIS) == 0
         #endif
-        && ++timeout < STM32_HASH_TIMEOUT) {
+        ) && ++timeout < STM32_HASH_TIMEOUT) {
     };
 
 #ifdef DEBUG_STM32_HASH
@@ -286,8 +289,8 @@ static int wc_Stm32_Hash_WaitCalcComp(STM32_HASH_Context* stmCtx)
 
     /* wait until not busy and hash digest calculation complete */
     while (((HASH->SR & HASH_SR_BUSY)
-        #ifdef HASH_IMR_DINIE
-            || (HASH->SR & HASH_SR_DINIS) == 0
+        #ifdef HASH_IMR_DCIE
+            || (HASH->SR & HASH_SR_DCIS) == 0
         #endif
         ) && ++timeout < STM32_HASH_TIMEOUT) {
     };
@@ -721,7 +724,7 @@ static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
         XMEMSET(dst, 0, offset);
 
     /* convert mp_int to array of bytes */
-    res = mp_to_unsigned_bin((mp_int*)a, dst + offset);
+    res = mp_to_unsigned_bin(a, dst + offset);
     return res;
 }
 

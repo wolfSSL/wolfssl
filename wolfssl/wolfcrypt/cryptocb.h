@@ -676,7 +676,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 #endif
 #ifdef WOLFSSL_SHA512
 WOLFSSL_LOCAL int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
-    word32 inSz, byte* digest);
+    word32 inSz, byte* digest, size_t digestSz);
 #endif
 
 #ifdef WOLFSSL_SHA3

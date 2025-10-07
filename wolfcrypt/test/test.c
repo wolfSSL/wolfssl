@@ -2765,10 +2765,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #endif /* NO_MAIN_DRIVER */
 
+
 /* helper to save DER, convert to PEM and save PEM */
 #if !defined(NO_ASN) && (defined(HAVE_ECC) || !defined(NO_DSA) || \
-(!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)))) \
-     && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
+(!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))))
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
 #define SaveDerAndPem(d, dSz, fD, fP, pT) _SaveDerAndPem(d, dSz, fD, fP, pT, WC_TEST_RET_LN)
@@ -18607,7 +18607,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
     };
 
-    byte output[WC_SHA256_DIGEST_SIZE * 4];
+    byte output[32 * 4];
     wc_test_ret_t ret;
     WOLFSSL_ENTER("random_test");
 
@@ -20624,7 +20624,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef WOLFSSL_SHA224
                                  WC_MGF1SHA224,
 #endif
+#ifndef NO_SHA256
                                  WC_MGF1SHA256,
+#endif
 #ifdef WOLFSSL_SHA384
                                  WC_MGF1SHA384,
 #endif
@@ -20639,7 +20641,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef WOLFSSL_SHA224
                                  WC_HASH_TYPE_SHA224,
 #endif
+#ifndef NO_SHA256
                                  WC_HASH_TYPE_SHA256,
+#endif
 #ifdef WOLFSSL_SHA384
                                  WC_HASH_TYPE_SHA384,
 #endif
@@ -21954,6 +21958,13 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     int    keySz = 1024;
 #else
     int    keySz = 2048;
+#endif
+
+#ifdef WOLF_CRYPTO_CB_ONLY_RSA
+    if (devId == INVALID_DEVID) {
+        /* must call keygen with devId */
+        return 0;
+    }
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -23616,10 +23627,12 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
 
     /* wc_DhGeneratePublic_fips() was added in 5.2.3, but some customers are
      * building with configure scripts that set version to 5.2.1, but with 5.2.3
-     * wolfCrypt sources.
+     * wolfCrypt sources.  5.3.0 is used for both fips-v5-ready and v5-kcapi,
+     * and are also missing wc_DhGeneratePublic().
      */
 #if !(defined(HAVE_SELFTEST) || \
       (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,2,3)) || \
+      FIPS_VERSION3_EQ(5,3,0) || \
       FIPS_VERSION3_EQ(6,0,0) || \
       defined(NO_WC_DHGENERATEPUBLIC))
 
@@ -23654,7 +23667,7 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
     if (pubSz != pubSz2 || XMEMCMP(pub, pub2, pubSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* !(HAVE_SELFTEST || FIPS <5.2.3 || FIPS == 6.0.0 || NO_WC_DHGENERATEPUBLIC */
+#endif /* !(NO_WC_DHGENERATEPUBLIC || HAVE_SELFTEST || FIPS <5.2.3 || == 5.3.0 || == 6.0.0 */
 
 #if (defined(WOLFSSL_HAVE_SP_DH) || defined(USE_FAST_MATH)) && \
     !defined(HAVE_INTEL_QA)
@@ -28284,6 +28297,7 @@ typedef struct {
  * serverHelloRandom, serverFinishedRandom, and clietnFinishedRandom
  * hashed together. */
 static const Tls13KdfTestVector tls13KdfTestVectors[] = {
+#ifndef NO_SHA256
 { /* 1 */
     WC_HASH_TYPE_SHA256, 35, 35,
     { /* PSK */
@@ -28507,6 +28521,7 @@ static const Tls13KdfTestVector tls13KdfTestVectors[] = {
         0xa5, 0x7c, 0x50, 0x14, 0xfd, 0xe7, 0x5f, 0x8b, 0xd3, 0x2f, 0xdc, 0x9b,
         0xa9, 0x93, 0x22, 0x19, 0xe6, 0xf2, 0x0c, 0xd8 }
 },
+#endif
 #ifdef WOLFSSL_SHA384
 { /* 26 */
     WC_HASH_TYPE_SHA384, 35, 35,
@@ -32326,6 +32341,7 @@ done:
     !defined(NO_ECC_SIGN)
 static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 {
+#ifndef NO_SHA256
     wc_test_ret_t ret;
     word32  sigSz;
     int     size;
@@ -32370,6 +32386,10 @@ static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     TEST_SLEEP();
+#else
+    (void)rng;
+    (void)key;
+#endif
 
     return 0;
 }
@@ -59658,6 +59678,7 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
 
 #ifdef WOLFSSL_KEY_GEN
     WC_RNG rng;
+    word32 keySz = 2048;
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -59715,7 +59736,7 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
     * wc_MakeRsaKey(CBONLY_TEST_DEVID) expects to return 0(success)
     */
     ctx->exampleVar = 99;
-    ret = wc_MakeRsaKey(key, keySz, WC_RSA_EXPONENT, rng);
+    ret = wc_MakeRsaKey(key, keySz, WC_RSA_EXPONENT, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
    /* wc_MakeRsaKey() -> rsa cb ->
@@ -59723,7 +59744,7 @@ static wc_test_ret_t rsa_onlycb_test(myCryptoDevCtx *ctx)
     * wc_MakeRsaKey(CBONLY_TEST_DEVID) expects to return NO_VALID_DEVID(failure)
     */
     ctx->exampleVar = 1;
-    ret = wc_MakeRsaKey(key, keySz, WC_RSA_EXPONENT, rng);
+    ret = wc_MakeRsaKey(key, keySz, WC_RSA_EXPONENT, &rng);
     if (ret != WC_NO_ERR_TRACE(NO_VALID_DEVID)) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_onlycb);
     } else

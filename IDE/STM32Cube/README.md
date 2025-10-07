@@ -100,6 +100,7 @@ The section for "Hardware platform" may need to be adjusted depending on your pr
 * To enable STM32U5 support define `WOLFSSL_STM32U5`.
 * To enable STM32H5 support define `WOLFSSL_STM32H5`.
 * To enable STM32MP13 support define `WOLFSSL_STM32MP13`.
+* To enable STM32N6 support define `WOLFSSL_STM32N6`.
 
 To use the STM32 Cube HAL support make sure `WOLFSSL_STM32_CUBEMX` is defined.
 
@@ -195,7 +196,9 @@ Note: The Benchmark example uses float. To enable go to "Project Properties" -> 
 
 ## STM32 Printf
 
-In main.c make the following changes:
+Generation of code for a NUCLEO board provides a BSP option for generating printf support for the virtual com port. To use this set `#define HAL_CONSOLE_UART hcom_uart`.
+
+If setting the printf support manually make the following changes in `main.c`.
 
 This section needs to go below the `UART_HandleTypeDef` line, otherwise `wolfssl/wolfcrypt/settings.h` will error.
 
