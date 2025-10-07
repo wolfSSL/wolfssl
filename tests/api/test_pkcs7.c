@@ -2163,10 +2163,10 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
     byte decodedData[8192];
 
     ExpectTrue((f = XFOPEN(testFile, "rb")) != XBADFILE);
-    testDerBufferSz = XFREAD(testDerBuffer, 1,
-                sizeof(testDerBuffer), f);
-    ExpectIntNE(testDerBufferSz, 0);
     if (f != XBADFILE) {
+        testDerBufferSz = XFREAD(testDerBuffer, 1,
+                    sizeof(testDerBuffer), f);
+        ExpectIntGT(testDerBufferSz, 0);
         XFCLOSE(f);
         f = XBADFILE;
     }
@@ -2188,6 +2188,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         ExpectIntGT(ret, 0);
     #endif
         wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
 
     /* test with client cert recipient */
@@ -2207,6 +2208,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         ExpectIntGT(ret, 0);
     #endif
         wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
 
     /* test with ca cert recipient (which should fail) */
@@ -2222,6 +2224,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
             (word32)testDerBufferSz, decodedData, sizeof(decodedData));
         ExpectIntLT(ret, 0);
         wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
 
     return EXPECT_RESULT();

@@ -18607,7 +18607,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
         0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
     };
 
-    byte output[WC_SHA256_DIGEST_SIZE * 4];
+    byte output[32 * 4];
     wc_test_ret_t ret;
     WOLFSSL_ENTER("random_test");
 
@@ -20624,7 +20624,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef WOLFSSL_SHA224
                                  WC_MGF1SHA224,
 #endif
+#ifndef NO_SHA256
                                  WC_MGF1SHA256,
+#endif
 #ifdef WOLFSSL_SHA384
                                  WC_MGF1SHA384,
 #endif
@@ -20639,7 +20641,9 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef WOLFSSL_SHA224
                                  WC_HASH_TYPE_SHA224,
 #endif
+#ifndef NO_SHA256
                                  WC_HASH_TYPE_SHA256,
+#endif
 #ifdef WOLFSSL_SHA384
                                  WC_HASH_TYPE_SHA384,
 #endif
@@ -28293,6 +28297,7 @@ typedef struct {
  * serverHelloRandom, serverFinishedRandom, and clietnFinishedRandom
  * hashed together. */
 static const Tls13KdfTestVector tls13KdfTestVectors[] = {
+#ifndef NO_SHA256
 { /* 1 */
     WC_HASH_TYPE_SHA256, 35, 35,
     { /* PSK */
@@ -28516,6 +28521,7 @@ static const Tls13KdfTestVector tls13KdfTestVectors[] = {
         0xa5, 0x7c, 0x50, 0x14, 0xfd, 0xe7, 0x5f, 0x8b, 0xd3, 0x2f, 0xdc, 0x9b,
         0xa9, 0x93, 0x22, 0x19, 0xe6, 0xf2, 0x0c, 0xd8 }
 },
+#endif
 #ifdef WOLFSSL_SHA384
 { /* 26 */
     WC_HASH_TYPE_SHA384, 35, 35,
@@ -32335,6 +32341,7 @@ done:
     !defined(NO_ECC_SIGN)
 static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
 {
+#ifndef NO_SHA256
     wc_test_ret_t ret;
     word32  sigSz;
     int     size;
@@ -32379,6 +32386,10 @@ static wc_test_ret_t ecc_sig_test(WC_RNG* rng, ecc_key* key)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
     TEST_SLEEP();
+#else
+    (void)rng;
+    (void)key;
+#endif
 
     return 0;
 }

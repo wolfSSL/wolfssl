@@ -1535,6 +1535,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
                                int udp, int sctp, WOLFSSL* ssl)
 {
     SOCKADDR_IN_T addr;
+    fprintf(stderr, "connecting to %s:%d\n", ip, port);
     build_addr(&addr, ip, port, udp, sctp);
     if (udp) {
         wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
@@ -1542,8 +1543,10 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
     tcp_socket(sockfd, udp, sctp);
 
     if (!udp) {
-        if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
+        if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0) {
+            perror("connect");
             err_sys_with_errno("tcp connect failed");
+        }
     }
 }
 
@@ -1555,7 +1558,7 @@ static WC_INLINE void udp_connect(SOCKET_T* sockfd, const char* ip, word16 port)
     SOCKADDR_IN_T addr;
     build_addr(&addr, ip, port, 1, 0);
     if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys_with_errno("tcp connect failed");
+        err_sys_with_errno("udp connect failed");
 }
 
 
@@ -1692,6 +1695,7 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             }
         }
     #endif
+    fprintf(stderr, "listening on port %d\n", *port);
 }
 
 
