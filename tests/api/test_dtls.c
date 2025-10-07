@@ -50,13 +50,15 @@ int test_dtls12_basic_connection_id(void)
 #ifdef HAVE_AESCCM
         "AES128-CCM8",
 #endif
+#endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
+#if defined(WOLFSSL_AES_128)
         "DHE-RSA-AES128-SHA256",
         "ECDHE-RSA-AES128-SHA256",
 #ifdef HAVE_AESGCM
         "DHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-GCM-SHA256",
 #endif
-#endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
+#endif /* WOLFSSL_AES_128 */
 #endif /* NO_SHA256 */
 #endif /* NO_RSA */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(HAVE_FIPS)
