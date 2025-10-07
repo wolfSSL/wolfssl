@@ -5159,6 +5159,16 @@ int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx)
 
     return WOLFSSL_SUCCESS;
 }
+
+int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+       return BAD_FUNC_ARG;
+
+    ctx->groupMessages = 0;
+
+    return WOLFSSL_SUCCESS;
+}
 #endif
 
 
@@ -5192,6 +5202,15 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_clear_group_messages(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+       return BAD_FUNC_ARG;
+
+    ssl->options.groupMessages = 0;
+
+    return WOLFSSL_SUCCESS;
+}
 
 /* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)

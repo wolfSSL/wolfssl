@@ -45,6 +45,7 @@ int test_utils_memio_move_message(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
     /* start handshake, send first ClientHello */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
@@ -316,6 +317,7 @@ int test_tls_certreq_order(void)
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
 
     /* start handshake, send first ClientHello */
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
