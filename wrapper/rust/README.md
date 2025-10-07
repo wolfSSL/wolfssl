@@ -18,4 +18,6 @@ Run tests with:
 | --- | --- |
 | `/wrapper/rust` | Top level container for all Rust wrapper functionality. |
 | `/wrapper/rust/wolfssl` | Top level for the `wolfssl` library crate. This crate contains high-level Rust sources that use the bindings from the `wolfssl-sys` crate. |
+| `/wrapper/rust/wolfssl/src` | Source directory for `wolfssl` crate top-level modules. |
+| `/wrapper/rust/wolfssl/src/wolfcrypt` | Source directory for submodules of `wolfssl::wolfcrypt` module. |
 | `/wrapper/rust/wolfssl-sys` | Top level for the `wolfssl-sys` library crate. This crate contains only automatically generated bindings to the `wolfssl` C library. |

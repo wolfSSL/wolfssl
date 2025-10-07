@@ -18,5 +18,7 @@ EXTRA_DIST += wrapper/rust/wolfssl/src/lib.rs
 EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt.rs
 EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/aes.rs
 EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/random.rs
+EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/rsa.rs
 EXTRA_DIST += wrapper/rust/wolfssl/tests/test_aes.rs
 EXTRA_DIST += wrapper/rust/wolfssl/tests/test_random.rs
+EXTRA_DIST += wrapper/rust/wolfssl/tests/test_rsa.rs
