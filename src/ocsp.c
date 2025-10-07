@@ -44,6 +44,63 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* Allocates and initializes a WOLFSSL_OCSP object. Returns pointer on success, NULL on failure. */
+WOLFSSL_OCSP* wc_NewOCSP(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_OCSP* ocsp = NULL;
+    ocsp = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP), cm ? cm->heap : NULL, DYNAMIC_TYPE_OCSP);
+    if (ocsp == NULL)
+        return NULL;
+    if (InitOCSP(ocsp, cm) != 0) {
+        XFREE(ocsp, cm ? cm->heap : NULL, DYNAMIC_TYPE_OCSP);
+        return NULL;
+    }
+    return ocsp;
+}
+
+/* Frees a WOLFSSL_OCSP object allocated by wc_NewOCSP. */
+void wc_FreeOCSP(WOLFSSL_OCSP* ocsp)
+{
+    if (ocsp) {
+        FreeOCSP(ocsp, 1);
+    }
+}
+
+int wc_CheckCertOcspResponse(WOLFSSL_OCSP *ocsp, DecodedCert *cert,
+        byte *response, int responseSz, void* heap)
+{
+    int ret = WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E);
+
+#ifdef WOLFSSL_SMALL_STACK
+    OcspRequest* ocspRequest;
+#else
+    OcspRequest ocspRequest[1];
+#endif
+
+
+#ifdef WOLFSSL_SMALL_STACK
+    ocspRequest = (OcspRequest*)XMALLOC(sizeof(OcspRequest), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (ocspRequest == NULL) {
+        WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        return MEMORY_E;
+    }
+#endif
+
+    if (InitOcspRequest(ocspRequest, cert, ocsp->cm->ocspSendNonce,
+                                                         ocsp->cm->heap) == 0) {
+        ret = CheckOcspResponse(ocsp, response, responseSz, NULL, NULL, NULL,
+                ocspRequest, heap);
+        FreeOcspRequest(ocspRequest);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ocspRequest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    WOLFSSL_LEAVE("CheckCertOCSP", ret);
+    return ret;
+}
 
 int InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm)
 {
@@ -375,7 +432,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         ocspResponse->single->status->next = status->next;
         XMEMCPY(status, ocspResponse->single->status, sizeof(CertStatus));
     }
-    else {
+    else if (entry != NULL) {
         /* Save new certificate entry */
         status = (CertStatus*)XMALLOC(sizeof(CertStatus),
                                       ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);

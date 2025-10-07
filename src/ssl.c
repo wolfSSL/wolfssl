@@ -10839,7 +10839,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #ifndef NO_CERTS
         /* in case used set_accept_state after init */
         if (!havePSK && !haveAnon && !haveMcast) {
-        #ifdef OPENSSL_EXTRA
+        #ifdef WOLFSSL_CERT_SETUP_CB
             if (ssl->ctx->certSetupCb != NULL) {
                 WOLFSSL_MSG("CertSetupCb set. server cert and "
                             "key not checked");
@@ -12274,7 +12274,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_NO_CA_NAMES */
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_CERT_SETUP_CB
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
@@ -12285,6 +12286,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ctx->CBClientCert = cb;
         }
     }
+#endif
 
     void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
         CertSetupCallback cb, void *arg)
@@ -12487,7 +12489,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return ret;
     }
-#endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_CERT_SETUP_CB */
 
 #ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
@@ -17886,30 +17888,6 @@ void wolfSSL_ERR_load_SSL_strings(void)
 }
 #endif
 
-#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
-long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
-{
-    if (s == NULL || resp == NULL)
-        return 0;
-
-    *resp = s->ocspResp;
-    return s->ocspRespSz;
-}
-
-long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
-    int len)
-{
-    if (s == NULL)
-        return WOLFSSL_FAILURE;
-
-    XFREE(s->ocspResp, NULL, 0);
-    s->ocspResp   = resp;
-    s->ocspRespSz = len;
-
-    return WOLFSSL_SUCCESS;
-}
-#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
-
 #ifdef HAVE_MAX_FRAGMENT
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /**
@@ -18117,20 +18095,6 @@ long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
     return 0;
 }
 #endif
-
-#ifndef NO_CERTS
-
-long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
-{
-    if (ctx == NULL || ctx->cm == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    ctx->cm->ocspIOCtx = arg;
-    return WOLFSSL_SUCCESS;
-}
-
-#endif /* !NO_CERTS */
 
 int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
@@ -23022,8 +22986,8 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
 /* Not an OpenSSL API. */
 int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)
 {
-    *response = ssl->ocspResp;
-    return ssl->ocspRespSz;
+    *response = ssl->ocspCsrResp[0].buffer;
+    return ssl->ocspCsrResp[0].length;
 }
 
 /* Not an OpenSSL API. */
@@ -23086,6 +23050,109 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
 }
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+        || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb)
+{
+    if (ctx == NULL || ctx->cm == NULL || cb == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    *cb = ctx->cm->ocsp_stapling->statusCb;
+#else
+    (void)cb;
+    *cb = NULL;
+#endif
+
+    return WOLFSSL_SUCCESS;
+
+}
+
+int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb)
+{
+    if (ctx == NULL || ctx->cm == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* Ensure stapling is on for callback to be used. */
+    wolfSSL_CTX_EnableOCSPStapling(ctx);
+
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    ctx->cm->ocsp_stapling->statusCb = cb;
+#else
+    (void)cb;
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    if (ctx == NULL || ctx->cm == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* Ensure stapling is on for callback to be used. */
+    wolfSSL_CTX_EnableOCSPStapling(ctx);
+
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    ctx->cm->ocsp_stapling->statusCbArg = arg;
+#else
+    (void)arg;
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char **resp)
+{
+    if (ssl == NULL || resp == NULL)
+        return 0;
+
+    *resp = ssl->ocspCsrResp[0].buffer;
+    return (long)ssl->ocspCsrResp[0].length;
+}
+
+long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp,
+    int len)
+{
+    return wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, resp, len, 0);
+}
+
+int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
+        int len, word32 idx)
+{
+    if (ssl == NULL || idx >= XELEM_CNT(ssl->ocspCsrResp) || len < 0)
+        return WOLFSSL_FAILURE;
+    if (!((resp == NULL) ^ (len > 0)))
+        return WOLFSSL_FAILURE;
+
+    XFREE(ssl->ocspCsrResp[idx].buffer, NULL, 0);
+    ssl->ocspCsrResp[idx].buffer = resp;
+    ssl->ocspCsrResp[idx].length = (word32)len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
+        ocspVerifyStatusCb cb, void* cbArg)
+{
+    if (ctx != NULL) {
+        ctx->ocspStatusVerifyCb = cb;
+        ctx->ocspStatusVerifyCbArg = cbArg;
+    }
+}
+#endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -23148,47 +23215,6 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx,
     }
 
     ctx->x509Chain = *chain;
-
-    return WOLFSSL_SUCCESS;
-}
-
-int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb)
-{
-    if (ctx == NULL || ctx->cm == NULL || cb == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-    if (ctx->cm->ocsp_stapling == NULL)
-        return WOLFSSL_FAILURE;
-
-    *cb = ctx->cm->ocsp_stapling->statusCb;
-#else
-    (void)cb;
-    *cb = NULL;
-#endif
-
-    return WOLFSSL_SUCCESS;
-
-}
-
-int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb)
-{
-    if (ctx == NULL || ctx->cm == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-    /* Ensure stapling is on for callback to be used. */
-    wolfSSL_CTX_EnableOCSPStapling(ctx);
-
-    if (ctx->cm->ocsp_stapling == NULL)
-        return WOLFSSL_FAILURE;
-
-    ctx->cm->ocsp_stapling->statusCb = cb;
-#else
-    (void)cb;
-#endif
 
     return WOLFSSL_SUCCESS;
 }

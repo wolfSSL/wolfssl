@@ -520,7 +520,7 @@ int fp_set_bit (fp_int * a, fp_digit b);
 
 /* copy from a to b */
 void fp_copy(const fp_int *a, fp_int *b);
-void fp_init_copy(fp_int *a, fp_int *b);
+void fp_init_copy(fp_int *a, const fp_int *b);
 
 /* clamp digits */
 #define fp_clamp(a)   { while ((a)->used && (a)->dp[(a)->used-1] == 0) --((a)->used); (a)->sign = (a)->used ? (a)->sign : FP_ZPOS; }
@@ -727,7 +727,7 @@ int fp_leading_bit(fp_int *a);
 
 int fp_unsigned_bin_size(const fp_int *a);
 int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
-int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
+int fp_to_unsigned_bin(const fp_int *a, unsigned char *b);
 int fp_to_unsigned_bin_len_ct(fp_int *a, unsigned char *out, int outSz);
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c);
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
@@ -813,7 +813,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define mp_tohex(M, S)     mp_toradix((M), (S), MP_RADIX_HEX)
 
 MP_API int  mp_init (mp_int * a);
-MP_API int  mp_init_copy(fp_int * a, fp_int * b);
+MP_API int  mp_init_copy(fp_int * a, const fp_int * b);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero (mp_int * a);
@@ -850,7 +850,7 @@ MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 MP_API int  mp_unsigned_bin_size(const mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
-MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
+MP_API int  mp_to_unsigned_bin(const mp_int * a, unsigned char *b);
 MP_API int  mp_to_unsigned_bin_len_ct(mp_int * a, unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 

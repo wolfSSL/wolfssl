@@ -658,3 +658,370 @@ int test_ocsp_certid_enc_dec(void)
     return TEST_SKIPPED;
 }
 #endif
+
+#if defined(HAVE_OCSP) && defined(WOLFSSL_CERT_SETUP_CB) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_RSA) && \
+    (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && \
+    defined(SESSION_CERTS)
+
+static struct {
+    size_t chainLen;
+    byte failStaple:2;
+} test_ocsp_tls_cert_cb_opts;
+/* --- certificate-selection callback ----------------------------------- */
+static int test_ocsp_tls_cert_cb_cert_cb(WOLFSSL* ssl, void* arg)
+{
+    (void)arg;
+    switch (test_ocsp_tls_cert_cb_opts.chainLen) {
+        case 1:
+            if (wolfSSL_use_certificate_file(ssl,
+                    "./certs/ocsp/server1-cert.pem", WOLFSSL_FILETYPE_PEM)
+                    != WOLFSSL_SUCCESS)
+                return 0;
+            break;
+        case 2: {
+            /* We need to limit the buffer to only the leaf and int certs */
+            byte* buf = NULL;
+            size_t bufLen = 0;
+            byte* lastCert = NULL;
+            byte loaded = 0;
+
+            if (wc_FileLoad("./certs/ocsp/server1-cert.pem", &buf, &bufLen,
+                    NULL) != 0)
+                return 0;
+            /* Find the last cert */
+            lastCert = (byte*)XSTRNSTR((char*)buf,
+                    "-----BEGIN CERTIFICATE-----", (unsigned int)bufLen);
+            if (lastCert != NULL) {
+                lastCert = (byte*)XSTRNSTR((char*)lastCert + 1,
+                        "-----BEGIN CERTIFICATE-----",
+                        (unsigned int)(bufLen - (lastCert - buf)));
+            }
+            if (lastCert != NULL) {
+                lastCert = (byte*)XSTRNSTR((char*)lastCert + 1,
+                        "-----BEGIN CERTIFICATE-----",
+                        (unsigned int)(bufLen - (lastCert - buf)));
+            }
+            if (lastCert != NULL) {
+                if (wolfSSL_use_certificate_chain_buffer(ssl, buf, lastCert - buf)
+                        == WOLFSSL_SUCCESS)
+                    loaded = 1;
+            }
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (!loaded)
+                return 0;
+            break;
+        }
+        case 3:
+            if (wolfSSL_use_certificate_chain_file(ssl,
+                    "./certs/ocsp/server1-cert.pem")
+                    != WOLFSSL_SUCCESS)
+                return 0;
+            break;
+    }
+    if (wolfSSL_use_PrivateKey_file(ssl,
+            "./certs/ocsp/server1-key.pem",  WOLFSSL_FILETYPE_PEM)
+            != WOLFSSL_SUCCESS)
+        return 0;
+    return 1;  /* success */
+}
+
+static int test_ocsp_tls_cert_cb_status_cb(WOLFSSL* ssl, void* ioCtx)
+{
+    byte* leaf_resp = NULL;
+    byte* int_resp = NULL;
+    byte* root_resp = NULL;
+    int ret = WOLFSSL_OCSP_STATUS_CB_ALERT_FATAL;
+    (void)ioCtx;
+    leaf_resp = (byte*)XMALLOC(sizeof(resp_server1_cert), NULL, 0);
+    int_resp = (byte*)XMALLOC(sizeof(resp_intermediate1_cert), NULL, 0);
+    root_resp = (byte*)XMALLOC(sizeof(resp_root_ca_cert), NULL, 0);
+    if (leaf_resp != NULL && int_resp != NULL && root_resp != NULL) {
+        XMEMCPY(leaf_resp, resp_server1_cert, sizeof(resp_server1_cert));
+        XMEMCPY(int_resp, resp_intermediate1_cert, sizeof(resp_intermediate1_cert));
+        XMEMCPY(root_resp, resp_root_ca_cert, sizeof(resp_root_ca_cert));
+        /* 320 is inside the signature so flipping bits should cause errors */
+        switch (test_ocsp_tls_cert_cb_opts.failStaple) {
+            case 1:
+                leaf_resp[320] = ~leaf_resp[320];
+                break;
+            case 2:
+                int_resp[320] = ~int_resp[320];
+                break;
+            case 3:
+                root_resp[320] = ~root_resp[320];
+                break;
+        }
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, leaf_resp,
+                sizeof(resp_server1_cert), 0) == WOLFSSL_SUCCESS)
+            leaf_resp = NULL;
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, int_resp,
+                sizeof(resp_intermediate1_cert), 1) == WOLFSSL_SUCCESS)
+            int_resp = NULL;
+        if (wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, root_resp,
+                sizeof(resp_root_ca_cert), 2) == WOLFSSL_SUCCESS)
+            root_resp = NULL;
+        /* If all responses loaded then return OK */
+        if (leaf_resp == NULL && int_resp == NULL && root_resp == NULL)
+            ret = WOLFSSL_OCSP_STATUS_CB_OK;
+    }
+    XFREE(leaf_resp, NULL, 0);
+    XFREE(int_resp, NULL, 0);
+    XFREE(root_resp, NULL, 0);
+    return ret;
+}
+
+static int test_ocsp_tls_cert_cb_verify_cb(int preverify,
+        WOLFSSL_X509_STORE_CTX* store)
+{
+    int ret = 1;
+    int err = wolfSSL_X509_STORE_CTX_get_error(store);
+    int idx = wolfSSL_X509_STORE_CTX_get_error_depth(store);
+
+    if (err == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E) ||
+            err == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+            || err == WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+            || err == WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
+#endif
+            ) {
+        WOLFSSL_BUFFER_INFO* bInfo = &store->certs[idx];
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        DecodedCert cert;
+        byte certInit = 0;
+
+        ret = 1;
+        cm = wolfSSL_CertManagerNew();
+        if (cm == NULL)
+            ret = 0;
+        if (ret == 1 &&
+            wolfSSL_CertManagerLoadCA(cm, "./certs/ocsp/root-ca-cert.pem", NULL)
+                != WOLFSSL_SUCCESS)
+            ret = 0;
+        /* If verifying leaf cert then we need to load the intermediate CA */
+        if (ret == 1 && idx == 0 &&
+            wolfSSL_CertManagerLoadCA(cm, "./certs/ocsp/intermediate1-ca-cert.pem", NULL)
+                != WOLFSSL_SUCCESS)
+            ret = 0;
+
+        /* Verify cert with CA */
+        if (ret == 1) {
+            wc_InitDecodedCert(&cert, bInfo->buffer, bInfo->length, NULL);
+            certInit = 1;
+        }
+        if (ret == 1 && wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm) != 0)
+            ret = 0;
+
+        if (certInit)
+            wc_FreeDecodedCert(&cert);
+        wolfSSL_CertManagerFree(cm);
+    }
+    (void)preverify;
+    return ret;
+}
+
+static int test_ocsp_tls_cert_cb_ocsp_verify_cb(WOLFSSL* ssl, int err,
+        byte* staple, word32 stapleSz, word32 idx, void* arg)
+{
+    (void)ssl;
+    (void)arg;
+    if (err != 0) {
+        WOLFSSL_CERT_MANAGER* cm = NULL;
+        DecodedCert cert;
+        byte certInit = 0;
+        WOLFSSL_OCSP* ocsp = NULL;
+        WOLFSSL_X509_CHAIN* peerCerts;
+
+        cm = wolfSSL_CertManagerNew();
+        if (cm == NULL)
+            goto cleanup;
+        if (wolfSSL_CertManagerLoadCA(cm, "./certs/ocsp/root-ca-cert.pem", NULL)
+                != WOLFSSL_SUCCESS)
+            goto cleanup;
+        /* If verifying leaf cert then we need to load the intermediate CA */
+        if (idx == 0 && wolfSSL_CertManagerLoadCA(cm,
+                "./certs/ocsp/intermediate1-ca-cert.pem", NULL)
+                != WOLFSSL_SUCCESS)
+            goto cleanup;
+
+        peerCerts = wolfSSL_get_peer_chain(ssl);
+        if (peerCerts == NULL || wolfSSL_get_chain_count(peerCerts) <= (int)idx)
+            goto cleanup;
+
+        /* Verify cert with CA */
+        wc_InitDecodedCert(&cert, wolfSSL_get_chain_cert(peerCerts, idx),
+                wolfSSL_get_chain_length(peerCerts, idx), NULL);
+        certInit = 1;
+        if (wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm) != 0)
+            goto cleanup;
+        if ((ocsp = wc_NewOCSP(cm)) == NULL)
+            goto cleanup;
+        if (wc_CheckCertOcspResponse(ocsp, &cert, staple, stapleSz, NULL) != 0)
+            goto cleanup;
+
+        err = 0;
+cleanup:
+        wc_FreeOCSP(ocsp);
+        if (certInit)
+            wc_FreeDecodedCert(&cert);
+        wolfSSL_CertManagerFree(cm);
+    }
+    return err;
+}
+
+static int test_ocsp_tls_cert_cb_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    /* server: dynamic cert */
+    wolfSSL_CTX_set_cert_cb(ctx, test_ocsp_tls_cert_cb_cert_cb, NULL);
+    return TEST_SUCCESS;
+}
+
+/* --- very small OCSP-status callback ---------------------------------- */
+/* no status callback path - context struct not needed */
+
+/* --- the actual test case --------------------------------------------- */
+int test_ocsp_tls_cert_cb(void)
+{
+    EXPECT_DECLS;
+    size_t i, j, chainLen;
+    struct {
+        method_provider client_meth;
+        method_provider server_meth;
+        const char* tls_version;
+        byte useV2:1;
+        byte useV2multi:1;
+        byte maxFail:2;
+    } params[] = {
+#if !defined(WOLFSSL_NO_TLS12)
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 0, 0, 1 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 0, 1 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 1, 1 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 0, 0, 1 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 0, 1 },
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLSv1_2", 1, 1, 3 },
+#ifdef WOLFSSL_DTLS
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 0, 0, 1 },
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 1, 0, 1 },
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 1, 1, 1 },
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 0, 0, 1 },
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 1, 0, 1 },
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method, "DTLSv1_2", 1, 1, 3 },
+#endif
+#endif
+#ifdef WOLFSSL_TLS13
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3", 0, 0, 3 },
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method, "TLSv1_3", 0, 0, 1 },
+#ifdef WOLFSSL_DTLS13
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3", 0, 0, 3 },
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method, "DTLSv1_3", 0, 0, 1 },
+#endif
+#endif
+    };
+
+    for (i = 0; i < XELEM_CNT(params) && !EXPECT_FAIL(); i++) {
+        printf("\nTesting %s\n", params[i].tls_version);
+        for (chainLen = 1; chainLen <= 3 && !EXPECT_FAIL(); chainLen++) {
+            printf("\tWith chain length %zu\n", chainLen);
+            /* 0   - all staples valid
+             * 1-3 - break the corresponding staple */
+            for (j = 0; j <= params[i].maxFail && j <= chainLen && !EXPECT_FAIL(); j++) {
+                struct test_ssl_memio_ctx test_ctx;
+                byte skip = 0;
+
+                test_ocsp_tls_cert_cb_opts.failStaple = j;
+                printf("\t%s (%zu)", j ? "with failing staple" : "correct staple", j);
+
+                XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+                test_ctx.c_cb.caPemFile  = "";
+                /* Do NOT preload any cert/key into the server context: leave empty strings
+                   so that ctx setup code skips loading them entirely and the only cert
+                   comes from the per-connection callback below. */
+                test_ctx.s_cb.certPemFile = "";  /* nothing pre-loaded */
+                test_ctx.s_cb.keyPemFile  = "";
+
+                test_ctx.c_cb.method = params[i].client_meth;
+                test_ctx.s_cb.method = params[i].server_meth;
+
+                test_ocsp_tls_cert_cb_opts.chainLen = chainLen;
+
+                test_ctx.s_cb.ctx_ready = test_ocsp_tls_cert_cb_ctx_ready;
+
+                ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
+
+                /* Unload the certificate that test helpers may have put into the server
+                   SSL object - we want the server to *not* have any certificate at the
+                   moment it parses ClientHello so that the early OCSP code path fails. */
+                ExpectIntEQ(wolfSSL_UnloadCertsKeys(test_ctx.s_ssl), WOLFSSL_SUCCESS);
+
+                /* turn on OCSP stapling on the server side */
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.s_ctx), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx,
+                        test_ocsp_tls_cert_cb_status_cb), WOLFSSL_SUCCESS);
+
+                /* client: request stapling */
+                wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT,
+                        test_ocsp_tls_cert_cb_verify_cb);
+                wolfSSL_CTX_set_ocsp_status_verify_cb(test_ctx.c_ctx,
+                        test_ocsp_tls_cert_cb_ocsp_verify_cb, NULL);
+
+                /* Set the ssl object as the cert callback context as there is
+                 * no way to get ssl from the store without OPENSSL_EXTRA */
+                wolfSSL_SetCertCbCtx(test_ctx.c_ssl, test_ctx.c_ssl);
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+                if (params[i].useV2) {
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                    printf("\twith V2 %s\n", params[i].useV2multi ? "multi" : "single");
+                    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl,
+                            params[i].useV2multi ?
+                                    WOLFSSL_CSR2_OCSP_MULTI : WOLFSSL_CSR2_OCSP,
+                                    WOLFSSL_CSR2_OCSP_USE_NONCE),
+                            WOLFSSL_SUCCESS);
+    #else
+                    skip = 1;
+    #endif
+                }
+                else {
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                    printf("\twith V1\n");
+                    ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl,
+                            WOLFSSL_CSR_OCSP, 0),
+                            WOLFSSL_SUCCESS);
+    #else
+                    skip = 1;
+    #endif
+                }
+
+                if (!skip) {
+                    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL),
+                            j == 0 ? TEST_SUCCESS : TEST_FAIL);
+                    if (j != 0) {
+                        WOLFSSL_ALERT_HISTORY h;
+                        XMEMSET(&h, 0, sizeof(h));
+                        ExpectIntEQ(wolfSSL_get_alert_history(test_ctx.s_ssl, &h),
+                                WOLFSSL_SUCCESS);
+                        ExpectIntEQ(h.last_rx.level, alert_fatal);
+                        ExpectIntEQ(h.last_rx.code, bad_certificate_status_response);
+                    }
+                }
+                else {
+                    /* coverity[deadcode] - skip is only set for some build configs */
+                    printf("\tskipping test case\n");
+                }
+
+                test_ssl_memio_cleanup(&test_ctx);
+            }
+        }
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else  /* feature guards */
+int test_ocsp_tls_cert_cb(void)
+{
+    return TEST_SKIPPED;
+}
+#endif

@@ -1356,7 +1356,7 @@
     #define XSTRLEN(s1)            uStrlen((s1))
     #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
     #define XSTRSTR(s1,s2)         strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n)      wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
     #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
@@ -2225,6 +2225,10 @@ extern void uITRON4_free(void *p) ;
 
         #ifndef STM32_HAL_TIMEOUT
             #define STM32_HAL_TIMEOUT   0xFF
+        #endif
+        /* bypass certificate date checking, due to lack of properly configured RTC source */
+        #ifndef HAL_RTC_MODULE_ENABLED
+            #define NO_ASN_TIME
         #endif
 
         #if defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SP_INT_NEGATIVE)
@@ -3858,6 +3862,9 @@ extern void uITRON4_free(void *p) ;
 
     #undef WOLFSSL_SESSION_ID_CTX
     #define WOLFSSL_SESSION_ID_CTX
+
+    #undef WOLFSSL_CERT_SETUP_CB
+    #define WOLFSSL_CERT_SETUP_CB
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA_X509_SMALL
