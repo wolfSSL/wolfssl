@@ -1356,7 +1356,7 @@
     #define XSTRLEN(s1)            uStrlen((s1))
     #define XSTRNCPY(s1,s2,n)      strncpy((s1),(s2),(n))
     #define XSTRSTR(s1,s2)         strstr((s1),(s2))
-    #define XSTRNSTR(s1,s2,n)      mystrnstr((s1),(s2),(n))
+    #define XSTRNSTR(s1,s2,n)      wolfSSL_strnstr((s1),(s2),(n))
     #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
     #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
@@ -2225,6 +2225,10 @@ extern void uITRON4_free(void *p) ;
 
         #ifndef STM32_HAL_TIMEOUT
             #define STM32_HAL_TIMEOUT   0xFF
+        #endif
+        /* bypass certificate date checking, due to lack of properly configured RTC source */
+        #ifndef HAL_RTC_MODULE_ENABLED
+            #define NO_ASN_TIME
         #endif
 
         #if defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SP_INT_NEGATIVE)
@@ -3652,6 +3656,10 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_KERNEL_MODE
+    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        #define WOLFSSL_KERNEL_VERBOSE_DEBUG
+    #endif
     #ifdef HAVE_CONFIG_H
         #include <config.h>
         #undef HAVE_CONFIG_H
@@ -3696,8 +3704,13 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
     #undef HAVE_STRINGS_H
+    #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
+    #define NO_LIMITS_H
+    #define NO_STDLIB_H
+    #define NO_STDINT_H
+    #define NO_CTYPE_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
@@ -3849,6 +3862,9 @@ extern void uITRON4_free(void *p) ;
 
     #undef WOLFSSL_SESSION_ID_CTX
     #define WOLFSSL_SESSION_ID_CTX
+
+    #undef WOLFSSL_CERT_SETUP_CB
+    #define WOLFSSL_CERT_SETUP_CB
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA_X509_SMALL

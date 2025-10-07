@@ -22,7 +22,9 @@
 /* inhibit "#undef current" in linuxkm_wc_port.h, included from wc_port.h,
  * because needed in linuxkm_memory.c, included below.
  */
-#define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
+#ifdef WOLFSSL_LINUXKM
+    #define WOLFSSL_LINUXKM_NEED_LINUX_CURRENT
+#endif
 
 #include <wolfssl/wolfcrypt/libwolfssl_sources.h>
 

@@ -2063,6 +2063,8 @@ WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
 WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
 WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
     int hashAlg);
+WOLFSSL_LOCAL int GetHashId(const byte* id, int length, byte* hash,
+    int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 
 #ifdef ASN_BER_TO_DER

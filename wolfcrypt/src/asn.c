@@ -14375,7 +14375,7 @@ int CalcHashId_ex(const byte* data, word32 len, byte* hash, int hashAlg)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
+int GetHashId(const byte* id, int length, byte* hash, int hashAlg)
 {
     int ret;
 
@@ -25926,11 +25926,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
         }
 
         #ifdef HAVE_OCSP
-        if (verify != NO_VERIFY && type != CA_TYPE &&
+        if (type != CA_TYPE &&
                                                 type != TRUSTED_PEER_TYPE) {
+            /* Need the CA's public key hash for OCSP */
             if (cert->ca) {
-                /* Need the CA's public key hash for OCSP */
                 XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
+                    KEYID_SIZE);
+            }
+            else if (cert->selfSigned) {
+                XMEMCPY(cert->issuerKeyHash, cert->subjectKeyHash,
                     KEYID_SIZE);
             }
         }
@@ -26635,11 +26639,11 @@ static wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 static wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
 static wcchar END_PKCS7            = "-----END PKCS7-----";
 #endif
-#if defined(HAVE_ECC) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_DSA) && defined(WOLFSSL_PEM_TO_DER)
     static wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
     static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_PEM_TO_DER)
     static wcchar BEGIN_PRIV_KEY_PREFIX = "-----BEGIN";
     static wcchar PRIV_KEY_SUFFIX = "PRIVATE KEY-----";
     static wcchar END_PRIV_KEY_PREFIX   = "-----END";
@@ -39504,7 +39508,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = 0;
         }
     }
-    else
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
     if (!noVerifySignature && !sigValid) {
         Signer* ca;

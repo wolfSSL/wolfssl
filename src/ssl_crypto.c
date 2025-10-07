@@ -1606,6 +1606,20 @@ int wolfSSL_HmacCopy(Hmac* dst, Hmac* src)
     #endif /* WOLFSSL_NO_SHA3_512 */
 #endif /* WOLFSSL_SHA3 */
 
+    #ifdef WOLFSSL_SM3
+        case WC_SM3:
+            rc = wc_Sm3Copy(&src->hash.sm3, &dst->hash.sm3);
+        #ifdef WOLFSSL_HMAC_COPY_HASH
+            if (rc == 0) {
+                rc = wc_Sm3Copy(&src->i_hash.sm3, &dst->i_hash.sm3);
+            }
+            if (rc == 0) {
+                rc = wc_Sm3Copy(&src->o_hash.sm3, &dst->o_hash.sm3);
+            }
+        #endif
+            break;
+    #endif /* WOLFSSL_SM3 */
+
         default:
             /* Digest algorithm not supported. */
             rc = BAD_FUNC_ARG;
@@ -3102,7 +3116,7 @@ void wolfSSL_AES_encrypt(const unsigned char* input, unsigned char* output,
     else
 #if !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)) \
-    || defined(WOLFSSL_LINUXKM))
+    || defined(WOLFSSL_KERNEL_MODE))
     /* Encrypt a block with wolfCrypt AES. */
     if (wc_AesEncryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesEncryptDirect failed");

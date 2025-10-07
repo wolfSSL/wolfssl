@@ -566,12 +566,12 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha256_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         ret = (*Transform_Sha256_p)(S, D);
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
     #endif
@@ -581,12 +581,12 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
         int ret;
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha256_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
     #endif
         ret = (*Transform_Sha256_Len_p)(S, D, L);
-    #ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
     #endif

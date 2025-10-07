@@ -57,7 +57,7 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_LINUXKM) && !defined(USE_INTEL_SPEEDUP)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && !defined(USE_INTEL_SPEEDUP)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
     #define SAVE_VECTOR_REGISTERS(fail_clause) SAVE_NO_VECTOR_REGISTERS(fail_clause)

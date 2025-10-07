@@ -30,6 +30,7 @@ int test_tls13_bad_psk_binder(void);
 int test_tls13_rpk_handshake(void);
 int test_tls13_pq_groups(void);
 int test_tls13_early_data(void);
+int test_tls13_same_ch(void);
 
 #define TEST_TLS13_DECLS                                   \
     TEST_DECL_GROUP("tls13", test_tls13_apis),             \
@@ -37,6 +38,7 @@ int test_tls13_early_data(void);
     TEST_DECL_GROUP("tls13", test_tls13_bad_psk_binder),   \
     TEST_DECL_GROUP("tls13", test_tls13_rpk_handshake),    \
     TEST_DECL_GROUP("tls13", test_tls13_pq_groups),        \
-    TEST_DECL_GROUP("tls13", test_tls13_early_data)
+    TEST_DECL_GROUP("tls13", test_tls13_early_data),       \
+    TEST_DECL_GROUP("tls13", test_tls13_same_ch)
 
 #endif /* WOLFCRYPT_TEST_TLS13_H */

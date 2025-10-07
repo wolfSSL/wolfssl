@@ -2343,7 +2343,7 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 #endif
 }
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     #define bench_stats_start(count, start) do {                               \
         SAVE_VECTOR_REGISTERS(pr_err(                                          \
             "ERROR: SAVE_VECTOR_REGISTERS failed for benchmark run.");         \
@@ -2746,7 +2746,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -3009,7 +3009,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     (void)useDeviceID;
     (void)ret;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+#ifdef WOLFSSL_USE_SAVE_VECTOR_REGISTERS
     RESTORE_VECTOR_REGISTERS();
 #elif defined(WOLFSSL_LINUXKM)
     kernel_fpu_end();
@@ -3656,7 +3656,7 @@ static void* benchmarks_do(void* args)
 
 #if !defined(NO_RSA) && !defined(WC_NO_RNG)
 #ifndef HAVE_RENESAS_SYNC
-    #if defined(WOLFSSL_KEY_GEN)
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             if (((word32)bench_asym_algs == 0xFFFFFFFFU) ||
@@ -3686,7 +3686,7 @@ static void* benchmarks_do(void* args)
     #endif
     }
 
-    #ifdef WOLFSSL_KEY_GEN
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (bench_asym_algs & BENCH_RSA_SZ) {
     #ifndef NO_SW_BENCH
         bench_rsa_key(0, bench_size);
@@ -5021,7 +5021,7 @@ static void bench_aesecb_internal(int useDeviceID,
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
-                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
                     ret = wc_AesEncryptDirect(enc[i], bench_cipher, bench_plain);
                     if (ret != 0)
                         goto exit_aes_enc;
@@ -5078,7 +5078,7 @@ exit_aes_enc:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, outer_loop_limit, &pending)) {
                 #ifdef HAVE_FIPS
-                    #if defined(WOLFSSL_LINUXKM) || FIPS_VERSION_GE(6, 0)
+                    #if defined(WOLFSSL_KERNEL_MODE) || FIPS_VERSION_GE(6, 0)
                     ret = wc_AesDecryptDirect(enc[i], bench_plain, bench_cipher);
                     if (ret != 0)
                         goto exit_aes_dec;
@@ -8763,7 +8763,7 @@ void bench_srtpkdf(void)
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static void bench_rsaKeyGen_helper(int useDeviceID, word32 keySz)
 {
     WC_DECLARE_ARRAY(genKey, RsaKey, BENCH_MAX_PENDING,
@@ -8871,7 +8871,7 @@ void bench_rsaKeyGen_size(int useDeviceID, word32 keySz)
 {
     bench_rsaKeyGen_helper(useDeviceID, keySz);
 }
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -9341,7 +9341,7 @@ exit:
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* bench any size of RSA key */
 void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 {

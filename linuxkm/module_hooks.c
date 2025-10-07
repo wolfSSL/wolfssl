@@ -89,22 +89,18 @@ static int libwolfssl_cleanup(void) {
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
 
-extern int wolfCrypt_PIE_first_function(void);
-extern int wolfCrypt_PIE_last_function(void);
-extern const unsigned int wolfCrypt_PIE_rodata_start[];
-extern const unsigned int wolfCrypt_PIE_rodata_end[];
-
 /* cheap portable ad-hoc hash function to confirm bitwise stability of the PIE
  * binary image.
  */
-static unsigned int hash_span(const u8 *start, const u8 *end) {
-    unsigned int sum = 1;
+static unsigned int hash_span(const u8 *start, const u8 *end, unsigned int sum) {
+    WC_SANITIZE_DISABLE();
     while (start < end) {
         unsigned int rotate_by;
         sum ^= *start++;
         rotate_by = (sum ^ (sum >> 5)) & 31;
         sum = (sum << rotate_by) | (sum >> (32 - rotate_by));
     }
+    WC_SANITIZE_ENABLE();
     return sum;
 }
 
@@ -117,6 +113,11 @@ static int total_text_r = 0, total_rodata_r = 0, total_rwdata_r = 0,
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
 #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+
+#ifdef HAVE_FIPS
+extern const unsigned int wolfCrypt_FIPS_ro_start[];
+extern const unsigned int wolfCrypt_FIPS_ro_end[];
+#endif
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
 
@@ -366,7 +367,7 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
 #endif /* WC_LINUXKM_RDSEED_IN_GLUE_LAYER */
 
-#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
 
@@ -398,6 +399,17 @@ static int wolfssl_init(void)
         return ret;
 #endif
 
+#if defined(HAVE_FIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+    if (((uintptr_t)__wc_text_start > (uintptr_t)wolfCrypt_FIPS_first) ||
+        ((uintptr_t)__wc_text_end < (uintptr_t)wolfCrypt_FIPS_last) ||
+        ((uintptr_t)__wc_rodata_start > (uintptr_t)wolfCrypt_FIPS_ro_start) ||
+        ((uintptr_t)__wc_rodata_end < (uintptr_t)wolfCrypt_FIPS_ro_end))
+    {
+        pr_err("ERROR: ELF segment fenceposts and FIPS fenceposts conflict.\n");
+        return -ECANCELED;
+    }
+#endif
+
 #if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
@@ -419,18 +431,55 @@ static int wolfssl_init(void)
 #endif
 
     {
-        unsigned int text_hash = hash_span(__wc_text_start, __wc_text_end);
-        unsigned int rodata_hash = hash_span(__wc_rodata_start, __wc_rodata_end);
+        unsigned int text_hash = hash_span(__wc_text_start, __wc_text_end, 1);
+        unsigned int rodata_hash = hash_span(__wc_rodata_start, __wc_rodata_end, 1);
+        u8 *canon_buf = malloc(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ);
+        ssize_t cur_reloc_index = -1;
+        const byte *text_p = __wc_text_start;
+        unsigned int stabilized_text_hash = 1;
+
+        if (! canon_buf) {
+            pr_err("ERROR: malloc(%d) for WOLFSSL_TEXT_SEGMENT_CANONICALIZER failed: %ld.\n", WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ, PTR_ERR(canon_buf));
+            return -ECANCELED;
+        }
+
+        total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
+            total_other_r = 0;
+
+        while (text_p < __wc_text_end) {
+            ssize_t progress =
+                WOLFSSL_TEXT_SEGMENT_CANONICALIZER(
+                    text_p,
+                    min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ,
+                        (word32)(__wc_text_end - text_p)),
+                    canon_buf, &cur_reloc_index);
+            if (progress <= 0) {
+                pr_err("ERROR: progress=%ld from WOLFSSL_TEXT_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
+                       progress,
+                       (unsigned)(uintptr_t)text_p,
+                       (unsigned)(uintptr_t)__wc_text_start,
+                       (unsigned)(uintptr_t)__wc_text_end);
+                free(canon_buf);
+                return -ECANCELED;
+            }
+            stabilized_text_hash = hash_span(canon_buf, canon_buf + progress, stabilized_text_hash);
+            text_p += progress;
+        }
+
+        free(canon_buf);
+        canon_buf = 0;
 
         /* note, "%pK" conceals the actual layout information.  "%px" exposes
          * the true module start address, which is potentially useful to an
          * attacker.
          */
-        pr_info("wolfCrypt section hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu), offset %c0x%lx\n",
+        pr_info("wolfCrypt segment hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu), offset %c0x%lx, canon text 0x%x\n",
                 text_hash, __wc_text_end - __wc_text_start,
                 rodata_hash, __wc_rodata_end - __wc_rodata_start,
                 &__wc_text_start[0] < &__wc_rodata_start[0] ? '+' : '-',
-                &__wc_text_start[0] < &__wc_rodata_start[0] ? &__wc_rodata_start[0] - &__wc_text_start[0] : &__wc_text_start[0] - &__wc_rodata_start[0]);
+                &__wc_text_start[0] < &__wc_rodata_start[0] ? &__wc_rodata_start[0] - &__wc_text_start[0] : &__wc_text_start[0] - &__wc_rodata_start[0],
+                stabilized_text_hash);
+
         pr_info("wolfCrypt segments: text=%x-%x, rodata=%x-%x, "
                 "rwdata=%x-%x, bss=%x-%x\n",
                 (unsigned)(uintptr_t)__wc_text_start,
@@ -441,6 +490,9 @@ static int wolfssl_init(void)
                 (unsigned)(uintptr_t)__wc_rwdata_end,
                 (unsigned)(uintptr_t)__wc_bss_start,
                 (unsigned)(uintptr_t)__wc_bss_end);
+
+        pr_info("whole-segment relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
+                total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
     }
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT && DEBUG_LINUXKM_PIE_SUPPORT */
@@ -460,7 +512,7 @@ static int wolfssl_init(void)
     fipsEntry();
 
 #if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
-    pr_info("relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
+    pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
             total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
 #endif
 
@@ -664,12 +716,24 @@ MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
 static inline int find_reloc_tab_offset(size_t text_in_offset) {
     int ret, hop;
-    if (wc_linuxkm_pie_reloc_tab_length <= 1)
+    if (wc_linuxkm_pie_reloc_tab_length <= 1) {
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
+#endif
         return -1;
-    if (text_in_offset >= (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start))
+    }
+    if (text_in_offset >= (size_t)((uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start)) {
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
+#endif
         return -1;
-    if (text_in_offset >= (size_t)wc_linuxkm_pie_reloc_tab[wc_linuxkm_pie_reloc_tab_length - 1])
+    }
+    if (text_in_offset >= (size_t)wc_linuxkm_pie_reloc_tab[wc_linuxkm_pie_reloc_tab_length - 1]) {
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        pr_err("ERROR: %s failed at L %d.\n", __FUNCTION__, __LINE__);
+#endif
         return -1;
+    }
     for (ret = 0,
              hop = (int)wc_linuxkm_pie_reloc_tab_length / 2;
          hop;
@@ -691,6 +755,10 @@ static inline int find_reloc_tab_offset(size_t text_in_offset) {
            ((size_t)wc_linuxkm_pie_reloc_tab[ret - 1] >= text_in_offset))
         --ret;
 
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+    if (ret < 0)
+        pr_err("ERROR: %s returning %d at L %d.\n", __FUNCTION__, ret, __LINE__);
+#endif
     return ret;
 }
 
@@ -720,8 +788,11 @@ ssize_t wc_linuxkm_normalize_relocations(
 
     if ((text_in_len == 0) ||
         (text_in < __wc_text_start) ||
-        (text_in + text_in_len >= __wc_text_end))
+        (text_in + text_in_len > __wc_text_end))
     {
+#ifdef DEBUG_LINUXKM_PIE_SUPPORT
+        pr_err("ERROR: %s returning -1 at L %d with span %x-%x versus segment %x-%x.\n", __FUNCTION__, __LINE__, (unsigned)(uintptr_t)text_in, (unsigned)(uintptr_t)(text_in + text_in_len), (unsigned)(uintptr_t)__wc_text_start, (unsigned)(uintptr_t)__wc_text_end);
+#endif
         return -1;
     }
 
@@ -788,13 +859,17 @@ ssize_t wc_linuxkm_normalize_relocations(
 #endif
             continue;
         }
-        /* for the rodata, rwdata, and bss segments, recognize dest addrs one
-         * byte outside the segment -- the compiler occasionally generates
-         * these, e.g. __wc_rwdata_start - 1 in DoInCoreCheck() in kernel 6.1
-         * build of FIPS v5.
+        /* for the various data segments, recognize dest addrs a few bytes
+         * outside the segment -- the compiler occasionally generates these,
+         * e.g. __wc_rwdata_start - 1 in DoInCoreCheck() in kernel 6.1 build of
+         * FIPS v5, __wc_bss_start - 4 in kernel 4.4, and __wc_rodata_end + 26
+         * in kernel 6.18.
          */
-        else if ((abs_ptr >= (uintptr_t)__wc_rodata_start - 1) &&
-                 (abs_ptr <= (uintptr_t)__wc_rodata_end + 1))
+#ifndef LINUXKM_PIE_DATA_SLOP_MARGIN
+    #define LINUXKM_PIE_DATA_SLOP_MARGIN 0x20
+#endif
+        else if ((abs_ptr >= (uintptr_t)__wc_rodata_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
+                 (abs_ptr <= (uintptr_t)__wc_rodata_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rodata_r;
@@ -803,8 +878,8 @@ ssize_t wc_linuxkm_normalize_relocations(
                                (uintptr_t)__wc_text_start);
             reloc_buf ^= WC_RODATA_TAG;
         }
-        else if ((abs_ptr >= (uintptr_t)__wc_rwdata_start - 1) &&
-                 (abs_ptr <= (uintptr_t)__wc_rwdata_end + 1))
+        else if ((abs_ptr >= (uintptr_t)__wc_rwdata_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
+                 (abs_ptr <= (uintptr_t)__wc_rwdata_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_rwdata_r;
@@ -813,8 +888,8 @@ ssize_t wc_linuxkm_normalize_relocations(
                                (uintptr_t)__wc_text_start);
             reloc_buf ^= WC_RWDATA_TAG;
         }
-        else if ((abs_ptr >= (uintptr_t)__wc_bss_start - 1) &&
-                 (abs_ptr <= (uintptr_t)__wc_bss_end + 1))
+        else if ((abs_ptr >= (uintptr_t)__wc_bss_start - LINUXKM_PIE_DATA_SLOP_MARGIN) &&
+                 (abs_ptr <= (uintptr_t)__wc_bss_end + LINUXKM_PIE_DATA_SLOP_MARGIN))
         {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
             ++n_bss_r;
@@ -956,7 +1031,16 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.krealloc_node_align_noprof = krealloc_node_align_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kvmalloc_node_noprof = __kvmalloc_node_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kmalloc_cache_noprof = __kmalloc_cache_noprof;
+#ifdef HAVE_KVREALLOC
+    wolfssl_linuxkm_pie_redirect_table.kvrealloc_node_align_noprof = kvrealloc_node_align_noprof;
+#endif
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
     wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
     wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
     wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
@@ -1016,15 +1100,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
 
-#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+#if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
     wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_can_save_vector_registers_x86 = wc_can_save_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
     wolfssl_linuxkm_pie_redirect_table.wc_restore_vector_registers_x86 = wc_restore_vector_registers_x86;
     wolfssl_linuxkm_pie_redirect_table.wc_save_vector_registers_x86 = wc_save_vector_registers_x86;
-#elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
-    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
-#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
+#elif defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS)
+    #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
+#endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)

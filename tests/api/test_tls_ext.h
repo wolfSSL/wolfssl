@@ -24,5 +24,7 @@
 
 int test_tls_ems_downgrade(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);
+int test_certificate_authorities_certificate_request(void);
+int test_certificate_authorities_client_hello(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */

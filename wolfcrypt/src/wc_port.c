@@ -241,7 +241,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
         ret = allocate_wolfcrypt_linuxkm_fpu_states();
         if (ret != 0) {
             WOLFSSL_MSG("allocate_wolfcrypt_linuxkm_fpu_states failed");
@@ -540,7 +540,7 @@ int wolfCrypt_Cleanup(void)
         rpcmem_deinit();
         wolfSSL_CleanupHandle();
     #endif
-    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
+    #if defined(WOLFSSL_USE_SAVE_VECTOR_REGISTERS) && defined(WOLFSSL_LINUXKM)
         free_wolfcrypt_linuxkm_fpu_states();
     #endif
 
@@ -2472,7 +2472,7 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
-        if (tx_mutex_create(m, "wolfSSL Mutex", TX_NO_INHERIT) == 0)
+        if (tx_mutex_create(m, (CHAR*)"wolfSSL Mutex", TX_NO_INHERIT) == 0)
             return 0;
         else
             return BAD_MUTEX_E;
@@ -3970,7 +3970,7 @@ time_t stm32_hal_time(time_t *t1)
 
 #if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
     defined(USE_WOLF_STRNSTR)
-char* mystrnstr(const char* s1, const char* s2, unsigned int n)
+char* wolfSSL_strnstr(const char* s1, const char* s2, unsigned int n)
 {
     unsigned int s2_len = (unsigned int)XSTRLEN(s2);
 

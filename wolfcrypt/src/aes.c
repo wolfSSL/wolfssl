@@ -4682,12 +4682,12 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         * AES-NI is disabled, and a nonzero value if it's enabled.
         *
         * An additional, optional semantic is available via
-        * WC_FLAG_DONT_USE_AESNI, and is used in some kernel module builds to
-        * let the caller inhibit AES-NI.  When this macro is defined,
+        * WC_FLAG_DONT_USE_VECTOR_OPS, and is used in some kernel module builds
+        * to let the caller inhibit AES-NI.  When this macro is defined,
         * wc_AesInit() before wc_AesSetKey() is imperative, to avoid a read of
         * uninitialized data in aes->use_aesni.  That's why support for
-        * WC_FLAG_DONT_USE_AESNI must remain optional -- wc_AesInit() was only
-        * added in release 3.11.0, so legacy applications inevitably call
+        * WC_FLAG_DONT_USE_VECTOR_OPS must remain optional -- wc_AesInit() was
+        * only added in release 3.11.0, so legacy applications inevitably call
         * wc_AesSetKey() on uninitialized Aes contexts.  This must continue to
         * function correctly with default build settings.
         */
@@ -4697,25 +4697,28 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             checkedAESNI = 1;
         }
         if (haveAESNI
-#if defined(WC_FLAG_DONT_USE_AESNI) && !defined(WC_C_DYNAMIC_FALLBACK)
-            && (aes->use_aesni != WC_FLAG_DONT_USE_AESNI)
+#if defined(WC_FLAG_DONT_USE_VECTOR_OPS) && !defined(WC_C_DYNAMIC_FALLBACK)
+            && (aes->use_aesni != WC_FLAG_DONT_USE_VECTOR_OPS)
 #endif
             )
         {
-#if defined(WC_FLAG_DONT_USE_AESNI)
-            if (aes->use_aesni == WC_FLAG_DONT_USE_AESNI) {
+#if defined(WC_FLAG_DONT_USE_VECTOR_OPS)
+            if (aes->use_aesni == WC_FLAG_DONT_USE_VECTOR_OPS) {
                 aes->use_aesni = 0;
                 return 0;
             }
 #endif
             aes->use_aesni = 0;
-            #ifdef WOLFSSL_LINUXKM
+            #ifdef WOLFSSL_KERNEL_MODE
             /* runtime alignment check */
             if ((wc_ptr_t)&aes->key & (wc_ptr_t)0xf) {
-                return BAD_ALIGN_E;
+                ret = BAD_ALIGN_E;
             }
-            #endif /* WOLFSSL_LINUXKM */
-            ret = SAVE_VECTOR_REGISTERS2();
+            else
+            #endif /* WOLFSSL_KERNEL_MODE */
+            {
+                ret = SAVE_VECTOR_REGISTERS2();
+            }
             if (ret == 0) {
                 if (dir == AES_ENCRYPTION)
                     ret = AES_set_encrypt_key_AESNI(userKey, (int)keylen * 8, aes);
@@ -6803,7 +6806,7 @@ static WC_INLINE void RIGHTSHIFTX(byte* x)
 {
     int i;
     int carryIn = 0;
-    byte borrow = (byte)((0x00U - (x[15] & 0x01U)) & 0xE1U);
+    volatile byte borrow = (byte)((0x00U - (x[15] & 0x01U)) & 0xE1U);
 
     for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
         int carryOut = (x[i] & 0x01) << 7;
@@ -9346,7 +9349,7 @@ int WARN_UNUSED_RESULT AES_GCM_decrypt_C(
     ALIGN16 byte scratch[WC_AES_BLOCK_SIZE];
     ALIGN16 byte Tprime[WC_AES_BLOCK_SIZE];
     ALIGN16 byte EKY0[WC_AES_BLOCK_SIZE];
-    sword32 res;
+    volatile sword32 res;
 
     if (ivSz == GCM_NONCE_MID_SZ) {
         /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */

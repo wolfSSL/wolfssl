@@ -41,7 +41,7 @@ CRL Options:
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#ifndef WOLFSSL_LINUXKM
+#ifndef NO_STRING_H
     #include <string.h>
 #endif
 

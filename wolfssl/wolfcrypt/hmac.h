@@ -216,6 +216,10 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     const byte* salt, word32 saltSz,
                     const byte* info, word32 infoSz,
                     byte* out, word32 outSz);
+WOLFSSL_API int wc_HKDF_ex(int type, const byte* inKey, word32 inKeySz,
+                       const byte* salt, word32 saltSz,
+                       const byte* info, word32 infoSz,
+                       byte* out, word32 outSz, void* heap, int devId);
 
 #endif /* HAVE_HKDF */
 

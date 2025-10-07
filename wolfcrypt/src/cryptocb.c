@@ -80,6 +80,8 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
         case WC_ALGO_TYPE_CERT:   return "Cert";
+        case WC_ALGO_TYPE_KDF:
+            return "KDF";
     }
     return NULL;
 }
@@ -172,6 +174,17 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+static const char* GetKdfTypeStr(int type)
+{
+    switch (type) {
+        case WC_KDF_TYPE_HKDF:
+            return "HKDF";
+    }
+    return NULL;
+}
+#endif
+
 void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
 {
     if (info == NULL)
@@ -236,6 +249,12 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d)\n",
             GetAlgoTypeStr(info->algo_type),
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
+    }
+#endif
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+    else if (info->algo_type == WC_ALGO_TYPE_KDF) {
+        printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
+               GetKdfTypeStr(info->kdf.type), info->kdf.type);
     }
 #endif
     else {
@@ -1701,7 +1720,7 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 
 #ifdef WOLFSSL_SHA512
 int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
-    word32 inSz, byte* digest)
+    word32 inSz, byte* digest, size_t digestSz)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -1719,16 +1738,43 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     }
 
     if (dev && dev->cb) {
+        byte localHash[WC_SHA512_DIGEST_SIZE];
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
         cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
-        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
         cryptoInfo.hash.sha512 = sha512;
         cryptoInfo.hash.in = in;
         cryptoInfo.hash.inSz = inSz;
         cryptoInfo.hash.digest = digest;
 
+        /* try the specific family callbacks first */
+#if !defined(WOLFSSL_NOSHA512_224)
+        if (digest != NULL && digestSz == WC_SHA512_224_DIGEST_SIZE) {
+          cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_224;
+          ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+          ret = wc_CryptoCb_TranslateErrorCode(ret);
+          if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        }
+#endif
+#if !defined(WOLFSSL_NOSHA512_256)
+        if (digest != NULL && digestSz == WC_SHA512_256_DIGEST_SIZE) {
+          cryptoInfo.hash.type = WC_HASH_TYPE_SHA512_256;
+          ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+          ret = wc_CryptoCb_TranslateErrorCode(ret);
+          if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        }
+#endif
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA512;
+        /* use local buffer if not full size */
+        if (digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
+            cryptoInfo.hash.digest = localHash;
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+        ret = wc_CryptoCb_TranslateErrorCode(ret);
+        if (ret == 0 && digest != NULL && digestSz != WC_SHA512_DIGEST_SIZE)
+            XMEMCPY(digest, localHash, digestSz);
+        return ret;
     }
 
     return wc_CryptoCb_TranslateErrorCode(ret);
@@ -1944,5 +1990,39 @@ int wc_CryptoCb_DefaultDevID(void)
 
     return ret;
 }
+
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
+                     const byte* salt, word32 saltSz, const byte* info,
+                     word32 infoSz, byte* out, word32 outSz, int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type         = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type          = WC_KDF_TYPE_HKDF;
+        cryptoInfo.kdf.hkdf.hashType = hashType;
+        cryptoInfo.kdf.hkdf.inKey    = inKey;
+        cryptoInfo.kdf.hkdf.inKeySz  = inKeySz;
+        cryptoInfo.kdf.hkdf.salt     = salt;
+        cryptoInfo.kdf.hkdf.saltSz   = saltSz;
+        cryptoInfo.kdf.hkdf.info     = info;
+        cryptoInfo.kdf.hkdf.infoSz   = infoSz;
+        cryptoInfo.kdf.hkdf.out      = out;
+        cryptoInfo.kdf.hkdf.outSz    = outSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_HKDF && !NO_HMAC */
 
 #endif /* WOLF_CRYPTO_CB */

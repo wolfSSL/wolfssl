@@ -297,7 +297,7 @@ int mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b)
 }
 
 /* store in unsigned [big endian] format */
-int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
+int mp_to_unsigned_bin (const mp_int * a, unsigned char *b)
 {
   int     x, res;
   mp_int  t;
@@ -335,7 +335,7 @@ int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
 }
 
 /* creates "a" then copies b into it */
-int mp_init_copy (mp_int * a, mp_int * b)
+int mp_init_copy (mp_int * a, const mp_int * b)
 {
   int     res;
 

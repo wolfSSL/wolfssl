@@ -6141,6 +6141,55 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
+/* Removes the CA with the passed in subject hash from the
+   cert manager's CA cert store. */
+int RemoveCA(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
+{
+    Signer* current;
+    Signer** prev;
+    int     ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    word32  row;
+
+    WOLFSSL_MSG("Removing a CA");
+
+    if (cm == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    row = HashSigner(hash);
+
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        return BAD_MUTEX_E;
+    }
+    current = cm->caTable[row];
+    prev = &cm->caTable[row];
+    while (current) {
+        byte* subjectHash;
+
+    #ifndef NO_SKID
+        subjectHash = current->subjectKeyIdHash;
+    #else
+        subjectHash = current->subjectNameHash;
+    #endif
+
+        if ((current->type == type) &&
+            (XMEMCMP(hash, subjectHash, SIGNER_DIGEST_SIZE) == 0)) {
+            *prev = current->next;
+            FreeSigner(current, cm->heap);
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+        prev = &current->next;
+        current = current->next;
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    WOLFSSL_LEAVE("RemoveCA", ret);
+
+    return ret;
+}
+
+
 /* Sets the CA with the passed in subject hash
    to the provided type. */
 int SetCAType(WOLFSSL_CERT_MANAGER* cm, byte* hash, int type)
@@ -10790,7 +10839,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #ifndef NO_CERTS
         /* in case used set_accept_state after init */
         if (!havePSK && !haveAnon && !haveMcast) {
-        #ifdef OPENSSL_EXTRA
+        #ifdef WOLFSSL_CERT_SETUP_CB
             if (ssl->ctx->certSetupCb != NULL) {
                 WOLFSSL_MSG("CertSetupCb set. server cert and "
                             "key not checked");
@@ -10836,8 +10885,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->options.dtls   = 1;
             ssl->options.tls    = 1;
             ssl->options.tls1_1 = 1;
-            if (!IsDtlsNotSctpMode(ssl) || !IsDtlsNotSrtpMode(ssl) ||
-                    IsSCR(ssl))
+            if (!IsDtlsNotSctpMode(ssl) || IsSCR(ssl))
                 ssl->options.dtlsStateful = 1;
         }
     #endif
@@ -12203,9 +12251,31 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->client_ca_names = names;
         }
     }
-#endif
 
-#ifdef OPENSSL_EXTRA
+    void wolfSSL_CTX_set0_CA_list(WOLFSSL_CTX* ctx,
+                                  WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_set0_CA_list");
+        if (ctx != NULL) {
+            wolfSSL_sk_X509_NAME_pop_free(ctx->ca_names, NULL);
+            ctx->ca_names = names;
+        }
+    }
+
+    void wolfSSL_set0_CA_list(WOLFSSL* ssl,
+                              WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
+    {
+        WOLFSSL_ENTER("wolfSSL_set0_CA_list");
+        if (ssl != NULL) {
+            if (ssl->ca_names != ssl->ctx->ca_names)
+                wolfSSL_sk_X509_NAME_pop_free(ssl->ca_names, NULL);
+            ssl->ca_names = names;
+        }
+    }
+#endif /* WOLFSSL_NO_CA_NAMES */
+
+#ifdef WOLFSSL_CERT_SETUP_CB
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
@@ -12216,6 +12286,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ctx->CBClientCert = cb;
         }
     }
+#endif
 
     void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
         CertSetupCallback cb, void *arg)
@@ -12418,7 +12489,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return ret;
     }
-#endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_CERT_SETUP_CB */
 
 #ifndef WOLFSSL_NO_CA_NAMES
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
@@ -12435,8 +12506,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->client_ca_names;
     }
 
-    /* returns the CA's set on server side or the CA's sent from server when
-     * on client side */
+    /* On server side: returns the CAs set via *_set_client_CA_list();
+     * On client side: returns the CAs received from server -- same as
+     * wolfSSL_get0_peer_CA_list() */
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl)
     {
@@ -12447,28 +12519,56 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return NULL;
         }
 
+        if (ssl->options.side == WOLFSSL_CLIENT_END)
+            return ssl->peer_ca_names;
+        else
+            return SSL_CLIENT_CA_NAMES(ssl);
+    }
+
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get0_CA_list(
+            const WOLFSSL_CTX *ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_get0_CA_list");
+
+        if (ctx == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_CTX_get0_CA_list");
+            return NULL;
+        }
+
+        return ctx->ca_names;
+    }
+
+    /* Always returns the CA's set via *_set0_CA_list */
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get0_CA_list(const WOLFSSL *ssl)
+    {
+        WOLFSSL_ENTER("wolfSSL_get0_CA_list");
+
+        if (ssl == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_get0_CA_list");
+            return NULL;
+        }
+
         return SSL_CA_NAMES(ssl);
     }
 
+    /* Always returns the CA's received from the peer */
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get0_peer_CA_list(
+            const WOLFSSL* ssl)
+    {
+        WOLFSSL_ENTER("wolfSSL_get0_peer_CA_list");
+
+        if (ssl == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_get0_peer_CA_list");
+            return NULL;
+        }
+
+        return ssl->peer_ca_names;
+    }
+
     #if !defined(NO_CERTS)
-    int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
+    static int add_to_CA_list(WOLFSSL_STACK* ca_names, WOLFSSL_X509* x509)
     {
         WOLFSSL_X509_NAME *nameCopy = NULL;
-
-        WOLFSSL_ENTER("wolfSSL_CTX_add_client_CA");
-
-        if (ctx == NULL || x509 == NULL){
-            WOLFSSL_MSG("Bad argument");
-            return WOLFSSL_FAILURE;
-        }
-
-        if (ctx->client_ca_names == NULL) {
-            ctx->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
-            if (ctx->client_ca_names == NULL) {
-                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
-                return WOLFSSL_FAILURE;
-            }
-        }
 
         nameCopy = wolfSSL_X509_NAME_dup(wolfSSL_X509_get_subject_name(x509));
         if (nameCopy == NULL) {
@@ -12476,7 +12576,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
 
-        if (wolfSSL_sk_X509_NAME_push(ctx->client_ca_names, nameCopy) <= 0) {
+        if (wolfSSL_sk_X509_NAME_push(ca_names, nameCopy) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_X509_NAME_push error");
             wolfSSL_X509_NAME_free(nameCopy);
             return WOLFSSL_FAILURE;
@@ -12484,7 +12584,75 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return WOLFSSL_SUCCESS;
     }
-    #endif
+
+    int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_add_client_CA");
+        if (ctx == NULL || x509 == NULL) {
+            WOLFSSL_MSG("Bad argument");
+            return WOLFSSL_FAILURE;
+        }
+        if (ctx->client_ca_names == NULL) {
+            ctx->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ctx->client_ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        return add_to_CA_list(ctx->client_ca_names, x509);
+    }
+
+    int wolfSSL_add_client_CA(WOLFSSL* ssl, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_add_client_CA");
+        if (ssl == NULL || x509 == NULL) {
+            WOLFSSL_MSG("Bad argument");
+            return WOLFSSL_FAILURE;
+        }
+        if (ssl->client_ca_names == NULL) {
+            ssl->client_ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ssl->client_ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        return add_to_CA_list(ssl->client_ca_names, x509);
+    }
+
+    int wolfSSL_CTX_add1_to_CA_list(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_add1_to_CA_list");
+        if (ctx == NULL || x509 == NULL) {
+            WOLFSSL_MSG("Bad argument");
+            return WOLFSSL_FAILURE;
+        }
+        if (ctx->ca_names == NULL) {
+            ctx->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ctx->ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        return add_to_CA_list(ctx->ca_names, x509);
+    }
+
+    int wolfSSL_add1_to_CA_list(WOLFSSL* ssl, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_add1_to_CA_list");
+        if (ssl == NULL || x509 == NULL) {
+            WOLFSSL_MSG("Bad argument");
+            return WOLFSSL_FAILURE;
+        }
+        if (ssl->ca_names == NULL) {
+            ssl->ca_names = wolfSSL_sk_X509_NAME_new(NULL);
+            if (ssl->ca_names == NULL) {
+                WOLFSSL_MSG("wolfSSL_sk_X509_NAME_new error");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        return add_to_CA_list(ssl->ca_names, x509);
+    }
+    #endif /* !NO_CERTS */
 
     #ifndef NO_BIO
         #if !defined(NO_RSA) && !defined(NO_CERTS)
@@ -14149,6 +14317,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->options.haveSessionId = 0;
         ssl->options.tls = 0;
         ssl->options.tls1_1 = 0;
+    #ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
+        ssl->options.hrrSentCookie = 0;
+    #endif
+        ssl->options.hrrSentKeyShare = 0;
+    #endif
     #ifdef WOLFSSL_DTLS
         ssl->options.dtlsStateful = 0;
     #endif
@@ -17714,30 +17888,6 @@ void wolfSSL_ERR_load_SSL_strings(void)
 }
 #endif
 
-#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
-long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
-{
-    if (s == NULL || resp == NULL)
-        return 0;
-
-    *resp = s->ocspResp;
-    return s->ocspRespSz;
-}
-
-long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
-    int len)
-{
-    if (s == NULL)
-        return WOLFSSL_FAILURE;
-
-    XFREE(s->ocspResp, NULL, 0);
-    s->ocspResp   = resp;
-    s->ocspRespSz = len;
-
-    return WOLFSSL_SUCCESS;
-}
-#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
-
 #ifdef HAVE_MAX_FRAGMENT
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /**
@@ -17945,20 +18095,6 @@ long wolfSSL_CTX_sess_timeouts(WOLFSSL_CTX* ctx)
     return 0;
 }
 #endif
-
-#ifndef NO_CERTS
-
-long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
-{
-    if (ctx == NULL || ctx->cm == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    ctx->cm->ocspIOCtx = arg;
-    return WOLFSSL_SUCCESS;
-}
-
-#endif /* !NO_CERTS */
 
 int wolfSSL_get_read_ahead(const WOLFSSL* ssl)
 {
@@ -22850,8 +22986,8 @@ long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
 /* Not an OpenSSL API. */
 int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)
 {
-    *response = ssl->ocspResp;
-    return ssl->ocspRespSz;
+    *response = ssl->ocspCsrResp[0].buffer;
+    return ssl->ocspCsrResp[0].length;
 }
 
 /* Not an OpenSSL API. */
@@ -22914,6 +23050,109 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
 }
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+        || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb)
+{
+    if (ctx == NULL || ctx->cm == NULL || cb == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    *cb = ctx->cm->ocsp_stapling->statusCb;
+#else
+    (void)cb;
+    *cb = NULL;
+#endif
+
+    return WOLFSSL_SUCCESS;
+
+}
+
+int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb)
+{
+    if (ctx == NULL || ctx->cm == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* Ensure stapling is on for callback to be used. */
+    wolfSSL_CTX_EnableOCSPStapling(ctx);
+
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    ctx->cm->ocsp_stapling->statusCb = cb;
+#else
+    (void)cb;
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_CTX_set_tlsext_status_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    if (ctx == NULL || ctx->cm == NULL)
+        return WOLFSSL_FAILURE;
+
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    /* Ensure stapling is on for callback to be used. */
+    wolfSSL_CTX_EnableOCSPStapling(ctx);
+
+    if (ctx->cm->ocsp_stapling == NULL)
+        return WOLFSSL_FAILURE;
+
+    ctx->cm->ocsp_stapling->statusCbArg = arg;
+#else
+    (void)arg;
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char **resp)
+{
+    if (ssl == NULL || resp == NULL)
+        return 0;
+
+    *resp = ssl->ocspCsrResp[0].buffer;
+    return (long)ssl->ocspCsrResp[0].length;
+}
+
+long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *ssl, unsigned char *resp,
+    int len)
+{
+    return wolfSSL_set_tlsext_status_ocsp_resp_multi(ssl, resp, len, 0);
+}
+
+int wolfSSL_set_tlsext_status_ocsp_resp_multi(WOLFSSL* ssl, unsigned char *resp,
+        int len, word32 idx)
+{
+    if (ssl == NULL || idx >= XELEM_CNT(ssl->ocspCsrResp) || len < 0)
+        return WOLFSSL_FAILURE;
+    if (!((resp == NULL) ^ (len > 0)))
+        return WOLFSSL_FAILURE;
+
+    XFREE(ssl->ocspCsrResp[idx].buffer, NULL, 0);
+    ssl->ocspCsrResp[idx].buffer = resp;
+    ssl->ocspCsrResp[idx].length = (word32)len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_CTX_set_ocsp_status_verify_cb(WOLFSSL_CTX* ctx,
+        ocspVerifyStatusCb cb, void* cbArg)
+{
+    if (ctx != NULL) {
+        ctx->ocspStatusVerifyCb = cb;
+        ctx->ocspStatusVerifyCbArg = cbArg;
+    }
+}
+#endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -22976,47 +23215,6 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx,
     }
 
     ctx->x509Chain = *chain;
-
-    return WOLFSSL_SUCCESS;
-}
-
-int wolfSSL_CTX_get_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb* cb)
-{
-    if (ctx == NULL || ctx->cm == NULL || cb == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-    if (ctx->cm->ocsp_stapling == NULL)
-        return WOLFSSL_FAILURE;
-
-    *cb = ctx->cm->ocsp_stapling->statusCb;
-#else
-    (void)cb;
-    *cb = NULL;
-#endif
-
-    return WOLFSSL_SUCCESS;
-
-}
-
-int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx, tlsextStatusCb cb)
-{
-    if (ctx == NULL || ctx->cm == NULL)
-        return WOLFSSL_FAILURE;
-
-#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
-    /* Ensure stapling is on for callback to be used. */
-    wolfSSL_CTX_EnableOCSPStapling(ctx);
-
-    if (ctx->cm->ocsp_stapling == NULL)
-        return WOLFSSL_FAILURE;
-
-    ctx->cm->ocsp_stapling->statusCb = cb;
-#else
-    (void)cb;
-#endif
 
     return WOLFSSL_SUCCESS;
 }

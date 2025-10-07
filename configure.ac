@@ -200,6 +200,7 @@ OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
+PC_LIBS_PRIVATE=""
 
 OPTIMIZE_CFLAGS="$OPTIMIZE_CFLAGS $EXTRA_OPTS_CFLAGS"
 OPTIMIZE_FAST_CFLAGS="$OPTIMIZE_FAST_CFLAGS $EXTRA_OPTS_CFLAGS"
@@ -1441,6 +1442,8 @@ then
     test "$enable_ecc" = "" && enable_ecc=yes
     test "$enable_sha256" = "" && enable_sha256=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_base64encode" = "" && enable_base64encode=yes
+    test "$enable_base16" = "" && enable_base16=yes
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
     then
         test "$enable_compkey" = "" && enable_compkey=yes
@@ -8245,12 +8248,18 @@ then
     fi
 elif test "$ENABLED_CURL" = "tiny"
 then
+    # basic config to support tiny-curl.
+    # OPENSSL_EXTRA_X509_SMALL is sufficient.
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="x509small"
     fi
 
+    # expose a bit more compat API without full OPENSSL_EXTRA.
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURL"
+
+    # session cache is necessary, but can be small or micro.
+    AM_CFLAGS="$AM_CFLAGS -DSMALL_SESSION_CACHE"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -9848,6 +9857,13 @@ AC_ARG_ENABLE([rpk],
     [ ENABLED_RPK=no ]
     )
 
+# Allows dynamically loading the certificate
+AC_ARG_ENABLE([cert-setup-cb],
+    [AS_HELP_STRING([--enable-cert-setup-cb],[Enable support for dynamically loading TLS certificates (default: disabled)])],
+    [ ENABLED_CERT_SETUP_CB=$enableval ],
+    [ ENABLED_CERT_SETUP_CB=no ]
+    )
+
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
 AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
@@ -10268,6 +10284,9 @@ AS_IF([test "x$ENABLED_DUAL_ALG_CERTS" = "xyes"],
 
 AS_IF([test "x$ENABLED_RPK" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DHAVE_RPK"])
+
+AS_IF([test "x$ENABLED_CERT_SETUP_CB" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_SETUP_CB"])
 
 AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES"])
@@ -10694,6 +10713,13 @@ case $host_os in
                 MINGW_LIB_WARNING="yes"
             fi
         fi ;;
+    *darwin*)
+        # Add required frameworks for static linking on macOS
+        if test "$enable_shared" = "no"; then
+            if test "x$ENABLED_SYS_CA_CERTS" = "xyes"; then
+                PC_LIBS_PRIVATE="$PC_LIBS_PRIVATE -framework CoreFoundation -framework Security"
+            fi
+        fi ;;
 esac
 
 if test "$enable_shared" = "no"; then
@@ -11001,6 +11027,7 @@ AC_SUBST([AM_CCASFLAGS])
 AC_SUBST([LIB_ADD])
 AC_SUBST([LIB_STATIC_ADD])
 AC_SUBST([LIBM])
+AC_SUBST([PC_LIBS_PRIVATE])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])

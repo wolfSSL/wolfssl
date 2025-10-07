@@ -60,6 +60,9 @@ jobs:
           '--disable-sys-ca-certs',
           '--enable-all CPPFLAGS=-DWOLFSSL_DEBUG_CERTS ',
           '--enable-all CFLAGS="-DWOLFSSL_CHECK_MEM_ZERO"',
+          '--enable-coding=no',
+          '--enable-dtls --enable-dtls13 --enable-ocspstapling --enable-ocspstapling2
+           --enable-cert-setup-cb --enable-sessioncerts',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

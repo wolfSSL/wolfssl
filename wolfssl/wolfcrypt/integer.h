@@ -46,12 +46,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 
-#ifndef CHAR_BIT
-    #if defined(WOLFSSL_LINUXKM)
-        #include <linux/limits.h>
-    #else
-        #include <limits.h>
-    #endif
+#if !defined(CHAR_BIT) && !defined(NO_LIMITS_H)
+    #include <limits.h>
 #endif
 
 #include <wolfssl/wolfcrypt/mpi_class.h>
@@ -311,7 +307,7 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 extern const char *mp_s_rmap;
 #endif
 
-/* 6 functions needed by Rsa */
+/* functions needed by Rsa */
 MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
@@ -319,7 +315,7 @@ MP_API void mp_forcezero(mp_int * a);
 MP_API int  mp_unsigned_bin_size(const mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
-MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
+MP_API int  mp_to_unsigned_bin(const mp_int * a, unsigned char *b);
 #define mp_to_unsigned_bin_len_ct mp_to_unsigned_bin_len
 MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 MP_API int  mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y);
@@ -330,7 +326,7 @@ MP_API int  mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P,
 /* functions added to support above needed, removed TOOM and KARATSUBA */
 MP_API int  mp_count_bits (const mp_int * a);
 MP_API int  mp_leading_bit (mp_int * a);
-MP_API int  mp_init_copy (mp_int * a, mp_int * b);
+MP_API int  mp_init_copy (mp_int * a, const mp_int * b);
 MP_API int  mp_copy (const mp_int * a, mp_int * b);
 MP_API int  mp_grow (mp_int * a, int size);
 MP_API int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
