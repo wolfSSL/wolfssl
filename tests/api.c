@@ -3172,7 +3172,8 @@ static int test_wolfSSL_CertManagerLoadCABufferType(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
-    !defined(NO_RSA) && !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
+    !defined(NO_RSA) && !defined(NO_SHA256) && \
+    !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION)
 #if defined(WOLFSSL_PEM_TO_DER)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* int1_cert = "./certs/intermediate/ca-int-cert.pem";
@@ -5125,11 +5126,13 @@ static int test_wolfSSL_CertRsaPss(void)
      (HAVE_FIPS_VERSION > 2))) && (!defined(HAVE_SELFTEST) || \
      (defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION > 2)))
     XFILE f = XBADFILE;
+#ifndef NO_SHA256
     const char* rsaPssSha256Cert = "./certs/rsapss/ca-rsapss.der";
 #ifdef WOLFSSL_PEM_TO_DER
     const char* rsaPssRootSha256Cert = "./certs/rsapss/root-rsapss.pem";
 #else
     const char* rsaPssRootSha256Cert = "./certs/rsapss/root-rsapss.der";
+#endif
 #endif
 #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_PSS_LONG_SALT) && \
     RSA_MAX_SIZE >= 3072
@@ -5148,13 +5151,16 @@ static int test_wolfSSL_CertRsaPss(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
+#ifndef NO_SHA256
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha256Cert, NULL));
+#endif
 #if defined(WOLFSSL_SHA384) && RSA_MAX_SIZE >= 3072
     ExpectIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, rsaPssRootSha384Cert, NULL));
 #endif
 
+#ifndef NO_SHA256
     ExpectTrue((f = XFOPEN(rsaPssSha256Cert, "rb")) != XBADFILE);
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
     if (f != XBADFILE) {
@@ -5164,6 +5170,7 @@ static int test_wolfSSL_CertRsaPss(void)
     wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
     ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
     wc_FreeDecodedCert(&cert);
+#endif
 
 #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_PSS_LONG_SALT) && \
     RSA_MAX_SIZE >= 3072
@@ -5177,6 +5184,9 @@ static int test_wolfSSL_CertRsaPss(void)
 #endif
 
     wolfSSL_CertManagerFree(cm);
+
+    (void)buf;
+    (void)bytes;
 #endif
 
     return EXPECT_RESULT();
@@ -9465,6 +9475,8 @@ cleanup:
 
 static int test_wolfSSL_read_write(void)
 {
+    EXPECT_DECLS;
+#ifndef NO_SHA256
     /* The unit testing for read and write shall happen simultaneously, since
      * one can't do anything with one without the other. (Except for a failure
      * test case.) This function will call all the others that will set up,
@@ -9488,7 +9500,6 @@ static int test_wolfSSL_read_write(void)
     func_args client_args;
     func_args server_args;
     THREAD_TYPE serverThread;
-    EXPECT_DECLS;
 
     XMEMSET(&client_args, 0, sizeof(func_args));
     XMEMSET(&server_args, 0, sizeof(func_args));
@@ -9520,7 +9531,7 @@ static int test_wolfSSL_read_write(void)
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
-
+#endif
     return EXPECT_RESULT();
 }
 
@@ -25159,7 +25170,8 @@ static int test_wolfSSL_check_domain(void)
 }
 
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(OPENSSL_COMPATIBLE_DEFAULTS)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(OPENSSL_COMPATIBLE_DEFAULTS) && !defined(NO_SHA256)
 static const char* dn = NULL;
 static int test_wolfSSL_check_domain_basic_client_ssl(WOLFSSL* ssl)
 {
@@ -27881,8 +27893,8 @@ static int test_wolfSSL_SESSION(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
-    !defined(NO_SESSION_CACHE)
+    !defined(NO_RSA) && !defined(NO_SHA256) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_SESSION* sess = NULL;
@@ -37669,7 +37681,7 @@ static int test_X509_LOOKUP_add_dir(void)
  *----------------------------------------------------------------------------*/
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
                    !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM)
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_SHA256)
 /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
@@ -42047,6 +42059,7 @@ static int test_wolfSSL_dtls_stateless(void)
 #ifdef HAVE_CERT_CHAIN_VALIDATION
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
 #ifdef WOLFSSL_PEM_TO_DER
+#ifndef NO_SHA256
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -42224,10 +42237,12 @@ static int test_chainJ(WOLFSSL_CERT_MANAGER* cm)
 
     return ret;
 }
+#endif
 
 static int test_various_pathlen_chains(void)
 {
     EXPECT_DECLS;
+#ifndef NO_SHA256
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     /* Test chain G (large chain with varying pathLens) */
@@ -42280,6 +42295,7 @@ static int test_various_pathlen_chains(void)
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
     wolfSSL_CertManagerFree(cm);
+#endif
 
     return EXPECT_RESULT();
 }
@@ -47311,7 +47327,8 @@ static int test_dtls13_bad_epoch_ch(void)
      (!defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
       !defined(NO_DES3))) || !defined(WOLFSSL_NO_TLS12)) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SESSION_CACHE) && !defined(NO_SHA256)
 static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -48616,8 +48633,9 @@ static int test_certreq_sighash_algos(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
     !defined(WOLFSSL_MAX_STRENGTH) && defined(HAVE_ECC) && \
-    defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256) && \
-    defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_TLS12)
+    !defined(NO_SHA256) && defined(WOLFSSL_SHA384) && \
+    defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC) && \
+    !defined(WOLFSSL_NO_TLS12)
     WOLFSSL_CTX *ctx_c = NULL;
     WOLFSSL_CTX *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL;
@@ -49482,7 +49500,8 @@ static int test_self_signed_stapling(void)
 static int test_tls_multi_handshakes_one_record(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256)
     struct test_memio_ctx test_ctx;
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
@@ -49687,7 +49706,8 @@ static int test_read_write_hs(void)
 {
 
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_NO_TLS12) && !defined(NO_SHA256)
     WOLFSSL_CTX *ctx_s = NULL, *ctx_c = NULL;
     WOLFSSL *ssl_s = NULL, *ssl_c = NULL;
     struct test_memio_ctx test_ctx;
@@ -49966,7 +49986,8 @@ static int test_get_signature_nid(void)
 }
 
 #ifndef WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION
-#if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SHA256)
 static word32 test_tls_cert_store_unchanged_HashCaTable(Signer** caTable)
 {
 #ifndef NO_MD5
@@ -50059,7 +50080,8 @@ static int test_tls_cert_store_unchanged_ssl_ready(WOLFSSL* ssl)
 static int test_tls_cert_store_unchanged(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if !defined(NO_CERTS) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(NO_SHA256)
     test_ssl_cbf client_cbf;
     test_ssl_cbf server_cbf;
     int i;
@@ -50290,7 +50312,7 @@ static int test_wolfSSL_SSLDisableRead(void)
 static int test_wolfSSL_inject(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SHA256)
     size_t i;
     struct {
         method_provider client_meth;
@@ -50718,6 +50740,7 @@ TEST_CASE testCases[] = {
 #endif
 
     TEST_DECL(test_EVP_PKEY_rsa),
+    TEST_DECL(test_wc_RsaPSS_DigitalSignVerify),
     TEST_DECL(test_EVP_PKEY_ec),
     TEST_DECL(test_wolfSSL_EVP_PKEY_encrypt),
     TEST_DECL(test_wolfSSL_EVP_PKEY_sign_verify_rsa),
@@ -51061,7 +51084,6 @@ TEST_CASE testCases[] = {
     defined(WOLFSSL_PEM_TO_DER)
     TEST_DECL(test_various_pathlen_chains),
 #endif
-TEST_DECL(test_wc_RsaPSS_DigitalSignVerify),
 
     /*********************************
      * SSL/TLS API tests
@@ -51107,7 +51129,7 @@ TEST_DECL(test_wc_RsaPSS_DigitalSignVerify),
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
     !defined(WOLFSSL_NO_CLIENT_AUTH)) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSSL_TEST_APPLE_NATIVE_CERT_VALIDATION) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_SHA256)
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     TEST_DECL(test_EccSigFailure_cm),

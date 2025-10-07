@@ -106,8 +106,9 @@ int test_wc_RsaPrivateKeyDecode(void)
 int test_wc_RsaPublicKeyDecode(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_RSA) && (defined(USE_CERT_BUFFERS_1024) || \
-        defined(USE_CERT_BUFFERS_2048)) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && !defined(NO_SHA256) && \
+        (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)) && \
+        !defined(HAVE_FIPS)
     RsaKey keyPub;
     byte*  tmp = NULL;
     word32 idx = 0;
