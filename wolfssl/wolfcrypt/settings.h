@@ -2708,6 +2708,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if defined(__xtensa__)
+    /* Compilers for Xtensa have been seen to compile C code into
+     * non-constant time assembly code. The small implementation is not known
+     * to have these issues. */
+    #undef CURVE25519_SMALL
+    #define CURVE25519_SMALL
+    #undef ED25519_SMALL
+    #define ED25519_SMALL
+#endif
+
 #if defined(NO_WC_SSIZE_TYPE) || defined(ssize_t)
     /* ssize_t comes from system headers or user_settings.h */
 #elif defined(WC_SSIZE_TYPE)
