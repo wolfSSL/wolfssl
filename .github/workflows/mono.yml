@@ -34,10 +34,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y mono-complete
 
+    - name: Copy wolfSSL.dll to C# wrapper directory
+      run: |
+        echo "Copying wolfSSL.dll to C# wrapper directory. $GITHUB_WORKSPACE/build-dir/lib contains:"
+        ls -la $GITHUB_WORKSPACE/build-dir/lib/*
+        cp $GITHUB_WORKSPACE/build-dir/lib/libwolfssl.so $GITHUB_WORKSPACE/wolfssl/wrapper/CSharp/wolfssl.dll
+        cp $GITHUB_WORKSPACE/build-dir/lib/libwolfssl.so $GITHUB_WORKSPACE/wolfssl/wrapper/CSharp/libwolfssl.so
+
     - name: Build and run wolfCrypt test wrapper
       working-directory: wolfssl/wrapper/CSharp
-      env:
-        LD_LIBRARY_PATH: $GITHUB_WORKSPACE/build-dir/lib
       run: |
         mcs wolfCrypt-Test/wolfCrypt-Test.cs wolfSSL_CSharp/wolfCrypt.cs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs -OUT:wolfcrypttest.exe
         mono wolfcrypttest.exe
