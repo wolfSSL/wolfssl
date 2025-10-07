@@ -228,12 +228,23 @@
 
     #include <linux/kconfig.h>
 
-    #if defined(CONFIG_FORTIFY_SOURCE) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+    #if defined(CONFIG_FORTIFY_SOURCE) && \
+        !defined(WC_FORCE_LINUXKM_FORTIFY_SOURCE) && \
+        (defined(HAVE_LINUXKM_PIE_SUPPORT) || \
+         (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)))
         /* fortify-source causes all sorts of awkward problems for the PIE
          * build, up to and including stubborn external references and multiple
          * definitions of string functions.
+         *
+         * fortify-source before kernel 5.18 has similar issues regardless of
+         * PIE, around our macro-shimming of the string functions.
          */
         #undef CONFIG_FORTIFY_SOURCE
+    #endif
+
+    #if defined(WC_FORCE_LINUXKM_FORTIFY_SOURCE) && \
+        !defined(CONFIG_FORTIFY_SOURCE)
+        #error WC_FORCE_LINUXKM_FORTIFY_SOURCE without CONFIG_FORTIFY_SOURCE.
     #endif
 
     #if defined(__PIE__) && defined(CONFIG_ARM64)
