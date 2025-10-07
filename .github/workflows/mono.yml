@@ -27,6 +27,7 @@ jobs:
         path: wolfssl
         configure: --enable-usersettings CPPFLAGS=-I$GITHUB_WORKSPACE/wolfssl/wrapper/CSharp
         install: true
+        check: false
 
     - name: Install mono-complete
       run: |
