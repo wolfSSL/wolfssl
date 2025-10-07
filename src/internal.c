@@ -22799,7 +22799,12 @@ default:
                                 return ZERO_RETURN;
                             }
 #endif /* WOLFSSL_EARLY_DATA */
-
+                            if (ret == 0 ||
+                                ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+                                /* Reset timeout as we have received a valid
+                                 * DTLS handshake message */
+                                ssl->dtls_timeout = ssl->dtls_timeout_init;
+                            }
                         }
 #endif /* WOLFSSL_DTLS13 */
                     }
@@ -24557,6 +24562,77 @@ int cipherExtraData(WOLFSSL* ssl)
 
 #ifndef WOLFSSL_NO_TLS12
 
+static int BuildMsgOrHashOutput(WOLFSSL* ssl, byte* output, int* sendSz,
+                                int inputSz, enum HandShakeType type,
+                                const char *name)
+{
+    int ret = 0;
+    if (IsEncryptionOn(ssl, 1)) {
+        byte* input;
+        int   recordHeaderSz = RECORD_HEADER_SZ;
+
+        if (ssl->options.dtls)
+            recordHeaderSz += DTLS_RECORD_EXTRA;
+        inputSz -= recordHeaderSz;
+        if (inputSz <= 0) {
+            WOLFSSL_MSG("Bad inputSz");
+            return BUFFER_E;
+        }
+        input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
+                DYNAMIC_TYPE_IN_BUFFER);
+        if (input == NULL)
+            return MEMORY_E;
+
+        XMEMCPY(input, output + recordHeaderSz, (size_t)(inputSz));
+        #ifdef WOLFSSL_DTLS
+        if (IsDtlsNotSctpMode(ssl) &&
+                (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz,
+                                      type)) != 0) {
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            return ret;
+        }
+        #else
+        (void)type;
+        #endif
+        *sendSz = BuildMessage(ssl, output, *sendSz, input, inputSz,
+                           handshake, 1, 0, 0, CUR_ORDER);
+        XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+        if (*sendSz < 0)
+            return *sendSz;
+    } else {
+        if (type == certificate_request)
+            *sendSz = inputSz;
+        #ifdef WOLFSSL_DTLS
+            if (IsDtlsNotSctpMode(ssl)) {
+                ret = DtlsMsgPoolSave(ssl, output, (word32)*sendSz, type);
+                if (ret != 0)
+                    return ret;
+            }
+            if (ssl->options.dtls)
+                DtlsSEQIncrement(ssl, CUR_ORDER);
+        #endif
+        ret = HashOutput(ssl, output, *sendSz, 0);
+        if (ret != 0)
+            return ret;
+    }
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+    if (ssl->hsInfoOn)
+        AddPacketName(ssl, name);
+    if (ssl->toInfoOn) {
+        ret = AddPacketInfo(ssl, name, handshake, output,
+                            *sendSz, WRITE_PROTO, 0, ssl->heap);
+        if (ret != 0)
+            return ret;
+    }
+#else
+    (void)name;
+#endif
+    ssl->buffers.outputBuffer.length += (word32)*sendSz;
+    ssl->options.buildingMsg = 0;
+    return 0;
+}
+
 #ifndef NO_CERTS
 
 #if (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)) && \
@@ -24875,6 +24951,7 @@ int SendCertificate(WOLFSSL* ssl)
 }
 #endif /* !NO_TLS && (!NO_WOLFSSL_SERVER || !WOLFSSL_NO_CLIENT_AUTH) */
 
+
 #if !defined(NO_TLS)
 /* handle generation of certificate_request (13) */
 int SendCertificateRequest(WOLFSSL* ssl)
@@ -25008,75 +25085,16 @@ int SendCertificateRequest(WOLFSSL* ssl)
         names = names->next;
     }
 #endif
-    (void)i;
+    ret = BuildMsgOrHashOutput(ssl, output, &sendSz, i, certificate_request,
+                               "CertificateRequest");
+    if (ret != 0)
+        return ret;
 
-        if (IsEncryptionOn(ssl, 1)) {
-            byte* input = NULL;
-            int   inputSz = (int)i; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls)
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-            inputSz -= recordHeaderSz;
-
-            if (inputSz <= 0) {
-                WOLFSSL_MSG("Send Cert Req bad inputSz");
-                return BUFFER_E;
-            }
-
-            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
-                    DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, (size_t)(inputSz));
-            #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz,
-                                           certificate_request)) != 0) {
-                XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                return ret;
-            }
-            #endif
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                  handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                return sendSz;
-        } else {
-            sendSz = (int)i;
-            #ifdef WOLFSSL_DTLS
-                if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz,
-                                    certificate_request)) != 0)
-                        return ret;
-                }
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
-        }
-
-    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ssl->hsInfoOn)
-            AddPacketName(ssl, "CertificateRequest");
-        if (ssl->toInfoOn) {
-            ret = AddPacketInfo(ssl, "CertificateRequest", handshake, output,
-                    sendSz, WRITE_PROTO, 0, ssl->heap);
-            if (ret != 0)
-                return ret;
-        }
-    #endif
-    ssl->buffers.outputBuffer.length += (word32)sendSz;
     if (ssl->options.groupMessages)
         ret = 0;
     else
         ret = SendBuffered(ssl);
 
-    ssl->options.buildingMsg = 0;
 
     WOLFSSL_LEAVE("SendCertificateRequest", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
@@ -31063,47 +31081,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         }
 #endif /* HAVE_TLS_EXTENSIONS */
 
-        if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
-            int   inputSz = (int)idx; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls)
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-            inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
-                    DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, (size_t)(inputSz));
-            #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz,
-                                          client_hello)) != 0) {
-                XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                return ret;
-            }
-            #endif
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                  handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                return sendSz;
-        } else {
-            #ifdef WOLFSSL_DTLS
-                if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, client_hello)) != 0)
-                        return ret;
-                }
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
-        }
+        ret = BuildMsgOrHashOutput(ssl, output, &sendSz, idx, client_hello,
+                                   "ClientHello");
+        if (ret != 0)
+            return ret;
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 #ifdef OPENSSL_EXTRA
@@ -31111,20 +31092,6 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         if (ssl->CBIS != NULL)
             ssl->CBIS(ssl, WOLFSSL_CB_CONNECT_LOOP, WOLFSSL_SUCCESS);
 #endif
-
-#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
-        if (ssl->toInfoOn) {
-            ret = AddPacketInfo(ssl, "ClientHello", handshake, output, sendSz,
-                          WRITE_PROTO, 0, ssl->heap);
-            if (ret != 0)
-                return ret;
-        }
-#endif
-
-        ssl->options.buildingMsg = 0;
-
-        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         ret = SendBuffered(ssl);
 
@@ -35599,61 +35566,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #endif
 
-        if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
-            int   inputSz = (int)idx; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls)
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-            inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
-                    DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, (size_t)(inputSz));
-            #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz, server_hello)) != 0) {
-                XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                return ret;
-            }
-            #endif
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                  handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                return sendSz;
-        } else {
-            #ifdef WOLFSSL_DTLS
-                if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, server_hello)) != 0)
-                        return ret;
-                }
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
-        }
-
-    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ssl->hsInfoOn)
-            AddPacketName(ssl, "ServerHello");
-        if (ssl->toInfoOn) {
-            ret = AddPacketInfo(ssl, "ServerHello", handshake, output, sendSz,
-                          WRITE_PROTO, 0, ssl->heap);
-            if (ret != 0)
-                return ret;
-        }
-    #endif
+        ret = BuildMsgOrHashOutput(ssl, output, &sendSz, idx, server_hello,
+                                   "ServerHello");
+        if (ret != 0)
+            return ret;
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
-        ssl->options.buildingMsg = 0;
-        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         if (ssl->options.groupMessages)
             ret = 0;
@@ -39142,64 +39060,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* get output buffer */
         output = GetOutputBuffer(ssl);
         AddHeaders(output, 0, server_hello_done, ssl);
+        ret = BuildMsgOrHashOutput(ssl, output, &sendSz,
+                 HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ +
+                   (ssl->options.dtls ?
+                       DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA : 0),
+                 server_hello_done, "ServerHelloDone");
+        if (ret != 0)
+            return ret;
 
-        if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
-            int   inputSz = HANDSHAKE_HEADER_SZ; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls) {
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-                inputSz += DTLS_HANDSHAKE_EXTRA;
-            }
-
-            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
-                    DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, (size_t)(inputSz));
-            #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz, server_hello_done)) != 0) {
-                XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-                return ret;
-            }
-            #endif
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                  handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                return sendSz;
-        } else {
-            #ifdef WOLFSSL_DTLS
-                if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, server_hello_done)) != 0)
-                        return ret;
-                }
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-            if (ret != 0)
-                return ret;
-        }
-
-    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ssl->hsInfoOn)
-            AddPacketName(ssl, "ServerHelloDone");
-        if (ssl->toInfoOn) {
-            ret = AddPacketInfo(ssl, "ServerHelloDone", handshake, output,
-                    sendSz, WRITE_PROTO, 0, ssl->heap);
-            if (ret != 0)
-                return ret;
-        }
-    #endif
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
-        ssl->options.buildingMsg = 0;
-
-        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         ret = SendBuffered(ssl);
 
