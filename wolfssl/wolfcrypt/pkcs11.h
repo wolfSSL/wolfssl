@@ -164,6 +164,7 @@ extern "C" {
 #define CKM_ECDH1_COFACTOR_DERIVE             0x00001051UL
 #define CKM_AES_KEY_GEN                       0x00001080UL
 #define CKM_AES_CBC                           0x00001082UL
+#define CKM_AES_CTR                           0x00001086UL
 #define CKM_AES_GCM                           0x00001087UL
 
 /* full data RSA PK callbacks */
