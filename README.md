@@ -33,19 +33,20 @@ of the wolfSSL manual.
 ## Notes, Please Read
 
 ### Note 1
-wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no longer
-supports static key cipher suites with PSK, RSA, or ECDH. This means if you
-plan to use TLS cipher suites you must enable DH (DH is on by default), or
-enable ECC (ECC is on by default), or you must enable static key cipher suites
-with one or more of the following defines:
+wolfSSL as of 3.6.6 no longer enables SSLv3 by default. By default, wolfSSL
+also no longer supports static key cipher suites with PSK, RSA, or ECDH.
+This means if you plan to use TLS cipher suites you must enable DH
+(DH is on by default), or enable ECC (ECC is on by default), or you must enable
+static key cipher suites with one or more of the following defines:
 
 ```
 WOLFSSL_STATIC_DH
 WOLFSSL_STATIC_RSA
 WOLFSSL_STATIC_PSK
 ```
-Though static key cipher suites are deprecated and will be removed from future
-versions of TLS.  They also lower your security by removing PFS.
+Static key cipher suites are being deprecated and will be removed from future
+versions of TLS. They also lower your security by removing perfect forward
+secrecy (PFS).
 
 When compiling `ssl.c`, wolfSSL will now issue a compiler error if no cipher
 suites are available. You can remove this error by defining
