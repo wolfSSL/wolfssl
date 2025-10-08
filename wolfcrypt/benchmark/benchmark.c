@@ -242,7 +242,7 @@
 
 /* define the max length for each string of metric reported */
 #ifndef WC_BENCH_MAX_LINE_LEN
-#define WC_BENCH_MAX_LINE_LEN 150
+#define WC_BENCH_MAX_LINE_LEN 240
 #endif
 
 /* default units per second. See WOLFSSL_BENCHMARK_FIXED_UNITS_* to change */
@@ -254,6 +254,161 @@
     #define WOLFSSL_BENCHMARK_FIXED_UNITS_KB
 #else
     #define WOLFSSL_FIXED_TIME_UNIT "s"
+#endif
+
+#if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
+    #define WC_BENCH_HEAP_TRACKING
+#endif
+
+#if defined(HAVE_STACK_SIZE_VERBOSE)
+    #define WC_BENCH_STACK_TRACKING
+#endif
+
+#if defined(WC_BENCH_HEAP_TRACKING) || defined(WC_BENCH_STACK_TRACKING)
+    #include <wolfssl/wolfcrypt/mem_track.h>
+#endif
+
+#ifdef WC_BENCH_STACK_TRACKING
+static long bench_last_stack_bytes;
+#define BENCH_LAST_STACK_BYTES bench_last_stack_bytes
+#else
+#define BENCH_LAST_STACK_BYTES 0
+#endif
+
+#ifdef WC_BENCH_HEAP_TRACKING
+static long bench_heap_baseline_allocs;
+static long bench_heap_baseline_bytes;
+
+static WC_INLINE void bench_heap_checkpoint_prepare(void)
+{
+    (void)wolfCrypt_heap_peakAllocs_checkpoint();
+    bench_heap_baseline_allocs = wolfCrypt_heap_peakAllocs_checkpoint();
+    (void)wolfCrypt_heap_peakBytes_checkpoint();
+    bench_heap_baseline_bytes  = wolfCrypt_heap_peakBytes_checkpoint();
+}
+
+static WC_INLINE void bench_heap_checkpoint_measure(long* allocs,
+                                                    long* bytes)
+{
+    long peak_allocs = wolfCrypt_heap_peakAllocs_checkpoint();
+    long peak_bytes  = wolfCrypt_heap_peakBytes_checkpoint();
+
+    if (allocs != NULL) {
+        long relative = peak_allocs - bench_heap_baseline_allocs;
+        *allocs = (relative > 0) ? relative : 0;
+    }
+    if (bytes != NULL) {
+        long relative = peak_bytes - bench_heap_baseline_bytes;
+        *bytes = (relative > 0) ? relative : 0;
+    }
+
+    bench_heap_baseline_allocs = wolfCrypt_heap_peakAllocs_checkpoint();
+    bench_heap_baseline_bytes  = wolfCrypt_heap_peakBytes_checkpoint();
+}
+#else
+static WC_INLINE void bench_heap_checkpoint_prepare(void) {}
+static WC_INLINE void bench_heap_checkpoint_measure(long* allocs,
+                                                    long* bytes)
+{
+    if (allocs != NULL)
+        *allocs = 0;
+    if (bytes != NULL)
+        *bytes = 0;
+}
+#endif
+
+#ifdef WC_BENCH_STACK_TRACKING
+static WC_INLINE void bench_stack_checkpoint_prepare(void)
+{
+    (void)StackSizeHWMReset();
+}
+
+static WC_INLINE long bench_stack_checkpoint_measure(void)
+{
+    long used = (long)StackSizeHWM_OffsetCorrected();
+    if (used < 0)
+        used = 0;
+    (void)StackSizeHWMReset();
+#ifdef WC_BENCH_STACK_TRACKING
+    bench_last_stack_bytes = used;
+#endif
+    return used;
+}
+#else
+static WC_INLINE void bench_stack_checkpoint_prepare(void) {}
+static WC_INLINE long bench_stack_checkpoint_measure(void)
+{
+    return 0;
+}
+#endif
+
+#if defined(WC_BENCH_HEAP_TRACKING) || defined(WC_BENCH_STACK_TRACKING)
+static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
+    int asCsv, long heapAllocs, long heapBytes, long stackBytes)
+{
+    size_t len;
+
+    if (heapAllocs < 0)
+        heapAllocs = 0;
+    if (heapBytes < 0)
+        heapBytes = 0;
+    if (stackBytes < 0)
+        stackBytes = 0;
+
+    len = XSTRLEN(buffer);
+    if (len == 0)
+        return;
+
+    if (buffer[len - 1] == '\n') {
+        buffer[--len] = '\0';
+    }
+
+    if (asCsv) {
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[--len] = '\0';
+        }
+        if (len > 0 && buffer[len - 1] == ',') {
+            buffer[--len] = '\0';
+        }
+        XSNPRINTF(buffer + len, size - len, ",%ld,%ld,%ld\n",
+            heapBytes, heapAllocs, stackBytes);
+        return;
+    }
+    else {
+        int first = 1;
+        XSNPRINTF(buffer + len, size - len, " [");
+        len = XSTRLEN(buffer);
+        XSNPRINTF(buffer + len, size - len,
+            "%sheap %ld bytes (%ld allocs)",
+            first ? "" : ", ", heapBytes, heapAllocs);
+        first = 0;
+        len = XSTRLEN(buffer);
+        XSNPRINTF(buffer + len, size - len,
+            "%sstack %ld bytes", first ? "" : ", ", stackBytes);
+        len = XSTRLEN(buffer);
+        XSNPRINTF(buffer + len, size - len, "]");
+        len = XSTRLEN(buffer);
+    }
+
+    len = XSTRLEN(buffer);
+    if (len == 0 || buffer[len - 1] != '\n') {
+        if (len + 1 < size) {
+            buffer[len++] = '\n';
+            buffer[len] = '\0';
+        }
+    }
+}
+#else
+static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
+    int asCsv, long heapAllocs, long heapBytes, long stackBytes)
+{
+    (void)buffer;
+    (void)size;
+    (void)asCsv;
+    (void)heapAllocs;
+    (void)heapBytes;
+    (void)stackBytes;
+}
 #endif
 
 #ifdef MULTI_VALUE_STATISTICS
@@ -2213,15 +2368,31 @@ typedef enum bench_stat_type {
         bench_stat_type_t type;
         int lastRet;
         const char* perftype;
+#ifdef WC_BENCH_HEAP_TRACKING
+        long heapPeakBytes;
+        long heapPeakAllocs;
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+        long stackPeakBytes;
+#endif
     } bench_stats_t;
     static bench_stats_t* bench_stats_head;
     static bench_stats_t* bench_stats_tail;
 
     static bench_stats_t* bench_stats_add(bench_stat_type_t type,
         const char* algo, int strength, const char* desc, int useDeviceID,
-        double perfsec, const char* perftype, int ret)
+        double perfsec, const char* perftype, int ret,
+        long heapAllocs, long heapBytes, long stackBytes)
     {
         bench_stats_t* bstat = NULL;
+
+#ifndef WC_BENCH_HEAP_TRACKING
+        (void)heapAllocs;
+        (void)heapBytes;
+#endif
+#ifndef WC_BENCH_STACK_TRACKING
+        (void)stackBytes;
+#endif
 
     #ifdef WC_ENABLE_BENCH_THREADING
         /* protect bench_stats_head and bench_stats_tail access */
@@ -2272,6 +2443,16 @@ typedef enum bench_stat_type {
             bstat->perftype = perftype;
             if (bstat->lastRet > ret)
                 bstat->lastRet = ret; /* track last error */
+#ifdef WC_BENCH_HEAP_TRACKING
+            if (heapBytes > bstat->heapPeakBytes)
+                bstat->heapPeakBytes = heapBytes;
+            if (heapAllocs > bstat->heapPeakAllocs)
+                bstat->heapPeakAllocs = heapAllocs;
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+            if (stackBytes > bstat->stackPeakBytes)
+                bstat->stackPeakBytes = stackBytes;
+#endif
         }
     #ifdef WC_ENABLE_BENCH_THREADING
         THREAD_CHECK_RET(pthread_mutex_unlock(&bench_lock));
@@ -2296,21 +2477,41 @@ typedef enum bench_stat_type {
     #endif
 
         for (bstat = bench_stats_head; bstat != NULL; ) {
+            char line[WC_BENCH_MAX_LINE_LEN];
+
+            line[0] = '\0';
             if (bstat->type == BENCH_STAT_SYM) {
-                printf("%-16s%s " FLT_FMT_PREC2 " %s/" WOLFSSL_FIXED_TIME_UNIT
-                    "\n", bstat->desc,
+                (void)XSNPRINTF(line, sizeof(line),
+                    "%-16s%s " FLT_FMT_PREC2 " %s/"
+                    WOLFSSL_FIXED_TIME_UNIT "\n",
+                    bstat->desc,
                     BENCH_DEVID_GET_NAME(bstat->useDeviceID),
                     FLT_FMT_PREC2_ARGS(8, digits, bstat->perfsec),
                     base2 ? "MB" : "mB");
             }
             else {
-                printf("%-5s %4d %-9s %s " FLT_FMT_PREC " ops/"
+                (void)XSNPRINTF(line, sizeof(line),
+                    "%-5s %4d %-9s %s " FLT_FMT_PREC " ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec\n",
                     bstat->algo, bstat->strength, bstat->desc,
                     BENCH_DEVID_GET_NAME(bstat->useDeviceID),
                     FLT_FMT_PREC_ARGS(digits, bstat->perfsec));
             }
 
+            bench_append_memory_info(line, sizeof(line), 0,
+#ifdef WC_BENCH_HEAP_TRACKING
+                bstat->heapPeakAllocs, bstat->heapPeakBytes,
+#else
+                0, 0,
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                bstat->stackPeakBytes
+#else
+                0
+#endif
+            );
+
+            printf("%s", line);
             bstat = bstat->next;
         }
 
@@ -2333,6 +2534,9 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 {
     *count = 0;
     *start = current_time(1);
+
+    bench_heap_checkpoint_prepare();
+    bench_stack_checkpoint_prepare();
 
 #ifdef WOLFSSL_ESPIDF
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
@@ -2539,6 +2743,10 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 {
     double total, persec = 0, blocks = (double)count;
     const char* blockType;
+#ifdef WC_BENCH_HEAP_TRACKING
+    long heapAllocs = 0;
+    long heapBytes = 0;
+#endif
     char msg[WC_BENCH_MAX_LINE_LEN];
     const char** word = bench_result_words1[lng_index];
     static int sym_header_printed = 0;
@@ -2573,12 +2781,26 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
             printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,"
                 WOLFSSL_FIXED_TIME_UNIT "econds_total,"
                 WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
-                ",cycles_total,Cycles per byte,");
+                ",cycles_total,Cycles per byte,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                "stack_bytes,"
+#endif
+                );
     #else
             printf("%s", "\"sym\",Algorithm,HW/SW,bytes_total,"
                 WOLFSSL_FIXED_TIME_UNIT "econds_total,"
                 WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
-                ",cycles_total,");
+                ",cycles_total,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                "stack_bytes,"
+#endif
+                );
     #endif
 #else
     /* normal CSV */
@@ -2592,12 +2814,26 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
             printf("Algorithm,"
                BENCH_DEVID_COLUMN_HEADER
                WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
-               ",Cycles per byte,");
+               ",Cycles per byte"
+#ifdef WC_BENCH_HEAP_TRACKING
+               ",heap_bytes,heap_allocs"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+               ",stack_bytes"
+#endif
+               ",");
     #else
             printf("\n\nSymmetric Ciphers:\n\n");
             printf("Algorithm,"
                BENCH_DEVID_COLUMN_HEADER
-               WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT ",");
+               WOLFSSL_FIXED_UNIT "/" WOLFSSL_FIXED_TIME_UNIT
+#ifdef WC_BENCH_HEAP_TRACKING
+               ",heap_bytes,heap_allocs"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+               ",stack_bytes"
+#endif
+               ",");
     #endif
 #endif
         #ifdef MULTI_VALUE_STATISTICS
@@ -2623,6 +2859,21 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
     if (total > 0) {
         persec = (1 / total) * blocks;
     }
+
+    bench_heap_checkpoint_measure(
+#ifdef WC_BENCH_HEAP_TRACKING
+        &heapAllocs,
+        &heapBytes
+#else
+        NULL,
+        NULL
+#endif
+    );
+#ifdef WC_BENCH_STACK_TRACKING
+    bench_stack_checkpoint_measure();
+#else
+    (void)bench_stack_checkpoint_measure();
+#endif
 
     SLEEP_ON_ERROR(ret);
     /* format and print to terminal */
@@ -2729,6 +2980,16 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #endif
     } /* not CSV format */
 
+    bench_append_memory_info(msg, sizeof(msg), csv_format == 1,
+#ifdef WC_BENCH_HEAP_TRACKING
+        heapAllocs,
+        heapBytes,
+#else
+        0,
+        0,
+#endif
+        BENCH_LAST_STACK_BYTES
+    );
     printf("%s", msg);
 
     /* show errors */
@@ -2743,7 +3004,14 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #ifdef WC_BENCH_TRACK_STATS
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_SYM, desc, 0, desc, useDeviceID, persec,
-        blockType, ret);
+        blockType, ret,
+#ifdef WC_BENCH_HEAP_TRACKING
+        heapAllocs, heapBytes,
+#else
+        0, 0,
+#endif
+        BENCH_LAST_STACK_BYTES
+    );
 #endif
 
     (void)useDeviceID;
@@ -2780,7 +3048,10 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #else
     const int digits = 3;
 #endif
-
+#ifdef WC_BENCH_HEAP_TRACKING
+    long heapAllocs = 0;
+    long heapBytes = 0;
+#endif
     XMEMSET(msg, 0, sizeof(msg));
 
     total = current_time(0) - start;
@@ -2819,6 +3090,17 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     milliEach = each * 1000;   /* milliseconds */
 #endif
 
+    bench_heap_checkpoint_measure(
+#ifdef WC_BENCH_HEAP_TRACKING
+        &heapAllocs,
+        &heapBytes
+#else
+        NULL,
+        NULL
+#endif
+    );
+    bench_stack_checkpoint_measure();
+
     SLEEP_ON_ERROR(ret);
 
 #ifdef MULTI_VALUE_STATISTICS  /* Print without avg ms */
@@ -2832,16 +3114,38 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #ifdef HAVE_GET_CYCLES
             printf("%s", "\"asym\",Algorithm,key size,operation,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,ops," WOLFSSL_FIXED_TIME_UNIT
-                    "ecs,cycles,cycles/op,");
+                    "ecs,cycles,cycles/op,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    );
     #else
             printf("%s", "\"asym\",Algorithm,key size,operation,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,ops," WOLFSSL_FIXED_TIME_UNIT
-                    "ecs,");
+                    "ecs,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    );
     #endif
 #else
             printf("\n%sAsymmetric Ciphers:\n\n", info_prefix);
             printf("%sAlgorithm,key size,operation,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
+            printf("%s",
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    "");
 #endif
             printf("max duration,min duration,mean duration,sd,\n");
             asym_header_printed = 1;
@@ -2911,16 +3215,38 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #ifdef HAVE_GET_CYCLES
             printf("%s", "\"asym\",Algorithm,key size,operation,avg ms,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,ops," WOLFSSL_FIXED_TIME_UNIT
-                    "ecs,cycles,cycles/op,");
+                    "ecs,cycles,cycles/op,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    );
     #else
             printf("%s", "\"asym\",Algorithm,key size,operation,avg ms,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,ops," WOLFSSL_FIXED_TIME_UNIT
-                    "ecs,");
+                    "ecs,"
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    );
     #endif
 #else
             printf("\n%sAsymmetric Ciphers:\n\n", info_prefix);
             printf("%sAlgorithm,key size,operation,avg ms,ops/"
                     WOLFSSL_FIXED_TIME_UNIT "ec,", info_prefix);
+            printf("%s",
+#ifdef WC_BENCH_HEAP_TRACKING
+                    "heap_bytes,heap_allocs,"
+#endif
+#ifdef WC_BENCH_STACK_TRACKING
+                    "stack_bytes,"
+#endif
+                    "");
 #endif
             printf("\n");
             asym_header_printed = 1;
@@ -2991,6 +3317,16 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #endif
     }
 #endif /* MULTI_VALUE_STATISTICS */
+    bench_append_memory_info(msg, sizeof(msg), csv_format == 1,
+#ifdef WC_BENCH_HEAP_TRACKING
+        heapAllocs,
+        heapBytes,
+#else
+        0,
+        0,
+#endif
+        BENCH_LAST_STACK_BYTES
+    );
     printf("%s", msg);
 
     /* show errors */
@@ -3006,7 +3342,14 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #ifdef WC_BENCH_TRACK_STATS
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, useDeviceID, opsSec,
-                    kOpsSec, ret);
+                    kOpsSec, ret,
+#ifdef WC_BENCH_HEAP_TRACKING
+                    heapAllocs, heapBytes,
+#else
+                    0, 0,
+#endif
+                    BENCH_LAST_STACK_BYTES
+    );
 #endif
 
     (void)useDeviceID;
@@ -4207,6 +4550,10 @@ int benchmark_test(void *args)
     int ret;
 
     (void)args;
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    STACK_SIZE_INIT();
+#endif
 
 #ifdef HAVE_FIPS
     wolfCrypt_SetCb_fips(myFipsCb);
