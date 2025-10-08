@@ -35,6 +35,9 @@ WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CPPFLAGS) $(
 ifdef KERNEL_EXTRA_CFLAGS
     WOLFSSL_CFLAGS += $(KERNEL_EXTRA_CFLAGS)
 endif
+ifeq "$(FIPS_OPTEST)" "1"
+    WOLFSSL_CFLAGS += -DFIPS_OPTEST
+endif
 
 WOLFSSL_ASFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CCASFLAGS) $(CCASFLAGS)
 
@@ -130,6 +133,10 @@ GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
 	    print "~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
 	}'
 
+ifeq "$(V)" "1"
+    vflag := --verbose
+endif
+
 .PHONY: libwolfssl.ko
 libwolfssl.ko:
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
@@ -137,9 +144,12 @@ libwolfssl.ko:
 	@if test -z '$(src_libwolfssl_la_OBJECTS)'; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
         # after commit 9a0ebe5011 (6.10), sources must be in $(obj).  work around this by making links to all needed sources:
 	@mkdir -p '$(MODULE_TOP)/linuxkm'
-	@test '$(MODULE_TOP)/module_hooks.c' -ef '$(MODULE_TOP)/linuxkm/module_hooks.c' || cp --verbose --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
-	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp --verbose --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
-	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp --verbose --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
+	@test '$(MODULE_TOP)/module_hooks.c' -ef '$(MODULE_TOP)/linuxkm/module_hooks.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
+	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
+	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
+ifeq "$(FIPS_OPTEST)" "1"
+	@test '$(SRC_TOP)/../fips/optest-140-3/linuxkm_optest_wrapper.c' -ef '$(MODULE_TOP)/linuxkm/optest-140-3/linuxkm_optest_wrapper.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/../fips/optest-140-3' '$(MODULE_TOP)/linuxkm'
+endif
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	@$(eval RELOC_TMP := $(shell mktemp "$(MAKE_TMPDIR)/wc_linuxkm_pie_reloc_tab.c.XXXXXX"))
 	@[[ -f wc_linuxkm_pie_reloc_tab.c ]] || echo -e "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = 1;" > wc_linuxkm_pie_reloc_tab.c

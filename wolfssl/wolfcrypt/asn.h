@@ -2074,6 +2074,32 @@ WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
 WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
     byte* out, word32* outSz, word32* idx);
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define FreeAltNames wc_FreeAltNames
+    #define AltNameNew wc_AltNameNew
+    #define AltNameDup wc_AltNameDup
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        #define FreeNameSubtrees wc_FreeNameSubtrees
+    #endif
+    #define InitDecodedCert wc_AsnApi_InitDecodedCert
+    #define FreeDecodedCert wc_AsnApi_FreeDecodedCert
+    #define ParseCert wc_AsnApi_ParseCert
+    #define AddSignature wc_AddSignature
+    #define ToTraditional wc_ToTraditional
+    #define ToTraditional_ex wc_ToTraditional_ex
+    #define UnTraditionalEnc wc_UnTraditionalEnc
+    #define TraditionalEnc_ex wc_TraditionalEnc_ex
+    #define TraditionalEnc wc_TraditionalEnc
+    #define SetName wc_SetName
+    #define GetShortInt wc_GetShortInt
+    #define SetShortInt wc_SetShortInt
+    #define GetLength wc_GetLength
+    #define GetASNInt wc_GetASNInt
+    #define GetASNTag wc_GetASNTag
+    #define SetAlgoID wc_SetAlgoID
+    #define SetAsymKeyDer wc_SetAsymKeyDer
+#endif /* WOLFSSL_API_PREFIX_MAP */
+
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry* altNames, void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameNew(void* heap);
 WOLFSSL_ASN_API DNS_entry* AltNameDup(DNS_entry* from, void* heap);

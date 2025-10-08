@@ -3656,7 +3656,12 @@ extern void uITRON4_free(void *p) ;
 
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
-    #define WOLFSSL_KERNEL_MODE
+    #ifndef WOLFSSL_KERNEL_MODE
+        #define WOLFSSL_KERNEL_MODE
+    #endif
+    #ifndef WOLFSSL_API_PREFIX_MAP
+        #define WOLFSSL_API_PREFIX_MAP
+    #endif
     #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
         #define WOLFSSL_KERNEL_VERBOSE_DEBUG
     #endif
@@ -3691,15 +3696,17 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_OLD_PRIME_CHECK
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifndef WC_TEST_EXPORT_SUBTESTS
+            #define WC_TEST_EXPORT_SUBTESTS
+        #endif
+    #endif
     #ifndef WOLFSSL_TEST_SUBROUTINE
-        #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifdef WC_TEST_EXPORT_SUBTESTS
             #define WOLFSSL_TEST_SUBROUTINE
         #else
             #define WOLFSSL_TEST_SUBROUTINE static
         #endif
-    #endif
-    #ifdef LINUXKM_LKCAPI_REGISTER
-        #define WC_TEST_EXPORT_SUBTESTS
     #endif
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
@@ -4048,8 +4055,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_XCHACHA
 #endif
 
-#if !defined(WOLFCRYPT_ONLY) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
+#if !defined(NO_KDF) && !defined(NO_HMAC)
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
 #endif
@@ -4065,7 +4071,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    defined(WC_NO_RSA_OAEP)
+    defined(WC_NO_RSA_OAEP) && !defined(HAVE_ECC)
     #undef  WOLFSSL_NO_CT_OPS
     #define WOLFSSL_NO_CT_OPS
 #endif

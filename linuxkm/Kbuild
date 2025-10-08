@@ -86,6 +86,10 @@ MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
 libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
+ifeq "$(FIPS_OPTEST)" "1"
+libwolfssl-y += linuxkm/optest-140-3/linuxkm_optest_wrapper.o
+endif
+
 WOLFSSL_CFLAGS_NO_VECTOR_INSNS := $(CFLAGS_SIMD_DISABLE) $(CFLAGS_FPU_DISABLE)
 ifeq "$(ENABLED_ASM)" "yes"
     WOLFSSL_CFLAGS_YES_VECTOR_INSNS := $(CFLAGS_SIMD_ENABLE) $(CFLAGS_FPU_DISABLE) $(CFLAGS_AUTO_VECTORIZE_DISABLE)
