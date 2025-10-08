@@ -514,7 +514,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
     failedCerts = wolfSSL_sk_X509_new_null();
     if (!failedCerts)
-        return WOLFSSL_FATAL_ERROR;
+        goto exit;
 
     if (ctx->depth > 0) {
         depth = ctx->depth + 1;
