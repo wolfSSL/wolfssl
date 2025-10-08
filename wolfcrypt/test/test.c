@@ -79,7 +79,7 @@
 #endif
 #endif
 
-const byte const_byte_array[] = "A+Gd\0\0\0";
+static const byte const_byte_array[] = "A+Gd\0\0\0";
 #define CBPTR_EXPECTED 'A'
 
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)

@@ -34,10 +34,16 @@
 
 /* call old functions if using fips for the sake of hmac @wc_fips */
 #ifdef HAVE_FIPS
-    /* Since hmac can call blake functions provide original calls */
-    #define wc_InitBlake2b   InitBlake2b
-    #define wc_Blake2bUpdate Blake2bUpdate
-    #define wc_Blake2bFinal  Blake2bFinal
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define InitBlake2b   wc_InitBlake2b
+        #define Blake2bUpdate wc_Blake2bUpdate
+        #define Blake2bFinal  wc_Blake2bFinal
+    #else
+        /* Since hmac can call blake functions provide original calls */
+        #define wc_InitBlake2b   InitBlake2b
+        #define wc_Blake2bUpdate Blake2bUpdate
+        #define wc_Blake2bFinal  Blake2bFinal
+    #endif
 #endif
 
 #ifdef __cplusplus

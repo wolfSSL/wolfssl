@@ -310,6 +310,9 @@ WOLFSSL_API int wolfSSL_ECDSA_verify(int type, const unsigned char *digest,
 
 
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define EccEnumToNID wolfSSL_EccEnumToNID
+#endif
 WOLFSSL_API int EccEnumToNID(int n);
 #endif
 

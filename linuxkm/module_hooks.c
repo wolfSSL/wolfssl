@@ -371,6 +371,10 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     #include "linuxkm/x86_vector_register_glue.c"
 #endif
 
+#ifdef FIPS_OPTEST
+extern int linuxkm_op_test_wrapper(void);
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -586,6 +590,10 @@ static int wolfssl_init(void)
 #endif
         );
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
+
+#ifdef FIPS_OPTEST
+    (void)linuxkm_op_test_wrapper();
+#endif
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);

@@ -1440,6 +1440,9 @@ enum {
 };
 
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CheckRunTimeSettings wc_CheckRunTimeSettings
+#endif
 WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long
