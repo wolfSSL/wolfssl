@@ -461,6 +461,7 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
     int total_size = 0;
     int msg_in_size;
 
+    /* Select buffer and message metadata for client or server */
     if (client) {
         buff = buff_in = buff_out = ctx->c_buff;
         msg_count = ctx->c_msg_count;
@@ -471,29 +472,51 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
         msg_count = ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Validate input and output message positions */
     if (msg_pos_in < 0 || msg_pos_in >= msg_count)
         return -1;
     if (msg_pos_out < 0 || msg_pos_out >= msg_count)
         msg_pos_out = msg_count-1;
     if (msg_pos_in == msg_pos_out)
         return 0;
+
+    /* Get the size of the message to move */
     msg_in_size = msg_sizes[msg_pos_in];
+
+    /* Calculate the total size of all messages */
     for (i = 0; i < msg_count; i++)
         total_size += msg_sizes[i];
+
+    /* Check if buffer has enough space for the move */
     if (total_size + msg_in_size > TEST_MEMIO_BUF_SZ)
         return -1;
+
+    /* Find the start of the input message in the buffer */
     for (i = 0; i < msg_pos_in; i++)
         buff_in += msg_sizes[i];
+
+    /* Find the position to move the message to in the buffer */
     for (i = 0; i < msg_pos_out + (msg_pos_out > msg_pos_in ? 1 : 0); i++)
         buff_out += msg_sizes[i];
+
+    /* Make space for the moved message at the output position */
     XMEMMOVE(buff_out + msg_in_size, buff_out,
             total_size - (buff_out - buff));
     total_size += msg_in_size;
+
+    /* Adjust input pointer if it was after the output position */
     if (buff_in > buff_out)
         buff_in += msg_in_size;
+
+    /* Copy the message to its new position */
     XMEMCPY(buff_out, buff_in, msg_in_size);
+
+    /* Remove the original message from its old position */
     XMEMMOVE(buff_in, buff_in + msg_in_size,
             total_size - (buff_in - buff) - msg_in_size);
+
+    /* Update the message sizes array to reflect the move */
     if (msg_pos_in < msg_pos_out) {
         XMEMMOVE(msg_sizes + msg_pos_in, msg_sizes + msg_pos_in + 1,
                 sizeof(*msg_sizes) *
