@@ -1843,8 +1843,8 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
  *
  * ssl  The SSL/TLS object.
  * req  1 to indicate required and 0 when not.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client and 0 on success.
+ * returns BAD_FUNC_ARG when ssl is NULL and
+ * SIDE_ERROR when not a server and 0 on success.
  */
 int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 {
