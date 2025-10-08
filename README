@@ -39,9 +39,11 @@ WOLFSSL_STATIC_DH
 WOLFSSL_STATIC_RSA
 WOLFSSL_STATIC_PSK
 
-Static key cipher suites are being deprecated and will be removed from future
-versions of TLS. They also lower your security by removing perfect forward
-secrecy (PFS).
+Static key cipher suites lower your security by removing perfect forward
+secrecy (PFS). Static cipher suites leverage the same long term private key for
+sharing a session secret instead of using (PFS), which is safer and is the
+default in wolfSSL. PFS uses a newly generated ephemeral key to exchange the
+primary secret used to derive session keys.
 
 When compiling `ssl.c`, wolfSSL will now issue a compiler error if no cipher
 suites are available. You can remove this error by defining
