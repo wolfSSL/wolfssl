@@ -43,7 +43,7 @@ int test_utils_memio_move_message(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+            wolfTLS_client_method, wolfTLS_server_method), 0);
     wolfSSL_set_verify(ssl_s, WOLFSSL_VERIFY_PEER, NULL);
     ExpectIntEQ(wolfSSL_clear_group_messages(ssl_s), 1);
     /* start handshake, send first ClientHello */
