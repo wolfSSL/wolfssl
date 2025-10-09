@@ -6211,9 +6211,10 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     key->slot = ATECC_INVALID_SLOT;
-#elif defined(WOLFSSL_KCAPI_ECC)
-    key->handle = NULL;
 #else
+#if defined(WOLFSSL_KCAPI_ECC)
+    key->handle = NULL;
+#endif
 #ifdef ALT_ECC_SIZE
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
     key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
