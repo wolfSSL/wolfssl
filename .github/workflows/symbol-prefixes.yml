@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         config: [
-          '--enable-all CFLAGS=-DWOLFSSL_API_PREFIX_MAP'
+          '--enable-all --enable-mlkem --enable-mldsa --enable-xmss --enable-lms --enable-acert --with-sys-crypto-policy CFLAGS=-DWOLFSSL_API_PREFIX_MAP'
         ]
     name: make and analyze
     if: github.repository_owner == 'wolfssl'
