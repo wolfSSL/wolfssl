@@ -1385,10 +1385,6 @@ then
         test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
         test "$enable_aeseax" = "" && enable_aeseax=yes
-        test "$enable_mlkem" = "" && test "$enable_kyber" = "" && enable_mlkem=yes
-        test "$enable_mldsa" = "" && test "$enable_dilithium" = "" && enable_mldsa=yes
-        test "$enable_xmss" = "" && enable_xmss=yes
-        test "$enable_lms" = "" && enable_lms=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then

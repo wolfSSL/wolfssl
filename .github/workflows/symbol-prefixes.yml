@@ -35,30 +35,36 @@ jobs:
           make -j 4 || $(exit 4)
           # ignore properly prefixed symbols, and symbols associated with asm implementations (all internal) regardless of prefix:
           readelf --symbols --wide src/.libs/libwolfssl.so | \
-          awk ' \
-          BEGIN { \
-              unprefixed_public_symbols = 0; \
-          } \
-          { \
-              if (($7 == "UND") || \
-                  ($8 ~ /^(wc_|wolf|WOLF|__pfx|fe_|sp_[a-zA-Z090-0_]*[0-9])/) || \
-                  ($8 ~ /(_avx[12]|_AVX[12]|_sse[12]|_SSE[12]|_aesni|_AESNI|_bmi2|_x64$)/)) \
-              { \
-                  next; \
-              } \
-          } \
-          { \
-              if (($4 == "FUNC") && ($5 == "GLOBAL") && ($6 == "DEFAULT")) { \
-                  ++unprefixed_public_symbols; \
-                  print; \
-              } \
-          } \
-          END { \
-              if (unprefixed_public_symbols) { \
-                  print unprefixed_public_symbols " unprefixed public symbols found." >"/dev/stderr";
-                  exit(1); \
-              } else { \
-                  print "no unprefixed public symbols found."
-                  exit(0); \
-              } \
+          awk '
+          BEGIN {
+              total_public_symbols = 0;
+              unprefixed_public_symbols = 0;
+          }
+          {
+              if (($5 == "GLOBAL") && ($6 != "HIDDEN") && ($7 ~ /^[0-9]+$/)) {
+                  ++total_public_symbols;
+              }
+          }
+          {
+              if (($7 !~ /^[0-9]+$/) ||
+                  ($8 ~ /^(wc_|wolf|WOLF|__pfx|fe_|sp_[a-zA-Z090-0_]*[0-9])/) ||
+                  ($8 ~ /(_avx[12]|_AVX[12]|_sse[12]|_SSE[12]|_aesni|_AESNI|_bmi2|_x64$)/))
+              {
+                  next;
+              }
+          }
+          {
+              if (($4 == "FUNC") && ($5 == "GLOBAL") && ($6 == "DEFAULT")) {
+                  ++unprefixed_public_symbols;
+                  print;
+              }
+          }
+          END {
+              if (unprefixed_public_symbols) {
+                  print unprefixed_public_symbols " unprefixed public symbols found, of " total_public_symbols " total." >"/dev/stderr";
+                  exit(1);
+              } else {
+                  print total_public_symbols " public symbols found in libwolfssl, all OK.";
+                  exit(0);
+              }
           }' || $(exit 5)
