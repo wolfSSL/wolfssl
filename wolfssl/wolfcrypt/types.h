@@ -1199,7 +1199,13 @@ enum {
 };
 
 /* max error buffer string size */
-#ifndef WOLFSSL_MAX_ERROR_SZ
+#ifdef WOLFSSL_MAX_ERROR_SZ
+    #if  WOLFSSL_MAX_ERROR_SZ < 64
+        /* If too small, the error_test() will fail.
+         * See fixed length strings returned in wc_GetErrorString() */
+        #error WOLFSSL_MAX_ERROR_SZ must be at least length of longest message
+    #endif
+#else
     #define WOLFSSL_MAX_ERROR_SZ 80
 #endif
 

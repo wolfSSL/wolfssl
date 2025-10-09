@@ -2866,7 +2866,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 {
     const char* errStr;
-    char        out[WOLFSSL_MAX_ERROR_SZ];
+    char        out[WOLFSSL_MAX_ERROR_SZ]; /* test fails if too small, < 64 */
     const char* unknownStr = wc_GetErrorString(0);
 
 #ifdef NO_ERROR_STRINGS
