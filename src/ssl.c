@@ -1830,7 +1830,7 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
-    if (ctx->method->side == WOLFSSL_CLIENT_END)
+    if (ctx->method->side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
     ctx->mutualAuth = (byte)req;
@@ -1850,7 +1850,7 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
+    if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
     ssl->options.mutualAuth = (word16)req;
