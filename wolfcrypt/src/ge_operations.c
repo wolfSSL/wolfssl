@@ -9817,4 +9817,17 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
 }
 
 #endif /* !ED25519_SMALL */
+
+/* if HAVE_ED25519 but not HAVE_CURVE25519, and an asm implementation is built,
+ * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
+ * it here.
+ */
+#if defined(WOLFSSL_API_PREFIX_MAP) && !defined(HAVE_CURVE25519) && \
+    !defined(FREESCALE_LTC_ECC)
+WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
+WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
+    (void)curve25519((byte *)0, (byte *)0, (const byte *)0);
+}
+#endif
+
 #endif /* HAVE_ED25519 */

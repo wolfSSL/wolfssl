@@ -228,6 +228,15 @@
 
     #include <linux/kconfig.h>
 
+    #ifdef CONFIG_KASAN
+        #ifndef WC_SANITIZE_DISABLE
+            #define WC_SANITIZE_DISABLE() kasan_disable_current()
+        #endif
+        #ifndef WC_SANITIZE_ENABLE
+            #define WC_SANITIZE_ENABLE() kasan_enable_current()
+        #endif
+    #endif
+
     #if defined(CONFIG_FORTIFY_SOURCE) && \
         !defined(WC_FORCE_LINUXKM_FORTIFY_SOURCE) && \
         (defined(HAVE_LINUXKM_PIE_SUPPORT) || \
@@ -1286,12 +1295,13 @@
         #endif /* WOLFSSL_USE_SAVE_VECTOR_REGISTERS */
     #endif /* !BUILDING_WOLFSSL */
 
-    /* Copied from wc_port.h: For FIPS keep the function names the same */
-    #ifdef HAVE_FIPS
-    #define wc_InitMutex   InitMutex
-    #define wc_FreeMutex   FreeMutex
-    #define wc_LockMutex   LockMutex
-    #define wc_UnLockMutex UnLockMutex
+    /* Copied from wc_port.h */
+    #if defined(HAVE_FIPS) && !defined(WOLFSSL_API_PREFIX_MAP)
+        /* For FIPS keep the function names the same */
+        #define wc_InitMutex   InitMutex
+        #define wc_FreeMutex   FreeMutex
+        #define wc_LockMutex   LockMutex
+        #define wc_UnLockMutex UnLockMutex
     #endif /* HAVE_FIPS */
 
     #ifdef WOLFSSL_LINUXKM_USE_MUTEXES

@@ -7000,6 +7000,12 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS13
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
+        #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
+        #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
+        #define Dtls13RtxAddAck wolfSSL_Dtls13RtxAddAck
+    #endif
 
 WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
@@ -7096,6 +7102,9 @@ typedef struct CRYPTO_EX_cb_ctx {
 } CRYPTO_EX_cb_ctx;
 
 WOLFSSL_TEST_VIS extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define crypto_ex_cb_free wolfSSL_crypto_ex_cb_free
+#endif
 WOLFSSL_TEST_VIS void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
 WOLFSSL_LOCAL void crypto_ex_cb_setup_new_data(void *new_obj,
         CRYPTO_EX_cb_ctx* cb_ctx, WOLFSSL_CRYPTO_EX_DATA* ex_data);
