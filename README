@@ -30,20 +30,23 @@ of the wolfSSL manual. (https://www.wolfssl.com/docs/wolfssl-manual/ch4/)
 
 Note 1)
 wolfSSL as of 3.6.6 no longer enables SSLv3 by default. By default, wolfSSL
-also no longer enables static key cipher suites with PSK, RSA, or ECDH.
-This means if you plan to use TLS cipher suites you must enable DH
-(DH is on by default), or enable ECC (ECC is on by default), or you must enable
-static key cipher suites with one or more of the following defines:
+disables static key cipher suites that use PSK, RSA, or ECDH without ephemeral
+key exchange. Instead, wolfSSL enables cipher suites that provide perfect
+forward secrecy (PFS) using ephemeral Diffie-Hellman (DH) or Elliptic Curve
+(ECC) key exchange, both of which are enabled by default.
+
+If you need to support legacy systems that require static key cipher suites,
+you can enable them using one or more of these defines:
 
 WOLFSSL_STATIC_DH
 WOLFSSL_STATIC_RSA
 WOLFSSL_STATIC_PSK
 
-Static key cipher suites lower your security by removing perfect forward
-secrecy (PFS). Static cipher suites leverage the same long term private key for
-sharing a session secret instead of using (PFS), which is safer and is the
-default in wolfSSL. PFS uses a newly generated ephemeral key to exchange the
-primary secret used to derive session keys.
+Important: Static key cipher suites reduce security by eliminating perfect
+forward secrecy. These cipher suites reuse the same long-term private key for
+all session key exchanges. In contrast, PFS-enabled cipher suites (the wolfSSL
+default) generate a new ephemeral key for each session, ensuring that
+compromising a long-term key cannot decrypt past sessions.
 
 When compiling `ssl.c`, wolfSSL will now issue a compiler error if no cipher
 suites are available. You can remove this error by defining
