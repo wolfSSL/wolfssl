@@ -7633,19 +7633,7 @@ const char* wolfSSL_X509_verify_cert_error_string(long err)
 
 #ifdef OPENSSL_EXTRA
 
-/* Add directory path that will be used for loading certs and CRLs
- * which have the <hash>.rn name format.
- * type may be WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
- * returns WOLFSSL_SUCCESS on successful, otherwise negative or zero. */
-int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
-                               long type)
-{
-    return wolfSSL_X509_LOOKUP_ctrl(lookup, WOLFSSL_X509_L_ADD_DIR, dir, type,
-                                    NULL);
-}
-
-int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
-                                 const char* file, long type)
+int X509LoadPemFile(WOLFSSL_X509_STORE *store, const char* file)
 {
 #if !defined(NO_FILESYSTEM) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
@@ -7657,9 +7645,6 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     byte*         prev = NULL;
     const char* header = NULL;
     const char* footer = NULL;
-
-    if (type != WOLFSSL_FILETYPE_PEM)
-        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
 
     fp = XFOPEN(file, "rb");
     if (fp == XBADFILE)
@@ -7696,7 +7681,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
                 XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
 #ifdef HAVE_CRL
-            WOLFSSL_CERT_MANAGER* cm = lookup->store->cm;
+            WOLFSSL_CERT_MANAGER* cm = store->cm;
 
             if (cm->crl == NULL) {
                 if (wolfSSL_CertManagerEnableCRL(cm, WOLFSSL_CRL_CHECK)
@@ -7715,7 +7700,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         }
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
                 XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
-            ret = X509StoreLoadCertBuffer(lookup->store, curr,
+            ret = X509StoreLoadCertBuffer(store, curr,
                                         (word32)sz, WOLFSSL_FILETYPE_PEM);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
@@ -7737,6 +7722,34 @@ end:
     XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     XFCLOSE(fp);
     return WS_RETURN_CODE(ret, (int)WOLFSSL_FAILURE);
+#else
+    (void)store;
+    (void)file;
+    return WS_RETURN_CODE(WOLFSSL_FAILURE,WOLFSSL_FAILURE);
+#endif
+}
+
+/* Add directory path that will be used for loading certs and CRLs
+ * which have the <hash>.rn name format.
+ * type may be WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
+ * returns WOLFSSL_SUCCESS on successful, otherwise negative or zero. */
+int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
+                               long type)
+{
+    return wolfSSL_X509_LOOKUP_ctrl(lookup, WOLFSSL_X509_L_ADD_DIR, dir, type,
+                                    NULL);
+}
+
+int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
+                                 const char* file, long type)
+{
+#if !defined(NO_FILESYSTEM) && \
+    (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
+
+    if (type != WOLFSSL_FILETYPE_PEM)
+        return WS_RETURN_CODE(BAD_FUNC_ARG, (int)WOLFSSL_FAILURE);
+
+    return X509LoadPemFile(lookup->store, file);
 #else
     (void)lookup;
     (void)file;
