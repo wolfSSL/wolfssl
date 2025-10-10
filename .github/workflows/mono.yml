@@ -63,20 +63,20 @@ jobs:
         # Start server in background and capture its PID
         timeout 10s mono server.exe > server.log 2>&1 &
         SERVER_PID=$!
-        
+
         # Wait for server to start
         sleep 2
-        
+
         # Run client and capture output
         timeout 5s mono client.exe > client.log 2>&1
         CLIENT_EXIT_CODE=$?
-        
+
         # Wait a moment for server to process
         sleep 1
-        
+
         # Kill server
         kill $SERVER_PID 2>/dev/null || true
-        
+
         # Check if client completed successfully (exit code 0)
         if [ $CLIENT_EXIT_CODE -eq 0 ]; then
           echo "Client completed successfully"
@@ -85,7 +85,7 @@ jobs:
           cat client.log
           exit 1
         fi
-        
+
         # Check for success indicators in logs
         if grep -q "SSL version is" client.log && grep -q "SSL cipher suite is" client.log; then
           echo "TLS handshake successful - SSL version and cipher suite detected"
@@ -106,20 +106,20 @@ jobs:
         # Start server with SNI support in background
         timeout 10s mono server.exe -S > server_sni.log 2>&1 &
         SERVER_PID=$!
-        
+
         # Wait for server to start
         sleep 2
-        
+
         # Run client with SNI and capture output
         timeout 5s mono client.exe -S localhost > client_sni.log 2>&1
         CLIENT_EXIT_CODE=$?
-        
+
         # Wait a moment for server to process
         sleep 1
-        
+
         # Kill server
         kill $SERVER_PID 2>/dev/null || true
-        
+
         # Check if client completed successfully
         if [ $CLIENT_EXIT_CODE -eq 0 ]; then
           echo "SNI client completed successfully"
@@ -128,7 +128,7 @@ jobs:
           cat client_sni.log
           exit 1
         fi
-        
+
         # Check for SNI success indicators
         if grep -q "SSL version is" client_sni.log && grep -q "SSL cipher suite is" client_sni.log; then
           echo "SNI TLS handshake successful"
