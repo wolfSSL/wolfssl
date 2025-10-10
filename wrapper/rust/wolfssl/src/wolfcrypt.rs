@@ -19,5 +19,6 @@
  */
 
 pub mod aes;
+pub mod ecc;
 pub mod random;
 pub mod rsa;

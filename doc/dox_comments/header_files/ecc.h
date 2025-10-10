@@ -122,7 +122,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
     slot.
 
     \return 0 Returned on success.
-    \return ECC_BAD_ARG_E Returned if rng or key evaluate to NULL
+    \return ECC_BAD_ARG_E Returned if key is NULL
     \return BAD_FUNC_ARG Returned if the supplied key is not a valid ecc_key.
     \return MEMORY_E Returned if there is an error allocating memory while
     computing the public key
@@ -172,11 +172,10 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
     an existing private component.  If pubOut is supplied, the computed public
     key is stored there, else it is stored in the supplied ecc_key public
     component slot.  The supplied rng, if non-NULL, is used to blind the private
-    key value used in the computation.  If rng is NULL, an ephemeral rng is
-    instantiated internally.
+    key value used in the computation.
 
     \return 0 Returned on success.
-    \return ECC_BAD_ARG_E Returned if rng or key evaluate to NULL
+    \return ECC_BAD_ARG_E Returned if key is NULL
     \return BAD_FUNC_ARG Returned if the supplied key is not a valid ecc_key.
     \return MEMORY_E Returned if there is an error allocating memory while
     computing the public key

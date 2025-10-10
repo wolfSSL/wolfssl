@@ -4083,7 +4083,9 @@ int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 /**
  * Allocate a new ECC point (if one not provided)
  * use a heap hint when creating new ecc_point
- * return an allocated point on success or NULL on failure
+ * @return 0 on success
+ * @return BAD_FUNC_ARG for invalid arguments
+ * @return MEMORY_E on failure to allocate memory
 */
 static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
 {
@@ -11812,15 +11814,14 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
    qy        y component of the public key, as ASCII hex string
    d         private key, as ASCII hex string, optional if importing public
              key only
-   dp        Custom ecc_set_type
-   return    MP_OKAY on success
+   curve_id  The id of the curve.
+   @return    MP_OKAY on success
 */
 int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
                    const char* d, int curve_id)
 {
     return wc_ecc_import_raw_private(key, qx, qy, d, curve_id,
         WC_TYPE_HEX_STR);
-
 }
 
 /* Import x, y and optional private (d) as unsigned binary */
