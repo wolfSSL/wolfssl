@@ -3646,14 +3646,6 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_PYTHON
-    /* Need to use old OID sum algorithm until OSP patches, in particular to
-     * tests, for all versions reflect the new OID sum value. */
-    #undef WOLFSSL_OLD_OID_SUM
-    #define WOLFSSL_OLD_OID_SUM
-#endif
-
-
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
     #ifndef WOLFSSL_KERNEL_MODE
