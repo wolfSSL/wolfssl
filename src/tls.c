@@ -5329,9 +5329,14 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
         SupportedCurve* serverGroup;
 
         ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
-        serverGroup = (SupportedCurve*)ext->data;
-
-        ret = tlsx_ffdhe_find_group(ssl, clientGroup, serverGroup);
+        if (ext == NULL) {
+            WOLFSSL_MSG("Could not find supported groups extension");
+            ret = 0;
+        }
+        else {
+            serverGroup = (SupportedCurve*)ext->data;
+            ret = tlsx_ffdhe_find_group(ssl, clientGroup, serverGroup);
+        }
     }
 
     TLSX_FreeAll(priority, ssl->heap);
