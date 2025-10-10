@@ -3704,7 +3704,9 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
 #endif
 
 WOLFSSL_API int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_set_group_messages(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_clear_group_messages(WOLFSSL* ssl);
 
 
 #ifdef HAVE_FUZZER

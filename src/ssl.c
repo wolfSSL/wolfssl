@@ -1830,7 +1830,7 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
-    if (ctx->method->side == WOLFSSL_CLIENT_END)
+    if (ctx->method->side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
     ctx->mutualAuth = (byte)req;
@@ -1843,14 +1843,14 @@ int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
  *
  * ssl  The SSL/TLS object.
  * req  1 to indicate required and 0 when not.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client and 0 on success.
+ * returns BAD_FUNC_ARG when ssl is NULL and
+ * SIDE_ERROR when not a server and 0 on success.
  */
 int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_SERVER_END)
+    if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
 
     ssl->options.mutualAuth = (word16)req;
@@ -5159,6 +5159,16 @@ int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx)
 
     return WOLFSSL_SUCCESS;
 }
+
+int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+       return BAD_FUNC_ARG;
+
+    ctx->groupMessages = 0;
+
+    return WOLFSSL_SUCCESS;
+}
 #endif
 
 
@@ -5192,6 +5202,15 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_clear_group_messages(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+       return BAD_FUNC_ARG;
+
+    ssl->options.groupMessages = 0;
+
+    return WOLFSSL_SUCCESS;
+}
 
 /* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)
