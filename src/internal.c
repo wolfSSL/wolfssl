@@ -33224,6 +33224,79 @@ static void FreeSckeArgs(WOLFSSL* ssl, void* pArgs)
     args->input = NULL;
 }
 
+#ifndef NO_PSK
+static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
+{
+    /* Use the PSK hint to look up the PSK and add it to the
+     * preMasterSecret here. */
+    ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+        ssl->arrays->client_identity, ssl->arrays->psk_key,
+        MAX_PSK_KEY_LEN);
+
+    if (ssl->arrays->psk_keySz == 0 ||
+        (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+    (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
+    #if defined(WOLFSSL_EXTRA_ALERTS) || \
+        defined(WOLFSSL_PSK_IDENTITY_ALERT)
+        SendAlert(ssl, alert_fatal,
+                unknown_psk_identity);
+    #endif
+        return 1;
+    }
+    /* Pre-shared Key for peer authentication. */
+    ssl->options.peerAuthGood = 1;
+    return 0;
+}
+#endif
+
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) \
+                       || !defined(NO_DH))\
+  && !defined(NO_PSK)
+static int MakeDhePSKPreMasterSecret(WOLFSSL* ssl, byte addPSKtoPreMasterSecret)
+{
+    Arrays* arrays = ssl->arrays;
+    byte* pms = arrays->preMasterSecret;
+    c16toa((word16)arrays->preMasterSz, pms);
+    arrays->preMasterSz += OPAQUE16_LEN;
+    pms += arrays->preMasterSz;
+    if (addPSKtoPreMasterSecret && AddPSKtoPreMasterSecret(ssl))
+        return 1;
+    if ((int)arrays->psk_keySz > 0) {
+        c16toa((word16)arrays->psk_keySz, pms);
+        pms += OPAQUE16_LEN;
+        XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
+        arrays->preMasterSz += arrays->psk_keySz + OPAQUE16_LEN;
+        ForceZero(arrays->psk_key, arrays->psk_keySz);
+    }
+    arrays->psk_keySz = 0; /* No further need */
+    return 0;
+}
+#endif
+
+#ifndef NO_PSK
+static void MakePSKPreMasterSecret(Arrays* arrays)
+{
+    byte* pms = arrays->preMasterSecret;
+    if ((int)arrays->psk_keySz > 0) {
+        /* length of key + length 0s + length of key + key */
+        c16toa((word16) arrays->psk_keySz, pms);
+        pms += OPAQUE16_LEN;
+
+        XMEMSET(pms, 0, arrays->psk_keySz);
+        pms += arrays->psk_keySz;
+
+        c16toa((word16) arrays->psk_keySz, pms);
+        pms += OPAQUE16_LEN;
+
+        XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
+        arrays->preMasterSz = (arrays->psk_keySz * 2) +
+            (OPAQUE16_LEN * 2);
+        ForceZero(arrays->psk_key, arrays->psk_keySz);
+    }
+    arrays->psk_keySz = 0; /* no further need */
+}
+#endif /*NO_PSK*/
+
 /* handle generation client_key_exchange (16) */
 int SendClientKeyExchange(WOLFSSL* ssl)
 {
@@ -33653,7 +33726,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_PSK
                 case psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
                     ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
@@ -33672,24 +33744,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     XMEMCPY(args->encSecret, ssl->arrays->client_identity,
                             args->encSz);
                     ssl->options.peerAuthGood = 1;
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        /* CLIENT: Pre-shared Key for peer authentication. */
-
-                        /* make psk pre master secret */
-                        /* length of key + length 0s + length of key + key */
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-                        pms += ssl->arrays->psk_keySz;
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key,
-                                ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2)
-                                                   + (2 * OPAQUE16_LEN);
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    MakePSKPreMasterSecret(ssl->arrays);
                     break;
                 }
             #endif /* !NO_PSK */
@@ -34187,8 +34242,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #if !defined(NO_DH) && !defined(NO_PSK)
                 case dhe_psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
-
                     /* validate args */
                     if (args->output == NULL || args->length == 0) {
                         ERROR_OUT(BAD_FUNC_ARG, exit_scke);
@@ -34196,21 +34249,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     c16toa((word16)args->length, args->output);
                     args->encSz += args->length + OPAQUE16_LEN;
-                    c16toa((word16)ssl->arrays->preMasterSz, pms);
-                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                    pms += ssl->arrays->preMasterSz;
 
-                    /* make psk pre master secret */
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        /* length of key + length 0s + length of key + key */
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz +=
-                                            ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    (void)MakeDhePSKPreMasterSecret(ssl, 0);
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
@@ -34218,8 +34258,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
-
                     /* validate args */
                     if (args->output == NULL || args->length > ENCRYPT_LEN) {
                         ERROR_OUT(BAD_FUNC_ARG, exit_scke);
@@ -34231,19 +34269,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* Create pre master secret is the concatenation of
                      * eccSize + eccSharedKey + pskSize + pskKey */
-                    c16toa((word16)ssl->arrays->preMasterSz, pms);
-                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                    pms += ssl->arrays->preMasterSz;
-
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    (void)MakeDhePSKPreMasterSecret(ssl, 0);
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
@@ -41048,7 +41074,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_PSK
                     case psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 ci_sz;
 
                         if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -41069,42 +41094,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         XMEMCPY(ssl->arrays->client_identity,
                                                     input + args->idx, ci_sz);
                         args->idx += ci_sz;
-
                         ssl->arrays->client_identity[ci_sz] = '\0'; /* null term */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
-                        #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                            defined(WOLFSSL_PSK_IDENTITY_ALERT)
-                            SendAlert(ssl, alert_fatal,
-                                    unknown_psk_identity);
-                        #endif
+                        if (AddPSKtoPreMasterSecret(ssl))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-
-                        /* make psk pre master secret */
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            /* length of key + length 0s + length of key + key */
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-                            pms += ssl->arrays->psk_keySz;
-
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2) +
-                                (OPAQUE16_LEN * 2);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
+                        MakePSKPreMasterSecret(ssl->arrays);
                         break;
                     }
                 #endif /* !NO_PSK */
@@ -41903,42 +41896,14 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #if !defined(NO_DH) && !defined(NO_PSK)
                     case dhe_psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 clientSz = (word16)args->sigSz;
 
                         args->idx += clientSz;
-                        c16toa((word16)ssl->arrays->preMasterSz, pms);
-                        ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                        pms += ssl->arrays->preMasterSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the
                          * preMasterSecret here. */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
-                        #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                            defined(WOLFSSL_PSK_IDENTITY_ALERT)
-                            SendAlert(ssl, alert_fatal,
-                                    unknown_psk_identity);
-                        #endif
+                        if (MakeDhePSKPreMasterSecret(ssl, 1))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                            ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
@@ -41946,39 +41911,18 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 clientSz = (word16)args->sigSz;
 
                         /* skip past the imported peer key */
                         args->idx += args->length;
 
                         /* Add preMasterSecret */
-                        c16toa(clientSz, pms);
-                        ssl->arrays->preMasterSz = OPAQUE16_LEN + clientSz;
-                        pms += ssl->arrays->preMasterSz;
+                        ssl->arrays->preMasterSz = clientSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the
                          * preMasterSecret here. */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
+                        if (MakeDhePSKPreMasterSecret(ssl, 1))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                            ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
