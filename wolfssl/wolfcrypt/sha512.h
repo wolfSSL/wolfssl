@@ -59,11 +59,14 @@
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
 #endif
 #if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+
     #include "cy_crypto_core_sha.h"
     #include "cy_device_headers.h"
     #include "cy_crypto_common.h"
     #include "cy_crypto_core.h"
 #endif
+
 #if defined(WOLFSSL_KCAPI_HASH)
     #include <wolfssl/wolfcrypt/port/kcapi/kcapi_hash.h>
 #endif
@@ -144,9 +147,8 @@ enum {
 #endif
 /* wc_Sha512 digest */
 struct wc_Sha512 {
-#ifdef WOLFSSL_PSOC6_CRYPTO
+#if defined(PSOC6_HASH_SHA2)
     cy_stc_crypto_sha_state_t hash_state;
-    cy_en_crypto_sha_mode_t sha_mode;
     cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
     void*   heap;
 #else
