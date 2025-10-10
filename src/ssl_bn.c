@@ -1153,7 +1153,7 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
         else {
             PRAGMA_GCC_DIAG_PUSH
             PRAGMA_GCC("GCC diagnostic ignored \"-Werror=duplicated-branches\"")
-            /* ignored warning here because the same return value 
+            /* ignored warning here because the same return value
                was intentional */
             ret = WOLFSSL_FATAL_ERROR; /* also -1 */
             PRAGMA_GCC_DIAG_POP
