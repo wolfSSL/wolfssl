@@ -181,7 +181,14 @@ enum {
 #elif defined(PLUTON_CRYPTO_ECC)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    #if defined(_SILICON_LABS_SECURITY_FEATURE) && \
+            (_SILICON_LABS_SECURITY_FEATURE == \
+             _SILICON_LABS_SECURITY_FEATURE_VAULT) && \
+        !defined(_SILICON_LABS_32B_SERIES_3_CONFIG_301)
+    ECC_MAX_CRYPTO_HW_SIZE = 66, /* up to 521 bit curves */
+    #else
     ECC_MAX_CRYPTO_HW_SIZE = 32,
+    #endif
 #elif defined(WOLFSSL_CRYPTOCELL)
     #ifndef CRYPTOCELL_KEY_SIZE
         CRYPTOCELL_KEY_SIZE = ECC_MAXSIZE,
