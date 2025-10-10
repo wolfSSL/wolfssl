@@ -25910,16 +25910,7 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
         }
 #endif /* WOLFSSL_DTLS13 */
 
-#ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, (word32)sz - sent);
-        }
-        else
-#endif
-        {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, (word32)sz - sent);
-
-        }
+        buffSz = wolfSSL_GetMaxFragSize(ssl, (word32)sz - sent);
 
         if (sent == (word32)sz) break;
 
