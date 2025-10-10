@@ -247,7 +247,7 @@ fn test_ecc_point() {
     let curve_id = ECC::SECP256R1;
     let curve_size = ECC::get_curve_size_from_id(curve_id).expect("Error with get_curve_size_from_id()");
     let mut ecc = ECC::generate_ex(curve_size, &mut rng, curve_id).expect("Error with generate()");
-    let ecc_point = ecc.make_pub_to_point(Some(&mut rng)).expect("Error with make_pub_to_point()");
+    let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng)).expect("Error with make_pub_to_point()");
     let mut der = [0u8; 128];
     let size = ecc_point.export_der(&mut der, curve_id).expect("Error with export_der()");
     assert!(size > 0 && size <= der.len());

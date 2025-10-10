@@ -59,7 +59,7 @@ impl ECCPoint {
         }
         let wc_ecc_point = unsafe { ws::wc_ecc_new_point() };
         if wc_ecc_point.is_null() {
-            return Err(0);
+            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let eccpoint = ECCPoint { wc_ecc_point };
         let din_size = din.len() as u32;
@@ -108,7 +108,7 @@ impl ECCPoint {
         }
         let wc_ecc_point = unsafe { ws::wc_ecc_new_point() };
         if wc_ecc_point.is_null() {
-            return Err(0);
+            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let eccpoint = ECCPoint { wc_ecc_point };
         let din_size = din.len() as u32;
@@ -216,10 +216,10 @@ impl ECCPoint {
     /// use wolfssl::wolfcrypt::ecc::ECC;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
     /// let mut ecc = ECC::generate(32, &mut rng).expect("Error with generate()");
-    /// let ecc_point = ecc.make_pub_to_point(Some(&mut rng)).expect("Error with make_pub_to_point()");
+    /// let mut ecc_point = ecc.make_pub_to_point(Some(&mut rng)).expect("Error with make_pub_to_point()");
     /// ecc_point.forcezero();
     /// ```
-    pub fn forcezero(&self) {
+    pub fn forcezero(&mut self) {
         unsafe { ws::wc_ecc_forcezero_point(self.wc_ecc_point) };
     }
 }
@@ -806,7 +806,6 @@ impl ECC {
     /// let _ecc2 = ECC::import_x963(x963).expect("Error with import_x963()");
     /// ```
     pub fn import_x963(din: &[u8]) -> Result<ECC, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
         let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
         let rc = unsafe { ws::wc_ecc_init(wc_ecc_key.as_mut_ptr()) };
@@ -815,7 +814,7 @@ impl ECC {
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_import_x963(din_ptr, din_size, &mut wc_ecc_key)
+            ws::wc_ecc_import_x963(din.as_ptr(), din_size, &mut wc_ecc_key)
         };
         if rc != 0 {
             unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
@@ -857,7 +856,6 @@ impl ECC {
     /// let _ecc2 = ECC::import_x963_ex(x963, curve_id).expect("Error with import_x963_ex()");
     /// ```
     pub fn import_x963_ex(din: &[u8], curve_id: i32) -> Result<ECC, i32> {
-        let din_ptr = din.as_ptr() as *const u8;
         let din_size = din.len() as u32;
         let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
         let rc = unsafe { ws::wc_ecc_init(wc_ecc_key.as_mut_ptr()) };
@@ -866,7 +864,7 @@ impl ECC {
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_import_x963_ex(din_ptr, din_size, &mut wc_ecc_key, curve_id)
+            ws::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut wc_ecc_key, curve_id)
         };
         if rc != 0 {
             unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
@@ -1385,7 +1383,7 @@ impl ECC {
         };
         let wc_ecc_point = unsafe { ws::wc_ecc_new_point() };
         if wc_ecc_point.is_null() {
-            return Err(0);
+            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let ecc_point = ECCPoint { wc_ecc_point };
         let rc = unsafe {
