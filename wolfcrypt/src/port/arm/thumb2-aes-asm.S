@@ -1149,7 +1149,8 @@ L_AES_Thumb2_te_ecb:
 #endif /* HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
         * WOLFSSL_AES_COUNTER */
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_ECB_encrypt
@@ -1298,7 +1299,7 @@ L_AES_ECB_encrypt_end:
 	/* Cycle Count = 212 */
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
-        * WOLFSSL_AES_COUNTER */
+        * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 	.text
 	.align	4
@@ -1649,8 +1650,8 @@ L_AES_CTR_encrypt_end:
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(HAVE_AES_CBC)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_decrypt_block
@@ -2134,7 +2135,7 @@ L_AES_Thumb2_td4:
 	.byte	0x21
 	.byte	0xc
 	.byte	0x7d
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_ECB_decrypt
@@ -2279,7 +2280,7 @@ L_AES_ECB_decrypt_end:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 210 */
 	.size	AES_ECB_decrypt,.-AES_ECB_decrypt
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
 	.text
 	.align	4
@@ -2603,7 +2604,8 @@ L_AES_CBC_decrypt_end:
 	/* Cycle Count = 518 */
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
+        * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
 	.text

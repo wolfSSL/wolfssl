@@ -10074,13 +10074,6 @@ _mlkem_shake128_blocksx3_seed_neon:
 	stp	d10, d11, [x29, #176]
 	stp	d12, d13, [x29, #192]
 	stp	d14, d15, [x29, #208]
-#ifndef __APPLE__
-	adrp x28, L_sha3_aarch64_r
-	add  x28, x28, :lo12:L_sha3_aarch64_r
-#else
-	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
-#endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
 	ld1	{v4.d}[0], [x0]
@@ -10421,13 +10414,6 @@ _mlkem_shake256_blocksx3_seed_neon:
 	stp	d10, d11, [x29, #176]
 	stp	d12, d13, [x29, #192]
 	stp	d14, d15, [x29, #208]
-#ifndef __APPLE__
-	adrp x28, L_sha3_aarch64_r
-	add  x28, x28, :lo12:L_sha3_aarch64_r
-#else
-	adrp x28, L_sha3_aarch64_r@PAGE
-	add  x28, x28, :lo12:L_sha3_aarch64_r@PAGEOFF
-#endif /* __APPLE__ */
 	str	x0, [x29, #40]
 	add	x0, x0, #32
 	ld1	{v4.d}[0], [x0]

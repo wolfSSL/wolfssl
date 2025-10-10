@@ -1786,14 +1786,14 @@
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h</locationURI>
 		</link>
 		<link>
-			<name>src/wolfcrypt/src/port/arm/armv8-aes.c</name>
+			<name>src/wolfcrypt/src/port/arm/armv8-aes-asm_c.c</name>
 			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-aes.c</locationURI>
+			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-aes-asm_c.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-chacha.c</name>
 			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-chacha.c</locationURI>
+			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-chacha-asm_c.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-curve25519_c.c</name>
@@ -1803,12 +1803,12 @@
 		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-poly1305.c</name>
 			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-poly1305.c</locationURI>
+			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-poly1305-asm_c.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-sha256.c</name>
 			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-sha256.c</locationURI>
+			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-sha256-asm_c.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/arm/armv8-sha3-asm_c.c</name>
@@ -1819,11 +1819,6 @@
 			<name>src/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c</name>
 			<type>1</type>
 			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-sha512-asm_c.c</locationURI>
-		</link>
-		<link>
-			<name>src/wolfcrypt/src/port/arm/armv8-sha512.c</name>
-			<type>1</type>
-			<locationURI>PARENT-3-WORKSPACE_LOC/wolfcrypt/src/port/arm/armv8-sha512.c</locationURI>
 		</link>
 		<link>
 			<name>src/wolfcrypt/src/port/arm/cryptoCell.c</name>

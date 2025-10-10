@@ -109,16 +109,13 @@ WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
 
 #if defined(WOLFSSL_ARMASM)
 
-#ifndef __aarch64__
-void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
-void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
-#endif
+WOLFSSL_LOCAL void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
+WOLFSSL_LOCAL void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
+WOLFSSL_LOCAL void wc_chacha_use_over(byte* over, byte* output,
+    const byte* input, word32 len);
 
-#if defined(WOLFSSL_ARMASM_NO_NEON) || defined(WOLFSSL_ARMASM_THUMB2)
-void wc_chacha_use_over(byte* over, byte* output, const byte* input,
+WOLFSSL_LOCAL void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m,
     word32 len);
-void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len);
-#endif
 
 #endif
 

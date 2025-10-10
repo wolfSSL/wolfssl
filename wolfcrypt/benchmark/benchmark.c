@@ -634,6 +634,7 @@
 /* Cipher algorithms. */
 #define BENCH_AES_CBC            0x00000001
 #define BENCH_AES_GCM            0x00000002
+#define BENCH_AES_GMAC           0x00400000
 #define BENCH_AES_ECB            0x00000004
 #define BENCH_AES_XTS            0x00000008
 #define BENCH_AES_CTR            0x00000010
@@ -840,6 +841,9 @@ static const bench_alg bench_cipher_opt[] = {
 #endif
 #ifdef HAVE_AESGCM
     { "-aes-gcm",            BENCH_AES_GCM           },
+#endif
+#ifdef HAVE_AESGCM
+    { "-aes-gmac",           BENCH_AES_GMAC          },
 #endif
 #ifdef WOLFSSL_AES_DIRECT
     { "-aes-ecb",            BENCH_AES_ECB           },
@@ -1196,12 +1200,13 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][27] = {
+static const char* bench_Usage_msg1[][28] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n",
         "            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
+        "-same_buf   Use same buffer for out as in (AES-CBC/AES-CTR)\n",
         "-no_aad     No additional authentication data passed.\n",
         "-aad_size <num>   With <num> bytes of AAD.\n",
        ("-all_aad    With AAD length of 0, "
@@ -1241,6 +1246,7 @@ static const char* bench_Usage_msg1[][27] = {
         "            0: 英語、 1: 日本語\n",
         "-csv        csv 形式で端末に出力します。\n",
         "-base10     バイトを10のべき乗で表示します。(例 1 kB = 1000 Bytes)\n",
+        "-same_buf   Use the same buffer for in and out in AES-CBC\n",
         "-no_aad     追加の認証データを使用しません.\n",
         "-aad_size <num>  TBD.\n",
         "-all_aad    TBD.\n",
@@ -2070,7 +2076,8 @@ static int aead_set_key = 0;
 #ifdef HAVE_CHACHA
 static int encrypt_only = 0;
 #endif
-#ifdef HAVE_AES_CBC
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AESGCM)
 static int cipher_same_buffer = 0;
 #endif
 
@@ -3282,6 +3289,9 @@ static void* benchmarks_do(void* args)
          defined(WOLF_CRYPTO_CB)) && !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
+    }
+    if (bench_all || (bench_cipher_algs & BENCH_AES_GCM) ||
+            (bench_cipher_algs & BENCH_AES_GMAC)) {
     #ifndef NO_SW_BENCH
         bench_gmac(0);
     #endif
@@ -4508,6 +4518,8 @@ static void bench_aesgcm_internal(int useDeviceID,
     WC_DECLARE_ARRAY(dec, Aes, BENCH_MAX_PENDING,
                      sizeof(Aes), HEAP_HINT);
 #endif
+    const byte* in = bench_plain;
+    byte* out = bench_cipher;
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
     WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
@@ -4542,6 +4554,10 @@ static void bench_aesgcm_internal(int useDeviceID,
         }
     }
 
+    if (cipher_same_buffer) {
+        out = bench_plain;
+    }
+
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
     do {
@@ -4560,8 +4576,7 @@ static void bench_aesgcm_internal(int useDeviceID,
                             goto exit_aes_gcm;
                         }
                     }
-                    ret = wc_AesGcmEncrypt(enc[i], bench_cipher,
-                        bench_plain, bench_size,
+                    ret = wc_AesGcmEncrypt(enc[i], out, in, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
@@ -4587,6 +4602,19 @@ exit_aes_gcm:
 #endif
 
 #ifdef HAVE_AES_DECRYPT
+
+    if (cipher_same_buffer) {
+        ret = wc_AesGcmSetKey(enc[0], key, keySz);
+        if (ret != 0) {
+            goto exit_aes_gcm;
+        }
+        ret = wc_AesGcmEncrypt(enc[0], bench_cipher, bench_plain, bench_size,
+            iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
+            bench_additional, aesAuthAddSz);
+        if (ret != 0) {
+            goto exit_aes_gcm;
+        }
+    }
 
     RESET_MULTI_VALUE_STATS_VARS();
 
@@ -4905,14 +4933,16 @@ void bench_aesgcm(int useDeviceID)
 /* GMAC */
 void bench_gmac(int useDeviceID)
 {
-    int ret, count = 0;
+    int ret = 0, times, count = 0;
     Gmac gmac;
     double start;
     byte tag[AES_AUTH_TAG_SZ];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     /* determine GCM GHASH method */
-#ifdef GCM_SMALL
+#if defined(WOLFSSL_ARMASM)
+    const char* gmacStr = "GMAC ARM ASM";
+#elif defined(GCM_SMALL)
     const char* gmacStr = "GMAC Small";
 #elif defined(GCM_TABLE)
     const char* gmacStr = "GMAC Table";
@@ -4945,10 +4975,12 @@ void bench_gmac(int useDeviceID)
 #endif
     bench_stats_start(&count, &start);
     do {
-        ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
-            tag, sizeof(tag));
+        for (times = 0; times < numBlocks; times++) {
+            ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size,
+                tag, sizeof(tag));
 
-        count++;
+        } /* for times */
+        count += times;
         RECORD_MULTI_VALUE_STATS();
     } while (bench_stats_check(start)
 #ifdef MULTI_VALUE_STATISTICS
@@ -5273,6 +5305,7 @@ void bench_aesofb(void)
 #ifdef WOLFSSL_AES_XTS
 void bench_aesxts(void)
 {
+#ifdef WOLFSSL_AES_128
     WC_DECLARE_VAR(aes, XtsAes, 1, HEAP_HINT);
     double start;
     int    i, count, ret;
@@ -5291,6 +5324,7 @@ void bench_aesxts(void)
     };
 
     WC_ALLOC_VAR(aes, XtsAes, 1, HEAP_HINT);
+
 
     ret = wc_AesXtsSetKey(aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId);
@@ -5358,6 +5392,9 @@ exit:
 
     wc_AesXtsFree(aes);
     WC_FREE_VAR(aes, HEAP_HINT);
+#else
+    printf("AES-XTS benchmark is with 128-bit keys only\n");
+#endif
 }
 #endif /* WOLFSSL_AES_XTS */
 
@@ -5371,6 +5408,8 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
     double start;
     int    i, count, ret = 0;
     DECLARE_MULTI_VALUE_STATS_VARS()
+    const byte* in = bench_cipher;
+    byte* out = bench_plain;
 
     if ((ret = wc_AesInit(&enc, HEAP_HINT,
         useDeviceID ? devId : INVALID_DEVID)) != 0) {
@@ -5382,11 +5421,14 @@ static void bench_aesctr_internal(const byte* key, word32 keySz,
         return;
     }
 
+    if (cipher_same_buffer) {
+        in = bench_plain;
+    }
+
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            if((ret = wc_AesCtrEncrypt(&enc, bench_plain, bench_cipher,
-                                       bench_size)) != 0) {
+            if((ret = wc_AesCtrEncrypt(&enc, out, in, bench_size)) != 0) {
                 printf("wc_AesCtrEncrypt failed, ret = %d\n", ret);
                 return;
             }
@@ -8198,6 +8240,7 @@ void bench_ascon_hash(void)
 
 #ifdef WOLFSSL_CMAC
 
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256)
 static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
 {
     Cmac    cmac;
@@ -8270,6 +8313,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
+#endif
 
 void bench_cmac(int useDeviceID)
 {
@@ -8279,7 +8323,7 @@ void bench_cmac(int useDeviceID)
 #ifdef WOLFSSL_AES_256
     bench_cmac_helper(32, "AES-256-CMAC", useDeviceID);
 #endif
-
+    (void)useDeviceID;
 }
 #endif /* WOLFSSL_CMAC */
 
@@ -15242,6 +15286,12 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* English / Japanese */
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -csv */
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -base10 */
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AESGCM)
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -same_buf */
+#else
+    e++;
+#endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -no_aad */
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -aad_size */
@@ -15433,6 +15483,11 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
         }
         else if (string_matches(argv[1], "-base10"))
             base2 = 0;
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AESGCM)
+        else if (string_matches(argv[1], "-same_buf"))
+            cipher_same_buffer = 1;
+#endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         else if (string_matches(argv[1], "-no_aad"))
             aes_aad_options = AAD_SIZE_ZERO;
