@@ -737,6 +737,10 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
     int ret = 1;
 
     if (indent > 0) {
+        /* Cap indent to buffer size to avoid format truncation warning */
+        if (indent >= lineLen) {
+            indent = lineLen - 1;
+        }
         /* Print indent spaces. */
         int len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
         if ((len_wanted < 0) || (len_wanted >= lineLen)) {
