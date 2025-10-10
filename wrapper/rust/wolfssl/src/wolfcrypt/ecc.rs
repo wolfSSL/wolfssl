@@ -1270,10 +1270,9 @@ impl ECC {
     /// let _x963_size = ecc.export_x963(&mut x963).expect("Error with export_x963()");
     /// ```
     pub fn export_x963(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let mut out_len: u32 = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_x963(&mut self.wc_ecc_key, dout_ptr, &mut out_len)
+            ws::wc_ecc_export_x963(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1303,10 +1302,9 @@ impl ECC {
     /// let _x963_size = ecc.export_x963_compressed(&mut x963).expect("Error with export_x963_compressed()");
     /// ```
     pub fn export_x963_compressed(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
-        let dout_ptr = dout.as_ptr() as *mut u8;
         let mut out_len: u32 = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout_ptr, &mut out_len, 1)
+            ws::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
         };
         if rc != 0 {
             return Err(rc);
