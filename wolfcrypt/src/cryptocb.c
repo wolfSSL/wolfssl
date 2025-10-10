@@ -174,12 +174,14 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || defined(HAVE_CMAC_KDF)
 static const char* GetKdfTypeStr(int type)
 {
     switch (type) {
         case WC_KDF_TYPE_HKDF:
             return "HKDF";
+        case WC_KDF_TYPE_TWOSTEP_CMAC:
+            return "TWOSTEP_CMAC";
     }
     return NULL;
 }
@@ -251,7 +253,8 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
 #endif
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
+    defined(HAVE_CMAC_KDF)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
         printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
                GetKdfTypeStr(info->kdf.type), info->kdf.type);
@@ -2024,5 +2027,43 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+
+#if defined(HAVE_CMAC_KDF)
+/* Crypto callback for NIST SP 800 56C two-step CMAC KDF. See software
+ * implementation in wc_KDA_KDF_twostep_cmac for more comments.
+ * */
+int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
+                                const byte* z, word32 zSz,
+                                const byte* fixedInfo, word32 fixedInfoSz,
+                                byte* output, word32 outputSz, int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type                    = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type                     = WC_KDF_TYPE_TWOSTEP_CMAC;
+        cryptoInfo.kdf.twostep_cmac.salt        = salt;
+        cryptoInfo.kdf.twostep_cmac.saltSz      = saltSz;
+        cryptoInfo.kdf.twostep_cmac.z           = z;
+        cryptoInfo.kdf.twostep_cmac.zSz         = zSz;
+        cryptoInfo.kdf.twostep_cmac.fixedInfo   = fixedInfo;
+        cryptoInfo.kdf.twostep_cmac.fixedInfoSz = fixedInfoSz;
+        cryptoInfo.kdf.twostep_cmac.out         = output;
+        cryptoInfo.kdf.twostep_cmac.outSz       = outputSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_CMAC_KDF */
 
 #endif /* WOLF_CRYPTO_CB */
