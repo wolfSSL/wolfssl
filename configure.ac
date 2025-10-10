@@ -322,6 +322,21 @@ AC_ARG_ENABLE([kdf],
     [ ENABLED_KDF=yes ]
     )
 
+AC_ARG_ENABLE([cmac-kdf],
+    [AS_HELP_STRING([--enable-cmac-kdf],[Enables cmac-kdf support (default: disabled)])],
+    [ ENABLED_CMAC_KDF=$enableval ],
+    [ ENABLED_CMAC_KDF=no ]
+    )
+
+if test "$ENABLED_CMAC_KDF" = "yes"
+then
+ if test "$ENABLED_KDF" != "yes"
+ then
+   AC_MSG_ERROR([enable-cmac-kdf requires --enable-kdf])
+ fi
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_CMAC_KDF"
+fi
+
 AC_ARG_ENABLE([hmac],
     [AS_HELP_STRING([--enable-hmac],[Enables HMAC support (default: enabled)])],
     [ ENABLED_HMAC=$enableval ],

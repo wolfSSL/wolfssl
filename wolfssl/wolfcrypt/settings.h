@@ -3465,7 +3465,6 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_PBKDF2
 #endif
 
-
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_OLD_TLS) && \
         (defined(NO_SHA) || defined(NO_MD5))
     #error old TLS requires MD5 and SHA
