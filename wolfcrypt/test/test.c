@@ -608,14 +608,12 @@ static                  wc_test_ret_t  hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
 #endif
 #endif /* HAVE_HKDF && ! NO_HMAC */
-#ifdef WOLFSSL_HAVE_PRF
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#endif
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
@@ -1921,27 +1919,26 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = prf_test()) != 0)
         TEST_FAIL("PRF         test failed!\n", ret);
     else
         TEST_PASS("PRF         test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_HAVE_PRF
-#if defined (HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = tls12_kdf_test()) != 0)
         TEST_FAIL("TLSv1.2 KDF test failed!\n", ret);
     else
         TEST_PASS("TLSv1.2 KDF test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
+       /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
     PRIVATE_KEY_UNLOCK();
@@ -28154,7 +28151,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sshkdf_test(void)
 
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
 #define DIGL 12
 #define SECL 48
 #define LBSL 63
@@ -28203,11 +28201,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
 
     return 0;
 }
-#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_HAVE_PRF
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 {
     const char* preMasterSecret = "D06F9C19BFF49B1E91E4EFE97345D089"
@@ -28252,16 +28249,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
         }
-        return WC_TEST_RET_ENC_NC;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
     return 0;
 }
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
+       /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
 

@@ -348,12 +348,17 @@
     #endif
 #endif
 
-/* For FIPS keep the function names the same */
-#ifdef HAVE_FIPS
-#define wc_InitMutex   InitMutex
-#define wc_FreeMutex   FreeMutex
-#define wc_LockMutex   LockMutex
-#define wc_UnLockMutex UnLockMutex
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define InitMutex   wc_InitMutex
+    #define FreeMutex   wc_FreeMutex
+    #define LockMutex   wc_LockMutex
+    #define UnLockMutex wc_UnLockMutex
+#elif defined(HAVE_FIPS)
+    /* For FIPS keep the function names the same */
+    #define wc_InitMutex   InitMutex
+    #define wc_FreeMutex   FreeMutex
+    #define wc_LockMutex   LockMutex
+    #define wc_UnLockMutex UnLockMutex
 #endif /* HAVE_FIPS */
 
 #ifdef SINGLE_THREADED

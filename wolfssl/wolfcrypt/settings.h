@@ -3662,7 +3662,8 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_API_PREFIX_MAP
         #define WOLFSSL_API_PREFIX_MAP
     #endif
-    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #if defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG) && \
+        !defined(WOLFSSL_KERNEL_VERBOSE_DEBUG)
         #define WOLFSSL_KERNEL_VERBOSE_DEBUG
     #endif
     #ifdef HAVE_CONFIG_H
@@ -3714,17 +3715,27 @@ extern void uITRON4_free(void *p) ;
     #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
-    #define NO_LIMITS_H
-    #define NO_STDLIB_H
-    #define NO_STDINT_H
-    #define NO_CTYPE_H
+    #ifndef NO_LIMITS_H
+        #define NO_LIMITS_H
+    #endif
+    #ifndef NO_STDLIB_H
+        #define NO_STDLIB_H
+    #endif
+    #ifndef NO_STDINT_H
+        #define NO_STDINT_H
+    #endif
+    #ifndef NO_CTYPE_H
+        #define NO_CTYPE_H
+    #endif
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #undef WOLFSSL_HAVE_ASSERT_H
-    #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_ASSERT_H
+        #define WOLFSSL_NO_ASSERT_H
+    #endif
     #ifndef WOLFSSL_NO_GETPID
         #define WOLFSSL_NO_GETPID
     #endif /* WOLFSSL_NO_GETPID */
@@ -3743,10 +3754,18 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     #ifdef HAVE_LINUXKM_PIE_SUPPORT
-        #define WC_NO_INTERNAL_FUNCTION_POINTERS
-        #define WOLFSSL_ECC_CURVE_STATIC
-        #define WOLFSSL_NAMES_STATIC
-        #define WOLFSSL_NO_PUBLIC_FFDHE
+        #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
+            #define WC_NO_INTERNAL_FUNCTION_POINTERS
+        #endif
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            #define WOLFSSL_ECC_CURVE_STATIC
+        #endif
+        #ifndef WOLFSSL_NAMES_STATIC
+            #define WOLFSSL_NAMES_STATIC
+        #endif
+        #ifndef WOLFSSL_NO_PUBLIC_FFDHE
+            #define WOLFSSL_NO_PUBLIC_FFDHE
+        #endif
         #undef HAVE_PUBLIC_FFDHE
     #endif
 
@@ -3773,15 +3792,6 @@ extern void uITRON4_free(void *p) ;
          * zero bytes are tolerated in GetASN_Integer().
          */
         #define WOLFSSL_ASN_INT_LEAD_0_ANY
-    #endif
-
-    #ifdef CONFIG_KASAN
-        #ifndef WC_SANITIZE_DISABLE
-            #define WC_SANITIZE_DISABLE() kasan_disable_current()
-        #endif
-        #ifndef WC_SANITIZE_ENABLE
-            #define WC_SANITIZE_ENABLE() kasan_enable_current()
-        #endif
     #endif
 
     #if !defined(WC_RESEED_INTERVAL) && defined(LINUXKM_LKCAPI_REGISTER)

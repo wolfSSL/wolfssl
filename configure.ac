@@ -1503,14 +1503,14 @@ AC_ARG_WITH([liboqs],
 # MLKEM
 # Used:
 #  - SHA3, Shake128 and Shake256
-AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: disabled)])],
+AC_ARG_ENABLE([mlkem],
+    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: disabled)])],
     [ ENABLED_MLKEM=$enableval ],
     [ ENABLED_MLKEM=no ]
     )
-# note, inherits default from "kyber" clause above.
-AC_ARG_ENABLE([mlkem],
-    [AS_HELP_STRING([--enable-mlkem],[Enable MLKEM (default: disabled)])],
+# note, inherits default from "mlkem" clause above.
+AC_ARG_ENABLE([kyber],
+    [AS_HELP_STRING([--enable-kyber],[Enable Kyber/MLKEM (default: disabled)])],
     [ ENABLED_MLKEM=$enableval ]
     )
 
@@ -1639,10 +1639,15 @@ fi
 
 # Dilithium
 #  - SHA3, Shake128, Shake256 and AES-CTR
-AC_ARG_ENABLE([dilithium],
-    [AS_HELP_STRING([--enable-dilithium],[Enable DILITHIUM (default: disabled)])],
+AC_ARG_ENABLE([mldsa],
+    [AS_HELP_STRING([--enable-mldsa],[Enable MLDSA (default: disabled)])],
     [ ENABLED_DILITHIUM=$enableval ],
     [ ENABLED_DILITHIUM=no ]
+    )
+# note, inherits default from "mldsa" clause above.
+AC_ARG_ENABLE([dilithium],
+    [AS_HELP_STRING([--enable-dilithium],[Enable Dilithium/MLDSA (default: disabled)])],
+    [ ENABLED_DILITHIUM=$enableval ]
     )
 
 ENABLED_DILITHIUM_OPTS=$ENABLED_DILITHIUM
@@ -4923,15 +4928,6 @@ AC_ARG_ENABLE([tlsv12],
     [ ENABLED_TLSV12=$enableval ],
     [ ENABLED_TLSV12=yes ]
     )
-
-if test "$ENABLED_CRYPTONLY" = "yes"
-then
-    ENABLED_TLSV12=no
-fi
-if test "$ENABLED_TLSV12" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
-fi
 
 # STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
