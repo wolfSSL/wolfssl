@@ -3000,7 +3000,7 @@ int mlkem_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
  */
 void mlkem_prf_init(wc_Shake* prf)
 {
-    XMEMSET(prf->s, 0, sizeof(prf->s));
+    wc_InitShake256(prf, NULL, 0);
 }
 
 /* New/Initialize SHAKE-256 object.
