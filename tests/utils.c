@@ -31,11 +31,14 @@
  *   dump memory client.bin test_ctx.c_buff test_ctx.c_buff+test_ctx.c_len
  *   dump memory server.bin test_ctx.s_buff test_ctx.s_buff+test_ctx.s_len
  * This can be imported into Wireshark by transforming the file with
- *   od -Ax -tx1 -v client.bin > client.bin.hex
- *   od -Ax -tx1 -v server.bin > server.bin.hex
- * And then loading test_output.dump.hex into Wireshark using the
- * "Import from Hex Dump..." option ion and selecting the TCP
- * encapsulation option.
+ *   od -Ax -tx1 -v client.bin > client.hex
+ *   od -Ax -tx1 -v server.bin > server.hex
+ * Then transform the files into pcap (use -u instead of -T for UDP)
+ *   text2pcap -T 50,60 client.hex client.pcap
+ *   text2pcap -T 50,60 server.hex server.pcap
+ * Then open in wireshark
+ *   wireshark client.pcap
+ *   wireshark server.pcap
  */
 
 int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
@@ -372,6 +375,7 @@ void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client)
     }
 }
 
+/* Inject a message into the buffer for client or server */
 int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
     const char* data, int sz)
 {
@@ -380,6 +384,7 @@ int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
     int* msg_sizes;
     byte* buff;
 
+    /* Select buffer and metadata for client or server */
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
@@ -392,34 +397,50 @@ int test_memio_inject_message(struct test_memio_ctx* ctx, int client,
         msg_count = &ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Check if buffer has enough space for new message */
     if (*len + sz > TEST_MEMIO_BUF_SZ) {
         return -1;
     }
+    /* Check if message count does not exceed maximum allowed */
     if (*msg_count >= TEST_MEMIO_MAX_MSGS) {
         return -1;
     }
+
+    /* Copy message data into buffer */
     XMEMCPY(buff + *len, data, (size_t)sz);
+
+    /* Record message size and increment message count */
     msg_sizes[*msg_count] = sz;
     (*msg_count)++;
     *len += sz;
+
     return 0;
 }
 
+/* Copy a message from the buffer to an output buffer */
 int test_memio_copy_message(const struct test_memio_ctx *ctx, int client,
         char *out, int *out_sz, int msg_pos)
 {
     const char* buff = NULL;
     int buff_sz = 0;
 
+    /* Retrieve message pointer and size for given position */
     if (test_memio_get_message(ctx, client, &buff, &buff_sz, msg_pos) != 0)
         return -1;
+
+    /* Ensure output buffer is large enough */
     if (*out_sz < buff_sz)
         return -1;
+
+    /* Copy message to output buffer */
     XMEMCPY(out, buff, (size_t)buff_sz);
     *out_sz = buff_sz;
+
     return 0;
 }
 
+/* Get a pointer and size to a message in the buffer */
 int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
         const char **out, int *out_sz, int msg_pos)
 {
@@ -428,6 +449,7 @@ int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
     int i;
     const byte* buff;
 
+    /* Select buffer and message metadata for client or server */
     if (client) {
         buff = ctx->c_buff;
         msg_count = ctx->c_msg_count;
@@ -438,14 +460,21 @@ int test_memio_get_message(const struct test_memio_ctx *ctx, int client,
         msg_count = ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Validate message position */
     if (msg_pos < 0 || msg_pos >= msg_count) {
         return -1;
     }
+
+    /* Find start of the message in the buffer */
     for (i = 0; i < msg_pos; i++) {
         buff += msg_sizes[i];
     }
+
+    /* Set output pointers to message data and size */
     *out = (const char*)buff;
     *out_sz = msg_sizes[msg_pos];
+
     return 0;
 }
 
@@ -533,6 +562,7 @@ int test_memio_move_message(struct test_memio_ctx *ctx, int client,
     return 0;
 }
 
+/* Drop (remove) a message from the buffer and update metadata */
 int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
 {
     int *len;
@@ -541,6 +571,8 @@ int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
     int msg_off, msg_sz;
     int i;
     byte *buff;
+
+    /* Select buffer and metadata for client or server */
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
@@ -552,26 +584,40 @@ int test_memio_drop_message(struct test_memio_ctx *ctx, int client, int msg_pos)
         msg_count = &ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Check for empty message list */
     if (*msg_count == 0) {
         return -1;
     }
+
     msg_off = 0;
+    /* Validate message position */
     if (msg_pos >= *msg_count) {
         return -1;
     }
+
+    /* Find offset and size of message to drop */
     msg_sz = msg_sizes[msg_pos];
     for (i = 0; i < msg_pos; i++) {
         msg_off += msg_sizes[i];
     }
+
+    /* Remove message from buffer by shifting remaining data */
     XMEMMOVE(buff + msg_off, buff + msg_off + msg_sz, *len - msg_off - msg_sz);
+
+    /* Update message sizes array */
     for (i = msg_pos; i < *msg_count - 1; i++) {
         msg_sizes[i] = msg_sizes[i + 1];
     }
+
+    /* Update buffer length and message count */
     *len -= msg_sz;
     (*msg_count)--;
+
     return 0;
 }
 
+/* Remove a region from the buffer, possibly dropping or shrinking a message */
 int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
     int off, int sz)
 {
@@ -582,6 +628,7 @@ int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
     int i;
     byte* buff;
 
+    /* Select buffer and metadata for client or server */
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
@@ -594,6 +641,8 @@ int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
         msg_count = &ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Validate buffer and offset */
     if (*len == 0) {
         return -1;
     }
@@ -603,7 +652,8 @@ int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
     if (off + sz > *len) {
         return -1;
     }
-    /* find which message the offset is in */
+
+    /* Find which message the offset is in */
     msg_off = 0;
     for (i = 0; i < *msg_count; i++) {
         if (off >= msg_off && off < msg_off + msg_sizes[i]) {
@@ -611,22 +661,29 @@ int test_memio_remove_from_buffer(struct test_memio_ctx* ctx, int client,
         }
         msg_off += msg_sizes[i];
     }
-    /* don't support records that are split across messages */
+
+    /* Don't support records split across messages */
     if (off + sz > msg_off + msg_sizes[i]) {
         return -1;
     }
     if (i == *msg_count) {
         return -1;
     }
+
+    /* If removing entire message, drop it */
     if (sz == msg_sizes[i]) {
         return test_memio_drop_message(ctx, client, i);
     }
+
+    /* Remove part of message by shifting buffer and updating size */
     XMEMMOVE(buff + off, buff + off + sz, *len - off - sz);
     msg_sizes[i] -= sz;
     *len -= sz;
+
     return 0;
 }
 
+/* Modify the length of a message in the buffer, shifting data as needed */
 int test_memio_modify_message_len(struct test_memio_ctx* ctx, int client,
     int msg_pos, int new_len)
 {
@@ -636,6 +693,8 @@ int test_memio_modify_message_len(struct test_memio_ctx* ctx, int client,
     int msg_off, msg_sz;
     int i;
     byte* buff;
+
+    /* Select buffer and metadata for client or server */
     if (client) {
         buff = ctx->c_buff;
         len = &ctx->c_len;
@@ -648,26 +707,37 @@ int test_memio_modify_message_len(struct test_memio_ctx* ctx, int client,
         msg_count = &ctx->s_msg_count;
         msg_sizes = ctx->s_msg_sizes;
     }
+
+    /* Validate message count and position */
     if (*msg_count == 0) {
         return -1;
     }
     if (msg_pos >= *msg_count) {
         return -1;
     }
+
+    /* Find offset and size of message to modify */
     msg_off = 0;
     for (i = 0; i < msg_pos; i++) {
         msg_off += msg_sizes[i];
     }
     msg_sz = msg_sizes[msg_pos];
+
+    /* Check if buffer has enough space for length increase */
     if (new_len > msg_sz) {
         if (*len + (new_len - msg_sz) > TEST_MEMIO_BUF_SZ) {
             return -1;
         }
     }
+
+    /* Shift buffer contents to accommodate new message length */
     XMEMMOVE(buff + msg_off + new_len, buff + msg_off + msg_sz,
         *len - msg_off - msg_sz);
+
+    /* Update message size and buffer length */
     msg_sizes[msg_pos] = new_len;
     *len = *len - msg_sz + new_len;
+
     return 0;
 }
 
