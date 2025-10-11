@@ -14495,11 +14495,7 @@ static int test_wolfSSL_X509_ACERT_asn(void)
                                          0x65, 0x72, 0x2e, 0x65, 0x78,
                                          0x61, 0x6d, 0x70, 0x6c, 0x65};
     DerBuffer *    der = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedAcert * acert = NULL;
-#else
-    DecodedAcert   acert[1];
-#endif
+    WC_DECLARE_VAR(acert, DecodedAcert, 1, 0);
 
     rc = wc_PemToDer(acert_ietf, sizeof(acert_ietf), ACERT_TYPE, &der,
                      HEAP_HINT, NULL, NULL);

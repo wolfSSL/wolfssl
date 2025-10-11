@@ -209,10 +209,8 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     wc_MemZero_Check(hmac,    sizeof(Hmac));
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
-#endif
+    WC_FREE_VAR_EX(current, heap, DYNAMIC_TYPE_DIGEST);
+    WC_FREE_VAR_EX(hmac, heap, DYNAMIC_TYPE_HMAC);
 
     return ret;
 }
@@ -278,10 +276,8 @@ int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
     wc_MemZero_Check(sha_result, MAX_PRF_DIG);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+    WC_FREE_VAR_EX(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -305,22 +301,14 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 
     if (useAtLeastSha256) {
-    #ifdef WOLFSSL_SMALL_STACK
-        byte* labelSeed;
-    #else
-        byte  labelSeed[MAX_PRF_LABSEED];
-    #endif
+        WC_DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, 0);
 
         if (labLen + seedLen > MAX_PRF_LABSEED) {
             return BUFFER_E;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_DIGEST);
-        if (labelSeed == NULL) {
-            return MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(labelSeed, byte, MAX_PRF_LABSEED, heap,
+            DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
@@ -334,9 +322,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = wc_PRF(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
-    #endif
+        WC_FREE_VAR_EX(labelSeed, heap, DYNAMIC_TYPE_DIGEST);
     }
     else {
 #ifndef NO_OLD_TLS
@@ -448,11 +434,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     {
         int    ret = 0;
         word32 idx = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        byte*  data;
-    #else
-        byte   data[MAX_TLS13_HKDF_LABEL_SZ];
-    #endif
+        WC_DECLARE_VAR(data, byte, MAX_TLS13_HKDF_LABEL_SZ, 0);
 
         /* okmLen (2) + protocol|label len (1) + info len(1) + protocollen +
          * labellen + infolen */
@@ -461,12 +443,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
             return BUFFER_E;
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
-        data = (byte*)XMALLOC(idx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (data == NULL) {
-            return MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(data, byte, idx, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            return MEMORY_E);
         idx = 0;
 
         /* Output length. */
@@ -524,9 +502,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     #ifdef WOLFSSL_CHECK_MEM_ZERO
         wc_MemZero_Check(data, idx);
     #endif
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
@@ -1023,11 +999,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1078,9 +1050,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 }
 
@@ -1114,11 +1084,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
     int idxLen;
 
@@ -1177,9 +1143,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 }
 
@@ -1219,11 +1183,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1264,9 +1224,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 
 }
@@ -1298,11 +1256,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 {
     int ret = 0;
     byte block[WC_AES_BLOCK_SIZE];
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int aes_inited = 0;
 
     /* Validate parameters. */
@@ -1343,9 +1297,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
 
     if (aes_inited)
         wc_AesFree(aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_CIPHER);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_CIPHER);
     return ret;
 
 }

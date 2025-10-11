@@ -69,6 +69,9 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WOLFSSL_SMALL_STACK
+#endif
 #define WC_ALLOC_DO_ON_FAILURE() do { printf("out of memory at benchmark.c L %d\n", __LINE__); ret = MEMORY_E; goto exit; } while (0)
 
 #include <wolfssl/wolfcrypt/types.h>
@@ -9912,10 +9915,8 @@ void bench_mlkem(int type)
     wc_KyberKey_Free(key2);
     wc_KyberKey_Free(key1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
 

@@ -576,21 +576,14 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 {
    int       ix, iy, iz, pa;
    fp_int    *dst;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int    tmp[1];
-#else
-   fp_int    *tmp;
-#endif
+   WC_DECLARE_VAR(tmp, fp_int, 1, 0);
    fp_digit  carry;
 
    /* Variables used but not seen by cppcheck. */
    (void)ix; (void)iy; (void)iz;
 
-#ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (tmp == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    /* get size of output and trim */
    pa = A->used + B->used;
@@ -612,9 +605,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
   fp_clamp(dst);
   fp_copy(dst, C);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 
   return FP_OKAY;
 }
@@ -627,21 +618,14 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    int       ix, iy, iz, tx, ty, pa;
    fp_digit  c0, c1, c2, *tmpx, *tmpy;
    fp_int    *dst;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int    tmp[1];
-#else
-   fp_int    *tmp;
-#endif
+   WC_DECLARE_VAR(tmp, fp_int, 1, 0);
 
    if (A->used + B->used >= FP_SIZE) return FP_VAL;
 
    IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
 
-#ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (tmp == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    COMBA_START;
    COMBA_CLEAR;
@@ -696,9 +680,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   /* Variables used but not seen by cppcheck. */
   (void)c0; (void)c1; (void)c2;
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
   return ret;
 }
 
@@ -768,16 +750,12 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     norm = (DIGIT_BIT-1) - norm;
     ret = fp_mul_2d (x, norm, x);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
     ret = fp_mul_2d (y, norm, y);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
   } else {
@@ -791,9 +769,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
   ret = fp_lshd (y, n - t); /* y = y*b**{n-t} */
   if (ret != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
   }
 
@@ -801,9 +777,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     ++(q->dp[n - t]);
     ret = fp_sub (x, y, x);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
   }
@@ -850,9 +824,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
       t1->used = 2;
       ret = fp_mul_d (t1, q->dp[i - t - 1], t1);
       if (ret != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
         return ret;
       }
 
@@ -866,23 +838,17 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     /* step 3.3 x = x - q{i-t-1} * y * b**{i-t-1} */
     ret = fp_mul_d (y, q->dp[i - t - 1], t1);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
     ret = fp_lshd  (t1, i - t - 1);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
     ret = fp_sub   (x, t1, x);
     if (ret != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
       return ret;
     }
 
@@ -891,16 +857,12 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
       fp_copy (y, t1);
       ret = fp_lshd (t1, i - t - 1);
       if (ret != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
         return ret;
       }
       ret = fp_add (x, t1, x);
       if (ret != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
         return ret;
       }
       q->dp[i - t - 1] = q->dp[i - t - 1] - 1;
@@ -931,9 +893,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     fp_copy (x, d);
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -1047,18 +1007,10 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
 /* c = a mod b, 0 <= c < b  */
 int fp_mod(fp_int *a, fp_int *b, fp_int *c)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
    int    err;
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
    fp_init(t);
    err = fp_div(a, b, NULL, t);
@@ -1070,9 +1022,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
      }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -1166,26 +1116,20 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
 
   /* x = a, y = b */
   if ((err = fp_mod(a, b, x)) != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return err;
   }
   fp_copy(b, y);
 
   if (fp_iszero(x) == FP_YES) {
     /* invmod doesn't exist for this a and b */
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
   /* 2. [modified] if x,y are both even then return an error! */
   if (fp_iseven(x) == FP_YES && fp_iseven(y) == FP_YES) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
@@ -1206,16 +1150,12 @@ top:
       /* A = (A+y)/2, B = (B-x)/2 */
       err = fp_add (A, y, A);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
       err = fp_sub (B, x, B);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
     }
@@ -1234,16 +1174,12 @@ top:
       /* C = (C+y)/2, D = (D-x)/2 */
       err = fp_add (C, y, C);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
       err = fp_sub (D, x, D);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
     }
@@ -1257,46 +1193,34 @@ top:
     /* u = u - v, A = A - C, B = B - D */
     err = fp_sub (u, v, u);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (A, C, A);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (B, D, B);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   } else {
     /* v - v - u, C = C - A, D = D - B */
     err = fp_sub (v, u, v);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (C, A, C);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (D, B, D);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   }
@@ -1309,9 +1233,7 @@ top:
 
   /* if v != 1 then there is no inverse */
   if (fp_cmp_d (v, 1) != FP_EQ) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
@@ -1319,9 +1241,7 @@ top:
   while (fp_cmp_d(C, 0) == FP_LT) {
     err = fp_add(C, b, C);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   }
@@ -1330,18 +1250,14 @@ top:
   while (fp_cmp_mag(C, b) != FP_LT) {
     err = fp_sub(C, b, C);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   }
 
   /* C is now the inverse */
   fp_copy(C, c);
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -1383,9 +1299,7 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
   fp_init(B);  fp_init(D);
 
   if (fp_iszero(a) == FP_YES) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
@@ -1394,17 +1308,13 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 
   /* we need y = |a| */
   if ((err = mp_mod(a, b, y)) != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return err;
   }
 
   if (fp_iszero(y) == FP_YES) {
     /* invmod doesn't exist for this a and b */
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
@@ -1423,9 +1333,7 @@ top:
     if (fp_isodd (B) == FP_YES) {
       err = fp_sub (B, x, B);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
     }
@@ -1443,9 +1351,7 @@ top:
       /* D = (D-x)/2 */
       err = fp_sub (D, x, D);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-      #endif
+        WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
     }
@@ -1458,32 +1364,24 @@ top:
     /* u = u - v, B = B - D */
     err = fp_sub (u, v, u);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (B, D, B);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   } else {
     /* v - v - u, D = D - B */
     err = fp_sub (v, u, v);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_sub (D, B, D);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   }
@@ -1497,9 +1395,7 @@ top:
 
   /* if v != 1 then there is no inverse */
   if (fp_cmp_d (v, 1) != FP_EQ) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_VAL;
   }
 
@@ -1507,9 +1403,7 @@ top:
   while (D->sign == FP_NEG) {
     err = fp_add (D, b, D);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return FP_OKAY;
     }
   }
@@ -1517,16 +1411,12 @@ top:
   while (fp_cmp_mag(D, b) != FP_LT) {
     err = fp_sub(D, b, D);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
   }
   fp_copy (D, c);
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(x, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -1600,9 +1490,7 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   else
     fp_copy(t, c);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
 
   return err;
 }
@@ -1611,17 +1499,9 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init(t);
   err = fp_mul(a, b, t);
@@ -1637,9 +1517,7 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -1647,17 +1525,9 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init(t);
   err = fp_sub(a, b, t);
@@ -1673,9 +1543,7 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -1683,17 +1551,9 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init(t);
   err = fp_add(a, b, t);
@@ -1709,9 +1569,7 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -2108,9 +1966,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
   /* now we need R mod m */
   err = fp_montgomery_calc_normalization (&R[0], P);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
     return err;
   }
 
@@ -2119,9 +1975,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
      /* G > P so we reduce it first */
      err = fp_mod(G, P, &R[1]);
      if (err != FP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-         XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+         WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
          return err;
      }
   } else {
@@ -2129,9 +1983,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
   }
   err = fp_mulmod (&R[1], &R[0], P, &R[1]);
   if (err != FP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
   }
 
@@ -2164,47 +2016,35 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     /* do ops */
     err = fp_mul(&R[0], &R[1], &R[y^1]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[y^1], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 
     err = fp_sqr(&R[y], &R[y]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[y], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 #else
     /* do ops */
     err = fp_mul(&R[0], &R[1], &R[2]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[2], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     /* instead of using R[y^1] for mul, which leaks key bit to cache monitor,
@@ -2222,16 +2062,12 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
             &R[2]);
     err = fp_sqr(&R[2], &R[2]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[2], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     fp_copy(&R[2],
@@ -2242,9 +2078,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
 
    err = fp_montgomery_reduce(&R[0], P, mp);
    fp_copy(&R[0], Y);
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
 
    return err;
 }
@@ -2300,11 +2134,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
      return err;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-   R = (fp_int*)XMALLOC(sizeof(fp_int) * 4, NULL, DYNAMIC_TYPE_BIGINT);
-   if (R == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(R, fp_int, 4, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
   fp_init(&R[0]);
   fp_init(&R[1]);
   fp_init(&R[2]);
@@ -2313,9 +2143,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
   /* now we need R mod m */
   err = fp_montgomery_calc_normalization (&R[0], P);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-  #endif
+    WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
     return err;
   }
 
@@ -2324,9 +2152,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
      /* G > P so we reduce it first */
      err = fp_mod(G, P, &R[1]);
      if (err != FP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-         XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+         WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
          return err;
      }
   } else {
@@ -2334,9 +2160,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
   }
   err = fp_mulmod (&R[1], &R[0], P, &R[1]);
   if (err != FP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
   }
 
@@ -2368,16 +2192,12 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     /* do ops */
     err = fp_mul(&R[0], &R[1], &R[2]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[2], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
 
@@ -2389,16 +2209,12 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
             &R[3]);
     err = fp_sqr(&R[3], &R[3]);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     err = fp_montgomery_reduce(&R[3], P, mp);
     if (err != FP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-    #endif
+      WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
     }
     fp_copy_2_ct(&R[2], &R[3], &R[0], &R[1], y, P->used);
@@ -2406,9 +2222,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
 
   err = fp_montgomery_reduce(&R[0], P, mp);
   fp_copy(&R[0], Y);
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(R, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -2741,9 +2555,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup(P, &mp)) != FP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-     XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+     WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      return err;
   }
 
@@ -2753,18 +2565,14 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 
   err = fp_mul_2d(P, 1 << WINSIZE, tmp);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  #endif
+    WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
   }
 
   /* now we need R mod m */
   err = fp_montgomery_calc_normalization(res, P);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  #endif
+    WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
   }
 
@@ -2780,23 +2588,17 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       /* Multiply montgomery representation of 1 by 2 ^ top */
       err = fp_mul_2d(res, bitbuf, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       err = fp_add(res, tmp, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       err = fp_mod(res, P, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       /* Move out bits used */
@@ -2841,16 +2643,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       for (x = 0; x < WINSIZE; x++) {
         err = fp_sqr(res, res);
         if (err != FP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+          WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return err;
         }
         err = fp_montgomery_reduce(res, P, mp);
         if (err != FP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+          WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return err;
         }
       }
@@ -2863,24 +2661,18 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       err = fp_mul_2d(res, bitbuf & WINMASK, res);
     #endif
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       /* Add in value to make mod operation take same time */
       err = fp_add(res, tmp, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       err = fp_mod(res, P, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
 
@@ -2906,9 +2698,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
   /* swap res with Y */
   fp_copy(res, Y);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   return err;
 }
 
@@ -2934,23 +2724,15 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 {
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, digidx, x, y;
-#ifdef WOLFSSL_SMALL_STACK
-  fp_int  *res;
-#else
-  fp_int   res[1];
-#endif
+  WC_DECLARE_VAR(res, fp_int, 1, 0);
 
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup(P, &mp)) != FP_OKAY) {
     return err;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  res = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (res == NULL) {
-     return FP_MEM;
-  }
-#endif
+  WC_ALLOC_VAR_EX(res, fp_int, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+      return FP_MEM);
 
   /* setup result */
   fp_init(res);
@@ -2958,9 +2740,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
   /* now we need R mod m */
   err = fp_montgomery_calc_normalization(res, P);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-    XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  #endif
+    WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return err;
   }
 
@@ -2976,16 +2756,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       /* Multiply montgomery representation of 1 by 2 ^ top */
       err = fp_mul_2d(res, bitbuf, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       err = fp_mod(res, P, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       /* Move out bits used */
@@ -3025,16 +2801,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       for (x = 0; x < WINSIZE; x++) {
         err = fp_sqr(res, res);
         if (err != FP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+          WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return err;
         }
         err = fp_montgomery_reduce(res, P, mp);
         if (err != FP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+          WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return err;
         }
       }
@@ -3042,16 +2814,12 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       /* then multiply by 2^bitbuf */
       err = fp_mul_2d(res, bitbuf, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
       err = fp_mod(res, P, res);
       if (err != FP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
+        WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return err;
       }
 
@@ -3072,9 +2840,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
   /* swap res with Y */
   fp_copy(res, Y);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+  WC_FREE_VAR_EX(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   return err;
 }
 
@@ -3140,17 +2906,10 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    if (X->sign == FP_NEG) {
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
-   #ifndef WOLFSSL_SMALL_STACK
-      fp_int tmp[2];
-   #else
-      fp_int *tmp;
-   #endif
+      WC_DECLARE_VAR(tmp, fp_int, 2, 0);
 
-   #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
-      if (tmp == NULL)
-          return FP_MEM;
-   #endif
+      WC_ALLOC_VAR_EX(tmp, fp_int, 2, NULL, DYNAMIC_TYPE_BIGINT,
+          return FP_MEM);
 
       /* yes, copy G and invmod it */
       fp_init_copy(&tmp[0], G);
@@ -3169,9 +2928,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
             err = fp_add(Y, P, Y);
          }
       }
-   #ifdef WOLFSSL_SMALL_STACK
-      XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   #endif
+      WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
       return err;
 #else
       return FP_VAL;
@@ -3241,17 +2998,10 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
    if (X->sign == FP_NEG) {
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
-   #ifndef WOLFSSL_SMALL_STACK
-      fp_int tmp[2];
-   #else
-      fp_int *tmp;
-   #endif
+      WC_DECLARE_VAR(tmp, fp_int, 2, 0);
 
-   #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      if (tmp == NULL)
-          return FP_MEM;
-   #endif
+      WC_ALLOC_VAR_EX(tmp, fp_int, 2, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+          return FP_MEM);
 
       /* yes, copy G and invmod it */
       fp_init_copy(&tmp[0], G);
@@ -3273,9 +3023,7 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
             err = fp_add(Y, P, Y);
          }
       }
-   #ifdef WOLFSSL_SMALL_STACK
-      XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-   #endif
+      WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
 #else
       return FP_VAL;
@@ -3353,17 +3101,10 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    if (X->sign == FP_NEG) {
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
-   #ifndef WOLFSSL_SMALL_STACK
-      fp_int tmp[2];
-   #else
-      fp_int *tmp;
-   #endif
+      WC_DECLARE_VAR(tmp, fp_int, 2, 0);
 
-   #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      if (tmp == NULL)
-          return FP_MEM;
-   #endif
+      WC_ALLOC_VAR_EX(tmp, fp_int, 2, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+          return FP_MEM);
 
       /* yes, copy G and invmod it */
       fp_init_copy(&tmp[0], G);
@@ -3380,9 +3121,7 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
             err = fp_add(Y, P, Y);
          }
       }
-   #ifdef WOLFSSL_SMALL_STACK
-      XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-   #endif
+      WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
 #else
       return FP_VAL;
@@ -3573,17 +3312,10 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
   fp_word   tt = 0;
 #endif
    fp_int    *dst;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int    tmp[1];
-#else
-   fp_int    *tmp;
-#endif
+   WC_DECLARE_VAR(tmp, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (tmp == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
   /* get size of output and trim */
   pa = A->used + A->used;
@@ -3660,9 +3392,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
   (void)tt;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -3813,11 +3543,7 @@ static WC_INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_dig
 /* computes x/R == x (mod N) via Montgomery Reduction */
 static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_digit c[FP_SIZE+1];
-#else
-   fp_digit *c;
-#endif
+   WC_DECLARE_VAR(c, fp_digit, FP_SIZE+1, 0);
    fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
 
@@ -3833,13 +3559,9 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
    }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
    /* only allocate space for what's needed for window plus res */
-   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_BIGINT);
-   if (c == NULL) {
-      return FP_MEM;
-   }
-#endif
+   WC_ALLOC_VAR_EX(c, fp_digit, (FP_SIZE+1), NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    /* now zero the buff */
    XMEMSET(c, 0, sizeof(fp_digit)*(FP_SIZE + 1));
@@ -3916,9 +3638,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
   }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(c, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 #endif
@@ -3926,11 +3646,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp, int ct)
 /* computes x/R == x (mod N) via Montgomery Reduction */
 int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_digit c[FP_SIZE+1];
-#else
-   fp_digit *c;
-#endif
+   WC_DECLARE_VAR(c, fp_digit, FP_SIZE+1, 0);
    fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa, err = 0;
 
@@ -3949,13 +3665,9 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
    }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
    /* only allocate space for what's needed for window plus res */
-   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_BIGINT);
-   if (c == NULL) {
-      return FP_MEM;
-   }
-#endif
+   WC_ALLOC_VAR_EX(c, fp_digit, (FP_SIZE+1), NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    /* now zero the buff */
    XMEMSET(c, 0, sizeof(fp_digit)*(FP_SIZE + 1));
@@ -4034,9 +3746,7 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
   }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(c, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(c, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -4187,26 +3897,16 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 int fp_to_unsigned_bin(const fp_int *a, unsigned char *b)
 {
   int     x;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init_copy(t, a);
 
   x = fp_to_unsigned_bin_at_pos(0, t, b);
   mp_reverse (b, x);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -4288,17 +3988,9 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   return FP_OKAY;
 #else
   int     x;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init_copy(t, a);
 
@@ -4308,9 +4000,7 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   }
   mp_reverse (b, x);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   if (!fp_iszero(t)) {
       return FP_VAL;
   }
@@ -4563,18 +4253,11 @@ void fp_rshd(fp_int *a, int x)
 /* c = a - b */
 int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int    tmp[1];
-#else
-   fp_int    *tmp;
-#endif
+   WC_DECLARE_VAR(tmp, fp_int, 1, 0);
    int       err = FP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (tmp == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    fp_init(tmp);
    fp_set(tmp, b);
@@ -4589,9 +4272,7 @@ int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
      err = fp_sub(a, tmp, c);
    }
 
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
    return err;
 }
 
@@ -5043,17 +4724,9 @@ int mp_set_bit(mp_int *a, mp_digit b)
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 {
   int err;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int t[1];
-#else
-   fp_int *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init(t);
   err = fp_sqr(a, t);
@@ -5070,9 +4743,7 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
     }
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
   return err;
 }
 
@@ -5114,23 +4785,13 @@ static int fp_cond_swap_ct_ex(mp_int* a, mp_int* b, int c, int m, mp_int* t)
 
 static int fp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    fp_int  t[1];
-#else
-    fp_int* t;
-#endif
+    WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
    fp_cond_swap_ct_ex(a, b, c, m, t);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_OKAY;
 }
 
@@ -5144,25 +4805,15 @@ static int fp_cond_swap_ct(mp_int* a, mp_int* b, int c, int m)
  */
 static int fp_exch (fp_int * a, fp_int * b)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    fp_int  t[1];
-#else
-    fp_int *t;
-#endif
+    WC_DECLARE_VAR(t, fp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
     *t = *a;
     *a = *b;
     *b = *t;
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_OKAY;
 }
 #endif
@@ -5220,11 +4871,7 @@ static int s_is_power_of_two(fp_digit b, int *p)
 /* a/b => cb + d == a */
 static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
 {
-#ifndef WOLFSSL_SMALL_STACK
-  fp_int   q[1];
-#else
-  fp_int   *q;
-#endif
+  WC_DECLARE_VAR(q, fp_int, 1, 0);
   fp_word  w;
   fp_digit t;
   int      ix;
@@ -5256,11 +4903,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      return FP_OKAY;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  q = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-  if (q == NULL)
-      return FP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(q, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
   fp_init(q);
 
@@ -5298,9 +4941,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      fp_copy(q, c);
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(q, NULL, DYNAMIC_TYPE_BIGINT);
   return FP_OKAY;
 }
 
@@ -5456,9 +5097,7 @@ static int fp_prime_miller_rabin(fp_int * a, fp_int * b, int *result)
   fp_clear(y);
   fp_clear(r);
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(n1, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+  WC_FREE_VAR_EX(n1, NULL, DYNAMIC_TYPE_BIGINT);
 
   return err;
 }
@@ -5505,11 +5144,7 @@ static const fp_digit primes[FP_PRIME_SIZE] = {
 
 int fp_isprime_ex(fp_int *a, int t, int* result)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int   b[1];
-#else
-   fp_int   *b;
-#endif
+   WC_DECLARE_VAR(b, fp_int, 1, 0);
    fp_digit d;
    int      r, res;
    int      err;
@@ -5541,11 +5176,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        }
    }
 
-#ifdef WOLFSSL_SMALL_STACK
-  b = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-  if (b == NULL)
-      return FP_MEM;
-#endif
+  WC_ALLOC_VAR_EX(b, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
    /* now do 't' miller rabins */
    fp_init(b);
    for (r = 0; r < t; r++) {
@@ -5553,16 +5184,12 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        err = fp_prime_miller_rabin(a, b, &res);
        if ((err != FP_OKAY) || (res == FP_NO)) {
           *result = res;
-       #ifdef WOLFSSL_SMALL_STACK
-          XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-       #endif
+          WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
           return err;
        }
    }
    *result = FP_YES;
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
    return FP_OKAY;
 }
 
@@ -5654,18 +5281,14 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
         err = fp_sub_d(a, 2, c);
         if (err != FP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-           XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-           XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+           WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
+           WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
            return err;
         }
         while (t > 0) {
             if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-               XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+               WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
+               WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                return err;
             }
 
@@ -5674,10 +5297,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
             err = fp_read_unsigned_bin(b, base, baseSz);
             if (err != FP_OKAY) {
-            #ifdef WOLFSSL_SMALL_STACK
-               XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+               WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
+               WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                return err;
             }
             if (fp_cmp_d(b, 2) != FP_GT || fp_cmp(b, c) != FP_LT) {
@@ -5686,10 +5307,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
             err = fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
             if (err != FP_OKAY) {
-            #ifdef WOLFSSL_SMALL_STACK
-               XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+               WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
+               WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                return err;
             }
             if (ret == FP_NO)
@@ -5703,10 +5322,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         fp_clear(r);
         fp_clear(b);
         fp_clear(c);
-     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
-        XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-     #endif
+        WC_FREE_VAR_EX(b, NULL, DYNAMIC_TYPE_BIGINT);
+        WC_FREE_VAR_EX(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
     (void)t;
@@ -5841,11 +5458,7 @@ int fp_randprime(fp_int* a, int len, WC_RNG* rng, void* heap)
 int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
 {
    int     err;
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int  t[2];
-#else
-   fp_int  *t;
-#endif
+   WC_DECLARE_VAR(t, fp_int, 2, 0);
 
    /* LCM of 0 and any number is undefined as 0 is not in the set of values
     * being used. */
@@ -5853,12 +5466,7 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
        return FP_VAL;
    }
 
-#ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
-   if (t == NULL) {
-       return FP_MEM;
-   }
-#endif
+   WC_ALLOC_VAR_EX(t, fp_int, 2, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
    fp_init(&t[0]);
    fp_init(&t[1]);
@@ -5875,9 +5483,7 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
      }
    }
 
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
    return err;
 }
 
@@ -5939,9 +5545,7 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    while (fp_iszero(v) == FP_NO) {
       int err = fp_mod(u, v, r);
       if (err != MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
-          XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+          WC_FREE_VAR_EX(u, NULL, DYNAMIC_TYPE_BIGINT);
         return err;
       }
       fp_copy(v, u);
@@ -5949,9 +5553,7 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    }
    fp_copy(u, c);
 
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(u, NULL, DYNAMIC_TYPE_BIGINT);
    return FP_OKAY;
 }
 
@@ -5964,26 +5566,17 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 /* c = a + b */
 int fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
-#ifndef WOLFSSL_SMALL_STACK
-   fp_int  tmp[1];
-#else
-   fp_int* tmp;
-#endif
+   WC_DECLARE_VAR(tmp, fp_int, 1, 0);
    int     err;
 
-#ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-   if (tmp == NULL)
-       return FP_MEM;
-#endif
+   WC_ALLOC_VAR_EX(tmp, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT,
+       return FP_MEM);
 
    fp_init(tmp);
    fp_set(tmp, b);
    err = fp_add(a, tmp, c);
 
-#ifdef WOLFSSL_SMALL_STACK
-   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+   WC_FREE_VAR_EX(tmp, NULL, DYNAMIC_TYPE_BIGINT);
    return err;
 }
 
@@ -6207,11 +5800,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 {
     int      res, digs;
     fp_digit d;
-#ifndef WOLFSSL_SMALL_STACK
-    fp_int   t[1];
-#else
-    fp_int   *t;
-#endif
+    WC_DECLARE_VAR(t, fp_int, 1, 0);
 
     *size = 0;
 
@@ -6242,11 +5831,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     /* digs is the digit count */
     digs = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
-    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (t == NULL)
-        return FP_MEM;
-#endif
+    WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
     /* Init a copy (t) of the input (a)
     **
@@ -6263,9 +5848,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     while (fp_iszero (t) == FP_NO) {
         if ((res = fp_div_d (t, (mp_digit) radix, t, &d)) != FP_OKAY) {
             fp_zero (t);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        #endif
+            WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
             return res;
         }
         ++digs;
@@ -6286,9 +5869,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_OKAY;
 }
 
@@ -6298,11 +5879,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     int      res, digs;
     fp_digit d;
     char     *_s = str;
-#ifndef WOLFSSL_SMALL_STACK
-    fp_int   t[1];
-#else
-    fp_int   *t;
-#endif
+    WC_DECLARE_VAR(t, fp_int, 1, 0);
 
     /* check range of the radix */
     if (radix < 2 || radix > 64) {
@@ -6320,11 +5897,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
         return FP_OKAY;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (t == NULL)
-        return FP_MEM;
-#endif
+    WC_ALLOC_VAR_EX(t, fp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, return FP_MEM);
 
     /* Init a copy (t) of the input (a)
     **
@@ -6345,9 +5918,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     while (fp_iszero (t) == FP_NO) {
         if ((res = fp_div_d (t, (fp_digit) radix, t, &d)) != FP_OKAY) {
             fp_zero (t);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-        #endif
+            WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
             return res;
         }
         *str++ = fp_s_rmap[d];
@@ -6369,9 +5940,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     *str = '\0';
 
     fp_zero (t);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_BIGINT);
     return FP_OKAY;
 }
 

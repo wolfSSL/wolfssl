@@ -3192,19 +3192,11 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
     const unsigned char* publicKey, word32 pubKeySize)
 {
     int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        RsaKey* pub = NULL;
-    #else
-        RsaKey pub[1];
-    #endif
+        WC_DECLARE_VAR(pub, RsaKey, 1, 0);
     word32 keyIdx = 0;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        pub = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
-        if (pub == NULL) {
-            ret = MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(pub, RsaKey, 1, NULL, DYNAMIC_TYPE_RSA,
+            ret=MEMORY_E);
 
     if ((ret == 0) && (ret = wc_InitRsaKey(pub, NULL)) == 0) {
         if (ret == 0) {
@@ -3222,9 +3214,7 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
         }
         wc_FreeRsaKey(pub);
     }
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
-    #endif
+        WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
@@ -3338,19 +3328,11 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
     const unsigned char* publicKey, word32 pubKeySize)
 {
     int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        ecc_key* pub = NULL;
-    #else
-        ecc_key pub[1];
-    #endif
+        WC_DECLARE_VAR(pub, ecc_key, 1, 0);
     word32 keyIdx = 0;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        pub = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-        if (pub == NULL) {
-            ret = MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(pub, ecc_key, 1, NULL, DYNAMIC_TYPE_ECC,
+            ret=MEMORY_E);
 
     if ((ret == 0) && (ret = wc_ecc_init(pub)) == 0) {
         ret = wc_EccPublicKeyDecode(publicKey, &keyIdx, pub, pubKeySize);
@@ -3367,9 +3349,7 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
         }
         wc_ecc_free(pub);
     }
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
-    #endif
+        WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
