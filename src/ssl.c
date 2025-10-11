@@ -5891,8 +5891,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         return BAD_FUNC_ARG;
     }
 
-    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
-        {FreeDer(pDer);return MEMORY_E;});
+    #ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if (cert == NULL) {
+        FreeDer(pDer);
+        return MEMORY_E;
+    }
+    #endif
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
@@ -5907,12 +5912,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     WOLFSSL_MSG("\tParsed new CA");
 #ifdef WOLFSSL_DEBUG_CERTS
-    #ifdef WOLFSSL_SMALL_STACK
-    if (cert == NULL) {
-        WOLFSSL_MSG_CERT(WOLFSSL_MSG_CERT_INDENT "Failed; cert is NULL");
-    }
-    else
-    #endif
     {
         const char*  err_msg;
         if (ret == 0) {
