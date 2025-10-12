@@ -12757,7 +12757,6 @@ cleanup:
     {
         int r = 0;
         SrpSide srp_side = SRP_CLIENT_SIDE;
-        byte salt[SRP_SALT_SIZE];
 
         WOLFSSL_ENTER("wolfSSL_CTX_set_srp_username");
         if (ctx == NULL || ctx->srp == NULL || username==NULL)
@@ -12786,37 +12785,11 @@ cleanup:
         }
 
         /* if wolfSSL_CTX_set_srp_password has already been called, */
-        /* execute wc_SrpSetPassword here */
+        /* use saved password here */
         if (ctx->srp_password != NULL) {
-            WC_RNG rng;
-            if (wc_InitRng(&rng) < 0){
-                WOLFSSL_MSG("wc_InitRng failed");
+            if (ctx->srp->user == NULL)
                 return WOLFSSL_FAILURE;
-            }
-            XMEMSET(salt, 0, sizeof(salt)/sizeof(salt[0]));
-            r = wc_RNG_GenerateBlock(&rng, salt, sizeof(salt)/sizeof(salt[0]));
-            wc_FreeRng(&rng);
-            if (r <  0) {
-                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-                return WOLFSSL_FAILURE;
-            }
-
-            if (wc_SrpSetParams(ctx->srp, srp_N, sizeof(srp_N)/sizeof(srp_N[0]),
-                                srp_g, sizeof(srp_g)/sizeof(srp_g[0]),
-                                salt, sizeof(salt)/sizeof(salt[0])) < 0) {
-                WOLFSSL_MSG("wc_SrpSetParam failed");
-                return WOLFSSL_FAILURE;
-            }
-            r = wc_SrpSetPassword(ctx->srp,
-                     (const byte*)ctx->srp_password,
-                     (word32)XSTRLEN((char *)ctx->srp_password));
-            if (r < 0) {
-                WOLFSSL_MSG("fail to set srp password.");
-                return WOLFSSL_FAILURE;
-            }
-
-            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
-            ctx->srp_password = NULL;
+            return wolfSSL_CTX_set_srp_password(ctx, (char*)ctx->srp_password);
         }
 
         return WOLFSSL_SUCCESS;
