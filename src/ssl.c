@@ -23475,7 +23475,11 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
     const WOLF_EC_NIST_NAME* nist_name;
 
     WC_ALLOC_VAR_EX(groups, int, WOLFSSL_MAX_GROUP_COUNT, heap,
-        DYNAMIC_TYPE_TMP_BUFFER, {ret=MEMORY_E;goto leave;});
+        DYNAMIC_TYPE_TMP_BUFFER,
+    {
+        ret=MEMORY_E;
+        goto leave;
+    });
 
     for (idx = 1; names[idx-1] != '\0'; idx++) {
         if (names[idx] != ':' && names[idx] != '\0')

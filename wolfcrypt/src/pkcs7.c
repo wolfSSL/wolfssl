@@ -11442,7 +11442,10 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
             WC_ALLOC_VAR_EX(encryptedKey, byte, MAX_ENCRYPTED_KEY_SZ,
                 pkcs7->heap, DYNAMIC_TYPE_PKCS7,
-                {wc_PKCS7_KariFree(kari);return MEMORY_E;});
+            {
+                wc_PKCS7_KariFree(kari);
+                return MEMORY_E;
+            });
             encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
 
             /* parse cert and key */

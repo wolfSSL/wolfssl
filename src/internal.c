@@ -15908,7 +15908,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                         WC_ALLOC_VAR_EX(dCertAdd, DecodedCert, 1, ssl->heap,
                             DYNAMIC_TYPE_TMP_BUFFER,
-                            {ret=MEMORY_E;goto exit_req_v2;});
+                        {
+                            ret=MEMORY_E;
+                            goto exit_req_v2;
+                        });
                         InitDecodedCert(dCertAdd, cert->buffer, cert->length,
                                         ssl->heap);
                         dCertAdd_inited = 1;

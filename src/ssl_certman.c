@@ -746,7 +746,10 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
     /* Allocate memory for decoded certificate. */
     WC_ALLOC_VAR_EX(cert, DecodedCert, 1, cm->heap, DYNAMIC_TYPE_DCERT,
-        {ret=MEMORY_E;fatal=1;});
+    {
+        ret=MEMORY_E;
+        fatal=1;
+    });
     if (WC_VAR_OK(cert))
     {
         /* Reset fields of decoded certificate. */

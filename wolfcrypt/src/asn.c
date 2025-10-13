@@ -3974,7 +3974,10 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
         return BAD_FUNC_ARG;
 
     WC_ALLOC_VAR_EX(indefItems, IndefItems, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
-        {ret=MEMORY_E;goto end;});
+    {
+        ret=MEMORY_E;
+        goto end;
+    });
 
     XMEMSET(indefItems, 0, sizeof(*indefItems));
 
