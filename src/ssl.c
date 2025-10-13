@@ -11578,8 +11578,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             WOLFSSL_ENTER("wolfSSL_writev");
 
-            for (i = 0; i < iovcnt; i++)
-                sending += iov[i].iov_len;
+            for (i = 0; i < iovcnt; i++) {
+                if (!WC_SAFE_SUM_WORD32(sending, iov[i].iov_len, sending))
+                    return BUFFER_E;
+            }
 
             if (sending > sizeof(staticBuffer)) {
                 myBuffer = (byte*)XMALLOC(sending, ssl->heap,
