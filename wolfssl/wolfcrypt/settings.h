@@ -577,6 +577,9 @@
 #if defined(WOLFSSL_ESPIDF)
     #define SIZEOF_LONG_LONG 8
 
+    /* Warm-up: ensures long term heap allocated early */
+    #define WOLFCRYPT_WARMUP
+
     #ifndef WOLFSSL_MAX_ERROR_SZ
         /* Espressif paths can be quite long. Ensure error prints full path. */
         #define WOLFSSL_MAX_ERROR_SZ 200
