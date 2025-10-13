@@ -35741,9 +35741,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if ((cliKey == NULL) || (servKey == NULL) || (tmpKey == NULL))
-        ERROR_OUT(MEMORY_E, done);
+    if ((cliKey == NULL) || (servKey == NULL) || (tmpKey == NULL)) {
+        XFREE(cliKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(servKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
 #endif
+
+    XMEMSET(cliKey, 0, sizeof(*cliKey));
+    XMEMSET(servKey, 0, sizeof(*servKey));
+    XMEMSET(tmpKey, 0, sizeof(*tmpKey));
 
     ret = wc_ecc_init_ex(cliKey, HEAP_HINT, devId);
     if (ret != 0)
