@@ -372,7 +372,21 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef FIPS_OPTEST
-extern int linuxkm_op_test_wrapper(void);
+    #ifndef HAVE_FIPS
+        #error FIPS_OPTEST requires HAVE_FIPS.
+    #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #error FIPS_OPTEST is not allowed with LINUXKM_LKCAPI_REGISTER.
+    #endif
+    extern int linuxkm_op_test_1(int argc, const char* argv[]);
+    extern int linuxkm_op_test_wrapper(void);
+    static void *my_kallsyms_lookup_name(const char *name);
+    static enum FipsModeId *fipsMode_ptr = NULL;
+    static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
+    static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                       const char *buf, size_t count);
+    static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
+    static int installed_sysfs_FIPS_optest_trig_files = 0;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
@@ -592,8 +606,40 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifdef FIPS_OPTEST
+    fipsMode_ptr = (enum FipsModeId *)my_kallsyms_lookup_name("fipsMode");
+    if (fipsMode_ptr == NULL) {
+        pr_err("ERROR: couldn't obtain fipsMode_ptr.\n");
+        return -ECANCELED;
+    }
+
+    conTestFailure_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("conTestFailure");
+    if (conTestFailure_ptr == NULL) {
+        pr_err("ERROR: couldn't obtain conTestFailure_ptr.\n");
+        return -ECANCELED;
+    }
+
+    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+    if (ret != 0) {
+        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
+        return -ECANCELED;
+    }
+
+#ifdef FIPS_OPTEST_FULL_RUN_AT_MODULE_INIT
     (void)linuxkm_op_test_wrapper();
+    *fipsMode_ptr = FIPS_MODE_INIT;
+    WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) may be degraded
+     * after the op_test() run.
+     */
+    fipsEntry();
+    ret = wolfCrypt_GetStatus_fips();
+    if (ret != 0) {
+        pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
 #endif
+#endif /* FIPS_OPTEST */
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -679,6 +725,9 @@ static void wolfssl_exit(void)
     int ret;
 
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
+#ifdef FIPS_OPTEST
+    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+#endif
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -1525,14 +1574,18 @@ static int updateFipsHash(void)
 static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
                                    const char *buf, size_t count)
 {
-    int arg;
     int ret;
 
     (void)kobj;
     (void)attr;
 
-    if (kstrtoint(buf, 10, &arg) || arg != 1)
+    /* only recognize "1" and "1\n". */
+    if ((count < 1) || (count > 2) ||
+        (buf[0] != '1') ||
+        ((count == 2) && (buf[1] != '\n')))
+    {
         return -EINVAL;
+    }
 
     pr_info("wolfCrypt: rerunning FIPS self-test on command.");
 
@@ -1561,5 +1614,97 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
 
     return count;
 }
+
+#ifdef FIPS_OPTEST
+
+static void *my_kallsyms_lookup_name(const char *name) {
+    static typeof(kallsyms_lookup_name) *kallsyms_lookup_name_ptr = NULL;
+    static struct kprobe kallsyms_lookup_name_kp = {
+        .symbol_name = "kallsyms_lookup_name"
+    };
+    unsigned long a;
+
+    if (! kallsyms_lookup_name_ptr) {
+        int ret;
+        kallsyms_lookup_name_kp.addr = NULL;
+        if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
+            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d", ret);
+            return 0;
+        }
+        kallsyms_lookup_name_ptr = (typeof(kallsyms_lookup_name_ptr))kallsyms_lookup_name_kp.addr;
+        unregister_kprobe(&kallsyms_lookup_name_kp);
+        if (! kallsyms_lookup_name_ptr) {
+            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.");
+            return 0;
+        }
+    }
+
+    a = kallsyms_lookup_name_ptr(name);
+    return (void *)a;
+}
+
+typedef struct test_func_args {
+    int return_code;
+} test_func_args;
+
+static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, const size_t count)
+{
+    int ret;
+    int argc;
+    const char *argv[2];
+    char code_buf[5];
+    size_t corrected_count;
+
+    (void)kobj;
+    (void)attr;
+
+    /* buf may or may not have an LF at end -- tolerate both.  there is no
+     * terminating null in either case.
+     */
+    if (count < 1)
+        return -EINVAL;
+    if (buf[count-1] == '\n')
+        corrected_count = count - 1;
+    else
+        corrected_count = count;
+    if ((corrected_count < 1) || (corrected_count > 4))
+        return -EINVAL;
+    memcpy(code_buf, buf, corrected_count);
+    code_buf[corrected_count] = 0;
+
+    if (strspn(buf, "-0123456789") != corrected_count)
+        return -EINVAL;
+
+    argv[0] = "./optest";
+    argv[1] = code_buf;
+    argc = 2;
+
+    printf("OK, testing code %s\n", buf);
+
+    ret = linuxkm_op_test_1(argc, &argv[0]);
+
+    printf("ret of op_test = %d\n", ret);
+
+    /* reload the library in memory and re-init state */
+    printf("Reloading the module in memory (equivalent to power "
+           "cycle)\n");
+    *fipsMode_ptr = FIPS_MODE_INIT;
+    WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) may be degraded
+     * after the op_test() run.
+     */
+    fipsEntry();
+    ret = wolfCrypt_GetStatus_fips();
+    printf("Status indicator of library reload/powercycle: %d\n",
+           ret);
+    printf("Module status is: %d\n", wolfCrypt_GetStatus_fips());
+    printf("Module mode is: %d\n", wolfCrypt_GetMode_fips());
+
+    return count;
+}
+
+#endif /* FIPS_OPTEST */
 
 #endif /* HAVE_FIPS */
