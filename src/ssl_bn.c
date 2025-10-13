@@ -1138,6 +1138,8 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
         ret = 1;
     }
     else {
+        PRAGMA_GCC_DIAG_PUSH
+        PRAGMA_GCC("GCC diagnostic ignored \"-Werror=duplicated-branches\"")
         /* Compare big numbers with wolfCrypt. */
         ret = mp_cmp((mp_int*)a->internal, (mp_int*)b->internal);
         /* Convert wolfCrypt return value. */
@@ -1151,13 +1153,11 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
             ret = -1;
         }
         else {
-            PRAGMA_GCC_DIAG_PUSH
-            PRAGMA_GCC("GCC diagnostic ignored \"-Werror=duplicated-branches\"")
             /* ignored warning here because the same return value
                was intentional */
             ret = WOLFSSL_FATAL_ERROR; /* also -1 */
-            PRAGMA_GCC_DIAG_POP
         }
+        PRAGMA_GCC_DIAG_POP
     }
 
     return ret;

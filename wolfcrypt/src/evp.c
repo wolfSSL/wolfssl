@@ -8517,8 +8517,8 @@ void wolfSSL_EVP_init(void)
     }
 
     /* Return length on ok */
-    int wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst, byte* src,
-                           word32 len)
+    int wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst,
+                           const byte* src, word32 len)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
