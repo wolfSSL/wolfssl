@@ -46755,25 +46755,12 @@ static int test_extra_alerts_bad_psk(void)
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
-/*
- * Emulates wolfSSL_shutdown that goes on EAGAIN,
- * by returning on output WOLFSSL_ERROR_WANT_WRITE.*/
-static int custom_wolfSSL_shutdown(WOLFSSL *ssl, char *buf,
-        int sz, void *ctx)
-{
-    (void)ssl;
-    (void)buf;
-    (void)ctx;
-    (void)sz;
-
-    return WOLFSSL_CBIO_ERR_WANT_WRITE;
-}
-
-static int test_multiple_alerts_EAGAIN(void)
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+static int test_multiple_shutdown_nonblocking(void)
 {
     EXPECT_DECLS;
     size_t size_of_last_packet = 0;
+    int dummy_recv_buffer;
 
     /* declare wolfSSL objects */
     struct test_memio_ctx test_ctx;
@@ -46783,46 +46770,68 @@ static int test_multiple_alerts_EAGAIN(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
     /* Create and initialize WOLFSSL_CTX and WOLFSSL objects */
-#ifdef USE_TLSV13
-    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-          wolfTLSv1_3_client_method,  wolfTLSv1_3_server_method), 0);
-#else
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
          wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
-#endif
+
     ExpectNotNull(ctx_c);
     ExpectNotNull(ssl_c);
     ExpectNotNull(ctx_s);
     ExpectNotNull(ssl_s);
 
-    /* Load client certificates into WOLFSSL_CTX */
-    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
-
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
-    /*
-     * We set the custom callback for the IO to emulate multiple EAGAINs
-     * on shutdown, so we can check that we don't send multiple packets.
-     * */
-    wolfSSL_SSLSetIOSend(ssl_c, custom_wolfSSL_shutdown);
+    /* buffers should be empty now */
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+
+    test_memio_simulate_want_write(&test_ctx, 0, 1);
 
     /*
-     * We call wolfSSL_shutdown multiple times to reproduce the behaviour,
-     * to check that it doesn't add the CLOSE_NOTIFY packet multiple times
-     * on the output buffer.
+     * We call wolfSSL_shutdown multiple times to  to check that it doesn't add
+     * the CLOSE_NOTIFY packet multiple times on the output buffer.
      * */
-    wolfSSL_shutdown(ssl_c);
-    wolfSSL_shutdown(ssl_c);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
 
+    /* store the size of the packet */
     if (ssl_c != NULL) {
         size_of_last_packet = ssl_c->buffers.outputBuffer.length;
     }
-    wolfSSL_shutdown(ssl_c);
 
-    /*
-     * Finally we check the length of the output buffer.
-     * */
-    ExpectIntEQ((ssl_c->buffers.outputBuffer.length - size_of_last_packet), 0);
+    /* invoke it multiple times shouldn't change the wolfssl internal output buffer size */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_WANT_WRITE);
+
+    ExpectIntEQ(ssl_c->buffers.outputBuffer.length, size_of_last_packet);
+
+    /* now send the CLOSE_NOTIFY to the server for real, expecting shutdown not done */
+    test_memio_simulate_want_write(&test_ctx, 0, 0);
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+
+    /* output buffer should be empty and socket buffer should contain the message */
+    ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
+    ExpectIntEQ(test_ctx.s_len, size_of_last_packet);
+
+
+    /* this should try to read from the socket */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+
+    /* complete the bidirectional shutdown */
+
+    /* check that server received the shutdown alert */
+    ExpectIntEQ(wolfSSL_recv(ssl_s, &dummy_recv_buffer, 0, 0), 0);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, 0), WOLFSSL_ERROR_ZERO_RETURN);
+
+    /* send the shutdown from the server side */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SUCCESS);
+
+    /* This should return success and zero return */
+    ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, 0), WOLFSSL_ERROR_ZERO_RETURN);
 
     /* Cleanup and return */
     wolfSSL_CTX_free(ctx_c);
@@ -46833,7 +46842,7 @@ static int test_multiple_alerts_EAGAIN(void)
     return EXPECT_RESULT();
 }
 #else
-static int test_multiple_alerts_EAGAIN(void)
+static int test_multiple_shutdown_nonblocking(void)
 {
     return TEST_SKIPPED;
 }
@@ -51369,7 +51378,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
-    TEST_DECL(test_multiple_alerts_EAGAIN),
+    TEST_DECL(test_multiple_shutdown_nonblocking),
     /* Can't memory test as client/server Asserts. */
     TEST_DECL(test_harden_no_secure_renegotiation),
     TEST_DECL(test_override_alt_cert_chain),
