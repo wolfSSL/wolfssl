@@ -1139,7 +1139,7 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
     }
     else {
         PRAGMA_GCC_DIAG_PUSH
-        PRAGMA_GCC("GCC diagnostic ignored \"-Werror=duplicated-branches\"")
+        PRAGMA_GCC("GCC diagnostic ignored \"-Wduplicated-branches\"")
         /* Compare big numbers with wolfCrypt. */
         ret = mp_cmp((mp_int*)a->internal, (mp_int*)b->internal);
         /* Convert wolfCrypt return value. */
