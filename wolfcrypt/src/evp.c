@@ -7012,7 +7012,7 @@ void wolfSSL_EVP_init(void)
     }
 
     static int EvpCipherAesCCM(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* dst,
-                               byte* src, word32 len)
+                               const byte* src, word32 len)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
