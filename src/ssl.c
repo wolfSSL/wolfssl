@@ -11579,7 +11579,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_ENTER("wolfSSL_writev");
 
             for (i = 0; i < iovcnt; i++) {
-                if (!WC_SAFE_SUM_WORD32(sending, iov[i].iov_len, sending))
+                if (!WC_SAFE_SUM_WORD32(sending, (word32)iov[i].iov_len, sending))
                     return BUFFER_E;
             }
 
