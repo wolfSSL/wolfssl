@@ -9003,12 +9003,12 @@ static void bench_rsa_helper(int useDeviceID,
     WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
     WC_DECLARE_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
-                                 rsaKeySz, HEAP_HINT);
+                                 rsaKeySz/8, HEAP_HINT);
 
 #if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
     WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                    rsaKeySz, HEAP_HINT);
+                                    rsaKeySz/8, HEAP_HINT);
 #else
     byte* out[BENCH_MAX_PENDING];
 #endif
@@ -9016,12 +9016,12 @@ static void bench_rsa_helper(int useDeviceID,
     XMEMSET(out, 0, sizeof(out));
 
     WC_ALLOC_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
-                                 rsaKeySz, HEAP_HINT);
+                                 rsaKeySz/8, HEAP_HINT);
 
 #if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
     WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                    rsaKeySz, HEAP_HINT);
+                                    rsaKeySz/8, HEAP_HINT);
     if (out[0] == NULL) {
         ret = MEMORY_E;
         goto exit;
