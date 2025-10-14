@@ -462,8 +462,75 @@ enum {
 
 #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
 
-#define WC_SAFE_SUM_WORD32(in1, in2, out) ((in2) <= 0xffffffffU - (in1) ? \
-            ((out) = (in1) + (in2), 1) : ((out) = 0xffffffffU, 0))
+#ifdef NO_INLINE
+    #define WC_WUR_INT(x) (x)
+#else
+    WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
+#endif
+
+#ifdef WORD64_AVAILABLE
+    #define MAX_UINT_OF(x)                                           \
+        ((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -            \
+                         (word64)1)) - (word64)1)                    \
+         |                                                           \
+         ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) - (word64)1)))
+    #define MAX_SINT_OF(x)                                           \
+        ((sword64)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -  \
+                                   (word64)2)) - (word64)1)          \
+                   |                                                 \
+                   ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -   \
+                                  (word64)2))))
+    #define MIN_SINT_OF(x)                                           \
+        ((sword64)((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -    \
+                                 (word64)1)))
+#else
+    #define MAX_UINT_OF(x)                                           \
+        ((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -            \
+                         (word32)1)) - (word32)1)                    \
+         |                                                           \
+         ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) - (word32)1)))
+    #define MAX_SINT_OF(x)                                           \
+        ((sword32)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -  \
+                                   (word32)2)) - (word32)1)          \
+                   |                                                 \
+                   ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -   \
+                                  (word32)2))))
+    #define MIN_SINT_OF(x)                                           \
+        ((sword32)((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -    \
+                                 (word32)1)))
+#endif
+
+#define WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out)    \
+        ((in2) <= (MAX_UINT_OF(type) - (in1)) ?             \
+         ((out) = (in1) + (in2), 1) :                       \
+         ((out) = MAX_UINT_OF(type), 0))
+
+#define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out)           \
+        WC_WUR_INT(WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out))
+
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0))
+    #define WC_SAFE_SUM_WORD32(in1, in2, out) \
+            WC_SAFE_SUM_UNSIGNED_NO_WUR(word32, in1, in2, out)
+#else
+    #define WC_SAFE_SUM_WORD32(in1, in2, out) \
+            WC_SAFE_SUM_UNSIGNED(word32, in1, in2, out)
+#endif
+
+#define WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out)      \
+        ((((in1) > 0) && ((in2) > 0)) ?                     \
+             ((in2) <= MAX_SINT_OF(type) - (in1) ?          \
+              ((out) = (in1) + (in2), 1) :                  \
+              ((out) = (type)MAX_SINT_OF(type), 0))         \
+             :                                              \
+             ((((in1) < 0) && ((in2) < 0)) ?                \
+              ((in2) >= MIN_SINT_OF(type) - (in1) ?         \
+               ((out) = (in1) + (in2), 1) :                 \
+               ((out) = (type)MIN_SINT_OF(type), 0))        \
+              :                                             \
+              ((out) = (in1) + (in2), 1)))
+
+#define WC_SAFE_SUM_SIGNED(type, in1, in2, out)             \
+        WC_WUR_INT(WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out))
 
 #if defined(HAVE_IO_POOL)
     WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
