@@ -1545,11 +1545,8 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 {
     int ret;
     /* back up buffer */
-#ifdef WOLFSSL_SMALL_STACK
-    word64 *buffer;
-#else
-    word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
-#endif
+    WC_DECLARE_VAR(buffer, word64, WC_SHA512_BLOCK_SIZE  / sizeof(word64),
+        0);
 
     /* sanity check */
     if (sha == NULL || data == NULL) {
@@ -2001,23 +1998,14 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
                                  int (*finalfp)(wc_Sha512*, byte*))
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha512* tmpSha512;
-#else
-    wc_Sha512  tmpSha512[1];
-#endif
+    WC_DECLARE_VAR(tmpSha512, wc_Sha512, 1, 0);
 
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpSha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpSha512 == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(tmpSha512, wc_Sha512, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     /* copy this sha512 into tmpSha */
     ret = wc_Sha512Copy(sha512, tmpSha512);
@@ -2026,9 +2014,7 @@ static int Sha512_Family_GetHash(wc_Sha512* sha512, byte* hash,
         wc_Sha512Free(tmpSha512);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpSha512, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -2431,23 +2417,14 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
 {
     int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha384* tmpSha384;
-#else
-    wc_Sha384  tmpSha384[1];
-#endif
+    WC_DECLARE_VAR(tmpSha384, wc_Sha384, 1, 0);
 
     if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpSha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpSha384 == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(tmpSha384, wc_Sha384, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     /* copy this sha384 into tmpSha */
     ret = wc_Sha384Copy(sha384, tmpSha384);
@@ -2456,9 +2433,7 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
         wc_Sha384Free(tmpSha384);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpSha384, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

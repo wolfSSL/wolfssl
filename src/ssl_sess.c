@@ -1167,11 +1167,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
     word32       row;
     int          error = 0;
 #ifdef HAVE_SESSION_TICKET
-#ifndef WOLFSSL_SMALL_STACK
-    byte         tmpTicket[PREALLOC_SESSION_TICKET_LEN];
-#else
-    byte*        tmpTicket = NULL;
-#endif
+    WC_DECLARE_VAR(tmpTicket, byte, PREALLOC_SESSION_TICKET_LEN, 0);
 #ifdef WOLFSSL_TLS13
     byte *preallocNonce = NULL;
     byte preallocNonceLen = 0;
@@ -1300,9 +1296,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET*/
@@ -1403,9 +1397,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             XMEMCPY(output->ticket, tmpTicket, output->ticketLen); /* cppcheck-suppress uninitvar */
         }
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))

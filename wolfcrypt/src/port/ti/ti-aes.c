@@ -780,11 +780,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
             const byte* authIn, word32 authInSz,
             byte* authTag, word32 authTagSz, WC_RNG* rng)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
@@ -810,9 +806,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
 
     return ret;
 }
@@ -824,11 +818,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 {
     int ret;
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
         authTag == NULL || authTagSz == 0 || authTagSz > WC_AES_BLOCK_SIZE) {
@@ -851,9 +841,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
 #else
     (void)key;
     (void)keySz;

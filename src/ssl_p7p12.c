@@ -578,11 +578,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
     int lineLen = 0;
     word32 canonLineLen = 0;
     char* canonLine = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    char* line = NULL;
-#else
-    char line[MAX_MIME_LINE_LEN];
-#endif
+    WC_DECLARE_VAR(line, char, MAX_MIME_LINE_LEN, 0);
 
     if (in == NULL || out == NULL) {
         return BAD_FUNC_ARG;
@@ -629,9 +625,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
     }
 
     XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(line, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(line, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1041,18 +1035,14 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if ((wolfSSL_BIO_write(bio, pem, pemSz) == pemSz)) {
         XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+        WC_FREE_VAR_EX(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WC_FREE_VAR_EX(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_SUCCESS;
     }
 
 error:
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
@@ -1853,11 +1843,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     byte* pk = NULL;
     word32 pkSz;
     WC_DerCertList* certList = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *DeCert;
-#else
-    DecodedCert DeCert[1];
-#endif
+    WC_DECLARE_VAR(DeCert, DecodedCert, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_parse");
 
@@ -2073,9 +2059,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
 out:
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(DeCert, heap, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(DeCert, heap, DYNAMIC_TYPE_DCERT);
 
     return ret;
 }

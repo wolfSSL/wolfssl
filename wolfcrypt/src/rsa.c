@@ -703,11 +703,7 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
 int wc_CheckRsaKey(RsaKey* key)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *rng = NULL;
-#else
-    WC_RNG rng[1];
-#endif
+    WC_DECLARE_VAR(rng, WC_RNG, 1, 0);
     int ret = 0;
     DECL_MP_INT_SIZE_DYN(tmp, (key)? mp_bitsused(&key->n) : 0, RSA_MAX_SIZE);
 
@@ -722,12 +718,8 @@ int wc_CheckRsaKey(RsaKey* key)
     }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (rng == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(rng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+        return MEMORY_E);
     NEW_MP_INT_SIZE(tmp, mp_bitsused(&key->n), NULL, DYNAMIC_TYPE_RSA);
 #ifdef MP_INT_SIZE_CHECK_NULL
     if (tmp == NULL) {
@@ -1126,10 +1118,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     if ((ret = wc_Hash(hType, optLabel, labelLen, lHash, hLen)) != 0) {
         WOLFSSL_MSG("OAEP hash type possibly not supported or lHash to small");
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -1143,19 +1133,15 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
      */
     if ((2 * hLen + 2) > pkcsBlockLen) {
         WOLFSSL_MSG("OAEP pad error hash to big for RSA key size");
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return BAD_FUNC_ARG;
     }
 
     if (inputLen > (pkcsBlockLen - 2 * hLen - 2)) {
         WOLFSSL_MSG("OAEP pad error message too long");
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return BAD_FUNC_ARG;
     }
 
@@ -1163,10 +1149,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     idx = pkcsBlockLen - 1 - inputLen;
     psLen = (int)pkcsBlockLen - (int)inputLen - 2 * (int)hLen - 2;
     if (pkcsBlockLen < inputLen) { /*make sure not writing over end of buffer */
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return BUFFER_E;
     }
     XMEMCPY(pkcsBlock + (pkcsBlockLen - inputLen), input, inputLen);
@@ -1179,10 +1163,8 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     /* generate random seed */
     if ((ret = wc_RNG_GenerateBlock(rng, seed, hLen)) != 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -1203,29 +1185,23 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     XMEMSET(dbMask, 0, pkcsBlockLen - hLen - 1); /* help static analyzer */
     ret = RsaMGF(mgf, seed, hLen, dbMask, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(dbMask, heap, DYNAMIC_TYPE_RSA);
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
     xorbuf(pkcsBlock + hLen + 1, dbMask,pkcsBlockLen - hLen - 1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(dbMask, heap, DYNAMIC_TYPE_RSA);
-#endif
+    WC_FREE_VAR_EX(dbMask, heap, DYNAMIC_TYPE_RSA);
 
     /* create maskedSeed from seedMask */
     pkcsBlock[0] = 0x00;
     /* create seedMask inline */
     if ((ret = RsaMGF(mgf, pkcsBlock + hLen + 1, pkcsBlockLen - hLen - 1,
                                            pkcsBlock + 1, hLen, heap)) != 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
-            XFREE(seed,  heap, DYNAMIC_TYPE_RSA_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(lHash, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WC_FREE_VAR_EX(seed, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -1599,9 +1575,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     /* find seedMask value */
     if ((ret = RsaMGF(mgf, (byte*)(pkcsBlock + (hLen + 1)),
                             pkcsBlockLen - hLen - 1, tmp, hLen, heap)) != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
-#endif
+        WC_FREE_VAR_EX(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
@@ -5311,9 +5285,7 @@ static int CalcDX(mp_int* y, mp_int* x, mp_int* d)
         mp_forcezero(m);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(m, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
-#endif
+    WC_FREE_VAR_EX(m, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
 
     return err;
 }
