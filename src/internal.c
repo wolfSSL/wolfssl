@@ -10613,8 +10613,11 @@ static void AddHandShakeHeader(byte* output, word32 length,
     if (hs == NULL)
         return;
 
+    PRAGMA_GCC_DIAG_PUSH;
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wnull-dereference\"");
     hs->type = type;
     c32to24(length, hs->length);         /* type and length same for each */
+    PRAGMA_GCC_DIAG_POP;
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         DtlsHandShakeHeader* dtls;
@@ -23312,6 +23315,8 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     /* get output buffer */
     output = GetOutputBuffer(ssl);
+    if (output == NULL)
+        return BUFFER_E;
 
     AddRecordHeader(output, 1, change_cipher_spec, ssl, CUR_ORDER);
 

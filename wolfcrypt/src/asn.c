@@ -29915,19 +29915,18 @@ static int EncodeName(EncodedName* name, const char* nameStr,
         ret = BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_CUSTOM_OID
-    if (ret == 0 && type == ASN_CUSTOM_NAME) {
-        if (cname == NULL || cname->custom.oidSz == 0) {
-            name->used = 0;
-            return 0;
-        }
-    }
-#else
-    (void)cname;
-#endif
-
-    CALLOC_ASNSETDATA(dataASN, rdnASN_Length, ret, NULL);
     if (ret == 0) {
+    #ifdef WOLFSSL_CUSTOM_OID
+        if (type == ASN_CUSTOM_NAME) {
+            if (cname == NULL || cname->custom.oidSz == 0) {
+                name->used = 0;
+                return 0;
+            }
+        }
+    #else
+        (void)cname;
+    #endif
+        CALLOC_ASNSETDATA(dataASN, rdnASN_Length, ret, NULL);
         nameSz = (word32)XSTRLEN(nameStr);
         /* Copy the RDN encoding template. ASN.1 tag for the name string is set
          * based on type. */
