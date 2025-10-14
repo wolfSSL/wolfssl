@@ -26433,20 +26433,6 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         }
     #endif
 
-    /*
-     * We check if we are trying to send a
-     * CLOSE_NOTIFY alert.
-     * */
-    if (type == close_notify) {
-        if (!ssl->options.sentNotify) {
-            ssl->options.sentNotify = 1;
-        }
-        else {
-            /* CLOSE_NOTIFY already sent */
-            return 0;
-        }
-    }
-
     ssl->buffers.outputBuffer.length += (word32)sendSz;
 
     ret = SendBuffered(ssl);

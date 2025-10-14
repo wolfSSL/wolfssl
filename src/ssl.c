@@ -4471,15 +4471,53 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         ret = WOLFSSL_SUCCESS;
     }
     else {
+
+        /* Try to flush the buffer first, it might contain the alert */
+        if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE) &&
+            ssl->buffers.outputBuffer.length > 0) {
+            ret = SendBuffered(ssl);
+            if (ret != 0) {
+                ssl->error = ret;
+                /* for error tracing */
+                if (ret != WC_NO_ERR_TRACE(WANT_WRITE))
+                    WOLFSSL_ERROR(ret);
+                ret = WOLFSSL_FATAL_ERROR;
+                WOLFSSL_LEAVE("wolfSSL_shutdown", ret);
+                return ret;
+            }
+
+            ssl->error = WOLFSSL_ERROR_NONE;
+            /* we succeeded in sending the alert now */
+            if (ssl->options.sentNotify)  {
+                /* just after we send the alert, if we didn't receive the alert
+                 * from the other peer yet, return WOLFSSL_STHUDOWN_NOT_DONE */
+                if (!ssl->options.closeNotify) {
+                    ret = WOLFSSL_SHUTDOWN_NOT_DONE;
+                    WOLFSSL_LEAVE("wolfSSL_shutdown", ret);
+                    return ret;
+                }
+                else {
+                    ssl->options.shutdownDone = 1;
+                    ret = WOLFSSL_SUCCESS;
+                }
+            }
+        }
+
         /* try to send close notify, not an error if can't */
         if (!ssl->options.isClosed && !ssl->options.connReset &&
                                       !ssl->options.sentNotify) {
             ssl->error = SendAlert(ssl, alert_warning, close_notify);
+
+            /* the alert is now sent or sitting in the buffer,
+             * where will be sent eventually */
+            if (ssl->error == 0 || ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))
+                ssl->options.sentNotify = 1;
+
             if (ssl->error < 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
-            ssl->options.sentNotify = 1;  /* don't send close_notify twice */
+
             if (ssl->options.closeNotify) {
                 ret = WOLFSSL_SUCCESS;
                 ssl->options.shutdownDone = 1;
@@ -4499,7 +4537,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         }
 #endif
 
-        /* call wolfSSL_shutdown again for bidirectional shutdown */
+        /* wolfSSL_shutdown called again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
             ret = ProcessReply(ssl);
             if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
@@ -4509,11 +4547,18 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
                 /* Clear error */
                 ssl->error = WOLFSSL_ERROR_NONE;
                 ret = WOLFSSL_SUCCESS;
-            } else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
+            }
+            else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
                 ret = WOLFSSL_FATAL_ERROR;
-            } else if (ssl->error == WOLFSSL_ERROR_NONE) {
+            }
+            else if (ret == WC_NO_ERR_TRACE(WANT_READ)) {
+                ssl->error = ret;
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            else if (ssl->error == WOLFSSL_ERROR_NONE) {
                 ret = WOLFSSL_SHUTDOWN_NOT_DONE;
-            } else {
+            }
+            else {
                 WOLFSSL_ERROR(ssl->error);
                 ret = WOLFSSL_FATAL_ERROR;
             }

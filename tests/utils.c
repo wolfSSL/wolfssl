@@ -48,6 +48,7 @@ int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
     int *len;
     int *msg_sizes;
     int *msg_count;
+    int *forceWantWrite;
 
     test_ctx = (struct test_memio_ctx*)ctx;
 
@@ -56,13 +57,18 @@ int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
         len = &test_ctx->c_len;
         msg_sizes = test_ctx->c_msg_sizes;
         msg_count = &test_ctx->c_msg_count;
+        forceWantWrite = &test_ctx->c_force_want_write;
     }
     else {
         buf = test_ctx->s_buff;
         len = &test_ctx->s_len;
         msg_sizes = test_ctx->s_msg_sizes;
         msg_count = &test_ctx->s_msg_count;
+        forceWantWrite = &test_ctx->s_force_want_write;
     }
+
+    if (*forceWantWrite)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
 
     if ((unsigned)(*len + sz) > TEST_MEMIO_BUF_SZ)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
@@ -362,16 +368,30 @@ int test_memio_setup_ex(struct test_memio_ctx *ctx,
     return 0;
 }
 
+void test_memio_simulate_want_write(struct test_memio_ctx *ctx, int is_client,
+        int enable)
+{
+    if (ctx == NULL)
+        return;
+
+    if (is_client)
+        ctx->c_force_want_write = (enable != 0);
+    else
+        ctx->s_force_want_write = (enable != 0);
+}
+
 void test_memio_clear_buffer(struct test_memio_ctx *ctx, int is_client)
 {
     if (is_client) {
         ctx->c_len = 0;
         ctx->c_msg_pos = 0;
         ctx->c_msg_count = 0;
+        ctx->c_force_want_write = 0;
     } else {
         ctx->s_len = 0;
         ctx->s_msg_pos = 0;
         ctx->s_msg_count = 0;
+        ctx->s_force_want_write = 0;
     }
 }
 
