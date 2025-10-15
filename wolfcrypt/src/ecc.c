@@ -230,15 +230,16 @@ ECC Curve Sizes:
 #endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
-    !defined(WOLFSSL_XILINX_CRYPT_VERSAL) && !defined(WOLFSSL_STM32_PKA) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO)
+    !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     #undef  HAVE_ECC_VERIFY_HELPER
     #define HAVE_ECC_VERIFY_HELPER
 #endif
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+        !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(NO_ECC_MAKE_PUB) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
@@ -251,6 +252,7 @@ ECC Curve Sizes:
 #if (!defined(NO_ECC_CHECK_PUBKEY_ORDER) && \
      !defined(WOLF_CRYPTO_CB_ONLY_ECC) && \
      !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+     !defined(WOLFSSL_MICROCHIP_TA100) && \
      !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
      !defined(WOLFSSL_SE050) && !defined(WOLFSSL_STM32_PKA)) || \
      defined(WOLFSSL_IMXRT1170_CAAM) || defined(WOLFSSL_QNX_CAAM)
@@ -1938,6 +1940,7 @@ static void alt_fp_init(mp_int* a)
 
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
@@ -4660,7 +4663,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    int err = 0;
 
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
-   !defined(WOLFSSL_ATECC608A)
+   !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
    CRYS_ECDH_TempData_t tempBuff;
 #endif
 
@@ -4703,7 +4706,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       return ECC_BAD_ARG_E;
    }
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
    /* For SECP256R1 use hardware */
    if (private_key->dp->id == ECC_SECP256R1) {
        err = atmel_ecc_create_pms(private_key->slot, public_key->pubkey_raw, out);
@@ -4741,6 +4745,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 
@@ -5253,6 +5258,7 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
 #endif /* USE_ECC_B_PARAM */
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
@@ -5617,6 +5623,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 {
     int err = 0;
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_ATECC608A)
     const CRYS_ECPKI_Domain_t*  pDomain;
     CRYS_ECPKI_KG_TempData_t    tempBuff;
@@ -5697,11 +5704,21 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
-   if (key->dp->id == ECC_SECP256R1) {
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
+#if !defined(WOLFSSL_MICROCHIP_TA100)
+    if (key->dp->id == ECC_SECP256R1 ||
+        key->dp->id == ECC_SECP224R1 ||
+        key->dp->id == ECC_SECP384R1 ||
+        key->dp->id == ECC_SECP256K1 ||
+        key->dp->id == ECC_BRAINPOOLP256R1) { /* supports more than ECC256R1 curve */
+#else
+    if (key->dp->id == ECC_SECP256R1) {
+#endif
        key->type = ECC_PRIVATEKEY;
-       key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-       err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
+       if (key->slot == ATECC_INVALID_SLOT)
+           key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+       err = atmel_ecc_create_key(key->slot, curve_id, key->pubkey_raw);
 
        /* populate key->pubkey */
        if (err == 0
@@ -6191,7 +6208,8 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     (void)devId;
 #endif
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     key->slot = ATECC_INVALID_SLOT;
 #else
 #if defined(WOLFSSL_KCAPI_ECC)
@@ -6387,6 +6405,7 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
 #ifdef HAVE_ECC_SIGN
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) ||  \
+    defined(WOLFSSL_MICROCHIP_TA100) || \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC) || \
     defined(WOLFSSL_SE050) || defined(WOLFSSL_XILINX_CRYPT_VERSAL)
@@ -6400,7 +6419,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 #endif
     {
     #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A)
+        !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
         CRYS_ECDSA_SignUserContext_t sigCtxTemp;
         word32 raw_sig_size = *outlen;
         word32 msgLenInBytes = inlen;
@@ -6431,9 +6450,12 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
     #endif
 
-    #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+    #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+         defined(WOLFSSL_MICROCHIP_TA100)
+        (void)inlen;
         /* Sign: Result is 32-bytes of R then 32-bytes of S */
         err = atmel_ecc_sign(key->slot, in, out);
+
         if (err != 0) {
            return err;
         }
@@ -6781,6 +6803,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
 /* hardware crypto */
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100) || \
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
     defined(WOLFSSL_SILABS_SE_ACCEL) || defined(WOLFSSL_KCAPI_ECC) || \
     defined(WOLFSSL_SE050) || defined(WOLFSSL_XILINX_CRYPT_VERSAL)
@@ -6902,6 +6925,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 }
 #elif !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+      !defined(WOLFSSL_MICROCHIP_TA100) && \
       !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_KCAPI_ECC)
 #ifndef WOLFSSL_SP_MATH
 static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
@@ -7928,7 +7952,8 @@ int wc_ecc_free(ecc_key* key)
     se050_ecc_free_key(key);
 #endif
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     atmel_ecc_free(key->slot);
     key->slot = ATECC_INVALID_SLOT;
 #endif /* WOLFSSL_ATECC508A */
@@ -7979,6 +8004,7 @@ int wc_ecc_free(ecc_key* key)
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SP_MATH) && \
     (!defined(WOLF_CRYPTO_CB_ONLY_ECC) || defined(WOLFSSL_QNX_CAAM) || \
       defined(WOLFSSL_IMXRT1170_CAAM))
@@ -8103,7 +8129,8 @@ int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
         */
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_CRYPTOCELL) && \
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100) && \
+    !defined(WOLFSSL_CRYPTOCELL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLF_CRYPTO_CB_ONLY_ECC)
 #ifdef ECC_SHAMIR
 
@@ -8696,7 +8723,7 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 }
 #endif /* !WOLFSSL_STM32_PKA && !WOLFSSL_PSOC6_CRYPTO */
 
-#ifdef HAVE_ECC_VERIFY_HELPER
+#if defined(HAVE_ECC_VERIFY_HELPER) && !defined(WOLFSSL_MICROCHIP)
 static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     word32 hashlen, int* res, ecc_key* key)
 {
@@ -8854,7 +8881,7 @@ static int ecc_verify_hash_sp(mp_int *r, mp_int *s, const byte* hash,
     return NOT_COMPILED_IN;
 }
 
-#if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
+#if !defined(WOLFSSL_MICROCHIP) && (!defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC))
 static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
     word32 hashlen, int* res, ecc_key* key, ecc_curve_spec* curve)
 {
@@ -9187,7 +9214,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else
    int           err;
    word32        keySz = 0;
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
    byte sigRS[ATECC_KEY_SIZE*2];
 #elif defined(WOLFSSL_CRYPTOCELL)
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE*2];
@@ -9259,7 +9287,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif /* WOLFSSL_SE050 */
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
     if (err != 0) {
        return err;
@@ -10213,14 +10242,16 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 static int ecc_check_privkey_gen_helper(ecc_key* key)
 {
     int    err;
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
     DECLARE_CURVE_SPECS(2);
 #endif
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
@@ -10431,7 +10462,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 {
     int err = MP_OKAY;
-#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH)
+#if defined(HAVE_ECC_CHECK_PUBKEY_ORDER) && !defined(WOLFSSL_SP_MATH) 
     mp_int* b = NULL;
     #ifdef USE_ECC_B_PARAM
         DECLARE_CURVE_SPECS(4);
@@ -10712,7 +10743,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     inLen -= 1;
     in += 1;
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     /* For SECP256R1 only save raw public key for hardware */
     if (curve_id == ECC_SECP256R1 && inLen <= (word32)sizeof(key->pubkey_raw)) {
     #ifdef HAVE_COMP_KEY
@@ -10974,7 +11006,8 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
             (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY))
             return BAD_FUNC_ARG;
 
-    #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+    #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+        defined(WOLFSSL_MICROCHIP_TA100)
         /* Hardware cannot export private portion */
         return NOT_COMPILED_IN;
     #else
@@ -11417,14 +11450,14 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 {
     int err = MP_OKAY;
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_MICROCHIP_TA100)
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
     byte keyRaw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
 #endif
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_CRYPTOCELL)
+    defined(WOLFSSL_MICROCHIP_TA100) || defined(WOLFSSL_CRYPTOCELL)
     word32 keySz = 0;
 #endif
 
@@ -11519,7 +11552,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     /* For SECP256R1 only save raw public key for hardware */
     if (err == MP_OKAY && curve_id == ECC_SECP256R1) {
         keySz = key->dp->size;
@@ -11604,7 +11638,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     /* import private key */
     if (err == MP_OKAY) {
         if (d != NULL) {
-        #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+        #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+            defined(WOLFSSL_MICROCHIP_TA100)
             /* Hardware doesn't support loading private key */
             err = NOT_COMPILED_IN;
 
@@ -11672,9 +11707,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #endif
 
         #endif /* #else-case of custom HW-specific implementations */
-            if (mp_iszero(key->k) || mp_isneg(key->k)) {
-                WOLFSSL_MSG("Invalid private key");
-                err = BAD_FUNC_ARG;
+            if (err == MP_OKAY) {
+                if (mp_iszero(key->k) || mp_isneg(key->k)) {
+                    WOLFSSL_MSG("Invalid private key");
+                    err = BAD_FUNC_ARG;
+                }
             }
         } else {
             key->type = ECC_PUBLICKEY;
@@ -14866,6 +14903,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
 #ifdef HAVE_COMP_KEY
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100) && \
     !defined(WOLFSSL_CRYPTOCELL)
 
 #ifndef WOLFSSL_SP_MATH

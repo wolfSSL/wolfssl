@@ -49,7 +49,8 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif /* WOLFSSL_ATECC508A */
 
@@ -175,7 +176,8 @@ enum {
     ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
 
     /* max crypto hardware size */
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
 #elif defined(PLUTON_CRYPTO_ECC)
@@ -541,7 +543,8 @@ struct ecc_key {
     word32 keyId;
     byte   keyIdSet;
 #endif
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
@@ -718,8 +721,11 @@ WOLFSSL_LOCAL
 int wc_ecc_shared_secret_gen_sync(ecc_key* private_key,
     ecc_point* point, byte* out, word32* outlen);
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(PLUTON_CRYPTO_ECC) && !defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+    defined(WOLFSSL_MICROCHIP_TA100) || \
+    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+#define wc_ecc_shared_secret_ssh wc_ecc_shared_secret
+#else
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */
 #endif
 
@@ -836,7 +842,8 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
 int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_MICROCHIP_TA100)
 WOLFSSL_API
 int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
