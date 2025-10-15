@@ -69,7 +69,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
-
+#ifdef WOLFSSL_MICROCHIP_TA100
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+#endif
 #ifdef WOLFSSL_CMAC
     #include <wolfssl/wolfcrypt/cmac.h>
 #endif
@@ -5204,7 +5206,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             return ret;
         }
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+        ret = wc_Microchip_aes_set_key(aes, userKey, keylen, iv, dir);
+        if (ret == 0) {
+            ret = wc_AesSetIV(aes, iv);
+        }
+        return ret;
+#endif
         XMEMCPY(aes->key, userKey, keylen);
 
 #ifndef WC_AES_BITSLICED
@@ -10034,7 +10042,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authTag, authTagSz,
         authIn, authInSz);
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    return wc_Microchip_AesGcmEncrypt(
+        aes, out, in, sz,
+        iv, ivSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+#endif
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
         aes, out, in, sz, iv, ivSz,
@@ -10758,6 +10772,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes, out, in, sz, iv, ivSz,
         authTag, authTagSz, authIn, authInSz);
 
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    return wc_Microchip_AesGcmDecrypt(
+        aes, out, in, sz, iv, ivSz,
+        authTag, authTagSz, authIn, authInSz);
 #endif
 
 #ifdef STM32_CRYPTO_AES_GCM
@@ -13676,7 +13695,9 @@ void wc_AesFree(Aes* aes)
         se050_aes_free(aes);
     }
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100) && defined(WOLFSSL_MICROCHIP_AESGCM)
+    wc_Microchip_aes_free(aes);
+#endif
 #if defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     wc_psa_aes_free(aes);
 #endif
