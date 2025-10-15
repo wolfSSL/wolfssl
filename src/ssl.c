@@ -11549,15 +11549,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
             byte* myBuffer  = staticBuffer;
             int   dynamic   = 0;
-            word32 sending   = 0;
-            int   idx       = 0;
+            size_t sending   = 0;
+            size_t idx       = 0;
             int   i;
             int   ret;
 
             WOLFSSL_ENTER("wolfSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                sending += iov[i].iov_len;
+                if (! WC_SAFE_SUM_UNSIGNED(size_t, sending, iov[i].iov_len,
+                                           sending))
+                    return BUFFER_E;
 
             if (sending > sizeof(staticBuffer)) {
                 myBuffer = (byte*)XMALLOC(sending, ssl->heap,

@@ -13706,8 +13706,12 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    (void)WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak);
+    if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
+                             stream->bytes_crypted_with_this_tweak))
+    {
+        WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
+                    "in AesXtsEncryptUpdate().");
+    }
 #endif
 #if FIPS_VERSION3_GE(6,0,0)
     /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
@@ -14144,15 +14148,20 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-    if (stream->bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))
+    if (stream->bytes_crypted_with_this_tweak &
+        ((word32)WC_AES_BLOCK_SIZE - 1U))
     {
-        WOLFSSL_MSG("Call to AesXtsDecryptUpdate after previous finalizing call");
+        WOLFSSL_MSG("AesXtsDecryptUpdate after previous finalizing call");
         return BAD_FUNC_ARG;
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    (void)WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak);
+    if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
+                             stream->bytes_crypted_with_this_tweak))
+    {
+        WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
+                    "in AesXtsDecryptUpdate().");
+    }
 #endif
 
     {

@@ -10613,8 +10613,11 @@ static void AddHandShakeHeader(byte* output, word32 length,
     if (hs == NULL)
         return;
 
+    PRAGMA_GCC_DIAG_PUSH;
+    PRAGMA_GCC("GCC diagnostic ignored \"-Wnull-dereference\"");
     hs->type = type;
     c32to24(length, hs->length);         /* type and length same for each */
+    PRAGMA_GCC_DIAG_POP;
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         DtlsHandShakeHeader* dtls;
@@ -14705,7 +14708,10 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             if (idx >= 0) {
                 WOLFSSL_MSG("find hashed CRL in list");
                 ph = wolfSSL_sk_BY_DIR_HASH_value(entry->hashes, idx);
-                suffix = ph->last_suffix;
+                if (ph)
+                    suffix = ph->last_suffix;
+                else
+                    suffix = 0;
             } else {
                 ph = NULL;
                 suffix = 0;
@@ -23309,6 +23315,8 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     /* get output buffer */
     output = GetOutputBuffer(ssl);
+    if (output == NULL)
+        return BUFFER_E;
 
     AddRecordHeader(output, 1, change_cipher_spec, ssl, CUR_ORDER);
 
