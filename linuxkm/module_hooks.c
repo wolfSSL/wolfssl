@@ -381,7 +381,6 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
     extern int linuxkm_op_test_1(int argc, const char* argv[]);
     extern int linuxkm_op_test_wrapper(void);
     static void *my_kallsyms_lookup_name(const char *name);
-    static enum FipsModeId *fipsMode_ptr = NULL;
     static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
     static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
                                        const char *buf, size_t count);
@@ -606,12 +605,6 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifdef FIPS_OPTEST
-    fipsMode_ptr = (enum FipsModeId *)my_kallsyms_lookup_name("fipsMode");
-    if (fipsMode_ptr == NULL) {
-        pr_err("ERROR: couldn't obtain fipsMode_ptr.\n");
-        return -ECANCELED;
-    }
-
     conTestFailure_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("conTestFailure");
     if (conTestFailure_ptr == NULL) {
         pr_err("ERROR: couldn't obtain conTestFailure_ptr.\n");
@@ -626,11 +619,12 @@ static int wolfssl_init(void)
 
 #ifdef FIPS_OPTEST_FULL_RUN_AT_MODULE_INIT
     (void)linuxkm_op_test_wrapper();
-    *fipsMode_ptr = FIPS_MODE_INIT;
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    for (i = 0; i < FIPS_CAST_COUNT; ++i)
+        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
     /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
-     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) may be degraded
-     * after the op_test() run.
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
+     * anymore.
      */
     fipsEntry();
     ret = wolfCrypt_GetStatus_fips();
@@ -1655,6 +1649,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     const char *argv[2];
     char code_buf[5];
     size_t corrected_count;
+    int i;
 
     (void)kobj;
     (void)attr;
@@ -1689,11 +1684,12 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     /* reload the library in memory and re-init state */
     printf("Reloading the module in memory (equivalent to power "
            "cycle)\n");
-    *fipsMode_ptr = FIPS_MODE_INIT;
     WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    for (i = 0; i < FIPS_CAST_COUNT; ++i)
+        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
     /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
-     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) may be degraded
-     * after the op_test() run.
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
+     * anymore.
      */
     fipsEntry();
     ret = wolfCrypt_GetStatus_fips();
