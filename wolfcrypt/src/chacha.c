@@ -67,10 +67,7 @@ Public domain.
 #endif /* HAVE_CHACHA */
 
 
-#if defined(WOLFSSL_ARMASM) && !defined(NO_CHACHA_ASM)
-    /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
-
-#elif defined(WOLFSSL_RISCV_ASM) && !defined(NO_CHACHA_ASM)
+#if defined(WOLFSSL_RISCV_ASM) && !defined(NO_CHACHA_ASM)
     /* implementation located in wolfcrypt/src/port/riscv/riscv-64-chacha.c */
 
 #else
@@ -118,38 +115,50 @@ Public domain.
   */
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
+#if !defined(WOLFSSL_ARMASM)
     word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
-
+#endif
 
     if (ctx == NULL || inIv == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
-
     ctx->left = 0; /* resets state */
-    ctx->X[CHACHA_MATRIX_CNT_IV+0] = counter;           /* block counter */
-    ctx->X[CHACHA_MATRIX_CNT_IV+1] = LITTLE32(temp[0]); /* fixed variable from nonce */
-    ctx->X[CHACHA_MATRIX_CNT_IV+2] = LITTLE32(temp[1]); /* counter from nonce */
-    ctx->X[CHACHA_MATRIX_CNT_IV+3] = LITTLE32(temp[2]); /* counter from nonce */
+
+#if !defined(WOLFSSL_ARMASM)
+    XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
+    /* block counter */
+    ctx->X[CHACHA_MATRIX_CNT_IV+0] = counter;
+    /* fixed variable from nonce */
+    ctx->X[CHACHA_MATRIX_CNT_IV+1] = LITTLE32(temp[0]);
+    /* counter from nonce */
+    ctx->X[CHACHA_MATRIX_CNT_IV+2] = LITTLE32(temp[1]);
+    /* counter from nonce */
+    ctx->X[CHACHA_MATRIX_CNT_IV+3] = LITTLE32(temp[2]);
+#else
+    wc_chacha_setiv(ctx->X, inIv, counter);
+#endif
 
     return 0;
 }
 
+#if !defined(WOLFSSL_ARMASM)
 /* "expand 32-byte k" as unsigned 32 byte */
 static const word32 sigma[4] = {0x61707865, 0x3320646e, 0x79622d32, 0x6b206574};
 /* "expand 16-byte k" as unsigned 16 byte */
 static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
+#endif
 
 /**
   * Key setup. 8 word iv (nonce)
   */
 int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
+#if !defined(WOLFSSL_ARMASM)
     const word32* constants;
     const byte*   k;
-
 #ifdef XSTREAM_ALIGN
     word32 alignKey[8];
+#endif
 #endif
 
     if (ctx == NULL || key == NULL)
@@ -158,6 +167,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     if (keySz != (CHACHA_MAX_KEY_SZ/2) && keySz != CHACHA_MAX_KEY_SZ)
         return BAD_FUNC_ARG;
 
+#if !defined(WOLFSSL_ARMASM)
 #ifdef XSTREAM_ALIGN
     if ((wc_ptr_t)key % 4) {
         WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
@@ -201,12 +211,16 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->X[ 1] = constants[1];
     ctx->X[ 2] = constants[2];
     ctx->X[ 3] = constants[3];
+#else
+    wc_chacha_setkey(ctx->X, key, keySz);
+#endif
+
     ctx->left = 0; /* resets state */
 
     return 0;
 }
 
-#ifndef USE_INTEL_CHACHA_SPEEDUP
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
 /**
   * Converts word into bytes with rotations having been done.
   */
@@ -253,7 +267,7 @@ extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
 #endif
 
 
-#ifndef USE_INTEL_CHACHA_SPEEDUP
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
 /**
   * Encrypt a stream of bytes
   */
@@ -351,12 +365,29 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         chacha_encrypt_x64(ctx, input, output, msglen);
         return 0;
     }
+#elif defined(WOLFSSL_ARMASM)
+    /* Handle left over bytes from last block. */
+    if ((msglen > 0) && (ctx->left > 0)) {
+        byte* over = ((byte*)ctx->over) + CHACHA_CHUNK_BYTES - ctx->left;
+        word32 l = min(msglen, ctx->left);
+
+        wc_chacha_use_over(over, output, input, l);
+
+        ctx->left -= l;
+        input += l;
+        output += l;
+        msglen -= l;
+    }
+
+    if (msglen != 0) {
+        wc_chacha_crypt_bytes(ctx, output, input, msglen);
+    }
+    return 0;
 #else
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
     return 0;
 #endif
 }
-
 #endif /* HAVE_CHACHA */
 #endif /* END ChaCha C implementation */
 

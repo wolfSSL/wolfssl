@@ -232,16 +232,17 @@ struct wc_Sha512 {
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #ifdef WOLFSSL_ARMASM
-#ifdef __aarch64__
-    void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data,
-        word32 len);
+#if !defined(WOLFSSL_ARMASM_NO_NEON)
+WOLFSSL_LOCAL void Transform_Sha512_Len_neon(wc_Sha512* sha512,
+    const byte* data, word32 len);
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
-    void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
-        word32 len);
+WOLFSSL_LOCAL void Transform_Sha512_Len_crypto(wc_Sha512* sha512,
+    const byte* data, word32 len);
 #endif
-#else
-extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
-    word32 len);
+#endif
+#ifndef __aarch64__
+WOLFSSL_LOCAL void Transform_Sha512_Len_base(wc_Sha512* sha512,
+    const byte* data, word32 len);
 #endif
 #endif
 
