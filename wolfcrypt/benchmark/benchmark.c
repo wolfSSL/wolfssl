@@ -819,7 +819,6 @@ static WC_INLINE void bench_append_memory_info(char* buffer, size_t size,
 #define TEST_STRING    "Everyone gets Friday off."
 #define TEST_STRING_SZ 25
 
-
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
  * Each algorithm has a unique value for its type e.g. cipher.
@@ -2078,7 +2077,8 @@ static const char* bench_result_words2[][6] = {
     static volatile int g_threadCount;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(WC_USE_DEVID)
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_CAAM) || defined(WC_USE_DEVID)  || \
+    defined(WOLFSSL_MICROCHIP_TA100)
     #ifndef NO_HW_BENCH
         #define BENCH_DEVID
     #endif
@@ -9999,8 +9999,12 @@ exit_rsa_sign:
                                           1, &times, ntimes, &pending)) {
                     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                         !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-                        ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
+                        #if defined(WOLFSSL_MICROCHIP_TA100)
+                            ret = wc_RsaSSL_Verify(message, len, enc[i], rsaKeySz/8, rsaKey[i]);
+                        #else
+                            ret = wc_RsaSSL_Verify(enc[i], idx, out[i],
                                                       rsaKeySz/8, rsaKey[i]);
+                        #endif
                     #elif defined(USE_CERT_BUFFERS_2048)
                         XMEMCPY(enc[i], rsa_2048_sig, sizeof(rsa_2048_sig));
                         idx = sizeof(rsa_2048_sig);
@@ -10136,6 +10140,13 @@ void bench_rsa(int useDeviceID)
 #else
         /* Note: To benchmark public only define WOLFSSL_PUBLIC_MP */
         rsaKeySz = 0;
+#endif
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        /* Create new keys since you cannot import a private key to TA100 */
+        ret = wc_MakeRsaKey(rsaKey[i], rsaKeySz, WC_RSA_EXPONENT, &gRng);
+        if (ret) {
+            goto exit;
+        }
 #endif
     }
 
@@ -12158,6 +12169,9 @@ void bench_ecc(int useDeviceID, int curveId)
         if ((ret = wc_ecc_init_ex(genKey[i], HEAP_HINT, deviceID)) < 0) {
             goto exit;
         }
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        genKey[i]->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ALICE);
+#endif
         ret = wc_ecc_make_key_ex(&gRng, keySize, genKey[i], curveId);
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wc_AsyncWait(ret, &genKey[i]->asyncDev, WC_ASYNC_FLAG_NONE);
@@ -12170,6 +12184,9 @@ void bench_ecc(int useDeviceID, int curveId)
         if ((ret = wc_ecc_init_ex(genKey2[i], HEAP_HINT, deviceID)) < 0) {
             goto exit;
         }
+#if defined(WOLFSSL_MICROCHIP_TA100)
+        genKey2[i]->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_BOB);
+#endif
         if ((ret = wc_ecc_make_key_ex(&gRng, keySize, genKey2[i],
                     curveId)) > 0) {
             goto exit;
@@ -12366,7 +12383,10 @@ exit:
     WC_FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
     WC_FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
-
+#if defined(WOLFSSL_MICROCHIP_TA100)
+    atmel_ecc_free(ATMEL_SLOT_ECDHE_ALICE);
+    atmel_ecc_free(ATMEL_SLOT_ECDHE_BOB);
+#endif
     (void)useDeviceID;
     (void)pending;
     (void)x;
