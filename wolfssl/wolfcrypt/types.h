@@ -465,7 +465,7 @@ enum {
 #ifdef NO_INLINE
     #define WC_WUR_INT(x) (x)
 #else
-    WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
+    static WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
 #endif
 
 #ifdef WORD64_AVAILABLE
