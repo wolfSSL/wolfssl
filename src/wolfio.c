@@ -1508,8 +1508,13 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 #ifdef HAVE_SOCKADDR
     int ret = 0;
     SOCKADDR_S addr;
+#ifdef WOLFSSL_IPV6
+    socklen_t sockaddr_len = sizeof(SOCKADDR_IN6);
+    SOCKADDR_IN6 *sin = (SOCKADDR_IN6 *)&addr;
+#else
     socklen_t sockaddr_len = sizeof(SOCKADDR_IN);
     SOCKADDR_IN *sin = (SOCKADDR_IN *)&addr;
+#endif
 
     if (sockfd == NULL || port < 1) {
         return WOLFSSL_FATAL_ERROR;
@@ -1517,10 +1522,17 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
 
     XMEMSET(&addr, 0, sizeof(addr));
 
+#ifdef WOLFSSL_IPV6
+    sin->sin6_family = AF_INET6;
+    sin->sin6_addr = in6addr_any;
+    sin->sin6_port = XHTONS(port);
+    *sockfd = (SOCKET_T)socket(AF_INET6, SOCK_STREAM, 0);
+#else
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = INADDR_ANY;
     sin->sin_port = XHTONS(port);
     *sockfd = (SOCKET_T)socket(AF_INET, SOCK_STREAM, 0);
+#endif
 
 #ifdef USE_WINDOWS_API
     if (*sockfd == SOCKET_INVALID)
