@@ -1452,8 +1452,6 @@
         #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
     #endif
 
-    #include <wolfssl/wolfcrypt/memory.h>
-
 #ifdef WOLFSSL_TRACK_MEMORY
     #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); wolfSSL_Malloc(s);})
     #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
