@@ -80,8 +80,8 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
         case WC_ALGO_TYPE_CERT:   return "Cert";
-        case WC_ALGO_TYPE_KDF:
-            return "KDF";
+        case WC_ALGO_TYPE_KDF:    return "KDF";
+        case WC_ALGO_TYPE_COPY:   return "Copy";
     }
     return NULL;
 }
@@ -174,6 +174,16 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
+#ifndef NO_COPY_CB
+static const char* GetCryptoCbCopyTypeStr(int type)
+{
+    switch (type) {
+        case WC_CRYPTOCB_COPY_TYPE_SHA256:    return "SHA256-Copy";
+    }
+    return NULL;
+}
+#endif /* !NO_COPY_CB */
+
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || defined(HAVE_CMAC_KDF)
 static const char* GetKdfTypeStr(int type)
 {
@@ -251,6 +261,13 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
         printf("Crypto CB: %s %s (%d)\n",
             GetAlgoTypeStr(info->algo_type),
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
+    }
+#endif
+#ifndef NO_COPY_CB
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+        printf("Crypto CB: %s %s (%d)\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetCryptoCbCopyTypeStr(info->copy.type), info->copy.type);
     }
 #endif
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
@@ -2027,6 +2044,41 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+#ifndef NO_COPY_CB
+/* General copy callback function for algorithm structures
+ * devId: The device ID to use for the callback
+ * copyType: The type of structure being copied (enum wc_CryptoCbCopyType)
+ * src: Pointer to source structure
+ * dst: Pointer to destination structure
+ * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not handled
+ */
+int wc_CryptoCb_Copy(int devId, int copyType, void* src, void* dst)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Validate inputs */
+    if (src == NULL || dst == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_COPY);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_COPY;
+        cryptoInfo.copy.type = copyType;
+        cryptoInfo.copy.src = src;
+        cryptoInfo.copy.dst = dst;
+        
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+    
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* !NO_COPY_CB */
 
 
 #if defined(HAVE_CMAC_KDF)

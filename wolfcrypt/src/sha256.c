@@ -2576,6 +2576,20 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_COPY_CB)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (src->devId != INVALID_DEVID)
+    #endif
+    {
+        /* Cast the source and destination to be void to keep the abstraction */
+        ret = wc_CryptoCb_Copy(src->devId, WC_CRYPTOCB_COPY_TYPE_SHA256, 
+                               (void*)src, (void*)dst);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO

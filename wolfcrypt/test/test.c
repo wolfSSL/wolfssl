@@ -61295,6 +61295,43 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     }
 #endif /* !NO_SHA || !NO_SHA256 */
+#ifndef NO_COPY_CB
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+#ifdef DEBUG_WOLFSSL
+        WOLFSSL_MSG_EX("CryptoDevCb: Copy Type %d\n", info->copy.type);
+#endif
+        switch (info->copy.type) {
+#ifndef NO_SHA256
+            case WC_CRYPTOCB_COPY_TYPE_SHA256:
+            {
+                /* Cast the source and destination to the correct type */
+                /* Given as a void pointer initally for abstraction */
+                wc_Sha256* src = (wc_Sha256*)info->copy.src;
+                wc_Sha256* dst = (wc_Sha256*)info->copy.dst;
+                
+                /* set devId to invalid, so software is used */
+                src->devId = INVALID_DEVID;
+
+                ret = wc_Sha256Copy(src, dst);
+
+                /* reset devId */
+                src->devId = devIdArg;
+                if (ret == 0) {
+                    /* Set the devId of the destination to the same as the */
+                    /* since we used the software implementation of copy */
+                    /* so dst would have been set to INVALID_DEVID */
+                    dst->devId = devIdArg;
+                }
+
+                break;
+            }
+#endif /* !NO_SHA256 */
+            default:
+                ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                break;
+        }
+    }
+#endif /* !NO_COPY_CB */
 #ifndef NO_HMAC
     else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
         if (info->hmac.hmac == NULL)
