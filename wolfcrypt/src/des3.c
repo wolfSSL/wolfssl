@@ -1591,9 +1591,7 @@
                 }
             }
 
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+            WC_FREE_VAR_EX(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         return 0;

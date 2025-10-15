@@ -174,8 +174,8 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #if !defined(WOLFSSL_ASYNC_CRYPT) || defined(WC_ASYNC_NO_HASH)
     byte handshake_hash[HSHASH_SZ];
 #else
-    WC_DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
-    WC_ALLOC_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
+    byte* handshake_hash = NULL;
+    handshake_hash = XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_DIGEST);
     if (handshake_hash == NULL)
         return MEMORY_E;
 #endif
@@ -230,7 +230,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(handshake_hash, ssl->heap);
+    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(handshake_hash, HSHASH_SZ);
 #endif
@@ -403,8 +403,8 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 {
     int ret;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_DECLARE_VAR(seed, byte, SEED_LEN, heap);
-    WC_ALLOC_VAR(seed, byte, SEED_LEN, heap);
+    byte* seed = NULL;
+    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #else
@@ -441,7 +441,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(seed, heap);
+    XFREE(seed, heap, DYNAMIC_TYPE_SEED);
 #endif
 
     return ret;
@@ -464,18 +464,10 @@ int DeriveTlsKeys(WOLFSSL* ssl)
     int   key_dig_len = 2 * ssl->specs.hash_size +
                         2 * ssl->specs.key_size  +
                         2 * ssl->specs.iv_size;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* key_dig;
-#else
-    byte  key_dig[MAX_PRF_DIG];
-#endif
+    WC_DECLARE_VAR(key_dig, byte, MAX_PRF_DIG, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
-    if (key_dig == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
+        DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
     XMEMSET(key_dig, 0, MAX_PRF_DIG);
 
@@ -496,9 +488,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
     if (ret == 0)
         ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
-#endif
+    WC_FREE_VAR_EX(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -513,8 +503,8 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
 #if !defined(WOLFSSL_ASYNC_CRYPT) || defined(WC_ASYNC_NO_HASH)
     byte seed[SEED_LEN];
 #else
-    WC_DECLARE_VAR(seed, byte, SEED_LEN, heap);
-    WC_ALLOC_VAR(seed, byte, SEED_LEN, heap);
+    byte* seed = NULL;
+    seed = XMALLOC(SEED_LEN, heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #endif
@@ -543,7 +533,7 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
-    WC_FREE_VAR(seed, heap);
+    XFREE(seed, heap, DYNAMIC_TYPE_SEED);
 #endif
 
     return ret;
@@ -709,17 +699,10 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
                                                               const char* label)
 {
     int   ret;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* seed;
-#else
-    byte  seed[SEED_LEN];
-#endif
+    WC_DECLARE_VAR(seed, byte, SEED_LEN, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-    seed = (byte*)XMALLOC(SEED_LEN, ssl->heap, DYNAMIC_TYPE_SEED);
-    if (seed == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(seed, byte, SEED_LEN, ssl->heap, DYNAMIC_TYPE_SEED,
+        return MEMORY_E);
 
     /*
      * As per RFC-5281, the order of the client and server randoms is reversed
@@ -745,9 +728,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
     (void)label;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(seed, ssl->heap, DYNAMIC_TYPE_SEED);
-#endif
+    WC_FREE_VAR_EX(seed, ssl->heap, DYNAMIC_TYPE_SEED);
 
     return ret;
 }
@@ -5329,9 +5310,14 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
         SupportedCurve* serverGroup;
 
         ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
-        serverGroup = (SupportedCurve*)ext->data;
-
-        ret = tlsx_ffdhe_find_group(ssl, clientGroup, serverGroup);
+        if (ext == NULL) {
+            WOLFSSL_MSG("Could not find supported groups extension");
+            ret = 0;
+        }
+        else {
+            serverGroup = (SupportedCurve*)ext->data;
+            ret = tlsx_ffdhe_find_group(ssl, clientGroup, serverGroup);
+        }
     }
 
     TLSX_FreeAll(priority, ssl->heap);
@@ -7458,9 +7444,7 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
         if (didInit)
             FreeDecodedCert(cert);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-#endif
+        WC_FREE_VAR_EX(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
         if (ret != 0)
             return ret;
 
@@ -8440,11 +8424,7 @@ static int TLSX_KeyShare_GenPqcKeyClient(WOLFSSL *ssl, KeyShareEntry* kse)
     int ret = 0;
     int type = 0;
 #ifndef WOLFSSL_TLSX_PQC_MLKEM_STORE_OBJ
-    #ifdef WOLFSSL_SMALL_STACK
-        KyberKey *kem = NULL;
-    #else
-        KyberKey kem[1];
-    #endif
+        WC_DECLARE_VAR(kem, KyberKey, 1, 0);
     byte* privKey = NULL;
     word32 privSz = 0;
 #else
@@ -13117,10 +13097,8 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte msgType, byte* writeBuf,
                 wc_FreeRng(rng);
             if (ephemeralKey != NULL)
                 wc_HpkeFreeKey(hpke, hpke->kem, ephemeralKey, hpke->heap);
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(hpke, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+            WC_FREE_VAR_EX(hpke, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
         }
         else {
             /* only write enc if this is our first ech, no hpke context */
@@ -15007,11 +14985,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
     TLSX* echX = NULL;
     TLSX* serverNameX = NULL;
     TLSX** extensions = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    char* tmpServerName = NULL;
-#else
-    char tmpServerName[MAX_PUBLIC_NAME_SZ];
-#endif
+    WC_DECLARE_VAR(tmpServerName, char, MAX_PUBLIC_NAME_SZ, 0);
 
     /* calculate the rest of the extensions length with inner ech */
     if (ssl->extensions)
@@ -15086,9 +15060,7 @@ static int TLSX_GetSizeWithEch(WOLFSSL* ssl, byte* semaphore, byte msgType,
             ret = 0;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -15218,11 +15190,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
     TLSX* echX = NULL;
     TLSX* serverNameX = NULL;
     TLSX** extensions = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    char* tmpServerName = NULL;
-#else
-    char tmpServerName[MAX_PUBLIC_NAME_SZ];
-#endif
+    WC_DECLARE_VAR(tmpServerName, char, MAX_PUBLIC_NAME_SZ, 0);
 
     /* get the echX from either extensions or ctx */
     if (ssl->extensions)
@@ -15330,9 +15298,7 @@ static int TLSX_WriteWithEch(WOLFSSL* ssl, byte* output, byte* semaphore,
             ret = r;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(tmpServerName, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

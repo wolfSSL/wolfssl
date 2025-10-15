@@ -2152,6 +2152,9 @@ WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            word32 size, word32 totalSz, int sniff);
 #endif
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define DoApplicationData wolfSSL_DoApplicationData
+#endif
 WOLFSSL_TEST_VIS int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     int sniff);
 /* TLS v1.3 needs these */
@@ -2365,6 +2368,9 @@ typedef struct CipherSuite {
 #endif
 } CipherSuite;
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define InitSuitesHashSigAlgo wolfSSL_InitSuitesHashSigAlgo
+#endif
 WOLFSSL_TEST_VIS void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                        int tls1_2, int keySz, word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
@@ -4659,6 +4665,9 @@ WOLFSSL_LOCAL WOLFSSL_SESSION* wolfSSL_GetSession(
     WOLFSSL* ssl, byte* masterSecret, byte restoreSessionCerts);
 WOLFSSL_LOCAL void SetupSession(WOLFSSL* ssl);
 WOLFSSL_LOCAL void AddSession(WOLFSSL* ssl);
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define AddSessionToCache wolfSSL_AddSessionToCache
+#endif
 WOLFSSL_TEST_VIS int AddSessionToCache(WOLFSSL_CTX* ctx,
     WOLFSSL_SESSION* addSession, const byte* id, byte idSz, int* sessionIndex,
     int side, word16 useTicket, ClientSession** clientCacheEntry);
@@ -6716,6 +6725,11 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define DtlsMsgListDelete wolfSSL_DtlsMsgListDelete
+        #define DtlsMsgFind wolfSSL_DtlsMsgFind
+        #define DtlsMsgStore wolfSSL_DtlsMsgStore
+    #endif /* WOLFSSL_API_PREFIX_MAP */
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
     WOLFSSL_TEST_VIS void DtlsMsgListDelete(DtlsMsg* head, void* heap);
@@ -6917,6 +6931,9 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         int sizeOnly, int asyncOkay, int epochOrder);
 
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define BuildTls13Message wolfSSL_BuildTls13Message
+#endif
 WOLFSSL_TEST_VIS int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
 WOLFSSL_LOCAL int Tls13UpdateKeys(WOLFSSL* ssl);
@@ -6983,6 +7000,12 @@ WOLFSSL_LOCAL void DtlsSetSeqNumForReply(WOLFSSL* ssl);
 #endif
 
 #ifdef WOLFSSL_DTLS13
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define Dtls13GetEpoch wolfSSL_Dtls13GetEpoch
+        #define Dtls13CheckEpoch wolfSSL_Dtls13CheckEpoch
+        #define Dtls13WriteAckMessage wolfSSL_Dtls13WriteAckMessage
+        #define Dtls13RtxAddAck wolfSSL_Dtls13RtxAddAck
+    #endif
 
 WOLFSSL_TEST_VIS struct Dtls13Epoch* Dtls13GetEpoch(WOLFSSL* ssl,
     w64wrapper epochNumber);
@@ -7079,6 +7102,9 @@ typedef struct CRYPTO_EX_cb_ctx {
 } CRYPTO_EX_cb_ctx;
 
 WOLFSSL_TEST_VIS extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define crypto_ex_cb_free wolfSSL_crypto_ex_cb_free
+#endif
 WOLFSSL_TEST_VIS void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
 WOLFSSL_LOCAL void crypto_ex_cb_setup_new_data(void *new_obj,
         CRYPTO_EX_cb_ctx* cb_ctx, WOLFSSL_CRYPTO_EX_DATA* ex_data);

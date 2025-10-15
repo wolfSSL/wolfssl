@@ -125,11 +125,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x)
 {
     Signer* ca = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* cert = NULL;
-#else
-    DecodedCert  cert[1];
-#endif
+    WC_DECLARE_VAR(cert, DecodedCert, 1, 0);
 
     if (cm == NULL || x == NULL || x->derCert == NULL) {
         WOLFSSL_MSG("No cert DER buffer or NULL cm. Defining "
@@ -137,11 +133,8 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         return WOLFSSL_FAILURE;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
-        return WOLFSSL_FAILURE;
-#endif
+    WC_ALLOC_VAR_EX(cert, DecodedCert, 1, NULL, DYNAMIC_TYPE_DCERT,
+        return WOLFSSL_FAILURE);
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
     InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
@@ -157,9 +150,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
     #endif /* NO SKID */
     }
     FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
-#endif
+    WC_FREE_VAR_EX(cert, NULL, DYNAMIC_TYPE_DCERT);
 
     if (ca == NULL)
         return WOLFSSL_FAILURE;
@@ -514,7 +505,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
     failedCerts = wolfSSL_sk_X509_new_null();
     if (!failedCerts)
-        return WOLFSSL_FATAL_ERROR;
+        goto exit;
 
     if (ctx->depth > 0) {
         depth = ctx->depth + 1;
@@ -1669,11 +1660,7 @@ int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     WOLFSSL_CTX* ctx;
     char *name = NULL;
     int ret = WOLFSSL_SUCCESS;
-#ifdef WOLFSSL_SMALL_STACK
-    ReadDirCtx* readCtx = NULL;
-#else
-    ReadDirCtx  readCtx[1];
-#endif
+    WC_DECLARE_VAR(readCtx, ReadDirCtx, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_load_locations");
 
@@ -1749,9 +1736,7 @@ int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
             ret = WOLFSSL_FAILURE;
         }
 
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     ctx->cm = NULL;

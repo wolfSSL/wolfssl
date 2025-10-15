@@ -2162,10 +2162,8 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -2218,11 +2216,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
     SOCKET_T sfd = SOCKET_INVALID;
     word16   port;
     int      ret = -1;
-#ifdef WOLFSSL_SMALL_STACK
-    char*    domainName;
-#else
-    char     domainName[MAX_URL_ITEM_SIZE];
-#endif
+    WC_DECLARE_VAR(domainName, char, MAX_URL_ITEM_SIZE, 0);
 
 #ifdef WOLFSSL_SMALL_STACK
     domainName = (char*)XMALLOC(MAX_URL_ITEM_SIZE, crl->heap,
@@ -2264,9 +2258,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(domainName, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(domainName, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

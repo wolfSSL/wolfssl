@@ -764,21 +764,12 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 #endif
     }
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        LmsState* state;
-    #else
-        LmsState state[1];
-    #endif
+        WC_DECLARE_VAR(state, LmsState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, LmsState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
@@ -789,9 +780,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
                 wc_lmskey_state_free(state);
             }
             ForceZero(state, sizeof(LmsState));
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
     if (ret == 0) {
@@ -911,21 +900,12 @@ int wc_LmsKey_Reload(LmsKey* key)
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        LmsState* state;
-    #else
-        LmsState state[1];
-    #endif
+        WC_DECLARE_VAR(state, LmsState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, LmsState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
@@ -935,9 +915,7 @@ int wc_LmsKey_Reload(LmsKey* key)
                     key->priv_data, NULL);
             }
             ForceZero(state, sizeof(LmsState));
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -1010,21 +988,12 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        LmsState* state;
-    #else
-        LmsState state[1];
-    #endif
+        WC_DECLARE_VAR(state, LmsState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, LmsState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
@@ -1035,9 +1004,7 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
                 wc_lmskey_state_free(state);
             }
             ForceZero(state, sizeof(LmsState));
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
     if (ret == 0) {
@@ -1288,21 +1255,12 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
     }
 
     if (ret == 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-        LmsState* state;
-    #else
-        LmsState state[1];
-    #endif
+        WC_DECLARE_VAR(state, LmsState, 1, 0);
 
-    #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
-        if (state == NULL) {
-            ret = MEMORY_E;
-        }
-        if (ret == 0)
-    #endif
+        WC_ALLOC_VAR_EX(state, LmsState, 1, NULL, DYNAMIC_TYPE_TMP_BUFFER,
+            ret=MEMORY_E);
+        if (WC_VAR_OK(state))
         {
             /* Initialize working state for use. */
             ret = wc_lmskey_state_init(state, key->params);
@@ -1312,9 +1270,7 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
                 wc_lmskey_state_free(state);
             }
             ForceZero(state, sizeof(LmsState));
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 

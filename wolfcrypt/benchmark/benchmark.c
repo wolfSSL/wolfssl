@@ -69,6 +69,9 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WOLFSSL_SMALL_STACK
+#endif
 #define WC_ALLOC_DO_ON_FAILURE() do { printf("out of memory at benchmark.c L %d\n", __LINE__); ret = MEMORY_E; goto exit; } while (0)
 
 #include <wolfssl/wolfcrypt/types.h>
@@ -9000,12 +9003,12 @@ static void bench_rsa_helper(int useDeviceID,
     WC_DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
     WC_DECLARE_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
-                                 rsaKeySz, HEAP_HINT);
+                                 rsaKeySz/8, HEAP_HINT);
 
 #if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
     WC_DECLARE_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                    rsaKeySz, HEAP_HINT);
+                                    rsaKeySz/8, HEAP_HINT);
 #else
     byte* out[BENCH_MAX_PENDING];
 #endif
@@ -9013,12 +9016,12 @@ static void bench_rsa_helper(int useDeviceID,
     XMEMSET(out, 0, sizeof(out));
 
     WC_ALLOC_HEAP_ARRAY(enc, byte, BENCH_MAX_PENDING,
-                                 rsaKeySz, HEAP_HINT);
+                                 rsaKeySz/8, HEAP_HINT);
 
 #if (!defined(WOLFSSL_RSA_VERIFY_INLINE) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))
     WC_ALLOC_HEAP_ARRAY(out, byte, BENCH_MAX_PENDING,
-                                    rsaKeySz, HEAP_HINT);
+                                    rsaKeySz/8, HEAP_HINT);
     if (out[0] == NULL) {
         ret = MEMORY_E;
         goto exit;
@@ -9912,10 +9915,8 @@ void bench_mlkem(int type)
     wc_KyberKey_Free(key2);
     wc_KyberKey_Free(key1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif
 

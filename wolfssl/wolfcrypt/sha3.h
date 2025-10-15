@@ -117,8 +117,22 @@ enum {
     #include <wolfssl/wolfcrypt/port/af_alg/afalg_hash.h>
 #else
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+
+    #include "cy_crypto_core_sha.h"
+    #include "cy_device_headers.h"
+    #include "cy_crypto_common.h"
+    #include "cy_crypto_core.h"
+#endif
+
 /* Sha3 digest */
 struct wc_Sha3 {
+#if defined(PSOC6_HASH_SHA3)
+    cy_stc_crypto_sha_state_t hash_state;
+    cy_stc_crypto_v2_sha3_buffers_t sha_buffers;
+    bool init_done;
+#else
     /* State data that is processed for each block. */
     word64 s[25];
     /* Unprocessed message data. */
@@ -146,6 +160,7 @@ struct wc_Sha3 {
 #endif
 #if defined(STM32_HASH_SHA3)
     STM32_HASH_Context stmCtx;
+#endif
 #endif
 };
 

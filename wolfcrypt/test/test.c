@@ -43,6 +43,10 @@
     #define WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #define WOLFSSL_SMALL_STACK
+#endif
+
 #if !defined(NO_CRYPT_TEST) || defined(WC_TEST_EXPORT_SUBTESTS)
 
 #include <wolfssl/version.h>
@@ -79,7 +83,7 @@
 #endif
 #endif
 
-const byte const_byte_array[] = "A+Gd\0\0\0";
+static const byte const_byte_array[] = "A+Gd\0\0\0";
 #define CBPTR_EXPECTED 'A'
 
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -608,14 +612,12 @@ static                  wc_test_ret_t  hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hkdf_test(void);
 #endif
 #endif /* HAVE_HKDF && ! NO_HMAC */
-#ifdef WOLFSSL_HAVE_PRF
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#endif
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
@@ -1921,27 +1923,26 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = prf_test()) != 0)
         TEST_FAIL("PRF         test failed!\n", ret);
     else
         TEST_PASS("PRF         test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_HAVE_PRF
-#if defined (HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = tls12_kdf_test()) != 0)
         TEST_FAIL("TLSv1.2 KDF test failed!\n", ret);
     else
         TEST_PASS("TLSv1.2 KDF test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
+       /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
     PRIVATE_KEY_UNLOCK();
@@ -2866,7 +2867,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 {
     const char* errStr;
-    char        out[WOLFSSL_MAX_ERROR_SZ];
+    char        out[WOLFSSL_MAX_ERROR_SZ]; /* test fails if too small, < 64 */
     const char* unknownStr = wc_GetErrorString(0);
 
 #ifdef NO_ERROR_STRINGS
@@ -4071,11 +4072,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #endif
 #ifndef NO_LARGE_HASH_TEST
 #define LARGE_HASH_TEST_INPUT_SZ 1024
-#ifdef WOLFSSL_SMALL_STACK
-    byte *large_input = NULL;
-#else
-    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
-#endif
+    WC_DECLARE_VAR(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, 0);
 #endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -4227,14 +4224,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
            "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (large_input == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
-    }
-#endif
+    WC_ALLOC_VAR_EX(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER,
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E),exit));
 
     for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -4323,11 +4315,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
 #endif
 #ifndef NO_LARGE_HASH_TEST
 #define LARGE_HASH_TEST_INPUT_SZ 1024
-#ifdef WOLFSSL_SMALL_STACK
-    byte *large_input = NULL;
-#else
-    byte large_input[LARGE_HASH_TEST_INPUT_SZ];
-#endif
+    WC_DECLARE_VAR(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, 0);
 #endif
 
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -4476,14 +4464,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
         "\xa5\xdc\xfc\xfa\x9d\x1a\x4d\xc0\xfa\x3a\x14\xf6\x01\x51\x90\xa4";
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    large_input = (byte *)XMALLOC(LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
-                                  DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (large_input == NULL) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), exit);
-    }
-#endif
+    WC_ALLOC_VAR_EX(large_input, byte, LARGE_HASH_TEST_INPUT_SZ, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER,
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E),exit));
 
     for (i = 0; i < LARGE_HASH_TEST_INPUT_SZ; i++) {
         large_input[i] = (byte)(i & 0xFF);
@@ -21006,11 +20989,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        || out == NULL || plain == NULL
-    #endif
-    ) {
+    if (tmp == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa_nopadding);
     }
 
@@ -28154,7 +28133,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sshkdf_test(void)
 
 #endif /* WOLFSSL_WOLFSSH */
 
-#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+#if defined(WOLFSSL_HAVE_PRF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_SHA384) && !defined(WOLFSSL_NO_TLS12)
 #define DIGL 12
 #define SECL 48
 #define LBSL 63
@@ -28203,11 +28183,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
 
     return 0;
 }
-#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC */
+#endif /* WOLFSSL_HAVE_PRF && !NO_HMAC && WOLFSSL_SHA384 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_HAVE_PRF
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
-#ifdef WOLFSSL_BASE16
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_HKDF) && !defined(NO_HMAC) && \
+    defined(WOLFSSL_BASE16) && !defined(WOLFSSL_NO_TLS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 {
     const char* preMasterSecret = "D06F9C19BFF49B1E91E4EFE97345D089"
@@ -28252,16 +28231,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
         if (ret == WC_NO_ERR_TRACE(FIPS_PRIVATE_KEY_LOCKED_E)) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
         }
-        return WC_TEST_RET_ENC_NC;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     if (XMEMCMP(result, ms, msSz) != 0)
         return WC_TEST_RET_ENC_NC;
     return 0;
 }
-#endif /* WOLFSSL_BASE16 */
-#endif /* WOLFSSL_HAVE_HKDF && !NO_HMAC */
-#endif /* WOLFSSL_HAVE_PRF */
+#endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
+       /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
 
@@ -29229,9 +29207,7 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
     if (receiverKey != NULL)
         wc_HpkeFreeKey(hpke, hpke->kem, receiverKey, hpke->heap);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(pubKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (rngRet == 0)
         wc_FreeRng(rng);
@@ -30446,11 +30422,7 @@ done:
 static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 {
     wc_test_ret_t ret;
-#ifdef WOLFSSL_SMALL_STACK
-    ecc_key *key = NULL;
-#else
-    ecc_key key[1];
-#endif
+    WC_DECLARE_VAR(key, ecc_key, 1, 0);
     int key_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
@@ -30508,11 +30480,8 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     };
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    key = (ecc_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(key, ecc_key, 1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER,
+        return MEMORY_E);
 
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0)
@@ -30553,9 +30522,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 done:
     if (key_inited)
         wc_ecc_free(key);
- #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
    return ret;
 }
 #endif /* NO_ECC256 || HAVE_ALL_CURVES */
@@ -30730,13 +30697,11 @@ done:
         mp_free(expR);
         mp_free(expS);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -30874,13 +30839,11 @@ done:
         mp_free(expR);
         mp_free(expS);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(r, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(s, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expR, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(expS, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

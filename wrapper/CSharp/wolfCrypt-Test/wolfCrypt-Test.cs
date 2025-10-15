@@ -471,6 +471,7 @@ public class wolfCrypt_Test_CSharp
         IntPtr key = IntPtr.Zero;
         byte[] privKey;
         byte[] pubKey;
+        uint pubKeySz;
 
         Console.WriteLine("\nStarting ED25519 tests...");
 
@@ -537,8 +538,33 @@ public class wolfCrypt_Test_CSharp
         }
         Console.WriteLine("ED25519 Signature Verification test passed.");
 
+        /* test importing a raw public key */
+        ret = wolfcrypt.Ed25519ExportPublic(key, pubKey, out pubKeySz);
+        if (ret < 0 || pubKey == null) {
+            throw new Exception("Ed25519ExportPublic failed");
+        }
+        Console.WriteLine("ED25519 Export Raw Public test passed.");
+
+        if (importedPubKey != IntPtr.Zero) {
+            wolfcrypt.Ed25519FreeKey(importedPubKey);
+        }
+        ret = wolfcrypt.Ed25519ImportPublic(pubKey, pubKeySz, out importedPubKey);
+        if (importedPubKey == IntPtr.Zero) {
+            throw new Exception("Ed25519ImportPublic failed");
+        }
+        Console.WriteLine("ED25519 Import Raw Public test passed.");
+
         /* Cleanup */
-        if (key != IntPtr.Zero) wolfcrypt.Ed25519FreeKey(key);
+        if (key != IntPtr.Zero) {
+            wolfcrypt.Ed25519FreeKey(key);
+        }
+        if (importedPubKey != IntPtr.Zero) {
+            wolfcrypt.Ed25519FreeKey(importedPubKey);
+        }
+        if (importedPrivKey != IntPtr.Zero) {
+            wolfcrypt.Ed25519FreeKey(importedPrivKey);
+        }
+
     } /* END ed25519_test */
 
     private static void curve25519_test()

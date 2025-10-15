@@ -15214,6 +15214,102 @@ int wolfSSL_set_client_cert_type(WOLFSSL* ssl, const char* buf, int len);
 int wolfSSL_set_server_cert_type(WOLFSSL* ssl, const char* buf, int len);
 
 /*!
+    \ingroup Setup
+
+    \brief Enables handshake message grouping for the given WOLFSSL_CTX context.
+
+    This function turns on handshake message grouping for all SSL objects created from the specified context.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+
+    \param ctx Pointer to the WOLFSSL_CTX structure.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    wolfSSL_CTX_set_group_messages(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_clear_group_messages
+    \sa wolfSSL_set_group_messages
+    \sa wolfSSL_clear_group_messages
+*/
+int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables handshake message grouping for the given WOLFSSL_CTX context.
+
+    This function turns off handshake message grouping for all SSL objects created from the specified context.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ctx is NULL.
+
+    \param ctx Pointer to the WOLFSSL_CTX structure.
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    wolfSSL_CTX_clear_group_messages(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_group_messages
+    \sa wolfSSL_set_group_messages
+    \sa wolfSSL_clear_group_messages
+*/
+int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables handshake message grouping for the given WOLFSSL object.
+
+    This function turns on handshake message grouping for the specified SSL object.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl Pointer to the WOLFSSL structure.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_set_group_messages(ssl);
+    \endcode
+
+    \sa wolfSSL_clear_group_messages
+    \sa wolfSSL_CTX_set_group_messages
+    \sa wolfSSL_CTX_clear_group_messages
+*/
+int wolfSSL_set_group_messages(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables handshake message grouping for the given WOLFSSL object.
+
+    This function turns off handshake message grouping for the specified SSL object.
+
+    \return WOLFSSL_SUCCESS on success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl Pointer to the WOLFSSL structure.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_clear_group_messages(ssl);
+    \endcode
+
+    \sa wolfSSL_set_group_messages
+    \sa wolfSSL_CTX_set_group_messages
+    \sa wolfSSL_CTX_clear_group_messages
+*/
+int wolfSSL_clear_group_messages(WOLFSSL* ssl);
+
+/*!
  \ingroup SSL
  \brief  This function returns the result of the client certificate type
  negotiation done in ClientHello and ServerHello. WOLFSSL_SUCCESS is returned as

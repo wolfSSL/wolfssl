@@ -102,6 +102,14 @@ static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #endif
 
+#if (!defined(NO_AES) && (defined(WOLFSSL_AES_COUNTER)))
+/* AES CTR parameter structure for PKCS#11. */
+typedef struct CK_AES_CTR_PARAMS {
+    CK_ULONG ulCounterBits;
+    CK_BYTE  cb[WC_AES_BLOCK_SIZE];
+} CK_AES_CTR_PARAMS;
+#endif
+
 static CK_OBJECT_CLASS certClass  = CKO_CERTIFICATE;
 
 #ifdef WOLFSSL_DEBUG_PKCS11
@@ -3184,19 +3192,11 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
     const unsigned char* publicKey, word32 pubKeySize)
 {
     int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        RsaKey* pub = NULL;
-    #else
-        RsaKey pub[1];
-    #endif
+        WC_DECLARE_VAR(pub, RsaKey, 1, 0);
     word32 keyIdx = 0;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        pub = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
-        if (pub == NULL) {
-            ret = MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(pub, RsaKey, 1, NULL, DYNAMIC_TYPE_RSA,
+            ret=MEMORY_E);
 
     if ((ret == 0) && (ret = wc_InitRsaKey(pub, NULL)) == 0) {
         if (ret == 0) {
@@ -3214,9 +3214,7 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
         }
         wc_FreeRsaKey(pub);
     }
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
-    #endif
+        WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_RSA);
 
     return ret;
 }
@@ -3330,19 +3328,11 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
     const unsigned char* publicKey, word32 pubKeySize)
 {
     int ret = 0;
-    #ifdef WOLFSSL_SMALL_STACK
-        ecc_key* pub = NULL;
-    #else
-        ecc_key pub[1];
-    #endif
+        WC_DECLARE_VAR(pub, ecc_key, 1, 0);
     word32 keyIdx = 0;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        pub = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-        if (pub == NULL) {
-            ret = MEMORY_E;
-        }
-    #endif
+        WC_ALLOC_VAR_EX(pub, ecc_key, 1, NULL, DYNAMIC_TYPE_ECC,
+            ret=MEMORY_E);
 
     if ((ret == 0) && (ret = wc_ecc_init(pub)) == 0) {
         ret = wc_EccPublicKeyDecode(publicKey, &keyIdx, pub, pubKeySize);
@@ -3359,9 +3349,7 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
         }
         wc_ecc_free(pub);
     }
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
-    #endif
+        WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -3775,6 +3763,172 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
     return ret;
 }
+
+#endif
+
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+/**
+ * Performs the AES-CTR encryption operation.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
+ */
+static int Pkcs11AesCtrEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int                ret = 0;
+    CK_RV              rv;
+    Aes*               aes = info->cipher.aesctr.aes;
+    CK_MECHANISM_INFO  mechInfo;
+    CK_AES_CTR_PARAMS  params;
+    CK_OBJECT_HANDLE   key = NULL_PTR;
+    CK_MECHANISM       mech;
+    CK_ULONG           outLen;
+
+    /* Check operation is supported. */
+    rv = session->func->C_GetMechanismInfo(session->slotId, CKM_AES_CTR,
+                                                                     &mechInfo);
+    PKCS11_RV("C_GetMechanismInfo", rv);
+    if (rv != CKR_OK || (mechInfo.flags & CKF_ENCRYPT) == 0)
+        ret = NOT_COMPILED_IN;
+
+    if (ret == 0) {
+        WOLFSSL_MSG("PKCS#11: AES-CTR Encryption Operation");
+
+        /* Create a private key object or find by id. */
+        if (aes->idLen == 0 && aes->labelLen == 0) {
+            ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
+                                        (unsigned char*)aes->devKey,
+                                        aes->keylen, NULL, 0, NULL, 0,
+                                        CKA_ENCRYPT);
+        }
+        else if (aes->labelLen != 0) {
+            ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY, CKK_AES, session,
+                                       aes->label, aes->labelLen);
+        }
+        else {
+            ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, CKK_AES, session,
+                                    aes->id, aes->idLen);
+        }
+    }
+
+    if (ret == 0) {
+        XMEMSET(&params, 0, sizeof(params));
+        params.ulCounterBits = WC_AES_BLOCK_SIZE * 8;
+        XMEMCPY(params.cb, info->cipher.aesctr.aes->reg, WC_AES_BLOCK_SIZE);
+
+        mech.mechanism      = CKM_AES_CTR;
+        mech.ulParameterLen = sizeof(params);
+        mech.pParameter     = &params;
+
+        rv = session->func->C_EncryptInit(session->handle, &mech, key);
+        PKCS11_RV("C_EncryptInit", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
+        outLen = info->cipher.aesctr.sz;
+        rv = session->func->C_Encrypt(session->handle,
+                                      (CK_BYTE_PTR)info->cipher.aesctr.in,
+                                      info->cipher.aesctr.sz,
+                                      info->cipher.aesctr.out,
+                                      &outLen);
+        PKCS11_RV("C_Encrypt", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+
+    if (aes->idLen == 0 && aes->labelLen == 0 && key != NULL_PTR)
+        session->func->C_DestroyObject(session->handle, key);
+
+    return ret;
+}
+
+/**
+ * Performs the AES-CTR decryption operation.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
+ */
+static int Pkcs11AesCtrDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int                ret = 0;
+    CK_RV              rv;
+    Aes*               aes = info->cipher.aesctr.aes;
+    CK_MECHANISM_INFO  mechInfo;
+    CK_AES_CTR_PARAMS  params;
+    CK_OBJECT_HANDLE   key = NULL_PTR;
+    CK_MECHANISM       mech;
+    CK_ULONG           outLen;
+
+    /* Check operation is supported. */
+    rv = session->func->C_GetMechanismInfo(session->slotId, CKM_AES_CTR,
+                                                                     &mechInfo);
+    PKCS11_RV("C_GetMechanismInfo", rv);
+    if (rv != CKR_OK || (mechInfo.flags & CKF_DECRYPT) == 0)
+        ret = NOT_COMPILED_IN;
+
+    if (ret == 0) {
+        WOLFSSL_MSG("PKCS#11: AES-CTR Decryption Operation");
+
+        /* Create a private key object or find by id. */
+        if (aes->idLen == 0 && aes->labelLen == 0) {
+            ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
+                                        (unsigned char*)aes->devKey,
+                                        aes->keylen, NULL, 0, NULL, 0,
+                                        CKA_DECRYPT);
+        }
+        else if (aes->labelLen != 0) {
+            ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY, CKK_AES, session,
+                                       aes->label, aes->labelLen);
+        }
+        else {
+            ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, CKK_AES, session,
+                                    aes->id, aes->idLen);
+        }
+    }
+
+    if (ret == 0) {
+        XMEMSET(&params, 0, sizeof(params));
+        params.ulCounterBits = WC_AES_BLOCK_SIZE * 8;
+        XMEMCPY(params.cb, info->cipher.aesctr.aes->reg, WC_AES_BLOCK_SIZE);
+
+        mech.mechanism      = CKM_AES_CTR;
+        mech.ulParameterLen = sizeof(params);
+        mech.pParameter     = &params;
+
+        rv = session->func->C_DecryptInit(session->handle, &mech, key);
+        PKCS11_RV("C_DecryptInit", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+    if (ret == 0) {
+        outLen = info->cipher.aesctr.sz;
+        rv = session->func->C_Decrypt(session->handle,
+                                        (CK_BYTE_PTR)info->cipher.aesctr.in,
+                                        info->cipher.aesctr.sz,
+                                        info->cipher.aesctr.out,
+                                        &outLen);
+        PKCS11_RV("C_Decrypt", rv);
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+
+    if (aes->idLen == 0 && aes->labelLen == 0 && key != NULL_PTR)
+        session->func->C_DestroyObject(session->handle, key);
+
+    return ret;
+}
+
 #endif
 
 #ifndef NO_HMAC
@@ -4201,6 +4355,24 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         ret = Pkcs11OpenSession(token, &session, readWrite);
                         if (ret == 0) {
                             ret = Pkcs11AesCbcDecrypt(&session, info);
+                            Pkcs11CloseSession(token, &session);
+                        }
+                    }
+                    break;
+        #endif
+        #ifdef WOLFSSL_AES_COUNTER
+               case WC_CIPHER_AES_CTR:
+                    if (info->cipher.enc) {
+                        ret = Pkcs11OpenSession(token, &session, readWrite);
+                        if (ret == 0) {
+                            ret = Pkcs11AesCtrEncrypt(&session, info);
+                            Pkcs11CloseSession(token, &session);
+                        }
+                    }
+                    else {
+                        ret = Pkcs11OpenSession(token, &session, readWrite);
+                        if (ret == 0) {
+                            ret = Pkcs11AesCtrDecrypt(&session, info);
                             Pkcs11CloseSession(token, &session);
                         }
                     }

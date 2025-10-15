@@ -1344,11 +1344,7 @@ int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
 static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     word32* pHashSz)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Hmac* verifyHmac;
-#else
-    Hmac  verifyHmac[1];
-#endif
+    WC_DECLARE_VAR(verifyHmac, Hmac, 1, 0);
     int  hashType = WC_SHA256;
     int  hashSz = WC_SHA256_DIGEST_SIZE;
     int  ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
@@ -1401,12 +1397,8 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     WOLFSSL_BUFFER(hash, hashSz);
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    verifyHmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
-    if (verifyHmac == NULL) {
-        return MEMORY_E;
-    }
-#endif
+    WC_ALLOC_VAR_EX(verifyHmac, Hmac, 1, NULL, DYNAMIC_TYPE_HMAC,
+        return MEMORY_E);
 
     /* Calculate the verify data. */
     ret = wc_HmacInit(verifyHmac, ssl->heap, ssl->devId);
@@ -1419,9 +1411,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
         wc_HmacFree(verifyHmac);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(verifyHmac, NULL, DYNAMIC_TYPE_HMAC);
-#endif
+    WC_FREE_VAR_EX(verifyHmac, NULL, DYNAMIC_TYPE_HMAC);
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("  Hash");
@@ -1465,11 +1455,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
     int   ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG); /* Assume failure */
     int   i = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* key_dig;
-#else
-    byte  key_dig[MAX_PRF_DIG];
-#endif
+    WC_DECLARE_VAR(key_dig, byte, MAX_PRF_DIG, 0);
     int   provision;
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -1480,11 +1466,8 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
     ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG); /* Assume failure */
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
-    if (key_dig == NULL)
-        return MEMORY_E;
-#endif
+    WC_ALLOC_VAR_EX(key_dig, byte, MAX_PRF_DIG, ssl->heap,
+        DYNAMIC_TYPE_DIGEST, return MEMORY_E);
 
     if (side == ENCRYPT_AND_DECRYPT_SIDE) {
         provision = PROVISION_CLIENT_SERVER;

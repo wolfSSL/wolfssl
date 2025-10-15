@@ -85,11 +85,7 @@
 static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
     void* pass, int keyType, int* keyFormat, DerBuffer** der)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    EncryptedInfo* info = NULL;
-#else
-    EncryptedInfo info[1];
-#endif /* WOLFSSL_SMALL_STACK */
+    WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
     wc_pem_password_cb* localCb = NULL;
     int ret = 0;
 
@@ -125,9 +121,7 @@ static int pem_mem_to_der(const char* pem, int pemSz, wc_pem_password_cb* cb,
         ret = (int)info->consumed;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
-#endif
+    WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
 
     return ret;
 }
@@ -372,11 +366,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     int paddingSz = 0;
     word32 idx;
     word32 cipherInfoSz = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    EncryptedInfo* info = NULL;
-#else
-    EncryptedInfo  info[1];
-#endif
+    WC_DECLARE_VAR(info, EncryptedInfo, 1, 0);
 
     WOLFSSL_ENTER("EncryptDerKey");
 
@@ -471,10 +461,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Free dynamically allocated info. */
-    XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
-#endif
+    WC_FREE_VAR_EX(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
     return ret == 0;
 }
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
@@ -737,8 +724,13 @@ static int wolfssl_print_indent(WOLFSSL_BIO* bio, char* line, int lineLen,
     int ret = 1;
 
     if (indent > 0) {
+        int len_wanted;
+        /* Cap indent to buffer size to avoid format truncation warning */
+        if (indent >= lineLen) {
+            indent = lineLen - 1;
+        }
         /* Print indent spaces. */
-        int len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
+        len_wanted = XSNPRINTF(line, (size_t)lineLen, "%*s", indent, " ");
         if ((len_wanted < 0) || (len_wanted >= lineLen)) {
             WOLFSSL_ERROR_MSG("Buffer overflow formatting indentation");
             ret = 0;
@@ -3390,10 +3382,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 #else
@@ -3705,10 +3694,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 }
@@ -4155,11 +4141,8 @@ int wolfSSL_RSA_sign_mgf(int hashAlg, const unsigned char* hash,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG and encoded signature. */
-    XFREE(tmpRng,     NULL, DYNAMIC_TYPE_RNG);
-    XFREE(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
+    WC_FREE_VAR_EX(encodedSig, NULL, DYNAMIC_TYPE_SIGNATURE);
 
     WOLFSSL_LEAVE("wolfSSL_RSA_sign_mgf", ret);
     return ret;
@@ -4334,9 +4317,7 @@ int wolfSSL_RSA_verify_mgf(int hashAlg, const unsigned char* hash,
     }
 
     /* Dispose of any allocated data. */
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(encodedSig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     WOLFSSL_LEAVE("wolfSSL_RSA_verify_mgf", ret);
@@ -4455,10 +4436,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
@@ -4732,10 +4710,7 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     if (initTmpRng) {
         wc_FreeRng(tmpRng);
     }
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any allocated RNG. */
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     /* wolfCrypt error means return -1. */
     if (ret <= 0) {
@@ -4762,11 +4737,7 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     int     ret = 1;
     int     err;
     mp_int* t = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int  *tmp = NULL;
-#else
-    mp_int  tmp[1];
-#endif
+    WC_DECLARE_VAR(tmp, mp_int, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_RsaGenAdd");
 
@@ -5131,17 +5102,10 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
     {
         int initTmpRng = 0;
         WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-        WC_RNG *tmpRng;
-#else
-        WC_RNG tmpRng[1];
-#endif
+        WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-        tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (tmpRng == NULL)
-            return WOLFSSL_FATAL_ERROR;
-#endif
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+            return WOLFSSL_FATAL_ERROR);
         if (wc_InitRng(tmpRng) == 0) {
             rng = tmpRng;
             initTmpRng = 1;
@@ -5169,9 +5133,7 @@ int wolfSSL_DSA_generate_key(WOLFSSL_DSA* dsa)
         if (initTmpRng)
             wc_FreeRng(tmpRng);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+        WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
     }
 #else /* WOLFSSL_KEY_GEN */
     WOLFSSL_MSG("No Key Gen built in");
@@ -5235,17 +5197,10 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
     {
         int initTmpRng = 0;
         WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-        WC_RNG *tmpRng;
-#else
-        WC_RNG tmpRng[1];
-#endif
+        WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
-        tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (tmpRng == NULL)
-            return WOLFSSL_FATAL_ERROR;
-#endif
+        WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+            return WOLFSSL_FATAL_ERROR);
         if (wc_InitRng(tmpRng) == 0) {
             rng = tmpRng;
             initTmpRng = 1;
@@ -5268,9 +5223,7 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
         if (initTmpRng)
             wc_FreeRng(tmpRng);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+        WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
     }
 #else /* WOLFSSL_KEY_GEN */
     WOLFSSL_MSG("No Key Gen built in");
@@ -5562,11 +5515,7 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
     int     ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int     initTmpRng = 0;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
     if (d == NULL || sigRet == NULL || dsa == NULL) {
         WOLFSSL_MSG("Bad function arguments");
@@ -5581,11 +5530,8 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpRng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (tmpRng == NULL)
-        return WOLFSSL_FATAL_ERROR;
-#endif
+    WC_ALLOC_VAR_EX(tmpRng, WC_RNG, 1, NULL, DYNAMIC_TYPE_RNG,
+        return WOLFSSL_FATAL_ERROR);
 
     if (wc_InitRng(tmpRng) == 0) {
         rng = tmpRng;
@@ -5621,9 +5567,7 @@ static int dsa_do_sign(const unsigned char* d, int dLen, unsigned char* sigRet,
 
     if (initTmpRng)
         wc_FreeRng(tmpRng);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpRng, NULL, DYNAMIC_TYPE_RNG);
-#endif
+    WC_FREE_VAR_EX(tmpRng, NULL, DYNAMIC_TYPE_RNG);
 
     return ret;
 }
@@ -8469,11 +8413,7 @@ int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
 static int wolfssl_dh_check_prime(WOLFSSL_BIGNUM* n, int* isPrime)
 {
     int ret = 1;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     WC_RNG* rng;
     int localRng;
 
@@ -8491,9 +8431,7 @@ static int wolfssl_dh_check_prime(WOLFSSL_BIGNUM* n, int* isPrime)
         /* Free local random number generator if created. */
         if (localRng) {
             wc_FreeRng(rng);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+            WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
 
@@ -8621,11 +8559,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
 {
     int ret = 1;
     DhKey* key = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     WC_RNG* rng = NULL;
     int localRng = 0;
 
@@ -8671,9 +8605,7 @@ int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len,
     /* Free local random number generator if created. */
     if (localRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (ret == 1) {
@@ -8714,11 +8646,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     word32  privSz = 0;
     int     localRng = 0;
     WC_RNG* rng    = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     unsigned char* pub    = NULL;
     unsigned char* priv   = NULL;
 
@@ -8815,9 +8743,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     if (localRng) {
         /* Free an initialized local random number generator. */
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
     /* Dispose of allocated data. */
     XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -8966,10 +8892,8 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
             ForceZero(priv, (word32)privSz);
         }
     }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-#endif
+    WC_FREE_VAR_EX(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    WC_FREE_VAR_EX(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
     WOLFSSL_LEAVE("wolfSSL_DH_compute_key", ret);
 
@@ -9781,11 +9705,7 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
 int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int *order = NULL;
-#else
-    mp_int order[1];
-#endif
+    WC_DECLARE_VAR(order, mp_int, 1, 0);
 
     /* Validate parameter. */
     if ((group == NULL) || (group->curve_idx < 0)) {
@@ -9821,10 +9741,7 @@ int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
         mp_clear(order);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Deallocate order. */
-    XFREE(order, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(order, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* Convert error code to length of 0. */
     if (ret < 0) {
@@ -10792,19 +10709,10 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
 {
     int err = 0;
     mp_digit mp = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* modulus;
-#else
-    mp_int modulus[1];
-#endif
+    WC_DECLARE_VAR(modulus, mp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for curve's prime modulus. */
-    modulus = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (modulus == NULL) {
-        err = 1;
-    }
-#endif
+    WC_ALLOC_VAR_EX(modulus, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, err=1);
     /* Initialize the MP integer. */
     if ((!err) && (mp_init(modulus) != MP_OKAY)) {
         WOLFSSL_MSG("mp_init failed");
@@ -10841,9 +10749,7 @@ int ec_point_convert_to_affine(const WOLFSSL_EC_GROUP *group,
         mp_clear(modulus);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(modulus, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(modulus, NULL, DYNAMIC_TYPE_BIGINT);
 
     return err;
 }
@@ -11145,11 +11051,9 @@ static int wolfssl_ec_point_add(int curveIdx, ecc_point* r, ecc_point* p1,
     mp_clear(mu);
     wc_ecc_del_point_h(montP1, NULL);
     wc_ecc_del_point_h(montP2, NULL);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(mu, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(mu, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -11405,10 +11309,8 @@ static int wolfssl_ec_point_mul(int curveIdx, ecc_point* r, mp_int* n,
 
     mp_clear(a);
     mp_clear(prime);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(a, NULL, DYNAMIC_TYPE_BIGINT);
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(a, NULL, DYNAMIC_TYPE_BIGINT);
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -11512,19 +11414,10 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 static int wolfssl_ec_point_invert(int curveIdx, ecc_point* point)
 {
     int ret = 1;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* prime = NULL;
-#else
-    mp_int prime[1];
-#endif
+    WC_DECLARE_VAR(prime, mp_int, 1, 0);
 
-#ifdef WOLFSSL_SMALL_STACK
     /* Allocate memory for an MP int to hold the prime of the curve. */
-    prime = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-    if (prime == NULL) {
-        ret = 0;
-    }
-#endif
+    WC_ALLOC_VAR_EX(prime, mp_int, 1, NULL, DYNAMIC_TYPE_BIGINT, ret=0);
 
     /* Initialize MP int. */
     if ((ret == 1) && (mp_init(prime) != MP_OKAY)) {
@@ -11548,10 +11441,7 @@ static int wolfssl_ec_point_invert(int curveIdx, ecc_point* point)
 
     /* Dispose of memory associated with MP. */
     mp_free(prime);
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of dynamically allocated temporaries. */
-    XFREE(prime, NULL, DYNAMIC_TYPE_BIGINT);
-#endif
+    WC_FREE_VAR_EX(prime, NULL, DYNAMIC_TYPE_BIGINT);
     return ret;
 }
 
@@ -13697,11 +13587,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     int res = 1;
     int initTmpRng = 0;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_generate_key");
 
@@ -13769,9 +13655,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     /* Dispose of local random number generator if initialized. */
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     /* Set the external key from new internal key values. */
@@ -14174,11 +14058,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dLen,
 {
     int err = 0;
     WOLFSSL_ECDSA_SIG *sig = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*   out = NULL;
-#else
-    byte    out[ECC_BUFSIZE];
-#endif
+    WC_DECLARE_VAR(out, byte, ECC_BUFSIZE, 0);
     unsigned int outLen = ECC_BUFSIZE;
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_do_sign");
@@ -14220,10 +14100,7 @@ WOLFSSL_ECDSA_SIG *wolfSSL_ECDSA_do_sign(const unsigned char *dgst, int dLen,
         sig = wolfSSL_d2i_ECDSA_SIG(NULL, &p, outLen);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    /* Dispose of any temporary dynamically allocated data. */
-    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return sig;
 }
@@ -14321,11 +14198,7 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest, int digestSz,
 {
     int ret = 1;
     WC_RNG* rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRng = NULL;
-#else
-    WC_RNG  tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     int initTmpRng = 0;
 
     WOLFSSL_ENTER("wolfSSL_ECDSA_sign");
@@ -14355,9 +14228,7 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest, int digestSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return ret;
@@ -14611,11 +14482,7 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     curve25519_key key;
 
     WOLFSSL_ENTER("wolfSSL_EC25519_generate_key");
@@ -14664,9 +14531,7 @@ int wolfSSL_EC25519_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -14812,11 +14677,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     ed25519_key key;
 
     WOLFSSL_ENTER("wolfSSL_ED25519_generate_key");
@@ -14864,9 +14725,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -15084,11 +14943,7 @@ int wolfSSL_EC448_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     curve448_key key;
 
     WOLFSSL_ENTER("wolfSSL_EC448_generate_key");
@@ -15137,9 +14992,7 @@ int wolfSSL_EC448_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;
@@ -15278,11 +15131,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
     int res = 1;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRng = NULL;
-#else
-    WC_RNG tmpRng[1];
-#endif
+    WC_DECLARE_VAR(tmpRng, WC_RNG, 1, 0);
     ed448_key key;
 
     WOLFSSL_ENTER("wolfSSL_ED448_generate_key");
@@ -15330,9 +15179,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
 
     if (initTmpRng) {
         wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
+        WC_FREE_VAR_EX(rng, NULL, DYNAMIC_TYPE_RNG);
     }
 
     return res;

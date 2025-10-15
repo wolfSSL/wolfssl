@@ -131,8 +131,14 @@ typedef word32 cpuid_flags_t;
             return 0;
     }
 
-
     /* Public APIs to modify flags. */
+
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define cpuid_select_flags wc_cpuid_select_flags
+        #define cpuid_set_flag wc_cpuid_set_flag
+        #define cpuid_clear_flag wc_cpuid_clear_flag
+    #endif /* WOLFSSL_API_PREFIX_MAP */
+
     WOLFSSL_API void cpuid_select_flags(cpuid_flags_t flags);
     WOLFSSL_API void cpuid_set_flag(cpuid_flags_t flag);
     WOLFSSL_API void cpuid_clear_flag(cpuid_flags_t flag);

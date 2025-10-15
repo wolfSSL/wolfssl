@@ -478,6 +478,9 @@ static int dilithium_shake256(wc_Shake* shake256, const byte* data,
 
 /* 256-bit hash using SHAKE-256.
  *
+ * This is the domain-separated version of the hash.
+ * See FIPS 204. D.3.
+ *
  * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
  *
  * @param [in, out] shake256  SHAKE-256 object.
@@ -622,8 +625,8 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
  *                            1 when message was hashed.
  * @param [in]      ctx       Context of signature.
  * @param [in]      ctxLen    Length of context of signature in bytes.
- * @param [in]      ctx       Message to sign.
- * @param [in]      ctxLen    Length of message to sign in bytes.
+ * @param [in]      msg       Message to sign.
+ * @param [in]      msgLen    Length of message to sign in bytes.
  * @param [out]     hash      Buffer to hold hash result.
  * @param [in]      hashLen   Number of bytes of hash to return.
  * @return  0 on success.
@@ -1038,7 +1041,7 @@ static void dilthium_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
 /* Decode polynomial with range -2..2.
  *
- * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1099,7 +1102,7 @@ static void dilithium_decode_eta_2_bits(const byte* p, sword32* s)
 #ifndef WOLFSSL_NO_ML_DSA_65
 /* Decode polynomial with range -4..4.
  *
- * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1173,7 +1176,7 @@ static void dilithium_decode_eta_4_bits(const byte* p, sword32* s)
       !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
 /* Decode vector of polynomials with range -ETA..ETA.
  *
- * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
  *   ...
  *   5: for i from 0 to l - 1 do
  *   6:     s1[i] <- BitUnpack(yi, eta, eta)
@@ -1382,7 +1385,7 @@ static void dilithium_vec_encode_t0_t1(const sword32* t, byte d, byte* t0,
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || defined(WOLFSSL_DILITHIUM_CHECK_KEY)
 /* Decode bottom D bits of t as t0.
  *
- * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
  *   ...
  *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
  *   ...
@@ -1482,7 +1485,7 @@ static void dilithium_decode_t0(const byte* t0, sword32* t)
       !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
 /* Decode bottom D bits of t as t0.
  *
- * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ * FIPS 204. 7.2: Algorithm 25 skDecode(sk)
  *   ...
  *   11: for i from 0 to k - 1 do
  *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
@@ -1512,7 +1515,7 @@ static void dilithium_vec_decode_t0(const byte* t0, byte d, sword32* t)
     defined(WOLFSSL_DILITHIUM_CHECK_KEY)
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 8.2: Algorithm 17 pkDecode(pk)
+ * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
  *   ...
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
  *   ...
@@ -1585,7 +1588,7 @@ static void dilithium_decode_t1_c(const byte* t1, sword32* t)
 
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 8.2: Algorithm 17 pkDecode(pk)
+ * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
  *   ...
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
  *   ...
@@ -1613,7 +1616,7 @@ static void dilithium_decode_t1(const byte* t1, sword32* t)
     defined(WOLFSSL_DILITHIUM_CHECK_KEY)
 /* Decode top bits of t as t1.
  *
- * FIPS 204. 8.2: Algorithm 17 pkDecode(pk)
+ * FIPS 204. 7.2: Algorithm 23 pkDecode(pk)
  *   ...
  *   3: for i from 0 to k - 1 do
  *   4:     t1[i] <- SimpleBitUnpack(zi, 2^(bitlen(q-1)-d) - 1)
@@ -2757,10 +2760,8 @@ static int wc_mldsa_gen_matrix_4x4_avx2(sword32* a, byte* seed)
         a += 4 * MLDSA_N;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -2904,10 +2905,8 @@ static int wc_mldsa_gen_matrix_6x5_avx2(sword32* a, byte* seed)
             MLDSA_N - ctr1, p, SHA3_128_BYTES);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3013,10 +3012,8 @@ static int wc_mldsa_gen_matrix_8x7_avx2(sword32* a, byte* seed)
         a += 4 * MLDSA_N;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3625,10 +3622,8 @@ static int wc_mldsa_gen_s_4_4_avx2(sword32* s[2], byte* seed)
                (ctr3 < MLDSA_N));
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3780,10 +3775,8 @@ static int wc_mldsa_gen_s_5_6_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -3937,10 +3930,8 @@ static int wc_mldsa_gen_s_7_8_avx2(sword32* s[2], byte* seed)
     /* Create more blocks if too many rejected. */
     while ((ctr0 < MLDSA_N) || (ctr1 < MLDSA_N) || (ctr2 < MLDSA_N));
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4124,10 +4115,8 @@ static int wc_mldsa_gen_y_4_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_17_avx2(rand + 3 * DILITHIUM_MAX_V,
         y + 3 * DILITHIUM_N);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -4206,10 +4195,8 @@ static int wc_mldsa_gen_y_5_avx2(sword32* y, byte* seed, word16 kappa,
         wc_mldsa_decode_gamma1_19_avx2(rand, y + 4 * DILITHIUM_N);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -4303,10 +4290,8 @@ static int wc_mldsa_gen_y_7_avx2(sword32* y, byte* seed, word16 kappa)
     wc_mldsa_decode_gamma1_19_avx2(rand + 2 * DILITHIUM_MAX_V,
         y + 6 * DILITHIUM_N);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(state, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }
@@ -8256,11 +8241,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 
         /* Step 11: Start rejection sampling loop */
         do {
-#ifdef WOLFSSL_SMALL_STACK
-            byte *w1e = NULL;
-#else
-            byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
-#endif
+            WC_DECLARE_VAR(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, 0);
             sword32* w = w1;
             sword32* y_ntt = z;
             sword32* cs2 = ct0;
@@ -8290,13 +8271,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             if (valid) {
         #endif
                 /* Step 15: Encode w1. */
-#ifdef WOLFSSL_SMALL_STACK
-                w1e = (byte *)XMALLOC(DILITHIUM_MAX_W1_ENC_SZ, key->heap,
-                                      DYNAMIC_TYPE_DILITHIUM);
-                if (w1e == NULL)
-                    ret = MEMORY_E;
-                if (ret == 0)
-#endif
+                WC_ALLOC_VAR_EX(w1e, byte, DILITHIUM_MAX_W1_ENC_SZ, key->heap,
+                    DYNAMIC_TYPE_DILITHIUM, ret=MEMORY_E);
+                if (WC_VAR_OK(w1e))
                 {
                     dilithium_vec_encode_w1(w1, params->k, params->gamma2, w1e);
                     /* Step 15: Hash mu and encoded w1.
@@ -8365,9 +8342,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     }
                 }
 
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
-#endif
+                WC_FREE_VAR_EX(w1e, key->heap, DYNAMIC_TYPE_DILITHIUM);
             }
 
             if (!valid) {

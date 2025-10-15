@@ -2708,6 +2708,22 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if defined(__xtensa__)
+    /* Compilers for Xtensa have been seen to compile C code into
+     * non-constant time assembly code. The small implementation is not known
+     * to have these issues. */
+    #undef CURVE25519_SMALL
+    #define CURVE25519_SMALL
+    #undef ED25519_SMALL
+    #define ED25519_SMALL
+    #undef CURVE448_SMALL
+    #define CURVE448_SMALL
+    #undef ED448_SMALL
+    #define ED448_SMALL
+    #warning "Contact wolfSSL support for a fast implementation that is " \
+             "constant time"
+#endif
+
 #if defined(NO_WC_SSIZE_TYPE) || defined(ssize_t)
     /* ssize_t comes from system headers or user_settings.h */
 #elif defined(WC_SSIZE_TYPE)
@@ -3646,18 +3662,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#ifdef WOLFSSL_PYTHON
-    /* Need to use old OID sum algorithm until OSP patches, in particular to
-     * tests, for all versions reflect the new OID sum value. */
-    #undef WOLFSSL_OLD_OID_SUM
-    #define WOLFSSL_OLD_OID_SUM
-#endif
-
-
 /* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
-    #define WOLFSSL_KERNEL_MODE
-    #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+    #ifndef WOLFSSL_KERNEL_MODE
+        #define WOLFSSL_KERNEL_MODE
+    #endif
+    #ifndef WOLFSSL_API_PREFIX_MAP
+        #define WOLFSSL_API_PREFIX_MAP
+    #endif
+    #if defined(WOLFSSL_LINUXKM_VERBOSE_DEBUG) && \
+        !defined(WOLFSSL_KERNEL_VERBOSE_DEBUG)
         #define WOLFSSL_KERNEL_VERBOSE_DEBUG
     #endif
     #ifdef HAVE_CONFIG_H
@@ -3691,15 +3705,17 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_OLD_PRIME_CHECK
         #define WOLFSSL_OLD_PRIME_CHECK
     #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifndef WC_TEST_EXPORT_SUBTESTS
+            #define WC_TEST_EXPORT_SUBTESTS
+        #endif
+    #endif
     #ifndef WOLFSSL_TEST_SUBROUTINE
-        #ifdef LINUXKM_LKCAPI_REGISTER
+        #ifdef WC_TEST_EXPORT_SUBTESTS
             #define WOLFSSL_TEST_SUBROUTINE
         #else
             #define WOLFSSL_TEST_SUBROUTINE static
         #endif
-    #endif
-    #ifdef LINUXKM_LKCAPI_REGISTER
-        #define WC_TEST_EXPORT_SUBTESTS
     #endif
     #undef HAVE_PTHREAD
     /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
@@ -3707,17 +3723,27 @@ extern void uITRON4_free(void *p) ;
     #define NO_STRING_H
     /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
     #undef HAVE_LIMITS_H
-    #define NO_LIMITS_H
-    #define NO_STDLIB_H
-    #define NO_STDINT_H
-    #define NO_CTYPE_H
+    #ifndef NO_LIMITS_H
+        #define NO_LIMITS_H
+    #endif
+    #ifndef NO_STDLIB_H
+        #define NO_STDLIB_H
+    #endif
+    #ifndef NO_STDINT_H
+        #define NO_STDINT_H
+    #endif
+    #ifndef NO_CTYPE_H
+        #define NO_CTYPE_H
+    #endif
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #undef WOLFSSL_HAVE_ASSERT_H
-    #define WOLFSSL_NO_ASSERT_H
+    #ifndef WOLFSSL_NO_ASSERT_H
+        #define WOLFSSL_NO_ASSERT_H
+    #endif
     #ifndef WOLFSSL_NO_GETPID
         #define WOLFSSL_NO_GETPID
     #endif /* WOLFSSL_NO_GETPID */
@@ -3736,10 +3762,18 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     #ifdef HAVE_LINUXKM_PIE_SUPPORT
-        #define WC_NO_INTERNAL_FUNCTION_POINTERS
-        #define WOLFSSL_ECC_CURVE_STATIC
-        #define WOLFSSL_NAMES_STATIC
-        #define WOLFSSL_NO_PUBLIC_FFDHE
+        #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
+            #define WC_NO_INTERNAL_FUNCTION_POINTERS
+        #endif
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            #define WOLFSSL_ECC_CURVE_STATIC
+        #endif
+        #ifndef WOLFSSL_NAMES_STATIC
+            #define WOLFSSL_NAMES_STATIC
+        #endif
+        #ifndef WOLFSSL_NO_PUBLIC_FFDHE
+            #define WOLFSSL_NO_PUBLIC_FFDHE
+        #endif
         #undef HAVE_PUBLIC_FFDHE
     #endif
 
@@ -3766,15 +3800,6 @@ extern void uITRON4_free(void *p) ;
          * zero bytes are tolerated in GetASN_Integer().
          */
         #define WOLFSSL_ASN_INT_LEAD_0_ANY
-    #endif
-
-    #ifdef CONFIG_KASAN
-        #ifndef WC_SANITIZE_DISABLE
-            #define WC_SANITIZE_DISABLE() kasan_disable_current()
-        #endif
-        #ifndef WC_SANITIZE_ENABLE
-            #define WC_SANITIZE_ENABLE() kasan_enable_current()
-        #endif
     #endif
 
     #if !defined(WC_RESEED_INTERVAL) && defined(LINUXKM_LKCAPI_REGISTER)
@@ -4048,8 +4073,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_XCHACHA
 #endif
 
-#if !defined(WOLFCRYPT_ONLY) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(HAVE_KEYING_MATERIAL))
+#if !defined(NO_KDF) && !defined(NO_HMAC)
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
 #endif
@@ -4065,7 +4089,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    defined(WC_NO_RSA_OAEP)
+    defined(WC_NO_RSA_OAEP) && !defined(HAVE_ECC)
     #undef  WOLFSSL_NO_CT_OPS
     #define WOLFSSL_NO_CT_OPS
 #endif

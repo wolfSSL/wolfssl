@@ -808,11 +808,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             const unsigned char* userKey, const int bits, Aes* aes)
         {
             word32 nr;
-#ifdef WOLFSSL_SMALL_STACK
-            Aes *temp_key;
-#else
-            Aes temp_key[1];
-#endif
+            WC_DECLARE_VAR(temp_key, Aes, 1, 0);
             __m128i *Key_Schedule;
             __m128i *Temp_Key_Schedule;
 
@@ -829,9 +825,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
             if (AES_set_encrypt_key_AESNI(userKey,bits,temp_key)
                 == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
-#endif
+                WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
                 return BAD_FUNC_ARG;
             }
 
@@ -864,9 +858,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
             Key_Schedule[0] = Temp_Key_Schedule[nr];
 
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
-#endif
+            WC_FREE_VAR_EX(temp_key, aes->heap, DYNAMIC_TYPE_AES);
 
             return 0;
         }
@@ -11008,11 +11000,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
             const byte* authIn, word32 authInSz,
             byte* authTag, word32 authTagSz, WC_RNG* rng)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
@@ -11052,11 +11040,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 {
     int ret;
 #ifdef HAVE_AES_DECRYPT
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
         authTag == NULL || authTagSz == 0 || authTagSz > WC_AES_BLOCK_SIZE) {
@@ -12865,11 +12849,7 @@ int wc_AesKeyWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
 int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
                   byte* out, word32 outSz, const byte* iv)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret;
 
     if (key == NULL)
@@ -12896,9 +12876,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     wc_AesFree(aes);
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
 
     return ret;
 }
@@ -12980,11 +12958,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
 int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
                     byte* out, word32 outSz, const byte* iv)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret;
 
     (void)iv;
@@ -13014,9 +12988,7 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     wc_AesFree(aes);
 
   out:
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
-#endif
+    WC_FREE_VAR_EX(aes, NULL, DYNAMIC_TYPE_AES);
 
     return ret;
 }
@@ -13734,8 +13706,12 @@ static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    (void)WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak);
+    if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
+                             stream->bytes_crypted_with_this_tweak))
+    {
+        WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
+                    "in AesXtsEncryptUpdate().");
+    }
 #endif
 #if FIPS_VERSION3_GE(6,0,0)
     /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
@@ -14172,15 +14148,20 @@ static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 s
         return BAD_FUNC_ARG;
     }
 
-    if (stream->bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))
+    if (stream->bytes_crypted_with_this_tweak &
+        ((word32)WC_AES_BLOCK_SIZE - 1U))
     {
-        WOLFSSL_MSG("Call to AesXtsDecryptUpdate after previous finalizing call");
+        WOLFSSL_MSG("AesXtsDecryptUpdate after previous finalizing call");
         return BAD_FUNC_ARG;
     }
 
 #ifndef WC_AESXTS_STREAM_NO_REQUEST_ACCOUNTING
-    (void)WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
-                             stream->bytes_crypted_with_this_tweak);
+    if (! WC_SAFE_SUM_WORD32(stream->bytes_crypted_with_this_tweak, sz,
+                             stream->bytes_crypted_with_this_tweak))
+    {
+        WOLFSSL_MSG("Overflow of stream->bytes_crypted_with_this_tweak "
+                    "in AesXtsDecryptUpdate().");
+    }
 #endif
 
     {
@@ -14434,13 +14415,9 @@ static WARN_UNUSED_RESULT int S2V(
     if (ret == 0) {
         if (dataSz >= WC_AES_BLOCK_SIZE) {
 
-        #ifdef WOLFSSL_SMALL_STACK
-            cmac = (Cmac*)XMALLOC(sizeof(Cmac), NULL, DYNAMIC_TYPE_CMAC);
-            if (cmac == NULL) {
-                ret = MEMORY_E;
-            }
-            if (ret == 0)
-        #endif
+            WC_ALLOC_VAR_EX(cmac, Cmac, 1, NULL, DYNAMIC_TYPE_CMAC,
+                ret=MEMORY_E);
+            if (WC_VAR_OK(cmac))
             {
             #ifdef WOLFSSL_CHECK_MEM_ZERO
                 /* Aes part is checked by wc_AesFree. */
@@ -14499,11 +14476,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     int enc)
 {
     int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     byte sivTmp[WC_AES_BLOCK_SIZE];
 
     if (key == NULL || siv == NULL || out == NULL) {
@@ -15155,11 +15128,7 @@ int wc_AesCtsEncrypt(const byte* key, word32 keySz, byte* out,
                      const byte* in, word32 inSz,
                      const byte* iv)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret = 0;
     word32 outSz = inSz;
 
@@ -15193,11 +15162,7 @@ int wc_AesCtsDecrypt(const byte* key, word32 keySz, byte* out,
                      const byte* in, word32 inSz,
                      const byte* iv)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    Aes *aes = NULL;
-#else
-    Aes aes[1];
-#endif
+    WC_DECLARE_VAR(aes, Aes, 1, 0);
     int ret = 0;
     word32 outSz = inSz;
 

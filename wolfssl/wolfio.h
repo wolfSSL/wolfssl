@@ -626,6 +626,20 @@ WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
 WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
+
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define EmbedReceive wolfSSL_EmbedReceive
+        #define EmbedSend wolfSSL_EmbedSend
+        #ifdef WOLFSSL_DTLS
+            #define EmbedReceiveFrom wolfSSL_EmbedReceiveFrom
+            #define EmbedSendTo wolfSSL_EmbedSendTo
+            #define EmbedGenerateCookie wolfSSL_EmbedGenerateCookie
+            #ifdef WOLFSSL_MULTICAST
+                #define EmbedReceiveFromMcast wolfSSL_EmbedReceiveFromMcast
+            #endif /* WOLFSSL_MULTICAST */
+        #endif /* WOLFSSL_DTLS */
+    #endif /* WOLFSSL_API_PREFIX_MAP */
+
     WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
@@ -658,6 +672,10 @@ typedef int (*WolfSSLGenericIORecvCb)(char *buf, int sz, void *ctx);
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         void* heap);
 
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define EmbedOcspLookup wolfSSL_EmbedOcspLookup
+        #define EmbedOcspRespFree wolfSSL_EmbedOcspRespFree
+    #endif
     WOLFSSL_API int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                         byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf);
     WOLFSSL_API void EmbedOcspRespFree(void* ctx, byte *resp);
@@ -669,6 +687,9 @@ typedef int (*WolfSSLGenericIORecvCb)(char *buf, int sz, void *ctx);
     WOLFSSL_API int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd,
         unsigned char* httpBuf, int httpBufSz);
 
+    #ifdef WOLFSSL_API_PREFIX_MAP
+        #define EmbedCrlLookup wolfSSL_EmbedCrlLookup
+    #endif
     WOLFSSL_API int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url,
         int urlSz);
 #endif

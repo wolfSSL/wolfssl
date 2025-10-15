@@ -462,8 +462,75 @@ enum {
 
 #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
 
-#define WC_SAFE_SUM_WORD32(in1, in2, out) ((in2) <= 0xffffffffU - (in1) ? \
-            ((out) = (in1) + (in2), 1) : ((out) = 0xffffffffU, 0))
+#ifdef NO_INLINE
+    #define WC_WUR_INT(x) (x)
+#else
+    static WC_INLINE WARN_UNUSED_RESULT int WC_WUR_INT(int x) { return x; }
+#endif
+
+#ifdef WORD64_AVAILABLE
+    #define WC_MAX_UINT_OF(x)                                        \
+        ((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -            \
+                         (word64)1)) - (word64)1)                    \
+         |                                                           \
+         ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) - (word64)1)))
+    #define WC_MAX_SINT_OF(x)                                        \
+        ((sword64)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -  \
+                                   (word64)2)) - (word64)1)          \
+                   |                                                 \
+                   ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -   \
+                                  (word64)2))))
+    #define WC_MIN_SINT_OF(x)                                        \
+        ((sword64)((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -    \
+                                 (word64)1)))
+#else
+    #define WC_MAX_UINT_OF(x)                                        \
+        ((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -            \
+                         (word32)1)) - (word32)1)                    \
+         |                                                           \
+         ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) - (word32)1)))
+    #define WC_MAX_SINT_OF(x)                                        \
+        ((sword32)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -  \
+                                   (word32)2)) - (word32)1)          \
+                   |                                                 \
+                   ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -   \
+                                  (word32)2))))
+    #define WC_MIN_SINT_OF(x)                                        \
+        ((sword32)((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -    \
+                                 (word32)1)))
+#endif
+
+#define WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out)    \
+        ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?          \
+         ((out) = (in1) + (in2), 1) :                       \
+         ((out) = WC_MAX_UINT_OF(type), 0))
+
+#define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out)           \
+        WC_WUR_INT(WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out))
+
+#if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0))
+    #define WC_SAFE_SUM_WORD32(in1, in2, out) \
+            WC_SAFE_SUM_UNSIGNED_NO_WUR(word32, in1, in2, out)
+#else
+    #define WC_SAFE_SUM_WORD32(in1, in2, out) \
+            WC_SAFE_SUM_UNSIGNED(word32, in1, in2, out)
+#endif
+
+#define WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out)      \
+        ((((in1) > 0) && ((in2) > 0)) ?                     \
+             ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?          \
+              ((out) = (in1) + (in2), 1) :                  \
+              ((out) = (type)WC_MAX_SINT_OF(type), 0))         \
+             :                                              \
+             ((((in1) < 0) && ((in2) < 0)) ?                \
+              ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?         \
+               ((out) = (in1) + (in2), 1) :                 \
+               ((out) = (type)WC_MIN_SINT_OF(type), 0))        \
+              :                                             \
+              ((out) = (in1) + (in2), 1)))
+
+#define WC_SAFE_SUM_SIGNED(type, in1, in2, out)             \
+        WC_WUR_INT(WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out))
 
 #if defined(HAVE_IO_POOL)
     WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
@@ -708,16 +775,25 @@ enum {
         idx##VAR_NAME = 0;                                                     \
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
+#if defined(WOLFSSL_SMALL_STACK)
     #define WC_DECLARE_VAR_IS_HEAP_ALLOC
     #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
         VAR_TYPE* VAR_NAME = NULL
+    #define WC_VAR_OK(VAR_NAME) ((VAR_NAME) != NULL)
     #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)               \
         do {                                                               \
             (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), \
                 (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);                         \
             if ((VAR_NAME) == NULL) {                                      \
                 WC_ALLOC_DO_ON_FAILURE();                                  \
+            }                                                              \
+        } while (0)
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TY, ONFAIL)\
+        do {                                                               \
+            (VAR_NAME) = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * (VAR_SIZE), \
+                (HEAP), TY);                                               \
+            if ((VAR_NAME) == NULL) {                                      \
+                ONFAIL;                                                    \
             }                                                              \
         } while (0)
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)    \
@@ -727,6 +803,8 @@ enum {
         } while (0)
     #define WC_FREE_VAR(VAR_NAME, HEAP) \
         XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT)
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) \
+        XFREE(VAR_NAME, (HEAP), TYPE)
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
@@ -743,10 +821,14 @@ enum {
     #define WC_DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
         VAR_TYPE VAR_NAME[VAR_SIZE]
     #define WC_ALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) WC_DO_NOTHING
+    #define WC_ALLOC_VAR_EX(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP, TYPE, ONFAIL)\
+        WC_DO_NOTHING
+    #define WC_VAR_OK(VAR_NAME) 1
     #define WC_CALLOC_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP)        \
         XMEMSET(VAR_NAME, 0, sizeof(var))
     #define WC_FREE_VAR(VAR_NAME, HEAP) WC_DO_NOTHING \
         /* nothing to free, its stack */
+    #define WC_FREE_VAR_EX(VAR_NAME, HEAP, TYPE) WC_DO_NOTHING
     #define WC_DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
         VAR_TYPE VAR_NAME[VAR_ITEMS][(VAR_SIZE) / sizeof(VAR_TYPE)] /* NOLINT(bugprone-sizeof-expression) */
     #define WC_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
@@ -1199,7 +1281,13 @@ enum {
 };
 
 /* max error buffer string size */
-#ifndef WOLFSSL_MAX_ERROR_SZ
+#ifdef WOLFSSL_MAX_ERROR_SZ
+    #if  WOLFSSL_MAX_ERROR_SZ < 64
+        /* If too small, the error_test() will fail.
+         * See fixed length strings returned in wc_GetErrorString() */
+        #error WOLFSSL_MAX_ERROR_SZ must be at least length of longest message
+    #endif
+#else
     #define WOLFSSL_MAX_ERROR_SZ 80
 #endif
 
@@ -1440,6 +1528,9 @@ enum {
 };
 
 
+#ifdef WOLFSSL_API_PREFIX_MAP
+    #define CheckRunTimeSettings wc_CheckRunTimeSettings
+#endif
 WOLFSSL_API word32 CheckRunTimeSettings(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math and long

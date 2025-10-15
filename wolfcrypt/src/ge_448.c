@@ -11034,10 +11034,8 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
         ge448_madd(r, r, t);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    WC_FREE_VAR_EX(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WC_FREE_VAR_EX(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
 }

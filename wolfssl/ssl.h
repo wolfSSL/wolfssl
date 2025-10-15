@@ -45,6 +45,14 @@
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 
+#if defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+    /* in NO_TLS builds, WOLFSSL_NO_TLS12 must be defined in the TLS layer, but
+     * must not be defined in the crypto layer, to allow building the TLS12
+     * KDFs.
+     */
+    #define WOLFSSL_NO_TLS12
+#endif
+
 /* For the types */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #include <wolfssl/openssl/compat_types.h>
@@ -3696,7 +3704,9 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
 #endif
 
 WOLFSSL_API int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_CTX_clear_group_messages(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_set_group_messages(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_clear_group_messages(WOLFSSL* ssl);
 
 
 #ifdef HAVE_FUZZER
