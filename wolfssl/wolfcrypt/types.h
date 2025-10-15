@@ -469,41 +469,41 @@ enum {
 #endif
 
 #ifdef WORD64_AVAILABLE
-    #define MAX_UINT_OF(x)                                           \
+    #define WC_MAX_UINT_OF(x)                                        \
         ((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -            \
                          (word64)1)) - (word64)1)                    \
          |                                                           \
          ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) - (word64)1)))
-    #define MAX_SINT_OF(x)                                           \
+    #define WC_MAX_SINT_OF(x)                                        \
         ((sword64)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -  \
                                    (word64)2)) - (word64)1)          \
                    |                                                 \
                    ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -   \
                                   (word64)2))))
-    #define MIN_SINT_OF(x)                                           \
+    #define WC_MIN_SINT_OF(x)                                        \
         ((sword64)((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -    \
                                  (word64)1)))
 #else
-    #define MAX_UINT_OF(x)                                           \
+    #define WC_MAX_UINT_OF(x)                                        \
         ((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -            \
                          (word32)1)) - (word32)1)                    \
          |                                                           \
          ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) - (word32)1)))
-    #define MAX_SINT_OF(x)                                           \
+    #define WC_MAX_SINT_OF(x)                                        \
         ((sword32)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -  \
                                    (word32)2)) - (word32)1)          \
                    |                                                 \
                    ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -   \
                                   (word32)2))))
-    #define MIN_SINT_OF(x)                                           \
+    #define WC_MIN_SINT_OF(x)                                        \
         ((sword32)((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -    \
                                  (word32)1)))
 #endif
 
 #define WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out)    \
-        ((in2) <= (MAX_UINT_OF(type) - (in1)) ?             \
+        ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?          \
          ((out) = (in1) + (in2), 1) :                       \
-         ((out) = MAX_UINT_OF(type), 0))
+         ((out) = WC_MAX_UINT_OF(type), 0))
 
 #define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out)           \
         WC_WUR_INT(WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out))
@@ -518,14 +518,14 @@ enum {
 
 #define WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out)      \
         ((((in1) > 0) && ((in2) > 0)) ?                     \
-             ((in2) <= MAX_SINT_OF(type) - (in1) ?          \
+             ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?          \
               ((out) = (in1) + (in2), 1) :                  \
-              ((out) = (type)MAX_SINT_OF(type), 0))         \
+              ((out) = (type)WC_MAX_SINT_OF(type), 0))         \
              :                                              \
              ((((in1) < 0) && ((in2) < 0)) ?                \
-              ((in2) >= MIN_SINT_OF(type) - (in1) ?         \
+              ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?         \
                ((out) = (in1) + (in2), 1) :                 \
-               ((out) = (type)MIN_SINT_OF(type), 0))        \
+               ((out) = (type)WC_MIN_SINT_OF(type), 0))        \
               :                                             \
               ((out) = (in1) + (in2), 1)))
 
