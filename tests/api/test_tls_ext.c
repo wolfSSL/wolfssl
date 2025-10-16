@@ -134,7 +134,8 @@ int test_wolfSSL_DisableExtendedMasterSecret(void)
     !defined(NO_CERTS) && !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
-    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12)) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 struct client_cb_arg {
     WOLF_STACK_OF(X509_NAME) *names1;
     WOLF_STACK_OF(X509_NAME) *names2;
@@ -160,7 +161,8 @@ int test_certificate_authorities_certificate_request(void) {
     !defined(NO_CERTS) && !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
-    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12))
+    (defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12)) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     struct test_params {
         method_provider client_meth;
         method_provider server_meth;
@@ -270,6 +272,9 @@ int test_certificate_authorities_certificate_request(void) {
         ExpectIntEQ(2, wolfSSL_sk_X509_NAME_num(names1));
         ExpectIntEQ(1, wolfSSL_sk_X509_NAME_num(names2));
 
+#if !defined(NO_DH)
+        SetDH(ssl_srv);
+#endif
 
         /* Certs will be loaded in callback */
         wolfSSL_CTX_set_cert_cb(ctx_cli,
@@ -304,7 +309,8 @@ int test_certificate_authorities_certificate_request(void) {
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
     !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && defined(WOLFSSL_TLS13)
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 static int certificate_authorities_server_cb(WOLFSSL *ssl, void *_arg) {
     WOLF_STACK_OF(X509_NAME) **names_out = (WOLF_STACK_OF(X509_NAME) **)_arg;
     WOLF_STACK_OF(X509_NAME) *names = wolfSSL_get0_peer_CA_list(ssl);
@@ -323,7 +329,8 @@ int test_certificate_authorities_client_hello(void) {
     !defined(WOLFSSL_NO_CA_NAMES) && !defined(NO_BIO) && \
     !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL)) && (defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && defined(WOLFSSL_TLS13)
+    defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+    defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
 
     struct test_params {
         method_provider client_meth;

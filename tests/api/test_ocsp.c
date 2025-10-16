@@ -360,7 +360,7 @@ int test_ocsp_basic_verify(void)
 
 #if defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&     \
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) &&  \
-    defined(OPENSSL_ALL)
+    defined(OPENSSL_ALL) && !defined(WOLFSSL_SMALL_CERT_VERIFY)
 
 struct _test_ocsp_status_callback_ctx {
     byte* ocsp_resp;

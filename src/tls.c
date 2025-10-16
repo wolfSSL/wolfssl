@@ -7437,8 +7437,10 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
 
         if (ret == 0) {
             CopyDecodedName(name, cert, ASN_SUBJECT);
-            if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0)
+            if (wolfSSL_sk_X509_NAME_push(ssl->peer_ca_names, name) <= 0) {
+                wolfSSL_X509_NAME_free(name);
                 ret = MEMORY_ERROR;
+            }
         }
 
         if (didInit)
