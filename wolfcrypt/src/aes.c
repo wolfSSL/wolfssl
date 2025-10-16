@@ -13222,7 +13222,7 @@ int wc_AesXtsEncryptSector(XtsAes* aes, byte* out, const byte* in,
     return wc_AesXtsEncrypt(aes, out, in, sz, (const byte*)i, WC_AES_BLOCK_SIZE);
 }
 
-
+#ifdef HAVE_AES_DECRYPT
 /* Same process as wc_AesXtsDecrypt but uses a word64 type as the tweak value
  * instead of a byte array. This just converts the word64 to a byte array.
  *
@@ -13249,6 +13249,7 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
 
     return wc_AesXtsDecrypt(aes, out, in, sz, (const byte*)i, WC_AES_BLOCK_SIZE);
 }
+#endif
 
 #ifdef WOLFSSL_AESNI
 
@@ -13791,6 +13792,7 @@ int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
+#ifdef HAVE_AES_DECRYPT
 
 /* Same process as encryption but use aes_decrypt key.
  *
@@ -14230,6 +14232,7 @@ int wc_AesXtsDecryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* WOLFSSL_AESXTS_STREAM */
+#endif /* HAVE_AES_DECRYPT */
 #endif
 
 /* Same as wc_AesXtsEncryptSector but the sector gets incremented by one every
@@ -14282,6 +14285,8 @@ int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
     return ret;
 }
 
+#ifdef HAVE_AES_DECRYPT
+
 /* Same as wc_AesXtsEncryptConsecutiveSectors but Aes key is AES_DECRYPTION type
  *
  * xaes     AES keys to use for block decrypt
@@ -14330,6 +14335,7 @@ int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
 
     return ret;
 }
+#endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_XTS */
 
 #ifdef WOLFSSL_AES_SIV

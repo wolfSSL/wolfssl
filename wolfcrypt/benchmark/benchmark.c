@@ -5333,6 +5333,7 @@ void bench_aesxts(void)
         goto exit;
     }
 
+#ifdef HAVE_AES_DECRYPT
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
@@ -5355,6 +5356,7 @@ void bench_aesxts(void)
     bench_stats_sym_finish("AES-XTS-dec", 0, count, bench_size, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
 #endif
 
 exit:
@@ -8201,6 +8203,7 @@ void bench_ascon_hash(void)
 
 #ifdef WOLFSSL_CMAC
 
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256)
 static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
 {
     Cmac    cmac;
@@ -8273,6 +8276,7 @@ static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
 }
+#endif
 
 void bench_cmac(int useDeviceID)
 {
@@ -8282,7 +8286,7 @@ void bench_cmac(int useDeviceID)
 #ifdef WOLFSSL_AES_256
     bench_cmac_helper(32, "AES-256-CMAC", useDeviceID);
 #endif
-
+    (void)useDeviceID;
 }
 #endif /* WOLFSSL_CMAC */
 

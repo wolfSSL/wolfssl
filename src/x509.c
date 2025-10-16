@@ -1057,9 +1057,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         if (((ext->obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
             (ext->obj->obj == NULL)) {
+            byte* tmp;
         #ifdef WOLFSSL_NO_REALLOC
-            byte* tmp = NULL;
-
             tmp = (byte*)XMALLOC(objSz, NULL, DYNAMIC_TYPE_ASN1);
             if (tmp != NULL && ext->obj->obj != NULL) {
                 XMEMCPY(tmp, ext->obj->obj, ext->obj->objSz);
@@ -1070,8 +1069,11 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             }
             ext->obj->obj = tmp;
         #else
-            ext->obj->obj = (byte*)XREALLOC((byte*)ext->obj->obj, objSz,
-                                   NULL, DYNAMIC_TYPE_ASN1);
+            tmp = (byte*)XREALLOC((byte*)ext->obj->obj, objSz, NULL,
+                                  DYNAMIC_TYPE_ASN1);
+            if (tmp != NULL) {
+                ext->obj->obj = tmp;
+            }
         #endif
             if (ext->obj->obj == NULL) {
                 wolfSSL_X509_EXTENSION_free(ext);

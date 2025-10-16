@@ -1913,23 +1913,54 @@ int test_tls13_rpk_handshake(void)
 
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
+#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     int group = WOLFSSL_KYBER_LEVEL5;
 #else
     int group = WOLFSSL_ML_KEM_1024;
+#endif /* WOLFSSL_MLKEM_KYBER */
+#elif !defined(WOLFSSL_NO_ML_KEM_768)
+#ifdef WOLFSSL_MLKEM_KYBER
+    int group = WOLFSSL_KYBER_LEVEL3;
+#else
+    int group = WOLFSSL_ML_KEM_768;
+#endif /* WOLFSSL_MLKEM_KYBER */
+#else
+#ifdef WOLFSSL_MLKEM_KYBER
+    int group = WOLFSSL_KYBER_LEVEL1;
+#else
+    int group = WOLFSSL_ML_KEM_512;
+#endif /* WOLFSSL_MLKEM_KYBER */
 #endif
+
     AssertIntEQ(wolfSSL_CTX_set_groups(ctx, &group, 1), WOLFSSL_SUCCESS);
 }
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
+#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
 #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");
+#endif /* WOLFSSL_MLKEM_KYBER */
+#elif !defined(WOLFSSL_NO_ML_KEM_768)
+#ifdef WOLFSSL_MLKEM_KYBER
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL3");
+#else
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_768");
+#endif /* WOLFSSL_MLKEM_KYBER */
+#else
+#ifdef WOLFSSL_MLKEM_KYBER
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL1");
+#else
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_512");
+#endif /* WOLFSSL_MLKEM_KYBER */
 #endif
 }
 #endif
@@ -1938,7 +1969,9 @@ int test_tls13_pq_groups(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     callback_functions func_cb_client;
     callback_functions func_cb_server;
 
