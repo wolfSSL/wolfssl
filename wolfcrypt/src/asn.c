@@ -29922,9 +29922,6 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 name->used = 0;
                 return 0;
             }
-            nameSz = (word32)cname->custom.valSz;
-            oid = cname->custom.oid;
-            oidSz = (word32)cname->custom.oidSz;
         }
     #else
         (void)cname;
@@ -29964,9 +29961,17 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 break;
         #ifdef WOLFSSL_CUSTOM_OID
             case ASN_CUSTOM_NAME:
-                /* oid setup is above (mitigating false positive
-                 * -Wnull-dereference).
-                 */
+                #ifdef __s390x__
+                    /* inhibit arch-specific false positive. */
+                    PRAGMA_GCC_DIAG_PUSH;
+                    PRAGMA_GCC("GCC diagnostic ignored \"-Wnull-dereference\"");
+                #endif
+                nameSz = (word32)cname->custom.valSz;
+                oid = cname->custom.oid;
+                oidSz = (word32)cname->custom.oidSz;
+                #ifdef __s390x__
+                    PRAGMA_GCC_DIAG_POP;
+                #endif
                 break;
         #endif
         #ifdef WOLFSSL_CERT_REQ
