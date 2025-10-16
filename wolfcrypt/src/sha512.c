@@ -1632,13 +1632,6 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
                                kAlgorithm_SSS_SHA384);
         return ret;
     }
-    int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
-    {
-        int ret = 0;
-        ret = se050_hash_final(&sha384->se050Ctx, hash, WC_SHA384_DIGEST_SIZE,
-                               kAlgorithm_SSS_SHA384);
-        return ret;
-    }
 
 #elif defined(WOLFSSL_SILABS_SHA384)
     /* functions defined in wolfcrypt/src/port/silabs/silabs_hash.c */
