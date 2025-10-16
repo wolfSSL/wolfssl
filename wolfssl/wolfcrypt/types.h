@@ -1310,8 +1310,8 @@ enum wc_AlgoType {
     WC_ALGO_TYPE_CERT = 8,
     WC_ALGO_TYPE_KDF = 9,
     WC_ALGO_TYPE_COPY = 10,
-
-    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_COPY
+    WC_ALGO_TYPE_FREE = 11,
+    WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_FREE
 };
 
 /* KDF types */

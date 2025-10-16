@@ -44807,6 +44807,77 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_ED25519 */
     }
+#ifdef WOLFSSL_HAVE_COPY_FREE_CB
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+    #ifdef DEBUG_WOLFSSL
+        fprintf(stderr, "test_CryptoCb_Func: Copy Algo=%d Type=%d\n",
+                info->copy.algo, info->copy.type);
+    #endif
+        if (info->copy.algo == WC_ALGO_TYPE_HASH) {
+            switch (info->copy.type) {
+    #ifndef NO_SHA256
+                case WC_HASH_TYPE_SHA256:
+                {
+                    wc_Sha256* src = (wc_Sha256*)info->copy.src;
+                    wc_Sha256* dst = (wc_Sha256*)info->copy.dst;
+                    /* set devId to invalid, so software is used */
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha256Copy(src, dst);
+
+                    /* reset devId */
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        /* Set the devId of the destination to the same */
+                        /* since we used the software implementation of copy */
+                        /* so dst would have been set to INVALID_DEVID */
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif /* !NO_SHA256 */
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else {
+            ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+    #ifdef DEBUG_WOLFSSL
+        fprintf(stderr, "test_CryptoCb_Func: Free Algo=%d Type=%d\n",
+                info->free.algo, info->free.type);
+    #endif
+
+        if (info->free.algo == WC_ALGO_TYPE_HASH) {
+            switch (info->free.type) {
+    #ifndef NO_SHA256
+                case WC_HASH_TYPE_SHA256:
+                {
+                    wc_Sha256* sha = (wc_Sha256*)info->free.obj;
+
+                    /* set devId to invalid, so software is used */
+                    sha->devId = INVALID_DEVID;
+
+                    /* Call the actual free function */
+                    wc_Sha256Free(sha);
+
+                    /* Note: devId doesn't need to be restored as object is freed */
+                    ret = 0;
+                    break;
+                }
+    #endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else {
+            ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+    }
+#endif /* WOLFSSL_HAVE_COPY_FREE_CB */
     (void)thisDevId;
     (void)keyFormat;
 

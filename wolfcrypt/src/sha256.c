@@ -2276,8 +2276,33 @@ int wc_InitSha256(wc_Sha256* sha256)
 
 void wc_Sha256Free(wc_Sha256* sha256)
 {
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_HAVE_COPY_FREE_CB)
+    int ret = 0;
+#endif
+
     if (sha256 == NULL)
         return;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_HAVE_COPY_FREE_CB)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Free(sha256->devId, WC_ALGO_TYPE_HASH,
+                         WC_HASH_TYPE_SHA256, (void*)sha256);
+        /* If they want the standard free, they can call it themselves */
+        /* via their callback setting devId to INVALID_DEVID */
+        /* otherwise assume the callback handled it */
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return;
+        /* fall-through when unavailable */
+    }
+
+    /* silence compiler warning */
+    (void)ret;
+
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_HAVE_COPY_FREE_CB */
 
 #if defined(WOLFSSL_ESP32) && \
     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
@@ -2576,19 +2601,19 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
     }
 
-#if defined(WOLF_CRYPTO_CB) && !defined(NO_COPY_CB)
+#if defined(WOLF_CRYPTO_CB) && defined(WOLFSSL_HAVE_COPY_FREE_CB)
     #ifndef WOLF_CRYPTO_CB_FIND
     if (src->devId != INVALID_DEVID)
     #endif
     {
         /* Cast the source and destination to be void to keep the abstraction */
-        ret = wc_CryptoCb_Copy(src->devId, WC_CRYPTOCB_COPY_TYPE_SHA256, 
-                               (void*)src, (void*)dst);
+        ret = wc_CryptoCb_Copy(src->devId, WC_ALGO_TYPE_HASH,
+                               WC_HASH_TYPE_SHA256, (void*)src, (void*)dst);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
-#endif
+#endif /* WOLF_CRYPTO_CB && WOLFSSL_HAVE_COPY_FREE_CB */
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 
