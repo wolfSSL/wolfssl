@@ -1027,6 +1027,10 @@ then
     test "$enable_quic" = "" && enable_quic=no
     test "$enable_ech" = "" && enable_ech=no
     test "$enable_ocspstapling" = "" && enable_ocspstapling=no
+    test "$enable_earlydata" = "" && enable_earlydata=no
+    test "$enable_renegotiation_indication" = "" && enable_renegotiation_indication=no
+    test "$enable_secure_renegotiation_info" = "" && enable_secure_renegotiation_info=no
+    test "$enable_secure_renegotiation" = "" && enable_secure_renegotiation=no
 
     # Disable all open source compatibility enables that might get set with all
     test "$enable_all_osp" = "" && enable_all_osp=no

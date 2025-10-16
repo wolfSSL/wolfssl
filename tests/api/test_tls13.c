@@ -36,9 +36,9 @@
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WC_SHA384_DIGEST_SIZE
-    static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
+    WC_MAYBE_UNUSED static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
 #else
-    static byte fixedKey[WC_SHA256_DIGEST_SIZE] = { 0, };
+    WC_MAYBE_UNUSED static byte fixedKey[WC_SHA256_DIGEST_SIZE] = { 0, };
 #endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
