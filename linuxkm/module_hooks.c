@@ -117,6 +117,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
+extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 #endif
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
@@ -396,6 +397,19 @@ static int wolfssl_init(void)
 {
     int ret;
 
+#ifdef HAVE_FIPS
+    /* The compiled-in verifycore must be the right length, else the module
+     * geometry will change when the correct value is passed in, destabilizing
+     * wc_linuxkm_pie_reloc_tab.  It also must be the right length for the
+     * module-update-fips-hash recipe (in-place overwrite) to work, and for
+     * updateFipsHash() (WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) to be safe from
+     * overruns.
+     */
+    if (strlen(verifyCore) != WC_SHA256_DIGEST_SIZE*2) {
+        pr_err("ERROR: compile-time FIPS hash is the wrong length (expected %d hex digits).\n", WC_SHA256_DIGEST_SIZE*2);
+        return -ECANCELED;
+    }
+
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 #ifdef CONFIG_MODULE_SIG
     if (THIS_MODULE->sig_ok == false) {
@@ -408,7 +422,9 @@ static int wolfssl_init(void)
         pr_err("ERROR: wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
         return -ECANCELED;
     }
-#endif
+#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+
+#endif /* HAVE_FIPS */
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
@@ -1321,7 +1337,6 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-parameter\"")
 #include <crypto/hash.h>
 PRAGMA_GCC_DIAG_POP
 
-extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 extern const char coreKey[WC_SHA256_DIGEST_SIZE*2 + 1];
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
@@ -1646,7 +1661,7 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
 {
     int ret;
     int argc;
-    const char *argv[2];
+    const char *argv[3];
     char code_buf[5];
     size_t corrected_count;
     int i;
@@ -1668,14 +1683,15 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
     memcpy(code_buf, buf, corrected_count);
     code_buf[corrected_count] = 0;
 
-    if (strspn(buf, "-0123456789") != corrected_count)
+    if (strspn(code_buf, "-0123456789") != corrected_count)
         return -EINVAL;
 
     argv[0] = "./optest";
-    argv[1] = code_buf;
-    argc = 2;
+    argv[1] = "0";
+    argv[2] = code_buf;
+    argc = 3;
 
-    printf("OK, testing code %s\n", buf);
+    printf("OK, testing code %s\n", code_buf);
 
     ret = linuxkm_op_test_1(argc, &argv[0]);
 
