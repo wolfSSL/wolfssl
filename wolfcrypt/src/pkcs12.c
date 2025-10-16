@@ -977,8 +977,10 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             totalSz += seqSz;
 
             /* check if getting length only */
-            if (der == NULL && derSz != NULL) {
-                *derSz = (int)totalSz;
+            if (der == NULL) {
+                /* repeat nullness check locally to mollify -Wnull-dereference. */
+                if (derSz != NULL)
+                    *derSz = (int)totalSz;
                 XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
                 return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }

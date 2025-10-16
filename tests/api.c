@@ -20116,8 +20116,8 @@ static int test_wolfSSL_PKCS7_certs(void)
         while (EXPECT_SUCCESS() && (sk_X509_INFO_num(info_sk) > 0)) {
             X509_INFO* info = NULL;
             ExpectNotNull(info = sk_X509_INFO_shift(info_sk));
-            ExpectIntGT(sk_X509_push(sk, info->x509), 0);
-            if (EXPECT_SUCCESS() && (info != NULL)) {
+            if (info != NULL) {
+                ExpectIntGT(sk_X509_push(sk, info->x509), 0);
                 info->x509 = NULL;
             }
             X509_INFO_free(info);
@@ -32422,8 +32422,10 @@ static int test_wolfSSL_X509V3_EXT_get(void)
         ExpectIntNE((extNid = ext->obj->nid), NID_undef);
         ExpectNotNull(method = wolfSSL_X509V3_EXT_get(ext));
         ExpectIntEQ(method->ext_nid, extNid);
-        if (method->ext_nid == NID_subject_key_identifier) {
-            ExpectNotNull(method->i2s);
+        if (EXPECT_SUCCESS()) {
+            if (method->ext_nid == NID_subject_key_identifier) {
+                ExpectNotNull(method->i2s);
+            }
         }
     }
 

@@ -29922,6 +29922,9 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 name->used = 0;
                 return 0;
             }
+            nameSz = (word32)cname->custom.valSz;
+            oid = cname->custom.oid;
+            oidSz = (word32)cname->custom.oidSz;
         }
     #else
         (void)cname;
@@ -29961,9 +29964,9 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 break;
         #ifdef WOLFSSL_CUSTOM_OID
             case ASN_CUSTOM_NAME:
-                nameSz = (word32)cname->custom.valSz;
-                oid = cname->custom.oid;
-                oidSz = (word32)cname->custom.oidSz;
+                /* oid setup is above (mitigating false positive
+                 * -Wnull-dereference).
+                 */
                 break;
         #endif
         #ifdef WOLFSSL_CERT_REQ
