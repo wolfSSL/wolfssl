@@ -1856,15 +1856,18 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 WOLFSSL_ABI
 WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
 {
-    WC_RNG* rng;
+    int ret = 0;
+    WC_RNG* rng = NULL;
 
-    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), heap, DYNAMIC_TYPE_RNG);
-    if (rng) {
-        int error = _InitRng(rng, nonce, nonceSz, heap, INVALID_DEVID) != 0;
-        if (error) {
-            XFREE(rng, heap, DYNAMIC_TYPE_RNG);
-            rng = NULL;
-        }
+    /* Assume if WC_USE_DEVID it is intended for default usage */
+#ifdef WC_USE_DEVID
+    ret = wc_rng_new_ex(&rng, nonce, nonceSz, heap, WC_USE_DEVID);
+#else
+    ret = wc_rng_new_ex(&rng, nonce, nonceSz, heap, INVALID_DEVID);
+#endif
+
+    if (ret != 0) {
+        return NULL;
     }
 
     return rng;
