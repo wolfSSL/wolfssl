@@ -2903,10 +2903,6 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #endif
     word32 r;
 
-    if (aes == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     {
         int ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
@@ -3686,10 +3682,6 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     int ret_cb;
 #endif
     word32 r;
-
-    if (aes == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     {
@@ -12265,7 +12257,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
 #endif /* HAVE_AES_ECB */
 
-#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)
+#if defined(WOLFSSL_AES_CFB)
 /* Feedback AES mode
  *
  * aes structure holding key to use for encryption
@@ -12278,75 +12270,54 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Encrypt */
-static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
-    Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
+static WARN_UNUSED_RESULT int AesCfbEncrypt_C(Aes* aes, byte* out,
+    const byte* in, word32 sz)
 {
-    byte*  tmp = NULL;
     int ret = 0;
     word32 processed;
 
-    if (aes == NULL || out == NULL || in == NULL) {
+    if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-
-    /* consume any unused bytes left in aes->tmp */
-    processed = min(aes->left, sz);
-    xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left, processed);
-#ifdef WOLFSSL_AES_CFB
-    if (mode == AES_CFB_MODE) {
-        XMEMCPY((byte*)aes->reg + WC_AES_BLOCK_SIZE - aes->left, out, processed);
+    if (sz == 0) {
+        return 0;
     }
-#endif
-    aes->left -= processed;
-    out += processed;
-    in += processed;
-    sz -= processed;
+
+    if (aes->left > 0) {
+        /* consume any unused bytes left in aes->tmp */
+        processed = min(aes->left, sz);
+        xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
+            processed);
+        XMEMCPY((byte*)aes->reg + WC_AES_BLOCK_SIZE - aes->left, out,
+            processed);
+        aes->left -= processed;
+        out += processed;
+        in += processed;
+        sz -= processed;
+    }
 
     VECTOR_REGISTERS_PUSH;
 
     while (sz >= WC_AES_BLOCK_SIZE) {
-        /* Using aes->tmp here for inline case i.e. in=out */
-        ret = wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
-        if (ret != 0)
+        ret = wc_AesEncryptDirect(aes, (byte*)aes->reg, (byte*)aes->reg);
+        if (ret != 0) {
             break;
-    #ifdef WOLFSSL_AES_OFB
-        if (mode == AES_OFB_MODE) {
-            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
         }
-    #endif
-        xorbuf((byte*)aes->tmp, in, WC_AES_BLOCK_SIZE);
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
-            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
-        }
-    #endif
-        XMEMCPY(out, aes->tmp, WC_AES_BLOCK_SIZE);
+        xorbuf((byte*)aes->reg, in, WC_AES_BLOCK_SIZE);
+        XMEMCPY(out, aes->reg, WC_AES_BLOCK_SIZE);
         out += WC_AES_BLOCK_SIZE;
         in  += WC_AES_BLOCK_SIZE;
         sz  -= WC_AES_BLOCK_SIZE;
-        aes->left = 0;
     }
 
     /* encrypt left over data */
     if ((ret == 0) && sz) {
         ret = wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
-    }
-    if ((ret == 0) && sz) {
-        aes->left = WC_AES_BLOCK_SIZE;
-        tmp = (byte*)aes->tmp;
-    #ifdef WOLFSSL_AES_OFB
-        if (mode == AES_OFB_MODE) {
-            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
-        }
-    #endif
-
-        xorbufout(out, in, tmp, sz);
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
+        if (ret == 0) {
+            xorbufout(out, in, aes->tmp, sz);
             XMEMCPY(aes->reg, out, sz);
+            aes->left = WC_AES_BLOCK_SIZE - sz;
         }
-    #endif
-        aes->left -= sz;
     }
 
     VECTOR_REGISTERS_POP;
@@ -12355,7 +12326,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
 }
 
 
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT)
 /* CFB 128
  *
  * aes structure holding key to use for decryption
@@ -12367,76 +12338,76 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackEncrypt(
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Decrypt */
-static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
-    Aes* aes, byte* out, const byte* in, word32 sz, byte mode)
+static WARN_UNUSED_RESULT int AesCfbDecrypt_C(Aes* aes, byte* out,
+    const byte* in, word32 sz, byte mode)
 {
     int ret = 0;
     word32 processed;
 
-    if (aes == NULL || out == NULL || in == NULL) {
+    (void)mode;
+
+    if ((aes == NULL) || (out == NULL) || (in == NULL)) {
         return BAD_FUNC_ARG;
     }
-
-    #ifdef WOLFSSL_AES_CFB
-    /* check if more input needs copied over to aes->reg */
-    if (aes->left && sz && mode == AES_CFB_MODE) {
-        word32 size = min(aes->left, sz);
-        XMEMCPY((byte*)aes->reg + WC_AES_BLOCK_SIZE - aes->left, in, size);
+    if (sz == 0) {
+        return 0;
     }
-    #endif
 
-    /* consume any unused bytes left in aes->tmp */
-    processed = min(aes->left, sz);
-    xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
-        processed);
-    aes->left -= processed;
-    out += processed;
-    in += processed;
-    sz -= processed;
+    if (aes->left > 0) {
+        /* consume any unused bytes left in aes->tmp */
+        processed = min(aes->left, sz);
+        /* copy input over to aes->reg */
+        XMEMCPY((byte*)aes->reg + WC_AES_BLOCK_SIZE - aes->left, in, processed);
+        xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
+            processed);
+        aes->left -= processed;
+        out += processed;
+        in += processed;
+        sz -= processed;
+    }
 
     VECTOR_REGISTERS_PUSH;
 
-    while (sz > WC_AES_BLOCK_SIZE) {
-        /* Using aes->tmp here for inline case i.e. in=out */
+    #if !defined(WOLFSSL_SMALL_STACK) && defined(HAVE_AES_ECB) && \
+        !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+        (defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM))
+    {
+        ALIGN16 byte tmp[4 * WC_AES_BLOCK_SIZE];
+        while (sz >= 4 * WC_AES_BLOCK_SIZE) {
+            XMEMCPY(tmp, aes->reg, WC_AES_BLOCK_SIZE);
+            XMEMCPY(tmp + WC_AES_BLOCK_SIZE, in, 3 * WC_AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, in + 3 * WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+            ret = wc_AesEcbEncrypt(aes, tmp, tmp, 4 * WC_AES_BLOCK_SIZE);
+            if (ret != 0) {
+                break;
+            }
+            xorbufout(out, in, tmp, 4 * WC_AES_BLOCK_SIZE);
+            out += 4 * WC_AES_BLOCK_SIZE;
+            in  += 4 * WC_AES_BLOCK_SIZE;
+            sz  -= 4 * WC_AES_BLOCK_SIZE;
+        }
+    }
+    #endif
+    while (sz >= WC_AES_BLOCK_SIZE) {
         ret = wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
-        if (ret != 0)
+        if (ret != 0) {
             break;
-    #ifdef WOLFSSL_AES_OFB
-        if (mode == AES_OFB_MODE) {
-            XMEMCPY((byte*)aes->reg, (byte*)aes->tmp, WC_AES_BLOCK_SIZE);
         }
-    #endif
-        xorbuf((byte*)aes->tmp, in, WC_AES_BLOCK_SIZE);
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
-            XMEMCPY(aes->reg, in, WC_AES_BLOCK_SIZE);
-        }
-    #endif
-        XMEMCPY(out, (byte*)aes->tmp, WC_AES_BLOCK_SIZE);
+        XMEMCPY((byte*)aes->reg, in, WC_AES_BLOCK_SIZE);
+        xorbufout(out, in, (byte*)aes->tmp, WC_AES_BLOCK_SIZE);
         out += WC_AES_BLOCK_SIZE;
         in  += WC_AES_BLOCK_SIZE;
         sz  -= WC_AES_BLOCK_SIZE;
-        aes->left = 0;
     }
 
     /* decrypt left over data */
     if ((ret == 0) && sz) {
         ret = wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
-    }
-    if ((ret == 0) && sz) {
-    #ifdef WOLFSSL_AES_CFB
-        if (mode == AES_CFB_MODE) {
+        if (ret == 0) {
             XMEMCPY(aes->reg, in, sz);
+            xorbufout(out, in, aes->tmp, sz);
+            aes->left = WC_AES_BLOCK_SIZE - sz;
         }
-    #endif
-    #ifdef WOLFSSL_AES_OFB
-        if (mode == AES_OFB_MODE) {
-            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
-        }
-    #endif
-
-        aes->left = WC_AES_BLOCK_SIZE - sz;
-        xorbufout(out, in, aes->tmp, sz);
     }
 
     VECTOR_REGISTERS_POP;
@@ -12444,9 +12415,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_CFB */
 
-#ifdef WOLFSSL_AES_CFB
 /* CFB 128
  *
  * aes structure holding key to use for encryption
@@ -12460,7 +12429,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
 /* Software AES - CFB Encrypt */
 int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return wc_AesFeedbackEncrypt(aes, out, in, sz, AES_CFB_MODE);
+    return AesCfbEncrypt_C(aes, out, in, sz);
 }
 
 
@@ -12478,7 +12447,7 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Software AES - CFB Decrypt */
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return wc_AesFeedbackDecrypt(aes, out, in, sz, AES_CFB_MODE);
+    return AesCfbDecrypt_C(aes, out, in, sz, AES_CFB_MODE);
 }
 #endif /* HAVE_AES_DECRYPT */
 
@@ -12704,6 +12673,69 @@ int wc_AesCfb8Decrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB
+/* OFB AES mode
+ *
+ * aes structure holding key to use for encryption
+ * out buffer to hold result of encryption (must be at least as large as input
+ *     buffer)
+ * in  buffer to encrypt
+ * sz  size of input buffer
+ *
+ * returns 0 on success and negative error values on failure
+ */
+/* Software AES - OFB Encrypt/Decrypt */
+static WARN_UNUSED_RESULT int AesOfbCrypt_C(Aes* aes, byte* out, const byte* in,
+    word32 sz)
+{
+    int ret = 0;
+    word32 processed;
+
+    if ((aes == NULL) || (out == NULL) || (in == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0) {
+        return 0;
+    }
+
+    if (aes->left > 0) {
+        /* consume any unused bytes left in aes->tmp */
+        processed = min(aes->left, sz);
+        xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
+            processed);
+        aes->left -= processed;
+        out += processed;
+        in += processed;
+        sz -= processed;
+    }
+
+    VECTOR_REGISTERS_PUSH;
+
+    while (sz >= WC_AES_BLOCK_SIZE) {
+        ret = wc_AesEncryptDirect(aes, (byte*)aes->reg, (byte*)aes->reg);
+        if (ret != 0) {
+            break;
+        }
+        xorbufout(out, in, (byte*)aes->reg, WC_AES_BLOCK_SIZE);
+        out += WC_AES_BLOCK_SIZE;
+        in  += WC_AES_BLOCK_SIZE;
+        sz  -= WC_AES_BLOCK_SIZE;
+    }
+
+    /* encrypt left over data */
+    if ((ret == 0) && sz) {
+        ret = wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
+        if (ret == 0) {
+            XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
+            xorbufout(out, in, aes->tmp, sz);
+            aes->left = WC_AES_BLOCK_SIZE - sz;
+        }
+    }
+
+    VECTOR_REGISTERS_POP;
+
+    return ret;
+}
+
 /* OFB
  *
  * aes structure holding key to use for encryption
@@ -12714,10 +12746,10 @@ int wc_AesCfb8Decrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  *
  * returns 0 on success and negative error values on failure
  */
-/* Software AES - CFB Encrypt */
+/* Software AES - OFB Encrypt */
 int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return wc_AesFeedbackEncrypt(aes, out, in, sz, AES_OFB_MODE);
+    return AesOfbCrypt_C(aes, out, in, sz);
 }
 
 
@@ -12735,7 +12767,7 @@ int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 /* Software AES - OFB Decrypt */
 int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return wc_AesFeedbackDecrypt(aes, out, in, sz, AES_OFB_MODE);
+    return AesOfbCrypt_C(aes, out, in, sz);
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_OFB */
