@@ -44001,7 +44001,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mlkem_test(void)
 #endif
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
@@ -47627,7 +47627,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
     WC_RNG rng;
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
@@ -47751,7 +47751,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     WOLFSSL_ENTER("xmss_test");
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
@@ -48420,7 +48420,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     XMEMSET(&verifyKey, 0, sizeof(verifyKey));
 
 #ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
     ret = wc_InitRng(&rng);
 #endif
