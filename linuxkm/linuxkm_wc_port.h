@@ -432,6 +432,12 @@
     #endif
     #include <linux/random.h>
 
+    #ifndef __PIE__
+        #if defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES) || defined(FIPS_OPTEST)
+            #include <linux/kprobes.h>
+        #endif
+    #endif
+
     #ifdef LINUXKM_LKCAPI_REGISTER
         /* the LKCAPI assumes that expanded encrypt and decrypt keys will stay
          * loaded simultaneously, and the Linux in-tree implementations have two
@@ -474,9 +480,6 @@
             #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
                 #include <crypto/internal/sig.h>
             #endif /* linux ver >= 6.13 */
-            #ifdef WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES
-                #include <linux/kprobes.h>
-            #endif
 
             #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
                 #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))

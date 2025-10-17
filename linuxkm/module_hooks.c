@@ -117,6 +117,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
+extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 #endif
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
@@ -372,7 +373,20 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef FIPS_OPTEST
-extern int linuxkm_op_test_wrapper(void);
+    #ifndef HAVE_FIPS
+        #error FIPS_OPTEST requires HAVE_FIPS.
+    #endif
+    #ifdef LINUXKM_LKCAPI_REGISTER
+        #error FIPS_OPTEST is not allowed with LINUXKM_LKCAPI_REGISTER.
+    #endif
+    extern int linuxkm_op_test_1(int argc, const char* argv[]);
+    extern int linuxkm_op_test_wrapper(void);
+    static void *my_kallsyms_lookup_name(const char *name);
+    static wolfSSL_Atomic_Int *conTestFailure_ptr = NULL;
+    static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                       const char *buf, size_t count);
+    static struct kobj_attribute FIPS_optest_trig_attr = __ATTR(FIPS_optest_run_code, 0220, NULL, FIPS_optest_trig_handler);
+    static int installed_sysfs_FIPS_optest_trig_files = 0;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
@@ -382,6 +396,19 @@ static int wolfssl_init(void)
 #endif
 {
     int ret;
+
+#ifdef HAVE_FIPS
+    /* The compiled-in verifycore must be the right length, else the module
+     * geometry will change when the correct value is passed in, destabilizing
+     * wc_linuxkm_pie_reloc_tab.  It also must be the right length for the
+     * module-update-fips-hash recipe (in-place overwrite) to work, and for
+     * updateFipsHash() (WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE) to be safe from
+     * overruns.
+     */
+    if (strlen(verifyCore) != WC_SHA256_DIGEST_SIZE*2) {
+        pr_err("ERROR: compile-time FIPS hash is the wrong length (expected %d hex digits).\n", WC_SHA256_DIGEST_SIZE*2);
+        return -ECANCELED;
+    }
 
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 #ifdef CONFIG_MODULE_SIG
@@ -395,7 +422,9 @@ static int wolfssl_init(void)
         pr_err("ERROR: wolfSSL module load aborted -- updateFipsHash: %s\n",wc_GetErrorString(ret));
         return -ECANCELED;
     }
-#endif
+#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+
+#endif /* HAVE_FIPS */
 
 #ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
@@ -592,8 +621,35 @@ static int wolfssl_init(void)
 #endif /* HAVE_FIPS && FIPS_VERSION3_GT(5,2,0) */
 
 #ifdef FIPS_OPTEST
+    conTestFailure_ptr = (wolfSSL_Atomic_Int *)my_kallsyms_lookup_name("conTestFailure");
+    if (conTestFailure_ptr == NULL) {
+        pr_err("ERROR: couldn't obtain conTestFailure_ptr.\n");
+        return -ECANCELED;
+    }
+
+    ret = linuxkm_lkcapi_sysfs_install_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+    if (ret != 0) {
+        pr_err("ERROR: linuxkm_lkcapi_sysfs_install_node() failed for %s (code %d).\n", FIPS_optest_trig_attr.attr.name, ret);
+        return -ECANCELED;
+    }
+
+#ifdef FIPS_OPTEST_FULL_RUN_AT_MODULE_INIT
     (void)linuxkm_op_test_wrapper();
+    WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    for (i = 0; i < FIPS_CAST_COUNT; ++i)
+        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
+     * anymore.
+     */
+    fipsEntry();
+    ret = wolfCrypt_GetStatus_fips();
+    if (ret != 0) {
+        pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
 #endif
+#endif /* FIPS_OPTEST */
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -679,6 +735,9 @@ static void wolfssl_exit(void)
     int ret;
 
     (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_rerun_self_test_attr, &installed_sysfs_FIPS_files);
+#ifdef FIPS_OPTEST
+    (void)linuxkm_lkcapi_sysfs_deinstall_node(&FIPS_optest_trig_attr, &installed_sysfs_FIPS_optest_trig_files);
+#endif
 #endif
 
 #ifdef LINUXKM_LKCAPI_REGISTER
@@ -1278,7 +1337,6 @@ PRAGMA_GCC("GCC diagnostic ignored \"-Wunused-parameter\"")
 #include <crypto/hash.h>
 PRAGMA_GCC_DIAG_POP
 
-extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 extern const char coreKey[WC_SHA256_DIGEST_SIZE*2 + 1];
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
@@ -1525,14 +1583,18 @@ static int updateFipsHash(void)
 static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_attribute *attr,
                                    const char *buf, size_t count)
 {
-    int arg;
     int ret;
 
     (void)kobj;
     (void)attr;
 
-    if (kstrtoint(buf, 10, &arg) || arg != 1)
+    /* only recognize "1" and "1\n". */
+    if ((count < 1) || (count > 2) ||
+        (buf[0] != '1') ||
+        ((count == 2) && (buf[1] != '\n')))
+    {
         return -EINVAL;
+    }
 
     pr_info("wolfCrypt: rerunning FIPS self-test on command.");
 
@@ -1561,5 +1623,100 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
 
     return count;
 }
+
+#ifdef FIPS_OPTEST
+
+static void *my_kallsyms_lookup_name(const char *name) {
+    static typeof(kallsyms_lookup_name) *kallsyms_lookup_name_ptr = NULL;
+    static struct kprobe kallsyms_lookup_name_kp = {
+        .symbol_name = "kallsyms_lookup_name"
+    };
+    unsigned long a;
+
+    if (! kallsyms_lookup_name_ptr) {
+        int ret;
+        kallsyms_lookup_name_kp.addr = NULL;
+        if ((ret = register_kprobe(&kallsyms_lookup_name_kp)) != 0) {
+            pr_err_once("ERROR: register_kprobe(&kallsyms_lookup_name_kp) failed: %d", ret);
+            return 0;
+        }
+        kallsyms_lookup_name_ptr = (typeof(kallsyms_lookup_name_ptr))kallsyms_lookup_name_kp.addr;
+        unregister_kprobe(&kallsyms_lookup_name_kp);
+        if (! kallsyms_lookup_name_ptr) {
+            pr_err_once("ERROR: kallsyms_lookup_name_kp.addr is null.");
+            return 0;
+        }
+    }
+
+    a = kallsyms_lookup_name_ptr(name);
+    return (void *)a;
+}
+
+typedef struct test_func_args {
+    int return_code;
+} test_func_args;
+
+static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attribute *attr,
+                                   const char *buf, const size_t count)
+{
+    int ret;
+    int argc;
+    const char *argv[3];
+    char code_buf[5];
+    size_t corrected_count;
+    int i;
+
+    (void)kobj;
+    (void)attr;
+
+    /* buf may or may not have an LF at end -- tolerate both.  there is no
+     * terminating null in either case.
+     */
+    if (count < 1)
+        return -EINVAL;
+    if (buf[count-1] == '\n')
+        corrected_count = count - 1;
+    else
+        corrected_count = count;
+    if ((corrected_count < 1) || (corrected_count > 4))
+        return -EINVAL;
+    memcpy(code_buf, buf, corrected_count);
+    code_buf[corrected_count] = 0;
+
+    if (strspn(code_buf, "-0123456789") != corrected_count)
+        return -EINVAL;
+
+    argv[0] = "./optest";
+    argv[1] = "0";
+    argv[2] = code_buf;
+    argc = 3;
+
+    printf("OK, testing code %s\n", code_buf);
+
+    ret = linuxkm_op_test_1(argc, &argv[0]);
+
+    printf("ret of op_test = %d\n", ret);
+
+    /* reload the library in memory and re-init state */
+    printf("Reloading the module in memory (equivalent to power "
+           "cycle)\n");
+    WOLFSSL_ATOMIC_STORE(*conTestFailure_ptr, 0);
+    for (i = 0; i < FIPS_CAST_COUNT; ++i)
+        fipsCastStatus_put(i, FIPS_CAST_STATE_INIT);
+    /* note, must call fipsEntry() here, not wolfCrypt_IntegrityTest_fips(),
+     * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
+     * anymore.
+     */
+    fipsEntry();
+    ret = wolfCrypt_GetStatus_fips();
+    printf("Status indicator of library reload/powercycle: %d\n",
+           ret);
+    printf("Module status is: %d\n", wolfCrypt_GetStatus_fips());
+    printf("Module mode is: %d\n", wolfCrypt_GetMode_fips());
+
+    return count;
+}
+
+#endif /* FIPS_OPTEST */
 
 #endif /* HAVE_FIPS */

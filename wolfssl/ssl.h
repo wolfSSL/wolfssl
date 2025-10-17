@@ -45,12 +45,15 @@
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
 
-#if defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
+#ifdef NO_TLS
     /* in NO_TLS builds, WOLFSSL_NO_TLS12 must be defined in the TLS layer, but
      * must not be defined in the crypto layer, to allow building the TLS12
-     * KDFs.
+     * KDFs.  Similarly for WOLFSSL_TLS13.
      */
-    #define WOLFSSL_NO_TLS12
+    #ifndef WOLFSSL_NO_TLS12
+        #define WOLFSSL_NO_TLS12
+    #endif
+    #undef WOLFSSL_TLS13
 #endif
 
 /* For the types */

@@ -1008,9 +1008,9 @@ fi
 if test "$ENABLED_TLS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_TLS"
-    test "$enable_tls13" = "" && enable_tls13=no
-    test "$enable_tlsv12" = "" && enable_tlsv12=no
-    test "$enable_tlsv10" = "" && enable_tlsv10=no
+    # don't set enable_tls13 or enable_tlsv12 to "no" -- even in cryptonly and
+    # NO_TLS build, they're needed for their crypto-layer KDFs.
+    # enable_tlsv10 defaults to "no", so we don't need to set it here either.
     test "$enable_dtls" = "" && enable_dtls=no
     test "$enable_dtls13" = "" && enable_dtls13=no
     test "$enable_dtls_mtu" = "" && enable_dtls_mtu=no
@@ -1027,6 +1027,10 @@ then
     test "$enable_quic" = "" && enable_quic=no
     test "$enable_ech" = "" && enable_ech=no
     test "$enable_ocspstapling" = "" && enable_ocspstapling=no
+    test "$enable_earlydata" = "" && enable_earlydata=no
+    test "$enable_renegotiation_indication" = "" && enable_renegotiation_indication=no
+    test "$enable_secure_renegotiation_info" = "" && enable_secure_renegotiation_info=no
+    test "$enable_secure_renegotiation" = "" && enable_secure_renegotiation=no
 
     # Disable all open source compatibility enables that might get set with all
     test "$enable_all_osp" = "" && enable_all_osp=no
@@ -2048,8 +2052,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=yes ]
     )
 if test "x$FIPS_VERSION" = "xv1" ||
-        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 ) ||
-        test "$ENABLED_CRYPTONLY" = "yes"
+        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 )
 then
     ENABLED_TLS13="no"
 fi
@@ -4885,10 +4888,6 @@ AC_ARG_ENABLE([tlsv10],
     [ ENABLED_TLSV10=no ]
     )
 
-if test "$ENABLED_CRYPTONLY" = "yes"
-then
-    ENABLED_TLSV12=no
-fi
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
