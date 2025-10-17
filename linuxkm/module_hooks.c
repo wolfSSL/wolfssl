@@ -209,18 +209,28 @@ WC_MAYBE_UNUSED static int linuxkm_lkcapi_sysfs_deinstall_node(struct kobj_attri
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+/* for simplicity, we use a global count to suspend signal processing while any
+ * thread is running fipsEntry(), wolfCrypt_IntegrityTest_fips(),
+ * linuxkm_lkcapi_register(), or linuxkm_lkcapi_unregister().  This only affects
+ * startup dynamics and the FIPS runtime.  Once the uninterruptible routine
+ * completes, signal handling resumes, and any still-pending signal on
+ * continuing threads will be processed in a timely fashion.
+ */
+
+static wolfSSL_Atomic_Int wc_linuxkm_sig_ignore_count = WOLFSSL_ATOMIC_INITIALIZER(0);
+
+int wc_linuxkm_sig_ignore_begin(void) {
+    return wolfSSL_Atomic_Int_AddFetch(&wc_linuxkm_sig_ignore_count, 1);
+}
+
+int wc_linuxkm_sig_ignore_end(void) {
+    return wolfSSL_Atomic_Int_SubFetch(&wc_linuxkm_sig_ignore_count, 1);
+}
+
 int wc_linuxkm_check_for_intr_signals(void) {
     static const int intr_signals[] = WC_LINUXKM_INTR_SIGNALS;
     if (preempt_count() != 0)
         return 0;
-
-#if defined(HAVE_FIPS) && defined(LINUXKM_LKCAPI_REGISTER)
-    /* ignore signals during FIPS startup sequence -- failed alg tests cause
-     * kernel panics on FIPS kernels.
-     */
-    if (linuxkm_lkcapi_registering_now)
-        return 0;
-#endif
     if (signal_pending(current)) {
         int i;
         for (i = 0;
@@ -228,8 +238,15 @@ int wc_linuxkm_check_for_intr_signals(void) {
              ++i)
         {
             if (sigismember(&current->pending.signal, intr_signals[i])) {
+                if (WOLFSSL_ATOMIC_LOAD(wc_linuxkm_sig_ignore_count) > 0) {
 #ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
-                pr_err("INFO: wc_linuxkm_check_for_intr_signals returning "
+                    pr_info("INFO: wc_linuxkm_check_for_intr_signals ignoring "
+                            "signal %d\n", intr_signals[i]);
+#endif
+                        return 0;
+                }
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+                pr_info("INFO: wc_linuxkm_check_for_intr_signals returning "
                        "INTERRUPTED_E on signal %d\n", intr_signals[i]);
 #endif
                 return INTERRUPTED_E;
@@ -542,7 +559,9 @@ static int wolfssl_init(void)
         total_other_r = 0;
 #endif
 
+    WC_SIG_IGNORE_BEGIN();
     fipsEntry();
+    WC_SIG_IGNORE_END();
 
 #if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
@@ -642,7 +661,9 @@ static int wolfssl_init(void)
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
      */
+    WC_SIG_IGNORE_BEGIN();
     fipsEntry();
+    WC_SIG_IGNORE_END();
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
@@ -1302,6 +1323,8 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.queued_spin_lock_slowpath = queued_spin_lock_slowpath;
 #endif
 
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_begin = wc_linuxkm_sig_ignore_begin;
+    wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_sig_ignore_end = wc_linuxkm_sig_ignore_end;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_check_for_intr_signals = wc_linuxkm_check_for_intr_signals;
     wolfssl_linuxkm_pie_redirect_table.wc_linuxkm_relax_long_loop = wc_linuxkm_relax_long_loop;
 
@@ -1598,7 +1621,9 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
 
     pr_info("wolfCrypt: rerunning FIPS self-test on command.");
 
+    WC_SIG_IGNORE_BEGIN();
     ret = wolfCrypt_IntegrityTest_fips();
+    WC_SIG_IGNORE_END();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d", ret);
         return -EINVAL;
@@ -1707,7 +1732,9 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
      */
+    WC_SIG_IGNORE_BEGIN();
     fipsEntry();
+    WC_SIG_IGNORE_END();
     ret = wolfCrypt_GetStatus_fips();
     printf("Status indicator of library reload/powercycle: %d\n",
            ret);

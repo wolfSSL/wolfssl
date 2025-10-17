@@ -129,11 +129,26 @@
     #ifndef WC_LINUXKM_INTR_SIGNALS
         #define WC_LINUXKM_INTR_SIGNALS { SIGKILL, SIGABRT, SIGHUP, SIGINT }
     #endif
+    extern int wc_linuxkm_sig_ignore_begin(void);
+    extern int wc_linuxkm_sig_ignore_end(void);
     extern int wc_linuxkm_check_for_intr_signals(void);
     #ifndef WC_LINUXKM_MAX_NS_WITHOUT_YIELD
         #define WC_LINUXKM_MAX_NS_WITHOUT_YIELD 1000000000
     #endif
     extern void wc_linuxkm_relax_long_loop(void);
+
+    #ifndef WC_SIG_IGNORE_BEGIN
+        #define WC_SIG_IGNORE_BEGIN() wc_linuxkm_sig_ignore_begin()
+    #endif
+    #ifndef WC_SIG_IGNORE_END
+        #define WC_SIG_IGNORE_END() wc_linuxkm_sig_ignore_end()
+    #endif
+    #ifndef WC_CHECK_FOR_INTR_SIGNALS
+        #define WC_CHECK_FOR_INTR_SIGNALS() wc_linuxkm_check_for_intr_signals()
+    #endif
+    #ifndef WC_RELAX_LONG_LOOP
+        #define WC_RELAX_LONG_LOOP() wc_linuxkm_relax_long_loop()
+    #endif
 
     enum wc_svr_flags {
         WC_SVR_FLAG_NONE = 0,
@@ -488,13 +503,6 @@
             #endif
         #endif /* !__PIE__ */
     #endif /* LINUXKM_LKCAPI_REGISTER */
-
-    #ifndef WC_CHECK_FOR_INTR_SIGNALS
-        #define WC_CHECK_FOR_INTR_SIGNALS() wc_linuxkm_check_for_intr_signals()
-    #endif
-    #ifndef WC_RELAX_LONG_LOOP
-        #define WC_RELAX_LONG_LOOP() wc_linuxkm_relax_long_loop()
-    #endif
 
     /* benchmarks.c uses floating point math, so needs a working
      * SAVE_VECTOR_REGISTERS().
@@ -980,6 +988,8 @@
         typeof(wc_lkm_LockMutex) *wc_lkm_LockMutex;
         #endif
 
+        typeof(wc_linuxkm_sig_ignore_begin) *wc_linuxkm_sig_ignore_begin;
+        typeof(wc_linuxkm_sig_ignore_end) *wc_linuxkm_sig_ignore_end;
         typeof(wc_linuxkm_check_for_intr_signals) *wc_linuxkm_check_for_intr_signals;
         typeof(wc_linuxkm_relax_long_loop) *wc_linuxkm_relax_long_loop;
 
@@ -1220,6 +1230,8 @@
      */
     #define spin_unlock_irqrestore(lock, flags) raw_spin_unlock_irqrestore(&((lock)->rlock), flags)
 
+    #define wc_linuxkm_sig_ignore_begin WC_LKM_INDIRECT_SYM(wc_linuxkm_sig_ignore_begin);
+    #define wc_linuxkm_sig_ignore_end WC_LKM_INDIRECT_SYM(wc_linuxkm_sig_ignore_end);
     #define wc_linuxkm_check_for_intr_signals WC_LKM_INDIRECT_SYM(wc_linuxkm_check_for_intr_signals)
     #define wc_linuxkm_relax_long_loop WC_LKM_INDIRECT_SYM(wc_linuxkm_relax_long_loop)
 
