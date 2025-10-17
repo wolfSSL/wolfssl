@@ -1576,7 +1576,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp800108_cmac(void)
         },
         #endif /* !NO_AES_192 */
 
-        #if !defined(NO_AES_192)
+        #if !defined(NO_AES_256)
         {
             /* [PRF=CMAC_AES256]
              * [CTRLOCATION=BEFORE_FIXED]
