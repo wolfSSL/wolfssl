@@ -447,10 +447,8 @@
     #endif
     #include <linux/random.h>
 
-    #ifndef __PIE__
-        #if defined(WOLFSSL_LINUXKM_USE_GET_RANDOM_KPROBES) || defined(FIPS_OPTEST)
-            #include <linux/kprobes.h>
-        #endif
+    #if !defined(__PIE__) && defined(CONFIG_HAVE_KPROBES)
+        #include <linux/kprobes.h>
     #endif
 
     #ifdef LINUXKM_LKCAPI_REGISTER
