@@ -1641,13 +1641,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp800108_cmac(void)
 
         /* test invalid options */
         ret = wc_KDA_KDF_PRF_cmac(NULL, 0, NULL, 0, NULL, 0,
-                                  0, HEAP_HINT, devId);
+                                  (enum CmacType)0, HEAP_HINT, devId);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             return WC_TEST_RET_ENC_NC;
         }
 
         ret = wc_KDA_KDF_PRF_cmac(dummy_var, 0, dummy_var, 0, dummy_var, 0,
-                                  0, HEAP_HINT, devId);
+                                  (enum CmacType)0, HEAP_HINT, devId);
         if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             return WC_TEST_RET_ENC_NC;
         }

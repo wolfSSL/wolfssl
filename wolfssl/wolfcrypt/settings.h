@@ -3268,6 +3268,11 @@ extern void uITRON4_free(void *p) ;
         #error HAVE_CMAC_KDF and NO_AES are incompatible
     #endif
 
+    /* SP 800-56C cmac kdf two-step requires AES-128-cmac for expand step. */
+    #if defined(NO_AES_128)
+        #error HAVE_CMAC_KDF and NO_AES_128 are incompatible
+    #endif
+
     #if !defined(WOLFSSL_CMAC)
         #define WOLFSSL_CMAC
     #endif
