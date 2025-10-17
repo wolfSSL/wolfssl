@@ -17,11 +17,8 @@ jobs:
     strategy:
       matrix:
         config: [
-          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
-# --enable-linuxkm-pie breaks on latest github Azure image on kernel 6.14, with
-# "error: gendwarfksyms: process_module: dwarf_get_units failed: no debugging information?"
-# fix TBD.  culprit likely involves CONFIG_GENDWARFKSYMS and/or CONFIG_DEBUG_INFO.
-#          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-lkcapi-register=all --enable-all --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --enable-dual-alg-certs --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384',
+          'EXTRA_CPPFLAGS=-Werror --enable-option-checking=fatal --enable-linuxkm --enable-linuxkm-pie --enable-reproducible-build --enable-linuxkm-lkcapi-register=all --enable-all-crypto --enable-cryptonly --enable-kyber=yes,original --enable-lms --enable-xmss --enable-dilithium --enable-experimental --disable-qt --disable-quic --with-sys-crypto-policy=no --disable-opensslextra --disable-testcert --enable-intelasm --disable-sp-asm --enable-crypttests --enable-linuxkm-benchmarks CFLAGS="-DWOLFSSL_LINUXKM_VERBOSE_DEBUG -Wframe-larger-than=2048 -Wstack-usage=4096 -DBENCH_EMBEDDED -DBENCH_MIN_RUNTIME_SEC=0.01 -DBENCH_NTIMES=1 -DBENCH_AGREETIMES=1" --with-max-rsa-bits=16384'
         ]
     name: build module
     if: github.repository_owner == 'wolfssl'
@@ -39,7 +36,7 @@ jobs:
           echo "preparing target kernel $(uname -r)"
           pushd "/lib/modules/$(uname -r)/build" || $(exit 4)
           if [ -f /proc/config.gz ]; then gzip -dc /proc/config.gz > /tmp/.config && sudo mv /tmp/.config . || $(exit 5); elif [ -f "/boot/config-$(uname -r)" ]; then sudo cp -p "/boot/config-$(uname -r)" .config || $(exit 6); fi
-          sudo make -j 4 oldconfig || $(exit 7)
+          sudo make -j 4 olddefconfig || $(exit 7)
           sudo make M="$(pwd)" modules_prepare || $(exit 8)
           popd >/dev/null
 
