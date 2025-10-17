@@ -1398,13 +1398,13 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
 
     /* According to SP800_56C the number of iterations shall not be greater than
      * 2**32-1. This is not possible using word32 integers.*/
-    while (outIdx + hashOutSz <= derivedSecretSz) {
+    while (outIdx + (word32) hashOutSz <= derivedSecretSz) {
         ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
             hashType, output + outIdx);
         if (ret != 0)
             break;
         counter++;
-        outIdx += hashOutSz;
+        outIdx += (word32) hashOutSz;
     }
 
     if (ret == 0 && outIdx < derivedSecretSz) {
@@ -1413,7 +1413,7 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         if (ret == 0) {
             XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
         }
-        ForceZero(hashTempBuf, hashOutSz);
+        ForceZero(hashTempBuf, (word32) hashOutSz);
     }
 
     if (ret != 0) {
