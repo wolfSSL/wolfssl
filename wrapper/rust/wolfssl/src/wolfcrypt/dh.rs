@@ -40,11 +40,16 @@ pub struct DH {
 }
 
 impl DH {
+    /// ffdhe2048 named parameter group.
     pub const FFDHE_2048: i32 = ws::WC_FFDHE_2048 as i32;
-    pub const FFDHE_3072: i32 = ws::WC_FFDHE_2048 as i32;
-    pub const FFDHE_4096: i32 = ws::WC_FFDHE_2048 as i32;
-    pub const FFDHE_6144: i32 = ws::WC_FFDHE_2048 as i32;
-    pub const FFDHE_8192: i32 = ws::WC_FFDHE_2048 as i32;
+    /// ffdhe3072 named parameter group.
+    pub const FFDHE_3072: i32 = ws::WC_FFDHE_3072 as i32;
+    /// ffdhe4096 named parameter group.
+    pub const FFDHE_4096: i32 = ws::WC_FFDHE_4096 as i32;
+    /// ffdhe6144 named parameter group.
+    pub const FFDHE_6144: i32 = ws::WC_FFDHE_6144 as i32;
+    /// ffdhe8192 named parameter group.
+    pub const FFDHE_8192: i32 = ws::WC_FFDHE_8192 as i32;
 
     /// Perform quick validity check of public key value against prime.
     ///
