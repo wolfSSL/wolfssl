@@ -1146,11 +1146,11 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 #if defined(WC_KDF_NIST_SP_800_56C)
 #define INIT_SP80056C_TEST_VECTOR(_z, _fixedInfo, _derivedKey, _hashType)      \
     {                                                                          \
-        .z = (const byte*)_z, .zSz = sizeof(_z) - 1,                           \
-        .fixedInfo = (const byte*)_fixedInfo,                                  \
+        .z = (const byte*)(_z), .zSz = sizeof(_z) - 1,                         \
+        .fixedInfo = (const byte*)(_fixedInfo),                                \
         .fixedInfoSz = sizeof(_fixedInfo) - 1,                                 \
-        .derivedKey = (const byte*)_derivedKey,                                \
-        .derivedKeySz = sizeof(_derivedKey) - 1, .hashType = _hashType,        \
+        .derivedKey = (const byte*)(_derivedKey),                              \
+        .derivedKeySz = sizeof(_derivedKey) - 1, .hashType = (_hashType),      \
     }
 
 #define SP800_56C_MAX_OUT 128

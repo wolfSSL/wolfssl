@@ -1502,7 +1502,6 @@ int wc_KDA_KDF_twostep_cmac(const byte * salt, word32 salt_len,
             return ret;
         }
         /* fall-through when unavailable */
-        ret = 0; /* reset error code */
     }
     #endif
 
