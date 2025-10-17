@@ -4855,8 +4855,27 @@ exit_aes_enc:
     }
 
 #ifdef HAVE_AES_DECRYPT
+
+    if (WC_ARRAY_OK(enc)) {
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            wc_AesFree(enc[i]);
+        }
+        WC_FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+    }
+
+    bench_stats_prepare();
+    WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
+                     sizeof(Aes), HEAP_HINT);
+
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_AesInit(enc[i], HEAP_HINT,
+                         useDeviceID ? devId: INVALID_DEVID);
+        if (ret != 0) {
+            printf("AesInit failed at L%d, ret = %d\n", __LINE__, ret);
+            goto exit;
+        }
+
         ret = wc_AesSetKey(enc[i], key, keySz, iv, AES_DECRYPTION);
         if (ret != 0) {
             printf("AesSetKey failed, ret = %d\n", ret);
@@ -4964,10 +4983,6 @@ static void bench_aesgcm_internal(int useDeviceID,
     WC_ALLOC_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                   sizeof(Aes), HEAP_HINT);
-#ifdef HAVE_AES_DECRYPT
-    WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
-                  sizeof(Aes), HEAP_HINT);
-#endif
 
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
@@ -5036,6 +5051,10 @@ exit_aes_gcm:
 #ifdef HAVE_AES_DECRYPT
 
     RESET_MULTI_VALUE_STATS_VARS();
+
+    bench_stats_prepare();
+    WC_CALLOC_ARRAY(dec, Aes, BENCH_MAX_PENDING,
+                  sizeof(Aes), HEAP_HINT);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
