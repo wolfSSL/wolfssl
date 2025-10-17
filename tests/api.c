@@ -44807,7 +44807,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_ED25519 */
     }
-#ifdef WOLFSSL_HAVE_COPY_FREE_CB
+#ifdef WOLF_CRYPTO_CB_COPY
     else if (info->algo_type == WC_ALGO_TYPE_COPY) {
     #ifdef DEBUG_WOLFSSL
         fprintf(stderr, "test_CryptoCb_Func: Copy Algo=%d Type=%d\n",
@@ -44815,6 +44815,34 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
     #endif
         if (info->copy.algo == WC_ALGO_TYPE_HASH) {
             switch (info->copy.type) {
+    #ifndef NO_SHA
+                case WC_HASH_TYPE_SHA:
+                {
+                    wc_Sha* src = (wc_Sha*)info->copy.src;
+                    wc_Sha* dst = (wc_Sha*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_ShaCopy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA224
+                case WC_HASH_TYPE_SHA224:
+                {
+                    wc_Sha224* src = (wc_Sha224*)info->copy.src;
+                    wc_Sha224* dst = (wc_Sha224*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha224Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
     #ifndef NO_SHA256
                 case WC_HASH_TYPE_SHA256:
                 {
@@ -44835,6 +44863,90 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
     #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                {
+                    wc_Sha384* src = (wc_Sha384*)info->copy.src;
+                    wc_Sha384* dst = (wc_Sha384*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha384Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                {
+                    wc_Sha512* src = (wc_Sha512*)info->copy.src;
+                    wc_Sha512* dst = (wc_Sha512*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha512Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                case WC_HASH_TYPE_SHA3_224:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_224_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                case WC_HASH_TYPE_SHA3_256:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_256_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+                case WC_HASH_TYPE_SHA3_384:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_384_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                case WC_HASH_TYPE_SHA3_512:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_512_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
                 default:
                     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
                     break;
@@ -44844,6 +44956,8 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
         }
     }
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
     else if (info->algo_type == WC_ALGO_TYPE_FREE) {
     #ifdef DEBUG_WOLFSSL
         fprintf(stderr, "test_CryptoCb_Func: Free Algo=%d Type=%d\n",
@@ -44852,6 +44966,26 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
 
         if (info->free.algo == WC_ALGO_TYPE_HASH) {
             switch (info->free.type) {
+    #ifndef NO_SHA
+                case WC_HASH_TYPE_SHA:
+                {
+                    wc_Sha* sha = (wc_Sha*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_ShaFree(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA224
+                case WC_HASH_TYPE_SHA224:
+                {
+                    wc_Sha224* sha = (wc_Sha224*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha224Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
     #ifndef NO_SHA256
                 case WC_HASH_TYPE_SHA256:
                 {
@@ -44868,6 +45002,66 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                     break;
                 }
     #endif
+    #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                {
+                    wc_Sha384* sha = (wc_Sha384*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha384Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                {
+                    wc_Sha512* sha = (wc_Sha512*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha512Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                case WC_HASH_TYPE_SHA3_224:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_224_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                case WC_HASH_TYPE_SHA3_256:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_256_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+                case WC_HASH_TYPE_SHA3_384:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_384_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                case WC_HASH_TYPE_SHA3_512:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
                 default:
                     ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
                     break;
@@ -44877,7 +45071,7 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
             ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
         }
     }
-#endif /* WOLFSSL_HAVE_COPY_FREE_CB */
+#endif /* WOLF_CRYPTO_CB_FREE */
     (void)thisDevId;
     (void)keyFormat;
 
