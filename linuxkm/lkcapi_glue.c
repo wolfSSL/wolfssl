@@ -329,7 +329,11 @@ static int linuxkm_lkcapi_register(void)
         return -EDEADLK;
     }
 
-    WC_SIG_IGNORE_BEGIN();
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
 
     ret = linuxkm_lkcapi_sysfs_install();
     if (ret)
@@ -738,7 +742,10 @@ static int linuxkm_lkcapi_register(void)
 
 out:
 
-    WC_SIG_IGNORE_END();
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
     WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
 
     return ret;
@@ -759,7 +766,11 @@ static int linuxkm_lkcapi_unregister(void)
         return -EDEADLK;
     }
 
-    WC_SIG_IGNORE_BEGIN();
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
 
     if (linuxkm_lkcapi_n_registered == 0) {
         ret = -ENOENT;
@@ -1010,7 +1021,10 @@ static int linuxkm_lkcapi_unregister(void)
 
 out:
 
-    WC_SIG_IGNORE_END();
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
     WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
 
     return ret;

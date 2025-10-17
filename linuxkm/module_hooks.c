@@ -591,9 +591,12 @@ static int wolfssl_init(void)
         total_other_r = 0;
 #endif
 
-    WC_SIG_IGNORE_BEGIN();
-    fipsEntry();
-    WC_SIG_IGNORE_END();
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        fipsEntry();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
 
 #if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
@@ -700,9 +703,12 @@ static int wolfssl_init(void)
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
      */
-    WC_SIG_IGNORE_BEGIN();
-    fipsEntry();
-    WC_SIG_IGNORE_END();
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        fipsEntry();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_GetStatus_fips() after reset failed with code %d: %s\n", ret, wc_GetErrorString(ret));
@@ -1690,9 +1696,14 @@ static ssize_t FIPS_rerun_self_test_handler(struct kobject *kobj, struct kobj_at
 
     pr_info("wolfCrypt: rerunning FIPS self-test on command.");
 
-    WC_SIG_IGNORE_BEGIN();
-    ret = wolfCrypt_IntegrityTest_fips();
-    WC_SIG_IGNORE_END();
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        ret = wolfCrypt_IntegrityTest_fips();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else {
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        ret = -1;
+    }
     if (ret != 0) {
         pr_err("ERROR: wolfCrypt_IntegrityTest_fips: error %d", ret);
         return -EINVAL;
@@ -1775,9 +1786,12 @@ static ssize_t FIPS_optest_trig_handler(struct kobject *kobj, struct kobj_attrib
      * because wc_GetCastStatus_fips(FIPS_CAST_HMAC_SHA2_256) isn't available
      * anymore.
      */
-    WC_SIG_IGNORE_BEGIN();
-    fipsEntry();
-    WC_SIG_IGNORE_END();
+    if (WC_SIG_IGNORE_BEGIN() >= 0) {
+        fipsEntry();
+        (void)WC_SIG_IGNORE_END();
+    }
+    else
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
     ret = wolfCrypt_GetStatus_fips();
     printf("Status indicator of library reload/powercycle: %d\n",
            ret);
