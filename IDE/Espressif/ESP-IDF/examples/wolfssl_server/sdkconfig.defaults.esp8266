@@ -1,3 +1,44 @@
+# sdkconfig.defaults.esp8266
+
+# Copyright (C) 2006-2025 wolfSSL Inc.
+#
+# This file is part of wolfSSL.
+#
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+
+# File Version 5.8.2.001 for esp-idf integration
+
+# Limited memory
+# TLS 1.2 only needs about 6000 bytes
+# TLS 1.2 + 1.3 needs about 10K
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=10240
+CONFIG_MAIN_TASK_STACK_SIZE=10240
+CONFIG_WOLFSSL_ALLOW_TLS12=y
+
+# TLS 1.3 can be disabled on very low memory devices
+# CONFIG_WOLFSSL_LOW_MEMORY_DISABLE_TLS13=y
+
+# CONFIG_TCPIP_TASK_STACK_SIZE=3072
+# CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=2304
+# CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=1536
+# CONFIG_FREERTOS_ISR_STACKSIZE=1536
+# CONFIG_TCP_SND_BUF_DEFAULT=5760
+
+# wolfSSL sets UART to 115200 instead of 74880 default
+CONFIG_CONSOLE_UART_BAUDRATE=115200
+
 # ESP8266 WDT
 # CONFIG_ESP_PANIC_PRINT_REBOOT is not set
 CONFIG_ESP_PANIC_PRINT_REBOOT=n

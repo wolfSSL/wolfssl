@@ -104,6 +104,7 @@ typedef union {
     wc_Sha3 sha3;
 #endif
 #ifdef WOLFSSL_SM3
+    /* See install.sh in wolfssl/wolfsm repo */
     wc_Sm3 sm3;
 #endif
     WOLF_AGG_DUMMY_MEMBER;
