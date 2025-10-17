@@ -23,3 +23,4 @@ pub mod dh;
 pub mod ecc;
 pub mod random;
 pub mod rsa;
+pub mod sha;
