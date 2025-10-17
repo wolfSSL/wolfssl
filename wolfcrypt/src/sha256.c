@@ -905,13 +905,6 @@ static int InitSha256(wc_Sha256* sha256)
                                kAlgorithm_SSS_SHA256);
         return ret;
     }
-    int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
-    {
-        int ret = 0;
-        ret = se050_hash_final(&sha256->se050Ctx, hash, WC_SHA256_DIGEST_SIZE,
-                               kAlgorithm_SSS_SHA256);
-        return ret;
-    }
 
 #elif defined(WOLFSSL_AFALG_HASH)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_hash.c */

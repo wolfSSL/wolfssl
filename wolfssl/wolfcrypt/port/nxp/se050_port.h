@@ -50,6 +50,9 @@
     #endif
 #endif
 
+#undef  WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
