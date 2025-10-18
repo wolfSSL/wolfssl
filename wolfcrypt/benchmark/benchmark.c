@@ -1278,16 +1278,19 @@ static const char* bench_Usage_msg1[][27] = {
 #endif /* MAIN_NO_ARGS */
 #endif
 
-static const char* bench_result_words1[][4] = {
+static const char* bench_result_words1[][5] = {
     { "took",
 #ifdef BENCH_MICROSECOND
       "microseconds"
 #else
       "seconds"
 #endif
-    , "Cycles per byte", NULL }, /* 0 English */
+    , "Cycles per byte",
+      "MCycles/op",
+      NULL }, /* 0 English */
 #ifndef NO_MULTIBYTE_PRINT
-    { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
+    { "を"   , "秒で処理", "1バイトあたりのサイクル数", "MCycles/op",
+      NULL },     /* 1 Japanese */
 #endif
 };
 
@@ -1317,7 +1320,8 @@ static const char* bench_result_words3[][5] = {
 };
 #endif
 
-#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
+#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && \
+    !defined(WOLFSSL_SGX)
     #define HAVE_GET_CYCLES
     static WC_INLINE word64 get_intel_cycles(void);
     static THREAD_LS_T word64 total_cycles;
@@ -1331,6 +1335,12 @@ static const char* bench_result_words3[][5] = {
             bench_result_words1[lng_index][2],                                 \
             FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 :                          \
             (double)total_cycles / ((word64)count*(s))))
+    #define SHOW_INTEL_CYCLES_OPS(b, n)                                        \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                    \
+            " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
+            FLT_FMT_PREC2_ARGS(9, 2, count == 0 ? 0 :                          \
+            (double)total_cycles / ((word64)count) / 1000000.0),               \
+            bench_result_words1[lng_index][3])
     #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                     \
         (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), FLT_FMT_PREC ","   \
             STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, count == 0 ? 0 :      \
@@ -1364,6 +1374,12 @@ static const char* bench_result_words3[][5] = {
         bench_result_words1[lng_index][2],                                     \
                         FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles /        \
                             (count*s)))
+    #define SHOW_INTEL_CYCLES_OPS(b, n)                                        \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
+            " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
+            FLT_FMT_PREC2_ARGS(9, 2, (double)total_cycles /                    \
+                (count) / 1000000.0),                                          \
+            bench_result_words1[lng_index][3]);
     #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                     \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ","       \
             STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, (double)total_cycles  \
@@ -1384,6 +1400,12 @@ static const char* bench_result_words3[][5] = {
         " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                         \
         bench_result_words1[lng_index][2],                                     \
             FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)))
+    #define SHOW_INTEL_CYCLES_OPS(b, n)                                        \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                        \
+            " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
+            FLT_FMT_PREC2_ARGS(9, 2, (double)total_cycles / (count) /          \
+                1000000.0),                                                    \
+            bench_result_words1[lng_index][3])
     #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                     \
         (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), FLT_FMT_PREC ",\n",    \
             FLT_FMT_PREC_ARGS(6, (double)total_cycles / (count*s)))
@@ -1453,6 +1475,13 @@ static const char* bench_result_words3[][5] = {
             " %s = " FLT_FMT_PREC2 "\n",                               \
             bench_result_words1[lng_index][2],                         \
             FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles / (count*s)) \
+        )
+    #define SHOW_ESP_CYCLES_OPS(b, n)                                  \
+        (void)XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b),                \
+            " " FLT_FMT_PREC2 " %s\n",                                 \
+            FLT_FMT_PREC2_ARGS(6, 2, (double)total_cycles /            \
+                                     (count) / 1000000.0),             \
+            bench_result_words1[lng_index][3]                          \
         )
 
     #define SHOW_ESP_CYCLES_CSV(b, n, s) \
@@ -1701,6 +1730,33 @@ static const char* bench_result_words3[][5] = {
         return _esp_get_cycle_count_ex;
     } /* esp_get_cycle_count_ex for esp_get_cpu_benchmark_cycles() */
 
+#elif defined(__aarch64__)
+    #define HAVE_GET_CYCLES
+    static WC_INLINE word64 get_aarch64_cycles(void);
+    static THREAD_LS_T word64 total_cycles;
+    #define INIT_CYCLE_COUNTER
+    #define BEGIN_INTEL_CYCLES                                                 \
+        total_cycles = get_aarch64_cycles();
+    #define END_INTEL_CYCLES                                                   \
+        total_cycles = get_aarch64_cycles() - total_cycles;
+    /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
+    #define SHOW_INTEL_CYCLES(b, n, s)                                         \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                    \
+            " %s = " FLT_FMT_PREC2 STATS_CLAUSE_SEPARATOR,                     \
+            bench_result_words1[lng_index][2],                                 \
+            FLT_FMT_PREC2_ARGS(6, 2, count == 0 ? 0 :                          \
+            (double)total_cycles / ((word64)count*(s))))
+    #define SHOW_INTEL_CYCLES_OPS(b, n)                                        \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b),                    \
+            " " FLT_FMT_PREC2 " %s" STATS_CLAUSE_SEPARATOR,                    \
+            FLT_FMT_PREC2_ARGS(9, 2, count == 0 ? 0 :                          \
+            (double)total_cycles / ((word64)count) / 1000000.0),               \
+            bench_result_words1[lng_index][3])
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)                                     \
+        (void)XSNPRINTF((b) + XSTRLEN(b), (n) - XSTRLEN(b), FLT_FMT_PREC ","   \
+            STATS_CLAUSE_SEPARATOR, FLT_FMT_PREC_ARGS(6, count == 0 ? 0 :      \
+            (double)total_cycles / ((word64)count*(s))))
+
 /* implement other architecture cycle counters here */
 
 #else
@@ -1711,11 +1767,13 @@ static const char* bench_result_words3[][5] = {
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
     #ifdef MULTI_VALUE_STATISTICS
-        #define SHOW_INTEL_CYCLES(b, n, s) WC_DO_NOTHING
+        #define SHOW_INTEL_CYCLES(b, n, s)     WC_DO_NOTHING
+        #define SHOW_INTEL_CYCLES_OPS(b, n)    WC_DO_NOTHING
         #define SHOW_INTEL_CYCLES_CSV(b, n, s) WC_DO_NOTHING
     #else
         #define SHOW_INTEL_CYCLES(b, n, s)     b[XSTRLEN(b)] = '\n'
-        #define SHOW_INTEL_CYCLES_CSV(b, n, s)     b[XSTRLEN(b)] = '\n'
+        #define SHOW_INTEL_CYCLES_OPS(b, n)    b[XSTRLEN(b)] = '\n'
+        #define SHOW_INTEL_CYCLES_CSV(b, n, s) b[XSTRLEN(b)] = '\n'
     #endif
 #endif
 
@@ -2959,8 +3017,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #ifdef HAVE_GET_CYCLES
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s "
-                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC " %s, %lu cycles"
-                        STATS_CLAUSE_SEPARATOR,
+                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC " %s, %lu cycles",
                         algo, strength, desc, desc_extra,
                         BENCH_DEVID_GET_NAME(useDeviceID), count, word[0],
                         FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
@@ -2970,8 +3027,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s "
-                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC " %s"
-                        STATS_CLAUSE_SEPARATOR,
+                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC " %s",
                         algo, strength, desc, desc_extra,
                         BENCH_DEVID_GET_NAME(useDeviceID), count, word[0],
                         FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
@@ -2981,13 +3037,21 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
 #else
         (void)XSNPRINTF(msg, sizeof(msg),
                         "%-6s %5d %8s%-2s %s %6d %s " FLT_FMT_PREC2 " %s, %s "
-                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC " %s"
-                        STATS_CLAUSE_SEPARATOR,
+                        FLT_FMT_PREC2 " ms, " FLT_FMT_PREC2 " %s",
                         algo, strength, desc, desc_extra,
                         BENCH_DEVID_GET_NAME(useDeviceID), count, word[0],
                         FLT_FMT_PREC2_ARGS(5, 3, total), word[1], word[2],
                         FLT_FMT_PREC2_ARGS(5, 3, milliEach),
-                        FLT_FMT_PREC_ARGS(digits, opsSec), word[3]);
+                        FLT_FMT_PREC2_ARGS(digits + 6, digits, opsSec),
+                        word[3]);
+#endif
+#ifdef WOLFSSL_ESPIDF
+        SHOW_ESP_CYCLES_OPS(msg, sizeof(msg));
+
+/* implement other architecture cycle counters here */
+
+#else
+        SHOW_INTEL_CYCLES_OPS(msg, sizeof(msg));
 #endif
     }
 #endif /* MULTI_VALUE_STATISTICS */
@@ -15173,6 +15237,20 @@ void bench_sphincsKeySign(byte level, byte optim)
             /* Reminder for long duration between calls with
              * multiple overflows will not be detected. */
             return esp_get_cycle_count_ex();
+        }
+
+    #elif defined(__aarch64__)
+        static WC_INLINE word64 get_aarch64_cycles(void)
+        {
+            word64 cycles;
+            __asm__ __volatile__ (
+                "isb\n\t"
+                "mrs    %[cycles], CNTVCT_EL0\n\t"
+                : [cycles] "=r" (cycles)
+                :
+                :
+            );
+            return cycles;
         }
 
     /* implement other architectures here */
