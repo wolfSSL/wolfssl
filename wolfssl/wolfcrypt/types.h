@@ -2071,6 +2071,13 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
         #define SAVE_NO_VECTOR_REGISTERS2() WC_CHECK_FOR_INTR_SIGNALS()
     #endif
 #endif
+#ifndef WC_SIG_IGNORE_BEGIN
+    #define WC_SIG_IGNORE_BEGIN() 0
+#endif
+#ifndef WC_SIG_IGNORE_END
+    #define WC_SIG_IGNORE_END() 0
+#endif
+
 #ifndef RESTORE_NO_VECTOR_REGISTERS
     #define RESTORE_NO_VECTOR_REGISTERS() WC_RELAX_LONG_LOOP()
 #endif

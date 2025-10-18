@@ -653,10 +653,7 @@ then
     AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr" lt_ar_flags="Dcr"])
     AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
 
-    if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "backtrace"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD -g0"
-    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
 
     # opportunistically use -ffile-prefix-map (added in GCC8 and LLVM10)
 
@@ -739,7 +736,10 @@ AC_ARG_WITH([linux-arch],
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM"
+    # Currently DWARF 5 is the default debug format, but it results in
+    # "Unsupported DW_TAG_atomic_type(0x47): type: 0x1eefc" in some
+    # kernel module builds.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
