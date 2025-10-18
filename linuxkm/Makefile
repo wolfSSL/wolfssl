@@ -107,7 +107,7 @@ GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
 	    printf("%s\n    ",								\
 	        "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");			\
 	}										\
-	/^Relocation section '\''\.rela\.text\.wolfcrypt'\''/ {				\
+	/^Relocation section '\''\.rela\.text_wolfcrypt'\''/ {				\
 	    p=1;									\
 	    next;									\
 	}										\
@@ -171,7 +171,7 @@ module-update-fips-hash: libwolfssl.ko
 	@if test -z '$(FIPS_HASH)'; then echo '  $$FIPS_HASH is unset' >&2; exit 1; fi
 	@if [[ ! '$(FIPS_HASH)' =~ [0-9a-fA-F]{64} ]]; then echo '  $$FIPS_HASH is malformed' >&2; exit 1; fi
 	@readarray -t rodata_segment < <($(READELF) --wide --sections libwolfssl.ko | \
-	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata\.wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p'); \
+	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata_wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p'); \
 	if [[ $${#rodata_segment[@]} != 2 ]]; then echo '  unexpected rodata_segment.' >&2; exit 1; fi; \
 	readarray -t verifyCore_attrs < <($(READELF) --wide --symbols libwolfssl.ko | \
 	    sed -E -n 's/^[[:space:]]*[0-9]+: ([0-9a-fA-F]+)[[:space:]]+([0-9]+)[[:space:]]+OBJECT[[:space:]]+[A-Z]+[[:space:]]+[A-Z]+[[:space:]]+'"$${rodata_segment[0]}"'[[:space:]]+verifyCore$$/\1\n\2/p'); \

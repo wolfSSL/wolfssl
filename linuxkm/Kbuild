@@ -214,19 +214,16 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	    echo 'OK.'; \
 	fi; \
 	cd "$(obj)" || exit $$?; \
-	for file in $(WOLFCRYPT_PIE_FILES); do			\
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt	\
-	    --rename-section .text.unlikely=.text.wolfcrypt	\
-	    --rename-section .rodata=.rodata.wolfcrypt		\
-	    --rename-section .rodata.str1.1=.rodata.wolfcrypt	\
-	    --rename-section .rodata.str1.8=.rodata.wolfcrypt	\
-	    --rename-section .rodata.cst16=.rodata.wolfcrypt	\
-	    --rename-section .rodata.cst32=.rodata.wolfcrypt	\
-	    --rename-section .data=.data.wolfcrypt		\
-	    --rename-section .data.rel.local=.data.wolfcrypt    \
-	    --rename-section .bss=.bss.wolfcrypt "$$file" || exit $$?; \
-	done; \
-	[ "$(KERNEL_ARCH_X86)" != "yes" ] ||			\
+	for file in $(WOLFCRYPT_PIE_FILES); do				\
+	    $(OBJCOPY) $$($(READELF) --sections --wide "$$file"	|	\
+	      $(AWK) ' 							\
+	      {								\
+	          if (match($$0, "^ *\\[ *[0-9]+\\] +\\.(text|rodata|data|bss)(\\.[^ ]+)? ", a)) { \
+		      printf("--rename-section .%s%s=.%s_wolfcrypt ", a[1], a[2], a[1]); \
+		  }							\
+	      }') "$$file" || exit $$?;					\
+	done; 								\
+	[ "$(KERNEL_ARCH_X86)" != "yes" ] ||				\
 	{ $(READELF) --sections --syms --wide $(WOLFCRYPT_PIE_FILES) |	\
 	$(AWK) -v obj="$(obj)" '					\
 	    /^File:/ {							\
@@ -253,12 +250,12 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 		if (phase == 1) {					\
 		    if (match($$0, "^ *\\[ *([0-9]+)\\] +([^ ]+) ", a)) {\
 			switch (a[2]) {					\
-			case ".text.wolfcrypt":				\
+			case ".text_wolfcrypt":				\
 			{						\
 			    wolfcrypt_text_sections[a[1]] = a[2];	\
 			    next;					\
 			}						\
-			case /^\.(data|rodata|bss)\.wolfcrypt$$/:	\
+			case /^\.(data|rodata|bss)_wolfcrypt$$/:	\
 			{						\
 			    wolfcrypt_data_sections[a[1]] = a[2];	\
 			    next;					\
@@ -301,7 +298,7 @@ RENAME_PIE_TEXT_AND_DATA_SECTIONS := \
 	    }}'; } || \
 	{ echo 'Error: symbol(s) missed by containerization.' >&2; exit 1; }; \
 	if [[ "$(quiet)" != "silent_" ]]; then \
-	    echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'; \
+	    echo '  wolfCrypt .{text,data,rodata,bss} sections containerized to .{text,data,rodata}_wolfcrypt'; \
 	fi
 endif
 
