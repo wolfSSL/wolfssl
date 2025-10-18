@@ -621,7 +621,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls12_kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  prf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  sshkdf_test(void);
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_HMAC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  tls13_kdf_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  x963kdf_test(void);
@@ -1944,14 +1944,14 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
        /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_HMAC)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = tls13_kdf_test()) != 0)
         TEST_FAIL("TLSv1.3 KDF test failed!\n", ret);
     else
         TEST_PASS("TLSv1.3 KDF test passed!\n");
     PRIVATE_KEY_LOCK();
-#endif /* WOLFSSL_TLS13 */
+#endif /* WOLFSSL_TLS13 && !NO_HMAC */
 
 #if defined(HAVE_X963_KDF) && defined(HAVE_ECC)
     if ( (ret = x963kdf_test()) != 0)
@@ -20769,7 +20769,9 @@ done:
 }
 #endif
 
-#if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
+#if defined(WC_RSA_PSS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
+    !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
 !defined(WOLF_CRYPTO_CB_ONLY_RSA)
@@ -21131,7 +21133,8 @@ exit_rsa_pss:
     return ret;
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_RSA_PUBLIC_ONLY */
-#endif
+#endif /* WC_RSA_PSS && (!HAVE_FIPS || FIPS_VERSION_GE(5,0)) && !WC_NO_RNG */
+
 
 #ifdef WC_RSA_NO_PADDING
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
@@ -23176,7 +23179,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
 
-#if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
+#if defined(WC_RSA_PSS) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,0)) && \
+    !defined(WC_NO_RNG)
 /* Need to create known good signatures to test with this. */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
     !defined(WOLF_CRYPTO_CB_ONLY_RSA)
@@ -28431,7 +28436,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
 #endif /* WOLFSSL_HAVE_PRF && HAVE_HKDF && !NO_HMAC && */
        /* WOLFSSL_BASE16 && !WOLFSSL_NO_TLS12 */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(NO_HMAC)
 
 #define TLSV13_PSK_DHE_SZ 40
 typedef struct {
@@ -29127,7 +29132,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls13_kdf_test(void)
     return ret;
 }
 
-#endif /* WOLFSSL_TLS13 */
+#endif /* WOLFSSL_TLS13 && !NO_HMAC */
 
 static const int fiducial2 = WC_TEST_RET_LN; /* source code reference point --
                                               * see print_fiducials() below.
