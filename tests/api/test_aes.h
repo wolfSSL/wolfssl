@@ -40,7 +40,7 @@ int test_wc_AesCcmEncryptDecrypt(void);
 int test_wc_AesEaxVectors(void);
 int test_wc_AesEaxEncryptAuth(void);
 int test_wc_AesEaxDecryptAuth(void);
-#endif /* WOLFSSL_AES_EAX */
+#endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256*/
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);

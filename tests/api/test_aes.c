@@ -2753,8 +2753,11 @@ int test_wc_AesEaxEncryptAuth(void)
     /* Test bad key lengths */
     for (i = 0; i <= 32; i++) {
         int exp_ret;
-        if (i == AES_128_KEY_SIZE || i == AES_192_KEY_SIZE
-                                  || i == AES_256_KEY_SIZE) {
+        if (i == AES_128_KEY_SIZE
+            #if defined(WOLFSSL_AES_192)
+            || i == AES_192_KEY_SIZE
+            #endif /* WOLFSSL_AES_192 */
+            || i == AES_256_KEY_SIZE) {
             exp_ret = 0;
         }
         else {
@@ -2865,8 +2868,11 @@ int test_wc_AesEaxDecryptAuth(void)
     /* Test bad key lengths */
     for (i = 0; i <= 32; i++) {
         int exp_ret;
-        if (i == AES_128_KEY_SIZE || i == AES_192_KEY_SIZE
-                                  || i == AES_256_KEY_SIZE) {
+        if (i == AES_128_KEY_SIZE
+            #if defined(WOLFSSL_AES_192)
+            || i == AES_192_KEY_SIZE
+            #endif /* WOLFSSL_AES_192 */
+            || i == AES_256_KEY_SIZE) {
             exp_ret = WC_NO_ERR_TRACE(AES_EAX_AUTH_E);
         }
         else {
@@ -2896,7 +2902,7 @@ int test_wc_AesEaxDecryptAuth(void)
     return EXPECT_RESULT();
 } /* END test_wc_AesEaxDecryptAuth() */
 
-#endif /* WOLFSSL_AES_EAX &&
+#endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256
         * (!HAVE_FIPS || FIPS_VERSION_GE(5, 3)) && !HAVE_SELFTEST
         */
 
