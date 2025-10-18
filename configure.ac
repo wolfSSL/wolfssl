@@ -740,6 +740,14 @@ then
     # "Unsupported DW_TAG_atomic_type(0x47): type: 0x1eefc" in some
     # kernel module builds.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AS_IF([test "$ax_enable_debug" = "yes"],
+          [AM_CFLAGS="$AM_CFLAGS -g3"],
+          [AM_CFLAGS="$AM_CFLAGS -g1"])
+    AM_CCASFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AS_IF([test "$ax_enable_debug" = "yes"],
+          [AM_CCASFLAGS="$AM_CFLAGS -g3"],
+          [AM_CCASFLAGS="$AM_CFLAGS -g1"])
+
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
