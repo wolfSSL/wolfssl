@@ -226,7 +226,7 @@
     _Pragma("GCC diagnostic push");
 
     /* we include all the needed kernel headers with these masked out. else
-     * there are profuse warnings.
+     * there are profuse warnings, especially on older kernels.
      */
     _Pragma("GCC diagnostic ignored \"-Wunused-parameter\"");
     _Pragma("GCC diagnostic ignored \"-Wpointer-arith\"");
@@ -240,6 +240,7 @@
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
+    _Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\""); /* needed for kernel 4.9.282 */
 
     #include <linux/kconfig.h>
 
