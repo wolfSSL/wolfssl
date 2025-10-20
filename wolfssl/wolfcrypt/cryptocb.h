@@ -468,12 +468,13 @@ typedef struct wc_CryptoInfo {
         void *ctx;
     } cmd;
 #endif
-#ifdef HAVE_HKDF
+#if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
     struct {
         int type; /* enum wc_KdfType */
-#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+    #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
-#endif
+    #endif
+        #ifdef HAVE_HKDF
             struct {                  /* HKDF one-shot */
                 int         hashType; /* WC_SHA256, etc. */
                 const byte* inKey;    /* Input keying material */
@@ -485,12 +486,25 @@ typedef struct wc_CryptoInfo {
                 byte*       out; /* Output key material */
                 word32      outSz;
             } hkdf;
+        #endif
+        #if defined(HAVE_CMAC_KDF)
+            struct {                 /* NIST.SP.800-56Cr2 two-step cmac KDF */
+                const byte* salt;    /* Input keying material for cmac. */
+                word32      saltSz;
+                const byte* z;       /* The input shared secret to cmac. */
+                word32      zSz;
+                const byte* fixedInfo;    /* The fixed information for kdf.*/
+                word32      fixedInfoSz;
+                byte*       out;     /* Output key material */
+                word32      outSz;   /* Desired size of out key material. */
+            } twostep_cmac;
+        #endif /* HAVE_CMAC_KDf */
             /* Future KDF type structures here */
-#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
+    #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
-#endif
+    #endif
     } kdf;
-#endif
+#endif /* HAVE_HKDF || HAVE_CMAC_KDF */
 #ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
@@ -696,6 +710,15 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hkdf(int hashType, const byte* inKey,
                                    word32 infoSz, byte* out, word32 outSz,
                                    int devId);
 #endif
+
+#if defined(HAVE_CMAC_KDF)
+WOLFSSL_LOCAL int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
+                                              const byte* z, word32 zSz,
+                                              const byte* fixedInfo,
+                                              word32 fixedInfoSz,
+                                              byte* output, word32 outputSz,
+                                              int devId);
+#endif /* HAVE_CMAC_KDF */
 
 #ifndef WC_NO_RNG
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);

@@ -3260,7 +3260,23 @@ extern void uITRON4_free(void *p) ;
             #error "AES CTS requires AES CBC"
         #endif
     #endif
-#endif
+#endif /* !NO_AES */
+
+/* cmac kdf */
+#if defined(HAVE_CMAC_KDF)
+    #if defined(NO_AES)
+        #error HAVE_CMAC_KDF and NO_AES are incompatible
+    #endif
+
+    /* SP 800-56C cmac kdf two-step requires AES-128-cmac for expand step. */
+    #if defined(NO_AES_128)
+        #error HAVE_CMAC_KDF and NO_AES_128 are incompatible
+    #endif
+
+    #if !defined(WOLFSSL_CMAC)
+        #define WOLFSSL_CMAC
+    #endif
+#endif /* HAVE_CMAC_KDF*/
 
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
@@ -3480,7 +3496,6 @@ extern void uITRON4_free(void *p) ;
     #undef  HAVE_PBKDF2
     #define HAVE_PBKDF2
 #endif
-
 
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_OLD_TLS) && \
         (defined(NO_SHA) || defined(NO_MD5))
