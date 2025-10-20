@@ -632,6 +632,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 #ifdef WC_SRTP_KDF
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
 #endif
+
+#ifdef WC_KDF_NIST_SP_800_56C
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_kdf_test(void);
+#endif
+#ifdef HAVE_CMAC_KDF
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp800108_cmac(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_twostep_cmac(void);
+#endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  arc4_test(void);
 #ifdef WC_RC2
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  rc2_test(void);
@@ -1138,15 +1146,15 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 #if defined(WC_KDF_NIST_SP_800_56C)
 #define INIT_SP80056C_TEST_VECTOR(_z, _fixedInfo, _derivedKey, _hashType)      \
     {                                                                          \
-        .z = (const byte*)_z, .zSz = sizeof(_z) - 1,                           \
-        .fixedInfo = (const byte*)_fixedInfo,                                  \
+        .z = (const byte*)(_z), .zSz = sizeof(_z) - 1,                         \
+        .fixedInfo = (const byte*)(_fixedInfo),                                \
         .fixedInfoSz = sizeof(_fixedInfo) - 1,                                 \
-        .derivedKey = (const byte*)_derivedKey,                                \
-        .derivedKeySz = sizeof(_derivedKey) - 1, .hashType = _hashType,        \
+        .derivedKey = (const byte*)(_derivedKey),                              \
+        .derivedKeySz = sizeof(_derivedKey) - 1, .hashType = (_hashType),      \
     }
 
 #define SP800_56C_MAX_OUT 128
-static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
 {
     struct sp800_56c_test_vector {
         const byte* z;
@@ -1468,6 +1476,322 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
     return 0;
 }
 #endif /* WC_KDF_NIST_SP_800_56C */
+
+#if defined(HAVE_CMAC_KDF)
+/* test vectors from:
+ *   "SP 800-108 Key Derivation Using Pseudorandom Functions - Key-Based"
+ *   - https://csrc.nist.rip/groups/STM/cavp/key-derivation.html
+ *   - CounterMode/KDFCTR_gen.txt
+ * */
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp800108_cmac(void)
+{
+    struct sp800_108_test_vector {
+        const byte Kin[32];
+        word32     KinSz;
+        const byte fixedInfo[60];
+        word32     fixedInfoSz;
+        const byte Kout[40];
+        word32     KoutSz;
+    };
+    struct sp800_108_test_vector * v = NULL;
+    struct sp800_108_test_vector vctors[] = {
+        #if !defined(NO_AES_128)
+        {
+            /* [PRF=CMAC_AES128]
+             * [CTRLOCATION=BEFORE_FIXED]
+             * [RLEN=32_BITS]
+             * COUNT=0
+             * L = 128
+             * */
+            {0xc1, 0x0b, 0x15, 0x2e, 0x8c, 0x97, 0xb7, 0x7e,
+             0x18, 0x70, 0x4e, 0x0f, 0x0b, 0xd3, 0x83, 0x05},
+             16,
+            {0x98, 0xcd, 0x4c, 0xbb, 0xbe, 0xbe, 0x15, 0xd1,
+             0x7d, 0xc8, 0x6e, 0x6d, 0xba, 0xd8, 0x00, 0xa2,
+             0xdc, 0xbd, 0x64, 0xf7, 0xc7, 0xad, 0x0e, 0x78,
+             0xe9, 0xcf, 0x94, 0xff, 0xdb, 0xa8, 0x9d, 0x03,
+             0xe9, 0x7e, 0xad, 0xf6, 0xc4, 0xf7, 0xb8, 0x06,
+             0xca, 0xf5, 0x2a, 0xa3, 0x8f, 0x09, 0xd0, 0xeb,
+             0x71, 0xd7, 0x1f, 0x49, 0x7b, 0xcc, 0x69, 0x06,
+             0xb4, 0x8d, 0x36, 0xc4},
+             60,
+            {0x26, 0xfa, 0xf6, 0x19, 0x08, 0xad, 0x9e, 0xe8,
+             0x81, 0xb8, 0x30, 0x5c, 0x22, 0x1d, 0xb5, 0x3f},
+             16
+        },
+        {
+            /* [PRF=CMAC_AES128]
+             * [CTRLOCATION=BEFORE_FIXED]
+             * [RLEN=32_BITS]
+             * COUNT=10
+             * L = 256
+             * */
+            {0x69, 0x5f, 0x1b, 0x1a, 0x16, 0xc9, 0x49, 0xce,
+             0xa5, 0x1c, 0xdf, 0x25, 0x54, 0xec, 0x9d, 0x42},
+             16,
+            {0x4f, 0xce, 0x59, 0x42, 0x83, 0x2a, 0x39, 0x0a,
+             0xa1, 0xcb, 0xe8, 0xa0, 0xbf, 0x9d, 0x20, 0x2c,
+             0xb7, 0x99, 0xe9, 0x86, 0xc9, 0xd6, 0xb5, 0x1f,
+             0x45, 0xe4, 0xd5, 0x97, 0xa6, 0xb5, 0x7f, 0x06,
+             0xa4, 0xeb, 0xfe, 0xc6, 0x46, 0x73, 0x35, 0xd1,
+             0x16, 0xb7, 0xf5, 0xf9, 0xc5, 0xb9, 0x54, 0x06,
+             0x2f, 0x66, 0x18, 0x20, 0xf5, 0xdb, 0x2a, 0x5b,
+             0xbb, 0x3e, 0x06, 0x25},
+             60,
+            {0xd3, 0x4b, 0x60, 0x1e, 0xc1, 0x8c, 0x34, 0xdf,
+             0xa0, 0xf9, 0xe0, 0xb7, 0x52, 0x3e, 0x21, 0x8b,
+             0xdd, 0xdb, 0x9b, 0xef, 0xe8, 0xd0, 0x8b, 0x6c,
+             0x02, 0x02, 0xd7, 0x5a, 0xce, 0x0d, 0xba, 0x89},
+             32
+        },
+        #endif /* !NO_AES_128 */
+
+        #if !defined(NO_AES_192)
+        {
+            /* [PRF=CMAC_AES192]
+             * [CTRLOCATION=BEFORE_FIXED]
+             * [RLEN=32_BITS]
+             * COUNT=39
+             * L = 320
+             * */
+            {0x4c, 0x51, 0xbe, 0xa8, 0x97, 0x5b, 0xe9, 0xe5,
+             0xa0, 0xe4, 0x29, 0xa7, 0xfa, 0xc4, 0x0b, 0x66,
+             0x3f, 0x32, 0x99, 0x15, 0x7d, 0x1f, 0x5d, 0x67},
+             24,
+            {0xf8, 0x6e, 0x42, 0xc6, 0x6d, 0x49, 0xa8, 0xbe,
+             0xda, 0x81, 0x8e, 0x54, 0xd7, 0xc5, 0xa8, 0x1d,
+             0x00, 0xd0, 0x2f, 0xc8, 0x9d, 0x2a, 0x54, 0xe8,
+             0x0f, 0x19, 0xa8, 0x03, 0x4a, 0xd5, 0xe7, 0x0b,
+             0xb7, 0x3d, 0x03, 0x27, 0x54, 0x5a, 0xa5, 0xd5,
+             0x38, 0x7d, 0xff, 0x0a, 0x60, 0x3e, 0x16, 0x09,
+             0x33, 0xf8, 0x94, 0x82, 0x97, 0x71, 0x4d, 0x11,
+             0x23, 0x58, 0x55, 0x8f},
+             60,
+            {0x03, 0xae, 0x7b, 0xa3, 0xd2, 0x05, 0x0b, 0x18,
+             0x65, 0xfc, 0x4a, 0x77, 0x91, 0x8a, 0xd4, 0x90,
+             0x3a, 0xd5, 0xba, 0xf2, 0x6c, 0x02, 0x29, 0xa4,
+             0xda, 0xe4, 0xcc, 0x3b, 0xa6, 0x22, 0x32, 0x54,
+             0x7d, 0xcf, 0xbe, 0x65, 0xc1, 0xa2, 0x1e, 0x89},
+             40
+        },
+        #endif /* !NO_AES_192 */
+
+        #if !defined(NO_AES_256)
+        {
+            /* [PRF=CMAC_AES256]
+             * [CTRLOCATION=BEFORE_FIXED]
+             * [RLEN=32_BITS]
+             * COUNT=39
+             * L = 320
+             * */
+            {0x3a, 0x65, 0x76, 0xa1, 0x54, 0x1e, 0x07, 0xea,
+             0xbd, 0x47, 0xc3, 0x53, 0x4a, 0x43, 0x46, 0xab,
+             0x39, 0xf1, 0x5e, 0xb0, 0x1d, 0x83, 0xec, 0xf2,
+             0x31, 0x90, 0x81, 0xf6, 0xe7, 0xad, 0xa7, 0xe9},
+             32,
+            {0xa2, 0x59, 0xca, 0xe2, 0xc4, 0xa3, 0x6b, 0x89,
+             0x56, 0x3c, 0xb1, 0x48, 0xc7, 0x82, 0x51, 0x34,
+             0x3b, 0xbf, 0xab, 0xdc, 0x13, 0xca, 0x7a, 0xc2,
+             0x17, 0x1c, 0x2e, 0xb6, 0x02, 0x1f, 0x44, 0x77,
+             0xfe, 0xa3, 0x3b, 0x28, 0x72, 0x4d, 0xa7, 0x21,
+             0xee, 0x08, 0x7b, 0xff, 0xd7, 0x94, 0xa1, 0x56,
+             0x37, 0x54, 0xb4, 0x25, 0xa8, 0xd0, 0x9b, 0x3e,
+             0x0d, 0xa5, 0xff, 0xed},
+             60,
+            {0x99, 0xb7, 0x87, 0xef, 0x90, 0xa1, 0x33, 0xe5,
+             0x73, 0x6f, 0xdc, 0xf1, 0x75, 0xc3, 0xa3, 0x80,
+             0x50, 0x1f, 0x45, 0xde, 0xc8, 0xf0, 0x93, 0xec,
+             0xdd, 0x40, 0x00, 0x65, 0x2f, 0x4f, 0xf1, 0xc6,
+             0x57, 0x52, 0x48, 0xa3, 0x63, 0xd4, 0x5d, 0x18},
+             40
+        },
+        #endif /* !NO_AES_256 */
+    };
+    size_t i = 0;
+    int    ret = 0;
+    size_t num_vctors = sizeof(vctors) / sizeof(vctors[0]);
+
+    /* nist vectors tests */
+    for (i = 0; i < num_vctors; ++i) {
+        byte   test_Kout[40];
+        int    n_diff = 0;
+
+        v = &vctors[i];
+        XMEMSET(test_Kout, 0, sizeof(test_Kout));
+
+        ret = wc_KDA_KDF_PRF_cmac(v->Kin, v->KinSz, v->fixedInfo, v->fixedInfoSz,
+                                  test_Kout, v->KoutSz, WC_CMAC_AES,
+                                  HEAP_HINT, devId);
+
+        if (ret) {
+            return WC_TEST_RET_ENC_EC(ret);
+        }
+
+        n_diff = XMEMCMP(v->Kout, test_Kout, v->KoutSz);
+        if (n_diff) {
+            WOLFSSL_MSG_EX("error: nist_sp800108_cmac: %d", n_diff);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    /* misc tests */
+    {
+        byte   dummy_var[WC_AES_BLOCK_SIZE];
+        XMEMSET(dummy_var, 0, sizeof(dummy_var));
+
+        /* test invalid options */
+        ret = wc_KDA_KDF_PRF_cmac(NULL, 0, NULL, 0, NULL, 0,
+                                  (enum CmacType)0, HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_PRF_cmac(dummy_var, 0, dummy_var, 0, dummy_var, 0,
+                                  (enum CmacType)0, HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_PRF_cmac(dummy_var, 15, dummy_var, 1, dummy_var, 15,
+                                  WC_CMAC_AES, HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_PRF_cmac(dummy_var, 16, NULL, 1, dummy_var, 1,
+                                  WC_CMAC_AES, HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        /* test valid options */
+        ret = wc_KDA_KDF_PRF_cmac(dummy_var, 16, dummy_var, 1, dummy_var, 1,
+                                  WC_CMAC_AES, HEAP_HINT, devId);
+        if (ret) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_PRF_cmac(dummy_var, 16, NULL, 0, dummy_var, 1,
+                                  WC_CMAC_AES, HEAP_HINT, devId);
+        if (ret) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    return 0;
+}
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_twostep_cmac(void)
+{
+    int ret = 0;
+
+    #if !defined(NO_AES_192)
+    {
+       /* From CMACGenAES192.rsp
+        * https://csrc.nist.rip/groups/STM/cavp/block-cipher-modes.html
+        * Count = 40
+        * Klen = 24
+        * Mlen = 32
+        * Tlen = 16
+        * produces this intermediate
+        * K_kdk = {74f74608c04f0f4e47fa640433b6e6fb},
+        * and this Kout. */
+        const byte salt[AES_192_KEY_SIZE] =
+            {0x20, 0x51, 0xaf, 0x34, 0x76, 0x2e, 0xbe, 0x55,
+             0x6f, 0x72, 0xa5, 0xc6, 0xed, 0xc7, 0x77, 0x1e,
+             0xb9, 0x24, 0x5f, 0xad, 0x76, 0xf0, 0x34, 0xbe};
+        const byte z[2 * WC_AES_BLOCK_SIZE] =
+            {0xae, 0x8e, 0x93, 0xc9, 0xc9, 0x91, 0xcf, 0x89,
+             0x6a, 0x49, 0x1a, 0x89, 0x07, 0xdf, 0x4e, 0x4b,
+             0xe5, 0x18, 0x6a, 0xe4, 0x96, 0xcd, 0x34, 0x0d,
+             0xc1, 0x9b, 0x23, 0x78, 0x21, 0xdb, 0x7b, 0x60};
+        const byte fixedInfo[60] =
+            {0xa2, 0x59, 0xca, 0xe2, 0xc4, 0xa3, 0x6b, 0x89,
+             0x56, 0x3c, 0xb1, 0x48, 0xc7, 0x82, 0x51, 0x34,
+             0x3b, 0xbf, 0xab, 0xdc, 0x13, 0xca, 0x7a, 0xc2,
+             0x17, 0x1c, 0x2e, 0xb6, 0x02, 0x1f, 0x44, 0x77,
+             0xfe, 0xa3, 0x3b, 0x28, 0x72, 0x4d, 0xa7, 0x21,
+             0xee, 0x08, 0x7b, 0xff, 0xd7, 0x94, 0xa1, 0x56,
+             0x37, 0x54, 0xb4, 0x25, 0xa8, 0xd0, 0x9b, 0x3e,
+             0x0d, 0xa5, 0xff, 0xed};
+        const byte Kout[40] =
+            {0xb4, 0x0c, 0x32, 0xbe, 0x01, 0x27, 0x93, 0xba,
+             0xfd, 0xf7, 0x78, 0xc5, 0xf4, 0x54, 0x43, 0xf4,
+             0xc9, 0x71, 0x23, 0x93, 0x17, 0x63, 0xd8, 0x3a,
+             0x59, 0x27, 0x07, 0xbf, 0xf2, 0xd3, 0x60, 0x59,
+             0x50, 0x27, 0x29, 0xca, 0xb8, 0x8b, 0x29, 0x38};
+        byte test_Kout[40];
+        int  n_diff = 0;
+
+        XMEMSET(test_Kout, 0, sizeof(Kout));
+
+        ret = wc_KDA_KDF_twostep_cmac(salt, sizeof(salt), z, sizeof(z),
+                                      fixedInfo, sizeof(fixedInfo),
+                                      test_Kout, sizeof(Kout),
+                                      HEAP_HINT, devId);
+        if (ret) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        n_diff = XMEMCMP(Kout, test_Kout, sizeof(Kout));
+        if (n_diff) {
+            WOLFSSL_MSG_EX("error: nist_sp80056c_cmac: %d", n_diff);
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+    #endif /* !NO_AES_192 */
+
+    {
+        byte   dummy_var[WC_AES_BLOCK_SIZE];
+        XMEMSET(dummy_var, 0, sizeof(dummy_var));
+
+        /* test invalid options */
+        ret = wc_KDA_KDF_twostep_cmac(NULL, 0, NULL, 0, NULL, 0, NULL, 0,
+                                      HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_twostep_cmac(dummy_var, 0, dummy_var, 0,
+                                      dummy_var, 0, dummy_var, 0,
+                                      HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_twostep_cmac(dummy_var, 15, dummy_var, 1,
+                                      dummy_var, 1, dummy_var, 1,
+                                      HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_twostep_cmac(dummy_var, 15, dummy_var, 1,
+                                      NULL, 1, dummy_var, 1,
+                                      HEAP_HINT, devId);
+        if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        /* test valid options */
+        ret = wc_KDA_KDF_twostep_cmac(dummy_var, 16, dummy_var, 1,
+                                      dummy_var, 1, dummy_var, 1,
+                                      HEAP_HINT, devId);
+        if (ret) {
+            return WC_TEST_RET_ENC_NC;
+        }
+
+        ret = wc_KDA_KDF_twostep_cmac(dummy_var, 16, dummy_var, 1,
+                                      NULL, 0, dummy_var, 1,
+                                      HEAP_HINT, devId);
+        if (ret) {
+            return WC_TEST_RET_ENC_NC;
+        }
+    }
+
+    return 0;
+}
+#endif /* HAVE_CMAC_KDF */
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
@@ -1985,6 +2309,17 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("NIST SP 800-56C KDF test passed!\n");
 #endif
+
+#if defined(HAVE_CMAC_KDF)
+    if ( (ret = nist_sp800108_cmac()) != 0)
+        TEST_FAIL("NIST SP 800-108 KDF test failed!\n", ret);
+    else
+        TEST_PASS("NIST SP 800-108 KDF test passed!\n");
+    if ( (ret = nist_sp80056c_twostep_cmac()) != 0)
+        TEST_FAIL("NIST SP 800-56C two-step KDF test failed!\n", ret);
+    else
+        TEST_PASS("NIST SP 800-56C two-step KDF test passed!\n");
+#endif /* HAVE_CMAC_KDF */
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
    !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
@@ -14567,7 +14902,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
 #endif /* WOLFSSL_AES_128 */
 
 #if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT) && \
-    defined(WOLFSSL_AES_256)
+    defined(WOLFSSL_AES_192) && defined(WOLFSSL_AES_256)
     {
         WOLFSSL_SMALL_STACK_STATIC const byte bigMsg[] = {
             /* "All work and no play makes Jack a dull boy. " */
@@ -14748,7 +15083,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
         if (ret != 0)
             goto out;
     }
-#endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT && WOLFSSL_AES_256 */
+#endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT && WOLFSSL_AES_192 && WOLFSSL_AES_256 */
 
     /* Test of AES IV state with encrypt/decrypt */
 #if defined(WOLFSSL_AES_128) && !defined(HAVE_RENESAS_SYNC)
@@ -61027,28 +61362,40 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         info->cmac.cmac->devId = devIdArg;
     }
 #endif /* WOLFSSL_CMAC && !(NO_AES) && WOLFSSL_AES_DIRECT */
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
+    #if defined(HAVE_HKDF) && !defined(NO_HMAC)
         if (info->kdf.type == WC_KDF_TYPE_HKDF) {
             /* Redirect to software implementation for testing */
-
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
+        #if !defined(HAVE_SELFTEST) && \
+           (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0))
             ret = wc_HKDF_ex(info->kdf.hkdf.hashType,
                            info->kdf.hkdf.inKey, info->kdf.hkdf.inKeySz,
                            info->kdf.hkdf.salt, info->kdf.hkdf.saltSz,
                            info->kdf.hkdf.info, info->kdf.hkdf.infoSz,
                            info->kdf.hkdf.out, info->kdf.hkdf.outSz,
                            NULL, INVALID_DEVID);
-#else
+        #else
             ret = wc_HKDF(info->kdf.hkdf.hashType,
                           info->kdf.hkdf.inKey, info->kdf.hkdf.inKeySz,
                           info->kdf.hkdf.salt, info->kdf.hkdf.saltSz,
                           info->kdf.hkdf.info, info->kdf.hkdf.infoSz,
                           info->kdf.hkdf.out, info->kdf.hkdf.outSz);
-#endif
+        #endif
         }
+    #endif /* HAVE_HKDF && !NO_HMAC */
+    #if defined(HAVE_CMAC_KDF)
+        if (info->kdf.type == WC_KDF_TYPE_TWOSTEP_CMAC) {
+            /* Redirect to software implementation for testing */
+            ret = wc_KDA_KDF_twostep_cmac(
+           info->kdf.twostep_cmac.salt, info->kdf.twostep_cmac.saltSz,
+           info->kdf.twostep_cmac.z, info->kdf.twostep_cmac.zSz,
+           info->kdf.twostep_cmac.fixedInfo, info->kdf.twostep_cmac.fixedInfoSz,
+           info->kdf.twostep_cmac.out, info->kdf.twostep_cmac.outSz,
+           NULL, INVALID_DEVID);
+        }
+    #endif /* HAVE_CMAC_KDF */
     }
-#endif /* HAVE_HKDF && !NO_HMAC */
+
 
     (void)devIdArg;
     (void)myCtx;
@@ -61204,6 +61551,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     if (ret == 0)
         ret = hkdf_test();
 #endif
+#if defined(HAVE_CMAC_KDF)
+    if (ret == 0)
+        ret = nist_sp80056c_twostep_cmac();
+#endif /* HAVE_CMAC_KDF */
 #ifndef NO_PWDBASED
     #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
     PRIVATE_KEY_UNLOCK();

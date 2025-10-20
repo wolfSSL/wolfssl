@@ -1316,8 +1316,9 @@ enum wc_AlgoType {
 /* KDF types */
 enum wc_KdfType {
     WC_KDF_TYPE_NONE = 0,
-    WC_KDF_TYPE_HKDF = 1
-    /* Future: WC_KDF_TYPE_PBKDF2 = 2, WC_KDF_TYPE_SCRYPT = 3, etc. */
+    WC_KDF_TYPE_HKDF = 1,
+    WC_KDF_TYPE_TWOSTEP_CMAC = 2 /* NIST SP 800-56C two-step cmac kdf. */
+    /* Future: WC_KDF_TYPE_PBKDF2 = 3, WC_KDF_TYPE_SCRYPT = 4, etc. */
 };
 
 /* hash types */

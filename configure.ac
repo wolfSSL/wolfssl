@@ -1334,6 +1334,7 @@ then
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
@@ -1441,6 +1442,9 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+
+    # Enable onestep KDF from NIST SP 800 56c option 1.
+    AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
 fi
 
 # wolfGuard
@@ -5600,6 +5604,20 @@ AC_ARG_ENABLE([siphash],
 AS_IF([test "x$ENABLED_SIPHASH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIPHASH"])
 
+AC_ARG_ENABLE([cmac-kdf],
+    [AS_HELP_STRING([--enable-cmac-kdf],[Enables cmac-kdf support (default: disabled)])],
+    [ ENABLED_CMAC_KDF=$enableval ],
+    [ ENABLED_CMAC_KDF=no ]
+    )
+
+if test "$ENABLED_CMAC_KDF" = "yes"
+then
+ if test "$ENABLED_KDF" != "yes"
+ then
+   AC_MSG_ERROR([enable-cmac-kdf requires --enable-kdf])
+ fi
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_CMAC_KDF"
+fi
 
 # CMAC
 AC_ARG_ENABLE([cmac],
@@ -5608,7 +5626,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes"
+if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes" || test "$ENABLED_CMAC_KDF" = "yes"
 then
     ENABLED_CMAC=yes
 fi
