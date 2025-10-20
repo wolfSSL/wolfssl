@@ -20785,7 +20785,7 @@ static const ASNItem crlDistASN[] = {
                                                     /* nameRelativeToCRLIssuer */
 /* DP_DISTPOINT_RN    */             { 3, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
                                                 /* reasons: IMPLICIT BIT STRING */
-/* DP_REASONS         */         { 2, ASN_CONTEXT_SPECIFIC | 1, 1, 0, 1 },
+/* DP_REASONS         */         { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
                                                 /* cRLIssuer */
 /* DP_CRLISSUER       */         { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 0, 1 },
 };
