@@ -242,7 +242,7 @@
 
 /* define the max length for each string of metric reported */
 #ifndef WC_BENCH_MAX_LINE_LEN
-#define WC_BENCH_MAX_LINE_LEN 240
+#define WC_BENCH_MAX_LINE_LEN 150
 #endif
 
 /* default units per second. See WOLFSSL_BENCHMARK_FIXED_UNITS_* to change */
@@ -262,6 +262,12 @@
 
 #if defined(HAVE_STACK_SIZE_VERBOSE)
     #define WC_BENCH_STACK_TRACKING
+#endif
+
+#if (defined(WC_BENCH_HEAP_TRACKING) || defined(WC_BENCH_STACK_TRACKING)) && \
+    (WC_BENCH_MAX_LINE_LEN < 240)
+    #undef WC_BENCH_MAX_LINE_LEN
+    #define WC_BENCH_MAX_LINE_LEN 240
 #endif
 
 #if defined(WC_BENCH_HEAP_TRACKING) || defined(WC_BENCH_STACK_TRACKING)
