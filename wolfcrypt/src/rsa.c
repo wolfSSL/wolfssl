@@ -2237,6 +2237,11 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         ERROR_OUT(BAD_FUNC_ARG);
     }
 
+    if (inLen != keyLen) {
+        WOLFSSL_MSG("Expected that inLen equals RSA key length");
+        ERROR_OUT(BAD_FUNC_ARG);
+    }
+
     if ((keyBuf = (byte*)XMALLOC(keyLen * 2, key->heap, DYNAMIC_TYPE_KEY))
             == NULL) {
         ERROR_OUT(MEMORY_E);
