@@ -2700,11 +2700,15 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
     }
     else {
-        if (dtlsCtx->peer.sz > 0
-                && peerSz != (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz
-                && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("\tIgnored packet from invalid peer");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
+        if (dtlsCtx->peer.sz > 0) {
+            NET_SOCK_ADDR_LEN expectedPeerSz =
+                (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz;
+            if (dtlsCtx->peer.sa == NULL ||
+                peerSz != expectedPeerSz ||
+                XMEMCMP(&peer, dtlsCtx->peer.sa, expectedPeerSz) != 0) {
+                WOLFSSL_MSG("\tIgnored packet from invalid peer");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
         }
     }
 
