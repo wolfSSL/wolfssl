@@ -2442,7 +2442,14 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
-            bio->port = (word16)XATOI(port);
+            const char* portStr = port;
+#ifdef WOLFSSL_IPV6
+            const char* ipv6End = XSTRSTR(port, "]");
+            if (ipv6End) {
+                portStr = XSTRSTR(ipv6End, ":");
+            }
+#endif
+            bio->port = (word16)XATOI(portStr);
             bio->type  = WOLFSSL_BIO_SOCKET;
         }
         return bio;
