@@ -1548,7 +1548,7 @@ int wolfSSL_SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #endif
     }
     ssl->options.resuming = 1;
-    ssl->options.haveEMS = ssl->session->haveEMS;
+    ssl->options.haveEMS = (ssl->session->haveEMS) ? 1 : 0;
 
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                            defined(HAVE_SESSION_TICKET))
