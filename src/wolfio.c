@@ -1670,12 +1670,17 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
     return result;
 }
 
+#ifndef WOLFIO_HTTP_MAX_BODY
+/* Upper bound on an HTTP body that will be buffered in memory. */
+#define WOLFIO_HTTP_MAX_BODY (32 * 1024 * 1024)
+#endif
+
 static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
     void* ioCbCtx, byte **recvBuf, int* recvBufSz, int chunkSz, char* start,
     int len, int dynType, void* heap)
 {
     byte* newRecvBuf = NULL;
-    int newRecvSz = *recvBufSz + chunkSz;
+    int newRecvSz;
     int pos = 0;
 
     WOLFSSL_MSG("Processing HTTP response");
@@ -1690,6 +1695,23 @@ static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf invalid chunk or length size");
         return MEMORY_E;
     }
+
+    if (chunkSz > WOLFIO_HTTP_MAX_BODY) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf chunk too large");
+        return BUFFER_ERROR;
+    }
+
+    if (*recvBufSz < 0 || *recvBufSz > WOLFIO_HTTP_MAX_BODY - chunkSz) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf aggregate body too large");
+        return BUFFER_ERROR;
+    }
+
+    if (len > chunkSz) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf len exceeds chunk size");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    newRecvSz = *recvBufSz + chunkSz;
 
     if (newRecvSz <= 0) {
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf new receive size overflow");
