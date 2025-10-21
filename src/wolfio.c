@@ -1153,20 +1153,42 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 static int linuxkm_send(struct socket *socket, void *buf, int size,
     unsigned int flags)
 {
+    size_t len;
     int ret;
-    struct kvec vec = { .iov_base = buf, .iov_len = size };
+    struct kvec vec;
     struct msghdr msg = { .msg_flags = flags };
-    ret = kernel_sendmsg(socket, &msg, &vec, 1, size);
+
+    if (size < 0)
+        return -EINVAL;
+    if (size == 0)
+        return 0;
+
+    len = (size_t)size;
+    vec.iov_base = buf;
+    vec.iov_len  = len;
+
+    ret = kernel_sendmsg(socket, &msg, &vec, 1, len);
     return ret;
 }
 
 static int linuxkm_recv(struct socket *socket, void *buf, int size,
     unsigned int flags)
 {
+    size_t len;
     int ret;
-    struct kvec vec = { .iov_base = buf, .iov_len = size };
+    struct kvec vec;
     struct msghdr msg = { .msg_flags = flags };
-    ret = kernel_recvmsg(socket, &msg, &vec, 1, size, msg.msg_flags);
+
+    if (size < 0)
+        return -EINVAL;
+    if (size == 0)
+        return 0;
+
+    len = (size_t)size;
+    vec.iov_base = buf;
+    vec.iov_len  = len;
+
+    ret = kernel_recvmsg(socket, &msg, &vec, 1, len, msg.msg_flags);
     return ret;
 }
 #endif /* WOLFSSL_LINUXKM */
