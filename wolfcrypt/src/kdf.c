@@ -1385,7 +1385,7 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         return BAD_FUNC_ARG;
 
     hashOutSz = wc_HashGetDigestSize(hashType);
-    if (hashOutSz == WC_NO_ERR_TRACE(HASH_TYPE_E))
+    if (hashOutSz <= 0)
         return BAD_FUNC_ARG;
 
     /* According to SP800_56C, table 1, the max input size (max_H_inputBits)
