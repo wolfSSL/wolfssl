@@ -289,7 +289,8 @@ int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
 
     recvd = wolfSSL_BIO_read(biord, buf, sz);
     if (recvd <= 0) {
-        if (/* ssl->biowr->wrIdx is checked for Bind9 */
+        if (biowr != NULL &&
+            /* ssl->biowr->wrIdx is checked for Bind9 */
             wolfSSL_BIO_method_type(biowr) == WOLFSSL_BIO_BIO &&
             wolfSSL_BIO_wpending(biowr) != 0 &&
             /* Not sure this pending check is necessary but let's double
