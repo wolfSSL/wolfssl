@@ -35,7 +35,7 @@
 
 struct XmssKey {
     unsigned char        pk[XMSS_SHA256_PUBLEN];
-    uint32_t             oid;
+    word32               oid;
     int                  is_xmssmt;
     xmss_params          params;
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY

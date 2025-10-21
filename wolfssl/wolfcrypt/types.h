@@ -470,67 +470,143 @@ enum {
 
 #ifdef WORD64_AVAILABLE
     #define WC_MAX_UINT_OF(x)                                        \
-        ((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -            \
-                         (word64)1)) - (word64)1)                    \
-         |                                                           \
-         ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) - (word64)1)))
+        ((x)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -        \
+                             (word64)1)) - (word64)1)                \
+             |                                                       \
+             ((word64)1 <<                                           \
+              ((sizeof(x) * (word64)CHAR_BIT) - (word64)1))))
     #define WC_MAX_SINT_OF(x)                                        \
-        ((sword64)((((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -  \
-                                   (word64)2)) - (word64)1)          \
-                   |                                                 \
-                   ((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -   \
-                                  (word64)2))))
-    #define WC_MIN_SINT_OF(x)                                        \
-        ((sword64)((word64)1 << ((sizeof(x) * (word64)CHAR_BIT) -    \
-                                 (word64)1)))
+        ((x)((sword64)((((word64)1 <<                                \
+                         ((sizeof(x) * (word64)CHAR_BIT) -           \
+                          (word64)2)) - (word64)1)                   \
+                       |                                             \
+                       ((word64)1 <<                                 \
+                        ((sizeof(x) * (word64)CHAR_BIT) -            \
+                                      (word64)2)))))
 #else
     #define WC_MAX_UINT_OF(x)                                        \
-        ((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -            \
-                         (word32)1)) - (word32)1)                    \
-         |                                                           \
-         ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) - (word32)1)))
+        ((x)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -        \
+                             (word32)1)) - (word32)1)                \
+             |                                                       \
+             ((word32)1 <<                                           \
+              ((sizeof(x) * (word32)CHAR_BIT) - (word32)1))))
     #define WC_MAX_SINT_OF(x)                                        \
-        ((sword32)((((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -  \
-                                   (word32)2)) - (word32)1)          \
-                   |                                                 \
-                   ((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -   \
-                                  (word32)2))))
-    #define WC_MIN_SINT_OF(x)                                        \
-        ((sword32)((word32)1 << ((sizeof(x) * (word32)CHAR_BIT) -    \
-                                 (word32)1)))
+        ((x)((sword32)((((word32)1 <<                                \
+                         ((sizeof(x) * (word32)CHAR_BIT) -           \
+                          (word32)2)) - (word32)1)                   \
+                       |                                             \
+                       ((word32)1 <<                                 \
+                        ((sizeof(x) * (word32)CHAR_BIT) -            \
+                                      (word32)2)))))
 #endif
+#define WC_MIN_SINT_OF(x) (-WC_MAX_SINT_OF(x) - 1)
 
-#define WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out)             \
+/* The _CLIP variants of the safe arithmetic macros always store a value to out,
+ * but if the result is too large to represent in the type, out is set to the
+ * largest representable value with same sign as the actual result ("clipped").
+ *
+ * The non-_CLIP variants do not store a value if the result can't be accurately
+ * represented, and their return values must be checked.
+ *
+ * Both _CLIP and non-_CLIP macros return 1 if the result could be represented
+ * by the type, and 0 if not.
+ */
+
+#define WC_SAFE_SUM_UNSIGNED_CLIP(type, in1, in2, out)               \
         ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?                   \
-         ((out) = (in1) + (in2), 1) :                                \
+         ((out) = (in1) + (in2),                                     \
+          /* coverity[INTEGER_OVERFLOW] */ 1) :                      \
          ((out) = WC_MAX_UINT_OF(type), 0))
 
-#define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out)                    \
-        WC_WUR_INT(WC_SAFE_SUM_UNSIGNED_NO_WUR(type, in1, in2, out))
+#define WC_SAFE_SUB_UNSIGNED_CLIP(type, in1, in2, out)               \
+        ((in2) <= (in1) ?                                            \
+         ((out) = (in1) - (in2),                                     \
+          /* coverity[INTEGER_UNDERFLOW] */ 1) :                     \
+         ((out) = 0, 0))
+
+#define WC_SAFE_SUM_UNSIGNED(type, in1, in2, out) WC_WUR_INT(        \
+        ((in2) <= (WC_MAX_UINT_OF(type) - (in1)) ?                   \
+         ((out) = (in1) + (in2),                                     \
+          /* coverity[INTEGER_OVERFLOW] */ 1) :                      \
+         0))
+
+#define WC_SAFE_SUB_UNSIGNED(type, in1, in2, out) WC_WUR_INT(        \
+        ((in2) <= (in1) ?                                            \
+         ((out) = (in1) - (in2),                                     \
+          /* coverity[INTEGER_UNDERFLOW] */ 1) :                     \
+         0))
 
 #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && FIPS_VERSION3_LE(6,0,0))
     #define WC_SAFE_SUM_WORD32(in1, in2, out)                        \
-            WC_SAFE_SUM_UNSIGNED_NO_WUR(word32, in1, in2, out)
+            WC_SAFE_SUM_UNSIGNED_CLIP(word32, in1, in2, out)
 #else
     #define WC_SAFE_SUM_WORD32(in1, in2, out)                        \
             WC_SAFE_SUM_UNSIGNED(word32, in1, in2, out)
 #endif
 
-#define WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out)               \
+#define WC_SAFE_SUM_SIGNED_CLIP(type, in1, in2, out)                 \
         ((((in1) > 0) && ((in2) > 0)) ?                              \
              ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?                \
-              ((out) = (in1) + (in2), 1) :                           \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
               ((out) = (type)WC_MAX_SINT_OF(type), 0))               \
              :                                                       \
              ((((in1) < 0) && ((in2) < 0)) ?                         \
               ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?               \
-               ((out) = (in1) + (in2), 1) :                          \
+               ((out) = (in1) + (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
                ((out) = (type)WC_MIN_SINT_OF(type), 0))              \
               :                                                      \
-              ((out) = (in1) + (in2), 1)))
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1)))
 
-#define WC_SAFE_SUM_SIGNED(type, in1, in2, out)                      \
-        WC_WUR_INT(WC_SAFE_SUM_SIGNED_NO_WUR(type, in1, in2, out))
+#define WC_SAFE_SUB_SIGNED_CLIP(type, in1, in2, out)                 \
+        ((((in1) > 0) && ((in2) < 0)) ?                              \
+             ((in2) >= (in1) - WC_MAX_SINT_OF(type) ?                \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              ((out) = (type)WC_MAX_SINT_OF(type), 0))               \
+             :                                                       \
+             ((((in1) < 0) && ((in2) > 0)) ?                         \
+              ((in2) <= (in1) - WC_MIN_SINT_OF(type) ?               \
+               ((out) = (in1) - (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               ((out) = (type)WC_MIN_SINT_OF(type), 0))              \
+              :                                                      \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1)))
+
+#define WC_SAFE_SUM_SIGNED(type, in1, in2, out) WC_WUR_INT(          \
+        ((((in1) > 0) && ((in2) > 0)) ?                              \
+             ((in2) <= WC_MAX_SINT_OF(type) - (in1) ?                \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              0)                                                     \
+             :                                                       \
+             ((((in1) < 0) && ((in2) < 0)) ?                         \
+              ((in2) >= WC_MIN_SINT_OF(type) - (in1) ?               \
+               ((out) = (in1) + (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               0)                                                    \
+              :                                                      \
+              ((out) = (in1) + (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1))))
+
+#define WC_SAFE_SUB_SIGNED(type, in1, in2, out) WC_WUR_INT(          \
+        ((((in1) > 0) && ((in2) < 0)) ?                              \
+             ((in2) >= (in1) - WC_MAX_SINT_OF(type) ?                \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1) :                 \
+              0)                                                     \
+             :                                                       \
+             ((((in1) < 0) && ((in2) > 0)) ?                         \
+              ((in2) <= (in1) - WC_MIN_SINT_OF(type) ?               \
+               ((out) = (in1) - (in2),                               \
+                /* coverity[INTEGER_OVERFLOW] */ 1) :                \
+               0)                                                    \
+              :                                                      \
+              ((out) = (in1) - (in2),                                \
+               /* coverity[INTEGER_OVERFLOW] */ 1))))
 
 #if defined(HAVE_IO_POOL)
     WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
