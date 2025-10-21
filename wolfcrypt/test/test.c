@@ -634,10 +634,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  hpke_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srtpkdf_test(void);
 #endif
 
-#ifdef WC_KDF_NIST_SP_800_56C
+#if defined(WC_KDF_NIST_SP_800_56C) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_kdf_test(void);
 #endif
-#ifdef HAVE_CMAC_KDF
+#if defined(HAVE_CMAC_KDF) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp800108_cmac(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  nist_sp80056c_twostep_cmac(void);
 #endif
@@ -1144,7 +1145,8 @@ static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 }
 #endif
 
-#if defined(WC_KDF_NIST_SP_800_56C)
+#if defined(WC_KDF_NIST_SP_800_56C) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #define INIT_SP80056C_TEST_VECTOR(_z, _fixedInfo, _derivedKey, _hashType)      \
     {                                                                          \
         .z = (const byte*)(_z), .zSz = sizeof(_z) - 1,                         \
@@ -1480,9 +1482,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
 
     return 0;
 }
-#endif /* WC_KDF_NIST_SP_800_56C */
+#endif /* WC_KDF_NIST_SP_800_56C && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
-#if defined(HAVE_CMAC_KDF)
+#if defined(HAVE_CMAC_KDF) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 /* test vectors from:
  *   "SP 800-108 Key Derivation Using Pseudorandom Functions - Key-Based"
  *   - https://csrc.nist.rip/groups/STM/cavp/key-derivation.html
@@ -1796,7 +1798,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_twostep_cmac(void)
 
     return 0;
 }
-#endif /* HAVE_CMAC_KDF */
+#endif /* HAVE_CMAC_KDF && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
 /* optional macro to add sleep between tests */
 #ifndef TEST_SLEEP
@@ -2313,14 +2315,15 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
-#if defined(WC_KDF_NIST_SP_800_56C)
+#if defined(WC_KDF_NIST_SP_800_56C) && \
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     if ( (ret = nist_sp80056c_kdf_test()) != 0)
         TEST_FAIL("NIST SP 800-56C KDF test failed!\n", ret);
     else
         TEST_PASS("NIST SP 800-56C KDF test passed!\n");
 #endif
 
-#if defined(HAVE_CMAC_KDF)
+#if defined(HAVE_CMAC_KDF) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     if ( (ret = nist_sp800108_cmac()) != 0)
         TEST_FAIL("NIST SP 800-108 KDF test failed!\n", ret);
     else
@@ -2329,7 +2332,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("NIST SP 800-56C two-step KDF test failed!\n", ret);
     else
         TEST_PASS("NIST SP 800-56C two-step KDF test passed!\n");
-#endif /* HAVE_CMAC_KDF */
+#endif /* HAVE_CMAC_KDF && (!HAVE_FIPS || FIPS_VERSION3_GE(7,0,0)) */
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
    !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
