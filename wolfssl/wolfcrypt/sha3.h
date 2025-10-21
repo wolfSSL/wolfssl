@@ -144,6 +144,8 @@ struct wc_Sha3 {
 
 #ifdef WOLF_CRYPTO_CB
     int    devId;
+    void*  devCtx;
+    int    hashType;
 #endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK

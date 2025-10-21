@@ -80,8 +80,13 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
         case WC_ALGO_TYPE_CERT:   return "Cert";
-        case WC_ALGO_TYPE_KDF:
-            return "KDF";
+        case WC_ALGO_TYPE_KDF:    return "KDF";
+#ifdef WOLF_CRYPTO_CB_COPY
+        case WC_ALGO_TYPE_COPY:   return "Copy";
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+        case WC_ALGO_TYPE_FREE:   return "Free";
+#endif /* WOLF_CRYPTO_CB_FREE */
     }
     return NULL;
 }
@@ -174,6 +179,7 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
+
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || defined(HAVE_CMAC_KDF)
 static const char* GetKdfTypeStr(int type)
 {
@@ -253,6 +259,20 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
 #endif
+#ifdef WOLF_CRYPTO_CB_COPY
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+        printf("Crypto CB: %s %s Type=%d\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetAlgoTypeStr(info->copy.algo), info->copy.type);
+    }
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+    else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+        printf("Crypto CB: %s %s Type=%d\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetAlgoTypeStr(info->free.algo), info->free.type);
+    }
+#endif /* WOLF_CRYPTO_CB_FREE */
 #if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
     defined(HAVE_CMAC_KDF)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
@@ -2027,6 +2047,74 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+#ifdef WOLF_CRYPTO_CB_COPY
+/* General copy callback function for algorithm structures
+ * devId: The device ID to use for the callback
+ * algo: Algorithm type (enum wc_AlgoType) - WC_ALGO_TYPE_HASH,
+ *       WC_ALGO_TYPE_CIPHER, etc
+ * type: Specific type - for HASH: enum wc_HashType, for CIPHER:
+ *       enum wc_CipherType
+ * src: Pointer to source structure
+ * dst: Pointer to destination structure
+ * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not
+ *          handled
+ */
+int wc_CryptoCb_Copy(int devId, int algo, int type, void* src, void* dst)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_COPY);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_COPY;
+        cryptoInfo.copy.algo = algo;
+        cryptoInfo.copy.type = type;
+        cryptoInfo.copy.src = src;
+        cryptoInfo.copy.dst = dst;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_COPY */
+
+#ifdef WOLF_CRYPTO_CB_FREE
+/* General free callback function for algorithm structures
+ * devId: The device ID to use for the callback
+ * algo: Algorithm type (enum wc_AlgoType) - WC_ALGO_TYPE_HASH,
+ *       WC_ALGO_TYPE_CIPHER, etc
+ * type: Specific type - for HASH: enum wc_HashType, for CIPHER:
+ *       enum wc_CipherType
+ * obj: Pointer to object structure to free
+ * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not
+ *          handled
+ */
+int wc_CryptoCb_Free(int devId, int algo, int type, void* obj)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_FREE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_FREE;
+        cryptoInfo.free.algo = algo;
+        cryptoInfo.free.type = type;
+        cryptoInfo.free.obj = obj;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_FREE */
 
 
 #if defined(HAVE_CMAC_KDF)

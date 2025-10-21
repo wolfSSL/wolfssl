@@ -102,6 +102,7 @@ enum wc_CryptoCbCmdType {
 #endif
 
 
+
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 typedef struct {
     Aes*        aes;
@@ -468,6 +469,21 @@ typedef struct wc_CryptoInfo {
         void *ctx;
     } cmd;
 #endif
+#ifdef WOLF_CRYPTO_CB_COPY
+    struct {      /* uses wc_AlgoType=WC_ALGO_TYPE_COPY */
+        int algo; /* enum wc_AlgoType - HASH, CIPHER, etc */
+        int type; /* For HASH: wc_HashType, CIPHER: wc_CipherType */
+        void *src; /* Source structure to copy from */
+        void *dst; /* Destination structure to copy to */
+    } copy;
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+    struct {      /* uses wc_AlgoType=WC_ALGO_TYPE_FREE */
+        int algo; /* enum wc_AlgoType - HASH, CIPHER, etc */
+        int type; /* For HASH: wc_HashType, CIPHER: wc_CipherType */
+        void *obj; /* Object structure to free */
+    } free;
+#endif /* WOLF_CRYPTO_CB_FREE */
 #if defined(HAVE_HKDF) || defined(HAVE_CMAC_KDF)
     struct {
         int type; /* enum wc_KdfType */
@@ -736,6 +752,14 @@ WOLFSSL_LOCAL int wc_CryptoCb_GetCert(int devId, const char *label,
     word32 labelLen, const byte *id, word32 idLen, byte** out,
     word32* outSz, int *format, void *heap);
 #endif
+
+#ifdef WOLF_CRYPTO_CB_COPY
+WOLFSSL_LOCAL int wc_CryptoCb_Copy(int devId, int algo, int type, void* src,
+                                    void* dst);
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+WOLFSSL_LOCAL int wc_CryptoCb_Free(int devId, int algo, int type, void* obj);
+#endif /* WOLF_CRYPTO_CB_FREE */
 
 #endif /* WOLF_CRYPTO_CB */
 

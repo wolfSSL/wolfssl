@@ -1016,6 +1016,9 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 #endif
 #if defined(WOLF_CRYPTO_CB)
     sha3->devId = devId;
+    /* Set to none to determine the hash type later */
+    /* in the update/final functions based on the p value */
+    sha3->hashType = WC_HASH_TYPE_NONE;
 #endif
     (void)devId;
 
@@ -1048,15 +1051,22 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        int hash_type = WC_HASH_TYPE_NONE;
-        switch (p) {
-            case WC_SHA3_224_COUNT: hash_type = WC_HASH_TYPE_SHA3_224; break;
-            case WC_SHA3_256_COUNT: hash_type = WC_HASH_TYPE_SHA3_256; break;
-            case WC_SHA3_384_COUNT: hash_type = WC_HASH_TYPE_SHA3_384; break;
-            case WC_SHA3_512_COUNT: hash_type = WC_HASH_TYPE_SHA3_512; break;
-            default: return BAD_FUNC_ARG;
+        /* If the hash type is not set, determine it based on the p value */
+        /* We can skip the switch statement if the hash type set already */
+        if (sha3->hashType == WC_HASH_TYPE_NONE) {
+            switch (p) {
+                case WC_SHA3_224_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
+                case WC_SHA3_256_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
+                case WC_SHA3_384_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
+                case WC_SHA3_512_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
+                default: return BAD_FUNC_ARG;
+            }
         }
-        ret = wc_CryptoCb_Sha3Hash(sha3, hash_type, data, len, NULL);
+        ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, data, len, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1102,15 +1112,22 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
     if (sha3->devId != INVALID_DEVID)
     #endif
     {
-        int hash_type = WC_HASH_TYPE_NONE;
-        switch (p) {
-            case WC_SHA3_224_COUNT: hash_type = WC_HASH_TYPE_SHA3_224; break;
-            case WC_SHA3_256_COUNT: hash_type = WC_HASH_TYPE_SHA3_256; break;
-            case WC_SHA3_384_COUNT: hash_type = WC_HASH_TYPE_SHA3_384; break;
-            case WC_SHA3_512_COUNT: hash_type = WC_HASH_TYPE_SHA3_512; break;
-            default: return BAD_FUNC_ARG;
+        /* If the hash type is not set, determine it based on the p value */
+        /* We can skip the switch statement if the hash type is set already */
+        if (sha3->hashType == WC_HASH_TYPE_NONE) {
+            switch (p) {
+                case WC_SHA3_224_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_224; break;
+                case WC_SHA3_256_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_256; break;
+                case WC_SHA3_384_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_384; break;
+                case WC_SHA3_512_COUNT:
+                    sha3->hashType = WC_HASH_TYPE_SHA3_512; break;
+                default: return BAD_FUNC_ARG;
+            }
         }
-        ret = wc_CryptoCb_Sha3Hash(sha3, hash_type, NULL, 0, hash);
+        ret = wc_CryptoCb_Sha3Hash(sha3, sha3->hashType, NULL, 0, hash);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -1147,7 +1164,34 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
  */
 static void wc_Sha3Free(wc_Sha3* sha3)
 {
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    int ret = 0;
+#endif
+
     (void)sha3;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_FREE)
+    if (sha3 == NULL)
+        return;
+
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha3->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Free(sha3->devId, WC_ALGO_TYPE_HASH,
+                         sha3->hashType, (void*)sha3);
+        /* If they want the standard free, they can call it themselves */
+        /* via their callback setting devId to INVALID_DEVID */
+        /* otherwise assume the callback handled it */
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return;
+        /* fall-through when unavailable */
+    }
+
+    /* silence compiler warning */
+    (void)ret;
+
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_FREE */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3 == NULL)
@@ -1173,6 +1217,20 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
+
+#if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_COPY)
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (src->devId != INVALID_DEVID)
+    #endif
+    {
+        /* Cast the source and destination to be void to keep the abstraction */
+        ret = wc_CryptoCb_Copy(src->devId, WC_ALGO_TYPE_HASH,
+                               src->hashType, (void*)src, (void*)dst);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha3));
 

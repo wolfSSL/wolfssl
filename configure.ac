@@ -9448,6 +9448,44 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWC_TEST_NO_CRYPTOCB_SW_TEST"
 fi
 
+# Crypto Callbacks Utils (Copy/Free/etc)
+AC_ARG_ENABLE([cryptocbutils],
+    [AS_HELP_STRING([--enable-cryptocbutils@<:@=copy,free,...@:>@],
+                    [Enable crypto callback utilities (default: all)])],
+    [ ENABLED_CRYPTOCB_UTILS=$enableval ],
+    [ ENABLED_CRYPTOCB_UTILS=no ]
+)
+
+if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
+    if test "$ENABLED_CRYPTOCB" = "no"; then
+        AC_MSG_ERROR([--enable-cryptocbutils requires --enable-cryptocb])
+    fi
+
+    if test "$ENABLED_CRYPTOCB_UTILS" = "yes"; then
+        # Enable all utilities
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE"
+        # Future utilities go here when added
+    else
+        # Parse comma-separated list
+        OIFS="$IFS"
+        IFS=','
+        for util in $ENABLED_CRYPTOCB_UTILS; do
+            case "$util" in
+                copy)
+                    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY"
+                    ;;
+                free)
+                    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_FREE"
+                    ;;
+                # Add future options here (e.g., malloc, realloc, etc)
+                *)
+                    AC_MSG_ERROR([Unknown cryptocbutils option: $util. Valid options: copy, free])
+                    ;;
+            esac
+        done
+        IFS="$OIFS"
+    fi
+fi
 
 
 # Asynchronous Crypto
