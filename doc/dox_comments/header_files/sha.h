@@ -95,7 +95,6 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash);
     \ingroup SHA
 
     \brief Used to clean up memory used by an initialized Sha struct.
-    Note: this is only supported if you have WOLFSSL_TI_HASH defined.
 
     \return No returns.
 
