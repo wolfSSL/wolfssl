@@ -91,7 +91,9 @@ jobs:
 
     - name: Build haproxy vtest
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
-      run: ./scripts/build-vtest.sh
+      run: |
+        export LDFLAGS="-ldl"
+        ./scripts/build-vtest.sh
 
     - name: Test haproxy
       working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
