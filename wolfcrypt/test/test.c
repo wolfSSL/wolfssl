@@ -568,6 +568,7 @@ typedef struct testVector {
     #define WOLFSSL_TEST_SUBROUTINE
 #endif
 
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  macro_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  error_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base64_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  base16_test(void);
@@ -2010,6 +2011,11 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("CAVP selftest passed!\n");
 #endif
 
+    if ( (ret = macro_test()) != 0)
+        TEST_FAIL("macro    test failed!\n", ret);
+    else
+        TEST_PASS("macro    test passed!\n");
+
     if ( (ret = error_test()) != 0)
         TEST_FAIL("error    test failed!\n", ret);
     else
@@ -3202,6 +3208,364 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
     return 0;
 }
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
+
+static wc_test_ret_t safe_sum_word32_test(void) {
+    word32 out;
+    int ret;
+    int i;
+
+    static const struct {
+        word32 a;
+        word32 b;
+        word32 e;
+        int t;
+    } cases[] = {
+    #define u_max 4294967295U
+    #define half (4294967295U / 2U)
+        { 0, 0, 0, 1 },
+        { 1, 1, 2, 1 },
+        { u_max, 0, u_max, 1 },
+        { u_max - 1, 1, u_max, 1 },
+        { u_max, 1, u_max, 0 },
+        { 0, u_max, u_max, 1 },
+        { half, half, half * 2U, 1 },
+        { u_max - 1, 2, u_max, 0 }
+    #undef half
+    #undef u_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUM_UNSIGNED_CLIP(word32, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUM_UNSIGNED(word32, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sub_word32_test(void) {
+    word32 out;
+    int ret;
+    int i;
+
+    static const struct {
+        word32 a;
+        word32 b;
+        word32 e;
+        int t;
+    } cases[] = {
+    #define u_max 4294967295U
+        { 5, 3, 2, 1 },
+        { 0, 0, 0, 1 },
+        { 1, 0, 1, 1 },
+        { 0, 1, 0, 0 },
+        { u_max, u_max, 0, 1 },
+        { u_max, 0, u_max, 1 },
+        { u_max, 1, u_max - 1, 1 },
+        { 1, 2, 0, 0 },
+    #undef u_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUB_UNSIGNED_CLIP(word32, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUB_UNSIGNED(word32, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sum_sword32_test(void) {
+    sword32 out;
+    int ret;
+    int i;
+
+    static const struct {
+        sword32 a;
+        sword32 b;
+        sword32 e;
+        int t;
+    } cases[] = {
+    #define i_max 2147483647
+    #define i_min (-i_max - 1)
+    #define half (i_max / 2)
+        { 0, 0, 0, 1 },
+        { 1, 1, 2, 1 },
+        { i_max, 0, i_max, 1 },
+        { i_max - 1, 1, i_max, 1 },
+        { i_max, 1, i_max, 0 },
+        { 0, i_max, i_max, 1 },
+        { -1, -1, -2, 1 },
+        { i_min, 0, i_min, 1 },
+        { i_min + 1, -1, i_min, 1 },
+        { i_min, -1, i_min, 0 },
+        { 1, -1, 0, 1 },
+        { -1, 1, 0, 1 },
+        { half, half + 1, i_max, 1 },
+        { half + 1, half + 1, i_max, 0 }
+    #undef half
+    #undef i_min
+    #undef i_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUM_SIGNED_CLIP(sword32, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUM_SIGNED(sword32, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sub_sword32_test(void) {
+    sword32 out;
+    int ret;
+    int i;
+
+    static const struct {
+        sword32 a;
+        sword32 b;
+        sword32 e;
+        int t;
+    } cases[] = {
+    #define i_max 2147483647
+    #define i_min (-i_max - 1)
+        { 0, 0, 0, 1 },
+        { 5, 3, 2, 1 },
+        { 1, -1, 2, 1 },
+        { i_max, 0, i_max, 1 },
+        { i_max, -1, i_max, 0 },
+        { -5, -3, -2, 1 },
+        { 0, 1, -1, 1 },
+        { i_min, 0, i_min, 1 },
+        { i_min + 1, 1, i_min, 1 },
+        { i_min, 1, i_min, 0 },
+        { 1, 2, -1, 1 },
+        { -1, -2, 1, 1 },
+        { -1, i_min, i_max, 1 },
+        { i_min, -1, i_min + 1, 1 },
+        { 2, -3, 5, 1 }
+    #undef i_min
+    #undef i_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUB_SIGNED_CLIP(sword32, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUB_SIGNED(sword32, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+#ifdef WORD64_AVAILABLE
+static wc_test_ret_t safe_sum_word64_test(void) {
+    word64 out;
+    int ret;
+    int i;
+
+    static const struct {
+        word64 a;
+        word64 b;
+        word64 e;
+        int t;
+    } cases[] = {
+    #define u_max W64LIT(18446744073709551615)
+    #define half (u_max / 2)
+        { 0, 0, 0, 1 },
+        { 1, 1, 2, 1 },
+        { u_max, 0, u_max, 1 },
+        { u_max - 1, 1, u_max, 1 },
+        { u_max, 1, u_max, 0 },
+        { 0, u_max, u_max, 1 },
+        { half, half, half * 2ULL, 1 },
+        { u_max - 1, 2, u_max, 0 }
+    #undef half
+    #undef u_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUM_UNSIGNED_CLIP(word64, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUM_UNSIGNED(word64, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sub_word64_test(void) {
+    word64 out;
+    int ret;
+    int i;
+
+    static const struct {
+        word64 a;
+        word64 b;
+        word64 e;
+        int t;
+    } cases[] = {
+    #define u_max W64LIT(18446744073709551615)
+        { 5, 3, 2, 1 },
+        { 0, 0, 0, 1 },
+        { 1, 0, 1, 1 },
+        { 0, 1, 0, 0 },
+        { u_max, u_max, 0, 1 },
+        { u_max, 0, u_max, 1 },
+        { u_max, 1, u_max - 1, 1 },
+        { 1, 2, 0, 0 }
+    #undef u_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUB_UNSIGNED_CLIP(word64, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUB_UNSIGNED(word64, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sum_sword64_test(void) {
+    sword64 out;
+    int ret;
+    int i;
+
+    static const struct {
+        sword64 a;
+        sword64 b;
+        sword64 e;
+        int t;
+    } cases[] = {
+    #define i_max SW64LIT(9223372036854775807)
+    #define i_min (-i_max-1)
+    #define half (i_max / 2)
+        { 0, 0, 0, 1 },
+        { 1, 1, 2, 1 },
+        { i_max, 0, i_max, 1 },
+        { i_max - 1, 1, i_max, 1 },
+        { i_max, 1, i_max, 0 },
+        { 0, i_max, i_max, 1 },
+        { -1, -1, -2, 1 },
+        { i_min, 0, i_min, 1 },
+        { i_min + 1, -1, i_min, 1 },
+        { i_min, -1, i_min, 0 },
+        { 1, -1, 0, 1 },
+        { -1, 1, 0, 1 },
+        { half, half + 1, i_max, 1 },
+        { half + 1, half + 1, i_max, 0 }
+    #undef half
+    #undef i_min
+    #undef i_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUM_SIGNED_CLIP(sword64, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUM_SIGNED(sword64, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+
+static wc_test_ret_t safe_sub_sword64_test(void) {
+    sword64 out;
+    int ret;
+    int i;
+
+    static const struct {
+        sword64 a;
+        sword64 b;
+        sword64 e;
+        int t;
+    } cases[] = {
+    #define i_max SW64LIT(9223372036854775807)
+    #define i_min (-i_max-1)
+        { 0, 0, 0, 1 },
+        { 5, 3, 2, 1 },
+        { 1, -1, 2, 1 },
+        { i_max, 0, i_max, 1 },
+        { i_max, -1, i_max, 0 },
+        { -5, -3, -2, 1 },
+        { 0, 1, -1, 1 },
+        { i_min, 0, i_min, 1 },
+        { i_min + 1, 1, i_min, 1 },
+        { i_min, 1, i_min, 0 },
+        { 1, 2, -1, 1 },
+        { -1, -2, 1, 1 },
+        { -1, i_min, i_max, 1 },
+        { i_min, -1, i_min + 1, 1 },
+        { 2, -3, 5, 1 }
+    #undef i_min
+    #undef i_max
+    };
+
+    for (i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); ++i) {
+        ret = WC_SAFE_SUB_SIGNED_CLIP(sword64, cases[i].a, cases[i].b, out);
+        if (out != cases[i].e || ret != cases[i].t)
+            return WC_TEST_RET_ENC_I(i);
+        out = 10;
+        ret = WC_SAFE_SUB_SIGNED(sword64, cases[i].a, cases[i].b, out);
+        if ((ret != cases[i].t) || (ret && (out != cases[i].e)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
+    return 0;
+}
+#endif /* WORD64_AVAILABLE */
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t macro_test(void)
+{
+    wc_test_ret_t ret;
+
+    ret = safe_sum_word32_test();
+    if (ret == 0)
+        ret = safe_sub_word32_test();
+    if (ret == 0)
+        ret = safe_sum_sword32_test();
+    if (ret == 0)
+        ret = safe_sub_sword32_test();
+
+#ifdef WORD64_AVAILABLE
+    if (ret == 0)
+        ret = safe_sum_word64_test();
+    if (ret == 0)
+        ret = safe_sub_word64_test();
+    if (ret == 0)
+        ret = safe_sum_sword64_test();
+    if (ret == 0)
+        ret = safe_sub_sword64_test();
+#endif /* WORD64_AVAILABLE */
+
+    return ret;
+}
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
 {
@@ -34550,9 +34914,9 @@ static const byte p521PubKey[] = {
 /* perform verify of signature and hash using public key */
 /* key is public Qx + public Qy */
 /* sig is r + s */
-static wc_test_ret_t crypto_ecc_verify(const byte *key, uint32_t keySz,
-    const byte *hash, uint32_t hashSz, const byte *sig, uint32_t sigSz,
-    uint32_t curveSz, int curveId)
+static wc_test_ret_t crypto_ecc_verify(const byte *key, word32 keySz,
+    const byte *hash, word32 hashSz, const byte *sig, word32 sigSz,
+    word32 curveSz, int curveId)
 {
     wc_test_ret_t ret;
     int verify_res = 0, count = 0;
@@ -34652,9 +35016,9 @@ static wc_test_ret_t crypto_ecc_verify(const byte *key, uint32_t keySz,
 }
 
 /* perform signature operation against hash using private key */
-static wc_test_ret_t crypto_ecc_sign(const byte *key, uint32_t keySz,
-    const byte *hash, uint32_t hashSz, byte *sig, uint32_t* sigSz,
-    uint32_t curveSz, int curveId, WC_RNG* rng)
+static wc_test_ret_t crypto_ecc_sign(const byte *key, word32 keySz,
+    const byte *hash, word32 hashSz, byte *sig, word32* sigSz,
+    word32 curveSz, int curveId, WC_RNG* rng)
 {
     wc_test_ret_t ret;
     int count = 0;
