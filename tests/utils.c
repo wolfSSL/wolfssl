@@ -57,14 +57,14 @@ int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz, void *ctx)
         len = &test_ctx->c_len;
         msg_sizes = test_ctx->c_msg_sizes;
         msg_count = &test_ctx->c_msg_count;
-        forceWantWrite = &test_ctx->c_force_want_write;
+        forceWantWrite = &test_ctx->s_force_want_write;
     }
     else {
         buf = test_ctx->s_buff;
         len = &test_ctx->s_len;
         msg_sizes = test_ctx->s_msg_sizes;
         msg_count = &test_ctx->s_msg_count;
-        forceWantWrite = &test_ctx->s_force_want_write;
+        forceWantWrite = &test_ctx->c_force_want_write;
     }
 
     if (*forceWantWrite)
