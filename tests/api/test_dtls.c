@@ -603,6 +603,7 @@ int test_dtls13_hrr_want_write(void)
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
 
     /* Verify post-handshake application data in both directions */
+    XMEMSET(readBuf, 0, sizeof(readBuf));
     ExpectIntEQ(wolfSSL_write(ssl_c, msg, msgLen), msgLen);
     ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), msgLen);
     ExpectStrEQ(readBuf, msg);
