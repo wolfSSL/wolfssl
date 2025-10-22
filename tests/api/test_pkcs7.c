@@ -2056,7 +2056,7 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
           HAVE_AES_KEYWRAP */
 
 
-#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA)
 #define MAX_TEST_DECODE_SIZE 6000
 static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
     const byte* output, word32 outputSz, void* ctx) {
@@ -2088,8 +2088,8 @@ static int test_wc_PKCS7_DecodeEnvelopedData_stream_decrypt_cb(wc_PKCS7* pkcs7,
  */
 int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
 {
-#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER)
     EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && defined(ASN_BER_TO_DER) && !defined(NO_RSA)
     PKCS7*      pkcs7 = NULL;
     int ret = 0;
     XFILE f = XBADFILE;
@@ -2139,10 +2139,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
     }
 
     wc_PKCS7_Free(pkcs7);
-    return EXPECT_RESULT();
-#else
-    return TEST_SKIPPED;
 #endif
+    return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeEnvelopedData_stream() */
 
 
@@ -2151,8 +2149,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
  */
 int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
 {
-#if defined(HAVE_PKCS7)
     EXPECT_DECLS;
+#if defined(HAVE_PKCS7) && !defined(NO_RSA)
     PKCS7*      pkcs7 = NULL;
     int ret = 0;
     XFILE f = XBADFILE;
@@ -2227,10 +2225,8 @@ int test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients(void)
         pkcs7 = NULL;
     }
 
-    return EXPECT_RESULT();
-#else
-    return TEST_SKIPPED;
 #endif
+    return EXPECT_RESULT();
 } /* END test_wc_PKCS7_DecodeEnvelopedData_multiple_recipients() */
 
 /*

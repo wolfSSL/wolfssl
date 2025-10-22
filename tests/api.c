@@ -20972,13 +20972,14 @@ static int test_wolfSSL_X509_LOOKUP_load_file(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(HAVE_ECC) && \
    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     WOLFSSL_X509_STORE*  store = NULL;
     WOLFSSL_X509_LOOKUP* lookup = NULL;
 
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
     ExpectNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    /* One RSA and one ECC certificate in file. */
     ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/client-ca.pem",
         X509_FILETYPE_PEM), 1);
     ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/crl/crl2.pem",
@@ -36197,7 +36198,8 @@ static int test_sk_X509(void)
 static int test_sk_X509_CRL(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA)
     X509_CRL* crl = NULL;
     XFILE fp = XBADFILE;
     STACK_OF(X509_CRL)* s = NULL;
@@ -36633,7 +36635,7 @@ static int test_X509_REQ(void)
 static int test_wolfSSL_X509_REQ_print(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_BIO)
     WOLFSSL_X509* req = NULL;
     XFILE fp = XBADFILE;
