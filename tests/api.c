@@ -18848,7 +18848,8 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
 {
     EXPECT_DECLS;
 #ifdef OPENSSL_EXTRA
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128)
     const char *priv = "ABCDEFGHIJKLMNOP";
     const WOLFSSL_EVP_CIPHER* cipher = EVP_aes_128_cbc();
     WOLFSSL_EVP_PKEY* key = NULL;
@@ -18863,7 +18864,7 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
     ExpectNotNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
         NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, cipher));
     wolfSSL_EVP_PKEY_free(key);
-#endif /* WOLFSSL_CMAC && !NO_AES && WOLFSSL_AES_DIRECT */
+#endif /* WOLFSSL_CMAC && !NO_AES && WOLFSSL_AES_DIRECT && WOLFSSL_AES_128 */
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }

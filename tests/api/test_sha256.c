@@ -218,7 +218,7 @@ int test_wc_Sha256_Flags(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_SHA256) && defined(WOLFSSL_HASH_FLAGS) && \
-    (!defined(WOLFSSL_ARMASM) || !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     DIGEST_FLAGS_TEST(wc_Sha256, Sha256);
 #endif
     return EXPECT_RESULT();
@@ -365,7 +365,7 @@ int test_wc_Sha224_Flags(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_SHA224) && defined(WOLFSSL_HASH_FLAGS) && \
-    (!defined(WOLFSSL_ARMASM) || !defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     DIGEST_FLAGS_TEST(wc_Sha224, Sha224);
 #endif
     return EXPECT_RESULT();

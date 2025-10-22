@@ -103,9 +103,9 @@ L_SHA256_transform_len_k:
 	.word	0xc67178f2
 	.text
 	.align	4
-	.globl	Transform_Sha256_Len
-	.type	Transform_Sha256_Len, %function
-Transform_Sha256_Len:
+	.globl	Transform_Sha256_Len_base
+	.type	Transform_Sha256_Len_base, %function
+Transform_Sha256_Len_base:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xc0
 	adr	r3, L_SHA256_transform_len_k
@@ -1751,9 +1751,9 @@ L_SHA256_transform_len_start:
 	bne	L_SHA256_transform_len_begin
 	add	sp, sp, #0xc0
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
-#endif /* WOLFSSL_ARMASM_NO_NEON */
-#ifndef WOLFSSL_ARMASM_NO_NEON
+	.size	Transform_Sha256_Len_base,.-Transform_Sha256_Len_base
+#else
+#ifdef WOLFSSL_ARMASM_NO_HW_CRYPTO
 	.text
 	.type	L_SHA256_transform_neon_len_k, %object
 	.size	L_SHA256_transform_neon_len_k, 256
@@ -1826,9 +1826,9 @@ L_SHA256_transform_neon_len_k:
 	.text
 	.align	4
 	.fpu	neon
-	.globl	Transform_Sha256_Len
-	.type	Transform_Sha256_Len, %function
-Transform_Sha256_Len:
+	.globl	Transform_Sha256_Len_neon
+	.type	Transform_Sha256_Len_neon, %function
+Transform_Sha256_Len_neon:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	vpush	{d8-d11}
 	sub	sp, sp, #24
@@ -2851,7 +2851,228 @@ L_SHA256_transform_neon_len_start:
 	add	sp, sp, #24
 	vpop	{d8-d11}
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
+	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
+#else
+	.text
+	.type	L_SHA256_trans_crypto_len_k, %object
+	.size	L_SHA256_trans_crypto_len_k, 256
+	.align	4
+L_SHA256_trans_crypto_len_k:
+	.word	0x428a2f98
+	.word	0x71374491
+	.word	0xb5c0fbcf
+	.word	0xe9b5dba5
+	.word	0x3956c25b
+	.word	0x59f111f1
+	.word	0x923f82a4
+	.word	0xab1c5ed5
+	.word	0xd807aa98
+	.word	0x12835b01
+	.word	0x243185be
+	.word	0x550c7dc3
+	.word	0x72be5d74
+	.word	0x80deb1fe
+	.word	0x9bdc06a7
+	.word	0xc19bf174
+	.word	0xe49b69c1
+	.word	0xefbe4786
+	.word	0xfc19dc6
+	.word	0x240ca1cc
+	.word	0x2de92c6f
+	.word	0x4a7484aa
+	.word	0x5cb0a9dc
+	.word	0x76f988da
+	.word	0x983e5152
+	.word	0xa831c66d
+	.word	0xb00327c8
+	.word	0xbf597fc7
+	.word	0xc6e00bf3
+	.word	0xd5a79147
+	.word	0x6ca6351
+	.word	0x14292967
+	.word	0x27b70a85
+	.word	0x2e1b2138
+	.word	0x4d2c6dfc
+	.word	0x53380d13
+	.word	0x650a7354
+	.word	0x766a0abb
+	.word	0x81c2c92e
+	.word	0x92722c85
+	.word	0xa2bfe8a1
+	.word	0xa81a664b
+	.word	0xc24b8b70
+	.word	0xc76c51a3
+	.word	0xd192e819
+	.word	0xd6990624
+	.word	0xf40e3585
+	.word	0x106aa070
+	.word	0x19a4c116
+	.word	0x1e376c08
+	.word	0x2748774c
+	.word	0x34b0bcb5
+	.word	0x391c0cb3
+	.word	0x4ed8aa4a
+	.word	0x5b9cca4f
+	.word	0x682e6ff3
+	.word	0x748f82ee
+	.word	0x78a5636f
+	.word	0x84c87814
+	.word	0x8cc70208
+	.word	0x90befffa
+	.word	0xa4506ceb
+	.word	0xbef9a3f7
+	.word	0xc67178f2
+	.text
+	.align	4
+	.globl	Transform_Sha256_Len_crypto
+	.type	Transform_Sha256_Len_crypto, %function
+Transform_Sha256_Len_crypto:
+	vpush	{d8-d15}
+	adr	r3, L_SHA256_trans_crypto_len_k
+	# Load K into vector registers
+	vldm	r3!, {q8-q11}
+	vldm	r3!, {q12, q13}
+	# Load digest into working vars
+	vldm	r0, {q0, q1}
+	# Start of loop processing a block
+L_sha256_len_crypto_begin:
+	# Load W
+	vld1.8	{q4, q5}, [r1]!
+	vld1.8	{q6, q7}, [r1]!
+	vrev32.8	q4, q4
+	vrev32.8	q5, q5
+	vrev32.8	q6, q6
+	vrev32.8	q7, q7
+	# Copy digest to add in at end
+	vmov.32	q2, q0
+	vmov.32	q3, q1
+	# Start 16 rounds
+	# Round 1
+	vadd.i32	q14, q4, q8
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 2
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q9
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 3
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q10
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 4
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q11
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 5
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q12
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 6
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q13
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 7
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 8
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 9
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q14
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 10
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q4, q5
+	vadd.i32	q14, q5, q14
+	vmov.32	q15, q0
+	sha256su1.32	q4, q6, q7
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 11
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q5, q6
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256su1.32	q5, q7, q4
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 12
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q6, q7
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256su1.32	q6, q4, q5
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 13
+	vld1.32	{q14}, [r3]!
+	sha256su0.32	q7, q4
+	vadd.i32	q14, q4, q14
+	vmov.32	q15, q0
+	sha256su1.32	q7, q5, q6
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 14
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q5, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 15
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q6, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Round 16
+	vld1.32	{q14}, [r3]!
+	vadd.i32	q14, q7, q14
+	vmov.32	q15, q0
+	sha256h.32	q0, q1, q14
+	sha256h2.32	q1, q15, q14
+	# Done 16 rounds
+	vadd.i32	q0, q0, q2
+	vadd.i32	q1, q1, q3
+	subs	r2, r2, #0x40
+	sub	r3, r3, #0xa0
+	bne	L_sha256_len_crypto_begin
+	# Store digest back
+	vst1.8	{q0, q1}, [r0]
+	vpop	{d8-d15}
+	bx	lr
+	.size	Transform_Sha256_Len_crypto,.-Transform_Sha256_Len_crypto
+#endif /* WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */

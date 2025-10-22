@@ -80,7 +80,6 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
         (word64*)&L_sha3_arm2_neon_rt;
 #else
     register word64* L_sha3_arm2_neon_rt_c = (word64*)&L_sha3_arm2_neon_rt;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -388,7 +387,6 @@ WC_OMIT_FRAME_POINTER void BlockSha3(word64* state)
     register word64* L_sha3_arm2_rt_c asm ("r1") = (word64*)&L_sha3_arm2_rt;
 #else
     register word64* L_sha3_arm2_rt_c = (word64*)&L_sha3_arm2_rt;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
