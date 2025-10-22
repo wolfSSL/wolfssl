@@ -344,6 +344,19 @@
 #define DoExpectBufEQ(x, y, z) DoExpectBuf(x, y, z, ==, !=)
 #define DoExpectBufNE(x, y, z) DoExpectBuf(x, y, z, !=, ==)
 
+
+#define ApiDumpData(name, data, len) do {                                      \
+    int _i;                                                                    \
+    fprintf(stderr, "%s: %d bytes\n", name, (int)(len));                       \
+    for (_i = 0; _i < (int)(len); _i++) {                                      \
+        fprintf(stderr, "0x%02x,", ((byte*)(data))[_i]);                       \
+        if ((_i & 7) == 7) fprintf(stderr, "\n");                              \
+        else               fprintf(stderr, " ");                               \
+    }                                                                          \
+    if ((_i & 7) != 0) fprintf(stderr, "\n");                                  \
+} while(0)
+
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
