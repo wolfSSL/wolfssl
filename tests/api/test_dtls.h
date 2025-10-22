@@ -25,6 +25,7 @@
 int test_dtls12_basic_connection_id(void);
 int test_dtls13_basic_connection_id(void);
 int test_dtls13_hrr_want_write(void);
+int test_dtls13_every_write_want_write(void);
 int test_wolfSSL_dtls_cid_parse(void);
 int test_wolfSSL_dtls_set_pending_peer(void);
 int test_dtls13_epochs(void);
@@ -49,6 +50,7 @@ int test_dtls_certreq_order(void);
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
         TEST_DECL_GROUP("dtls", test_dtls13_basic_connection_id),              \
         TEST_DECL_GROUP("dtls", test_dtls13_hrr_want_write),                   \
+        TEST_DECL_GROUP("dtls", test_dtls13_every_write_want_write),           \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_cid_parse),                  \
         TEST_DECL_GROUP("dtls", test_wolfSSL_dtls_set_pending_peer),           \
         TEST_DECL_GROUP("dtls", test_dtls13_epochs),                           \
