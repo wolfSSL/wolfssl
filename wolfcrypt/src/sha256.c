@@ -1913,14 +1913,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
                     hash32 = digest;
                 }
             #endif
-                hash32[0] = ByteReverseWord32(digest[0]);
-                hash32[1] = ByteReverseWord32(digest[1]);
-                hash32[2] = ByteReverseWord32(digest[2]);
-                hash32[3] = ByteReverseWord32(digest[3]);
-                hash32[4] = ByteReverseWord32(digest[4]);
-                hash32[5] = ByteReverseWord32(digest[5]);
-                hash32[6] = ByteReverseWord32(digest[6]);
-                hash32[7] = ByteReverseWord32(digest[7]);
+                ByteReverseWords(hash32, digest, (word32)(sizeof(word32) * 8));
             #if WOLFSSL_GENERAL_ALIGNMENT < 4
                 if (hash != (byte*)hash32) {
                     XMEMCPY(hash, hash32, WC_SHA256_DIGEST_SIZE);
