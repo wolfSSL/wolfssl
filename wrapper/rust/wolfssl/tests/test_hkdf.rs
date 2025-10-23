@@ -1,12 +1,12 @@
 use wolfssl::wolfcrypt::hkdf::*;
 use wolfssl::wolfcrypt::hmac::HMAC;
-use wolfssl_sys as ws;
+use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
 fn test_hkdf_extract_expand() {
     let ikm = b"MyPassword0";
     let salt = b"12345678ABCDEFGH";
-    let mut extract_out = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+    let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
     hkdf_extract(HMAC::TYPE_SHA256, Some(salt), ikm, &mut extract_out).expect("Error with hkdf_extract()");
 
     let info = b"0";

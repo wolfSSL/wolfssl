@@ -50,8 +50,8 @@ use wolfssl_sys as ws;
 /// ```rust
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
-/// use wolfssl_sys as ws;
-/// let mut secret = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+/// use wolfssl::wolfcrypt::sha::SHA256;
+/// let mut secret = [0u8; SHA256::DIGEST_SIZE];
 /// tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
 /// ```
 pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8]) -> Result<(), i32> {
@@ -108,7 +108,7 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// ```rust
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
-/// use wolfssl_sys as ws;
+/// use wolfssl::wolfcrypt::sha::SHA256;
 /// let hash_hello1 = [
 ///     0x63u8, 0x83, 0x58, 0xab, 0x36, 0xcd, 0x0c, 0xf3,
 ///     0x26, 0x07, 0xb5, 0x5f, 0x0b, 0x8b, 0x45, 0xd6,
@@ -120,11 +120,11 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 ///     0xb0, 0xfc, 0x45, 0xd0, 0x62, 0xb9, 0xbb, 0x38, 0x69, 0x05, 0x7b, 0xb4,
 ///     0x5e, 0x58, 0x5d, 0xed, 0xcd, 0x0b, 0x96, 0xd3
 /// ];
-/// let mut secret = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+/// let mut secret = [0u8; SHA256::DIGEST_SIZE];
 /// tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
 /// let protocol_label = b"tls13 ";
 /// let ce_traffic_label = b"c e traffic";
-/// let mut expand_out = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+/// let mut expand_out = [0u8; SHA256::DIGEST_SIZE];
 /// tls13_hkdf_expand_label(HMAC::TYPE_SHA256, &secret,
 ///     protocol_label, ce_traffic_label,
 ///     &hash_hello1, &mut expand_out).expect("Error with tls13_hkdf_expand_label()");

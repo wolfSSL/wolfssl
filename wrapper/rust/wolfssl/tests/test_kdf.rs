@@ -1,6 +1,6 @@
 use wolfssl::wolfcrypt::hmac::HMAC;
 use wolfssl::wolfcrypt::kdf::*;
-use wolfssl_sys as ws;
+use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
 fn test_tls13_hkdf_extract_expand() {
@@ -16,13 +16,13 @@ fn test_tls13_hkdf_extract_expand() {
         0x5e, 0x58, 0x5d, 0xed, 0xcd, 0x0b, 0x96, 0xd3
     ];
 
-    let mut secret = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+    let mut secret = [0u8; SHA256::DIGEST_SIZE];
 
     tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
 
     let protocol_label = b"tls13 ";
     let ce_traffic_label = b"c e traffic";
-    let mut expand_out = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+    let mut expand_out = [0u8; SHA256::DIGEST_SIZE];
 
     tls13_hkdf_expand_label(HMAC::TYPE_SHA256, &secret,
         protocol_label, ce_traffic_label,
