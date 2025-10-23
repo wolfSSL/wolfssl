@@ -12368,7 +12368,7 @@ WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp,
             return WOLFSSL_FAILURE;
         }
 
-        if ((l = wolfSSL_BIO_get_len(bio)) <= 0) {
+        if ((l = wolfSSL_BIO_get_len(bio)) <= pem_struct_min_sz) {
             /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             return WOLFSSL_FAILURE;
