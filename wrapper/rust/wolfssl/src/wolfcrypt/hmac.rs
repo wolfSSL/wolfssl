@@ -241,7 +241,7 @@ impl HMAC {
     /// let mut hash = vec![0u8; hash_size];
     /// hmac.finalize(&mut hash).expect("Error with finalize()");
     /// ```
-    pub fn get_hmac_size(&mut self) -> Result<usize, i32> {
+    pub fn get_hmac_size(&self) -> Result<usize, i32> {
         let typ = self.wc_hmac.macType as u32 as i32;
         let rc = unsafe { ws::wc_HmacSizeByType(typ) };
         if rc < 0 {
