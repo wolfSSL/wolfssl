@@ -154,6 +154,18 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/rpi_pico/pico.c \
               wolfcrypt/src/port/rpi_pico/README.md
 
+if BUILD_FIPS_V5
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes.c \
+              wolfcrypt/src/port/arm/armv8-sha256.c \
+              wolfcrypt/src/port/arm/armv8-sha512.c
+else
+if BUILD_FIPS_V6
+EXTRA_DIST += wolfcrypt/src/port/arm/armv8-aes.c \
+              wolfcrypt/src/port/arm/armv8-sha256.c \
+              wolfcrypt/src/port/arm/armv8-sha512.c
+endif BUILD_FIPS_V6
+endif !BUILD_FIPS_V5
+
 $(ASYNC_FILES):
 	$(AM_V_at)touch $(srcdir)/$@
 
