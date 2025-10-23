@@ -205,12 +205,12 @@ impl HMAC {
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         // Check the output buffer size since wc_HmacFinal() does not accept
         // a length parameter.
-        let typ = self.wc_hmac.macType as u32 as i32;
+        let typ = self.wc_hmac.macType as i32;
         let rc = unsafe { ws::wc_HmacSizeByType(typ) };
         if rc < 0 {
             return Err(rc);
         }
-        let expected_size = rc as u32 as usize;
+        let expected_size = rc as usize;
         if hash.len() != expected_size {
             return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
         }
