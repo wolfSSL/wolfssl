@@ -17273,7 +17273,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 #endif
 
     byte tag[16];
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    !defined(WOLFSSL_KCAPI)
     #define BENCH_GMAC_LARGE 1024
 
     WOLFSSL_SMALL_STACK_STATIC const byte t4_lb[16][16] = {
@@ -17467,7 +17468,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 #endif /* !WC_NO_RNG && !HAVE_SELFTEST && !NO_AES_DECRYPT */
 #endif /* HAVE_FIPS */
 
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && !defined(WOLFSSL_KCAPI)
     for (i = 0; i < 16; i++) {
         XMEMSET(tag, 0, sizeof(tag));
         wc_GmacSetKey(gmac, k1, sizeof(k1));
@@ -17505,7 +17506,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(gmac, HEAP_HINT, DYNAMIC_TYPE_AES);
 #endif
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && !defined(WOLFSSL_NO_MALLOC)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    !defined(WOLFSSL_KCAPI) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 

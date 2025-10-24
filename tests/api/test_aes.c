@@ -719,6 +719,13 @@ static int test_wc_AesCbcEncryptDecrypt_MultiBlocks(Aes* aes, byte* key,
     word32 keyLen, byte* iv, byte* expected)
 {
     EXPECT_DECLS;
+#ifdef WOLFSSL_KCAPI
+    (void)aes;
+    (void)key;
+    (void)keyLen;
+    (void)iv;
+    (void)expected;
+#else /* !WOLFSSL_KCAPI */
     int sz;
     int cnt;
     WC_DECLARE_VAR(plain, byte, CBC_LEN, NULL);
@@ -775,6 +782,7 @@ static int test_wc_AesCbcEncryptDecrypt_MultiBlocks(Aes* aes, byte* key,
     WC_FREE_VAR(plain, NULL);
     WC_FREE_VAR(cipher, NULL);
     WC_FREE_VAR(decrypted, NULL);
+#endif /* !WOLFSSL_KCAPI */
     return EXPECT_RESULT();
 }
 
@@ -1862,8 +1870,9 @@ int test_wc_AesCtsEncryptDecrypt(void)
  ******************************************************************************/
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && \
-    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
 static int test_wc_AesCtrSetKey_BadArgs(Aes* aes, byte* key, word32 keyLen,
     byte* iv)
 {
@@ -1889,7 +1898,10 @@ static int test_wc_AesCtrSetKey_WithKey(Aes* aes, byte* key, word32 keyLen,
 
     return EXPECT_RESULT();
 }
-#endif
+#endif /* !NO_AES && WOLFSSL_AES_COUNTER &&       */
+       /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && */
+       /* !HAVE_SELFTEST && !WOLFSSL_AFALG &&     */
+       /* !WOLFSSL_KCAPI */
 
 /*
  * Testing function for wc_AesCtrSetKey().
@@ -1898,8 +1910,9 @@ int test_wc_AesCtrSetKey(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && \
-    (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     Aes  aes;
     byte key16[] = {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -1970,7 +1983,11 @@ int test_wc_AesCtrSetKey(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     wc_AesFree(&aes);
-#endif
+#endif /* !NO_AES && WOLFSSL_AES_COUNTER &&       */
+       /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && */
+       /* !HAVE_SELFTEST && !WOLFSSL_AFALG &&     */
+       /* !WOLFSSL_KCAPI */
+
     return EXPECT_RESULT();
 } /* END test_wc_AesCtrSetKey */
 
@@ -1990,8 +2007,9 @@ static int test_wc_AesCtrEncrypt_BadArgs(Aes* aes, byte* key,
     XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
     XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE);
 
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
 #else
     ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
@@ -2026,8 +2044,9 @@ static int test_wc_AesCtrEncrypt_WithKey(Aes* aes, byte* key,
     XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE * 2);
     XMEMSET(decrypted, 0, WC_AES_BLOCK_SIZE * 2);
 
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
 #else
     ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
@@ -2035,8 +2054,9 @@ static int test_wc_AesCtrEncrypt_WithKey(Aes* aes, byte* key,
     ExpectIntEQ(wc_AesCtrEncrypt(aes, cipher, vector, vector_len), 0);
     ExpectBufEQ(cipher, vector_enc, vector_len);
     /* Decrypt with wc_AesCtrEncrypt() */
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
 #else
     ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, iv, AES_ENCRYPTION), 0);
@@ -2051,6 +2071,13 @@ static int test_wc_AesCtrEncrypt_Chunking(Aes* aes, byte* key,
     word32 keyLen, byte* iv, byte* expected)
 {
     EXPECT_DECLS;
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_KCAPI)
+    (void)aes;
+    (void)key;
+    (void)keyLen;
+    (void)iv;
+    (void)expected;
+#else
     int sz;
     int cnt;
     WC_DECLARE_VAR(plain, byte, CTR_LEN, NULL);
@@ -2077,8 +2104,8 @@ static int test_wc_AesCtrEncrypt_Chunking(Aes* aes, byte* key,
     XMEMSET(cipher, 0, CTR_LEN);
     XMEMSET(decrypted, 0, CTR_LEN);
 
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST)
     ExpectIntEQ(wc_AesCtrSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
 #else
     ExpectIntEQ(wc_AesSetKey(aes, key, keyLen, NULL, AES_ENCRYPTION), 0);
@@ -2103,11 +2130,13 @@ static int test_wc_AesCtrEncrypt_Chunking(Aes* aes, byte* key,
 #ifdef HAVE_AES_DECRYPT
     WC_FREE_VAR(decrypted, NULL);
 #endif
+#endif /* !WOLFSSL_AFALG && !WOLFSSL_KCAPI */
     return EXPECT_RESULT();
 }
 
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
 static int test_wc_AesCtrEncrypt_SameBuffer(Aes* aes, byte* key,
     word32 keyLen, byte* iv, byte* expected)
 {
@@ -2296,8 +2325,9 @@ int test_wc_AesCtrEncryptDecrypt(void)
 
     EXPECT_TEST(test_wc_AesCtrEncrypt_Chunking(&aes, key, keyLen, iv,
         expected));
-#if (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION) || \
-        (HAVE_FIPS_VERSION > 6)) && !defined(HAVE_SELFTEST)
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_AFALG) && \
+    !defined(WOLFSSL_KCAPI)
     EXPECT_TEST(test_wc_AesCtrEncrypt_SameBuffer(&aes, key, keyLen, iv,
         expected));
 #endif
@@ -2406,7 +2436,8 @@ int test_wc_AesGcmSetKey(void)
 int test_wc_AesGcmEncryptDecrypt_Sizes(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_KCAPI)
     #define GCM_LEN     (WC_AES_BLOCK_SIZE * 16)
     byte expTagShort[WC_AES_BLOCK_SIZE][WC_AES_BLOCK_SIZE] = {
         {
