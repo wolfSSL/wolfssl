@@ -32,7 +32,6 @@ wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 use wolfssl_sys as ws;
 
 use std::mem::{MaybeUninit};
-use std::ptr::null;
 use crate::wolfcrypt::random::RNG;
 
 pub struct DH {
@@ -138,7 +137,7 @@ impl DH {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let mut no_q = 1i32;
-        let mut q_ptr: *const u8 = null();
+        let mut q_ptr: *const u8 = core::ptr::null();
         let mut q_size = 0u32;
         if let Some(q) = q {
             no_q = 0;
@@ -791,7 +790,7 @@ impl DH {
     /// ```
     pub fn check_priv_key_ex(&mut self, private: &[u8], prime: Option<&[u8]>) -> Result<(), i32> {
         let private_size = private.len() as u32;
-        let mut prime_ptr: *const u8 = null();
+        let mut prime_ptr: *const u8 = core::ptr::null();
         let mut prime_size = 0u32;
         if let Some(prime) = prime {
             prime_ptr = prime.as_ptr();

@@ -29,7 +29,6 @@ the raw C functions in a memory-safe and easy-to-use Rust API.
 use wolfssl_sys as ws;
 
 use std::mem::MaybeUninit;
-use std::ptr::null_mut;
 
 /// Context for SHA-1 computation.
 pub struct SHA {
@@ -730,7 +729,7 @@ impl SHA3_224 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_224(wc_sha3.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_224(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -757,7 +756,7 @@ impl SHA3_224 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_224(&mut self.wc_sha3, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_224(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -865,7 +864,7 @@ impl SHA3_256 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_256(wc_sha3.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_256(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -892,7 +891,7 @@ impl SHA3_256 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_256(&mut self.wc_sha3, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_256(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1000,7 +999,7 @@ impl SHA3_384 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_384(wc_sha3.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_384(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1027,7 +1026,7 @@ impl SHA3_384 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_384(&mut self.wc_sha3, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_384(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1135,7 +1134,7 @@ impl SHA3_512 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_512(wc_sha3.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_512(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1162,7 +1161,7 @@ impl SHA3_512 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_512(&mut self.wc_sha3, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitSha3_512(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1270,7 +1269,7 @@ impl SHAKE128 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitShake128(wc_shake.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitShake128(wc_shake.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1297,7 +1296,7 @@ impl SHAKE128 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitShake128(&mut self.wc_shake, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitShake128(&mut self.wc_shake, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1468,7 +1467,7 @@ impl SHAKE256 {
     /// ```
     pub fn new() -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitShake256(wc_shake.as_mut_ptr(), null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitShake256(wc_shake.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1495,7 +1494,7 @@ impl SHAKE256 {
     /// sha.init().expect("Error with init()");
     /// ```
     pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitShake256(&mut self.wc_shake, null_mut(), ws::INVALID_DEVID) };
+        let rc = unsafe { ws::wc_InitShake256(&mut self.wc_shake, core::ptr::null_mut(), ws::INVALID_DEVID) };
         if rc != 0 {
             return Err(rc);
         }

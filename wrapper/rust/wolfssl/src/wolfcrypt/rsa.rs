@@ -59,7 +59,6 @@ assert_eq!(plain_out[0..dec_len], *plain);
 use wolfssl_sys as ws;
 
 use std::mem::{MaybeUninit};
-use std::ptr::{null_mut};
 use crate::wolfcrypt::random::RNG;
 
 /// The `RSA` struct manages the lifecycle of a wolfSSL `RsaKey` object.
@@ -146,7 +145,7 @@ impl RSA {
     /// ```
     pub fn new_from_der(der: &[u8]) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), null_mut()) };
+        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
         if rc != 0 {
             return Err(rc);
         }
@@ -200,7 +199,7 @@ impl RSA {
     /// ```
     pub fn new_public_from_der(der: &[u8]) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), null_mut()) };
+        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
         if rc != 0 {
             return Err(rc);
         }
@@ -257,7 +256,7 @@ impl RSA {
     /// ```
     pub fn generate(size: i32, e: i64, rng: &mut RNG) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), null_mut()) };
+        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
         if rc != 0 {
             return Err(rc);
         }

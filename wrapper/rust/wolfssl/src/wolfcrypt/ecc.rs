@@ -32,7 +32,6 @@ wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 use wolfssl_sys as ws;
 
 use std::mem::{MaybeUninit};
-use std::ptr::null_mut;
 use crate::wolfcrypt::random::RNG;
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
@@ -1339,10 +1338,10 @@ impl ECC {
     pub fn make_pub(&mut self, rng: Option<&mut RNG>) -> Result<(), i32> {
         let rng_ptr = match rng {
             Some(rng) => &mut rng.wc_rng,
-            None => null_mut(),
+            None => core::ptr::null_mut(),
         };
         let rc = unsafe {
-            ws::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, null_mut(), rng_ptr)
+            ws::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1377,7 +1376,7 @@ impl ECC {
     pub fn make_pub_to_point(&mut self, rng: Option<&mut RNG>) -> Result<ECCPoint, i32> {
         let rng_ptr = match rng {
             Some(rng) => &mut rng.wc_rng,
-            None => null_mut(),
+            None => core::ptr::null_mut(),
         };
         let wc_ecc_point = unsafe { ws::wc_ecc_new_point() };
         if wc_ecc_point.is_null() {

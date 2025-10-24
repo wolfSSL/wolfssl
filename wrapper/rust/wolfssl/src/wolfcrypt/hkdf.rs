@@ -52,10 +52,10 @@ use wolfssl_sys as ws;
 /// ```rust
 /// use wolfssl::wolfcrypt::hkdf::*;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
-/// use wolfssl_sys as ws;
+/// use wolfssl::wolfcrypt::sha::SHA256;
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
-/// let mut extract_out = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+/// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
 /// hkdf_extract(HMAC::TYPE_SHA256, Some(salt), ikm, &mut extract_out).expect("Error with hkdf_extract()");
 /// ```
 pub fn hkdf_extract(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]) -> Result<(), i32> {
@@ -102,10 +102,10 @@ pub fn hkdf_extract(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]) -
 /// ```rust
 /// use wolfssl::wolfcrypt::hkdf::*;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
-/// use wolfssl_sys as ws;
+/// use wolfssl::wolfcrypt::sha::SHA256;
 /// let ikm = b"MyPassword0";
 /// let salt = b"12345678ABCDEFGH";
-/// let mut extract_out = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+/// let mut extract_out = [0u8; SHA256::DIGEST_SIZE];
 /// hkdf_extract(HMAC::TYPE_SHA256, Some(salt), ikm, &mut extract_out).expect("Error with hkdf_extract()");
 /// let info = b"0";
 /// let mut expand_out = [0u8; 16];

@@ -1,10 +1,10 @@
 use wolfssl::wolfcrypt::hmac::*;
-use wolfssl_sys as ws;
+use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
 fn test_hmac_sha256() {
     let hmac_size = HMAC::get_hmac_size_by_type(HMAC::TYPE_SHA256).expect("Error with get_hmac_size_by_type()");
-    assert_eq!(hmac_size, ws::WC_SHA256_DIGEST_SIZE as usize);
+    assert_eq!(hmac_size, SHA256::DIGEST_SIZE);
 
     let keys: [&[u8]; 5] = [
         b"\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
@@ -38,9 +38,9 @@ fn test_hmac_sha256() {
                 HMAC::new(HMAC::TYPE_SHA256, keys[i]).expect("Error with new()")
             };
         let hmac_size = hmac.get_hmac_size().expect("Error with get_hmac_size()");
-        assert_eq!(hmac_size, ws::WC_SHA256_DIGEST_SIZE as usize);
+        assert_eq!(hmac_size, SHA256::DIGEST_SIZE);
         hmac.update(inputs[i]).expect("Error with update()");
-        let mut hash = [0u8; ws::WC_SHA256_DIGEST_SIZE as usize];
+        let mut hash = [0u8; SHA256::DIGEST_SIZE];
         hmac.finalize(&mut hash).expect("Error with finalize()");
         assert_eq!(*expected[i], hash);
     }
