@@ -176,19 +176,23 @@ fn test_dh_shared_secret() {
     let mut public0 = [0u8; 256];
     let mut public0_size = 0u32;
     dh.generate_key_pair(&mut rng, &mut private0, &mut private0_size, &mut public0, &mut public0_size).expect("Error with generate_key_pair()");
+    let private0 = &private0[0..(private0_size as usize)];
+    let public0 = &public0[0..(public0_size as usize)];
 
     let mut private1 = [0u8; 256];
     let mut private1_size = 0u32;
     let mut public1 = [0u8; 256];
     let mut public1_size = 0u32;
     dh.generate_key_pair(&mut rng, &mut private1, &mut private1_size, &mut public1, &mut public1_size).expect("Error with generate_key_pair()");
+    let private1 = &private1[0..(private1_size as usize)];
+    let public1 = &public1[0..(public1_size as usize)];
 
     let mut ss0 = [0u8; 256];
-    let ss0_size = dh.shared_secret(&mut ss0, &private0, &public1).expect("Error with shared_secret()");
+    let ss0_size = dh.shared_secret(&mut ss0, private0, public1).expect("Error with shared_secret()");
     let ss0 = &ss0[0..ss0_size];
 
     let mut ss1 = [0u8; 256];
-    let ss1_size = dh.shared_secret(&mut ss1, &private1, &public0).expect("Error with shared_secret()");
+    let ss1_size = dh.shared_secret(&mut ss1, private1, public0).expect("Error with shared_secret()");
     let ss1 = &ss1[0..ss1_size];
 
     assert_eq!(ss0_size, ss1_size);
