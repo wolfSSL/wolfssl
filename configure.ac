@@ -7572,6 +7572,9 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
 
+    # Enable openssl compat layer AES-CTS to maintain FIPS compatibility
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CTS"
+
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
     then
