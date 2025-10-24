@@ -513,7 +513,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
 #endif
 
-    if (aes == NULL ||
+    if (aes == NULL || key == NULL ||
             !((len == 16) || (len == 24) || (len == 32))) {
         return BAD_FUNC_ARG;
     }

@@ -117,7 +117,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #pragma warning(disable: 4127)
 #endif
 
-#if !defined(WOLFSSL_ARMASM) && FIPS_VERSION3_GE(6,0,0)
+#if (!defined(WOLFSSL_ARMASM) && FIPS_VERSION3_GE(6,0,0)) || \
+    FIPS_VERSION3_GE(7,0,0)
     const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000002 };
     int wolfCrypt_FIPS_AES_sanity(void)
@@ -7454,6 +7455,12 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */
+
+#ifdef WOLFSSL_ARMASM
+#define GCM_GMULT_LEN(gcm, x, a, len) \
+    GCM_gmult_len(x, (const byte**)((gcm)->M0), a, len)
+#endif
+
 #elif defined(GCM_TABLE)
 
 #if !defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
