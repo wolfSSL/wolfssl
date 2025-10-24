@@ -5100,6 +5100,10 @@ struct Options {
     byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */
     byte            cipherSuite;            /* second byte, actual suite */
+#ifdef WOLFSSL_TLS13
+    byte            hrrCipherSuite0;        /* first byte, normally 0 */
+    byte            hrrCipherSuite;         /* second byte, actual suite */
+#endif
     byte            hashAlgo;               /* selected hash algorithm */
     byte            sigAlgo;                /* selected sig algorithm */
     byte            peerHashAlgo;           /* peer's chosen hash algo */

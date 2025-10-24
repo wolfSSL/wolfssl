@@ -5253,6 +5253,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Set the cipher suite from the message. */
     ssl->options.cipherSuite0 = input[args->idx++];
     ssl->options.cipherSuite  = input[args->idx++];
+    if (*extMsgType == hello_retry_request) {
+        ssl->options.hrrCipherSuite0 = ssl->options.cipherSuite0;
+        ssl->options.hrrCipherSuite  = ssl->options.cipherSuite;
+    }
+    else if (ssl->msgsReceived.got_hello_retry_request &&
+             (ssl->options.hrrCipherSuite0 != ssl->options.cipherSuite0 ||
+                     ssl->options.hrrCipherSuite != ssl->options.cipherSuite)) {
+        WOLFSSL_MSG("Received ServerHello with different cipher suite than "
+                    "HelloRetryRequest");
+        WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
+        return INVALID_PARAMETER;
+    }
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Chosen cipher suite:");
     WOLFSSL_MSG(GetCipherNameInternal(ssl->options.cipherSuite0,
