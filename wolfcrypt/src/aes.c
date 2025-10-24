@@ -645,17 +645,19 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WOLFSSL_AES_DIRECT
 
     /* Encrypt: If we choose to never have a fallback to SW: */
-    #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
-    static WARN_UNUSED_RESULT int wc_AesEncrypt( /* calling this one when NO_AES_192 is defined */
+    #if !defined(NEED_AES_HW_FALLBACK) && \
+        (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
+    /* calling this one when NO_AES_192 is defined */
+    static WARN_UNUSED_RESULT int wc_AesEncrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
         int ret;
 
-#ifdef WC_DEBUG_CIPHER_LIFECYCLE
+    #ifdef WC_DEBUG_CIPHER_LIFECYCLE
         ret = wc_debug_CipherLifecycleCheck(aes->CipherLifecycleTag, 0);
         if (ret < 0)
             return ret;
-#endif
+    #endif
 
         /* Thread mutex protection handled in esp_aes_hw_InUse */
     #ifdef NEED_AES_HW_FALLBACK
@@ -670,7 +672,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 
     /* Decrypt: If we choose to never have a fallback to SW: */
-    #if !defined(NEED_AES_HW_FALLBACK) && (defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT))
+    #if !defined(NEED_AES_HW_FALLBACK) && \
+        (defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT))
     static WARN_UNUSED_RESULT int wc_AesDecrypt(
         Aes* aes, const byte* inBlock, byte* outBlock)
     {
@@ -1111,6 +1114,9 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #elif defined(WOLFSSL_RISCV_ASM)
 /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+/* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
+
 #else
 
     /* using wolfCrypt software implementation */
@@ -1127,17 +1133,17 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 
 #ifndef WC_AES_BITSLICED
 #if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
-#if !defined(WOLFSSL_SILABS_SE_ACCEL) ||  \
-     defined(NO_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES) || \
-     defined(NEED_AES_HW_FALLBACK)
+#if !defined(WOLFSSL_ESP32_CRYPT) || \
+    (defined(NO_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES) || \
+     defined(NEED_AES_HW_FALLBACK))
 static const FLASH_QUALIFIER word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1B000000, 0x36000000,
     /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
-#endif
-#endif
+#endif /* ESP32 */
+#endif /* __aarch64__ || !WOLFSSL_ARMASM */
 
 #if defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || \
       defined(WOLFSSL_ARMASM_NO_HW_CRYPTO) || defined(WOLFSSL_AES_DIRECT) || \
@@ -1410,7 +1416,7 @@ static const FLASH_QUALIFIER word32 Te[4][256] = {
 }
 };
 
-#if defined(HAVE_AES_DECRYPT) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+#ifdef HAVE_AES_DECRYPT
 #if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
 static const FLASH_QUALIFIER word32 Td[4][256] = {
 {
@@ -1679,14 +1685,13 @@ static const FLASH_QUALIFIER word32 Td[4][256] = {
     0xcb84617bU, 0x32b670d5U, 0x6c5c7448U, 0xb85742d0U,
 }
 };
-#endif
+#endif /* __aarch64__ || !WOLFSSL_ARMASM */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_SMALL_TABLES */
 
 #ifdef HAVE_AES_DECRYPT
-#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
-                              !defined(WOLFSSL_SILABS_SE_ACCEL)) || \
-    defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
+     defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)
 #if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
 static const FLASH_QUALIFIER byte Td4[256] =
 {
@@ -3091,8 +3096,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
-#if ((defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
-                              !defined(WOLFSSL_SILABS_SE_ACCEL)) || \
+#if ((defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
      defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_DIRECT)) && \
     (defined(__aarch64__) || !defined(WOLFSSL_ARMASM))
 
@@ -3731,8 +3735,7 @@ static void AesDecryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 #endif /* !WC_AES_BITSLICED */
 #endif
 
-#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC) && \
-                              !defined(WOLFSSL_SILABS_SE_ACCEL)) || \
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
     defined(WOLFSSL_AES_DIRECT)
 #if defined(__aarch64__) || !defined(WOLFSSL_ARMASM)
 #if !defined(WC_AES_BITSLICED) || defined(WOLFSSL_AES_DIRECT)

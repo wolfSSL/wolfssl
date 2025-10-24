@@ -15758,6 +15758,7 @@ void bench_sphincsKeySign(byte level, byte optim)
     #else
         return (double)tickCount / 1000;
     #endif
+        (void)reset;
     }
 #endif
 
