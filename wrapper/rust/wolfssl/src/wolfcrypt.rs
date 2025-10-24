@@ -19,6 +19,7 @@
  */
 
 pub mod aes;
+pub mod cmac;
 pub mod dh;
 pub mod ecc;
 pub mod hkdf;
