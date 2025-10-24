@@ -17914,7 +17914,8 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
 
 #if !defined(NO_ASN_CRYPT) && !defined(NO_HASH_WRAPPER)
 static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
-                            byte* digest, int* typeH, int* digestSz, int verify)
+                            byte* digest, int* typeH, int* digestSz, int verify,
+                            void* heap, int devId)
 {
     int ret = 0;
 
@@ -17933,7 +17934,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #endif
     #ifndef NO_MD5
         case CTC_MD5wRSA:
-            if ((ret = wc_Md5Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Md5Hash_ex(buf, bufSz, digest, heap, devId)) == 0) {
                 *typeH    = MD5h;
                 *digestSz = WC_MD5_DIGEST_SIZE;
             }
@@ -17943,7 +17944,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHAwRSA:
         case CTC_SHAwDSA:
         case CTC_SHAwECDSA:
-            if ((ret = wc_ShaHash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_ShaHash_ex(buf, bufSz, digest, heap, devId)) == 0) {
                 *typeH    = SHAh;
                 *digestSz = WC_SHA_DIGEST_SIZE;
             }
@@ -17952,7 +17953,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifdef WOLFSSL_SHA224
         case CTC_SHA224wRSA:
         case CTC_SHA224wECDSA:
-            if ((ret = wc_Sha224Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha224Hash_ex(buf, bufSz, digest, heap, devId)) == 0)
+            {
                 *typeH    = SHA224h;
                 *digestSz = WC_SHA224_DIGEST_SIZE;
             }
@@ -17962,7 +17964,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
         case CTC_SHA256wDSA:
-            if ((ret = wc_Sha256Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha256Hash_ex(buf, bufSz, digest, heap, devId)) == 0)
+            {
                 *typeH    = SHA256h;
                 *digestSz = WC_SHA256_DIGEST_SIZE;
             }
@@ -17971,7 +17974,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifdef WOLFSSL_SHA384
         case CTC_SHA384wRSA:
         case CTC_SHA384wECDSA:
-            if ((ret = wc_Sha384Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha384Hash_ex(buf, bufSz, digest, heap, devId)) == 0)
+            {
                 *typeH    = SHA384h;
                 *digestSz = WC_SHA384_DIGEST_SIZE;
             }
@@ -17980,7 +17984,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
         case CTC_SHA512wECDSA:
-            if ((ret = wc_Sha512Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha512Hash_ex(buf, bufSz, digest, heap, devId)) == 0)
+            {
                 *typeH    = SHA512h;
                 *digestSz = WC_SHA512_DIGEST_SIZE;
             }
@@ -17990,7 +17995,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifndef WOLFSSL_NOSHA3_224
         case CTC_SHA3_224wRSA:
         case CTC_SHA3_224wECDSA:
-            if ((ret = wc_Sha3_224Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha3_224Hash_ex(buf, bufSz, digest, heap, devId))
+                    == 0) {
                 *typeH    = SHA3_224h;
                 *digestSz = WC_SHA3_224_DIGEST_SIZE;
             }
@@ -17999,7 +18005,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifndef WOLFSSL_NOSHA3_256
         case CTC_SHA3_256wRSA:
         case CTC_SHA3_256wECDSA:
-            if ((ret = wc_Sha3_256Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha3_256Hash_ex(buf, bufSz, digest, heap, devId))
+                    == 0) {
                 *typeH    = SHA3_256h;
                 *digestSz = WC_SHA3_256_DIGEST_SIZE;
             }
@@ -18008,7 +18015,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifndef WOLFSSL_NOSHA3_384
         case CTC_SHA3_384wRSA:
         case CTC_SHA3_384wECDSA:
-            if ((ret = wc_Sha3_384Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha3_384Hash_ex(buf, bufSz, digest, heap, devId))
+                    == 0) {
                 *typeH    = SHA3_384h;
                 *digestSz = WC_SHA3_384_DIGEST_SIZE;
             }
@@ -18017,7 +18025,8 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifndef WOLFSSL_NOSHA3_512
         case CTC_SHA3_512wRSA:
         case CTC_SHA3_512wECDSA:
-            if ((ret = wc_Sha3_512Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sha3_512Hash_ex(buf, bufSz, digest, heap, devId))
+                    == 0) {
                 *typeH    = SHA3_512h;
                 *digestSz = WC_SHA3_512_DIGEST_SIZE;
             }
@@ -18026,7 +18035,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #endif
     #if defined(WOLFSSL_SM2) & defined(WOLFSSL_SM3)
         case CTC_SM3wSM2:
-            if ((ret = wc_Sm3Hash(buf, bufSz, digest)) == 0) {
+            if ((ret = wc_Sm3Hash_ex(buf, bufSz, digest, heap, devId)) == 0) {
                 *typeH    = SM3h;
                 *digestSz = WC_SM3_DIGEST_SIZE;
             }
@@ -18236,7 +18245,8 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                 }
                 /* Decode parameters. */
                 ret = HashForSignature(buf, bufSz, fakeSigOID, sigCtx->digest,
-                    &sigCtx->typeH, &sigCtx->digestSz, 1);
+                    &sigCtx->typeH, &sigCtx->digestSz, 1, sigCtx->heap,
+                    sigCtx->devId);
                 if (ret != 0) {
                     goto exit_cs;
                 }
@@ -18251,7 +18261,8 @@ int ConfirmSignature(SignatureCtx* sigCtx,
         #endif
             {
                 ret = HashForSignature(buf, bufSz, sigOID, sigCtx->digest,
-                                       &sigCtx->typeH, &sigCtx->digestSz, 1);
+                                       &sigCtx->typeH, &sigCtx->digestSz, 1,
+                                       sigCtx->heap, sigCtx->devId);
                 if (ret != 0) {
                     goto exit_cs;
                 }
@@ -31931,7 +31942,8 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     #endif
 
         ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
-                               &typeH, &digestSz, 0);
+                               &typeH, &digestSz, 0, NULL,
+                               INVALID_DEVID);
         /* set next state, since WC_PENDING_E rentry for these are not "call again" */
         certSignCtx->state = CERTSIGN_STATE_ENCODE;
         if (ret != 0) {
