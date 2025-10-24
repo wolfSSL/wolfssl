@@ -1519,6 +1519,7 @@ WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
     }
 
     WOLFSSL_LEAVE("wolfSSL_write_dup", ret);
+    (void)ret; /* ret is used for debug message, dup is set to null on fail */
 
     return dup;
 }
