@@ -1,244 +1,244 @@
 /*!
-    \defgroup 3DES Algorithms - 3DES
-    \defgroup AES Algorithms - AES
-    \defgroup ARC4 Algorithms - ARC4
-    \defgroup BLAKE2 Algorithms - BLAKE2
-    \defgroup Camellia Algorithms - Camellia
-    \defgroup ChaCha Algorithms - ChaCha
-    \defgroup ChaCha20Poly1305 Algorithms - ChaCha20_Poly1305
-  　\defgroup CMAC Algorithm - CMAC
-    \defgroup Crypto Callbacks - CryptoCb
-    \defgroup Curve25519 Algorithms - Curve25519
-    \defgroup Curve448 Algorithms - Curve448
-    \defgroup DSA Algorithms - DSA
-    \defgroup Diffie-Hellman Algorithms - Diffie-Hellman
-    \defgroup ECC Algorithms - ECC
-    \defgroup ED25519 Algorithms - ED25519
-    \defgroup ED448 Algorithms - ED448
-    \defgroup ECCSI_Overview Overview of ECCSI
-    ECCSI (Elliptic Curve-Based Certificateless Signatures for Identity-Based Encryption) is specified in RFC 6507 (https://tools.ietf.org/html/rfc6507).
+    \defgroup 3DES アルゴリズム - 3DES
+    \defgroup AES アルゴリズム - AES
+    \defgroup ARC4 アルゴリズム - ARC4
+    \defgroup BLAKE2 アルゴリズム - BLAKE2
+    \defgroup Camellia アルゴリズム - Camellia
+    \defgroup ChaCha アルゴリズム - ChaCha
+    \defgroup ChaCha20Poly1305 アルゴリズム - ChaCha20_Poly1305
+    \defgroup CMAC アルゴリズム - CMAC
+    \defgroup Crypto Callbacksコールバック - CryptoCb
+    \defgroup Curve25519 アルゴリズム - Curve25519
+    \defgroup Curve448 アルゴリズム - Curve448
+    \defgroup DSA アルゴリズム - DSA
+    \defgroup Diffie-Hellman アルゴリズム - Diffie-Hellman
+    \defgroup ECC アルゴリズム - ECC
+    \defgroup ED25519 アルゴリズム - ED25519
+    \defgroup ED448 アルゴリズム - ED448
+    \defgroup ECCSI_Overview ECC​​SIの概要
+    ECCSI(楕円曲線ベースの証明書レス署名によるアイデンティティベース暗号化)は、RFC 6507(https://tools.ietf.org/html/rfc6507)で規定されています。
 
-    In Identity-Based cryptography, there is a Key Management Service that generates keys based on an identity for a client.
-    The private key (SSK) and public key (PVT) are delivered to the signer and the public key (PVT) only delivered to the verifier on request.\n\n
-    wolfCrypt offers the ability to:
-      -# Create KMS keys,
-      -# Generate signing key pairs,
-      -# Validate signing key pairs,
-      -# Sign messages and
-      -# Verify messages.
+    アイデンティティベース暗号化では、クライアントのアイデンティティに基づいてキーを生成する鍵管理サービスがあります。
+    秘密鍵(SSK)と公開鍵(PVT)は署名者に配信され、公開鍵(PVT)のみがリクエストに応じて検証者に配信されます。\n\n
+    wolfCryptは次の機能を提供します:
+      -# KMS鍵の作成
+      -# 署名鍵ペアの生成
+      -# 署名鍵ペアの検証
+      -# メッセージの署名
+      -# メッセージの検証
 
     KMS:
-      -# Initialize ECCSI Key: wc_InitEccsiKey()
-      -# Make and save or load ECCSI Key:
-        -# wc_MakeEccsiKey(), wc_ExportEccsiKey(), wc_ExportEccsiPublicKey() or
+      -# ECCSI鍵の初期化: wc_InitEccsiKey()
+      -# ECCSI鍵の作成と保存またはロード:
+        -# wc_MakeEccsiKey(), wc_ExportEccsiKey(), wc_ExportEccsiPublicKey() または
         -# wc_ImportEccsiKey()
-      -# Wait for request:
-        -# Receive signing ID from client.
-        -# Generate signing key pair from ID: wc_MakeEccsiPair()
-        -# Encode result:
-          -# For signer, signing key pair: wc_EncodeEccsiPair()
-        -# Send KPAK and result
-      -# Free ECCSI Key: wc_FreeEccsiKey()
+      -# リクエストを待機:
+        -# クライアントから署名IDを受信
+        -# IDから署名鍵ペアを生成: wc_MakeEccsiPair()
+        -# 結果をエンコード:
+          -# 署名者用に署名鍵ペア: wc_EncodeEccsiPair()
+        -# KPAKと結果を送信
+      -# ECCSI鍵の解放: wc_FreeEccsiKey()
 
-    Client, signer:
-      -# Initialize ECCSI Key: wc_InitEccsiKey()
-      -# (When signing pair not cached) Request KPAK and signing pair from KMS
-        -# Send signing ID to KMS.
-        -# Receive signing key pair from KMS.
-        -# Load KMS Public Key: wc_ImportEccsiPublicKey()
-        -# Decode signing key pair: wc_DecodeEccsiPair()
-        -# Validate the key pair: wc_ValidateEccsiPair()
-      -# (If not done above) Load KMS Public Key: wc_ImportEccsiPublicKey()
-      -# (If not cached) Calculate hash of the ID and PVT: wc_HashEccsiId()
-      -# For each message:
-        -# Set Hash of Identity: wc_SetEccsiHash()
-        -# Sign message: wc_SignEccsiHash()
-        -# Send hash ID, message and signature to peer.
-      -# Free ECCSI Key: wc_FreeEccsiKey()
+    クライアント、署名者:
+      -# ECCSI鍵の初期化: wc_InitEccsiKey()
+      -# (署名ペアがキャッシュされていない場合)KMSにKPAKと署名ペアをリクエスト
+        -# KMSに署名IDを送信
+        -# KMSから署名鍵ペアを受信
+        -# KMS公開鍵をロード: wc_ImportEccsiPublicKey()
+        -# 署名鍵ペアをデコード: wc_DecodeEccsiPair()
+        -# 鍵ペアを検証: wc_ValidateEccsiPair()
+      -# (上記で実行していない場合)KMS公開鍵をロード: wc_ImportEccsiPublicKey()
+      -# (キャッシュされていない場合)IDとPVTのハッシュを計算: wc_HashEccsiId()
+      -# 各メッセージに対して:
+        -# アイデンティティのハッシュを設定: wc_SetEccsiHash()
+        -# メッセージに署名: wc_SignEccsiHash()
+        -# ハッシュID、メッセージ、署名をピアに送信
+      -# ECCSI鍵の解放: wc_FreeEccsiKey()
 
-    Client, verifier:
-      -# Receive hash ID, message and signature from signer.
-      -# Request KPAK (if not cached) and PVT (if not cached) for hash ID from KMS.
-      -# Receive KPAK (if not cached) and PVT (if not cached) for hash ID from KMS.
-      -# Initialize ECCSI Key: wc_InitEccsiKey()
-      -# Load KMS Public Key: wc_ImportEccsiPublicKey()
-      -# Decode PVT: wc_DecodeEccsiPvtFromSig()
-      -# Calculate hash of the ID and PVT: wc_HashEccsiId()
-      -# Set ECCSI key pair: wc_SetEccsiPair()
-      -# Verify signature of message: wc_VerifyEccsiHash()
-      -# Free ECCSI Key: wc_FreeEccsiKey()
+    クライアント、検証者:
+      -# 署名者からハッシュID、メッセージ、署名を受信
+      -# KMSにKPAK(キャッシュされていない場合)とハッシュIDのPVT(キャッシュされていない場合)をリクエスト
+      -# KMSからKPAK(キャッシュされていない場合)とハッシュIDのPVT(キャッシュされていない場合)を受信
+      -# ECCSI鍵の初期化: wc_InitEccsiKey()
+      -# KMS公開鍵をロード: wc_ImportEccsiPublicKey()
+      -# PVTをデコード: wc_DecodeEccsiPvtFromSig()
+      -# IDとPVTのハッシュを計算: wc_HashEccsiId()
+      -# ECCSI鍵ペアを設定: wc_SetEccsiPair()
+      -# メッセージの署名を検証: wc_VerifyEccsiHash()
+      -# ECCSI鍵の解放: wc_FreeEccsiKey()
 
-    \defgroup ECCSI_Setup Setup ECCSI Key
-    Operations for establinshing an ECCSI key.
+    \defgroup ECCSI_Setup ECCSI鍵のセットアップ
+    ECCSI鍵を確立するための操作。
 
-    Initialize ECCSI Key before use (wc_InitEccsiKey()).\n
-    Initialize ECCSI Key before use (wc_InitEccsiKey_ex()) for use with a curve other than P256.\n
-    Either make a new key (wc_MakeEccsiKey()), import an existing key (wc_ImportEccsiKey()) or import existing private key (wc_ImportEccsiPrivateKey()) and public key (wc_ImportEccsiPublicKey()).\n
-    Export the key (wc_ExportEccsiKey()) after making a new key for future use.\n
-    Export the private key (wc_ExportEccsiPrivateKey()) after making a new key for future use.\n
-    Export the public key (wc_ExportEccsiPublicKey()) from KMS to pass to client.\n
-    Import the public key (wc_ImportEccsiPublicKey()) into client.\n
-    Free the ECCSI Key (wc_FreeEccsiKey()) when finished.
+    使用前にECCSI鍵を初期化(wc_InitEccsiKey())。\n
+    P256以外の曲線を使用する場合は、使用前にECCSI鍵を初期化(wc_InitEccsiKey_ex())。\n
+    新しい鍵を作成(wc_MakeEccsiKey())、既存の鍵をインポート(wc_ImportEccsiKey())、または既存の秘密鍵(wc_ImportEccsiPrivateKey())と公開鍵(wc_ImportEccsiPublicKey())をインポート。\n
+    新しい鍵を作成した後、将来の使用のために鍵をエクスポート(wc_ExportEccsiKey())。\n
+    新しい鍵を作成した後、将来の使用のために秘密鍵をエクスポート(wc_ExportEccsiPrivateKey())。\n
+    KMSからクライアントに渡すために公開鍵をエクスポート(wc_ExportEccsiPublicKey())。\n
+    クライアントに公開鍵をインポート(wc_ImportEccsiPublicKey())。\n
+    終了時にECCSI鍵を解放(wc_FreeEccsiKey())。
 
-    \defgroup ECCSI_Operations Operations for Signing and Verifying with ECCSI Key
-    These operations are for signing and verifying with ECCSI keys.
+    \defgroup ECCSI_Operations ECCSI鍵での署名と検証のための操作
+    これらは、ECCSI鍵を使用した署名と検証のための操作です。
 
-    Make an ECCSI key pair (wc_MakeEccsiPair()) with the signer's ID for use when signing.\n
-    Validate the ECCSI key pair (wc_ValidateEccsiPair()) with the signer's ID.\n
-    Validate the ECCSI Public Validation Token (PVT) (wc_ValidateEccsiPvt()).\n
-    Encode the ECCSI key pair (wc_EncodeEccsiPair()) for transfer to client.\n
-    Encode the ECCSI SSK (wc_EncodeEccsiSsk()) for transfer to client.\n
-    Encode the ECCSI PVT (wc_EncodeEccsiPvt()) for transfer to verifier.\n
-    Decode the ECCSI key pair (wc_DecodeEccsiPair()) on client for signing.\n
-    Decode the ECCSI SSK (wc_DecodeEccsiSsk()) on client for signing.\n
-    Decode the ECCSI PVT (wc_DecodeEccsiPvt()) on client for signing.\n
-    Decode the ECCSI PVT from the signature (wc_DecodeEccsiPvtFromSig()) on client for verifying.\n
-    Calculate hash of the ID (wc_HashEccsiId()) for signing/verifying using ID and Public Validation Token (PVT).\n
-    Sign (wc_SignEccsiHash()) a message with the hash of the ID and the Secret Signing Key (SSK) and Public Validation Token (PVT).\n
-    Verify (wc_VerifyEccsiHash()) a message with the hash of the signer's ID.
+    署名時に使用する署名者のIDでECCSI鍵ペアを作成(wc_MakeEccsiPair())。\n
+    署名者のIDでECCSI鍵ペアを検証(wc_ValidateEccsiPair())。\n
+    ECCSI公開検証トークン(PVT)を検証(wc_ValidateEccsiPvt())。\n
+    クライアントへの転送のためにECCSI鍵ペアをエンコード(wc_EncodeEccsiPair())。\n
+    クライアントへの転送のためにECCSI SSKをエンコード(wc_EncodeEccsiSsk())。\n
+    検証者への転送のためにECCSI PVTをエンコード(wc_EncodeEccsiPvt())。\n
+    署名のためにクライアントでECCSI鍵ペアをデコード(wc_DecodeEccsiPair())。\n
+    署名のためにクライアントでECCSI SSKをデコード(wc_DecodeEccsiSsk())。\n
+    署名のためにクライアントでECCSI PVTをデコード(wc_DecodeEccsiPvt())。\n
+    検証のためにクライアントで署名からECCSI PVTをデコード(wc_DecodeEccsiPvtFromSig())。\n
+    IDと公開検証トークン(PVT)を使用した署名/検証のためにIDのハッシュを計算(wc_HashEccsiId())。\n
+    IDのハッシュと秘密署名鍵(SSK)および公開検証トークン(PVT)でメッセージに署名(wc_SignEccsiHash())。\n
+    署名者のIDのハッシュでメッセージを検証(wc_VerifyEccsiHash())。
 
-    \defgroup SAKKE_Overview Overview of SAKKE Key
-    SAKKE (Sakai-Kasahara Key Encryption) is specified in RFC 6508 (https://tools.ietf.org/html/rfc6508).
+    \defgroup SAKKE_Overview SAKKE鍵の概要
+    SAKKE(酒井-笠原鍵暗号化)は、RFC 6508(https://tools.ietf.org/html/rfc6508)で規定されています。
 
-    SAKKE is used to transfer a secret to a peer using Identity Based cryptography.\n
-    The Key Management Service (KMS) is responsible for issuing Receiver Secret %Keys (RSKs).
-    Data up to (2^hashlen)^hashlen bytes of data can be transferred.\n
-    The sender must know the identity of the receiver and the KMS Public Key.\n
-    The receiver must have obtained a Receiver Secret Key (RSK) for the identity from a KMS in order to derive the secret.
+    SAKKEは、アイデンティティベース暗号化を使用してピアに秘密を転送するために使用されます。\n
+    鍵管理サービス(KMS)は、受信者秘密%鍵(RSK)の発行を担当します。
+    最大(2^hashlen)^hashlenバイトのデータを転送できます。\n
+    送信者は受信者のアイデンティティとKMS公開鍵を知っている必要があります。\n
+    受信者は、秘密を導出するために、KMSからアイデンティティの受信者秘密鍵(RSK)を取得している必要があります。
 
     KMS:
-      -# Initialize SAKKE Key: wc_InitSakkeKey()
-      -# Make and save or load SAKKE Key:
-        -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() or
+      -# SAKKE鍵の初期化: wc_InitSakkeKey()
+      -# SAKKE鍵の作成と保存またはロード:
+        -# wc_MakeSakkeKey(), wc_ExportSakkeKey(), wc_ExportSakkePublicKey() または
         -# wc_ImportSakkeKey()
-      -# Wait for request:
-        -# Make an RSK base on ID for the client: wc_MakeSakkeRsk()
-        -# Encode RSK for transfer to client: wc_EncodeSakkeRsk()
-      -# Free SAKKE Key: wc_FreeSakkeKey()
+      -# リクエストを待機:
+        -# クライアントのIDに基づいてRSKを作成: wc_MakeSakkeRsk()
+        -# クライアントへの転送のためにRSKをエンコード: wc_EncodeSakkeRsk()
+      -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
-    Key Exchange, Peer A:
-      -# Initialize SAKKE Key: wc_InitSakkeKey()
-      -# Load KMS Public Key: wc_ImportSakkePublicKey()
-      -# Generate a random SSV: wc_GenerateSakkeSSV()
-      -# Set the identity of Peer B: wc_SetSakkeIdentity()
-      -# Make an encapsulated SSV and auth data: wc_MakeSakkeEncapsulatedSSV()
-      -# Send encapsulated data to Peer B
-      -# Free SAKKE Key: wc_FreeSakkeKey()
+    鍵交換、ピアA:
+      -# SAKKE鍵の初期化: wc_InitSakkeKey()
+      -# KMS公開鍵をロード: wc_ImportSakkePublicKey()
+      -# ランダムなSSVを生成: wc_GenerateSakkeSSV()
+      -# ピアBのアイデンティティを設定: wc_SetSakkeIdentity()
+      -# カプセル化されたSSVと認証データを作成: wc_MakeSakkeEncapsulatedSSV()
+      -# カプセル化されたデータをピアBに送信
+      -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
-    Key Exchange, Peer B:
-      -# Receive encapsulated data.
-      -# Initialize SAKKE Key: wc_InitSakkeKey()
-      -# Load KMS Public Key: wc_ImportSakkePublicKey()
-      -# Decode RSK transferred from KMS or stored locally: wc_DecodeSakkeRsk()
-      -# [Optional] Validate RSK before first use: wc_ValidateSakkeRsk()
-      -# Set the identity: wc_SetSakkeIdentity()
-      -# Set the RSK and, optionally precomputation table: wc_SetSakkeRsk()
-      -# Derive SSV with auth data: wc_DeriveSakkeSSV()
-      -# Free SAKKE Key: wc_FreeSakkeKey()
+    鍵交換、ピアB:
+      -# カプセル化されたデータを受信
+      -# SAKKE鍵の初期化: wc_InitSakkeKey()
+      -# KMS公開鍵をロード: wc_ImportSakkePublicKey()
+      -# KMSから転送されたまたはローカルに保存されたRSKをデコード: wc_DecodeSakkeRsk()
+      -# [オプション]最初の使用前にRSKを検証: wc_ValidateSakkeRsk()
+      -# アイデンティティを設定: wc_SetSakkeIdentity()
+      -# RSKと、オプションで事前計算テーブルを設定: wc_SetSakkeRsk()
+      -# 認証データでSSVを導出: wc_DeriveSakkeSSV()
+      -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
-    Transfer secret, Peer A:
-      -# Initialize SAKKE Key: wc_InitSakkeKey()
-      -# Load KMS Public Key: wc_ImportSakkePublicKey()
-      -# Set the identity of Peer B: wc_SetSakkeIdentity()
-      -# Make an encapsulation of the SSV and auth data: wc_MakeSakkeEncapsulatedSSV()
-      -# Send encapsulated data to Peer B
-      -# Free SAKKE Key: wc_FreeSakkeKey()
+    秘密の転送、ピアA:
+      -# SAKKE鍵の初期化: wc_InitSakkeKey()
+      -# KMS公開鍵をロード: wc_ImportSakkePublicKey()
+      -# ピアBのアイデンティティを設定: wc_SetSakkeIdentity()
+      -# SSVと認証データのカプセル化を作成: wc_MakeSakkeEncapsulatedSSV()
+      -# カプセル化されたデータをピアBに送信
+      -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
-    Transfer secret, Peer B:
-      -# Initialize SAKKE Key: wc_InitSakkeKey()
-      -# Load KMS Public Key: wc_ImportSakkePublicKey()
-      -# Decode RSK transferred from KMS or stored locally: wc_DecodeSakkeRsk()
-      -# [Optional] Validate RSK before first use: wc_ValidateSakkeRsk()
-      -# Receive encapsulated data.
-      -# Set the identity: wc_SetSakkeIdentity()
-      -# Set the RSK and, optionally precomputation table: wc_SetSakkeRsk()
-      -# Derive SSV and auth data: wc_DeriveSakkeSSV()
-      -# Free SAKKE Key: wc_FreeSakkeKey()
+    秘密の転送、ピアB:
+      -# SAKKE鍵の初期化: wc_InitSakkeKey()
+      -# KMS公開鍵をロード: wc_ImportSakkePublicKey()
+      -# KMSから転送されたまたはローカルに保存されたRSKをデコード: wc_DecodeSakkeRsk()
+      -# [オプション]最初の使用前にRSKを検証: wc_ValidateSakkeRsk()
+      -# カプセル化されたデータを受信
+      -# アイデンティティを設定: wc_SetSakkeIdentity()
+      -# RSKと、オプションで事前計算テーブルを設定: wc_SetSakkeRsk()
+      -# SSVと認証データを導出: wc_DeriveSakkeSSV()
+      -# SAKKE鍵の解放: wc_FreeSakkeKey()
 
-    \defgroup SAKKE_Setup Setup SAKKE Key
-    Operations for establishing a SAKKE key.
+    \defgroup SAKKE_Setup SAKKE鍵のセットアップ
+    SAKKE鍵を確立するための操作。
 
-    Initialization SAKKE Key before use (wc_InitSakkeKey() or wc_InitSakkeKey_ex()).\n
-    Either make a new key (wc_MakeSakkeKey()) or import an existing key (wc_ImportSakkeKey()).\n
-    Export the key (wc_ExportSakkeKey()) after making a new key for future use.\n
-    If only the private part of the KMS SAKKE Key is available, make the public key (wc_MakeSakkePublicKey()).\n
-    Export the private key (wc_ExportSakkePrivateKey()) from KMS from storage.\n
-    Import the private key (wc_ImportSakkePrivateKey()) into KMS from storage.\n
-    Export the public key (wc_ExportSakkePublicKey()) from KMS to pass to client.\n
-    Import the public key (wc_ImportSakkePublicKey()) into client.\n
-    Set the identity to use (wc_SetSakkeIdentity()) into client.\n
-    Free the SAKKE Key (wc_FreeSakkeKey()) when finished.
+    使用前にSAKKE鍵を初期化(wc_InitSakkeKey()またはwc_InitSakkeKey_ex())。\n
+    新しい鍵を作成(wc_MakeSakkeKey())または既存の鍵をインポート(wc_ImportSakkeKey())。\n
+    新しい鍵を作成した後、将来の使用のために鍵をエクスポート(wc_ExportSakkeKey())。\n
+    KMS SAKKE鍵の秘密部分のみが利用可能な場合、公開鍵を作成(wc_MakeSakkePublicKey())。\n
+    ストレージからKMSから秘密鍵をエクスポート(wc_ExportSakkePrivateKey())。\n
+    ストレージからKMSに秘密鍵をインポート(wc_ImportSakkePrivateKey())。\n
+    KMSからクライアントに渡すために公開鍵をエクスポート(wc_ExportSakkePublicKey())。\n
+    クライアントに公開鍵をインポート(wc_ImportSakkePublicKey())。\n
+    クライアントに使用するアイデンティティを設定(wc_SetSakkeIdentity())。\n
+    終了時にSAKKE鍵を解放(wc_FreeSakkeKey())。
 
-    \defgroup SAKKE_RSK Operations on/with SAKKE RSK
-    These operations make, validate, encode and decode a Receiver Secret Key (RSK).
+    \defgroup SAKKE_RSK SAKKE RSKに関する/を使用した操作
+    これらの操作は、受信者秘密鍵(RSK)を作成、検証、エンコード、デコードします。
 
-    An RSK is required to derive an SSV (see wc_DeriveSakkeSSV()).\n
-    On the KMS, make an RSK (wc_MakeSakkeRsk()) from the client's ID.\n
-    On the client, validate the RSK (wc_ValidateSakkeRsk()) with the ID.\n
-    Encode the RSK (wc_EncodeSakkeRsk()) to pass to client or for storage.\n
-    Decode the RSK (wc_DecodeSakkeRsk()) on the client when needed.\n
-    Import the RSK (wc_ImportSakkeRsk()) on the client when needed.\n
-    Set the RSK and, optionally, a pre-computation table (wc_SetSakkeRsk()) on the client when needed.
+    RSKは、SSVを導出するために必要です(wc_DeriveSakkeSSV()を参照)。\n
+    KMSで、クライアントのIDからRSKを作成(wc_MakeSakkeRsk())。\n
+    クライアントで、IDでRSKを検証(wc_ValidateSakkeRsk())。\n
+    クライアントへの転送またはストレージのためにRSKをエンコード(wc_EncodeSakkeRsk())。\n
+    必要に応じてクライアントでRSKをデコード(wc_DecodeSakkeRsk())。\n
+    必要に応じてクライアントでRSKをインポート(wc_ImportSakkeRsk())。\n
+    必要に応じてクライアントでRSKと、オプションで事前計算テーブルを設定(wc_SetSakkeRsk())。
 
-    \defgroup SAKKE_Operations Operations using SAKKE Key
-    These operations transfer a Shared Secret Value (SSV) from one client to another. The SSV may be randomly generated.
+    \defgroup SAKKE_Operations SAKKE鍵を使用した操作
+    これらの操作は、共有秘密値(SSV)を1つのクライアントから別のクライアントに転送します。SSVはランダムに生成できます。
 
-    Calculate the size of the authentication data (wc_GetSakkeAuthSize()) to determine where the SSV starts in a buffer.\n
-    Make the intermediate point I (wc_MakeSakkePointI()) to speed making an encapsulated and deriving SSV.\n
-    Get intermediate point I (wc_GetSakkePointI()) for storage.\n
-    Set intermediate point I (wc_SetSakkePointI()) from storage.\n
-    Generate a pre-computation table for intermediate point I (wc_GenerateSakkePointITable()) to further enhance performance. Store as necessary.\n
-    Set the pre-computation table for intermediate point I (wc_SetSakkePointITable()) to further enhance performance.\n
-    Clear the pre-computation table for intermediate point I (wc_ClearSakkePointITable()) to remove reference to external table pointer.\n
-    Make an encapsulated SSV (wc_MakeSakkeEncapsulatedSSV()) to share with another client. Data in SSV is modified.\n
-    Generate a random SSV (wc_GenerateSakkeSSV()) for key exchange.\n
-    Derive the SSV, (wc_DeriveSakkeSSV()) on the recipient from the encapsulated SSV.
+    認証データのサイズを計算(wc_GetSakkeAuthSize())して、バッファ内のSSVの開始位置を決定。\n
+    中間点Iを作成(wc_MakeSakkePointI())して、カプセル化の作成とSSVの導出を高速化。\n
+    ストレージのために中間点Iを取得(wc_GetSakkePointI())。\n
+    ストレージから中間点Iを設定(wc_SetSakkePointI())。\n
+    中間点Iの事前計算テーブルを生成(wc_GenerateSakkePointITable())してパフォーマンスをさらに向上。必要に応じて保存。\n
+    中間点Iの事前計算テーブルを設定(wc_SetSakkePointITable())してパフォーマンスをさらに向上。\n
+    中間点Iの事前計算テーブルをクリア(wc_ClearSakkePointITable())して外部テーブルポインタへの参照を削除。\n
+    別のクライアントと共有するためにカプセル化されたSSVを作成(wc_MakeSakkeEncapsulatedSSV())。SSV内のデータが変更されます。\n
+    鍵交換のためにランダムなSSVを生成(wc_GenerateSakkeSSV())。\n
+    カプセル化されたSSVから受信者でSSVを導出(wc_DeriveSakkeSSV())。
 
-    \defgroup HMAC Algorithms - HMAC
-    \defgroup MD2 Algorithms - MD2
-    \defgroup MD4 Algorithms - MD4
-    \defgroup MD5 Algorithms - MD5
-    \defgroup PKCS7 Algorithms - PKCS7
-    \defgroup PKCS11 Algorithms - PKCS11
-    \defgroup Password Algorithms - Password Based
-    \defgroup Poly1305 Algorithms - Poly1305
-    \defgroup RIPEMD Algorithms - RIPEMD
-    \defgroup RSA Algorithms - RSA
-    \defgroup SHA Algorithms - SHA 128/224/256/384/512
-    \defgroup SipHash Algorithm - SipHash
-    \defgroup SRP Algorithms - SRP
+    \defgroup HMAC アルゴリズム - HMAC
+    \defgroup MD2 アルゴリズム - MD2
+    \defgroup MD4 アルゴリズム - MD4
+    \defgroup MD5 アルゴリズム - MD5
+    \defgroup PKCS7 アルゴリズム - PKCS7
+    \defgroup PKCS11 アルゴリズム - PKCS11
+    \defgroup Password アルゴリズム - パスワードベース
+    \defgroup Poly1305 アルゴリズム - Poly1305
+    \defgroup RIPEMD アルゴリズム - RIPEMD
+    \defgroup RSA アルゴリズム - RSA
+    \defgroup SHA アルゴリズム - SHA 128/224/256/384/512
+    \defgroup SipHash アルゴリズム - SipHash
+    \defgroup SrtpKdf アルゴリズム - SRTP KDF
+    \defgroup SRP アルゴリズム - SRP
 
     \defgroup ASN ASN.1
-    \defgroup Base_Encoding Base Encoding
-    \defgroup CertManager CertManager API
-    \defgroup Compression Compression
-    \defgroup Error Error Reporting
-    \defgroup IoTSafe IoT-Safe Module
-    IoT-Safe (IoT-SIM Applet For Secure End-2-End Communication) is a technology that leverage the SIM as robust,
-    scalable and standardized hardware Root of Trust to protect data communication.
+    \defgroup Base_Encoding ベースエンコーディング
+    \defgroup CertManager 証明書マネージャーAPI
+    \defgroup Compression 圧縮
+    \defgroup Error エラー報告
+    \defgroup IoTSafe IoT-Safeモジュール
+    IoT-Safe(IoT-SIM Applet For Secure End-2-End Communication)は、SIMを堅牢で
+    スケーラブルかつ標準化されたハードウェアRoot of Trustとして活用し、データ通信を保護する技術です。
 
-    IoT-Safe SSL sessions use the SIM as Hardware Security Module, offloading all the crypto public
-    key operations and reducing the attack surface by restricting access to certificate and keys
-    to the SIM.
+    IoT-Safe SSLセッションは、SIMをハードウェアセキュリティモジュールとして使用し、すべての暗号公開
+    鍵操作をオフロードし、証明書と鍵へのアクセスをSIMに制限することで攻撃対象領域を削減します。
 
-    IoT-Safe support can be enabled on an existing WOLFSSL_CTX context, using wolfSSL_CTX_iotsafe_enable().\n
-    Session created within the context can set the parameters for IoT-Safe key and files usage, and enable
-    the public keys callback, with wolfSSL_iotsafe_on().
+    IoT-Safeサポートは、wolfSSL_CTX_iotsafe_enable()を使用して既存のWOLFSSL_CTXコンテキストで有効にできます。\n
+    コンテキスト内で作成されたセッションは、IoT-Safe鍵とファイル使用のパラメータを設定し、
+    wolfSSL_iotsafe_on()で公開鍵コールバックを有効にできます。
 
-    If compiled in, the module supports IoT-Safe random number generator as source of entropy for wolfCrypt.
+    コンパイルされている場合、モジュールはwolfCryptのエントロピーソースとしてIoT-Safe乱数生成器をサポートします。
 
-    \defgroup PSA Platform Security Architecture (PSA) API
-    \defgroup Keys Key and Cert Conversion
-    \defgroup Logging Logging
-    \defgroup Math Math API
-    \defgroup Memory Memory Handling
-    \defgroup Random Random Number Generation
-    \defgroup Signature Signature API
+    \defgroup PSA プラットフォームセキュリティアーキテクチャ(PSA)API
+    \defgroup Keys 鍵と証明書の変換
+    \defgroup Logging ロギング
+    \defgroup Math 整数演算API
+    \defgroup Memory メモリ処理
+    \defgroup Random 乱数生成
+    \defgroup Signature 署名API
     \defgroup openSSL OpenSSL API
-    \defgroup wolfCrypt wolfCrypt Init and Cleanup
-    \defgroup TLS wolfSSL Initialization/Shutdown
-    \defgroup CertsKeys wolfSSL Certificates and Keys
-    \defgroup Setup wolfSSL Context and Session Set Up
-    \defgroup IO wolfSSL Connection, Session, and I/O
-    \defgroup Debug wolfSSL Error Handling and Reporting
+    \defgroup wolfCrypt wolfCryptの初期化とクリーンアップ
+    \defgroup TLS wolfSSLの初期化/シャットダウン
+    \defgroup CertsKeys wolfSSL証明書と鍵
+    \defgroup Setup wolfSSLコンテキストとセッションのセットアップ
+    \defgroup IO wolfSSL接続、セッション、I/O
+    \defgroup Debug wolfSSLエラー処理と報告
 */

@@ -1768,7 +1768,7 @@ int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
 
 /*!
     \ingroup IO
-    \brief  この関数はSSLセッション（SSL）内部読み取りバッファからSZバイトをバッファデータにコピーします。この関数は、内部SSLセッション受信バッファ内のデータが削除されていないか変更されていないことを除いて、wolfssl_read()と同じです。必要に応じて、wolfssl_read()のように、wolfssl_peek()はまだwolfssl_connect()またはwolfssl_accept()によってまだ実行されていない場合、wolfssl_peek()はSSL / TLSセッションをネゴシエートします。 SSL/TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。そのため、WolfSSLは、レコードを処理および復号化することができる前に、SSLレコード全体を内部的に読み取る必要があります。このため、wolfssl_peek()への呼び出しは、呼び出し時に復号化された最大バッファサイズを返すことができます。 wolfssl_peek()/ wolfssl_read()への次の呼び出しで検索および復号化される内部WolfSSL受信バッファ内で待機していない追加の復号化データがあるかもしれません。 SZが内部読み取りバッファ内のバイト数よりも大きい場合、SSL_PEEK()は内部読み取りバッファで使用可能なバイトを返します。バイトが内部読み取りバッファにバッファされていない場合、Wolfssl_peek()への呼び出しは次のレコードの処理をトリガーします。
+    \brief  この関数はSSLセッション（SSL）内部読み取りバッファからSZバイトをバッファデータにコピーします。この関数は、内部SSLセッション受信バッファ内のデータが削除されていないか変更されていないことを除いて、wolfssl_read()と同じです。必要に応じて、wolfssl_read()のように、wolfssl_peek()はまだwolfssl_connect()またはwolfssl_accept()によってまだ実行されていない場合、wolfssl_peek()はSSL / TLSセッションをネゴシエートします。 SSL/TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。そのため、WolfSSLは、レコードを処理および復号することができる前に、SSLレコード全体を内部的に読み取る必要があります。このため、wolfssl_peek()への呼び出しは、呼び出し時に復号された最大バッファサイズを返すことができます。 wolfssl_peek()/ wolfssl_read()への次の呼び出しで検索および復号される内部WolfSSL受信バッファ内で待機していない追加の復号データがあるかもしれません。 SZが内部読み取りバッファ内のバイト数よりも大きい場合、SSL_PEEK()は内部読み取りバッファで使用可能なバイトを返します。バイトが内部読み取りバッファにバッファされていない場合、Wolfssl_peek()への呼び出しは次のレコードの処理をトリガーします。
     \return 成功時には読み取られたバイト数（1以上）を返します。
     \return 0  失敗したときに返されます。これは、クリーン（通知アラートを閉じる）シャットダウンまたはピアが接続を閉じただけであることによって発生する可能性があります。特定のエラーコードについてwolfSSL_get_error()を呼び出します。
     \return SSL_FATAL_ERROR  エラーが発生したとき、またはノンブロッキングソケットを使用するときに、SSL_ERROR_WANT_READまたはSSL_ERROR_WANT_WRITEエラーが受信され、再度wolfSSL_peek()を呼び出す必要がある場合は、障害が発生します。特定のエラーコードを取得するには、wolfSSL_get_error()を使用してください。
@@ -1944,7 +1944,7 @@ int  wolfSSL_send(WOLFSSL* ssl, const void* data, int sz, int flags);
     SSL/TLSプロトコルは、最大サイズのSSLレコードを使用します（最大レコードサイズは<wolfssl_root> /wolfssl/internal.h）。
     そのため、wolfSSLは、レコードを処理および復号することができる前に、SSLレコード全体を内部的に読み取る必要があります。
     このため、wolfSSL_recv()への呼び出しは、呼び出し時に復号された最大バッファサイズを返すことができるだけです。
-    wolfSSL_recv()への次の呼び出しで検索および復号される内部wolfSSL受信バッファで待機していない追加の復号化されたデータがあるかもしれません。
+    wolfSSL_recv()への次の呼び出しで検索および復号される内部wolfSSL受信バッファで待機していない追加の復号されたデータがあるかもしれません。
     引数szが内部読み取りバッファ内のバイト数よりも大きい場合、wolfSSL_recv()は内部読み取りバッファで使用可能なバイトを返します。
     バイトが内部読み取りバッファにバッファされていない場合は、wolfSSL_recv()への呼び出しは次のレコードの処理をトリガーします。
     \return 成功時には読み取られたバイト数(1以上)を返します。
@@ -5353,7 +5353,7 @@ int  wolfSSL_connect_cert(WOLFSSL* ssl);
 
 /*!
     \ingroup openSSL
-    \brief  WOLFSSL_D2I_PKCS12_BIO（D2I_PKCS12_BIO）は、WOLFSSL_BIOから構造WC_PKCS12へのPKCS12情報にコピーされます。この情報は、オプションのMAC情報を保持するための構造とともにコンテンツに関する情報のリストとして構造内に分割されています。構造体WC_PKCS12で情報がチャンク（ただし復号化されていない）に分割された後、それはその後、呼び出しによって解析および復号化され得る。
+    \brief  WOLFSSL_D2I_PKCS12_BIO（D2I_PKCS12_BIO）は、WOLFSSL_BIOから構造WC_PKCS12へのPKCS12情報にコピーされます。この情報は、オプションのMAC情報を保持するための構造とともにコンテンツに関する情報のリストとして構造内に分割されています。構造体WC_PKCS12で情報がチャンク（ただし復号されていない）に分割された後、それはその後、呼び出しによって解析および復号され得る。
     \return WC_PKCS12  WC_PKCS12構造へのポインタ。
     \return Failure  関数に失敗した場合はNULLを返します。
     \param bio  PKCS12バッファを読み取るためのWOLFSSL_BIO構造。
@@ -5412,11 +5412,11 @@ WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
 
 /*!
     \ingroup openSSL
-    \brief  pkcs12は、configureコマンドへの-enable-openSSLAXTRAを追加することで有効にできます。それは復号化のためにトリプルDESとRC4を使うことができるので、OpenSSlextra（--enable-des3 -enable-arc4）を有効にするときにもこれらの機能を有効にすることをお勧めします。 wolfsslは現在RC2をサポートしていませんので、RC2での復号化は現在利用できません。これは、.p12ファイルを作成するためにOpenSSLコマンドラインで使用されるデフォルトの暗号化方式では注目すかもしれません。 WOLFSSL_PKCS12_PARSE（PKCS12_PARSE）。この関数が最初に行っているのは、存在する場合はMacが正しいチェックです。 MACが失敗した場合、関数は返され、保存されているコンテンツ情報のいずれかを復号化しようとしません。この関数は、バッグタイプを探している各コンテンツ情報を介して解析します。バッグタイプがわかっている場合は、必要に応じて復号化され、構築されている証明書のリストに格納されているか、見つかったキーとして保存されます。すべてのバッグを介して解析した後、見つかったキーは、一致するペアが見つかるまで証明書リストと比較されます。この一致するペアはキーと証明書として返され、オプションで見つかった証明書リストはstack_of証明書として返されます。瞬間、CRL、秘密または安全なバッグがスキップされ、解析されません。デバッグプリントアウトを見ることで、これらまたは他の「不明」バッグがスキップされているかどうかがわかります。フレンドリー名などの追加の属性は、PKCS12ファイルを解析するときにスキップされます。
+    \brief  pkcs12は、configureコマンドへの-enable-openSSLAXTRAを追加することで有効にできます。それは復号のためにトリプルDESとRC4を使うことができるので、OpenSSlextra（--enable-des3 -enable-arc4）を有効にするときにもこれらの機能を有効にすることをお勧めします。 wolfsslは現在RC2をサポートしていませんので、RC2での復号は現在利用できません。これは、.p12ファイルを作成するためにOpenSSLコマンドラインで使用されるデフォルトの暗号化方式では注目すかもしれません。 WOLFSSL_PKCS12_PARSE（PKCS12_PARSE）。この関数が最初に行っているのは、存在する場合はMacが正しいチェックです。 MACが失敗した場合、関数は返され、保存されているコンテンツ情報のいずれかを復号しようとしません。この関数は、バッグタイプを探している各コンテンツ情報を介して解析します。バッグタイプがわかっている場合は、必要に応じて復号され、構築されている証明書のリストに格納されているか、見つかったキーとして保存されます。すべてのバッグを介して解析した後、見つかったキーは、一致するペアが見つかるまで証明書リストと比較されます。この一致するペアはキーと証明書として返され、オプションで見つかった証明書リストはstack_of証明書として返されます。瞬間、CRL、秘密または安全なバッグがスキップされ、解析されません。デバッグプリントアウトを見ることで、これらまたは他の「不明」バッグがスキップされているかどうかがわかります。フレンドリー名などの追加の属性は、PKCS12ファイルを解析するときにスキップされます。
     \return SSL_SUCCESS  PKCS12の解析に成功しました。
     \return SSL_FAILURE  エラーケースに遭遇した場合
     \param pkcs12  wc_pkcs12解析する構造
-    \param paswd  PKCS12を復号化するためのパスワード。
+    \param paswd  PKCS12を復号するためのパスワード。
     \param pkey  PKCS12からデコードされた秘密鍵を保持するための構造。
     \param cert  PKCS12から復号された証明書を保持する構造
 
@@ -6591,7 +6591,7 @@ void  wolfSSL_SetMacEncryptCtx(WOLFSSL* ssl, void *ctx);
 void* wolfSSL_GetMacEncryptCtx(WOLFSSL* ssl);
 
 /*!
-    \brief  コールバックを復号化/確認します。コールバックは成功の場合は0を返すか、エラーの場合は<0です。SSLとCTXポインタはユーザーの利便性に利用できます。DECOUTは、復号化の結果を格納する出力バッファです。DECINは暗号化された入力バッファーとDecinszのサイズを注意しています。コンテンツと検証は、WolfSSL_SettlShmacinner()に必要であり、そのまま通過します。PADSZは、パディングの合計値で設定する出力変数です。つまり、MACサイズとパディングバイトとパッドバイトを加えています。コールバックの例は、wolfssl / test.h mydecryptverifycb()を見つけることができます。
+    \brief  コールバックを復号/確認します。コールバックは成功の場合は0を返すか、エラーの場合は<0です。SSLとCTXポインタはユーザーの利便性に利用できます。DECOUTは、復号の結果を格納する出力バッファです。DECINは暗号化された入力バッファーとDecinszのサイズを注意しています。コンテンツと検証は、WolfSSL_SettlShmacinner()に必要であり、そのまま通過します。PADSZは、パディングの合計値で設定する出力変数です。つまり、MACサイズとパディングバイトとパッドバイトを加えています。コールバックの例は、wolfssl / test.h mydecryptverifycb()を見つけることができます。
     \return none  いいえ返します。
 
     _Example_
@@ -6605,7 +6605,7 @@ void  wolfSSL_CTX_SetDecryptVerifyCb(WOLFSSL_CTX* ctx,
                                                CallbackDecryptVerify cb);
 
 /*!
-    \brief  コールバックコンテキストをCTXに復号化/検証します。
+    \brief  コールバックコンテキストをCTXに復号/検証します。
     \return none  いいえ返します。
     \param ssl  wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ
 
@@ -6619,7 +6619,7 @@ void  wolfSSL_CTX_SetDecryptVerifyCb(WOLFSSL_CTX* ctx,
 void  wolfSSL_SetDecryptVerifyCtx(WOLFSSL* ssl, void *ctx);
 
 /*!
-    \brief  wolfssl_setdecryptverifyctx()で以前に保存されているコールバックコンテキストを復号化/検証します。
+    \brief  wolfssl_setdecryptverifyctx()で以前に保存されているコールバックコンテキストを復号/検証します。
     \return pointer  正常にコールがコンテキストへの有効なポインタを返します。
     \return NULL  空白のコンテキストのために返されます。
 
@@ -7033,7 +7033,7 @@ void  wolfSSL_SetRsaSignCtx(WOLFSSL* ssl, void *ctx);
 void* wolfSSL_GetRsaSignCtx(WOLFSSL* ssl);
 
 /*!
-    \brief  コールバックは、成功のための平文バイト数または<0エラーの場合は<0を返すべきです。SSLとCTXポインタはユーザーの利便性に利用できます。SIGは検証の署名であり、SIGSZは署名の長さを表します。復号化プロセスとパディングの後に検証バッファの先頭に設定する必要があります。keyderはASN1形式のRSA公開鍵であり、Keyszはキーのキーの長さです。コールバックの例は、wolfssl / test.h myrsaverify()を見つけることができます。
+    \brief  コールバックは、成功のための平文バイト数または<0エラーの場合は<0を返すべきです。SSLとCTXポインタはユーザーの利便性に利用できます。SIGは検証の署名であり、SIGSZは署名の長さを表します。復号プロセスとパディングの後に検証バッファの先頭に設定する必要があります。keyderはASN1形式のRSA公開鍵であり、Keyszはキーのキーの長さです。コールバックの例は、wolfssl / test.h myrsaverify()を見つけることができます。
     \return none  いいえ返します。
     \sa wolfSSL_SetRsaVerifyCtx
     \sa wolfSSL_GetRsaVerifyCtx
@@ -7111,7 +7111,7 @@ void  wolfSSL_SetRsaEncCtx(WOLFSSL* ssl, void *ctx);
 void* wolfSSL_GetRsaEncCtx(WOLFSSL* ssl);
 
 /*!
-    \brief  復号化します。コールバックは、成功のための平文バイト数または<0エラーの場合は<0を返すべきです。SSLとCTXポインタはユーザーの利便性に利用できます。INは、復号化する入力バッファが入力の長さを表します。復号化プロセスおよび任意のパディングの後、復号化バッファの先頭に設定する必要があります。keyderはASN1フォーマットのRSA秘密鍵であり、Keyszはバイト数のキーの長さです。コールバックの例は、wolfssl / test.h myrsadec()を見つけることができます。
+    \brief  復号します。コールバックは、成功のための平文バイト数または<0エラーの場合は<0を返すべきです。SSLとCTXポインタはユーザーの利便性に利用できます。INは、復号する入力バッファが入力の長さを表します。復号プロセスおよび任意のパディングの後、復号バッファの先頭に設定する必要があります。keyderはASN1フォーマットのRSA秘密鍵であり、Keyszはバイト数のキーの長さです。コールバックの例は、wolfssl / test.h myrsadec()を見つけることができます。
     \return none  いいえ返します。
 
     _Example_
@@ -8970,12 +8970,12 @@ int wolfSSL_send_SessionTicket(WOLFSSL* ssl);
     \return SSL_SUCCESS  セッションを正常に設定すると返されます。
     \return BAD_FUNC_ARG  失敗した場合に返されます。これは、無効な引数を関数に渡すことによって発生します。
     \param ctx  wolfSSL_CTX_new()で作成されたWOLFSSL_CTXオブジェクトへのポインタ。
-    \param cb  セッションチケットを暗号化/復号化するためのユーザーコールバック関数
+    \param cb  セッションチケットを暗号化/復号するためのユーザーコールバック関数
     \param ssl(Callback)  wolfSSL_new()で作成されたWolfSSLオブジェクトへのポインタ
     \param key_name(Callback)  このチケットコンテキストの一意のキー名はランダムに生成されるべきです
     \param iv(Callback)  ユニークなIVこのチケットの場合、最大128ビット、ランダムに生成されるべきです
     \param mac(Callback)  このチケットの最大256ビットMAC
-    \param enc(Callback)  この暗号化パラメータがtrueの場合、ユーザーはキーコード、IV、Macを記入し、チケットを長さのインレルの範囲内に暗号化し、結果として生じる出力長を* outreenに設定する必要があります。 wolfssl_ticket_ret_okを返す暗号化が成功したことをWolfSSLに指示します。この暗号化パラメータがfalseの場合、key_name、iv、およびmacを使用して、リングインレーンの範囲内のチケットの復号化を実行する必要があります。結果の復号長は* outreenに設定する必要があります。 wolfssl_ticket_ret_okを返すと、復号化されたチケットの使用を続行するようにWolfSSLに指示します。 wolfssl_ticket_ret_createを返すと、復号化されたチケットを使用するだけでなく、クライアントに送信するための新しいものを生成するように指示し、最近ロールされている場合に役立つ、フルハンドシェイクを強制したくない。 wolfssl_ticket_ret_rejectを返すと、WolfSSLにこのチケットを拒否し、フルハンドシェイクを実行し、通常のセッション再開のための新しい標準セッションIDを作成します。 wolfssl_ticket_ret_fatalを返すと、致命的なエラーで接続の試みを終了するようにWolfSSLに指示します。
+    \param enc(Callback)  この暗号化パラメータがtrueの場合、ユーザーはキーコード、IV、Macを記入し、チケットを長さのインレルの範囲内に暗号化し、結果として生じる出力長を* outreenに設定する必要があります。 wolfssl_ticket_ret_okを返す暗号化が成功したことをWolfSSLに指示します。この暗号化パラメータがfalseの場合、key_name、iv、およびmacを使用して、リングインレーンの範囲内のチケットの復号を実行する必要があります。結果の復号長は* outreenに設定する必要があります。 wolfssl_ticket_ret_okを返すと、復号されたチケットの使用を続行するようにWolfSSLに指示します。 wolfssl_ticket_ret_createを返すと、復号されたチケットを使用するだけでなく、クライアントに送信するための新しいものを生成するように指示し、最近ロールされている場合に役立つ、フルハンドシェイクを強制したくない。 wolfssl_ticket_ret_rejectを返すと、WolfSSLにこのチケットを拒否し、フルハンドシェイクを実行し、通常のセッション再開のための新しい標準セッションIDを作成します。 wolfssl_ticket_ret_fatalを返すと、致命的なエラーで接続の試みを終了するようにWolfSSLに指示します。
     \param ticket(Callback)  暗号化チケットの入出力バッファ。ENCパラメータを参照してください
     \param inLen(Callback)  チケットパラメータの入力長
     \param outLen(Callback)  チケットパラメータの結果の出力長。コールバックoutlenを入力すると、チケットバッファで使用可能な最大サイズが表示されます。
@@ -10110,7 +10110,7 @@ int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
-    \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出されて、キーのロールオーバーを強制します。KeyUpdateメッセージがピアに送信され、新しいキーが暗号化のために計算されます。ピアはKeyUpdateメッセージを送り、新しい復号化キーWILを計算します。この機能は、ハンドシェイクが完了した後にのみ呼び出すことができます。
+    \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出されて、キーのロールオーバーを強制します。KeyUpdateメッセージがピアに送信され、新しいキーが暗号化のために計算されます。ピアはKeyUpdateメッセージを送り、新しい復号キーWILを計算します。この機能は、ハンドシェイクが完了した後にのみ呼び出すことができます。
     \param [in,out]    ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \return BAD_FUNC_ARG  sslがNULLの場合、またはTLS v1.3を使用していない場合。
     \return WANT_WRITE  書き込みが準備ができていない場合
@@ -10134,7 +10134,7 @@ int  wolfSSL_update_keys(WOLFSSL* ssl);
 
 /*!
     \ingroup IO
-    \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出され、キーのロールオーバーが進行中かどうかを判断します。wolfssl_update_keys()が呼び出されると、KeyUpdateメッセージが送信され、暗号化キーが更新されます。復号化キーは、応答が受信されたときに更新されます。
+    \brief  この関数は、TLS v1.3クライアントまたはサーバーのwolfsslで呼び出され、キーのロールオーバーが進行中かどうかを判断します。wolfssl_update_keys()が呼び出されると、KeyUpdateメッセージが送信され、暗号化キーが更新されます。復号キーは、応答が受信されたときに更新されます。
     \param [in]  ssl wolfSSL_new()を使用して作成されたWOLFSSL構造体へのポインタ。
     \param [out]  キー更新応答が必要ない場合は必須0。1キー更新応答が必要ない場合。
     \return 0  成功した。

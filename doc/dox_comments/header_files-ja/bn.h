@@ -1,20 +1,26 @@
 /*!
     \ingroup openSSL
-    \brief  この関数は、次の数学「R =（A ^ P）％M」を実行します。
-    \return SSL_SUCCESS  数学操作をうまく実行します。
-    \return SSL_FAILURE  エラーケースに遭遇した場合
-    \param r  結果を保持するための構造。
-    \param a  電力で上げられる値。
-    \param p  によって上げる力。
-    \param m  使用率
+
+    \brief この関数は次の数学演算を実行します "r = (a^p) % m"。
+
+    \return SSL_SUCCESS 数学演算が正常に実行された場合。
+    \return SSL_FAILURE エラーケースが発生した場合。
+
+    \param r 結果を保持する構造体。
+    \param a 累乗される値。
+    \param p aを累乗する指数。
+    \param m 使用する剰余。
+    \param ctx 現在wolfSSLでは使用されていないため、NULLにできます。
+
     _Example_
     \code
     WOLFSSL_BIGNUM r,a,p,m;
     int ret;
-    // set big number values
+    // big number値を設定
     ret  = wolfSSL_BN_mod_exp(r, a, p, m, NULL);
-    // check ret value
+    // ret値を確認
     \endcode
+
     \sa wolfSSL_BN_new
     \sa wolfSSL_BN_free
 */
