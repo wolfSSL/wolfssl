@@ -40834,6 +40834,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 else {
                     SendAlert(ssl, alert_fatal, illegal_parameter);
                 }
+            #else
+                (void)ret;
             #endif
                 return ECC_PEERKEY_ERROR;
             }
@@ -40891,6 +40893,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 else {
                     SendAlert(ssl, alert_fatal, illegal_parameter);
                 }
+            #else
+                (void)ret;
             #endif
                 return ECC_PEERKEY_ERROR;
             }
