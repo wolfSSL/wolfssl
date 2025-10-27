@@ -15752,13 +15752,13 @@ void bench_sphincsKeySign(byte level, byte optim)
     double current_time(int reset)
     {
         portTickType tickCount = xTaskGetTickCount();
+        (void)reset;
         /* if configTICK_RATE_HZ is available use if (default is 1000) */
     #ifdef configTICK_RATE_HZ
         return (double)tickCount / configTICK_RATE_HZ;
     #else
         return (double)tickCount / 1000;
     #endif
-        (void)reset;
     }
 #endif
 
