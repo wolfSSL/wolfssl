@@ -1883,18 +1883,35 @@ WOLFSSL_LOCAL int CertSetupCbWrapper(WOLFSSL* ssl);
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_ALL)
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
-WOLFSSL_API void wolfSSL_sk_free(WOLFSSL_STACK* sk);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
+#endif
+#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
+
+WOLFSSL_API void wolfSSL_sk_free(WOLFSSL_STACK* sk);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_shallow_sk_dup(WOLFSSL_STACK* sk);
-WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
-WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 WOLFSSL_API int wolfSSL_sk_insert(WOLFSSL_STACK *sk, const void *data, int idx);
 WOLFSSL_API void* wolfSSL_sk_pop(WOLFSSL_STACK* sk);
+#endif
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_ALL)
+WOLFSSL_API int wolfSSL_sk_num(const WOLFSSL_STACK* sk);
+WOLFSSL_API void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i);
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_push(
                                        WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
@@ -3236,11 +3253,6 @@ WOLFSSL_API int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t,
         const char *str);
 #endif /* OPENSSL_EXTRA */
 
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-WOLFSSL_API int wolfSSL_sk_num(const WOLFSSL_STACK* sk);
-WOLFSSL_API void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i);
-#endif
 
 
 /* stunnel 4.28 needs */

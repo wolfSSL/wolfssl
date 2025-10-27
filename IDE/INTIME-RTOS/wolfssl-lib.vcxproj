@@ -61,6 +61,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\src\ssl_sk.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\src\tls13.c" />
     <ClCompile Include="..\..\src\x509.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|INtime'">true</ExcludedFromBuild>
