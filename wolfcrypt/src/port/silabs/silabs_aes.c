@@ -89,6 +89,32 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     return ret;
 }
 
+#ifdef WOLFSSL_AES_DIRECT
+int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_ENCRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+
+int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_DECRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+#endif /* WOLFSSL_AES_DIRECT */
+
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     sl_status_t status = sl_se_aes_crypt_cbc(
