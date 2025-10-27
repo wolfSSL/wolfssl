@@ -25,6 +25,7 @@ EXTRA_DIST += src/ssl_load.c
 EXTRA_DIST += src/ssl_misc.c
 EXTRA_DIST += src/ssl_p7p12.c
 EXTRA_DIST += src/ssl_sess.c
+EXTRA_DIST += src/ssl_sk.c
 EXTRA_DIST += src/x509.c
 EXTRA_DIST += src/x509_str.c
 

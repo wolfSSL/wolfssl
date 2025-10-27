@@ -135,7 +135,7 @@ int mem_fail_allocs = 0;
 int mem_fail_frees = 0;
 int mem_fail_cnt = 0;
 
-void wc_MemFailCount_Init()
+void wc_MemFailCount_Init(void)
 {
     char* cnt;
 #ifndef WOLFSSL_MUTEX_INITIALIZER
@@ -168,7 +168,7 @@ static void wc_MemFailCount_FreeMem(void)
     mem_fail_frees++;
     wc_UnLockMutex(&memFailMutex);
 }
-void wc_MemFailCount_Free()
+void wc_MemFailCount_Free(void)
 {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_FreeMutex(&memFailMutex);

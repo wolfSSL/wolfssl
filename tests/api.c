@@ -227,6 +227,7 @@
 #include <tests/api/test_ossl_ec.h>
 #include <tests/api/test_ossl_ecx.h>
 #include <tests/api/test_ossl_dsa.h>
+#include <tests/api/test_ossl_sk.h>
 #include <tests/api/test_tls13.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
@@ -50869,6 +50870,8 @@ TEST_CASE testCases[] = {
     TEST_OSSL_ASN1_STRING_DECLS,
     TEST_OSSL_ASN1_TIME_DECLS,
     TEST_OSSL_ASN1_TYPE_DECLS,
+
+    TEST_SSL_SK_DECLS,
 
     TEST_DECL(test_wolfSSL_lhash),
 
