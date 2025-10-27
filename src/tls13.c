@@ -5887,69 +5887,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
 #ifndef NO_WOLFSSL_SERVER
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-/* Refine list of supported cipher suites to those common to server and client.
- *
- * ssl         SSL/TLS object.
- * peerSuites  The peer's advertised list of supported cipher suites.
- */
-static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
-{
-    byte   suites[WOLFSSL_MAX_SUITE_SZ];
-    word16 suiteSz = 0;
-    word16 i;
-    word16 j;
-
-    if (AllocateSuites(ssl) != 0)
-        return;
-
-    XMEMSET(suites, 0, sizeof(suites));
-
-    if (!ssl->options.useClientOrder) {
-        /* Server order refining. */
-        for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-            for (j = 0; j < peerSuites->suiteSz; j += 2) {
-                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
-                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
-                    suites[suiteSz++] = peerSuites->suites[j+0];
-                    suites[suiteSz++] = peerSuites->suites[j+1];
-                    break;
-                }
-            }
-            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
-                break;
-        }
-    }
-    else {
-        /* Client order refining. */
-        for (j = 0; j < peerSuites->suiteSz; j += 2) {
-            for (i = 0; i < ssl->suites->suiteSz; i += 2) {
-                if ((ssl->suites->suites[i+0] == peerSuites->suites[j+0]) &&
-                    (ssl->suites->suites[i+1] == peerSuites->suites[j+1])) {
-                    suites[suiteSz++] = peerSuites->suites[j+0];
-                    suites[suiteSz++] = peerSuites->suites[j+1];
-                    break;
-                }
-            }
-            if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
-                break;
-        }
-    }
-
-    ssl->suites->suiteSz = suiteSz;
-    XMEMCPY(ssl->suites->suites, &suites, sizeof(suites));
-#ifdef WOLFSSL_DEBUG_TLS
-    {
-        int ii;
-        WOLFSSL_MSG("Refined Ciphers:");
-        for (ii = 0 ; ii < ssl->suites->suiteSz; ii += 2) {
-            WOLFSSL_MSG(GetCipherNameInternal(ssl->suites->suites[ii+0],
-                                              ssl->suites->suites[ii+1]));
-        }
-    }
-#endif
-}
-
-
 #ifndef NO_PSK
 int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
         word32* psk_keySz, const byte* suite, int* found, byte* foundSuite)
@@ -6322,7 +6259,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return ret;
 
     /* Refine list for PSK processing. */
-    RefineSuites(ssl, clSuites);
+    sslRefineSuites(ssl, clSuites);
 #ifndef WOLFSSL_PSK_ONE_ID
     if (usingPSK == NULL)
         return BAD_FUNC_ARG;

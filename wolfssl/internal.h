@@ -2383,6 +2383,10 @@ WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveAES128, word16 haveSHA1,
                               word16 haveRC4, int side);
 
+void refineSuites(const Suites* sslSuites, const Suites* peerSuites,
+        Suites* outSuites, byte useClientOrder);
+void sslRefineSuites(WOLFSSL* ssl, Suites* peerSuites);
+
 typedef struct TLSX TLSX;
 WOLFSSL_LOCAL int MatchSuite_ex(const WOLFSSL* ssl, Suites* peerSuites,
                                 CipherSuite* cs, TLSX* extensions);
