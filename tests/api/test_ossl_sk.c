@@ -51,8 +51,7 @@ int test_wolfSSL_sk_new_free_node(void)
 int test_wolfSSL_sk_push_get_node(void)
 {
     EXPECT_DECLS;
-#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && \
-    !defined(NO_CERTS)
+#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* stack = NULL;
     WOLFSSL_STACK* node1 = NULL;
     WOLFSSL_STACK* node2 = NULL;
