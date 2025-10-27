@@ -7349,8 +7349,8 @@ static int addSecretNode(unsigned char* clientRandom,
 
     XMEMCPY(node->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH);
     XMEMCPY(node->secrets[type], secret, SECRET_LENGTH);
-    node->next = secretHashTable[index];
-    secretHashTable[index] = node;
+    node->next = secretHashTable[idx];
+    secretHashTable[idx] = node;
 
 unlockReturn:
 
