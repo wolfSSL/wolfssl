@@ -91,3 +91,109 @@ fn test_ssh_kdf() {
 
     assert_eq!(out, ssh_kdf_set3_a);
 }
+
+#[test]
+fn test_srtp_kdf() {
+    let key = [
+        0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
+        0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90
+    ];
+    let salt = [
+        0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
+        0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6
+    ];
+    let index = [
+        0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca
+    ];
+    let expected_ke = [
+        0xdcu8, 0x38, 0x21, 0x92, 0xab, 0x65, 0x10, 0x8a,
+        0x86, 0xb2, 0x59, 0xb6, 0x1b, 0x3a, 0xf4, 0x6f
+    ];
+    let expected_ka = [
+        0xb8u8, 0x39, 0x37, 0xfb, 0x32, 0x17, 0x92, 0xee,
+        0x87, 0xb7, 0x88, 0x19, 0x3b, 0xe5, 0xa4, 0xe3,
+        0xbd, 0x32, 0x6e, 0xe4
+    ];
+    let expected_ks = [
+        0xf1u8, 0xc0, 0x35, 0xc0, 0x0b, 0x5a, 0x54, 0xa6,
+        0x16, 0x92, 0xc0, 0x16, 0x27, 0x6c
+    ];
+    let mut key_e = [0u8; 16];
+    let mut key_a = [0u8; 20];
+    let mut key_s = [0u8; 14];
+    srtp_kdf(&key, &salt, -1, &index, &mut key_e, &mut key_a, &mut key_s).expect("Error with srtp_kdf()");
+    assert_eq!(key_e, expected_ke);
+    assert_eq!(key_a, expected_ka);
+    assert_eq!(key_s, expected_ks);
+
+    let mut key_e = [0u8; 16];
+    srtp_kdf_label(&key, &salt, -1, &index, SRTP_LABEL_ENCRYPTION, &mut key_e).expect("Error with srtp_kdf_label()");
+    assert_eq!(key_e, expected_ke);
+
+    let mut key_a = [0u8; 20];
+    srtp_kdf_label(&key, &salt, -1, &index, SRTP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtp_kdf_label()");
+    assert_eq!(key_a, expected_ka);
+
+    let mut key_s = [0u8; 14];
+    srtp_kdf_label(&key, &salt, -1, &index, SRTP_LABEL_SALT, &mut key_s).expect("Error with srtp_kdf_label()");
+    assert_eq!(key_s, expected_ks);
+}
+
+#[test]
+fn test_srtcp_kdf() {
+    let key = [
+        0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
+        0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90
+    ];
+    let salt = [
+        0x0eu8, 0x23, 0x00, 0x6c, 0x6c, 0x04, 0x4f, 0x56,
+        0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6
+    ];
+    let index = [
+        0x56u8, 0xf3, 0xf1, 0x97
+    ];
+    let expected_ke = [
+        0xabu8, 0x5b, 0xe0, 0xb4, 0x56, 0x23, 0x5d, 0xcf,
+        0x77, 0xd5, 0x08, 0x69, 0x29, 0xba, 0xfb, 0x38
+    ];
+    let expected_ka = [
+        0xc5u8, 0x2f, 0xde, 0x0b, 0x80, 0xb0, 0xf0, 0xba,
+        0xd8, 0xd1, 0x56, 0x45, 0xcb, 0x86, 0xe7, 0xc7,
+        0xc3, 0xd8, 0x77, 0x0e
+    ];
+    let expected_ks = [
+        0xdeu8, 0xb5, 0xf8, 0x5f, 0x81, 0x33, 0x6a, 0x96,
+        0x5e, 0xd3, 0x2b, 0xb7, 0xed, 0xe8
+    ];
+    let mut key_e = [0u8; 16];
+    let mut key_a = [0u8; 20];
+    let mut key_s = [0u8; 14];
+    srtcp_kdf(&key, &salt, -1, &index, &mut key_e, &mut key_a, &mut key_s).expect("Error with srtcp_kdf()");
+    assert_eq!(key_e, expected_ke);
+    assert_eq!(key_a, expected_ka);
+    assert_eq!(key_s, expected_ks);
+
+    let mut key_e = [0u8; 16];
+    srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_ENCRYPTION, &mut key_e).expect("Error with srtcp_kdf_label()");
+    assert_eq!(key_e, expected_ke);
+
+    let mut key_a = [0u8; 20];
+    srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
+    assert_eq!(key_a, expected_ka);
+
+    let mut key_s = [0u8; 14];
+    srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_SALT, &mut key_s).expect("Error with srtcp_kdf_label()");
+    assert_eq!(key_s, expected_ks);
+}
+
+#[test]
+fn test_srtp_kdr_to_idx() {
+    assert_eq!(srtp_kdr_to_index(0), -1);
+    assert_eq!(srtp_kdr_to_index(1), 0);
+    assert_eq!(srtp_kdr_to_index(2), 1);
+    assert_eq!(srtp_kdr_to_index(4), 2);
+    assert_eq!(srtp_kdr_to_index(8), 3);
+    assert_eq!(srtp_kdr_to_index(16), 4);
+    assert_eq!(srtp_kdr_to_index(65536), 16);
+    assert_eq!(srtp_kdr_to_index(1048576), 20);
+}

@@ -195,7 +195,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
     \sa wc_SRTP_KDF_label
     \sa wc_SRTP_KDF_kdr_to_idx
 */
-int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
+int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         word32 saltSz, int kdrIdx, const byte* idx, byte label, byte* outKey,
         word32 outKeySz);
 /*!
