@@ -463,10 +463,14 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     lastpos++;
     if (lastpos < 0)
         lastpos = 0;
-    for (; lastpos < wolfSSL_sk_num(sk); lastpos++)
-        if (wolfSSL_OBJ_cmp(wolfSSL_sk_X509_EXTENSION_value(sk,
-                        lastpos)->obj, obj) == 0)
+    for (; lastpos < wolfSSL_sk_num(sk); lastpos++) {
+        const WOLFSSL_X509_EXTENSION *ext =
+            wolfSSL_sk_X509_EXTENSION_value(sk, lastpos);
+        if (ext == NULL)
+            continue;
+        if (wolfSSL_OBJ_cmp(ext->obj, obj) == 0)
             return lastpos;
+    }
     return WOLFSSL_FATAL_ERROR;
 }
 
@@ -8342,6 +8346,9 @@ int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         num = wolfSSL_sk_X509_INFO_num(info);
         for (i=0; i < num; i++) {
             info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
+
+            if (info_tmp == NULL)
+                continue;
 
             if (info_tmp->x509) {
                 if (wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509) ==

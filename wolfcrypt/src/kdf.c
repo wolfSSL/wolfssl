@@ -797,8 +797,10 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     remainder = keySz % digestSz;
 
     ret = _HashInit(enmhashId, &hash);
-    if (ret == 0)
-        ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
+    if (ret != 0)
+        return ret;
+
+    ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
     if (ret == 0 && kPad)
         ret = _HashUpdate(enmhashId, &hash, &pad, 1);
     if (ret == 0)

@@ -115,7 +115,7 @@ Public domain.
   */
 int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 {
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(USE_ARM_CHACHA_SPEEDUP)
     word32 temp[CHACHA_IV_WORDS];/* used for alignment of memory */
 #endif
 
@@ -124,7 +124,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 
     ctx->left = 0; /* resets state */
 
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(USE_ARM_CHACHA_SPEEDUP)
     XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
     /* block counter */
     ctx->X[CHACHA_MATRIX_CNT_IV+0] = counter;
@@ -141,7 +141,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
     return 0;
 }
 
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(USE_ARM_CHACHA_SPEEDUP)
 /* "expand 32-byte k" as unsigned 32 byte */
 static const word32 sigma[4] = {0x61707865, 0x3320646e, 0x79622d32, 0x6b206574};
 /* "expand 16-byte k" as unsigned 16 byte */
@@ -153,7 +153,7 @@ static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
   */
 int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(USE_ARM_CHACHA_SPEEDUP)
     const word32* constants;
     const byte*   k;
 #ifdef XSTREAM_ALIGN
@@ -167,7 +167,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     if (keySz != (CHACHA_MAX_KEY_SZ/2) && keySz != CHACHA_MAX_KEY_SZ)
         return BAD_FUNC_ARG;
 
-#if !defined(WOLFSSL_ARMASM)
+#if !defined(USE_ARM_CHACHA_SPEEDUP)
 #ifdef XSTREAM_ALIGN
     if ((wc_ptr_t)key % 4) {
         WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
@@ -220,7 +220,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     return 0;
 }
 
-#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP)
 /**
   * Converts word into bytes with rotations having been done.
   */
@@ -267,7 +267,7 @@ extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
 #endif
 
 
-#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(USE_ARM_CHACHA_SPEEDUP)
 /**
   * Encrypt a stream of bytes
   */
@@ -365,7 +365,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         chacha_encrypt_x64(ctx, input, output, msglen);
         return 0;
     }
-#elif defined(WOLFSSL_ARMASM)
+#elif defined(USE_ARM_CHACHA_SPEEDUP)
     /* Handle left over bytes from last block. */
     if ((msglen > 0) && (ctx->left > 0)) {
         byte* over = ((byte*)ctx->over) + CHACHA_CHUNK_BYTES - ctx->left;

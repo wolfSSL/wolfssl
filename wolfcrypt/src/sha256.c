@@ -1105,6 +1105,10 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     sha256->heap = heap;
     (void)devId;
 
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha256->W = NULL;
+    #endif
+
     return ret;
 }
 
@@ -1241,16 +1245,16 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_NO_MALLOC)
         word32* W = sha256->W;
         if (W == NULL) {
-            W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
-                                                           DYNAMIC_TYPE_DIGEST);
+            W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                                 sha256->heap, DYNAMIC_TYPE_DIGEST);
             if (W == NULL)
                 return MEMORY_E;
             sha256->W = W;
         }
     #elif defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         word32* W;
-        W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE,
+                             sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
     #else
@@ -1291,7 +1295,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE) &&\
         !defined(WOLFSSL_NO_MALLOC)
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
-        XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(W, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return 0;
     }
@@ -2308,7 +2312,7 @@ static WC_INLINE int Transform_Sha256_Len(wc_Sha256* sha256, const byte* data,
 #ifdef WOLFSSL_SMALL_STACK_CACHE
         if (sha224->W != NULL) {
             ForceZero(sha224->W, sizeof(word32) * WC_SHA224_BLOCK_SIZE);
-            XFREE(sha224->W, NULL, DYNAMIC_TYPE_DIGEST);
+            XFREE(sha224->W, sha224->heap, DYNAMIC_TYPE_DIGEST);
             sha224->W = NULL;
         }
 #endif
@@ -2391,7 +2395,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha256->W != NULL) {
         ForceZero(sha256->W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
-        XFREE(sha256->W, NULL, DYNAMIC_TYPE_DIGEST);
+        XFREE(sha256->W, sha256->heap, DYNAMIC_TYPE_DIGEST);
         sha256->W = NULL;
     }
 #endif

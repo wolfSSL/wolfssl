@@ -34022,9 +34022,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
-                        ret = X25519SharedSecret(ssl,
+                        ret = X25519SharedSecret(
+                            ssl,
                             (curve25519_key*)ssl->hsKey, ssl->peerX25519Key,
-                            args->output + OPAQUE8_LEN, &args->length,
+                            args->output ? args->output + OPAQUE8_LEN : NULL,
+                            &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34043,9 +34045,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
                 #ifdef HAVE_CURVE448
                     if (ssl->peerX448KeyPresent) {
-                        ret = X448SharedSecret(ssl,
+                        ret = X448SharedSecret(
+                            ssl,
                             (curve448_key*)ssl->hsKey, ssl->peerX448Key,
-                            args->output + OPAQUE8_LEN, &args->length,
+                            args->output ? args->output + OPAQUE8_LEN : NULL,
+                            &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34062,9 +34066,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
-                    ret = EccSharedSecret(ssl,
+                    ret = EccSharedSecret(
+                        ssl,
                         (ecc_key*)ssl->hsKey, ssl->peerEccKey,
-                        args->output + OPAQUE8_LEN, &args->length,
+                        args->output ? args->output + OPAQUE8_LEN : NULL,
+                        &args->length,
                         ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                         &ssl->arrays->preMasterSz,
                         WOLFSSL_CLIENT_END
@@ -34090,9 +34096,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
-                        ret = X25519SharedSecret(ssl,
+                        ret = X25519SharedSecret(
+                            ssl,
                             (curve25519_key*)ssl->hsKey, ssl->peerX25519Key,
-                            args->encSecret + OPAQUE8_LEN, &args->encSz,
+                            args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                            &args->encSz,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34111,9 +34119,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
                 #ifdef HAVE_CURVE448
                     if (ssl->peerX448KeyPresent) {
-                        ret = X448SharedSecret(ssl,
+                        ret = X448SharedSecret(
+                            ssl,
                             (curve448_key*)ssl->hsKey, ssl->peerX448Key,
-                            args->encSecret + OPAQUE8_LEN, &args->encSz,
+                            args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                            &args->encSz,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34134,12 +34144,14 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     peerKey = (ssl->specs.static_ecdh) ?
                               ssl->peerEccDsaKey : ssl->peerEccKey;
 
-                    ret = EccSharedSecret(ssl,
-                              (ecc_key*)ssl->hsKey, peerKey,
-                              args->encSecret + OPAQUE8_LEN, &args->encSz,
-                              ssl->arrays->preMasterSecret,
-                              &ssl->arrays->preMasterSz,
-                              WOLFSSL_CLIENT_END);
+                    ret = EccSharedSecret(
+                        ssl,
+                        (ecc_key*)ssl->hsKey, peerKey,
+                        args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                        &args->encSz,
+                        ssl->arrays->preMasterSecret,
+                        &ssl->arrays->preMasterSz,
+                        WOLFSSL_CLIENT_END);
 
                     if (!ssl->specs.static_ecdh
                 #ifdef WOLFSSL_ASYNC_CRYPT
