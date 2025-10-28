@@ -369,22 +369,38 @@ int wc_linuxkm_GenerateSeed_IntelRD(struct OS_Seed* os, byte* output, word32 sz)
 
     wc_InitRng_IntelRD();
 
-    if (!IS_INTEL_RDSEED(intel_flags))
+    if (!IS_INTEL_RDSEED(intel_flags)) {
+        static wolfSSL_Atomic_Int warned_on_missing_RDSEED = WOLFSSL_ATOMIC_INITIALIZER(0);
+        int expected_warned_on_missing_RDSEED = 0;
+        if (wolfSSL_Atomic_Int_CompareExchange(
+                &warned_on_missing_RDSEED, &expected_warned_on_missing_RDSEED, 1))
+        {
+            pr_err("ERROR: wc_linuxkm_GenerateSeed_IntelRD() called on CPU without RDSEED support.\n");
+        }
         return -1;
+    }
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
                                                     output += sizeof(word64)) {
         ret = IntelRDseed64_r((word64*)output);
-        if (ret != 0)
+        if (ret != 0) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+            pr_err("ERROR: IntelRDseed64_r() returned code %d.\n", ret);
+#endif
             return ret;
+        }
     }
     if (sz == 0)
         return 0;
 
     /* handle unaligned remainder */
     ret = IntelRDseed64_r(&rndTmp);
-    if (ret != 0)
+    if (ret != 0) {
+#ifdef WOLFSSL_LINUXKM_VERBOSE_DEBUG
+        pr_err("ERROR: IntelRDseed64_r() returned code %d.\n", ret);
+#endif
         return ret;
+    }
 
     XMEMCPY(output, &rndTmp, sz);
     wc_ForceZero(&rndTmp, sizeof(rndTmp));
