@@ -46,8 +46,9 @@ _AES_set_key_AARCH64:
 	cmp	x1, #24
 	blt	L_aes_set_key_arm64_crypto_start_128
 	bgt	L_aes_set_key_arm64_crypto_start_256
-	ldp	x4, x6, [x0], #16
-	ldr	x8, [x0]
+	ldr	x4, [x0], #8
+	ldr	x6, [x0], #8
+	ldr	x8, [x0], #8
 	stp	x4, x6, [x2], #16
 	str	x8, [x2], #8
 	lsr	x5, x4, #32
@@ -212,8 +213,10 @@ _AES_set_key_AARCH64:
 	stur	q0, [x2, #96]
 	b	L_aes_set_key_arm64_crypto_done
 L_aes_set_key_arm64_crypto_start_256:
-	ldp	x4, x6, [x0], #16
-	ldp	x8, x10, [x0], #16
+	ldr	x4, [x0], #8
+	ldr	x6, [x0], #8
+	ldr	x8, [x0], #8
+	ldr	x10, [x0], #8
 	stp	x4, x6, [x2], #16
 	stp	x8, x10, [x2], #16
 	lsr	x5, x4, #32
@@ -412,7 +415,8 @@ L_aes_set_key_arm64_crypto_start_256:
 	stur	q0, [x2, #112]
 	b	L_aes_set_key_arm64_crypto_done
 L_aes_set_key_arm64_crypto_start_128:
-	ldp	x4, x6, [x0], #16
+	ldr	x4, [x0], #8
+	ldr	x6, [x0], #8
 	stp	x4, x6, [x2], #16
 	lsr	x5, x4, #32
 	lsr	x7, x6, #32
