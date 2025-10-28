@@ -463,10 +463,12 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     lastpos++;
     if (lastpos < 0)
         lastpos = 0;
-    for (; lastpos < wolfSSL_sk_num(sk); lastpos++)
-        if (wolfSSL_OBJ_cmp(wolfSSL_sk_X509_EXTENSION_value(sk,
-                        lastpos)->obj, obj) == 0)
+    for (; lastpos < wolfSSL_sk_num(sk); lastpos++) {
+        WOLFSSL_X509_EXTENSION* ext = wolfSSL_sk_X509_EXTENSION_value(sk,
+                lastpos);
+        if (ext != NULL && wolfSSL_OBJ_cmp(ext->obj, obj) == 0)
             return lastpos;
+    }
     return WOLFSSL_FATAL_ERROR;
 }
 
