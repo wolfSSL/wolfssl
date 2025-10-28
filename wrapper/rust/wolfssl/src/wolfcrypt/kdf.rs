@@ -366,7 +366,7 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 ///     0x62, 0x40, 0x0e, 0x9d, 0x1b, 0xd6];
 /// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
 /// let mut key_a = [0u8; 20];
-/// srtcp_kdf_label(&key, &salt, -1, &index, SRTP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
+/// srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
 /// ```
 pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
