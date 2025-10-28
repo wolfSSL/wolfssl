@@ -83,7 +83,7 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
     Ok(())
 }
 
-/// Perform RFC 5869 HKDF-Extract operation for TLS v1.3 key derivation.
+/// Perform RFC 5869 HKDF-Expand operation for TLS v1.3 key derivation.
 ///
 /// This utilizes HMAC to convert `key`, `label`, and `info` into a
 /// derived key which is written to `out`.
