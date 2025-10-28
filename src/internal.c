@@ -33196,6 +33196,52 @@ static void FreeSckeArgs(WOLFSSL* ssl, void* pArgs)
     XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     args->input = NULL;
 }
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+static int EcExportHsKey(WOLFSSL* ssl, byte* out, word32* len)
+{
+    int ret = 0;
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+    #ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->X25519SharedSecretCb != NULL)
+            return 0;
+    #endif
+        if (wc_curve25519_export_public_ex((curve25519_key*)ssl->hsKey,
+                           out + OPAQUE8_LEN, len, EC25519_LITTLE_ENDIAN))
+            ret = ECC_EXPORT_ERROR;
+    } else
+#endif
+#ifdef HAVE_CURVE448
+    if (ssl->ecdhCurveOID == ECC_X448_OID) {
+    #ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->X448SharedSecretCb != NULL)
+            return 0;
+    #endif
+        if (wc_curve448_export_public_ex((curve448_key*)ssl->hsKey,
+                             out + OPAQUE8_LEN, len, EC448_LITTLE_ENDIAN))
+            ret = ECC_EXPORT_ERROR;
+    } else
+#endif
+    {
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->EccSharedSecretCb != NULL)
+            return 0;
+#endif
+        /* Place ECC key in output buffer, leaving room for size */
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey, out + OPAQUE8_LEN, len);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0)
+            ret = ECC_EXPORT_ERROR;
+#endif
+    }
+    return ret;
+}
+#endif /*HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448*/
 
 #ifndef NO_PSK
 static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
@@ -33820,63 +33866,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* Create shared ECC key leaving room at the beginning
                      * of buffer for size of shared key. */
                     ssl->arrays->preMasterSz = ENCRYPT_LEN - OPAQUE16_LEN;
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve25519_export_public_ex(
-                                (curve25519_key*)ssl->hsKey,
-                                args->output + OPAQUE8_LEN, &args->length,
-                                EC25519_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve448_export_public_ex(
-                                (curve448_key*)ssl->hsKey,
-                                args->output + OPAQUE8_LEN, &args->length,
-                                EC448_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* Place ECC key in output buffer, leaving room for size */
-                    PRIVATE_KEY_UNLOCK();
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
-                                    args->output + OPAQUE8_LEN, &args->length);
-                    PRIVATE_KEY_LOCK();
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                    }
-
+                    ret = EcExportHsKey(ssl, args->output, &args->length);
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
@@ -33885,64 +33875,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case ecc_diffie_hellman_kea:
                 {
                     ssl->arrays->preMasterSz = ENCRYPT_LEN;
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->hsType == DYNAMIC_TYPE_CURVE25519) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve25519_export_public_ex(
-                                (curve25519_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz,
-                                EC25519_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->hsType == DYNAMIC_TYPE_CURVE448) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve448_export_public_ex(
-                                (curve448_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz,
-                                EC448_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* Place ECC key in buffer, leaving room for size */
-                    PRIVATE_KEY_UNLOCK();
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz);
-                    PRIVATE_KEY_LOCK();
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                    }
-                #endif /* HAVE_ECC */
+                    ret = EcExportHsKey(ssl, args->encSecret, &args->encSz);
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
