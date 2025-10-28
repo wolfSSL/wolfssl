@@ -129,7 +129,7 @@ impl CMAC {
     /// # Returns
     ///
     /// Returns either Ok(valid) (with valid indicating if the CMAC passed in
-    /// is correct or not) on succe or Err(e) containing the wolfSSL library
+    /// is correct or not) on success or Err(e) containing the wolfSSL library
     /// error code value.
     ///
     /// # Example
