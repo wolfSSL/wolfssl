@@ -8596,17 +8596,10 @@ AES_set_encrypt_key:
 	beq	L_AES_set_encrypt_key_start_128
 	cmp	r1, #0xc0
 	beq	L_AES_set_encrypt_key_start_192
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -8635,18 +8628,10 @@ AES_set_encrypt_key:
 	rev	r7, r7
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
 	stm	r2!, {r4, r5, r6, r7}
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
-#else
-	ldrd	r4, r5, [r0, #16]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
-#else
-	ldrd	r6, r7, [r0, #24]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -8825,23 +8810,12 @@ L_AES_set_encrypt_key_loop_256:
 	sub	r2, r2, #16
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_192:
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r1, [r0, #20]
 	ldr	r0, [r0, #16]
-#else
-	ldrd	r0, r1, [r0, #16]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -8989,17 +8963,10 @@ L_AES_set_encrypt_key_loop_192:
 	stm	r2, {r0, r1, r4, r5}
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_128:
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16

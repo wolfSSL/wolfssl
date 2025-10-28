@@ -8876,17 +8876,10 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "beq	L_AES_set_encrypt_key_start_128_%=\n\t"
         "cmp	%[len], #0xc0\n\t"
         "beq	L_AES_set_encrypt_key_start_192_%=\n\t"
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldm	r0, {r4, r5}\n\t"
-#else
-        "ldrd	r4, r5, [%[key]]\n\t"
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "ldr	r4, [%[key]]\n\t"
+        "ldr	r5, [%[key], #4]\n\t"
         "ldr	r6, [%[key], #8]\n\t"
         "ldr	r7, [%[key], #12]\n\t"
-#else
-        "ldrd	r6, r7, [%[key], #8]\n\t"
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         /* REV r4, r4 */
         "eor	r3, r4, r4, ror #16\n\t"
@@ -8915,18 +8908,10 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "rev	r7, r7\n\t"
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
         "stm	%[ks]!, {r4, r5, r6, r7}\n\t"
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[key], #16]\n\t"
         "ldr	r5, [%[key], #20]\n\t"
-#else
-        "ldrd	r4, r5, [%[key], #16]\n\t"
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[key], #24]\n\t"
         "ldr	r7, [%[key], #28]\n\t"
-#else
-        "ldrd	r6, r7, [%[key], #24]\n\t"
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         /* REV r4, r4 */
         "eor	r3, r4, r4, ror #16\n\t"
@@ -9107,23 +9092,12 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "b	L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_start_192_%=: \n\t"
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldm	r0, {r4, r5}\n\t"
-#else
-        "ldrd	r4, r5, [%[key]]\n\t"
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "ldr	r4, [%[key]]\n\t"
+        "ldr	r5, [%[key], #4]\n\t"
         "ldr	r6, [%[key], #8]\n\t"
         "ldr	r7, [%[key], #12]\n\t"
-#else
-        "ldrd	r6, r7, [%[key], #8]\n\t"
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	%[len], [%[key], #20]\n\t"
         "ldr	%[key], [%[key], #16]\n\t"
-#else
-        "ldrd	%[key], %[len], [%[key], #16]\n\t"
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         /* REV r4, r4 */
         "eor	r3, r4, r4, ror #16\n\t"
@@ -9273,17 +9247,10 @@ WC_OMIT_FRAME_POINTER void AES_set_encrypt_key(const unsigned char* key,
         "b	L_AES_set_encrypt_key_end_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_start_128_%=: \n\t"
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldm	r0, {r4, r5}\n\t"
-#else
-        "ldrd	r4, r5, [%[key]]\n\t"
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "ldr	r4, [%[key]]\n\t"
+        "ldr	r5, [%[key], #4]\n\t"
         "ldr	r6, [%[key], #8]\n\t"
         "ldr	r7, [%[key], #12]\n\t"
-#else
-        "ldrd	r6, r7, [%[key], #8]\n\t"
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
         /* REV r4, r4 */
         "eor	r3, r4, r4, ror #16\n\t"
