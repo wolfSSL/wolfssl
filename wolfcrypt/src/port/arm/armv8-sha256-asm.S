@@ -120,12 +120,14 @@ Transform_Sha256_Len_neon:
 .p2align	2
 _Transform_Sha256_Len_neon:
 #endif /* __APPLE__ */
-	stp	x29, x30, [sp, #-80]!
+	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
 	stp	x17, x19, [x29, #24]
 	stp	x20, x21, [x29, #40]
 	stp	x22, x23, [x29, #56]
 	str	x24, [x29, #72]
+	stp	d8, d9, [x29, #80]
+	stp	d10, d11, [x29, #96]
 #ifndef __APPLE__
 	adrp x3, L_SHA256_transform_neon_len_k
 	add  x3, x3, :lo12:L_SHA256_transform_neon_len_k
@@ -1089,7 +1091,9 @@ L_sha256_len_neon_start:
 	ldp	x20, x21, [x29, #40]
 	ldp	x22, x23, [x29, #56]
 	ldr	x24, [x29, #72]
-	ldp	x29, x30, [sp], #0x50
+	ldp	d8, d9, [x29, #80]
+	ldp	d10, d11, [x29, #96]
+	ldp	x29, x30, [sp], #0x70
 	ret
 #ifndef __APPLE__
 	.size	Transform_Sha256_Len_neon,.-Transform_Sha256_Len_neon
