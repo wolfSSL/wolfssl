@@ -36905,6 +36905,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         flags = PKCS7_BINARY | PKCS7_DETACHED;
         ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
         ExpectIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+        ExpectNotNull(out);
 
         /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -36924,14 +36925,16 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->contentSz = sizeof(data);
         }
         /* test for streaming */
-        ret = -1;
-        for (z = 0; z < outLen && ret != 0; z++) {
-            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
-            if (ret < 0){
-                ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+        if (EXPECT_SUCCESS()) {
+            ret = -1;
+            for (z = 0; z < outLen && ret != 0; z++) {
+                ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+                if (ret < 0){
+                    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+                }
             }
+            ExpectIntEQ(ret, 0);
         }
-        ExpectIntEQ(ret, 0);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
     #endif /* !NO_PKCS7_STREAM */
@@ -36943,7 +36946,6 @@ static int test_wolfSSL_PKCS7_sign(void)
         PKCS7_free(p7Ver);
         p7Ver = NULL;
 
-        ExpectNotNull(out);
         XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         out = NULL;
         PKCS7_free(p7);
@@ -36983,15 +36985,16 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->contentSz = sizeof(data);
         }
         /* test for streaming */
-        ret = -1;
-        for (z = 0; z < outLen && ret != 0; z++) {
-            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
-            if (ret < 0){
-                ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+        if (EXPECT_SUCCESS()) {
+            ret = -1;
+            for (z = 0; z < outLen && ret != 0; z++) {
+                ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+                if (ret < 0){
+                    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+                }
             }
+            ExpectIntEQ(ret, 0);
         }
-        ExpectIntEQ(ret, 0);
-        ExpectNotNull(out);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
     #endif /* !NO_PKCS7_STREAM */
