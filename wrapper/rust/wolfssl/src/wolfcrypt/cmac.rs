@@ -203,6 +203,9 @@ impl CMAC {
 
     /// Generate the final Cipher-based Message Authentication Code result.
     ///
+    /// This function consumes the `CMAC` object since no further operations
+    /// can be performed with it.
+    ///
     /// # Parameters
     ///
     /// * `dout`: Output buffer where CMAC is written.
@@ -229,7 +232,7 @@ impl CMAC {
     /// let mut finalize_out = [0u8; 16];
     /// cmac.finalize(&mut finalize_out).expect("Error with finalize()");
     /// ```
-    pub fn finalize(&mut self, dout: &mut [u8]) -> Result<(), i32> {
+    pub fn finalize(mut self, dout: &mut [u8]) -> Result<(), i32> {
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
             ws::wc_CmacFinalNoFree(&mut self.ws_cmac,
