@@ -13499,7 +13499,7 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output, word32 inLen,
+int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 inLen,
                              int withAlg)
 {
     int    ret;
@@ -37770,7 +37770,7 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 #if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
 /* Write a Private ED25519 key, including public to DER format,
  * length on success else < 0 */
-int wc_Ed25519KeyToDer(ed25519_key* key, byte* output, word32 inLen)
+int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -37781,7 +37781,7 @@ int wc_Ed25519KeyToDer(ed25519_key* key, byte* output, word32 inLen)
 
 /* Write only private ED25519 key to DER format,
  * length on success else < 0 */
-int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
+int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output, word32 inLen)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;

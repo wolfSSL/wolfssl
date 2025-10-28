@@ -728,11 +728,11 @@ WOLFSSL_API int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                               ed25519_key* key, word32 inSz);
 #endif
 #ifdef HAVE_ED25519_KEY_EXPORT
-WOLFSSL_API int wc_Ed25519KeyToDer(ed25519_key* key, byte* output,
+WOLFSSL_API int wc_Ed25519KeyToDer(const ed25519_key* key, byte* output,
                                    word32 inLen);
-WOLFSSL_API int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output,
+WOLFSSL_API int wc_Ed25519PrivateKeyToDer(const ed25519_key* key, byte* output,
                                           word32 inLen);
-WOLFSSL_API int wc_Ed25519PublicKeyToDer(ed25519_key* key, byte* output,
+WOLFSSL_API int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
                                          word32 inLen, int withAlg);
 #endif
 #endif /* HAVE_ED25519 */
