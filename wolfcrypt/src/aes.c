@@ -13036,6 +13036,9 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
+
 #elif defined(MAX3266X_AES)
 
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
