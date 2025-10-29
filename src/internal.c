@@ -10470,7 +10470,7 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 {
     const byte* adj;
 
-    if (ssl->hsHashes == NULL)
+    if ((ssl->hsHashes == NULL) || (output == NULL))
         return BAD_FUNC_ARG;
 
     adj = output + RECORD_HEADER_SZ + ivSz;

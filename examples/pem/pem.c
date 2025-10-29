@@ -977,7 +977,7 @@ int main(int argc, char* argv[])
             out_len = der->length;
         }
     }
-    else {
+    else if (ret == 0) {
 #ifdef WOLFSSL_DER_TO_PEM
     #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
         if (enc_der) {
