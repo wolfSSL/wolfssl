@@ -928,7 +928,7 @@ ssize_t wc_linuxkm_normalize_relocations(
     u8 *text_out,
     ssize_t *cur_index_p)
 {
-    ssize_t i = -1;
+    ssize_t i;
     size_t text_in_offset;
     size_t last_reloc; /* for error-checking order in wc_linuxkm_pie_reloc_tab[] */
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
@@ -949,6 +949,8 @@ ssize_t wc_linuxkm_normalize_relocations(
 
     if (cur_index_p)
         i = *cur_index_p;
+    else
+        i = -1;
 
     if (i == -1)
         i = find_reloc_tab_offset(text_in_offset);
@@ -986,13 +988,24 @@ ssize_t wc_linuxkm_normalize_relocations(
             /* relocation straddles buffer at end -- caller will try again with
              * that relocation at the start.
              */
-            text_in_len -= (sizeof reloc_buf - 1);
+            text_in_len = next_reloc;
             break;
         }
 
+        /* set reloc_buf to the relative address from the live text segment. */
         reloc_buf = (int)get_unaligned((int32_t *)&text_out[next_reloc]);
 
-        /* the +4 accounts for the disp32 field size, as RIP points to the next
+        /* abs_ptr is the absolute address referred to by the relocation.  we
+         * need this in order to identify the target segment of the relocation,
+         * thereby allowing us to use the correct normalization tag and
+         * corrective offset for the relocation.
+         *
+         * start with the absolute address of the start of the current text
+         * segment span, add to that the offset of the relocation at issue,
+         * yielding the absolute address of the relocation, then add the
+         * contents of the relocation that we loaded above.
+         *
+         * the +4 accounts for the disp32 field size, as RIP points to the next
          * instruction byte per the x86_64 ABI.
          */
         abs_ptr = (uintptr_t)text_in + next_reloc + 4 + reloc_buf;
@@ -1093,7 +1106,7 @@ ssize_t wc_linuxkm_normalize_relocations(
     if (cur_index_p)
         *cur_index_p = i;
 
-    return text_in_len;
+    return (ssize_t)text_in_len;
 }
 
 #endif /* HAVE_LINUXKM_PIE_SUPPORT */
