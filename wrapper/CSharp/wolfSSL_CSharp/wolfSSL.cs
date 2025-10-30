@@ -509,6 +509,8 @@ namespace wolfSSL.CSharp
         private extern static int wolfSSL_shutdown(IntPtr ssl);
         [DllImport(wolfssl_dll)]
         private extern static void wolfSSL_free(IntPtr ssl);
+        [DllImport(wolfssl_dll)]
+        private static extern int wolfSSL_UseKeyShare(IntPtr ssl, ushort group);
 #else
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_new(IntPtr ctx);
@@ -524,6 +526,8 @@ namespace wolfSSL.CSharp
         private extern static int wolfSSL_shutdown(IntPtr ssl);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_free(IntPtr ssl);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wolfSSL_UseKeyShare(IntPtr ssl, ushort group);
 #endif
 
         /********************************
@@ -708,6 +712,90 @@ namespace wolfSSL.CSharp
         public static readonly int WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR = 0x00000008;
         public static readonly int WOLFSSL_LOAD_FLAG_IGNORE_ZEROFILE     = 0x00000010;
         public static readonly int WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS     = WOLFSSL_LOAD_FLAG_NONE;
+
+        /* from ssl.h */
+        public enum NamedGroup
+        {
+            WOLFSSL_NAMED_GROUP_INVALID = 0,
+
+            WOLFSSL_ECC_SECP160K1 = 15,
+            WOLFSSL_ECC_SECP160R1 = 16,
+            WOLFSSL_ECC_SECP160R2 = 17,
+            WOLFSSL_ECC_SECP192K1 = 18,
+            WOLFSSL_ECC_SECP192R1 = 19,
+            WOLFSSL_ECC_SECP224K1 = 20,
+            WOLFSSL_ECC_SECP224R1 = 21,
+            WOLFSSL_ECC_SECP256K1 = 22,
+            WOLFSSL_ECC_SECP256R1 = 23,
+            WOLFSSL_ECC_SECP384R1 = 24,
+            WOLFSSL_ECC_SECP521R1 = 25,
+            WOLFSSL_ECC_BRAINPOOLP256R1 = 26,
+            WOLFSSL_ECC_BRAINPOOLP384R1 = 27,
+            WOLFSSL_ECC_BRAINPOOLP512R1 = 28,
+            WOLFSSL_ECC_X25519 = 29,
+            WOLFSSL_ECC_X448 = 30,
+            WOLFSSL_ECC_SM2P256V1 = 41,
+            WOLFSSL_ECC_MAX = 41,
+            WOLFSSL_ECC_MAX_AVAIL = 46,
+            /* Update use of disabled curves when adding value greater than 46. */
+
+            WOLFSSL_FFDHE_START = 256,
+            WOLFSSL_FFDHE_2048 = 256,
+            WOLFSSL_FFDHE_3072 = 257,
+            WOLFSSL_FFDHE_4096 = 258,
+            WOLFSSL_FFDHE_6144 = 259,
+            WOLFSSL_FFDHE_8192 = 260,
+            WOLFSSL_FFDHE_END = 511,
+
+            /* Old code points to keep compatibility with MlKem Round 3.
+             * Taken from OQS's openssl provider, see:
+             * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+             *      oqs-kem-info.md
+             */
+            WOLFSSL_MlKem_LEVEL1 = 570, /* MlKem_512 */
+            WOLFSSL_MlKem_LEVEL3 = 572, /* MlKem_572 */
+            WOLFSSL_MlKem_LEVEL5 = 573, /* MlKem_573 */
+
+            WOLFSSL_P256_MlKem_LEVEL1 = 12090,
+            WOLFSSL_P384_MlKem_LEVEL3 = 12092,
+            WOLFSSL_P521_MlKem_LEVEL5 = 12093,
+            WOLFSSL_X25519_MlKem_LEVEL1 = 12089,
+            WOLFSSL_X448_MlKem_LEVEL3 = 12176,
+            WOLFSSL_X25519_MlKem_LEVEL3 = 25497,
+            WOLFSSL_P256_MlKem_LEVEL3 = 25498,
+
+            /* Taken from draft-connolly-tls-mlkem-key-agreement, see:
+             * https://github.com/dconnolly/draft-connolly-tls-mlkem-key-agreement/
+             */
+            WOLFSSL_ML_KEM_512 = 512,
+            WOLFSSL_ML_KEM_768 = 513,
+            WOLFSSL_ML_KEM_1024 = 514,
+
+            /* Taken from draft-kwiatkowski-tls-ecdhe-mlkem. see:
+             * https://github.com/post-quantum-cryptography/
+             *      draft-kwiatkowski-tls-ecdhe-mlkem/
+             */
+            WOLFSSL_P256_ML_KEM_768 = 4587,
+            WOLFSSL_X25519_ML_KEM_768 = 4588,
+            WOLFSSL_P384_ML_KEM_1024 = 4589,
+
+            /* Taken from OQS's openssl provider, see:
+             * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+             *      oqs-kem-info.md
+             */
+            WOLFSSL_P256_ML_KEM_512_OLD = 12103,
+            WOLFSSL_P384_ML_KEM_768_OLD = 12104,
+            WOLFSSL_P521_ML_KEM_1024_OLD = 12105,
+
+            WOLFSSL_P256_ML_KEM_512 = 12107,
+            WOLFSSL_P384_ML_KEM_768 = 12108,
+            WOLFSSL_P521_ML_KEM_1024 = 12109,
+            WOLFSSL_X25519_ML_KEM_512 = 12214,
+            WOLFSSL_X448_ML_KEM_768 = 12215,
+
+            WOLF_ENUM_DUMMY_LAST_ELEMENT = 0
+        }
+
 
 
         private static IntPtr unwrap_ctx(IntPtr ctx)
@@ -1283,6 +1371,36 @@ namespace wolfSSL.CSharp
             catch (Exception e)
             {
                 log(ERROR_LOG, "wolfssl shutdwon error " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+
+        /// <summary>
+        /// Creates a key share entry for the specified group on the given SSL/TLS connection.
+        /// </summary>
+        /// <param name="ssl">Pointer to the SSL structure to use.</param>
+        /// <param name="group">The key exchange group identifier to use for key share (e.g., TLS supported group ID).</param>
+        /// <returns>1 on success</returns>
+        public static int UseKeyShare(IntPtr ssl, NamedGroup group)
+        {
+            if (ssl == IntPtr.Zero)
+            {
+                return FAILURE;
+            }
+            try
+            {
+                IntPtr sslCtx = unwrap_ssl(ssl);
+                if (sslCtx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "UseKeyShare ssl unwrap error");
+                    return FAILURE;
+                }
+                return wolfSSL_UseKeyShare(sslCtx, (ushort)group);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfSSL_UseKeyShare error " + e.ToString());
                 return FAILURE;
             }
         }
