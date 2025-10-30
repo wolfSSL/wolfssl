@@ -624,6 +624,15 @@ WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
                                      char* buf, int sz);
 #endif
 WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+#ifdef WOLFSSL_DTLS
+    typedef ssize_t (*WolfSSLRecvFrom)(int sockfd, void* buf, size_t len, int flags,
+                            void* src_addr, void* addrlen);
+    typedef ssize_t (*WolfSSLSento)(int sockfd, const void* buf, size_t len, int flags,
+                          const void* dest_addr, word32 addrlen);
+    WOLFSSL_API void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom);
+    WOLFSSL_API void wolfSSL_SetSendTo(WOLFSSL* ssl, WolfSSLSento sendTo);
+#endif
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
 
