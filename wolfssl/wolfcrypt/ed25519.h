@@ -207,13 +207,13 @@ int wc_ed25519_import_private_key_ex(const byte* priv, word32 privSz,
 
 #ifdef HAVE_ED25519_KEY_EXPORT
 WOLFSSL_API
-int wc_ed25519_export_public(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_public(const ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private_only(const ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
+int wc_ed25519_export_private(const ed25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ed25519_export_key(ed25519_key* key,
+int wc_ed25519_export_key(const ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 #endif /* HAVE_ED25519_KEY_EXPORT */
@@ -223,13 +223,13 @@ int wc_ed25519_check_key(ed25519_key* key);
 
 /* size helper */
 WOLFSSL_API
-int wc_ed25519_size(ed25519_key* key);
+int wc_ed25519_size(const ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_priv_size(ed25519_key* key);
+int wc_ed25519_priv_size(const ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_pub_size(ed25519_key* key);
+int wc_ed25519_pub_size(const ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_sig_size(ed25519_key* key);
+int wc_ed25519_sig_size(const ed25519_key* key);
 
 #ifdef __cplusplus
     }    /* extern "C" */
