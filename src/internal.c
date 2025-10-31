@@ -33296,6 +33296,97 @@ static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
 }
 #endif /*!NO_PSK*/
 
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+static int EcMakeKey(WOLFSSL* ssl)
+{
+    int ret = 0;
+#ifdef HAVE_ECC
+    int kea = ssl->specs.kea;
+    ecc_key* peerKey;
+#endif
+#ifdef HAVE_CURVE25519
+    if (ssl->peerX25519KeyPresent) {
+        /* Check client ECC public key */
+        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
+            return NO_PEER_KEY;
+        }
+        /* if callback then use it for shared secret */
+    #ifdef HAVE_PK_CALLBACKS
+        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+            if (ssl->ctx->X25519SharedSecretCb != NULL)
+                return 0;
+        }
+    #endif
+        /* create private key */
+        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
+        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
+                            ssl->peerX25519Key);
+        return ret;
+    }
+#endif
+#ifdef HAVE_CURVE448
+    if (ssl->peerX448KeyPresent) {
+        /* Check client ECC public key */
+        if (!ssl->peerX448Key) {
+            return NO_PEER_KEY;
+        }
+    #ifdef HAVE_PK_CALLBACKS
+        if (ssl->ecdhCurveOID == ECC_X448_OID) {
+            if (ssl->ctx->X448SharedSecretCb != NULL)
+                return 0;
+        }
+    #endif
+        /* create private key */
+        ssl->hsType = DYNAMIC_TYPE_CURVE448;
+        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
+                          ssl->peerX448Key);
+        return ret;
+    }
+#endif
+#ifdef HAVE_ECC
+    if (kea == ecc_diffie_hellman_kea && ssl->specs.static_ecdh) {
+        /* Note: EccDsa is really fixed Ecc key here */
+        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent) {
+            return NO_PEER_KEY;
+        }
+        peerKey = ssl->peerEccDsaKey;
+    }
+    else {
+        /* Check client ECC public key */
+        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
+                                !ssl->peerEccKey->dp) {
+            return NO_PEER_KEY;
+        }
+        peerKey = ssl->peerEccKey;
+    }
+    if (peerKey == NULL) {
+        return NO_PEER_KEY;
+    }
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->EccSharedSecretCb != NULL) {
+        return 0;
+    }
+#endif /* HAVE_PK_CALLBACKS*/
+    /* create ephemeral private key */
+    ssl->hsType = DYNAMIC_TYPE_ECC;
+    ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, ssl->peerEccKey);
+#endif /*HAVE_ECC*/
+    return ret;
+}
+#endif /*defined(HAVE_ECC)||defined(HAVE_CURVE25519)||defined(HAVE_CURVE448)*/
+
 /* handle generation client_key_exchange (16) */
 int SendClientKeyExchange(WOLFSSL* ssl)
 {
@@ -33409,181 +33500,18 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         WOLFSSL_MSG("No client PSK callback set");
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->peerX25519KeyPresent) {
-                        /* Check client ECC public key */
-                        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
-                        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
-                                            ssl->peerX25519Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->peerX448KeyPresent) {
-                        /* Check client ECC public key */
-                        if (!ssl->peerX448Key) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE448;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
-                                          ssl->peerX448Key);
-                        break;
-                    }
-                #endif
-                    /* Check client ECC public key */
-                    if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
-                                            !ssl->peerEccKey->dp) {
-                        ERROR_OUT(NO_PEER_KEY, exit_scke);
-                    }
-
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* create ephemeral private key */
-                    ssl->hsType = DYNAMIC_TYPE_ECC;
-                    ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, ssl->peerEccKey);
-
+                    ret = EcMakeKey(ssl);
+                    if (ret)
+                        ERROR_OUT(ret, exit_scke);
                     break;
-            #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
+            #endif /* (HAVE_ECC||HAVE_CURVE25519||HAVE_CURVE448) && !NO_PSK */
             #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
                 case ecc_diffie_hellman_kea:
                 {
-                #ifdef HAVE_ECC
-                    ecc_key* peerKey;
-                #endif
-
-            #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->ctx->X25519SharedSecretCb != NULL)
-                            break;
-                    }
-                    else
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        if (ssl->ctx->X448SharedSecretCb != NULL)
-                            break;
-                    }
-                    else
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                    else
-                #endif
-                    {
-                    }
-            #endif /* HAVE_PK_CALLBACKS */
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->peerX25519KeyPresent) {
-                        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
-                        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
-                                            ssl->peerX25519Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->peerX448KeyPresent) {
-                        if (!ssl->peerX448Key) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE448;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
-                                          ssl->peerX448Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->specs.static_ecdh) {
-                        /* Note: EccDsa is really fixed Ecc key here */
-                        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-                        peerKey = ssl->peerEccDsaKey;
-                    }
-                    else {
-                        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-                        peerKey = ssl->peerEccKey;
-                    }
-                    if (peerKey == NULL) {
-                        ERROR_OUT(NO_PEER_KEY, exit_scke);
-                    }
-
-                    /* create ephemeral private key */
-                    ssl->hsType = DYNAMIC_TYPE_ECC;
-                    ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, peerKey);
-                #endif /* HAVE_ECC */
-
+                    ret = EcMakeKey(ssl);
+                    if (ret)
+                        ERROR_OUT(ret, exit_scke);
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
