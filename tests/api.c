@@ -47055,7 +47055,7 @@ static int test_multiple_shutdown_nonblocking(void)
     ExpectIntEQ(test_ctx.s_len, 0);
     ExpectIntEQ(ssl_c->buffers.outputBuffer.length, 0);
 
-    test_memio_simulate_want_write(&test_ctx, 0, 1);
+    test_memio_simulate_want_write(&test_ctx, 1, 1);
 
     /*
      * We call wolfSSL_shutdown multiple times to  to check that it doesn't add
@@ -47078,7 +47078,7 @@ static int test_multiple_shutdown_nonblocking(void)
     ExpectIntEQ(ssl_c->buffers.outputBuffer.length, size_of_last_packet);
 
     /* now send the CLOSE_NOTIFY to the server for real, expecting shutdown not done */
-    test_memio_simulate_want_write(&test_ctx, 0, 0);
+    test_memio_simulate_want_write(&test_ctx, 1, 0);
     ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
 
     /* output buffer should be empty and socket buffer should contain the message */
