@@ -5087,6 +5087,10 @@ struct Options {
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
 #endif
     word16            disableRead:1;
+
+#ifdef WOLFSSL_EARLY_DATA
+    word16            clientInEarlyData:1; /* Client is in wolfSSL_read_early_data */
+#endif
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
 #endif

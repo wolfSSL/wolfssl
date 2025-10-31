@@ -15041,10 +15041,13 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
             return WOLFSSL_FATAL_ERROR;
     }
     if (ssl->options.handShakeState == SERVER_FINISHED_COMPLETE) {
+        ssl->options.clientInEarlyData = 1;
         ret = ReceiveData(ssl, (byte*)data, (size_t)sz, FALSE);
+        ssl->options.clientInEarlyData = 0;
         if (ret > 0)
             *outSz = ret;
-        if (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
+        if (ssl->error == WC_NO_ERR_TRACE(APP_DATA_READY)) {
+            ret = 0;
             ssl->error = WOLFSSL_ERROR_NONE;
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {

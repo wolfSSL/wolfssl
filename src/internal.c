@@ -22842,8 +22842,8 @@ default:
                                    exit */
                                 ssl->earlyData = no_early_data;
                                 ssl->options.processReply = doProcessInit;
-
-                                return ZERO_RETURN;
+                                if (ssl->options.clientInEarlyData)
+                                    return APP_DATA_READY;
                             }
 #endif /* WOLFSSL_EARLY_DATA */
                             if (ret == 0 ||
@@ -22889,7 +22889,8 @@ default:
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
                             ssl->earlyData = no_early_data;
                             ssl->options.processReply = doProcessInit;
-                            return ZERO_RETURN;
+                            if (ssl->options.clientInEarlyData)
+                                return APP_DATA_READY;
                         }
     #endif
 #else
