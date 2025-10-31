@@ -43,6 +43,8 @@ int test_dtls_replay(void);
 int test_dtls_srtp(void);
 int test_dtls_timeout(void);
 int test_dtls_certreq_order(void);
+int test_dtls_memio_wolfio(void);
+int test_dtls_memio_wolfio_stateless(void);
 
 #define TEST_DTLS_DECLS                                                        \
         TEST_DECL_GROUP("dtls", test_dtls12_basic_connection_id),              \
@@ -65,5 +67,7 @@ int test_dtls_certreq_order(void);
         TEST_DECL_GROUP("dtls", test_dtls_replay),                             \
         TEST_DECL_GROUP("dtls", test_dtls_srtp),                               \
         TEST_DECL_GROUP("dtls", test_dtls_certreq_order),                      \
-        TEST_DECL_GROUP("dtls", test_dtls_timeout)
+        TEST_DECL_GROUP("dtls", test_dtls_timeout),                            \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio),                       \
+        TEST_DECL_GROUP("dtls", test_dtls_memio_wolfio_stateless)
 #endif /* TESTS_API_DTLS_H */
