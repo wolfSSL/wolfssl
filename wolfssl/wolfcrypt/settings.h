@@ -3776,7 +3776,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
 
-    #ifdef HAVE_LINUXKM_PIE_SUPPORT
+    #ifdef WC_PIE_RELOC_TABLES
         #ifndef WC_NO_INTERNAL_FUNCTION_POINTERS
             #define WC_NO_INTERNAL_FUNCTION_POINTERS
         #endif
@@ -3827,6 +3827,9 @@ extern void uITRON4_free(void *p) ;
         #else
             #define WC_RESEED_INTERVAL (((word64)1UL)<<48UL)
         #endif
+    #endif
+    #if defined(__aarch64__) && !defined(WOLFSSL_AARCH64_PRIVILEGE_MODE)
+        #define WOLFSSL_AARCH64_PRIVILEGE_MODE
     #endif
 #endif
 

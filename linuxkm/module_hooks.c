@@ -89,7 +89,7 @@ static int libwolfssl_cleanup(void) {
 extern char verifyCore[WC_SHA256_DIGEST_SIZE*2 + 1];
 #endif
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
+#ifdef WC_PIE_RELOC_TABLES
 
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
 
@@ -113,17 +113,17 @@ static int total_text_r = 0, total_rodata_r = 0, total_rwdata_r = 0,
 
 #endif /* DEBUG_LINUXKM_PIE_SUPPORT */
 
-#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+#ifdef WC_PIE_RELOC_TABLES
 extern struct wolfssl_linuxkm_pie_redirect_table wolfssl_linuxkm_pie_redirect_table;
 static int set_up_wolfssl_linuxkm_pie_redirect_table(void);
-#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+#endif /* WC_PIE_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 extern const unsigned int wolfCrypt_FIPS_ro_start[];
 extern const unsigned int wolfCrypt_FIPS_ro_end[];
 #endif
 
-#endif /* HAVE_LINUXKM_PIE_SUPPORT */
+#endif /* WC_PIE_RELOC_TABLES */
 
 #ifdef HAVE_FIPS
 static void lkmFipsCb(int ok, int err, const char* hash)
@@ -491,13 +491,13 @@ static int wolfssl_init(void)
 
 #endif /* HAVE_FIPS */
 
-#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
+#ifdef WC_PIE_RELOC_TABLES
     ret = set_up_wolfssl_linuxkm_pie_redirect_table();
     if (ret < 0)
         return ret;
 #endif
 
-#if defined(HAVE_FIPS) && defined(HAVE_LINUXKM_PIE_SUPPORT)
+#if defined(HAVE_FIPS) && defined(WC_PIE_RELOC_TABLES)
     if (((uintptr_t)__wc_text_start > (uintptr_t)wolfCrypt_FIPS_first) ||
         ((uintptr_t)__wc_text_end < (uintptr_t)wolfCrypt_FIPS_last) ||
         ((uintptr_t)__wc_rodata_start > (uintptr_t)wolfCrypt_FIPS_ro_start) ||
@@ -508,7 +508,7 @@ static int wolfssl_init(void)
     }
 #endif
 
-#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
     /* see linux commit ac3b432839 */
@@ -529,11 +529,11 @@ static int wolfssl_init(void)
 #endif
 
     {
-        unsigned int text_hash = hash_span(__wc_text_start, __wc_text_end, 1);
-        unsigned int rodata_hash = hash_span(__wc_rodata_start, __wc_rodata_end, 1);
+        unsigned int text_hash = hash_span((const u8 *)__wc_text_start, (const u8 *)__wc_text_end, 1);
+        unsigned int rodata_hash = hash_span((const u8 *)__wc_rodata_start, (const u8 *)__wc_rodata_end, 1);
         u8 *canon_buf = malloc(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ);
         ssize_t cur_reloc_index = -1;
-        const byte *text_p = __wc_text_start;
+        const u8 *text_p = (const u8 *)__wc_text_start;
         unsigned int stabilized_text_hash = 1;
 
         if (! canon_buf) {
@@ -544,12 +544,12 @@ static int wolfssl_init(void)
         total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
             total_other_r = 0;
 
-        while (text_p < __wc_text_end) {
+        while (text_p < (const u8 *)__wc_text_end) {
             ssize_t progress =
                 WOLFSSL_TEXT_SEGMENT_CANONICALIZER(
                     text_p,
                     min(WOLFSSL_TEXT_SEGMENT_CANONICALIZER_BUFSIZ,
-                        (word32)(__wc_text_end - text_p)),
+                        (word32)((const u8 *)__wc_text_end - text_p)),
                     canon_buf, &cur_reloc_index);
             if (progress <= 0) {
                 pr_err("ERROR: progress=%ld from WOLFSSL_TEXT_SEGMENT_CANONICALIZER() at offset %x (text=%x-%x).\n",
@@ -572,10 +572,10 @@ static int wolfssl_init(void)
          * attacker.
          */
         pr_info("wolfCrypt segment hashes (spans): text 0x%x (%lu), rodata 0x%x (%lu), offset %c0x%lx, canon text 0x%x\n",
-                text_hash, __wc_text_end - __wc_text_start,
+                text_hash, (uintptr_t)__wc_text_end - (uintptr_t)__wc_text_start,
                 rodata_hash, __wc_rodata_end - __wc_rodata_start,
-                &__wc_text_start[0] < &__wc_rodata_start[0] ? '+' : '-',
-                &__wc_text_start[0] < &__wc_rodata_start[0] ? &__wc_rodata_start[0] - &__wc_text_start[0] : &__wc_text_start[0] - &__wc_rodata_start[0],
+                (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? '+' : '-',
+                (uintptr_t)__wc_text_start < (uintptr_t)&__wc_rodata_start[0] ? (uintptr_t)&__wc_rodata_start[0] - (uintptr_t)__wc_text_start : (uintptr_t)__wc_text_start - (uintptr_t)&__wc_rodata_start[0],
                 stabilized_text_hash);
 
         pr_info("wolfCrypt segments: text=%x-%x, rodata=%x-%x, "
@@ -593,7 +593,7 @@ static int wolfssl_init(void)
                 total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
     }
 
-#endif /* HAVE_LINUXKM_PIE_SUPPORT && DEBUG_LINUXKM_PIE_SUPPORT */
+#endif /* WC_PIE_RELOC_TABLES && DEBUG_LINUXKM_PIE_SUPPORT */
 
 #ifdef HAVE_FIPS
     ret = wolfCrypt_SetCb_fips(lkmFipsCb);
@@ -602,7 +602,7 @@ static int wolfssl_init(void)
         return -ECANCELED;
     }
 
-#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     total_text_r = total_rodata_r = total_rwdata_r = total_bss_r =
         total_other_r = 0;
 #endif
@@ -614,7 +614,7 @@ static int wolfssl_init(void)
     else
         pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
 
-#if defined(HAVE_LINUXKM_PIE_SUPPORT) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
+#if defined(WC_PIE_RELOC_TABLES) && defined(DEBUG_LINUXKM_PIE_SUPPORT)
     pr_info("FIPS-bounded relocation normalizations: text=%d, rodata=%d, rwdata=%d, bss=%d, other=%d\n",
             total_text_r, total_rodata_r, total_rwdata_r, total_bss_r, total_other_r);
 #endif
@@ -859,9 +859,7 @@ MODULE_AUTHOR("https://www.wolfssl.com/");
 MODULE_DESCRIPTION("libwolfssl cryptographic and protocol facilities");
 MODULE_VERSION(LIBWOLFSSL_VERSION_STRING);
 
-#ifdef HAVE_LINUXKM_PIE_SUPPORT
-
-#include "linuxkm/wc_linuxkm_pie_reloc_tab.c"
+#ifdef WC_PIE_RELOC_TABLES
 
 static inline int find_reloc_tab_offset(size_t text_in_offset) {
     int ret, hop;
@@ -936,8 +934,8 @@ ssize_t wc_linuxkm_normalize_relocations(
 #endif
 
     if ((text_in_len == 0) ||
-        (text_in < __wc_text_start) ||
-        (text_in + text_in_len > __wc_text_end))
+        ((uintptr_t)text_in < (uintptr_t)__wc_text_start) ||
+        ((uintptr_t)(text_in + text_in_len) > (uintptr_t)__wc_text_end))
     {
 #ifdef DEBUG_LINUXKM_PIE_SUPPORT
         pr_err("ERROR: %s returning -1 at L %d with span %x-%x versus segment %x-%x.\n", __FUNCTION__, __LINE__, (unsigned)(uintptr_t)text_in, (unsigned)(uintptr_t)(text_in + text_in_len), (unsigned)(uintptr_t)__wc_text_start, (unsigned)(uintptr_t)__wc_text_end);
@@ -1108,10 +1106,6 @@ ssize_t wc_linuxkm_normalize_relocations(
 
     return (ssize_t)text_in_len;
 }
-
-#endif /* HAVE_LINUXKM_PIE_SUPPORT */
-
-#ifdef USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE
 
 /* get_current() is an inline or macro, depending on the target -- sidestep the
  * whole issue with a wrapper func.
@@ -1284,71 +1278,129 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     #endif
 
 #ifdef HAVE_FIPS
+
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    /* use __wc_text_start and __wc_text_end, not wolfCrypt_FIPS_first and
+     * wolfCrypt_FIPS_last, thereby including the whole container in the HMAC
+     * span.  Note there are runtime asserts at entry to wolfssl_init() above
+     * confirming that __wc_*_{start,end} correctly contain the wolfCrypt_FIPS_*
+     * fenceposts.
+     */
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first =
+        __wc_text_start;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last =
+        __wc_text_end;
+    /* ditto for wolfCrypt_FIPS_ro_start and wolfCrypt_FIPS_ro_end. */
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ro_start =
+        &__wc_rodata_start;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ro_end =
+        &__wc_rodata_end;
+#else
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_first =
         wolfCrypt_FIPS_first;
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_last =
         wolfCrypt_FIPS_last;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ro_start =
+        &wolfCrypt_FIPS_ro_start;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ro_end =
+        &wolfCrypt_FIPS_ro_end;
+#endif
+
     #if FIPS_VERSION3_GE(6,0,0)
 #ifndef NO_AES
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_AES_sanity =
         wolfCrypt_FIPS_AES_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_aes_ro_sanity =
+        &wolfCrypt_FIPS_aes_ro_sanity;
 #if defined(WOLFSSL_CMAC) && defined(WOLFSSL_AES_DIRECT)
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_CMAC_sanity =
         wolfCrypt_FIPS_CMAC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_cmac_ro_sanity =
+        &wolfCrypt_FIPS_cmac_ro_sanity;
 #endif
 #endif
 #ifndef NO_DH
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DH_sanity =
         wolfCrypt_FIPS_DH_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_dh_ro_sanity =
+        &wolfCrypt_FIPS_dh_ro_sanity;
 #endif
 #ifdef HAVE_ECC
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ECC_sanity =
         wolfCrypt_FIPS_ECC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ecc_ro_sanity =
+        &wolfCrypt_FIPS_ecc_ro_sanity;
 #endif
 #ifdef HAVE_ED25519
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED25519_sanity =
         wolfCrypt_FIPS_ED25519_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ed25519_ro_sanity =
+        &wolfCrypt_FIPS_ed25519_ro_sanity;
 #endif
 #ifdef HAVE_ED448
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ED448_sanity =
         wolfCrypt_FIPS_ED448_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ed448_ro_sanity =
+        &wolfCrypt_FIPS_ed448_ro_sanity;
 #endif
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_HMAC_sanity =
         wolfCrypt_FIPS_HMAC_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_hmac_ro_sanity =
+        &wolfCrypt_FIPS_hmac_ro_sanity;
 #ifndef NO_KDF
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_KDF_sanity =
         wolfCrypt_FIPS_KDF_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_kdf_ro_sanity =
+        &wolfCrypt_FIPS_kdf_ro_sanity;
 #endif
 #ifdef HAVE_PBKDF2
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_PBKDF_sanity =
         wolfCrypt_FIPS_PBKDF_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_pbkdf_ro_sanity =
+        &wolfCrypt_FIPS_pbkdf_ro_sanity;
 #endif
 #ifdef HAVE_HASHDRBG
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_DRBG_sanity =
         wolfCrypt_FIPS_DRBG_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_drbg_ro_sanity =
+        &wolfCrypt_FIPS_drbg_ro_sanity;
 #endif
 #ifndef NO_RSA
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_RSA_sanity =
         wolfCrypt_FIPS_RSA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_rsa_ro_sanity =
+        &wolfCrypt_FIPS_rsa_ro_sanity;
 #endif
 #ifndef NO_SHA
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA_sanity =
         wolfCrypt_FIPS_SHA_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha_ro_sanity =
+        &wolfCrypt_FIPS_sha_ro_sanity;
 #endif
 #ifndef NO_SHA256
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA256_sanity =
         wolfCrypt_FIPS_SHA256_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha256_ro_sanity =
+        &wolfCrypt_FIPS_sha256_ro_sanity;
 #endif
 #ifdef WOLFSSL_SHA512
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA512_sanity =
         wolfCrypt_FIPS_SHA512_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha512_ro_sanity =
+        &wolfCrypt_FIPS_sha512_ro_sanity;
 #endif
 #ifdef WOLFSSL_SHA3
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_SHA3_sanity =
         wolfCrypt_FIPS_SHA3_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_sha3_ro_sanity =
+        &wolfCrypt_FIPS_sha3_ro_sanity;
 #endif
     wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_FT_sanity =
         wolfCrypt_FIPS_FT_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_ft_ro_sanity =
+        &wolfCrypt_FIPS_ft_ro_sanity;
+    wolfssl_linuxkm_pie_redirect_table.wolfCrypt_FIPS_f_ro_sanity =
+        &wolfCrypt_FIPS_f_ro_sanity;
     wolfssl_linuxkm_pie_redirect_table.wc_RunAllCast_fips =
         wc_RunAllCast_fips;
     #endif
@@ -1421,7 +1473,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     return 0;
 }
 
-#endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
+#endif /* WC_PIE_RELOC_TABLES */
 
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 
@@ -1457,11 +1509,17 @@ static int updateFipsHash(void)
     byte *binCoreKey = NULL;
     byte *binVerify = NULL;
 
+#ifdef WC_USE_PIE_FENCEPOSTS_FOR_FIPS
+    fips_address_function first = __wc_text_start;
+    fips_address_function last  = __wc_text_end;
+    char* start = (char*)__wc_rodata_start;
+    char* end   = (char*)__wc_rodata_end;
+#else
     fips_address_function first = wolfCrypt_FIPS_first;
     fips_address_function last  = wolfCrypt_FIPS_last;
-
     char* start = (char*)wolfCrypt_FIPS_ro_start;
     char* end   = (char*)wolfCrypt_FIPS_ro_end;
+#endif
 
     unsigned long code_sz = (unsigned long)last - (unsigned long)first;
     unsigned long data_sz = (unsigned long)end - (unsigned long)start;
@@ -1550,7 +1608,7 @@ static int updateFipsHash(void)
         goto out;
     }
 
-#if defined(WOLFSSL_LINUXKM) && defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
+#if defined(WOLFSSL_LINUXKM) && defined(WC_PIE_RELOC_TABLES)
     {
         ssize_t cur_reloc_index = -1;
         const byte *text_p = (const byte *)first;
