@@ -35,13 +35,6 @@
     #define VRG_PR_WARN_X pr_warn_once
 #endif
 
-/* kernel 4.19 -- the most recent LTS before 5.4 -- lacks the necessary safety
- * checks in __kernel_fpu_begin(), and lacks TIF_NEED_FPU_LOAD.
- */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-    #error WOLFSSL_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
-#endif
-
 static unsigned int wc_linuxkm_fpu_states_n_tracked = 0;
 
 struct wc_thread_fpu_count_ent {
