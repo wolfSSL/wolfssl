@@ -37285,6 +37285,74 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return 1;
     }
 
+    void refineSuites(const Suites* sslSuites, const Suites* peerSuites,
+            Suites* outSuites, byte useClientOrder)
+    {
+        byte   suites[WOLFSSL_MAX_SUITE_SZ];
+        word16 suiteSz = 0;
+        word16 i;
+        word16 j;
+
+        XMEMSET(suites, 0, sizeof(suites));
+
+        if (!useClientOrder) {
+            /* Server order refining. */
+            for (i = 0; i < sslSuites->suiteSz; i += 2) {
+                for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                    if ((sslSuites->suites[i+0] == peerSuites->suites[j+0]) &&
+                        (sslSuites->suites[i+1] == peerSuites->suites[j+1])) {
+                        suites[suiteSz++] = peerSuites->suites[j+0];
+                        suites[suiteSz++] = peerSuites->suites[j+1];
+                        break;
+                    }
+                }
+                if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                    break;
+            }
+        }
+        else {
+            /* Client order refining. */
+            for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                for (i = 0; i < sslSuites->suiteSz; i += 2) {
+                    if ((sslSuites->suites[i+0] == peerSuites->suites[j+0]) &&
+                        (sslSuites->suites[i+1] == peerSuites->suites[j+1])) {
+                        suites[suiteSz++] = peerSuites->suites[j+0];
+                        suites[suiteSz++] = peerSuites->suites[j+1];
+                        break;
+                    }
+                }
+                if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                    break;
+            }
+        }
+
+        outSuites->suiteSz = suiteSz;
+        XMEMCPY(outSuites->suites, &suites, sizeof(suites));
+    #ifdef WOLFSSL_DEBUG_TLS
+        {
+            int ii;
+            WOLFSSL_MSG("Refined Ciphers:");
+            for (ii = 0 ; ii < suites->suiteSz; ii += 2) {
+                WOLFSSL_MSG(GetCipherNameInternal(suites->suites[ii+0],
+                                                  suites->suites[ii+1]));
+            }
+        }
+    #endif
+    }
+
+    /* Refine list of supported cipher suites to those common to server and client.
+     *
+     * ssl         SSL/TLS object.
+     * peerSuites  The peer's advertised list of supported cipher suites.
+     */
+    void sslRefineSuites(WOLFSSL* ssl, Suites* peerSuites)
+    {
+        if (AllocateSuites(ssl) != 0)
+            return;
+        refineSuites(ssl->suites, peerSuites, ssl->suites,
+                (byte)ssl->options.useClientOrder);
+    }
+
     static int CompareSuites(const WOLFSSL* ssl, const Suites* suites,
                              Suites* peerSuites, word16 i, word16 j,
                              CipherSuite* cs, TLSX* extensions)
