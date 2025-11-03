@@ -568,6 +568,12 @@ int test_dtls13_basic_connection_id(void)
     return EXPECT_RESULT();
 }
 
+/** Test DTLS 1.3 behavior when server hits WANT_WRITE during HRR
+ * The test sets up a DTLS 1.3 connection where the server is forced to
+ * return WANT_WRITE when sending the HelloRetryRequest. After the handshake,
+ * application data is exchanged in both directions to verify the connection
+ * works as expected.
+ */
 int test_dtls13_hrr_want_write(void)
 {
     EXPECT_DECLS;
@@ -636,6 +642,15 @@ static int test_dtls13_want_write_send_cb(WOLFSSL *ssl, char *data, int sz, void
     return test_memio_write_cb(ssl, data, sz, wwctx->text_ctx);
 }
 #endif
+/** Test DTLS 1.3 behavior when every other write returns WANT_WRITE
+ * The test sets up a DTLS 1.3 connection where both client and server
+ * alternate between WANT_WRITE and successful writes. After the handshake,
+ * application data is exchanged in both directions to verify the connection
+ * works as expected.
+ *
+ * Data exchanged after the handshake is also tested with simulated WANT_WRITE
+ * conditions to ensure the connection remains functional.
+ */
 int test_dtls13_every_write_want_write(void)
 {
     EXPECT_DECLS;
