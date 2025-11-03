@@ -251,6 +251,26 @@ int curve25519_blind(byte* q, const byte* n, const byte* mask, const byte* p,
 #endif
 #endif /* HAVE_CURVE25519 && !CURVE25519_SMALL && !FREESCALE_LTC_ECC */
 
+/* Reduce a0 back down to 26-bits. c is the overflow and a1 takes it. */
+#define TO_26(a0, a1, c)                                            \
+    c = ((a0) + (sword64)(1UL << 25)) >> 26; a1 += (c);             \
+    a0 -= (sword64)(((word64)(c)) << 26)
+/* Reduce a0 back down to 25-bits. c is the overflow and a1 takes it. */
+#define TO_25(a0, a1, c)                                            \
+    c = ((a0) + (sword64)(1UL << 24)) >> 25; a1 += (c);             \
+    a0 -= (sword64)(((word64)(c)) << 25)
+/* Reduce a0 back down to 25-bits. c is the overflow and a1 takes 19 times it
+ * as this is mod 2^255 - 19. */
+#define TO_25_RED(a0, a1, c)                                        \
+    c = ((a0) + (sword64)(1UL << 24)) >> 25; a1 += (c) * 19;        \
+    a0 -= (sword64)(((word64)(c)) << 25)
+
+#define GET_26_FROM_32(a0, a1, c)                                   \
+    c = (a0) >> 26; a1 += c; a0 -= (sword32)(((word32)(c)) << 26)
+#define GET_25_FROM_32(a0, a1, c)                                   \
+    c = (a0) >> 25; a1 += c; a0 -= (sword32)(((word32)(c)) << 25)
+#define TOP_25_FROM_32(a, c)                                       \
+    c = (a)  >> 25;           a -= (sword32)(((word32)(c)) << 25)
 
 /*
 h = f * f
@@ -368,24 +388,24 @@ void fe_sq(fe h,const fe f)
   sword64 carry8;
   sword64 carry9;
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
+  TO_26(h0, h1, carry0);
+  TO_26(h4, h5, carry4);
 
-  carry1 = (h1 + (sword64) (1UL<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry5 = (h5 + (sword64) (1UL<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
+  TO_25(h1, h2, carry1);
+  TO_25(h5, h6, carry5);
 
-  carry2 = (h2 + (sword64) (1UL<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry6 = (h6 + (sword64) (1UL<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
+  TO_26(h2, h3, carry2);
+  TO_26(h6, h7, carry6);
 
-  carry3 = (h3 + (sword64) (1UL<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry7 = (h7 + (sword64) (1UL<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+  TO_25(h3, h4, carry3);
+  TO_25(h7, h8, carry7);
 
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry8 = (h8 + (sword64) (1UL<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+  TO_26(h4, h5, carry4);
+  TO_26(h8, h9, carry8);
 
-  carry9 = (h9 + (sword64) (1UL<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
+  TO_25_RED(h9, h0, carry9);
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
+  TO_26(h0, h1, carry0);
 
   h[0] = (sword32)h0;
   h[1] = (sword32)h1;
@@ -506,7 +526,7 @@ void fe_tobytes(unsigned char *s,const fe h)
   sword32 carry8;
   sword32 carry9;
 
-  q = (19 * h9 + (((sword32) 1) << 24)) >> 25;
+  q = (19 * h9 + (sword32)(((word32) 1) << 24)) >> 25;
   q = (h0 + q) >> 26;
   q = (h1 + q) >> 25;
   q = (h2 + q) >> 26;
@@ -522,16 +542,16 @@ void fe_tobytes(unsigned char *s,const fe h)
   h0 += 19 * q;
   /* Goal: Output h-2^255 q, which is between 0 and 2^255-20. */
 
-  carry0 = h0 >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry1 = h1 >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry2 = h2 >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry3 = h3 >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry4 = h4 >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry5 = h5 >> 25; h6 += carry5; h5 -= carry5 << 25;
-  carry6 = h6 >> 26; h7 += carry6; h6 -= carry6 << 26;
-  carry7 = h7 >> 25; h8 += carry7; h7 -= carry7 << 25;
-  carry8 = h8 >> 26; h9 += carry8; h8 -= carry8 << 26;
-  carry9 = h9 >> 25;               h9 -= carry9 << 25;
+  GET_26_FROM_32(h0, h1, carry0);
+  GET_25_FROM_32(h1, h2, carry1);
+  GET_26_FROM_32(h2, h3, carry2);
+  GET_25_FROM_32(h3, h4, carry3);
+  GET_26_FROM_32(h4, h5, carry4);
+  GET_25_FROM_32(h5, h6, carry5);
+  GET_26_FROM_32(h6, h7, carry6);
+  GET_25_FROM_32(h7, h8, carry7);
+  GET_26_FROM_32(h8, h9, carry8);
+  TOP_25_FROM_32(h9, carry9);
                   /* h10 = carry9 */
 
   /*
@@ -544,32 +564,32 @@ void fe_tobytes(unsigned char *s,const fe h)
   s[0] = (byte)(h0 >> 0);
   s[1] = (byte)(h0 >> 8);
   s[2] = (byte)(h0 >> 16);
-  s[3] = (byte)((h0 >> 24) | (h1 << 2));
+  s[3] = (byte)((h0 >> 24) | (sword32)((word32)h1 << 2));
   s[4] = (byte)(h1 >> 6);
   s[5] = (byte)(h1 >> 14);
-  s[6] = (byte)((h1 >> 22) | (h2 << 3));
+  s[6] = (byte)((h1 >> 22) | (sword32)((word32)h2 << 3));
   s[7] = (byte)(h2 >> 5);
   s[8] = (byte)(h2 >> 13);
-  s[9] = (byte)((h2 >> 21) | (h3 << 5));
+  s[9] = (byte)((h2 >> 21) | (sword32)((word32)h3 << 5));
   s[10] = (byte)(h3 >> 3);
   s[11] = (byte)(h3 >> 11);
-  s[12] = (byte)((h3 >> 19) | (h4 << 6));
+  s[12] = (byte)((h3 >> 19) | (sword32)((word32)h4 << 6));
   s[13] = (byte)(h4 >> 2);
   s[14] = (byte)(h4 >> 10);
   s[15] = (byte)(h4 >> 18);
   s[16] = (byte)(h5 >> 0);
   s[17] = (byte)(h5 >> 8);
   s[18] = (byte)(h5 >> 16);
-  s[19] = (byte)((h5 >> 24) | (h6 << 1));
+  s[19] = (byte)((h5 >> 24) | (sword32)((word32)h6 << 1));
   s[20] = (byte)(h6 >> 7);
   s[21] = (byte)(h6 >> 15);
-  s[22] = (byte)((h6 >> 23) | (h7 << 3));
+  s[22] = (byte)((h6 >> 23) | (sword32)((word32)h7 << 3));
   s[23] = (byte)(h7 >> 5);
   s[24] = (byte)(h7 >> 13);
-  s[25] = (byte)((h7 >> 21) | (h8 << 4));
+  s[25] = (byte)((h7 >> 21) | (sword32)((word32)h8 << 4));
   s[26] = (byte)(h8 >> 4);
   s[27] = (byte)(h8 >> 12);
-  s[28] = (byte)((h8 >> 20) | (h9 << 6));
+  s[28] = (byte)((h8 >> 20) | (sword32)((word32)h9 << 6));
   s[29] = (byte)(h9 >> 2);
   s[30] = (byte)(h9 >> 10);
   s[31] = (byte)(h9 >> 18);
@@ -642,15 +662,15 @@ Ignores top bit of h.
 void fe_frombytes(fe h,const unsigned char *s)
 {
   sword64 h0 = load_4(s);
-  sword64 h1 = load_3(s + 4) << 6;
-  sword64 h2 = load_3(s + 7) << 5;
-  sword64 h3 = load_3(s + 10) << 3;
-  sword64 h4 = load_3(s + 13) << 2;
+  sword64 h1 = (sword64)(((word64)load_3(s +  4)) << 6);
+  sword64 h2 = (sword64)(((word64)load_3(s +  7)) << 5);
+  sword64 h3 = (sword64)(((word64)load_3(s + 10)) << 3);
+  sword64 h4 = (sword64)(((word64)load_3(s + 13)) << 2);
   sword64 h5 = load_4(s + 16);
-  sword64 h6 = load_3(s + 20) << 7;
-  sword64 h7 = load_3(s + 23) << 5;
-  sword64 h8 = load_3(s + 26) << 4;
-  sword64 h9 = (load_3(s + 29) & 8388607) << 2;
+  sword64 h6 = (sword64)(((word64)load_3(s + 20)) << 7);
+  sword64 h7 = (sword64)(((word64)load_3(s + 23)) << 5);
+  sword64 h8 = (sword64)(((word64)load_3(s + 26)) << 4);
+  sword64 h9 = (sword64)(((word64)load_3(s + 29) & 8388607UL) << 2);
   sword64 carry0;
   sword64 carry1;
   sword64 carry2;
@@ -662,17 +682,17 @@ void fe_frombytes(fe h,const unsigned char *s)
   sword64 carry8;
   sword64 carry9;
 
-  carry9 = (h9 + (sword64) (1UL<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
-  carry1 = (h1 + (sword64) (1UL<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry3 = (h3 + (sword64) (1UL<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry5 = (h5 + (sword64) (1UL<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
-  carry7 = (h7 + (sword64) (1UL<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+  TO_25_RED(h9, h0, carry9);
+  TO_25(h1, h2, carry1);
+  TO_25(h3, h4, carry3);
+  TO_25(h5, h6, carry5);
+  TO_25(h7, h8, carry7);
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry2 = (h2 + (sword64) (1UL<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry6 = (h6 + (sword64) (1UL<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
-  carry8 = (h8 + (sword64) (1UL<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+  TO_26(h0, h1, carry0);
+  TO_26(h2, h3, carry2);
+  TO_26(h4, h5, carry4);
+  TO_26(h6, h7, carry6);
+  TO_26(h8, h9, carry8);
 
   h[0] = (sword32)h0;
   h[1] = (sword32)h1;
@@ -949,46 +969,46 @@ void fe_mul(fe h,const fe f,const fe g)
     i.e. |h1| <= 1.7*2^59; narrower ranges for h3, h5, h7, h9
   */
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
+  TO_26(h0, h1, carry0);
+  TO_26(h4, h5, carry4);
   /* |h0| <= 2^25 */
   /* |h4| <= 2^25 */
   /* |h1| <= 1.71*2^59 */
   /* |h5| <= 1.71*2^59 */
 
-  carry1 = (h1 + (sword64) (1UL<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry5 = (h5 + (sword64) (1UL<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
+  TO_25(h1, h2, carry1);
+  TO_25(h5, h6, carry5);
   /* |h1| <= 2^24; from now on fits into int32 */
   /* |h5| <= 2^24; from now on fits into int32 */
   /* |h2| <= 1.41*2^60 */
   /* |h6| <= 1.41*2^60 */
 
-  carry2 = (h2 + (sword64) (1UL<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry6 = (h6 + (sword64) (1UL<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
+  TO_26(h2, h3, carry2);
+  TO_26(h6, h7, carry6);
   /* |h2| <= 2^25; from now on fits into int32 unchanged */
   /* |h6| <= 2^25; from now on fits into int32 unchanged */
   /* |h3| <= 1.71*2^59 */
   /* |h7| <= 1.71*2^59 */
 
-  carry3 = (h3 + (sword64) (1UL<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry7 = (h7 + (sword64) (1UL<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+  TO_25(h3, h4, carry3);
+  TO_25(h7, h8, carry7);
   /* |h3| <= 2^24; from now on fits into int32 unchanged */
   /* |h7| <= 2^24; from now on fits into int32 unchanged */
   /* |h4| <= 1.72*2^34 */
   /* |h8| <= 1.41*2^60 */
 
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry8 = (h8 + (sword64) (1UL<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+  TO_26(h4, h5, carry4);
+  TO_26(h8, h9, carry8);
   /* |h4| <= 2^25; from now on fits into int32 unchanged */
   /* |h8| <= 2^25; from now on fits into int32 unchanged */
   /* |h5| <= 1.01*2^24 */
   /* |h9| <= 1.71*2^59 */
 
-  carry9 = (h9 + (sword64) (1UL<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
+  TO_25_RED(h9, h0, carry9);
   /* |h9| <= 2^24; from now on fits into int32 unchanged */
   /* |h0| <= 1.1*2^39 */
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
+  TO_26(h0, h1, carry0);
   /* |h0| <= 2^25; from now on fits into int32 unchanged */
   /* |h1| <= 1.01*2^24 */
 
@@ -1122,17 +1142,17 @@ void fe_mul121666(fe h,fe f)
   sword64 carry8;
   sword64 carry9;
 
-  carry9 = (h9 + (sword64) (1UL<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
-  carry1 = (h1 + (sword64) (1UL<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry3 = (h3 + (sword64) (1UL<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry5 = (h5 + (sword64) (1UL<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
-  carry7 = (h7 + (sword64) (1UL<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+  TO_25_RED(h9, h0, carry9);
+  TO_25(h1, h2, carry1);
+  TO_25(h3, h4, carry3);
+  TO_25(h5, h6, carry5);
+  TO_25(h7, h8, carry7);
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry2 = (h2 + (sword64) (1UL<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry6 = (h6 + (sword64) (1UL<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
-  carry8 = (h8 + (sword64) (1UL<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+  TO_26(h0, h1, carry0);
+  TO_26(h2, h3, carry2);
+  TO_26(h4, h5, carry4);
+  TO_26(h6, h7, carry6);
+  TO_26(h8, h9, carry8);
 
   h[0] = (sword32)h0;
   h[1] = (sword32)h1;
@@ -1274,24 +1294,24 @@ void fe_sq2(fe h,const fe f)
   h8 += h8;
   h9 += h9;
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
+  TO_26(h0, h1, carry0);
+  TO_26(h4, h5, carry4);
 
-  carry1 = (h1 + (sword64) (1UL<<24)) >> 25; h2 += carry1; h1 -= carry1 << 25;
-  carry5 = (h5 + (sword64) (1UL<<24)) >> 25; h6 += carry5; h5 -= carry5 << 25;
+  TO_25(h1, h2, carry1);
+  TO_25(h5, h6, carry5);
 
-  carry2 = (h2 + (sword64) (1UL<<25)) >> 26; h3 += carry2; h2 -= carry2 << 26;
-  carry6 = (h6 + (sword64) (1UL<<25)) >> 26; h7 += carry6; h6 -= carry6 << 26;
+  TO_26(h2, h3, carry2);
+  TO_26(h6, h7, carry6);
 
-  carry3 = (h3 + (sword64) (1UL<<24)) >> 25; h4 += carry3; h3 -= carry3 << 25;
-  carry7 = (h7 + (sword64) (1UL<<24)) >> 25; h8 += carry7; h7 -= carry7 << 25;
+  TO_25(h3, h4, carry3);
+  TO_25(h7, h8, carry7);
 
-  carry4 = (h4 + (sword64) (1UL<<25)) >> 26; h5 += carry4; h4 -= carry4 << 26;
-  carry8 = (h8 + (sword64) (1UL<<25)) >> 26; h9 += carry8; h8 -= carry8 << 26;
+  TO_26(h4, h5, carry4);
+  TO_26(h8, h9, carry8);
 
-  carry9 = (h9 + (sword64) (1UL<<24)) >> 25; h0 += carry9 * 19; h9 -= carry9 << 25;
+  TO_25_RED(h9, h0, carry9);
 
-  carry0 = (h0 + (sword64) (1UL<<25)) >> 26; h1 += carry0; h0 -= carry0 << 26;
+  TO_26(h0, h1, carry0);
 
   h[0] = (sword32)h0;
   h[1] = (sword32)h1;
