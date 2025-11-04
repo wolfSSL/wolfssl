@@ -2214,6 +2214,7 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
@@ -2642,6 +2643,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));
