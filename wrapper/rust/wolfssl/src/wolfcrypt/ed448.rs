@@ -193,9 +193,8 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(size) containing the number of bytes written to
-    /// `public` on success or Err(e) containing the wolfSSL library error
-    /// code value.
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
     ///
     /// # Example
     ///
@@ -228,9 +227,8 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(size) containing the number of bytes written to
-    /// `keyout` on success or Err(e) containing the wolfSSL library error
-    /// code value.
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
     ///
     /// # Example
     ///
@@ -263,9 +261,8 @@ impl Ed448 {
     ///
     /// # Returns
     ///
-    /// Returns either Ok(size) containing the number of bytes written to
-    /// `private` on success or Err(e) containing the wolfSSL library error
-    /// code value.
+    /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+    /// library error code value.
     ///
     /// # Example
     ///
@@ -1084,7 +1081,7 @@ impl Ed448 {
         Ok(res == 1)
     }
 
-    /// Get the size of an Ed448 key (32 bytes).
+    /// Get the size of an Ed448 key (57 bytes).
     ///
     /// # Returns
     ///
@@ -1109,7 +1106,7 @@ impl Ed448 {
         Ok(rc as usize)
     }
 
-    /// Get the size of a private (including public) Ed448 key (64 bytes).
+    /// Get the size of a private (including public) Ed448 key (114 bytes).
     ///
     /// # Returns
     ///
@@ -1134,7 +1131,7 @@ impl Ed448 {
         Ok(rc as usize)
     }
 
-    /// Get the size of a public Ed448 key (32 bytes).
+    /// Get the size of a public Ed448 key (57 bytes).
     ///
     /// # Returns
     ///
@@ -1159,7 +1156,7 @@ impl Ed448 {
         Ok(rc as usize)
     }
 
-    /// Get the size of a Ed448 signature (64 bytes).
+    /// Get the size of a Ed448 signature (114 bytes).
     ///
     /// # Returns
     ///
