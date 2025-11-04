@@ -13510,7 +13510,11 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output, word32 inLen,
         return BAD_FUNC_ARG;
     }
 
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(7,0,0)
+    ret = wc_ed25519_export_public((ed25519_key *)key, pubKey, &pubKeyLen);
+    #else
     ret = wc_ed25519_export_public(key, pubKey, &pubKeyLen);
+    #endif
     if (ret == 0) {
         ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, inLen,
             ED25519k, withAlg);
