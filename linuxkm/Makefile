@@ -155,13 +155,13 @@ ifeq "$(FIPS_OPTEST)" "1"
 	@resolved_link_is_equal '$(MODULE_TOP)/linuxkm/optest-140-3/linuxkm_optest_wrapper.c' '$(SRC_TOP)/../fips/optest-140-3/linuxkm_optest_wrapper.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/../fips/optest-140-3' '$(MODULE_TOP)/linuxkm'
 endif
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-	@[[ -f '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' ]] || \
+	@[[ -f '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' && ! -L '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' ]] || \
 		{ $(RM) -f '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' && $(GENERATE_RELOC_TAB) < /dev/null > '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'; }
 	@$(eval RELOC_TMP := $(shell mktemp "$(MAKE_TMPDIR)/wc_linuxkm_pie_reloc_tab.c.XXXXXX"))
 	@if [[ -f libwolfssl.ko ]]; then touch -r libwolfssl.ko '$(RELOC_TMP)'; fi
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	# if the above make didn't build a fresh libwolfssl.ko, then the module is already up to date and we leave it untouched, assuring stability for purposes of module-update-fips-hash.
-	@if [[ ! libwolfssl.ko -nt '$(RELOC_TMP)' ]]; then rm '$(RELOC_TMP)'; exit 0; fi
+	@if [[ ! libwolfssl.ko -nt '$(RELOC_TMP)' ]]; then rm '$(RELOC_TMP)'; echo '  Module already up-to-date.'; exit 0; fi
 	@$(READELF) --wide -r libwolfssl.ko | $(GENERATE_RELOC_TAB) >| '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	@$(READELF) --wide -r libwolfssl.ko | $(GENERATE_RELOC_TAB) >| '$(RELOC_TMP)'
