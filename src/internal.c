@@ -17659,6 +17659,20 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
                 return OUT_OF_ORDER_E;
             }
+            if (!ssl->options.resuming && ssl->specs.kea != rsa_kea &&
+                    (ssl->specs.kea != ecc_diffie_hellman_kea ||
+                     !ssl->specs.static_ecdh) &&
+                    ssl->specs.kea != ecc_static_diffie_hellman_kea &&
+                    !ssl->msgsReceived.got_server_key_exchange) {
+                WOLFSSL_MSG("No ServerKeyExchange before CertificateRequest");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
+            if (!ssl->msgsReceived.got_certificate) {
+                WOLFSSL_MSG("No Certificate before CertificateRequest");
+                WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
+                return OUT_OF_ORDER_E;
+            }
             if (ssl->msgsReceived.got_server_hello_done) {
                 WOLFSSL_MSG("CertificateRequest received in wrong order");
                 WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
