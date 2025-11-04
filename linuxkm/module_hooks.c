@@ -172,11 +172,14 @@ int wc_lkm_LockMutex(wolfSSL_Mutex* m)
     }
     else {
         for (;;) {
+            int sig_ret = wc_linuxkm_check_for_intr_signals();
+            if (sig_ret)
+                return sig_ret;
+            cond_resched();
             if (spin_trylock_irqsave(&m->lock, irq_flags)) {
                 m->irq_flags = irq_flags;
                 return 0;
             }
-            cond_resched();
         }
     }
     __builtin_unreachable();

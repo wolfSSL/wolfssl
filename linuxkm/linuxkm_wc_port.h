@@ -1398,7 +1398,7 @@
             return 0;
         }
 
-        static inline int wc_LockMutex(wolfSSL_Mutex* m)
+        static __must_check inline int wc_LockMutex(wolfSSL_Mutex* m)
         {
             if (in_nmi() || hardirq_count() || in_softirq())
                 return -1;
@@ -1443,14 +1443,14 @@
         /* wc_lkm_LockMutex() can't be used inline in __PIE__ objects, due to
          * direct access to pv_ops.
          */
-        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
+        static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
             return WC_PIE_INDIRECT_SYM(wc_lkm_LockMutex)(m);
         }
 
         #else /* !__PIE__ */
 
-        static __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
+        static __must_check __always_inline int wc_LockMutex(wolfSSL_Mutex *m)
         {
             return wc_lkm_LockMutex(m);
         }
