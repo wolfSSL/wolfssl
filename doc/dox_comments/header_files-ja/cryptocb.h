@@ -1,10 +1,20 @@
 /*!
     \ingroup CryptoCb
-    \brief  この関数は、Crypto Operationsをキーストア、Secure Element、HSM、PKCS11またはTPMなどの外部ハードウェアにオフロードするための固有のデバイス識別子（DEVID）とコールバック関数を登録します。CryptoコールバックのSTSAFEの場合は、wolfcrypt / src / port / st / stsafe.cとwolfssl_stsafe_cryptodevcb関数を参照してください。TPMベースのCryptoコールバックの例では、wolftpm src / tpm2_wrap.cのwolftpm2_cryptodevcb関数を参照してください。
-    \return CRYPTOCB_UNAVAILABLE  ソフトウェア暗号を使用するためにフォールバックする
-    \return 0  成功のために
-    \return negative  失敗の値
-    \param devId  -2（invalid_devid）ではなく、一意の値ではありません。
+
+    \brief この関数は、Key Store、Secure Element、HSM、PKCS11、TPMなどの外部ハードウェアへの暗号操作のオフロードのために、一意のデバイス識別子(devID)とコールバック関数を登録します。
+
+    Crypto Callbacksを使用したSTSAFEの例については、wolfcrypt/src/port/st/stsafe.cとwolfSSL_STSAFE_CryptoDevCb関数を参照してください。
+
+    TPMベースの暗号コールバックの例については、wolfTPM src/tpm2_wrap.cのwolfTPM2_CryptoDevCb関数を参照してください。
+
+    \return CRYPTOCB_UNAVAILABLE ソフトウェア暗号の使用にフォールバックする場合
+    \return 0 成功時
+    \return 負の値 失敗時
+
+    \param devId -2(INVALID_DEVID)以外の任意の一意の値
+    \param cb 次のプロトタイプを持つコールバック関数:
+    typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
+
     _Example_
     \code
     #include <wolfssl/wolfcrypt/settings.h>
@@ -19,7 +29,7 @@
                 switch (info->pk.rsa.type) {
                     case RSA_PUBLIC_ENCRYPT:
                     case RSA_PUBLIC_DECRYPT:
-                        // RSA public op
+                        // RSA公開鍵操作
                         ret = wc_RsaFunction(
                             info->pk.rsa.in, info->pk.rsa.inLen,
                             info->pk.rsa.out, info->pk.rsa.outLen,
@@ -28,7 +38,7 @@
                         break;
                     case RSA_PRIVATE_ENCRYPT:
                     case RSA_PRIVATE_DECRYPT:
-                        // RSA private op
+                        // RSA秘密鍵操作
                         ret = wc_RsaFunction(
                             info->pk.rsa.in, info->pk.rsa.inLen,
                             info->pk.rsa.out, info->pk.rsa.outLen,
@@ -49,7 +59,7 @@
         #endif
         #ifdef HAVE_ED25519
             if (info->pk.type == WC_PK_TYPE_ED25519_SIGN) {
-                // ED25519 sign
+                // ED25519署名
                 ret = wc_ed25519_sign_msg_ex(
                     info->pk.ed25519sign.in, info->pk.ed25519sign.inLen,
                     info->pk.ed25519sign.out, info->pk.ed25519sign.outLen,
@@ -66,6 +76,7 @@
     wc_CryptoCb_RegisterDevice(devId, myCryptoCb_Func, &myCtx);
     wolfSSL_CTX_SetDevId(ctx, devId);
     \endcode
+
     \sa wc_CryptoCb_UnRegisterDevice
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_SetDevId
@@ -74,14 +85,20 @@ int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 
 /*!
     \ingroup CryptoCb
-    \brief  この関数は、固有のデバイス識別子（devid）コールバック関数を除外します。
-    \return none  いいえ返します。
+
+    \brief この関数は、一意のデバイス識別子(devID)のコールバック関数の登録を解除します。
+
+    \return none 戻り値なし。
+
+    \param devId -2(INVALID_DEVID)以外の任意の一意の値
+
     _Example_
     \code
     wc_CryptoCb_UnRegisterDevice(devId);
     devId = INVALID_DEVID;
     wolfSSL_CTX_SetDevId(ctx, devId);
     \endcode
+
     \sa wc_CryptoCb_RegisterDevice
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_SetDevId

@@ -1,66 +1,84 @@
 /*!
     \ingroup DSA
-    \brief  この関数は、デジタル署名アルゴリズム（DSA）を介した認証に使用するためにDSAKEYオブジェクトを初期化します。
-    \return 0  成功に戻りました。
-    \return BAD_FUNC_ARG  NULLキーが渡された場合に返されます。
+
+    \brief この関数は、デジタル署名アルゴリズム(DSA)による認証に使用するために、DsaKeyオブジェクトを初期化します。
+
+    \return 0 成功時に返されます。
+    \return BAD_FUNC_ARG NULLキーが渡された場合に返されます。
+
+    \param key 初期化するDsaKey構造体へのポインタ
+
     _Example_
     \code
     DsaKey key;
     int ret;
-    ret = wc_InitDsaKey(&key); // initialize DSA key
+    ret = wc_InitDsaKey(&key); // DSA鍵を初期化
     \endcode
+
     \sa wc_FreeDsaKey
 */
 int wc_InitDsaKey(DsaKey* key);
 
 /*!
     \ingroup DSA
-    \brief  この関数は、使用された後にdsakeyオブジェクトを解放します。
-    \return none  いいえ返します。
+
+    \brief この関数は、使用後にDsaKeyオブジェクトを解放します。
+
+    \return none 戻り値なし。
+
+    \param key 解放するDsaKey構造体へのポインタ
+
     _Example_
     \code
     DsaKey key;
-    // initialize key, use for authentication
+    // 鍵を初期化、認証に使用
     ...
-    wc_FreeDsaKey(&key); // free DSA key
+    wc_FreeDsaKey(&key); // DSA鍵を解放
     \endcode
+
     \sa wc_FreeDsaKey
 */
 void wc_FreeDsaKey(DsaKey* key);
 
 /*!
     \ingroup DSA
-    \brief  この機能は入力ダイジェストに署名し、結果を出力バッファーに格納します。
-    \return 0  入力ダイジェストに正常に署名したときに返されました
-    \return MP_INIT_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_READ_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_CMP_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_INVMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_EXPTMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MUL_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_ADD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MULMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_TO_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MEM  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \param digest  署名するハッシュへのポインタ
-    \param out  署名を保存するバッファへのポインタ
-    \param key  署名を生成するための初期化されたDsakey構造へのポインタ
+
+    \brief この関数は、入力ダイジェストに署名し、結果を出力バッファoutに格納します。
+
+    \return 0 入力ダイジェストへの署名に成功した場合に返されます
+    \return MP_INIT_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_READ_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_CMP_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_INVMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_EXPTMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MUL_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_ADD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MULMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_TO_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MEM DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+
+    \param digest 署名するハッシュへのポインタ
+    \param out 署名を格納するバッファへのポインタ
+    \param key 署名を生成するために使用する初期化されたDsaKey構造体へのポインタ
+    \param rng 署名生成で使用する初期化されたRNGへのポインタ
+
     _Example_
     \code
     DsaKey key;
-    // initialize DSA key, load private Key
+    // DSA鍵を初期化、秘密鍵をロード
     int ret;
     WC_RNG rng;
     wc_InitRng(&rng);
-    byte hash[] = { // initialize with hash digest };
-    byte signature[40]; // signature will be 40 bytes (320 bits)
+    byte hash[] = { // ハッシュダイジェストで初期化 };
+    byte signature[40]; // 署名は40バイト(320ビット)になります
 
     ret = wc_DsaSign(hash, signature, &key, &rng);
     if (ret != 0) {
-	    // error generating DSA signature
+	    // DSA署名生成エラー
     }
     \endcode
+
     \sa wc_DsaVerify
 */
 int wc_DsaSign(const byte* digest, byte* out,
@@ -68,38 +86,44 @@ int wc_DsaSign(const byte* digest, byte* out,
 
 /*!
     \ingroup DSA
-    \brief  この関数は、秘密鍵を考えると、ダイジェストの署名を検証します。回答パラメータでキーが正しく検証されているかどうか、正常な検証に対応する1、および失敗した検証に対応する0が格納されます。
-    \return 0  検証要求の処理に成功したときに返されます。注：これは、署名が検証されていることを意味するわけではなく、関数が成功したというだけです。
-    \return MP_INIT_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_READ_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_CMP_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_INVMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_EXPTMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MUL_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_ADD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MULMOD_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_TO_E  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \return MP_MEM  DSA署名の処理にエラーがある場合は返される可能性があります。
-    \param digest  署名の主題を含むダイジェストへのポインタ
-    \param sig  確認する署名を含むバッファへのポインタ
-    \param key  署名を検証するための初期化されたDsakey構造へのポインタ
+
+    \brief この関数は、秘密鍵を使用してダイジェストの署名を検証します。検証が正しく行われたかどうかをanswerパラメータに格納します。1は検証成功、0は検証失敗に対応します。
+
+    \return 0 検証リクエストの処理に成功した場合に返されます。注意: これは署名が検証されたことを意味するのではなく、関数が成功したことのみを意味します
+    \return MP_INIT_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_READ_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_CMP_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_INVMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_EXPTMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MUL_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_ADD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MULMOD_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_TO_E DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+    \return MP_MEM DSA署名の処理中にエラーが発生した場合に返される可能性があります。
+
+    \param digest 署名の対象を含むダイジェストへのポインタ
+    \param sig 検証する署名を含むバッファへのポインタ
+    \param key 署名を検証するために使用する初期化されたDsaKey構造体へのポインタ
+    \param answer 検証が成功したかどうかを格納する整数へのポインタ
+
     _Example_
     \code
     DsaKey key;
-    // initialize DSA key, load public Key
+    // DSA鍵を初期化、公開鍵をロード
 
     int ret;
     int verified;
-    byte hash[] = { // initialize with hash digest };
-    byte signature[] = { // initialize with signature to verify };
+    byte hash[] = { // ハッシュダイジェストで初期化 };
+    byte signature[] = { // 検証する署名で初期化 };
     ret = wc_DsaVerify(hash, signature, &key, &verified);
     if (ret != 0) {
-    	// error processing verify request
+    	// 検証リクエストの処理エラー
     } else if (answer == 0) {
-    	// invalid signature
+    	// 無効な署名
     }
     \endcode
+
     \sa wc_DsaSign
 */
 int wc_DsaVerify(const byte* digest, const byte* sig,
@@ -107,25 +131,31 @@ int wc_DsaVerify(const byte* digest, const byte* sig,
 
 /*!
     \ingroup DSA
-    \brief  この機能は、DSA公開鍵を含むDERフォーマットの証明書バッファを復号し、与えられたDSakey構造体にキーを格納します。また、入力読み取りの長さに応じてINOUTIDXパラメータを設定します。
-    \return 0  dsakeyオブジェクトの公開鍵を正常に設定する
-    \return ASN_PARSE_E  証明書バッファを読みながらエンコーディングにエラーがある場合
-    \return ASN_DH_KEY_E  DSAパラメータの1つが誤ってフォーマットされている場合に返されます
-    \param input  DERフォーマットDSA公開鍵を含むバッファへのポインタ
-    \param inOutIdx  証明書の最後のインデックスを保存する整数へのポインタ
-    \param key  公開鍵を保存するDsakey構造へのポインタ
+
+    \brief この関数は、DSA公開鍵を含むDERフォーマットの証明書バッファをデコードし、与えられたDsaKey構造体に鍵を格納します。また、読み取られた入力の長さに応じてinOutIdxパラメータを設定します。
+
+    \return 0 DsaKeyオブジェクトの公開鍵の設定に成功した場合に返されます
+    \return ASN_PARSE_E 証明書バッファの読み取り中にエンコーディングエラーがある場合に返されます
+    \return ASN_DH_KEY_E DSAパラメータの1つが正しくフォーマットされていない場合に返されます
+
+    \param input DERフォーマットのDSA公開鍵を含むバッファへのポインタ
+    \param inOutIdx 読み取られた証明書の最終インデックスを格納する整数へのポインタ
+    \param key 公開鍵を格納するDsaKey構造体へのポインタ
+    \param inSz 入力バッファのサイズ
+
     _Example_
     \code
     int ret, idx=0;
 
     DsaKey key;
     wc_InitDsaKey(&key);
-    byte derBuff[] = { // DSA public key};
+    byte derBuff[] = { // DSA公開鍵};
     ret = wc_DsaPublicKeyDecode(derBuff, &idx, &key, inSz);
     if (ret != 0) {
-    	// error reading public key
+    	// 公開鍵の読み取りエラー
     }
     \endcode
+
     \sa wc_InitDsaKey
     \sa wc_DsaPrivateKeyDecode
 */
@@ -134,25 +164,31 @@ int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
 
 /*!
     \ingroup DSA
-    \brief  この機能は、DSA秘密鍵を含むDERフォーマットの証明書バッファをデコードし、指定されたDSakey構造体にキーを格納します。また、入力読み取りの長さに応じてINOUTIDXパラメータを設定します。
-    \return 0  dsakeyオブジェクトの秘密鍵を正常に設定するに返されました
-    \return ASN_PARSE_E  証明書バッファを読みながらエンコーディングにエラーがある場合
-    \return ASN_DH_KEY_E  DSAパラメータの1つが誤ってフォーマットされている場合に返されます
-    \param input  DERフォーマットDSA秘密鍵を含むバッファへのポインタ
-    \param inOutIdx  証明書の最後のインデックスを保存する整数へのポインタ
-    \param key  秘密鍵を保存するDSakey構造へのポインタ
+
+    \brief この関数は、DSA秘密鍵を含むDERフォーマットの証明書バッファをデコードし、与えられたDsaKey構造体に鍵を格納します。また、読み取られた入力の長さに応じてinOutIdxパラメータを設定します。
+
+    \return 0 DsaKeyオブジェクトの秘密鍵の設定に成功した場合に返されます
+    \return ASN_PARSE_E 証明書バッファの読み取り中にエンコーディングエラーがある場合に返されます
+    \return ASN_DH_KEY_E DSAパラメータの1つが正しくフォーマットされていない場合に返されます
+
+    \param input DERフォーマットのDSA秘密鍵を含むバッファへのポインタ
+    \param inOutIdx 読み取られた証明書の最終インデックスを格納する整数へのポインタ
+    \param key 秘密鍵を格納するDsaKey構造体へのポインタ
+    \param inSz 入力バッファのサイズ
+
     _Example_
     \code
     int ret, idx=0;
 
     DsaKey key;
     wc_InitDsaKey(&key);
-    byte derBuff[] = { // DSA private key };
+    byte derBuff[] = { // DSA秘密鍵 };
     ret = wc_DsaPrivateKeyDecode(derBuff, &idx, &key, inSz);
     if (ret != 0) {
-    	// error reading private key
+    	// 秘密鍵の読み取りエラー
     }
     \endcode
+
     \sa wc_InitDsaKey
     \sa wc_DsaPublicKeyDecode
 */
@@ -161,18 +197,23 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 /*!
     \ingroup DSA
-    \brief  DSAKEYキーをDERフォーマット、出力への書き込み（Inlen）、書き込まれたバイトを返します。
-    \return outLen  成功、書かれたバイト数
-    \return BAD_FUNC_ARG  キーまたは出力はNULLまたはキー - >タイプがDSA_PRIVATEではありません。
-    \return MEMORY_E  メモリの割り当て中にエラーが発生しました。
-    \param key  変換するdsakey構造へのポインタ。
-    \param output  変換キーの出力バッファへのポインタ。
+
+    \brief DsaKey鍵をDERフォーマットに変換し、output(inLen)に書き込み、書き込まれたバイト数を返します。
+
+    \return outLen 成功、書き込まれたバイト数
+    \return BAD_FUNC_ARG keyまたはoutputがnullまたはkey->typeがDSA_PRIVATEでない場合。
+    \return MEMORY_E メモリ割り当てエラー。
+
+    \param key 変換するDsaKey構造体へのポインタ。
+    \param output 変換された鍵用の出力バッファへのポインタ。
+    \param inLen 鍵入力の長さ。
+
     _Example_
     \code
     DsaKey key;
     WC_RNG rng;
     int derSz;
-    int bufferSize = // Sufficient buffer size;
+    int bufferSize = // 十分なバッファサイズ;
     byte der[bufferSize];
 
     wc_InitDsaKey(&key);
@@ -180,6 +221,7 @@ int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     wc_MakeDsaKey(&rng, &key);
     derSz = wc_DsaKeyToDer(&key, der, bufferSize);
     \endcode
+
     \sa wc_InitDsaKey
     \sa wc_FreeDsaKey
     \sa wc_MakeDsaKey
@@ -188,12 +230,17 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
 /*!
     \ingroup DSA
-    \brief  DSAキーを作成します。
-    \return MP_OKAY  成功
-    \return BAD_FUNC_ARG  RNGまたはDSAのどちらかがnullです。
-    \return MEMORY_E  バッファにメモリを割り当てることができませんでした。
-    \return MP_INIT_E  MP_INTの初期化エラー
-    \param rng  WC_RNG構造体へのポインタ。
+
+    \brief DSA鍵を作成します。
+
+    \return MP_OKAY 成功
+    \return BAD_FUNC_ARG rngまたはdsaがnullの場合。
+    \return MEMORY_E バッファ用のメモリを割り当てられませんでした。
+    \return MP_INIT_E mp_intの初期化エラー
+
+    \param rng WC_RNG構造体へのポインタ。
+    \param dsa DsaKey構造体へのポインタ。
+
     _Example_
     \code
     WC_RNG rng;
@@ -202,9 +249,10 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
     wc_InitDsa(&dsa);
     if(wc_MakeDsaKey(&rng, &dsa) != 0)
     {
-        // Error creating key
+        // 鍵作成エラー
     }
     \endcode
+
     \sa wc_InitDsaKey
     \sa wc_FreeDsaKey
     \sa wc_DsaSign
@@ -213,12 +261,17 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
 
 /*!
     \ingroup DSA
-    \brief  FIPS 186-4は、modulus_size値の有効な値を定義します（1024,160）（2048,256）（3072,256）
-    \return 0  成功
-    \return BAD_FUNC_ARG  RNGまたはDSAはNULLまたはMODULUS_SIZEが無効です。
-    \return MEMORY_E  メモリを割り当てようとするエラーが発生しました。
-    \param rng  WolfCrypt RNGへのポインタ。
-    \param modulus_size  1024,2048、または3072は有効な値です。
+
+    \brief FIPS 186-4は、modulus_size値として(1024, 160) (2048, 256) (3072, 256)を有効と定義しています
+
+    \return 0 成功
+    \return BAD_FUNC_ARG rngまたはdsaがnullまたはmodulus_sizeが無効な場合。
+    \return MEMORY_E メモリ割り当て試行エラー。
+
+    \param rng wolfCrypt rngへのポインタ。
+    \param modulus_size 1024、2048、または3072が有効な値です。
+    \param dsa DsaKey構造体へのポインタ。
+
     _Example_
     \code
     DsaKey key;
@@ -227,9 +280,10 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
     wc_InitRng(&rng);
     if(wc_MakeDsaParameters(&rng, 1024, &genKey) != 0)
     {
-        // Handle error
+        // エラーを処理
     }
     \endcode
+
     \sa wc_MakeDsaKey
     \sa wc_DsaKeyToDer
     \sa wc_InitDsaKey
