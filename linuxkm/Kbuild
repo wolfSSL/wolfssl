@@ -308,6 +308,7 @@ endif
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
+EXPORT_SYMBOL := EXPORT_SYMBOL_NS_GPL
 $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS) $(obj)/linuxkm/module_hooks.o
 	@$(RENAME_PIE_TEXT_AND_DATA_SECTIONS)
 	@cp $< $@ || exit $$?
@@ -321,9 +322,9 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 		$(AWK) '/^ *[0-9]+: / {
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {
-		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", '"$$ns"');";
+		    print "$(EXPORT_SYMBOL)(" $$8 ", '"$$ns"');";
 		  }
 		}' >> $@ || exit $$?
-	echo -e "#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, $${ns});\n#endif" >> $@
+	echo -e "#ifndef NO_CRYPT_TEST\n$(EXPORT_SYMBOL)(wolfcrypt_test, $${ns});\n#endif" >> $@
 
 clean-files := linuxkm src wolfcrypt
