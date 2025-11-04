@@ -14190,7 +14190,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
         chklen--;
     }
 
-    ret = CheckHostName(dCert, (char *)chk, chklen, flags);
+    ret = CheckHostName(dCert, (char *)chk, chklen, flags, 0);
 
 out:
 

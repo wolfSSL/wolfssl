@@ -2210,7 +2210,7 @@ WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len,
 #if !defined(NO_CERTS) && !defined(NO_ASN)
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain,
                                     word32 domainLen, int* checkCN,
-                                    unsigned int flags);
+                                    unsigned int flags, byte isIP);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
@@ -6388,7 +6388,8 @@ WOLFSSL_TEST_VIS   void wolfSSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
     #ifndef NO_ASN
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
-                                    size_t domainNameLen, unsigned int flags);
+                                    size_t domainNameLen, unsigned int flags,
+                                    byte isIP);
     #endif
 #endif
 
