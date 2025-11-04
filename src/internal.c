@@ -11213,6 +11213,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         return BUFFER_E;
 #endif
     tmp = (byte*)XMALLOC(newSz, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    XMEMSET(tmp, 0, newSz);
     newSz -= align;
     WOLFSSL_MSG("growing output buffer");
 
@@ -23425,6 +23426,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
 
     XMEMSET(seq, 0, SEQ_SZ);
+    XMEMSET(result, 0, WC_MAX_DIGEST_SIZE);
     conLen[0] = (byte)content;
     c16toa((word16)sz, &conLen[ENUM_LEN]);
     WriteSEQ(ssl, epochOrder, seq);
