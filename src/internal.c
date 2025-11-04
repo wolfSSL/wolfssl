@@ -23523,7 +23523,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
         wc_Md5Free(&md5);
     }
-    else {
+    else if (ssl->specs.mac_algorithm == sha_mac) {
         ret =  wc_InitSha_ex(&sha, ssl->heap, ssl->devId);
         if (ret != 0)
             return ret;
@@ -23572,6 +23572,10 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
         }
 
         wc_ShaFree(&sha);
+    }
+    else {
+        WOLFSSL_ERROR_VERBOSE(VERIFY_MAC_ERROR);
+        return VERIFY_MAC_ERROR;
     }
     return 0;
 }
