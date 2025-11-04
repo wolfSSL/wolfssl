@@ -472,7 +472,8 @@
     #define WOLFSSL_MUTEX_INITIALIZER_CLAUSE(lockname) /* null expansion */
 #endif
 
-#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED) || \
+    (defined(WC_MUTEX_OPS_INLINE) && !defined(WC_RWLOCK_OPS_INLINE))
     typedef wolfSSL_Mutex wolfSSL_RwLock;
 #endif
 
@@ -829,17 +830,21 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref,
 #endif /* !defined(NO_PK_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX) */
 
 /* Mutex functions */
-WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex* m);
+#ifndef WC_MUTEX_OPS_INLINE
+    WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex* m);
+    WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
+    WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
+    WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
+#endif
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
-WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex* m);
-WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex* m);
-WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex* m);
-/* RwLock functions. Fallback to Mutex when not implemented explicitly. */
-WOLFSSL_API int wc_InitRwLock(wolfSSL_RwLock* m);
-WOLFSSL_API int wc_FreeRwLock(wolfSSL_RwLock* m);
-WOLFSSL_API int wc_LockRwLock_Wr(wolfSSL_RwLock* m);
-WOLFSSL_API int wc_LockRwLock_Rd(wolfSSL_RwLock* m);
-WOLFSSL_API int wc_UnLockRwLock(wolfSSL_RwLock* m);
+#ifndef WC_RWLOCK_OPS_INLINE
+    /* RwLock functions. Fallback to Mutex when not implemented explicitly. */
+    WOLFSSL_API int wc_InitRwLock(wolfSSL_RwLock* m);
+    WOLFSSL_API int wc_FreeRwLock(wolfSSL_RwLock* m);
+    WOLFSSL_API int wc_LockRwLock_Wr(wolfSSL_RwLock* m);
+    WOLFSSL_API int wc_LockRwLock_Rd(wolfSSL_RwLock* m);
+    WOLFSSL_API int wc_UnLockRwLock(wolfSSL_RwLock* m);
+#endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 /* dynamically set which mutex to use. unlock / lock is controlled by flag */
 typedef void (mutex_cb)(int flag, int type, const char* file, int line);

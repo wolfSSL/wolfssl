@@ -1880,7 +1880,12 @@ int wolfSSL_HwPkMutexUnLock(void)
         return compat_mutex_cb;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
-#ifdef SINGLE_THREADED
+
+#if defined(WC_MUTEX_OPS_INLINE)
+
+    /* defined in headers */
+
+#elif defined(SINGLE_THREADED)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -2423,10 +2428,6 @@ int wolfSSL_HwPkMutexUnLock(void)
         else
             return BAD_MUTEX_E;
     }
-#elif defined(WOLFSSL_LINUXKM)
-
-    /* defined as inlines in linuxkm/linuxkm_wc_port.h */
-
 #elif defined(WOLFSSL_VXWORKS)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
@@ -3472,7 +3473,8 @@ int wolfSSL_HwPkMutexUnLock(void)
     #warning No mutex handling defined
 
 #endif
-#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED)
+#if !defined(WOLFSSL_USE_RWLOCK) || defined(SINGLE_THREADED) || \
+    (defined(WC_MUTEX_OPS_INLINE) && !defined(WC_RWLOCK_OPS_INLINE))
     int wc_InitRwLock(wolfSSL_RwLock* m)
     {
         return wc_InitMutex(m);

@@ -1368,6 +1368,8 @@
     #endif /* HAVE_FIPS */
 
     #ifdef WOLFSSL_LINUXKM_USE_MUTEXES
+        #define WC_MUTEX_OPS_INLINE
+
         #ifdef LINUXKM_LKCAPI_REGISTER
             /* must use spin locks when registering implementations with the
              * kernel, because mutexes are forbidden when calling with nonzero
@@ -1412,6 +1414,8 @@
             return 0;
         }
     #else
+        #define WC_MUTEX_OPS_INLINE
+
         /* if BUILDING_WOLFSSL, spinlock.h will have already been included
          * recursively above, with the bevy of warnings suppressed, and the
          * below include will be a redundant no-op.
