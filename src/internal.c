@@ -37869,7 +37869,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-
     /* handle processing of client_hello (1) */
     int DoClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                              word32 helloSz)
@@ -38310,6 +38309,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* auto populate extensions supported unless user defined */
                 if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
                     goto out;
+#else
+                word64 extensions_seen = 0u;
 #endif
 
                 if ((i - begin) + OPAQUE16_LEN > helloSz) {
@@ -38362,6 +38363,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     i += OPAQUE16_LEN;
                     ato16(&input[i], &extSz);
                     i += OPAQUE16_LEN;
+
+                    if (extId < (sizeof(extensions_seen) * 8u))
+                    {
+                        word64 mask = 1u << extId;
+                        if ((extensions_seen & mask) != 0u)
+                        {
+                            WOLFSSL_MSG("DoClientHello: duplicate extension found");
+                            ret = DUPLICATE_TLS_EXT_E;
+                            goto out;
+                        }
+                        extensions_seen |= mask;
+                    }
 
                     if (OPAQUE16_LEN + OPAQUE16_LEN + extSz > totalExtSz) {
                         ret = BUFFER_ERROR;

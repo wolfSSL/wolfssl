@@ -12977,10 +12977,10 @@ static int test_tls_bad_legacy_version(void)
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_ALLOW_BAD_TLS_LEGACY_VERSION)
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
-    /* This is exactly the same as the buffer in test_tls_ext_duplicate() except
-     * the 11th byte is set to 0x04. That change means the legacy protocol
-     * version field is invalid. That will be caught before the dulplicate
-     * signature algorithms extension. */
+    /* This buffer (prior to Extensions) is exactly the same as the buffer in
+     * test_tls_ext_duplicate() except the 11th byte is set to 0x04. That
+     * change means the legacy protocol version field is invalid. That will be
+     * caught before the dulplicate signature algorithms extension. */
     const unsigned char clientHelloBadLegacyVersion[] = {
         0x16, 0x03, 0x03, 0x00, 0x6a, 0x01, 0x00, 0x00,
         0x66, 0x03, 0x04, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
@@ -12993,9 +12993,9 @@ static int test_tls_bad_legacy_version(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x13, 0x01,
         0x00, 0x9e, 0x01, 0x00,
-        /* Extensions - duplicate signature algorithms. */
+        /* Extensions */
                                 0x00, 0x19, 0x00, 0x0d,
-        0x00, 0x04, 0x00, 0x02, 0x04, 0x01, 0x00, 0x0d,
+        0x00, 0x04, 0x00, 0x02, 0x04, 0x01, 0x00, 0x15,
         0x00, 0x04, 0x00, 0x02, 0x04, 0x01,
         /* Supported Versions extension for TLS 1.3. */
                                             0x00, 0x2b,
