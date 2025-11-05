@@ -2569,6 +2569,7 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
                 return ret;
             /* fall-through when unavailable */
         }
+        ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
@@ -2709,6 +2710,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
             return ret;
         /* fall-through when unavailable */
     }
+    ret = 0; /* Reset ret to 0 to avoid returning the callback error code */
 #endif /* WOLF_CRYPTO_CB && WOLF_CRYPTO_CB_COPY */
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
