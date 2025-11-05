@@ -18,3 +18,4 @@
 #include "wolfssl/wolfcrypt/signature.h"
 #include "wolfssl/wolfcrypt/logging.h"
 #include "wolfssl/wolfcrypt/aes.h"
+#include "wolfssl/wolfcrypt/pwdbased.h"

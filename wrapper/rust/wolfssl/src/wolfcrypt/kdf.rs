@@ -38,6 +38,231 @@ pub const SRTCP_LABEL_SALT: u8 = ws::WC_SRTCP_LABEL_SALT as u8;
 pub const SRTP_LABEL_HDR_ENCRYPTION: u8 = ws::WC_SRTP_LABEL_HDR_ENCRYPTION as u8;
 pub const SRTP_LABEL_HDR_SALT: u8 = ws::WC_SRTP_LABEL_HDR_SALT as u8;
 
+/// Implement Password Based Key Derivation Function 2 (PBKDF2) converting an
+/// input password with a concatenated salt into a more secure key which is
+/// written to the `out` buffer.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `iterations`: Number of times to process the hash.
+/// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+/// * `out`: Output buffer in which to store the generated key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::kdf::pbkdf2;
+/// use wolfssl::wolfcrypt::hmac::HMAC;
+/// let password = b"passwordpassword";
+/// let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
+/// let iterations = 2048;
+/// let expected_key = [
+///     0x43u8, 0x6d, 0xb5, 0xe8, 0xd0, 0xfb, 0x3f, 0x35, 0x42, 0x48, 0x39, 0xbc,
+///     0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
+/// ];
+/// let mut keyout = [0u8; 24];
+/// pbkdf2(password, &salt, iterations, HMAC::TYPE_SHA256, &mut keyout).expect("Error with pbkdf2()");
+/// assert_eq!(keyout, expected_key);
+/// ```
+pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = password.len() as i32;
+    let salt_size = salt.len() as i32;
+    let out_size = out.len() as i32;
+    let rc = unsafe {
+        ws::wc_PBKDF2(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, iterations, out_size, typ)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
+/// Implement Password Based Key Derivation Function 2 (PBKDF2) converting an
+/// input password with a concatenated salt into a more secure key which is
+/// written to the `out` buffer.
+/// This version allows optional heap hint and device ID parameters.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `iterations`: Number of times to process the hash.
+/// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+/// * `heap`: Optional heap hint.
+/// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+/// * `out`: Output buffer in which to store the generated key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::kdf::pbkdf2_ex;
+/// use wolfssl::wolfcrypt::hmac::HMAC;
+/// let password = b"passwordpassword";
+/// let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
+/// let iterations = 2048;
+/// let expected_key = [
+///     0x43u8, 0x6d, 0xb5, 0xe8, 0xd0, 0xfb, 0x3f, 0x35, 0x42, 0x48, 0x39, 0xbc,
+///     0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
+/// ];
+/// let mut keyout = [0u8; 24];
+/// pbkdf2_ex(password, &salt, iterations, HMAC::TYPE_SHA256, None, None, &mut keyout).expect("Error with pbkdf2()");
+/// assert_eq!(keyout, expected_key);
+/// ```
+pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = password.len() as i32;
+    let salt_size = salt.len() as i32;
+    let out_size = out.len() as i32;
+    let heap = match heap {
+        Some(heap) => heap,
+        None => core::ptr::null_mut(),
+    };
+    let dev_id = match dev_id {
+        Some(dev_id) => dev_id,
+        None => ws::INVALID_DEVID,
+    };
+    let rc = unsafe {
+        ws::wc_PBKDF2_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, iterations, out_size, typ, heap, dev_id)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
+/// This function implements the Password Based Key Derivation Function
+/// (PBKDF) described in RFC 7292 Appendix B. This function converts an input
+/// password with a concatenated salt into a more secure key, which it stores
+/// in `out`. It allows the user to select any of the supported HMAC hash
+/// functions, including: WC_MD5, WC_SHA, WC_SHA256, WC_SHA384, WC_SHA512,
+/// WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or WC_SHA3_512.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `iterations`: Number of times to process the hash.
+/// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+/// * `id`: Byte identifier indicating the purpose of key generation. It is
+///   used to diversify the key output, and should be assigned as follows:
+///   ID=1: pseudorandom bits are to be used as key material for performing
+///   encryption or decryption. ID=2: pseudorandom bits are to be used an IV
+///   (Initial Value) for encryption or decryption.  ID=3: pseudorandom bits
+///   are to be used as an integrity key for MACing.
+/// * `out`: Output buffer in which to store the generated key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf;
+/// use wolfssl::wolfcrypt::hmac::HMAC;
+/// let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
+/// let salt = [0x0au8, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f];
+/// let expected_key = [
+///     0x27u8, 0xE9, 0x0D, 0x7E, 0xD5, 0xA1, 0xC4, 0x11,
+///     0xBA, 0x87, 0x8B, 0xC0, 0x90, 0xF5, 0xCE, 0xBE,
+///     0x5E, 0x9D, 0x5F, 0xE3, 0xD6, 0x2B, 0x73, 0xAA
+/// ];
+/// let iterations = 1;
+/// let mut keyout = [0u8; 24];
+/// pkcs12_pbkdf(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, &mut keyout).expect("Error with pkcs12_pbkdf()");
+/// assert_eq!(keyout, expected_key);
+/// ```
+pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = password.len() as i32;
+    let salt_size = salt.len() as i32;
+    let out_size = out.len() as i32;
+    let rc = unsafe {
+        ws::wc_PKCS12_PBKDF(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, iterations, out_size, typ, id)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
+/// This function implements the Password Based Key Derivation Function
+/// (PBKDF) described in RFC 7292 Appendix B. This function converts an input
+/// password with a concatenated salt into a more secure key, which it stores
+/// in `out`. It allows the user to select any of the supported HMAC hash
+/// functions, including: WC_MD5, WC_SHA, WC_SHA256, WC_SHA384, WC_SHA512,
+/// WC_SHA3_224, WC_SHA3_256, WC_SHA3_384 or WC_SHA3_512.
+/// This version allows an optional heap hint parameter.
+///
+/// # Parameters
+///
+/// * `password`: Password to use for key derivation.
+/// * `salt`: Salt value to use for key derivation.
+/// * `iterations`: Number of times to process the hash.
+/// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+/// * `id`: Byte identifier indicating the purpose of key generation. It is
+///   used to diversify the key output, and should be assigned as follows:
+///   ID=1: pseudorandom bits are to be used as key material for performing
+///   encryption or decryption. ID=2: pseudorandom bits are to be used an IV
+///   (Initial Value) for encryption or decryption.  ID=3: pseudorandom bits
+///   are to be used as an integrity key for MACing.
+/// * `heap`: Optional heap hint.
+/// * `out`: Output buffer in which to store the generated key.
+///
+/// # Returns
+///
+/// Returns either Ok(()) on success or Err(e) containing the wolfSSL
+/// library error code value.
+///
+/// # Example
+///
+/// ```rust
+/// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf_ex;
+/// use wolfssl::wolfcrypt::hmac::HMAC;
+/// let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
+/// let salt = [0x0au8, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f];
+/// let expected_key = [
+///     0x27u8, 0xE9, 0x0D, 0x7E, 0xD5, 0xA1, 0xC4, 0x11,
+///     0xBA, 0x87, 0x8B, 0xC0, 0x90, 0xF5, 0xCE, 0xBE,
+///     0x5E, 0x9D, 0x5F, 0xE3, 0xD6, 0x2B, 0x73, 0xAA
+/// ];
+/// let iterations = 1;
+/// let mut keyout = [0u8; 24];
+/// pkcs12_pbkdf_ex(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, None, &mut keyout).expect("Error with pkcs12_pbkdf_ex()");
+/// assert_eq!(keyout, expected_key);
+/// ```
+pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, heap: Option<*mut std::os::raw::c_void>, out: &mut [u8]) -> Result<(), i32> {
+    let password_size = password.len() as i32;
+    let salt_size = salt.len() as i32;
+    let out_size = out.len() as i32;
+    let heap = match heap {
+        Some(heap) => heap,
+        None => core::ptr::null_mut(),
+    };
+    let rc = unsafe {
+        ws::wc_PKCS12_PBKDF_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
+            salt.as_ptr(), salt_size, iterations, out_size, typ, id, heap)
+    };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(())
+}
+
 /// Perform RFC 5869 HKDF-Extract operation for TLS v1.3 key derivation.
 ///
 /// # Parameters

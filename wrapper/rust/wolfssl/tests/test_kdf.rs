@@ -3,6 +3,45 @@ use wolfssl::wolfcrypt::kdf::*;
 use wolfssl::wolfcrypt::sha::SHA256;
 
 #[test]
+fn test_pbkdf2() {
+    let password = b"passwordpassword";
+    let salt = [0x78u8, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06];
+    let iterations = 2048;
+    let expected_key = [
+        0x43u8, 0x6d, 0xb5, 0xe8, 0xd0, 0xfb, 0x3f, 0x35, 0x42, 0x48, 0x39, 0xbc,
+        0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
+    ];
+
+    let mut keyout = [0u8; 24];
+    pbkdf2(password, &salt, iterations, HMAC::TYPE_SHA256, &mut keyout).expect("Error with pbkdf2()");
+    assert_eq!(keyout, expected_key);
+
+    let mut keyout = [0u8; 24];
+    pbkdf2_ex(password, &salt, iterations, HMAC::TYPE_SHA256, None, None, &mut keyout).expect("Error with pbkdf2()");
+    assert_eq!(keyout, expected_key);
+}
+
+#[test]
+fn test_pkcs12_pbkdf() {
+    let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
+    let salt = [0x0au8, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f];
+    let expected_key = [
+        0x27u8, 0xE9, 0x0D, 0x7E, 0xD5, 0xA1, 0xC4, 0x11,
+        0xBA, 0x87, 0x8B, 0xC0, 0x90, 0xF5, 0xCE, 0xBE,
+        0x5E, 0x9D, 0x5F, 0xE3, 0xD6, 0x2B, 0x73, 0xAA
+    ];
+    let iterations = 1;
+
+    let mut keyout = [0u8; 24];
+    pkcs12_pbkdf(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, &mut keyout).expect("Error with pkcs12_pbkdf()");
+    assert_eq!(keyout, expected_key);
+
+    let mut keyout = [0u8; 24];
+    pkcs12_pbkdf_ex(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, None, &mut keyout).expect("Error with pkcs12_pbkdf_ex()");
+    assert_eq!(keyout, expected_key);
+}
+
+#[test]
 fn test_tls13_hkdf_extract_expand() {
     let hash_hello1 = [
         0x63u8, 0x83, 0x58, 0xab, 0x36, 0xcd, 0x0c, 0xf3,
