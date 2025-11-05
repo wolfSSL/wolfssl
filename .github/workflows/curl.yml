@@ -52,7 +52,7 @@ jobs:
     - name: Install test dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install nghttp2 libpsl5 libpsl-dev python3-impacket
+        sudo apt-get install nghttp2 libpsl5 libpsl-dev python3-impacket apache2 apache2-dev
 
     - name: Download lib
       uses: actions/download-artifact@v4
@@ -68,9 +68,9 @@ jobs:
         repository: curl/curl
         path: curl
         ref: ${{ matrix.curl_ref }}
-        configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+        configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-test-httpd=yes
         check: false
 
     - name: Test curl
       working-directory: curl
-      run: make -j $(nproc) test-ci
+      run: make -j $(nproc) test-nonflaky
