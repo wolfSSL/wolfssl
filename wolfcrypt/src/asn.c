@@ -34201,7 +34201,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         cert->skidSz = KEYID_SIZE;
     #endif
     }
-    else if (kid_type == AKID_TYPE) {
+    else {
         int hashId = HashIdAlg((word32)cert->sigType);
         ret = CalcHashId_ex(buf, (word32)bufferSz, cert->akid, hashId);
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
@@ -34210,8 +34210,6 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         cert->akidSz = KEYID_SIZE;
     #endif
     }
-    else
-        ret = BAD_FUNC_ARG;
 
     XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
