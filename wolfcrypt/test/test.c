@@ -15230,7 +15230,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
     #ifdef HAVE_RENESAS_SYNC
         const byte *key = (byte*)guser_PKCbInfo.wrapped_key_aes128;
     #else
-        /* padded to 16-byye */
+        /* padded to 16-bytes */
         WOLFSSL_SMALL_STACK_STATIC const byte key[] = "0123456789abcdef   ";
     #endif
         /* padded to 16-bytes */
