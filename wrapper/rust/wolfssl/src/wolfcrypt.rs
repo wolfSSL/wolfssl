@@ -23,6 +23,7 @@ pub mod cmac;
 pub mod dh;
 pub mod ecc;
 pub mod ed25519;
+pub mod ed448;
 pub mod hkdf;
 pub mod hmac;
 pub mod kdf;

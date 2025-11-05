@@ -969,7 +969,7 @@ void wc_ed448_free(ed448_key* key)
  *         ECC_BAD_ARG_E when outLen is less than ED448_PUB_KEY_SIZE,
  *         0 otherwise.
  */
-int wc_ed448_export_public(ed448_key* key, byte* out, word32* outLen)
+int wc_ed448_export_public(const ed448_key* key, byte* out, word32* outLen)
 {
     int ret = 0;
 
@@ -1212,7 +1212,7 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
  *         ECC_BAD_ARG_E when outLen is less than ED448_KEY_SIZE,
  *         0 otherwise.
  */
-int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen)
+int wc_ed448_export_private_only(const ed448_key* key, byte* out, word32* outLen)
 {
     int ret = 0;
 
@@ -1244,7 +1244,7 @@ int wc_ed448_export_private_only(ed448_key* key, byte* out, word32* outLen)
  *         BUFFER_E when outLen is less than ED448_PRV_KEY_SIZE,
  *         0 otherwise.
  */
-int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen)
+int wc_ed448_export_private(const ed448_key* key, byte* out, word32* outLen)
 {
     int ret = 0;
 
@@ -1279,7 +1279,7 @@ int wc_ed448_export_private(ed448_key* key, byte* out, word32* outLen)
  *         than ED448_PUB_KEY_SIZE,
  *         0 otherwise.
  */
-int wc_ed448_export_key(ed448_key* key, byte* priv, word32 *privSz,
+int wc_ed448_export_key(const ed448_key* key, byte* priv, word32 *privSz,
                         byte* pub, word32 *pubSz)
 {
     int ret = 0;
@@ -1392,7 +1392,7 @@ int wc_ed448_check_key(ed448_key* key)
  * returns BAD_FUNC_ARG when key is NULL,
  *         ED448_KEY_SIZE otherwise.
  */
-int wc_ed448_size(ed448_key* key)
+int wc_ed448_size(const ed448_key* key)
 {
     int ret = ED448_KEY_SIZE;
 
@@ -1409,7 +1409,7 @@ int wc_ed448_size(ed448_key* key)
  * returns BAD_FUNC_ARG when key is NULL,
  *         ED448_PRV_KEY_SIZE otherwise.
  */
-int wc_ed448_priv_size(ed448_key* key)
+int wc_ed448_priv_size(const ed448_key* key)
 {
     int ret = ED448_PRV_KEY_SIZE;
 
@@ -1426,7 +1426,7 @@ int wc_ed448_priv_size(ed448_key* key)
  * returns BAD_FUNC_ARG when key is NULL,
  *         ED448_PUB_KEY_SIZE otherwise.
  */
-int wc_ed448_pub_size(ed448_key* key)
+int wc_ed448_pub_size(const ed448_key* key)
 {
     int ret = ED448_PUB_KEY_SIZE;
 
@@ -1443,7 +1443,7 @@ int wc_ed448_pub_size(ed448_key* key)
  * returns BAD_FUNC_ARG when key is NULL,
  *         ED448_SIG_SIZE otherwise.
  */
-int wc_ed448_sig_size(ed448_key* key)
+int wc_ed448_sig_size(const ed448_key* key)
 {
     int ret = ED448_SIG_SIZE;
 
