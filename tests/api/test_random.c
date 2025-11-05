@@ -114,7 +114,7 @@ int test_wc_RNG_GenerateBlock(void)
     ExpectIntEQ(wc_RNG_GenerateBlock(NULL, key , sizeof(key)),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    for (i = 0; i <= (int)sizeof(key); i++) {
+    for (i = 0; i < (int)sizeof(key); i++) {
         ExpectIntEQ(wc_RNG_GenerateBlock(&rng, key + i, sizeof(key) - i), 0);
     }
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
