@@ -30,6 +30,9 @@ CCFLAGS += -O2 -Wall
 # For IMX6Q devices
 CCFLAGS += -DWOLFSSL_CAAM_IMX6Q
 
+# wolfSSL header included for version number
+CCFLAGS += -DWOLFSSL_CUSTOM_CONFIG
+
 #Compiler flags for build profiles
 CCFLAGS_release += -O2
 CCFLAGS_debug += -g -O0 -fno-builtin
