@@ -99,11 +99,6 @@ endif
 
 ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
-$(obj)/libwolfssl.mod.o: ccflags-y :=
-$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
-
-$(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
-
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # note, we need -fno-stack-protector to avoid references to
     # "__stack_chk_fail" from the wolfCrypt container.
@@ -113,27 +108,31 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     KASAN_SANITIZE := n
     UBSAN_SANITIZE := n
     ifeq "$(KERNEL_ARCH_X86)" "yes"
-        PIE_FLAGS += -mcmodel=small
-        ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
-            PIE_FLAGS += -mfunction-return=thunk-inline
-        else
-            PIE_FLAGS += -mfunction-return=keep
-        endif
-        ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
-            PIE_FLAGS += -mindirect-branch=thunk-inline
-        else
-            PIE_FLAGS += -mindirect-branch=keep
-        endif
+	PIE_FLAGS += -mcmodel=small
+
+	# eliminate external references to __x86_return_thunk and
+	# __x86_indirect_thunk_foo implementations.  _all_ references must be
+	# eliminated, not just those in PIE objects, otherwise some kernels will
+	# false-positively complain about unpatched thunks.
+	ifeq "$(CONFIG_MITIGATION_RETPOLINE)" "y"
+	    PIE_SUPPORT_FLAGS += -mfunction-return=thunk-inline
+	else
+	    PIE_SUPPORT_FLAGS += -mfunction-return=keep
+	endif
+	ifeq "$(CONFIG_MITIGATION_RETHUNK)" "y"
+	    PIE_SUPPORT_FLAGS +=  -mindirect-branch=thunk-inline
+	else
+	    PIE_SUPPORT_FLAGS += -mindirect-branch=keep
+	endif
+
+	OBJECT_FILES_NON_STANDARD := y
     endif
     ifeq "$(KERNEL_ARCH)" "mips"
         PIE_FLAGS += -mabicalls
     endif
-    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_SUPPORT_FLAGS) $(PIE_FLAGS)
+    ccflags-y += $(PIE_SUPPORT_FLAGS)
+    $(WOLFCRYPT_PIE_FILES): ccflags-y += $(PIE_FLAGS)
     $(WOLFCRYPT_PIE_FILES): ccflags-remove-y += -pg
-    $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
-    # using inline retpolines leads to "unannotated intra-function call"
-    # warnings from objtool without this:
-    $(WOLFCRYPT_PIE_FILES): OBJECT_FILES_NON_STANDARD := y
     ifdef FORCE_GLOBAL_OBJTOOL_OFF
         undefine CONFIG_OBJTOOL
     endif
@@ -143,35 +142,38 @@ ifdef KERNEL_EXTRA_CFLAGS_REMOVE
     ccflags-remove-y += KERNEL_EXTRA_CFLAGS_REMOVE
 endif
 
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
-$(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
+$(obj)/libwolfssl.mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)
+$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
+$(obj)/wolfcrypt/src/aes.o: ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS) $(PIE_FLAGS) $(PIE_SUPPORT_FLAGS)
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y := $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
+$(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
 # vectorized implementations that are kernel-safe are listed here.
 # these are known kernel-compatible, but need the vector instructions enabled in the assembler,
 # and most of them still irritate objtool.
-$(obj)/wolfcrypt/src/aes_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/aes_xts_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sp_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha256_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha512_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/sha3_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha3_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sha3_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/chacha_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_mlkem_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mlkem_asm.o: OBJECT_FILES_NON_STANDARD := y
-$(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/wc_mldsa_asm.o: asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/wc_mldsa_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 ifndef READELF
