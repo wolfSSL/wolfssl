@@ -13396,8 +13396,12 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = CLIENT_HELLO_SENT;
             WOLFSSL_MSG("TLSv13 connect state: CLIENT_HELLO_SENT");
+            FALL_THROUGH;
+
+        case CLIENT_HELLO_SENT:
     #ifdef WOLFSSL_EARLY_DATA
-            if (ssl->earlyData != no_early_data) {
+            if (ssl->earlyData != no_early_data &&
+                ssl->options.handShakeState != CLIENT_HELLO_COMPLETE) {
         #if defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
                 if (!ssl->options.dtls && ssl->options.tls13MiddleBoxCompat) {
                     if ((ssl->error = SendChangeCipher(ssl)) != 0) {
@@ -13411,9 +13415,6 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             return WOLFSSL_SUCCESS;
             }
     #endif
-            FALL_THROUGH;
-
-        case CLIENT_HELLO_SENT:
             /* Get the response/s from the server. */
             while (ssl->options.serverState <
                     SERVER_HELLOVERIFYREQUEST_COMPLETE) {
@@ -14736,15 +14737,16 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             ssl->options.acceptState = TLS13_ACCEPT_FINISHED_SENT;
             WOLFSSL_MSG("accept state ACCEPT_FINISHED_SENT");
+            FALL_THROUGH;
+
+        case TLS13_ACCEPT_FINISHED_SENT:
 #ifdef WOLFSSL_EARLY_DATA
-            if (ssl->earlyData != no_early_data) {
+            if (ssl->earlyData != no_early_data &&
+                    ssl->options.handShakeState != SERVER_FINISHED_COMPLETE) {
                 ssl->options.handShakeState = SERVER_FINISHED_COMPLETE;
                 return WOLFSSL_SUCCESS;
             }
 #endif
-            FALL_THROUGH;
-
-        case TLS13_ACCEPT_FINISHED_SENT :
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
             if (!ssl->options.verifyPeer && !ssl->options.noTicketTls13 &&
