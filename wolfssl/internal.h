@@ -5091,6 +5091,7 @@ struct Options {
 #endif
     word16            hrrSentKeyShare:1;  /* HRR sent with key share */
 #endif
+    word16            returnOnGoodCh:1;
     word16            disableRead:1;
 
 #ifdef WOLFSSL_EARLY_DATA

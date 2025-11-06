@@ -14596,6 +14596,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_ACCEPT_SECOND_REPLY_DONE :
+            if (ssl->options.returnOnGoodCh) {
+                /* Higher level in stack wants us to return. Simulate a
+                 * WANT_WRITE to accomplish this. */
+                ssl->error = WANT_WRITE;
+                return WOLFSSL_FATAL_ERROR;
+            }
 
             if ((ssl->error = SendTls13ServerHello(ssl, server_hello)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
