@@ -4777,18 +4777,17 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
     #endif
 
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
         if (checkKeyLen) {
-            if (keylen != 16 && keylen != 24 && keylen != 32) {
-                return BAD_FUNC_ARG;
-            }
-        #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
             /* Check key length only when AES_MAX_KEY_SIZE doesn't allow
              * all key sizes. Otherwise this condition is never true. */
             if (keylen > (AES_MAX_KEY_SIZE / 8)) {
                 return BAD_FUNC_ARG;
             }
-        #endif
         }
+    #else
+        (void) checkKeyLen;
+    #endif
 
     #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
         defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS) || \
