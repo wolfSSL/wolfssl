@@ -8561,10 +8561,11 @@ int sp_rshb(const sp_int* a, int n, sp_int* r)
         }
         else {
             /* Move the bits down starting at least significant digit. */
-            for (j = 0; i < a->used - 1; i++, j++)
-                r->dp[j] = (a->dp[i] >> n) | (a->dp[i+1] << (SP_WORD_SIZE - n));
+            for (j = 0; j < (sp_size_t)(a->used - 1 - i); j++)
+                r->dp[j] = (a->dp[j+i] >> n) |
+                    (a->dp[j+i+1] << (SP_WORD_SIZE - n));
             /* Most significant digit has no higher digit to pull from. */
-            r->dp[j] = a->dp[i] >> n;
+            r->dp[j] = a->dp[j+i] >> n;
             /* Set the count of used digits. */
             r->used = (sp_size_t)(j + (r->dp[j] > 0));
         }

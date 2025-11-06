@@ -4207,8 +4207,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #ifdef FORCE_FAILURE_GETRANDOM
             /* don't fallback to /dev/urandom */
             return ret;
-        #else
-            /* reset error and fallback to using /dev/urandom */
+        #elif !defined(NO_FILESYSTEM)
+            /* reset error and fallback to using /dev/urandom if filesystem
+             * support is compiled in */
             ret = 0;
         #endif
         }
@@ -4255,6 +4256,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         close(os->fd);
 #else
+        (void)output;
+        (void)sz;
         ret = NOT_COMPILED_IN;
 #endif /* NO_FILESYSTEM */
 

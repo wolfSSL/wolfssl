@@ -2950,7 +2950,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* HAVE_RPK */
                 break;
             case 268:
+#ifndef NO_CERTS
                 fileFormat = WOLFSSL_FILETYPE_ASN1;
+#endif
                 break;
             case 269:
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)

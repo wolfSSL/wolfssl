@@ -20118,7 +20118,7 @@ static int test_wolfSSL_PKCS7_certs(void)
         while (EXPECT_SUCCESS() && (sk_X509_INFO_num(info_sk) > 0)) {
             X509_INFO* info = NULL;
             ExpectNotNull(info = sk_X509_INFO_shift(info_sk));
-            if (info != NULL) {
+            if (EXPECT_SUCCESS() && info != NULL) {
                 ExpectIntGT(sk_X509_push(sk, info->x509), 0);
                 info->x509 = NULL;
             }
