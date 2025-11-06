@@ -872,6 +872,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 /* Store size of saved address. Locking handled internally. */
                 if (wolfSSL_dtls_set_peer(ssl, peer, peerSz) != WOLFSSL_SUCCESS)
                     return WOLFSSL_CBIO_ERR_GENERAL;
+                dtlsCtx->userSet = 0;
             }
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
             else {
