@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
+#include <wolfssl/wolfio.h>
 #ifdef HAVE_CRL
     #include <wolfssl/crl.h>
 #endif
@@ -2730,6 +2731,7 @@ struct WOLFSSL_SOCKADDR {
     void*        sa; /* pointer to the sockaddr_in or sockaddr_in6 */
 };
 
+#ifdef WOLFSSL_DTLS
 typedef struct WOLFSSL_DTLS_CTX {
 #ifdef WOLFSSL_RW_THREADED
     /* Protect peer access after the handshake */
@@ -2743,6 +2745,8 @@ typedef struct WOLFSSL_DTLS_CTX {
 #endif
     int rfd;
     int wfd;
+    WolfSSLRecvFrom recvfrom;
+    WolfSSLSento sendto;
     byte userSet:1;
     byte connected:1; /* When set indicates rfd and wfd sockets are
                        * connected (connect() and bind() both called).
@@ -2752,6 +2756,7 @@ typedef struct WOLFSSL_DTLS_CTX {
     byte processingPendingRecord:1;
 #endif
 } WOLFSSL_DTLS_CTX;
+#endif
 
 
 typedef struct WOLFSSL_DTLS_PEERSEQ {
