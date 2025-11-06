@@ -504,62 +504,70 @@ void fe448_init(void)
  */
 void fe448_from_bytes(sword64* r, const unsigned char* b)
 {
-    r[ 0] =  ((sword64) (b[ 0]) <<  0)
-          |  ((sword64) (b[ 1]) <<  8)
-          |  ((sword64) (b[ 2]) << 16)
-          |  ((sword64) (b[ 3]) << 24)
-          |  ((sword64) (b[ 4]) << 32)
-          |  ((sword64) (b[ 5]) << 40)
-          |  ((sword64) (b[ 6]) << 48);
-    r[ 1] =  ((sword64) (b[ 7]) <<  0)
-          |  ((sword64) (b[ 8]) <<  8)
-          |  ((sword64) (b[ 9]) << 16)
-          |  ((sword64) (b[10]) << 24)
-          |  ((sword64) (b[11]) << 32)
-          |  ((sword64) (b[12]) << 40)
-          |  ((sword64) (b[13]) << 48);
-    r[ 2] =  ((sword64) (b[14]) <<  0)
-          |  ((sword64) (b[15]) <<  8)
-          |  ((sword64) (b[16]) << 16)
-          |  ((sword64) (b[17]) << 24)
-          |  ((sword64) (b[18]) << 32)
-          |  ((sword64) (b[19]) << 40)
-          |  ((sword64) (b[20]) << 48);
-    r[ 3] =  ((sword64) (b[21]) <<  0)
-          |  ((sword64) (b[22]) <<  8)
-          |  ((sword64) (b[23]) << 16)
-          |  ((sword64) (b[24]) << 24)
-          |  ((sword64) (b[25]) << 32)
-          |  ((sword64) (b[26]) << 40)
-          |  ((sword64) (b[27]) << 48);
-    r[ 4] =  ((sword64) (b[28]) <<  0)
-          |  ((sword64) (b[29]) <<  8)
-          |  ((sword64) (b[30]) << 16)
-          |  ((sword64) (b[31]) << 24)
-          |  ((sword64) (b[32]) << 32)
-          |  ((sword64) (b[33]) << 40)
-          |  ((sword64) (b[34]) << 48);
-    r[ 5] =  ((sword64) (b[35]) <<  0)
-          |  ((sword64) (b[36]) <<  8)
-          |  ((sword64) (b[37]) << 16)
-          |  ((sword64) (b[38]) << 24)
-          |  ((sword64) (b[39]) << 32)
-          |  ((sword64) (b[40]) << 40)
-          |  ((sword64) (b[41]) << 48);
-    r[ 6] =  ((sword64) (b[42]) <<  0)
-          |  ((sword64) (b[43]) <<  8)
-          |  ((sword64) (b[44]) << 16)
-          |  ((sword64) (b[45]) << 24)
-          |  ((sword64) (b[46]) << 32)
-          |  ((sword64) (b[47]) << 40)
-          |  ((sword64) (b[48]) << 48);
-    r[ 7] =  ((sword64) (b[49]) <<  0)
-          |  ((sword64) (b[50]) <<  8)
-          |  ((sword64) (b[51]) << 16)
-          |  ((sword64) (b[52]) << 24)
-          |  ((sword64) (b[53]) << 32)
-          |  ((sword64) (b[54]) << 40)
-          |  ((sword64) (b[55]) << 48);
+    r[ 0] = (sword64)(
+             (((word64)b[ 0]) <<  0)
+          |  (((word64)b[ 1]) <<  8)
+          |  (((word64)b[ 2]) << 16)
+          |  (((word64)b[ 3]) << 24)
+          |  (((word64)b[ 4]) << 32)
+          |  (((word64)b[ 5]) << 40)
+          |  (((word64)b[ 6]) << 48));
+    r[ 1] = (sword64)(
+             (((word64)b[ 7]) <<  0)
+          |  (((word64)b[ 8]) <<  8)
+          |  (((word64)b[ 9]) << 16)
+          |  (((word64)b[10]) << 24)
+          |  (((word64)b[11]) << 32)
+          |  (((word64)b[12]) << 40)
+          |  (((word64)b[13]) << 48));
+    r[ 2] = (sword64)(
+             (((word64)b[14]) <<  0)
+          |  (((word64)b[15]) <<  8)
+          |  (((word64)b[16]) << 16)
+          |  (((word64)b[17]) << 24)
+          |  (((word64)b[18]) << 32)
+          |  (((word64)b[19]) << 40)
+          |  (((word64)b[20]) << 48));
+    r[ 3] = (sword64)(
+             (((word64)b[21]) <<  0)
+          |  (((word64)b[22]) <<  8)
+          |  (((word64)b[23]) << 16)
+          |  (((word64)b[24]) << 24)
+          |  (((word64)b[25]) << 32)
+          |  (((word64)b[26]) << 40)
+          |  (((word64)b[27]) << 48));
+    r[ 4] = (sword64)(
+             (((word64)b[28]) <<  0)
+          |  (((word64)b[29]) <<  8)
+          |  (((word64)b[30]) << 16)
+          |  (((word64)b[31]) << 24)
+          |  (((word64)b[32]) << 32)
+          |  (((word64)b[33]) << 40)
+          |  (((word64)b[34]) << 48));
+    r[ 5] = (sword64)(
+             (((word64)b[35]) <<  0)
+          |  (((word64)b[36]) <<  8)
+          |  (((word64)b[37]) << 16)
+          |  (((word64)b[38]) << 24)
+          |  (((word64)b[39]) << 32)
+          |  (((word64)b[40]) << 40)
+          |  (((word64)b[41]) << 48));
+    r[ 6] = (sword64)(
+             (((word64)b[42]) <<  0)
+          |  (((word64)b[43]) <<  8)
+          |  (((word64)b[44]) << 16)
+          |  (((word64)b[45]) << 24)
+          |  (((word64)b[46]) << 32)
+          |  (((word64)b[47]) << 40)
+          |  (((word64)b[48]) << 48));
+    r[ 7] = (sword64)(
+             (((word64)b[49]) <<  0)
+          |  (((word64)b[50]) <<  8)
+          |  (((word64)b[51]) << 16)
+          |  (((word64)b[52]) << 24)
+          |  (((word64)b[53]) << 32)
+          |  (((word64)b[54]) << 40)
+          |  (((word64)b[55]) << 48));
 }
 
 /* Convert the field element to a byte array from an array of 56-bits.
@@ -580,7 +588,7 @@ void fe448_to_bytes(unsigned char* b, const sword64* a)
     sword64 in6 = a[6];
     sword64 in7 = a[7];
     sword64 o = in7 >> 56;
-    in7 -= o << 56;
+    in7 -= (sword64)((word64)o << 56);
     in0 += o;
     in4 += o;
     o = (in0 + 1) >> 56;
@@ -593,16 +601,24 @@ void fe448_to_bytes(unsigned char* b, const sword64* a)
     o = (o + in7) >> 56;
     in0 += o;
     in4 += o;
-    in7 -= o << 56;
-    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= t;
-    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= t;
-    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= t;
-    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= t;
-    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= t;
-    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= t;
-    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= t;
-    o = (in7  >> 56); in0  += o;
-                      in4  += o; t = o << 56; in7  -= t;
+    in7 -= (sword64)((word64)o << 56);
+    o = (sword64)(in0  >> 56); in1  += o;
+    t = (sword64)((word64)o << 56); in0  -= t;
+    o = (sword64)(in1  >> 56); in2  += o;
+    t = (sword64)((word64)o << 56); in1  -= t;
+    o = (sword64)(in2  >> 56); in3  += o;
+    t = (sword64)((word64)o << 56); in2  -= t;
+    o = (sword64)(in3  >> 56); in4  += o;
+    t = (sword64)((word64)o << 56); in3  -= t;
+    o = (sword64)(in4  >> 56); in5  += o;
+    t = (sword64)((word64)o << 56); in4  -= t;
+    o = (sword64)(in5  >> 56); in6  += o;
+    t = (sword64)((word64)o << 56); in5  -= t;
+    o = (sword64)(in6  >> 56); in7  += o;
+    t = (sword64)((word64)o << 56); in6  -= t;
+    o = (sword64)(in7  >> 56); in0  += o;
+                               in4  += o;
+    t = (sword64)((word64)o << 56); in7  -= t;
 
     /* Output as bytes */
     b[ 0] = (byte)(in0  >>  0);
@@ -801,15 +817,23 @@ void fe448_mul39081(sword64* r, const sword64* a)
     sword128 t5 = a[5] * (sword128)39081;
     sword128 t6 = a[6] * (sword128)39081;
     sword128 t7 = a[7] * (sword128)39081;
-    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
-    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
-    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
-    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
-    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
-    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
-    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
+    o = (sword64)(t0  >> 56); t1  += o;
+    t = (sword128)((word128)o << 56); t0  -= t;
+    o = (sword64)(t1  >> 56); t2  += o;
+    t = (sword128)((word128)o << 56); t1  -= t;
+    o = (sword64)(t2  >> 56); t3  += o;
+    t = (sword128)((word128)o << 56); t2  -= t;
+    o = (sword64)(t3  >> 56); t4  += o;
+    t = (sword128)((word128)o << 56); t3  -= t;
+    o = (sword64)(t4  >> 56); t5  += o;
+    t = (sword128)((word128)o << 56); t4  -= t;
+    o = (sword64)(t5  >> 56); t6  += o;
+    t = (sword128)((word128)o << 56); t5  -= t;
+    o = (sword64)(t6  >> 56); t7  += o;
+    t = (sword128)((word128)o << 56); t6  -= t;
     o = (sword64)(t7  >> 56); t0  += o;
-                              t4  += o; t = (sword128)o << 56; t7  -= t;
+                              t4  += o;
+    t = (sword128)((word128)o << 56); t7  -= t;
 
     /* Store */
     r[0] = (sword64)t0;
@@ -1297,70 +1321,86 @@ void fe448_init(void)
  */
 void fe448_from_bytes(sword32* r, const unsigned char* b)
 {
-    r[ 0] =  (((sword32)((b[ 0]        ) >>  0)) <<  0)
-          |  (((sword32)((b[ 1]        ) >>  0)) <<  8)
-          |  (((sword32)((b[ 2]        ) >>  0)) << 16)
-          | ((((sword32)((b[ 3] & 0xf )) >>  0)) << 24);
-    r[ 1] =  (((sword32)((b[ 3]        ) >>  4)) <<  0)
-          |  (((sword32)((b[ 4]        ) >>  0)) <<  4)
-          |  (((sword32)((b[ 5]        ) >>  0)) << 12)
-          |  (((sword32)((b[ 6]        ) >>  0)) << 20);
-    r[ 2] =  (((sword32)((b[ 7]        ) >>  0)) <<  0)
-          |  (((sword32)((b[ 8]        ) >>  0)) <<  8)
-          |  (((sword32)((b[ 9]        ) >>  0)) << 16)
-          | ((((sword32)((b[10] & 0xf )) >>  0)) << 24);
-    r[ 3] =  (((sword32)((b[10]        ) >>  4)) <<  0)
-          |  (((sword32)((b[11]        ) >>  0)) <<  4)
-          |  (((sword32)((b[12]        ) >>  0)) << 12)
-          |  (((sword32)((b[13]        ) >>  0)) << 20);
-    r[ 4] =  (((sword32)((b[14]        ) >>  0)) <<  0)
-          |  (((sword32)((b[15]        ) >>  0)) <<  8)
-          |  (((sword32)((b[16]        ) >>  0)) << 16)
-          | ((((sword32)((b[17] & 0xf )) >>  0)) << 24);
-    r[ 5] =  (((sword32)((b[17]        ) >>  4)) <<  0)
-          |  (((sword32)((b[18]        ) >>  0)) <<  4)
-          |  (((sword32)((b[19]        ) >>  0)) << 12)
-          |  (((sword32)((b[20]        ) >>  0)) << 20);
-    r[ 6] =  (((sword32)((b[21]        ) >>  0)) <<  0)
-          |  (((sword32)((b[22]        ) >>  0)) <<  8)
-          |  (((sword32)((b[23]        ) >>  0)) << 16)
-          | ((((sword32)((b[24] & 0xf )) >>  0)) << 24);
-    r[ 7] =  (((sword32)((b[24]        ) >>  4)) <<  0)
-          |  (((sword32)((b[25]        ) >>  0)) <<  4)
-          |  (((sword32)((b[26]        ) >>  0)) << 12)
-          |  (((sword32)((b[27]        ) >>  0)) << 20);
-    r[ 8] =  (((sword32)((b[28]        ) >>  0)) <<  0)
-          |  (((sword32)((b[29]        ) >>  0)) <<  8)
-          |  (((sword32)((b[30]        ) >>  0)) << 16)
-          | ((((sword32)((b[31] & 0xf )) >>  0)) << 24);
-    r[ 9] =  (((sword32)((b[31]        ) >>  4)) <<  0)
-          |  (((sword32)((b[32]        ) >>  0)) <<  4)
-          |  (((sword32)((b[33]        ) >>  0)) << 12)
-          |  (((sword32)((b[34]        ) >>  0)) << 20);
-    r[10] =  (((sword32)((b[35]        ) >>  0)) <<  0)
-          |  (((sword32)((b[36]        ) >>  0)) <<  8)
-          |  (((sword32)((b[37]        ) >>  0)) << 16)
-          | ((((sword32)((b[38] & 0xf )) >>  0)) << 24);
-    r[11] =  (((sword32)((b[38]        ) >>  4)) <<  0)
-          |  (((sword32)((b[39]        ) >>  0)) <<  4)
-          |  (((sword32)((b[40]        ) >>  0)) << 12)
-          |  (((sword32)((b[41]        ) >>  0)) << 20);
-    r[12] =  (((sword32)((b[42]        ) >>  0)) <<  0)
-          |  (((sword32)((b[43]        ) >>  0)) <<  8)
-          |  (((sword32)((b[44]        ) >>  0)) << 16)
-          | ((((sword32)((b[45] & 0xf )) >>  0)) << 24);
-    r[13] =  (((sword32)((b[45]        ) >>  4)) <<  0)
-          |  (((sword32)((b[46]        ) >>  0)) <<  4)
-          |  (((sword32)((b[47]        ) >>  0)) << 12)
-          |  (((sword32)((b[48]        ) >>  0)) << 20);
-    r[14] =  (((sword32)((b[49]        ) >>  0)) <<  0)
-          |  (((sword32)((b[50]        ) >>  0)) <<  8)
-          |  (((sword32)((b[51]        ) >>  0)) << 16)
-          | ((((sword32)((b[52] & 0xf )) >>  0)) << 24);
-    r[15] =  (((sword32)((b[52]        ) >>  4)) <<  0)
-          |  (((sword32)((b[53]        ) >>  0)) <<  4)
-          |  (((sword32)((b[54]        ) >>  0)) << 12)
-          |  (((sword32)((b[55]        ) >>  0)) << 20);
+    r[ 0] = (sword32)(
+             (((word32)((b[ 0]        ) >>  0)) <<  0)
+          |  (((word32)((b[ 1]        ) >>  0)) <<  8)
+          |  (((word32)((b[ 2]        ) >>  0)) << 16)
+          | ((((word32)((b[ 3] & 0xf )) >>  0)) << 24));
+    r[ 1] = (sword32)(
+             (((word32)((b[ 3]        ) >>  4)) <<  0)
+          |  (((word32)((b[ 4]        ) >>  0)) <<  4)
+          |  (((word32)((b[ 5]        ) >>  0)) << 12)
+          |  (((word32)((b[ 6]        ) >>  0)) << 20));
+    r[ 2] = (sword32)(
+             (((word32)((b[ 7]        ) >>  0)) <<  0)
+          |  (((word32)((b[ 8]        ) >>  0)) <<  8)
+          |  (((word32)((b[ 9]        ) >>  0)) << 16)
+          | ((((word32)((b[10] & 0xf )) >>  0)) << 24));
+    r[ 3] = (sword32)(
+             (((word32)((b[10]        ) >>  4)) <<  0)
+          |  (((word32)((b[11]        ) >>  0)) <<  4)
+          |  (((word32)((b[12]        ) >>  0)) << 12)
+          |  (((word32)((b[13]        ) >>  0)) << 20));
+    r[ 4] = (sword32)(
+             (((word32)((b[14]        ) >>  0)) <<  0)
+          |  (((word32)((b[15]        ) >>  0)) <<  8)
+          |  (((word32)((b[16]        ) >>  0)) << 16)
+          | ((((word32)((b[17] & 0xf )) >>  0)) << 24));
+    r[ 5] = (sword32)(
+             (((word32)((b[17]        ) >>  4)) <<  0)
+          |  (((word32)((b[18]        ) >>  0)) <<  4)
+          |  (((word32)((b[19]        ) >>  0)) << 12)
+          |  (((word32)((b[20]        ) >>  0)) << 20));
+    r[ 6] = (sword32)(
+             (((word32)((b[21]        ) >>  0)) <<  0)
+          |  (((word32)((b[22]        ) >>  0)) <<  8)
+          |  (((word32)((b[23]        ) >>  0)) << 16)
+          | ((((word32)((b[24] & 0xf )) >>  0)) << 24));
+    r[ 7] = (sword32)(
+             (((word32)((b[24]        ) >>  4)) <<  0)
+          |  (((word32)((b[25]        ) >>  0)) <<  4)
+          |  (((word32)((b[26]        ) >>  0)) << 12)
+          |  (((word32)((b[27]        ) >>  0)) << 20));
+    r[ 8] = (sword32)(
+             (((word32)((b[28]        ) >>  0)) <<  0)
+          |  (((word32)((b[29]        ) >>  0)) <<  8)
+          |  (((word32)((b[30]        ) >>  0)) << 16)
+          | ((((word32)((b[31] & 0xf )) >>  0)) << 24));
+    r[ 9] = (sword32)(
+             (((word32)((b[31]        ) >>  4)) <<  0)
+          |  (((word32)((b[32]        ) >>  0)) <<  4)
+          |  (((word32)((b[33]        ) >>  0)) << 12)
+          |  (((word32)((b[34]        ) >>  0)) << 20));
+    r[10] = (sword32)(
+             (((word32)((b[35]        ) >>  0)) <<  0)
+          |  (((word32)((b[36]        ) >>  0)) <<  8)
+          |  (((word32)((b[37]        ) >>  0)) << 16)
+          | ((((word32)((b[38] & 0xf )) >>  0)) << 24));
+    r[11] = (sword32)(
+             (((word32)((b[38]        ) >>  4)) <<  0)
+          |  (((word32)((b[39]        ) >>  0)) <<  4)
+          |  (((word32)((b[40]        ) >>  0)) << 12)
+          |  (((word32)((b[41]        ) >>  0)) << 20));
+    r[12] = (sword32)(
+             (((word32)((b[42]        ) >>  0)) <<  0)
+          |  (((word32)((b[43]        ) >>  0)) <<  8)
+          |  (((word32)((b[44]        ) >>  0)) << 16)
+          | ((((word32)((b[45] & 0xf )) >>  0)) << 24));
+    r[13] = (sword32)(
+             (((word32)((b[45]        ) >>  4)) <<  0)
+          |  (((word32)((b[46]        ) >>  0)) <<  4)
+          |  (((word32)((b[47]        ) >>  0)) << 12)
+          |  (((word32)((b[48]        ) >>  0)) << 20));
+    r[14] = (sword32)(
+             (((word32)((b[49]        ) >>  0)) <<  0)
+          |  (((word32)((b[50]        ) >>  0)) <<  8)
+          |  (((word32)((b[51]        ) >>  0)) << 16)
+          | ((((word32)((b[52] & 0xf )) >>  0)) << 24));
+    r[15] = (sword32)(
+             (((word32)((b[52]        ) >>  4)) <<  0)
+          |  (((word32)((b[53]        ) >>  0)) <<  4)
+          |  (((word32)((b[54]        ) >>  0)) << 12)
+          |  (((word32)((b[55]        ) >>  0)) << 20));
 }
 
 /* Convert the field element to a byte array from an array of 28-bits.
@@ -1389,7 +1429,7 @@ void fe448_to_bytes(unsigned char* b, const sword32* a)
     sword32 in14 = a[14];
     sword32 in15 = a[15];
     sword32 o = in15 >> 28;
-    in15 -= o << 28;
+    in15 -= (sword32)((word32)o << 28);
     in0 += o;
     in8 += o;
     o = (in0 + 1) >> 28;
@@ -1410,79 +1450,95 @@ void fe448_to_bytes(unsigned char* b, const sword32* a)
     o = (o + in15) >> 28;
     in0 += o;
     in8 += o;
-    in15 -= o << 28;
-    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= t;
-    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= t;
-    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= t;
-    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= t;
-    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= t;
-    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= t;
-    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= t;
-    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= t;
-    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= t;
-    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= t;
-    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= t;
-    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= t;
-    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= t;
-    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= t;
-    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= t;
-    o = (in15 >> 28); in0  += o;
-                      in8  += o; t = o << 28; in15 -= t;
+    in15 -= (sword32)((word32)o << 28);
+    o = (sword32)(in0  >> 28); in1  += o;
+    t = (sword32)((word32)o << 28); in0  -= t;
+    o = (sword32)(in1  >> 28); in2  += o;
+    t = (sword32)((word32)o << 28); in1  -= t;
+    o = (sword32)(in2  >> 28); in3  += o;
+    t = (sword32)((word32)o << 28); in2  -= t;
+    o = (sword32)(in3  >> 28); in4  += o;
+    t = (sword32)((word32)o << 28); in3  -= t;
+    o = (sword32)(in4  >> 28); in5  += o;
+    t = (sword32)((word32)o << 28); in4  -= t;
+    o = (sword32)(in5  >> 28); in6  += o;
+    t = (sword32)((word32)o << 28); in5  -= t;
+    o = (sword32)(in6  >> 28); in7  += o;
+    t = (sword32)((word32)o << 28); in6  -= t;
+    o = (sword32)(in7  >> 28); in8  += o;
+    t = (sword32)((word32)o << 28); in7  -= t;
+    o = (sword32)(in8  >> 28); in9  += o;
+    t = (sword32)((word32)o << 28); in8  -= t;
+    o = (sword32)(in9  >> 28); in10 += o;
+    t = (sword32)((word32)o << 28); in9  -= t;
+    o = (sword32)(in10 >> 28); in11 += o;
+    t = (sword32)((word32)o << 28); in10 -= t;
+    o = (sword32)(in11 >> 28); in12 += o;
+    t = (sword32)((word32)o << 28); in11 -= t;
+    o = (sword32)(in12 >> 28); in13 += o;
+    t = (sword32)((word32)o << 28); in12 -= t;
+    o = (sword32)(in13 >> 28); in14 += o;
+    t = (sword32)((word32)o << 28); in13 -= t;
+    o = (sword32)(in14 >> 28); in15 += o;
+    t = (sword32)((word32)o << 28); in14 -= t;
+    o = (sword32)(in15 >> 28); in0  += o;
+                               in8  += o;
+    t = (sword32)((word32)o << 28); in15 -= t;
 
     /* Output as bytes */
     b[ 0] = (byte)(in0  >>  0);
     b[ 1] = (byte)(in0  >>  8);
     b[ 2] = (byte)(in0  >> 16);
-    b[ 3] = (byte)((byte)(in0  >> 24) + (byte)((in1  >>  0) <<  4));
+    b[ 3] = (byte)((byte)(in0  >> 24) + (byte)((byte)(in1  >>  0) <<  4));
     b[ 4] = (byte)(in1  >>  4);
     b[ 5] = (byte)(in1  >> 12);
     b[ 6] = (byte)(in1  >> 20);
     b[ 7] = (byte)(in2  >>  0);
     b[ 8] = (byte)(in2  >>  8);
     b[ 9] = (byte)(in2  >> 16);
-    b[10] = (byte)((byte)(in2  >> 24) + (byte)((in3  >>  0) <<  4));
+    b[10] = (byte)((byte)(in2  >> 24) + (byte)((byte)(in3  >>  0) <<  4));
     b[11] = (byte)(in3  >>  4);
     b[12] = (byte)(in3  >> 12);
     b[13] = (byte)(in3  >> 20);
     b[14] = (byte)(in4  >>  0);
     b[15] = (byte)(in4  >>  8);
     b[16] = (byte)(in4  >> 16);
-    b[17] = (byte)((byte)(in4  >> 24) + (byte)((in5  >>  0) <<  4));
+    b[17] = (byte)((byte)(in4  >> 24) + (byte)((byte)(in5  >>  0) <<  4));
     b[18] = (byte)(in5  >>  4);
     b[19] = (byte)(in5  >> 12);
     b[20] = (byte)(in5  >> 20);
     b[21] = (byte)(in6  >>  0);
     b[22] = (byte)(in6  >>  8);
     b[23] = (byte)(in6  >> 16);
-    b[24] = (byte)((byte)(in6  >> 24) + (byte)((in7  >>  0) <<  4));
+    b[24] = (byte)((byte)(in6  >> 24) + (byte)((byte)(in7  >>  0) <<  4));
     b[25] = (byte)(in7  >>  4);
     b[26] = (byte)(in7  >> 12);
     b[27] = (byte)(in7  >> 20);
     b[28] = (byte)(in8  >>  0);
     b[29] = (byte)(in8  >>  8);
     b[30] = (byte)(in8  >> 16);
-    b[31] = (byte)((byte)(in8  >> 24) + (byte)((in9  >>  0) <<  4));
+    b[31] = (byte)((byte)(in8  >> 24) + (byte)((byte)(in9  >>  0) <<  4));
     b[32] = (byte)(in9  >>  4);
     b[33] = (byte)(in9  >> 12);
     b[34] = (byte)(in9  >> 20);
     b[35] = (byte)(in10 >>  0);
     b[36] = (byte)(in10 >>  8);
     b[37] = (byte)(in10 >> 16);
-    b[38] = (byte)((byte)(in10 >> 24) + (byte)((in11 >>  0) <<  4));
+    b[38] = (byte)((byte)(in10 >> 24) + (byte)((byte)(in11 >>  0) <<  4));
     b[39] = (byte)(in11 >>  4);
     b[40] = (byte)(in11 >> 12);
     b[41] = (byte)(in11 >> 20);
     b[42] = (byte)(in12 >>  0);
     b[43] = (byte)(in12 >>  8);
     b[44] = (byte)(in12 >> 16);
-    b[45] = (byte)((byte)(in12 >> 24) + (byte)((in13 >>  0) <<  4));
+    b[45] = (byte)((byte)(in12 >> 24) + (byte)((byte)(in13 >>  0) <<  4));
     b[46] = (byte)(in13 >>  4);
     b[47] = (byte)(in13 >> 12);
     b[48] = (byte)(in13 >> 20);
     b[49] = (byte)(in14 >>  0);
     b[50] = (byte)(in14 >>  8);
     b[51] = (byte)(in14 >> 16);
-    b[52] = (byte)((byte)(in14 >> 24) + (byte)((in15 >>  0) <<  4));
+    b[52] = (byte)((byte)(in14 >> 24) + (byte)((byte)(in15 >>  0) <<  4));
     b[53] = (byte)(in15 >>  4);
     b[54] = (byte)(in15 >> 12);
     b[55] = (byte)(in15 >> 20);
@@ -1677,23 +1733,23 @@ void fe448_reduce(sword32* a)
 {
     sword64 o;
 
-    o = a[0 ] >> 28; a[1 ] += (sword32)o; a[0 ] -= (sword32)(o << 28);
-    o = a[1 ] >> 28; a[2 ] += (sword32)o; a[1 ] -= (sword32)(o << 28);
-    o = a[2 ] >> 28; a[3 ] += (sword32)o; a[2 ] -= (sword32)(o << 28);
-    o = a[3 ] >> 28; a[4 ] += (sword32)o; a[3 ] -= (sword32)(o << 28);
-    o = a[4 ] >> 28; a[5 ] += (sword32)o; a[4 ] -= (sword32)(o << 28);
-    o = a[5 ] >> 28; a[6 ] += (sword32)o; a[5 ] -= (sword32)(o << 28);
-    o = a[6 ] >> 28; a[7 ] += (sword32)o; a[6 ] -= (sword32)(o << 28);
-    o = a[7 ] >> 28; a[8 ] += (sword32)o; a[7 ] -= (sword32)(o << 28);
-    o = a[8 ] >> 28; a[9 ] += (sword32)o; a[8 ] -= (sword32)(o << 28);
-    o = a[9 ] >> 28; a[10] += (sword32)o; a[9 ] -= (sword32)(o << 28);
-    o = a[10] >> 28; a[11] += (sword32)o; a[10] -= (sword32)(o << 28);
-    o = a[11] >> 28; a[12] += (sword32)o; a[11] -= (sword32)(o << 28);
-    o = a[12] >> 28; a[13] += (sword32)o; a[12] -= (sword32)(o << 28);
-    o = a[13] >> 28; a[14] += (sword32)o; a[13] -= (sword32)(o << 28);
-    o = a[14] >> 28; a[15] += (sword32)o; a[14] -= (sword32)(o << 28);
+    o = a[0 ] >> 28; a[1 ] += (sword32)o; a[0 ] -= (sword32)((word32)o << 28);
+    o = a[1 ] >> 28; a[2 ] += (sword32)o; a[1 ] -= (sword32)((word32)o << 28);
+    o = a[2 ] >> 28; a[3 ] += (sword32)o; a[2 ] -= (sword32)((word32)o << 28);
+    o = a[3 ] >> 28; a[4 ] += (sword32)o; a[3 ] -= (sword32)((word32)o << 28);
+    o = a[4 ] >> 28; a[5 ] += (sword32)o; a[4 ] -= (sword32)((word32)o << 28);
+    o = a[5 ] >> 28; a[6 ] += (sword32)o; a[5 ] -= (sword32)((word32)o << 28);
+    o = a[6 ] >> 28; a[7 ] += (sword32)o; a[6 ] -= (sword32)((word32)o << 28);
+    o = a[7 ] >> 28; a[8 ] += (sword32)o; a[7 ] -= (sword32)((word32)o << 28);
+    o = a[8 ] >> 28; a[9 ] += (sword32)o; a[8 ] -= (sword32)((word32)o << 28);
+    o = a[9 ] >> 28; a[10] += (sword32)o; a[9 ] -= (sword32)((word32)o << 28);
+    o = a[10] >> 28; a[11] += (sword32)o; a[10] -= (sword32)((word32)o << 28);
+    o = a[11] >> 28; a[12] += (sword32)o; a[11] -= (sword32)((word32)o << 28);
+    o = a[12] >> 28; a[13] += (sword32)o; a[12] -= (sword32)((word32)o << 28);
+    o = a[13] >> 28; a[14] += (sword32)o; a[13] -= (sword32)((word32)o << 28);
+    o = a[14] >> 28; a[15] += (sword32)o; a[14] -= (sword32)((word32)o << 28);
     o = a[15] >> 28; a[0]  += (sword32)o;
-                     a[8]  += (sword32)o; a[15] -= (sword32)(o << 28);
+                     a[8]  += (sword32)o; a[15] -= (sword32)((word32)o << 28);
 }
 /* Multiply a field element by 39081. r = (39081 * a) mod (2^448 - 2^224 - 1)
  *
@@ -1720,23 +1776,39 @@ void fe448_mul39081(sword32* r, const sword32* a)
     sword64 t13 = a[13] * (sword64)39081;
     sword64 t14 = a[14] * (sword64)39081;
     sword64 t15 = a[15] * (sword64)39081;
-    o = (sword32)(t0  >> 28); t1  += o; t = (sword64)o << 28; t0  -= t;
-    o = (sword32)(t1  >> 28); t2  += o; t = (sword64)o << 28; t1  -= t;
-    o = (sword32)(t2  >> 28); t3  += o; t = (sword64)o << 28; t2  -= t;
-    o = (sword32)(t3  >> 28); t4  += o; t = (sword64)o << 28; t3  -= t;
-    o = (sword32)(t4  >> 28); t5  += o; t = (sword64)o << 28; t4  -= t;
-    o = (sword32)(t5  >> 28); t6  += o; t = (sword64)o << 28; t5  -= t;
-    o = (sword32)(t6  >> 28); t7  += o; t = (sword64)o << 28; t6  -= t;
-    o = (sword32)(t7  >> 28); t8  += o; t = (sword64)o << 28; t7  -= t;
-    o = (sword32)(t8  >> 28); t9  += o; t = (sword64)o << 28; t8  -= t;
-    o = (sword32)(t9  >> 28); t10 += o; t = (sword64)o << 28; t9  -= t;
-    o = (sword32)(t10 >> 28); t11 += o; t = (sword64)o << 28; t10 -= t;
-    o = (sword32)(t11 >> 28); t12 += o; t = (sword64)o << 28; t11 -= t;
-    o = (sword32)(t12 >> 28); t13 += o; t = (sword64)o << 28; t12 -= t;
-    o = (sword32)(t13 >> 28); t14 += o; t = (sword64)o << 28; t13 -= t;
-    o = (sword32)(t14 >> 28); t15 += o; t = (sword64)o << 28; t14 -= t;
+    o = (sword32)(t0  >> 28); t1  += o;
+    t = (sword64)((word64)o << 28); t0  -= t;
+    o = (sword32)(t1  >> 28); t2  += o;
+    t = (sword64)((word64)o << 28); t1  -= t;
+    o = (sword32)(t2  >> 28); t3  += o;
+    t = (sword64)((word64)o << 28); t2  -= t;
+    o = (sword32)(t3  >> 28); t4  += o;
+    t = (sword64)((word64)o << 28); t3  -= t;
+    o = (sword32)(t4  >> 28); t5  += o;
+    t = (sword64)((word64)o << 28); t4  -= t;
+    o = (sword32)(t5  >> 28); t6  += o;
+    t = (sword64)((word64)o << 28); t5  -= t;
+    o = (sword32)(t6  >> 28); t7  += o;
+    t = (sword64)((word64)o << 28); t6  -= t;
+    o = (sword32)(t7  >> 28); t8  += o;
+    t = (sword64)((word64)o << 28); t7  -= t;
+    o = (sword32)(t8  >> 28); t9  += o;
+    t = (sword64)((word64)o << 28); t8  -= t;
+    o = (sword32)(t9  >> 28); t10 += o;
+    t = (sword64)((word64)o << 28); t9  -= t;
+    o = (sword32)(t10 >> 28); t11 += o;
+    t = (sword64)((word64)o << 28); t10 -= t;
+    o = (sword32)(t11 >> 28); t12 += o;
+    t = (sword64)((word64)o << 28); t11 -= t;
+    o = (sword32)(t12 >> 28); t13 += o;
+    t = (sword64)((word64)o << 28); t12 -= t;
+    o = (sword32)(t13 >> 28); t14 += o;
+    t = (sword64)((word64)o << 28); t13 -= t;
+    o = (sword32)(t14 >> 28); t15 += o;
+    t = (sword64)((word64)o << 28); t14 -= t;
     o = (sword32)(t15 >> 28); t0  += o;
-                              t8  += o; t = (sword64)o << 28; t15 -= t;
+                              t8  += o;
+    t = (sword64)((word64)o << 28); t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
@@ -1763,7 +1835,8 @@ void fe448_mul39081(sword32* r, const sword32* a)
  * a  [in]  Field element to multiply.
  * b  [in]  Field element to multiply.
  */
-static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b)
+static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a,
+    const sword32* b)
 {
     sword64 t;
     sword64 o;
@@ -1850,25 +1923,42 @@ static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b
     t13 += t113;
     o = t14 >> 28;
     t15 = o;
-    t14 -= o << 28;
-    o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
-    o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
-    o = (t2  >> 28); t3  += o; t = o << 28; t2  -= t;
-    o = (t3  >> 28); t4  += o; t = o << 28; t3  -= t;
-    o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
-    o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
-    o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
-    o = (t707>> 28); t8  += o; t = o << 28; t707-= t; t7 += t707;
-    o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
-    o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
-    o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
-    o = (t10 >> 28); t11 += o; t = o << 28; t10 -= t;
-    o = (t11 >> 28); t12 += o; t = o << 28; t11 -= t;
-    o = (t12 >> 28); t13 += o; t = o << 28; t12 -= t;
-    o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
-    o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
+    t14 -= (sword64)((word64)o << 28);
+    o = (t0  >> 28); t1  += o;
+    t = (sword64)((word64)o << 28); t0  -= t;
+    o = (t1  >> 28); t2  += o;
+    t = (sword64)((word64)o << 28); t1  -= t;
+    o = (t2  >> 28); t3  += o;
+    t = (sword64)((word64)o << 28); t2  -= t;
+    o = (t3  >> 28); t4  += o;
+    t = (sword64)((word64)o << 28); t3  -= t;
+    o = (t4  >> 28); t5  += o;
+    t = (sword64)((word64)o << 28); t4  -= t;
+    o = (t5  >> 28); t6  += o;
+    t = (sword64)((word64)o << 28); t5  -= t;
+    o = (t6  >> 28); t7  += o;
+    t = (sword64)((word64)o << 28); t6  -= t;
+    o = (t707>> 28); t8  += o;
+    t = (sword64)((word64)o << 28); t707-= t; t7 += t707;
+    o = (t7  >> 28); t8  += o;
+    t = (sword64)((word64)o << 28); t7  -= t;
+    o = (t8  >> 28); t9  += o;
+    t = (sword64)((word64)o << 28); t8  -= t;
+    o = (t9  >> 28); t10 += o;
+    t = (sword64)((word64)o << 28); t9  -= t;
+    o = (t10 >> 28); t11 += o;
+    t = (sword64)((word64)o << 28); t10 -= t;
+    o = (t11 >> 28); t12 += o;
+    t = (sword64)((word64)o << 28); t11 -= t;
+    o = (t12 >> 28); t13 += o;
+    t = (sword64)((word64)o << 28); t12 -= t;
+    o = (t13 >> 28); t14 += o;
+    t = (sword64)((word64)o << 28); t13 -= t;
+    o = (t14 >> 28); t15 += o;
+    t = (sword64)((word64)o << 28); t14 -= t;
     o = (t15 >> 28); t0  += o;
-                     t8  += o; t = o << 28; t15 -= t;
+                     t8  += o;
+    t = (sword64)((word64)o << 28); t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
@@ -1998,25 +2088,42 @@ static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
     t12 += t112;
     o = t14 >> 28;
     t15 = o;
-    t14 -= o << 28;
-    o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
-    o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
-    o = (t2  >> 28); t3  += o; t = o << 28; t2  -= t;
-    o = (t3  >> 28); t4  += o; t = o << 28; t3  -= t;
-    o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
-    o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
-    o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
-    o = (t307>> 28); t8  += o; t = o << 28; t307-= t; t7 += t307;
-    o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
-    o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
-    o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
-    o = (t10 >> 28); t11 += o; t = o << 28; t10 -= t;
-    o = (t11 >> 28); t12 += o; t = o << 28; t11 -= t;
-    o = (t12 >> 28); t13 += o; t = o << 28; t12 -= t;
-    o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
-    o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
+    t14 -= (sword64)((word64)o << 28);
+    o = (t0  >> 28); t1  += o;
+    t = (sword64)((word64)o << 28); t0  -= t;
+    o = (t1  >> 28); t2  += o;
+    t = (sword64)((word64)o << 28); t1  -= t;
+    o = (t2  >> 28); t3  += o;
+    t = (sword64)((word64)o << 28); t2  -= t;
+    o = (t3  >> 28); t4  += o;
+    t = (sword64)((word64)o << 28); t3  -= t;
+    o = (t4  >> 28); t5  += o;
+    t = (sword64)((word64)o << 28); t4  -= t;
+    o = (t5  >> 28); t6  += o;
+    t = (sword64)((word64)o << 28); t5  -= t;
+    o = (t6  >> 28); t7  += o;
+    t = (sword64)((word64)o << 28); t6  -= t;
+    o = (t307>> 28); t8  += o;
+    t = (sword64)((word64)o << 28); t307-= t; t7 += t307;
+    o = (t7  >> 28); t8  += o;
+    t = (sword64)((word64)o << 28); t7  -= t;
+    o = (t8  >> 28); t9  += o;
+    t = (sword64)((word64)o << 28); t8  -= t;
+    o = (t9  >> 28); t10 += o;
+    t = (sword64)((word64)o << 28); t9  -= t;
+    o = (t10 >> 28); t11 += o;
+    t = (sword64)((word64)o << 28); t10 -= t;
+    o = (t11 >> 28); t12 += o;
+    t = (sword64)((word64)o << 28); t11 -= t;
+    o = (t12 >> 28); t13 += o;
+    t = (sword64)((word64)o << 28); t12 -= t;
+    o = (t13 >> 28); t14 += o;
+    t = (sword64)((word64)o << 28); t13 -= t;
+    o = (t14 >> 28); t15 += o;
+    t = (sword64)((word64)o << 28); t14 -= t;
     o = (t15 >> 28); t0  += o;
-                     t8  += o; t = o << 28; t15 -= t;
+                     t8  += o;
+    t = (sword64)((word64)o << 28); t15 -= t;
 
     /* Store */
     r[0] = (sword32)t0;
