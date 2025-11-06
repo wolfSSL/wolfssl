@@ -3064,11 +3064,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("Math: %s\n", wc_GetMathInfo());
 #endif
 
+        if (ret == 0) {
 #ifdef HAVE_STACK_SIZE
-        StackSizeCheck(&args, wolfcrypt_test);
+            StackSizeCheck(&args, wolfcrypt_test);
 #else
-        wolfcrypt_test(&args);
+            wolfcrypt_test(&args);
 #endif
+        }
 
         if ((ret = wolfCrypt_Cleanup()) != 0) {
             printf("wolfCrypt_Cleanup failed %d\n", (int)ret);
