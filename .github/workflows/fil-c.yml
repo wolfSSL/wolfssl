@@ -1,7 +1,7 @@
 name: Fil-C Tests
 
 env:
-  FIL_C_VERSION: v0.673
+  FIL_C_VERSION: v0.674
 
 # START OF COMMON SECTION
 on:
