@@ -16478,7 +16478,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ), 0) == 0)
                     #endif
                         {
-                            WOLFSSL_MSG("DomainName match on common name failed");
+                            WOLFSSL_MSG("DomainName match failed");
                             ret = DOMAIN_NAME_MISMATCH;
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
@@ -16493,14 +16493,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 (word32)XSTRLEN(ssl->buffers.domainName.buffer)), 0) == 0)
                 #endif
                     {
-                        WOLFSSL_MSG("DomainName match on common name failed");
                         if (CheckForAltNames(args->dCert,
                                  (char*)ssl->buffers.domainName.buffer,
                                  (ssl->buffers.domainName.buffer == NULL ? 0 :
                                  (word32)XSTRLEN(ssl->buffers.domainName.buffer)),
                                  NULL, 0) != 1) {
-                            WOLFSSL_MSG(
-                                "DomainName match on alt names failed too");
+                            WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
                             WOLFSSL_ERROR_VERBOSE(ret);
