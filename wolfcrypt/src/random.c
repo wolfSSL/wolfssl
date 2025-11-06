@@ -4256,6 +4256,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         close(os->fd);
 #else
+        (void)output;
+        (void)sz;
         ret = NOT_COMPILED_IN;
 #endif /* NO_FILESYSTEM */
 

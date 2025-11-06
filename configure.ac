@@ -139,7 +139,7 @@ AC_ARG_ENABLE([linuxkm-defaults],
     )
 
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC
@@ -185,6 +185,9 @@ fi
 #endif
 #ifdef HAVE_CTYPE_H
     #include <ctype.h>
+#endif
+#ifdef HAVE_SYS_RANDOM_H
+    #include <sys/random.h>
 #endif
 ]])
 
