@@ -13,7 +13,7 @@ fn test_dh_named_parameters() {
 
     assert!(p_size > 0u32);
     assert!(g_size > 0u32);
-    let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
 
     let mut p = [0u8; 256];
     let mut q = [0u8; 256];
@@ -27,7 +27,7 @@ fn test_dh_named_parameters() {
 #[test]
 fn test_generate_params() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
-    let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
+    let mut dh = DH::generate(&mut rng, 2048, None, None).expect("Error with generate()");
 
     let mut private = [0u8; 256];
     let mut private_size = 0u32;
@@ -39,7 +39,7 @@ fn test_generate_params() {
 #[test]
 fn test_generate_key_pair() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
-    let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
 
     let mut p = [0u8; 256];
     let mut q = [0u8; 256];
@@ -150,9 +150,9 @@ fn test_dh_checks() {
         0x40, 0x52, 0xed, 0x41
     ];
     let mut rng = RNG::new().expect("Error with RNG::new()");
-    let _dh = DH::new_from_pg(&p, &g).expect("Error with new_from_pg()");
-    let _dh = DH::new_from_pgq(&p, &g, &q).expect("Error with new_from_pgq()");
-    let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq()");
+    let _dh = DH::new_from_pg(&p, &g, None, None).expect("Error with new_from_pg()");
+    let _dh = DH::new_from_pgq(&p, &g, &q, None, None).expect("Error with new_from_pgq()");
+    let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq()");
     let mut private = [0u8; 256];
     let mut private_size = 0u32;
     let mut public = [0u8; 256];
@@ -169,7 +169,7 @@ fn test_dh_checks() {
 #[test]
 fn test_dh_shared_secret() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
-    let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
 
     let mut private0 = [0u8; 256];
     let mut private0_size = 0u32;

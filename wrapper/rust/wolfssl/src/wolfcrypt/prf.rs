@@ -46,9 +46,8 @@ pub const PRF_HASH_SM3: i32 = ws::wc_MACAlgorithm_sm3_mac as i32;
 /// * `secret`: Secret key.
 /// * `seed`: Seed.
 /// * `hash_type`: PRF Hash type, one of `PRF_HASH_*`.
-/// * `heap`: Heap hint.
-/// * `dev_id` Device ID to use with crypto callbacks or async hardware.
-///   Set to INVALID_DEVID (-2) if not used.
+/// * `heap`: Optional heap hint.
+/// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
 /// * `dout`: Output buffer.
 ///
 /// # Returns
@@ -75,14 +74,20 @@ pub const PRF_HASH_SM3: i32 = ws::wc_MACAlgorithm_sm3_mac as i32;
 ///     0x91, 0xde, 0x5c, 0xc0, 0x47, 0x7c, 0xa8, 0xae, 0xcf,
 ///     0x5d, 0x93, 0x5f, 0x4c, 0x92, 0xcc, 0x98, 0x5b, 0x43];
 /// let mut out = [0u8; 12];
-/// prf(&secret, &seed, PRF_HASH_SHA384,
-///     core::ptr::null_mut(), ws::INVALID_DEVID,
-///     &mut out).expect("Error with prf()");
+/// prf(&secret, &seed, PRF_HASH_SHA384, None, None, &mut out).expect("Error with prf()");
 /// ```
-pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, heap: *mut ::std::os::raw::c_void, dev_id: i32, dout: &mut [u8]) -> Result<(), i32> {
+pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut ::std::os::raw::c_void>, dev_id: Option<i32>, dout: &mut [u8]) -> Result<(), i32> {
     let secret_size = secret.len() as u32;
     let seed_size = seed.len() as u32;
     let dout_size = dout.len() as u32;
+    let heap = match heap {
+        Some(heap) => heap,
+        None => core::ptr::null_mut(),
+    };
+    let dev_id = match dev_id {
+        Some(dev_id) => dev_id,
+        None => ws::INVALID_DEVID,
+    };
     let rc = unsafe {
         ws::wc_PRF(dout.as_mut_ptr(), dout_size,
             secret.as_ptr(), secret_size,

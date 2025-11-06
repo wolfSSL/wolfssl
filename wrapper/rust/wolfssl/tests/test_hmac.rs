@@ -33,9 +33,9 @@ fn test_hmac_sha256() {
     for i in 0..keys.len() {
         let mut hmac =
             if keys[i].len() < 14 {
-                HMAC::new_allow_short_key(HMAC::TYPE_SHA256, keys[i]).expect("Error with new_allow_short_key()")
+                HMAC::new_allow_short_key(HMAC::TYPE_SHA256, keys[i], None, None).expect("Error with new_allow_short_key()")
             } else {
-                HMAC::new(HMAC::TYPE_SHA256, keys[i]).expect("Error with new()")
+                HMAC::new(HMAC::TYPE_SHA256, keys[i], None, None).expect("Error with new()")
             };
         let hmac_size = hmac.get_hmac_size().expect("Error with get_hmac_size()");
         assert_eq!(hmac_size, SHA256::DIGEST_SIZE);

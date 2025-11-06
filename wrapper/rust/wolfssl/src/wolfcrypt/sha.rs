@@ -41,6 +41,11 @@ impl SHA {
 
     /// Build a new SHA instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA struct instance or Err(e)
@@ -50,11 +55,19 @@ impl SHA {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA;
-    /// let sha = SHA::new().expect("Error with new()");
+    /// let sha = SHA::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha: MaybeUninit<ws::wc_Sha> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha(wc_sha.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha_ex(wc_sha.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -68,6 +81,11 @@ impl SHA {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -77,11 +95,19 @@ impl SHA {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA;
-    /// let mut sha = SHA::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha(&mut self.wc_sha) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha_ex(&mut self.wc_sha, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -103,7 +129,7 @@ impl SHA {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA;
-    /// let mut sha = SHA::new().expect("Error with new()");
+    /// let mut sha = SHA::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -133,7 +159,7 @@ impl SHA {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA;
-    /// let mut sha = SHA::new().expect("Error with new()");
+    /// let mut sha = SHA::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -176,6 +202,11 @@ impl SHA224 {
 
     /// Build a new SHA224 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA224 struct instance or Err(e)
@@ -185,11 +216,19 @@ impl SHA224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA224;
-    /// let sha = SHA224::new().expect("Error with new()");
+    /// let sha = SHA224::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha224: MaybeUninit<ws::wc_Sha224> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha224(wc_sha224.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha224_ex(wc_sha224.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -203,6 +242,11 @@ impl SHA224 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -212,11 +256,19 @@ impl SHA224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA224;
-    /// let mut sha = SHA224::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA224::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha224(&mut self.wc_sha224) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha224_ex(&mut self.wc_sha224, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -238,7 +290,7 @@ impl SHA224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA224;
-    /// let mut sha = SHA224::new().expect("Error with new()");
+    /// let mut sha = SHA224::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -268,7 +320,7 @@ impl SHA224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA224;
-    /// let mut sha = SHA224::new().expect("Error with new()");
+    /// let mut sha = SHA224::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA224::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -311,6 +363,11 @@ impl SHA256 {
 
     /// Build a new SHA256 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA256 struct instance or Err(e)
@@ -320,11 +377,19 @@ impl SHA256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA256;
-    /// let sha = SHA256::new().expect("Error with new()");
+    /// let sha = SHA256::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha256: MaybeUninit<ws::wc_Sha256> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha256(wc_sha256.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha256_ex(wc_sha256.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -338,6 +403,11 @@ impl SHA256 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -347,11 +417,19 @@ impl SHA256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA256;
-    /// let mut sha = SHA256::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA256::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha256(&mut self.wc_sha256) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha256_ex(&mut self.wc_sha256, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -373,7 +451,7 @@ impl SHA256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA256;
-    /// let mut sha = SHA256::new().expect("Error with new()");
+    /// let mut sha = SHA256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -403,7 +481,7 @@ impl SHA256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA256;
-    /// let mut sha = SHA256::new().expect("Error with new()");
+    /// let mut sha = SHA256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA256::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -446,6 +524,11 @@ impl SHA384 {
 
     /// Build a new SHA384 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA384 struct instance or Err(e)
@@ -455,11 +538,19 @@ impl SHA384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA384;
-    /// let sha = SHA384::new().expect("Error with new()");
+    /// let sha = SHA384::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha384: MaybeUninit<ws::wc_Sha384> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha384(wc_sha384.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha384_ex(wc_sha384.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -473,6 +564,11 @@ impl SHA384 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -482,11 +578,19 @@ impl SHA384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA384;
-    /// let mut sha = SHA384::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA384::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha384(&mut self.wc_sha384) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha384_ex(&mut self.wc_sha384, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -508,7 +612,7 @@ impl SHA384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA384;
-    /// let mut sha = SHA384::new().expect("Error with new()");
+    /// let mut sha = SHA384::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -538,7 +642,7 @@ impl SHA384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA384;
-    /// let mut sha = SHA384::new().expect("Error with new()");
+    /// let mut sha = SHA384::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA384::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -581,6 +685,11 @@ impl SHA512 {
 
     /// Build a new SHA512 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA512 struct instance or Err(e)
@@ -590,11 +699,19 @@ impl SHA512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA512;
-    /// let sha = SHA512::new().expect("Error with new()");
+    /// let sha = SHA512::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha512: MaybeUninit<ws::wc_Sha512> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha512(wc_sha512.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha512_ex(wc_sha512.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -608,6 +725,11 @@ impl SHA512 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -617,11 +739,19 @@ impl SHA512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA512;
-    /// let mut sha = SHA512::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA512::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha512(&mut self.wc_sha512) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha512_ex(&mut self.wc_sha512, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -643,7 +773,7 @@ impl SHA512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA512;
-    /// let mut sha = SHA512::new().expect("Error with new()");
+    /// let mut sha = SHA512::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -673,7 +803,7 @@ impl SHA512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA512;
-    /// let mut sha = SHA512::new().expect("Error with new()");
+    /// let mut sha = SHA512::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA512::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -716,6 +846,11 @@ impl SHA3_224 {
 
     /// Build a new SHA3_224 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA3_224 struct instance or Err(e)
@@ -725,11 +860,19 @@ impl SHA3_224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_224;
-    /// let sha = SHA3_224::new().expect("Error with new()");
+    /// let sha = SHA3_224::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_224(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_224(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -743,6 +886,11 @@ impl SHA3_224 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -752,11 +900,19 @@ impl SHA3_224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_224;
-    /// let mut sha = SHA3_224::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA3_224::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_224(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_224(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -778,7 +934,7 @@ impl SHA3_224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_224;
-    /// let mut sha = SHA3_224::new().expect("Error with new()");
+    /// let mut sha = SHA3_224::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -808,7 +964,7 @@ impl SHA3_224 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_224;
-    /// let mut sha = SHA3_224::new().expect("Error with new()");
+    /// let mut sha = SHA3_224::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA3_224::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -851,6 +1007,11 @@ impl SHA3_256 {
 
     /// Build a new SHA3_256 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA3_256 struct instance or Err(e)
@@ -860,11 +1021,19 @@ impl SHA3_256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_256;
-    /// let sha = SHA3_256::new().expect("Error with new()");
+    /// let sha = SHA3_256::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_256(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_256(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -878,6 +1047,11 @@ impl SHA3_256 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -887,11 +1061,19 @@ impl SHA3_256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_256;
-    /// let mut sha = SHA3_256::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA3_256::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_256(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_256(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -913,7 +1095,7 @@ impl SHA3_256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_256;
-    /// let mut sha = SHA3_256::new().expect("Error with new()");
+    /// let mut sha = SHA3_256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -943,7 +1125,7 @@ impl SHA3_256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_256;
-    /// let mut sha = SHA3_256::new().expect("Error with new()");
+    /// let mut sha = SHA3_256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA3_256::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -986,6 +1168,11 @@ impl SHA3_384 {
 
     /// Build a new SHA3_384 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA3_384 struct instance or Err(e)
@@ -995,11 +1182,19 @@ impl SHA3_384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_384;
-    /// let sha = SHA3_384::new().expect("Error with new()");
+    /// let sha = SHA3_384::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_384(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_384(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1013,6 +1208,11 @@ impl SHA3_384 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -1022,11 +1222,19 @@ impl SHA3_384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_384;
-    /// let mut sha = SHA3_384::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA3_384::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_384(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_384(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1048,7 +1256,7 @@ impl SHA3_384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_384;
-    /// let mut sha = SHA3_384::new().expect("Error with new()");
+    /// let mut sha = SHA3_384::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1078,7 +1286,7 @@ impl SHA3_384 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_384;
-    /// let mut sha = SHA3_384::new().expect("Error with new()");
+    /// let mut sha = SHA3_384::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA3_384::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -1121,6 +1329,11 @@ impl SHA3_512 {
 
     /// Build a new SHA3_512 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHA3_512 struct instance or Err(e)
@@ -1130,11 +1343,19 @@ impl SHA3_512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_512;
-    /// let sha = SHA3_512::new().expect("Error with new()");
+    /// let sha = SHA3_512::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitSha3_512(wc_sha3.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_512(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1148,6 +1369,11 @@ impl SHA3_512 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -1157,11 +1383,19 @@ impl SHA3_512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_512;
-    /// let mut sha = SHA3_512::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHA3_512::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitSha3_512(&mut self.wc_sha3, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitSha3_512(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1183,7 +1417,7 @@ impl SHA3_512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_512;
-    /// let mut sha = SHA3_512::new().expect("Error with new()");
+    /// let mut sha = SHA3_512::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1213,7 +1447,7 @@ impl SHA3_512 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHA3_512;
-    /// let mut sha = SHA3_512::new().expect("Error with new()");
+    /// let mut sha = SHA3_512::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; SHA3_512::DIGEST_SIZE];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -1256,6 +1490,11 @@ impl SHAKE128 {
 
     /// Build a new SHAKE128 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHAKE128 struct instance or Err(e)
@@ -1265,11 +1504,21 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let sha = SHAKE128::new().expect("Error with new()");
+    /// let sha = SHAKE128::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitShake128(wc_shake.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe {
+            ws::wc_InitShake128(wc_shake.as_mut_ptr(), heap, dev_id)
+        };
         if rc != 0 {
             return Err(rc);
         }
@@ -1283,6 +1532,11 @@ impl SHAKE128 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -1292,11 +1546,21 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let mut sha = SHAKE128::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHAKE128::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitShake128(&mut self.wc_shake, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe {
+            ws::wc_InitShake128(&mut self.wc_shake, heap, dev_id)
+        };
         if rc != 0 {
             return Err(rc);
         }
@@ -1318,7 +1582,7 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let mut sha = SHAKE128::new().expect("Error with new()");
+    /// let mut sha = SHAKE128::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1347,7 +1611,7 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let mut sha = SHAKE128::new().expect("Error with new()");
+    /// let mut sha = SHAKE128::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; 32];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -1378,7 +1642,7 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let mut sha = SHAKE128::new().expect("Error with new()");
+    /// let mut sha = SHAKE128::new(None, None).expect("Error with new()");
     /// sha.absorb(b"input").expect("Error with absorb()");
     /// ```
     pub fn absorb(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1409,7 +1673,7 @@ impl SHAKE128 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE128;
-    /// let mut sha = SHAKE128::new().expect("Error with new()");
+    /// let mut sha = SHAKE128::new(None, None).expect("Error with new()");
     /// sha.absorb(b"input").expect("Error with absorb()");
     /// let mut buffer = [0u8; 2 * SHAKE128::SQUEEZE_BLOCK_SIZE];
     /// sha.squeeze_blocks(&mut buffer).expect("Error with squeeze_blocks()");
@@ -1454,6 +1718,11 @@ impl SHAKE256 {
 
     /// Build a new SHAKE256 instance.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(sha) containing the SHAKE256 struct instance or Err(e)
@@ -1463,11 +1732,21 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let sha = SHAKE256::new().expect("Error with new()");
+    /// let sha = SHAKE256::new(None, None).expect("Error with new()");
     /// ```
-    pub fn new() -> Result<Self, i32> {
+    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitShake256(wc_shake.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe {
+            ws::wc_InitShake256(wc_shake.as_mut_ptr(), heap, dev_id)
+        };
         if rc != 0 {
             return Err(rc);
         }
@@ -1481,6 +1760,11 @@ impl SHAKE256 {
     /// This does not need to be called after `new()`, but should be called
     /// after a hash calculation to prepare for a new calculation.
     ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(()) on success or Err(e) containing the wolfSSL
@@ -1490,11 +1774,21 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let mut sha = SHAKE256::new().expect("Error with new()");
-    /// sha.init().expect("Error with init()");
+    /// let mut sha = SHAKE256::new(None, None).expect("Error with new()");
+    /// sha.init(None, None).expect("Error with init()");
     /// ```
-    pub fn init(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_InitShake256(&mut self.wc_shake, core::ptr::null_mut(), ws::INVALID_DEVID) };
+    pub fn init(&mut self, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe {
+            ws::wc_InitShake256(&mut self.wc_shake, heap, dev_id)
+        };
         if rc != 0 {
             return Err(rc);
         }
@@ -1516,7 +1810,7 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let mut sha = SHAKE256::new().expect("Error with new()");
+    /// let mut sha = SHAKE256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1545,7 +1839,7 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let mut sha = SHAKE256::new().expect("Error with new()");
+    /// let mut sha = SHAKE256::new(None, None).expect("Error with new()");
     /// sha.update(b"input").expect("Error with update()");
     /// let mut hash = [0u8; 32];
     /// sha.finalize(&mut hash).expect("Error with finalize()");
@@ -1576,7 +1870,7 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let mut sha = SHAKE256::new().expect("Error with new()");
+    /// let mut sha = SHAKE256::new(None, None).expect("Error with new()");
     /// sha.absorb(b"input").expect("Error with absorb()");
     /// ```
     pub fn absorb(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -1607,7 +1901,7 @@ impl SHAKE256 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::sha::SHAKE256;
-    /// let mut sha = SHAKE256::new().expect("Error with new()");
+    /// let mut sha = SHAKE256::new(None, None).expect("Error with new()");
     /// sha.absorb(b"input").expect("Error with absorb()");
     /// let mut buffer = [0u8; 2 * SHAKE256::SQUEEZE_BLOCK_SIZE];
     /// sha.squeeze_blocks(&mut buffer).expect("Error with squeeze_blocks()");

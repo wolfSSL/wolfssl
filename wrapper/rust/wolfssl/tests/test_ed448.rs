@@ -4,10 +4,10 @@ use wolfssl::wolfcrypt::ed448::*;
 #[test]
 fn test_make_public() {
     let mut rng = RNG::new().expect("Error creating RNG");
-    let ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
     let mut private = [0u8; Ed448::KEY_SIZE];
     ed.export_private_only(&mut private).expect("Error with export_private_only()");
-    let mut ed = Ed448::new().expect("Error with new()");
+    let mut ed = Ed448::new(None, None).expect("Error with new()");
     ed.import_private_only(&private).expect("Error with import_private_only()");
     let mut public = [0u8; Ed448::KEY_SIZE];
     ed.make_public(&mut public).expect("Error with make_public()");
@@ -16,7 +16,7 @@ fn test_make_public() {
 #[test]
 fn test_check_key() {
     let mut rng = RNG::new().expect("Error creating RNG");
-    let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
     ed.check_key().expect("Error with check_key()");
 }
 
@@ -62,7 +62,7 @@ fn test_sign_verify() {
         0x3c, 0x00
     ];
 
-    let mut ed = Ed448::new().expect("Error with new()");
+    let mut ed = Ed448::new(None, None).expect("Error with new()");
     ed.import_private_key(&private_key, Some(&public_key)).expect("Error with import_private_key()");
 
     let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -137,7 +137,7 @@ fn test_ph_sign_verify() {
         0x21, 0x00
     ];
 
-    let mut ed = Ed448::new().expect("Error with new()");
+    let mut ed = Ed448::new(None, None).expect("Error with new()");
     ed.import_private_key(&private_key, Some(&public_key)).expect("Error with import_private_key()");
 
     let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -158,7 +158,7 @@ fn test_ph_sign_verify() {
 #[test]
 fn test_import_export() {
     let mut rng = RNG::new().expect("Error creating RNG");
-    let ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
 
     let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     let mut public = [0u8; Ed448::PUB_KEY_SIZE];
@@ -175,10 +175,10 @@ fn test_import_export() {
     let mut private_only = [0u8; Ed448::KEY_SIZE];
     ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
 
-    let mut ed = Ed448::new().expect("Error with new()");
+    let mut ed = Ed448::new(None, None).expect("Error with new()");
     ed.import_private_key_ex(&private, Some(&public), false).expect("Error with import_private_key_ex()");
 
-    let mut ed = Ed448::new().expect("Error with new()");
+    let mut ed = Ed448::new(None, None).expect("Error with new()");
     ed.import_private_only(&private_only).expect("Error with import_private_only()");
     ed.import_public(&public).expect("Error with import_public()");
     ed.import_public_ex(&public, false).expect("Error with import_public_ex()");
@@ -187,7 +187,7 @@ fn test_import_export() {
 #[test]
 fn test_sizes() {
     let mut rng = RNG::new().expect("Error creating RNG");
-    let ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
 
     let size = ed.size().expect("Error with size()");
     assert_eq!(size, Ed448::KEY_SIZE);

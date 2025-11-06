@@ -73,7 +73,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -121,7 +121,7 @@ impl DH {
     /// ```rust
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut p = [0u8; 256];
     /// let mut q = [0u8; 256];
     /// let mut g = [0u8; 256];
@@ -159,6 +159,8 @@ impl DH {
     ///
     /// * `rng`: `RNG` struct instance to use for random number generation.
     /// * `modulus_size`: Modulus size in bits.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -171,11 +173,19 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
+    /// let mut dh = DH::generate(&mut rng, 2048, None, None).expect("Error with generate()");
     /// ```
-    pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
+    pub fn generate(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitDhKey(wc_dhkey.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -242,14 +252,32 @@ impl DH {
     /// # Parameters
     ///
     /// * `name`: DH parameters name, one of DH::FFDHE_*.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
     /// Returns either Ok(dh) containing the DH struct instance or Err(e)
     /// containing the wolfSSL library error code value.
-    pub fn new_named(name: i32) -> Result<Self, i32> {
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::dh::DH;
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
+    /// ```
+    pub fn new_named(name: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitDhKey(wc_dhkey.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -268,6 +296,8 @@ impl DH {
     ///
     /// * `p`: DH 'p' parameter value.
     /// * `g`: DH 'g' parameter value.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -347,13 +377,21 @@ impl DH {
     ///     0x75, 0x52, 0x9d, 0x42, 0x51, 0x78, 0x62, 0x68,
     ///     0x05, 0x45, 0x15, 0xf8, 0xa2, 0x4e, 0xf3, 0x0b
     /// ];
-    /// let dh = DH::new_from_pg(&p, &g).expect("Error with new_from_pg()");
+    /// let dh = DH::new_from_pg(&p, &g, None, None).expect("Error with new_from_pg()");
     /// ```
-    pub fn new_from_pg(p: &[u8], g: &[u8]) -> Result<Self, i32> {
+    pub fn new_from_pg(p: &[u8], g: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitDhKey(wc_dhkey.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -375,6 +413,8 @@ impl DH {
     /// * `p`: DH 'p' parameter value.
     /// * `g`: DH 'g' parameter value.
     /// * `q`: DH 'q' parameter value.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -460,14 +500,22 @@ impl DH {
     ///     0xec, 0x24, 0x5d, 0x78, 0x59, 0xe7, 0x8d, 0xb5,
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
-    /// let dh = DH::new_from_pgq(&p, &g, &q).expect("Error with new_from_pgq()");
+    /// let dh = DH::new_from_pgq(&p, &g, &q, None, None).expect("Error with new_from_pgq()");
     /// ```
-    pub fn new_from_pgq(p: &[u8], g: &[u8], q: &[u8]) -> Result<Self, i32> {
+    pub fn new_from_pgq(p: &[u8], g: &[u8], q: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;
         let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitDhKey(wc_dhkey.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -492,6 +540,8 @@ impl DH {
     /// * `trusted`: Whether to skip the prime check for `p` parameter and mark
     ///   the DH context as trusted.
     /// * `rng`: `RNG` instance to use for random number generation.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
@@ -578,14 +628,22 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq_with_check()");
+    /// let dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq_with_check()");
     /// ```
-    pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG) -> Result<Self, i32> {
+    pub fn new_from_pgq_with_check(p: &[u8], g: &[u8], q: &[u8], trusted: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;
         let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitDhKey(wc_dhkey.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -619,7 +677,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -662,7 +720,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -779,7 +837,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq()");
+    /// let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -826,7 +884,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -947,7 +1005,7 @@ impl DH {
     ///     0x40, 0x52, 0xed, 0x41
     /// ];
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng).expect("Error with new_from_pgq()");
+    /// let mut dh = DH::new_from_pgq_with_check(&p, &g, &q, 0, &mut rng, None, None).expect("Error with new_from_pgq()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -1025,7 +1083,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Failed to create RNG");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private = [0u8; 256];
     /// let mut private_size = 0u32;
     /// let mut public = [0u8; 256];
@@ -1067,7 +1125,7 @@ impl DH {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
-    /// let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");
+    /// let mut dh = DH::new_named(DH::FFDHE_2048, None, None).expect("Error with new_named()");
     /// let mut private0 = [0u8; 256];
     /// let mut private0_size = 0u32;
     /// let mut public0 = [0u8; 256];

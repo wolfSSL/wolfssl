@@ -1,5 +1,4 @@
 use wolfssl::wolfcrypt::prf::*;
-use wolfssl_sys as ws;
 
 #[test]
 fn test_kdf_prf() {
@@ -23,9 +22,7 @@ fn test_kdf_prf() {
 
     let mut out = [0u8; 12];
 
-    prf(&secret, &seed, PRF_HASH_SHA384,
-        core::ptr::null_mut(), ws::INVALID_DEVID,
-        &mut out).expect("Error with prf()");
+    prf(&secret, &seed, PRF_HASH_SHA384, None, None, &mut out).expect("Error with prf()");
 
     assert_eq!(out, expected);
 }

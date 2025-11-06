@@ -58,6 +58,7 @@ fn test_tls13_hkdf_extract_expand() {
     let mut secret = [0u8; SHA256::DIGEST_SIZE];
 
     tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
+    tls13_hkdf_extract_ex(HMAC::TYPE_SHA256, None, None, &mut secret, None, None).expect("Error with tls13_hkdf_extract_ex()");
 
     let protocol_label = b"tls13 ";
     let ce_traffic_label = b"c e traffic";
@@ -66,6 +67,9 @@ fn test_tls13_hkdf_extract_expand() {
     tls13_hkdf_expand_label(HMAC::TYPE_SHA256, &secret,
         protocol_label, ce_traffic_label,
         &hash_hello1, &mut expand_out).expect("Error with tls13_hkdf_expand_label()");
+    tls13_hkdf_expand_label_ex(HMAC::TYPE_SHA256, &secret,
+        protocol_label, ce_traffic_label,
+        &hash_hello1, &mut expand_out, None, None).expect("Error with tls13_hkdf_expand_label_ex()");
 
     assert_eq!(expand_out, client_early_traffic_secret);
 }
