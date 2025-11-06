@@ -38575,51 +38575,70 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     DecodeSigAlg(&input[args->idx], &ssl->options.peerHashAlgo,
                                  &ssl->options.peerSigAlgo);
                     args->idx += 2;
-                }
-            #ifndef NO_RSA
-                else if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0)
-                    ssl->options.peerSigAlgo = rsa_sa_algo;
-            #endif
-            #ifdef HAVE_ECC
-                else if (ssl->peerEccDsaKeyPresent) {
-                #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                    if (ssl->peerEccDsaKey->dp->id == ECC_SM2P256V1) {
-                        ssl->options.peerSigAlgo = sm2_sa_algo;
+
+                #ifndef NO_RSA
+                    if (ssl->peerRsaKeyPresent) {
+                        if (ssl->options.peerSigAlgo != rsa_sa_algo
+                        #ifdef WC_RSA_PSS
+                            && ssl->options.peerSigAlgo != rsa_pss_sa_algo
+                        #endif
+                            ) {
+                            WOLFSSL_MSG("Oops, peer sent RSA key but not in "
+                                                                      "verify");
+                            ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                        }
                     }
                     else
                 #endif
-                    {
-                        ssl->options.peerSigAlgo = ecc_dsa_sa_algo;
+                #ifdef HAVE_ECC
+                    if (ssl->peerEccDsaKeyPresent) {
+                        if (ssl->options.peerSigAlgo != ecc_dsa_sa_algo
+                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                            && ssl->options.peerSigAlgo != sm2_sa_algo
+                        #endif
+                            ) {
+                            WOLFSSL_MSG("Oops, peer sent ECC key but not in "
+                                                                      "verify");
+                            ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                        }
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        if (ssl->options.peerSigAlgo == sm2_sa_algo &&
+                            ssl->options.peerHashAlgo != sm3_mac) {
+                            WOLFSSL_MSG("SM2 with SM3 only");
+                            ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                        }
+                    #endif
                     }
+                    else
+                #endif
+                #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
+                    if (ssl->peerEd25519KeyPresent) {
+                        if (ssl->options.peerSigAlgo != ed25519_sa_algo) {
+                            WOLFSSL_MSG("Oops, peer sent Ed25519 key but not "
+                                                                   "in verify");
+                            ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                        }
+                    }
+                    else
+                #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
+                #if defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)
+                    if (ssl->peerEd448KeyPresent) {
+                        if (ssl->options.peerSigAlgo != ed448_sa_algo) {
+                            WOLFSSL_MSG("Oops, peer sent Ed448 key but not in "
+                                                                      "verify");
+                            ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                        }
+                    }
+                    else
+                #endif /* HAVE_ED448 && !NO_ED448_CLIENT_AUTH */
+                    {
+                        ERROR_OUT(INVALID_PARAMETER, exit_dcv);
+                    }
+
+                    SetDigest(ssl, ssl->options.peerHashAlgo);
                 }
-            #endif
-            #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
-                else if (ssl->peerEd25519KeyPresent)
-                    ssl->options.peerSigAlgo = ed25519_sa_algo;
-            #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
-            #if defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)
-                else if (ssl->peerEd448KeyPresent)
-                    ssl->options.peerSigAlgo = ed448_sa_algo;
-            #endif /* HAVE_ED448 && !NO_ED448_CLIENT_AUTH */
-
-                if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
-                }
-
-                ato16(input + args->idx, &args->sz);
-                args->idx += OPAQUE16_LEN;
-
-                if ((args->idx - args->begin) + args->sz > size ||
-                                                    args->sz > ENCRYPT_LEN) {
-                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
-                }
-
-            #ifdef HAVE_ECC
-                if (ssl->peerEccDsaKeyPresent) {
-
-                    WOLFSSL_MSG("Doing ECC peer cert verify");
-
-                /* make sure a default is defined */
+                else {
+                    /* make sure a default is defined */
                 #if !defined(NO_SHA)
                     SetDigest(ssl, sha_mac);
                 #elif !defined(NO_SHA256)
@@ -38634,39 +38653,51 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     #error No digest enabled for ECC sig verify
                 #endif
 
-                    if (IsAtLeastTLSv1_2(ssl)) {
-                        if (ssl->options.peerSigAlgo != ecc_dsa_sa_algo
-                        #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-                            && ssl->options.peerSigAlgo != sm2_sa_algo
-                        #endif
-                            ) {
-                            WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
+                #ifndef NO_RSA
+                    if (ssl->peerRsaKeyPresent)
+                        ssl->options.peerSigAlgo = rsa_sa_algo;
+                    else
+                #endif
+                #ifdef HAVE_ECC
+                    if (ssl->peerEccDsaKeyPresent) {
+                    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                        if (ssl->peerEccDsaKey->dp->id == ECC_SM2P256V1) {
+                            ssl->options.peerSigAlgo = sm2_sa_algo;
                         }
+                        else
+                    #endif
+                        {
+                            ssl->options.peerSigAlgo = ecc_dsa_sa_algo;
+                        }
+                    }
+                    else
+                #endif
+                #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
+                    if (ssl->peerEd25519KeyPresent)
+                        ssl->options.peerSigAlgo = ed25519_sa_algo;
+                    else
+                #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
+                #if defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)
+                    if (ssl->peerEd448KeyPresent)
+                        ssl->options.peerSigAlgo = ed448_sa_algo;
+                    else
+                #endif /* HAVE_ED448 && !NO_ED448_CLIENT_AUTH */
+                    {
+                        ERROR_OUT(NO_PEER_KEY, exit_dcv);
+                    }
+                }
 
-                        SetDigest(ssl, ssl->options.peerHashAlgo);
-                    }
+                if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
                 }
-            #endif /* HAVE_ECC */
-            #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
-                if (ssl->peerEd25519KeyPresent) {
-                    WOLFSSL_MSG("Doing ED25519 peer cert verify");
-                    if (IsAtLeastTLSv1_2(ssl) &&
-                                             ssl->options.peerSigAlgo != ed25519_sa_algo) {
-                        WOLFSSL_MSG(
-                               "Oops, peer sent ED25519 key but not in verify");
-                    }
+
+                ato16(input + args->idx, &args->sz);
+                args->idx += OPAQUE16_LEN;
+
+                if ((args->idx - args->begin) + args->sz > size ||
+                                                    args->sz > ENCRYPT_LEN) {
+                    ERROR_OUT(BUFFER_ERROR, exit_dcv);
                 }
-            #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
-            #if defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)
-                if (ssl->peerEd448KeyPresent) {
-                    WOLFSSL_MSG("Doing ED448 peer cert verify");
-                    if (IsAtLeastTLSv1_2(ssl) &&
-                                               ssl->options.peerSigAlgo != ed448_sa_algo) {
-                        WOLFSSL_MSG(
-                                 "Oops, peer sent ED448 key but not in verify");
-                    }
-                }
-            #endif /* HAVE_ED448 && !NO_ED448_CLIENT_AUTH */
 
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_DO;
@@ -38803,8 +38834,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     if (IsAtLeastTLSv1_2(ssl)) {
                     #ifdef WC_RSA_PSS
                         if (ssl->options.peerSigAlgo == rsa_pss_sa_algo) {
-                            SetDigest(ssl, ssl->options.peerHashAlgo);
-
                         #ifdef HAVE_SELFTEST
                             ret = wc_RsaPSS_CheckPadding(
                                             ssl->buffers.digest.buffer,
@@ -38837,12 +38866,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         #endif
 
-                            if (ssl->options.peerSigAlgo != rsa_sa_algo) {
-                                WOLFSSL_MSG("Oops, peer sent RSA key but not "
-                                            "in verify");
-                            }
-
-                            SetDigest(ssl, ssl->options.peerHashAlgo);
 
                             args->sigSz = wc_EncodeSignature(encodedSig,
                                 ssl->buffers.digest.buffer,
