@@ -7594,7 +7594,7 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, const byte* input,
     }
     XMEMCPY(suites->hashSigAlgo, input, suites->hashSigAlgoSz);
 
-    return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
+    return TLSX_SignatureAlgorithms_MapPss(ssl, input, suites->hashSigAlgoSz);
 }
 
 /* Sets a new SignatureAlgorithms extension into the extension list.
