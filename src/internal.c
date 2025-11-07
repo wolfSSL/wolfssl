@@ -37338,11 +37338,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(outSuites->suites, &suites, sizeof(suites));
     #ifdef WOLFSSL_DEBUG_TLS
         {
-            int ii;
+            word16 ii;
             WOLFSSL_MSG("Refined Ciphers:");
-            for (ii = 0 ; ii < suites->suiteSz; ii += 2) {
-                WOLFSSL_MSG(GetCipherNameInternal(suites->suites[ii+0],
-                                                  suites->suites[ii+1]));
+            for (ii = 0 ; ii < outSuites->suiteSz; ii += 2) {
+                WOLFSSL_MSG(GetCipherNameInternal(outSuites->suites[ii+0],
+                                                  outSuites->suites[ii+1]));
             }
         }
     #endif
@@ -38568,8 +38568,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_BUILD:
             {
                 if (IsAtLeastTLSv1_2(ssl)) {
-                    if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN > size) {
+                    if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN >
+                                                                         size) {
                         ERROR_OUT(BUFFER_ERROR, exit_dcv);
+                    }
+
+                    /* Check if hashSigAlgo in CertificateVerify is supported
+                     * in our ssl->suites or ssl->ctx->suites. */
+                    if (!SupportedHashSigAlgo(ssl, &input[args->idx])) {
+                        WOLFSSL_MSG("Signature algorithm was not in "
+                                                          "CertificateRequest");
+                        ERROR_OUT(INVALID_PARAMETER, exit_dcv);
                     }
 
                     DecodeSigAlg(&input[args->idx], &ssl->options.peerHashAlgo,
