@@ -77,7 +77,8 @@ PARENTDIR="$PWD"
 #WORKSPACE="${PARENTDIR}/workspace.pid$$"
 #mkdir "${WORKSPACE}" || exit $?
 
-WORKSPACE="$(mktemp -d -p ${PARENTDIR})"
+# Use portable mktemp syntax that works on both Linux and macOS
+WORKSPACE="$(mktemp -d ${PARENTDIR}/wolfssl-ocsp-test.XXXXXX)"
 
 cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
