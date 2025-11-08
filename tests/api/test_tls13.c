@@ -2232,7 +2232,8 @@ int test_tls13_hrr_different_cs(void)
     defined(WOLFSSL_TLS13) && \
     defined(BUILD_TLS_AES_256_GCM_SHA384) && \
     defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) && \
-    defined(HAVE_ECC) && defined(HAVE_ECC384)
+    defined(HAVE_ECC) && defined(HAVE_ECC384) && \
+    !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
     /*
      * TLSv1.3 Record Layer: Handshake Protocol: Hello Retry Request
      *     Content Type: Handshake (22)
