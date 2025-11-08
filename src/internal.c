@@ -16467,6 +16467,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     }
                     else {
+                    #ifndef  WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
                         if (MatchDomainName(
                                 args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
@@ -16475,28 +16476,29 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 (word32)XSTRLEN(
                                 (const char *)ssl->buffers.domainName.buffer)
                                 ), 0) == 0)
+                    #endif
                         {
-                            WOLFSSL_MSG("DomainName match on common name failed");
+                            WOLFSSL_MSG("DomainName match failed");
                             ret = DOMAIN_NAME_MISMATCH;
                             WOLFSSL_ERROR_VERBOSE(ret);
                         }
                     }
                 #else /* WOLFSSL_ALL_NO_CN_IN_SAN */
                     /* Old behavior. */
+                #ifndef  WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
                     if (MatchDomainName(args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
                                 (char*)ssl->buffers.domainName.buffer,
                                 (ssl->buffers.domainName.buffer == NULL ? 0 :
                                 (word32)XSTRLEN(ssl->buffers.domainName.buffer)), 0) == 0)
+                #endif
                     {
-                        WOLFSSL_MSG("DomainName match on common name failed");
                         if (CheckForAltNames(args->dCert,
                                  (char*)ssl->buffers.domainName.buffer,
                                  (ssl->buffers.domainName.buffer == NULL ? 0 :
                                  (word32)XSTRLEN(ssl->buffers.domainName.buffer)),
                                  NULL, 0) != 1) {
-                            WOLFSSL_MSG(
-                                "DomainName match on alt names failed too");
+                            WOLFSSL_MSG("DomainName match failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
                             WOLFSSL_ERROR_VERBOSE(ret);
