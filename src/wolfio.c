@@ -638,6 +638,18 @@ static int isDGramSock(int sfd)
     }
 }
 
+void wolfSSL_SetRecvFrom(WOLFSSL* ssl, WolfSSLRecvFrom recvFrom)
+{
+    if (ssl != NULL)
+        ssl->buffers.dtlsCtx.recvfrom = recvFrom;
+}
+
+void wolfSSL_SetSendTo(WOLFSSL* ssl, WolfSSLSento sendTo)
+{
+    if (ssl != NULL)
+        ssl->buffers.dtlsCtx.sendto = sendTo;
+}
+
 /* The receive embedded callback
  *  return : nb bytes read, or error
  */
@@ -686,10 +698,6 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         /* Store the peer address. It is used to calculate the DTLS cookie. */
         newPeer = dtlsCtx->peer.sa == NULL || !ssl->options.dtlsStateful;
         peer = &lclPeer;
-        if (dtlsCtx->peer.sa != NULL) {
-            XMEMCPY(peer, (SOCKADDR_S*)dtlsCtx->peer.sa, MIN(sizeof(lclPeer),
-                    dtlsCtx->peer.sz));
-        }
         peerSz = sizeof(lclPeer);
     }
 
@@ -785,8 +793,16 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         {
             XSOCKLENT inPeerSz = peerSz;
-            recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz,
-                 ssl->rflags, (SOCKADDR*)peer, peer != NULL ? &inPeerSz : NULL);
+            if (dtlsCtx->recvfrom == NULL) {
+                recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz,
+                        ssl->rflags, (SOCKADDR*)peer,
+                        peer != NULL ? &inPeerSz : NULL);
+            }
+            else {
+                recvd = (int)dtlsCtx->recvfrom(sd, buf, (size_t) sz,
+                        ssl->rflags, (SOCKADDR*) peer,
+                        peer != NULL ? &inPeerSz : NULL);
+            }
             /* Truncate peerSz. From the RECV(2) man page
              * The returned address is truncated if the buffer provided is too
              * small; in this case, addrlen will return a value greater than was
@@ -856,6 +872,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 /* Store size of saved address. Locking handled internally. */
                 if (wolfSSL_dtls_set_peer(ssl, peer, peerSz) != WOLFSSL_SUCCESS)
                     return WOLFSSL_CBIO_ERR_GENERAL;
+                dtlsCtx->userSet = 0;
             }
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
             else {
@@ -914,8 +931,14 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 #endif
     }
 
-    sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, ssl->wflags,
-            (const SOCKADDR*)peer, peerSz);
+    if (dtlsCtx->sendto == NULL) {
+        sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, ssl->wflags,
+                (const SOCKADDR*)peer, peerSz);
+    }
+    else {
+        sent = (int)dtlsCtx->sendto(sd, buf, (size_t)sz, ssl->wflags,
+                (const SOCKADDR*)peer, peerSz);
+    }
 
     sent = TranslateIoReturnCode(sent, sd, SOCKET_SENDING);
 

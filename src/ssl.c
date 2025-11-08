@@ -11012,6 +11012,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
+            if (ssl->options.returnOnGoodCh) {
+                /* Higher level in stack wants us to return. Simulate a
+                 * WANT_WRITE to accomplish this. */
+                ssl->error = WANT_WRITE;
+                return WOLFSSL_FATAL_ERROR;
+            }
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
             #ifdef WOLFSSL_CHECK_ALERT_ON_ERR
                 ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
@@ -11312,7 +11318,9 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
     if (wolfDTLS_SetChGoodCb(ssl, chGoodDisableReadCB, &cb) != WOLFSSL_SUCCESS)
         return WOLFSSL_FATAL_ERROR;
 
+    ssl->options.returnOnGoodCh = 1;
     ret = wolfSSL_accept(ssl);
+    ssl->options.returnOnGoodCh = 0;
     /* restore user options */
     ssl->options.disableRead = disableRead;
     (void)wolfDTLS_SetChGoodCb(ssl, cb.userCb, cb.userCtx);
@@ -11320,7 +11328,9 @@ int wolfDTLS_accept_stateless(WOLFSSL* ssl)
         WOLFSSL_MSG("should not happen. maybe the user called "
                     "wolfDTLS_accept_stateless instead of wolfSSL_accept");
     }
-    else if (ssl->error == WC_NO_ERR_TRACE(WANT_READ)) {
+    else if (ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+             ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)) {
+        ssl->error = 0;
         if (ssl->options.dtlsStateful)
             ret = WOLFSSL_SUCCESS;
         else
