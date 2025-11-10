@@ -80,7 +80,36 @@ jobs:
 
       - name: Checkout hostap
         if: steps.cache.outputs.cache-hit != 'true'
-        run: git clone git://w1.fi/hostap.git hostap
+        run: |
+            # Fetch the host AP source
+            set -Eeuo pipefail
+
+            cloned=0
+            REMOTE1="https://w1.fi/cgit/hostap"   # try HTTPS first
+            REMOTE2="git://w1.fi/hostap.git"      # fallback (9418 often blocked)
+
+            for remote in "$REMOTE1" "$REMOTE2"; do
+              echo "Trying $remote"
+              for i in 1 2 3 4 5; do
+                rm -rf hostap
+                if git clone --filter=blob:none "$remote" hostap; then
+                  echo "Cloned from $remote"
+                  cloned=1
+                  break 2          # success, break both loops, DO NOT exit the step
+                fi
+                sleep_secs=$(( i * 30 ))
+                echo "Clone failed (attempt $i). Sleeping ${sleep_secs}s..."
+                sleep "$sleep_secs"
+              done
+            done
+
+            if [ "$cloned" -ne 1 ]; then
+              echo "::warning:: hostap clone failed after retries; abort"
+              exit 1
+            fi
+
+            # Silence Git "dubious ownership" on the host (runner):
+            git config --global --add safe.directory "$GITHUB_WORKSPACE/hostap" || true
 
   build_uml_linux:
     name: Build UML (UserMode Linux)
@@ -226,7 +255,43 @@ jobs:
 
       - name: Checkout correct ref
         working-directory: hostap
-        run: git checkout ${{ matrix.config.hostap_ref }}
+        run: |
+            # Ensure a clean hostap before each checkout in matrix
+            git config --global --add safe.directory "$GITHUB_WORKSPACE/hostap" || true
+            git reset --hard
+            git clean -fdx
+            git -c advice.detachedHead=false checkout ${{ matrix.config.hostap_ref }}
+
+            # see "inside.sh"
+            # https://git.w1.fi/cgit/hostap/tree/tests/hwsim/vm/inside.sh
+            # And make every UML guest do the same at boot:
+            # (inside.sh runs inside each VM before tests)
+            target="tests/hwsim/vm/inside.sh"
+
+            # Just in case the inside.sh is moved, we won't fail here.
+            if [ ! -f "$target" ]; then
+              echo "::Warning:: $target not found at this ref, skipping Git safe.directory step"
+              ls -la tests/hwsim/vm || true
+              exit 0
+            fi
+
+            # PREPEND the lines so they run before anything else inside the guest
+            echo "marking safe.directory during inside.sh"
+            tmp="$(mktemp)"
+            {
+              printf '#!/bin/sh\n'
+              printf '# Added by CI to silence Git safe.directory warnings\n'
+              printf 'git config --global --add safe.directory "*"\n'
+              printf 'git config --global --add safe.directory "/home/runner/work/wolfssl/wolfssl/hostap"\n'
+              cat "$target"
+            } > "$tmp"
+            mv "$tmp" "$target"
+
+            # Ensure it stays executable
+            chmod +x $target || true
+
+            # peek at inside.sh
+            cat $target || true
 
       - name: Update certs
         working-directory: hostap/tests/hwsim/auth_serv
@@ -316,7 +381,7 @@ jobs:
             KERNELDIR=$GITHUB_WORKSPACE/linux
             KVMARGS="-cpu host"
           EOF
-          git config --global --add safe.directory $GITHUB_WORKSPACE/hostap
+
           # Run tests in increments of 200 to not stall out the parallel-vm script
           while mapfile -t -n 200 ary && ((${#ary[@]})); do
             TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')
