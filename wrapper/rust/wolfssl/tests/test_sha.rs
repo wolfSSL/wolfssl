@@ -2,9 +2,9 @@ use wolfssl::wolfcrypt::sha::*;
 
 #[test]
 fn test_sha() {
-    let mut sha = SHA::new(None, None).expect("Error with new()");
+    let mut sha = SHA::new().expect("Error with new()");
     fn test1(sha: &mut SHA, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -27,9 +27,9 @@ fn test_sha() {
 
 #[test]
 fn test_sha224() {
-    let mut sha = SHA224::new(None, None).expect("Error with new()");
+    let mut sha = SHA224::new().expect("Error with new()");
     fn test1(sha: &mut SHA224, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA224::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -46,9 +46,9 @@ fn test_sha224() {
 
 #[test]
 fn test_sha256() {
-    let mut sha = SHA256::new(None, None).expect("Error with new()");
+    let mut sha = SHA256::new().expect("Error with new()");
     fn test1(sha: &mut SHA256, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA256::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -71,9 +71,9 @@ fn test_sha256() {
 
 #[test]
 fn test_sha384() {
-    let mut sha = SHA384::new(None, None).expect("Error with new()");
+    let mut sha = SHA384::new().expect("Error with new()");
     fn test1(sha: &mut SHA384, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA384::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -93,9 +93,9 @@ fn test_sha384() {
 
 #[test]
 fn test_sha512() {
-    let mut sha = SHA512::new(None, None).expect("Error with new()");
+    let mut sha = SHA512::new().expect("Error with new()");
     fn test1(sha: &mut SHA512, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA512::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -115,9 +115,9 @@ fn test_sha512() {
 
 #[test]
 fn test_sha3_224() {
-    let mut sha = SHA3_224::new(None, None).expect("Error with new()");
+    let mut sha = SHA3_224::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_224, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA3_224::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -137,9 +137,9 @@ fn test_sha3_224() {
 
 #[test]
 fn test_sha3_256() {
-    let mut sha = SHA3_256::new(None, None).expect("Error with new()");
+    let mut sha = SHA3_256::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_256, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA3_256::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -159,9 +159,9 @@ fn test_sha3_256() {
 
 #[test]
 fn test_sha3_384() {
-    let mut sha = SHA3_384::new(None, None).expect("Error with new()");
+    let mut sha = SHA3_384::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_384, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA3_384::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -185,9 +185,9 @@ fn test_sha3_384() {
 
 #[test]
 fn test_sha3_512() {
-    let mut sha = SHA3_512::new(None, None).expect("Error with new()");
+    let mut sha = SHA3_512::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_512, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = [0u8; SHA3_512::DIGEST_SIZE];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -207,9 +207,9 @@ fn test_sha3_512() {
 
 #[test]
 fn test_shake128() {
-    let mut sha = SHAKE128::new(None, None).expect("Error with new()");
+    let mut sha = SHAKE128::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE128, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = vec![0u8; expected_hash.len()];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -237,9 +237,9 @@ fn test_shake128() {
 
 #[test]
 fn test_shake128_absorb_squeeze() {
-    let mut sha = SHAKE128::new(None, None).expect("Error with new()");
+    let mut sha = SHAKE128::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE128, input: &[u8], expected_squeeze_out: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.absorb(input).expect("Error with absorb()");
         let mut squeeze_out = vec![0u8; expected_squeeze_out.len()];
         sha.squeeze_blocks(&mut squeeze_out).expect("Error with squeeze_blocks()");
@@ -267,9 +267,9 @@ fn test_shake128_absorb_squeeze() {
 
 #[test]
 fn test_shake256() {
-    let mut sha = SHAKE256::new(None, None).expect("Error with new()");
+    let mut sha = SHAKE256::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE256, input: &[u8], expected_hash: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.update(input).expect("Error with update()");
         let mut hash = vec![0u8; expected_hash.len()];
         sha.finalize(&mut hash).expect("Error with finalize()");
@@ -297,9 +297,9 @@ fn test_shake256() {
 
 #[test]
 fn test_shake256_absorb_squeeze() {
-    let mut sha = SHAKE256::new(None, None).expect("Error with new()");
+    let mut sha = SHAKE256::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE256, input: &[u8], expected_squeeze_out: &[u8]) {
-        sha.init(None, None).expect("Error with init()");
+        sha.init().expect("Error with init()");
         sha.absorb(input).expect("Error with absorb()");
         let mut squeeze_out = vec![0u8; expected_squeeze_out.len()];
         sha.squeeze_blocks(&mut squeeze_out).expect("Error with squeeze_blocks()");

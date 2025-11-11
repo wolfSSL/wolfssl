@@ -34,7 +34,7 @@ use wolfssl_sys as ws;
 /// # Example
 /// ```rust
 /// use wolfssl::wolfcrypt::aes::CBC;
-/// let mut cbc = CBC::new(None, None).expect("Failed to create CBC");
+/// let mut cbc = CBC::new().expect("Failed to create CBC");
 /// let key: &[u8; 16] = b"0123456789abcdef";
 /// let iv: &[u8; 16] = b"1234567890abcdef";
 /// let msg: [u8; 16] = [
@@ -60,6 +60,16 @@ pub struct CBC {
 impl CBC {
     /// Create a new `CBC` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CBC) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CBC` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -69,7 +79,7 @@ impl CBC {
     ///
     /// A Result which is Ok(CBC) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let cbc = CBC {ws_aes};
         Ok(cbc)
@@ -230,7 +240,7 @@ impl Drop for CBC {
 ///     0x17, 0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0
 /// ];
 ///
-/// let mut ccm = CCM::new(None, None).expect("Failed to create CCM");
+/// let mut ccm = CCM::new().expect("Failed to create CCM");
 /// ccm.init(&key).expect("Error with init()");
 /// let mut auth_tag_out: [u8; 8] = [0; 8];
 /// let mut cipher_out: [u8; 23] = [0; 23];
@@ -250,6 +260,16 @@ pub struct CCM {
 impl CCM {
     /// Create a new `CCM` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CCM) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CCM` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -259,7 +279,7 @@ impl CCM {
     ///
     /// A Result which is Ok(CCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ccm = CCM {ws_aes};
         Ok(ccm)
@@ -390,7 +410,7 @@ impl Drop for CCM {
 /// # Example
 /// ```rust
 /// use wolfssl::wolfcrypt::aes::CFB;
-/// let mut cfb = CFB::new(None, None).expect("Failed to create CFB");
+/// let mut cfb = CFB::new().expect("Failed to create CFB");
 /// let key: [u8; 16] = [
 ///     0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
 ///     0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
@@ -431,6 +451,16 @@ pub struct CFB {
 impl CFB {
     /// Create a new `CFB` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CFB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CFB` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -440,7 +470,7 @@ impl CFB {
     ///
     /// A Result which is Ok(CFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let cfb = CFB {ws_aes};
         Ok(cfb)
@@ -705,7 +735,7 @@ impl Drop for CFB {
 ///     0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,
 ///     0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
 /// ];
-/// let mut ctr = CTR::new(None, None).expect("Failed to create CTR");
+/// let mut ctr = CTR::new().expect("Failed to create CTR");
 /// ctr.init(&key, &iv).expect("Error with init()");
 /// let mut outbuf: [u8; 64] = [0; 64];
 /// ctr.encrypt(&msg, &mut outbuf).expect("Error with encrypt()");
@@ -721,6 +751,16 @@ pub struct CTR {
 impl CTR {
     /// Create a new `CTR` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CTR) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CTR` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -730,7 +770,7 @@ impl CTR {
     ///
     /// A Result which is Ok(CTR) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ctr = CTR {ws_aes};
         Ok(ctr)
@@ -968,7 +1008,7 @@ impl EAX {
 /// # Example
 /// ```rust
 /// use wolfssl::wolfcrypt::aes::ECB;
-/// let mut ecb = ECB::new(None, None).expect("Failed to create ECB");
+/// let mut ecb = ECB::new().expect("Failed to create ECB");
 /// let key_128: &[u8; 16] = b"0123456789abcdef";
 /// let msg: [u8; 16] = [
 ///     0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
@@ -993,6 +1033,16 @@ pub struct ECB {
 impl ECB {
     /// Create a new `ECB` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(ECB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `ECB` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -1002,7 +1052,7 @@ impl ECB {
     ///
     /// A Result which is Ok(ECB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ecb = ECB {ws_aes};
         Ok(ecb)
@@ -1162,7 +1212,7 @@ impl Drop for ECB {
 ///     0x54, 0x24, 0x65, 0xef, 0x59, 0x93, 0x16, 0xf7,
 ///     0x3a, 0x7a, 0x56, 0x05, 0x09, 0xa2, 0xd9, 0xf2
 /// ];
-/// let mut gcm = GCM::new(None, None).expect("Failed to create GCM");
+/// let mut gcm = GCM::new().expect("Failed to create GCM");
 /// gcm.init(&key).expect("Error with init()");
 /// let mut cipher: [u8; 32] = [0; 32];
 /// let mut auth_tag: [u8; 16] = [0; 16];
@@ -1179,6 +1229,16 @@ pub struct GCM {
 impl GCM {
     /// Create a new `GCM` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(GCM) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `GCM` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -1188,7 +1248,7 @@ impl GCM {
     ///
     /// A Result which is Ok(GCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcm = GCM {ws_aes};
         Ok(gcm)
@@ -1363,7 +1423,7 @@ impl Drop for GCM {
 ///     0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
 ///     0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
 /// ];
-/// let mut gcmstream = GCMStream::new(None, None).expect("Failed to create GCMStream");
+/// let mut gcmstream = GCMStream::new().expect("Failed to create GCMStream");
 /// for chunk_size in 1..=auth.len() {
 ///     gcmstream.init(&key, &iv).expect("Error with init()");
 ///     let mut cipher: [u8; 60] = [0; 60];
@@ -1397,6 +1457,16 @@ pub struct GCMStream {
 impl GCMStream {
     /// Create a new `GCMStream` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(GCMStream) on success or an Err containing the
+    /// wolfSSL library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `GCMStream` instance with heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -1406,7 +1476,7 @@ impl GCMStream {
     ///
     /// A Result which is Ok(GCMStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcmstream = GCMStream {ws_aes};
         Ok(gcmstream)
@@ -1619,7 +1689,7 @@ impl Drop for GCMStream {
 ///     0x04,0x53,0xe1,0x73,0xf5,0x18,0x74,0xae,
 ///     0xfd,0x64,0xa2,0xe1,0xe2,0x76,0x13,0xb0
 /// ];
-/// let mut ofb = OFB::new(None, None).expect("Failed to create OFB");
+/// let mut ofb = OFB::new().expect("Failed to create OFB");
 /// ofb.init(&key, &iv).expect("Error with init()");
 /// let mut cipher: [u8; 48] = [0; 48];
 /// ofb.encrypt(&plain, &mut cipher).expect("Error with encrypt()");
@@ -1635,6 +1705,16 @@ pub struct OFB {
 impl OFB {
     /// Create a new `OFB` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(OFB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `OFB` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -1644,7 +1724,7 @@ impl OFB {
     ///
     /// A Result which is Ok(OFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_aes = new_ws_aes(heap, dev_id)?;
         let ofb = OFB {ws_aes};
         Ok(ofb)
@@ -1789,7 +1869,7 @@ impl Drop for OFB {
 ///     0x77, 0x8a, 0xe8, 0xb4, 0x3c, 0xb9, 0x8d, 0x5a
 /// ];
 ///
-/// let mut xts = XTS::new(None, None).expect("Failed to create XTS");
+/// let mut xts = XTS::new().expect("Failed to create XTS");
 /// xts.init_encrypt(&key).expect("Error with init_encrypt()");
 /// let mut cipher: [u8; 16] = [0; 16];
 /// xts.encrypt(&plain, &mut cipher, &tweak).expect("Error with encrypt()");
@@ -1814,6 +1894,16 @@ pub struct XTS {
 impl XTS {
     /// Create a new `XTS` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(XTS) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `XTS` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -1823,7 +1913,7 @@ impl XTS {
     ///
     /// A Result which is Ok(XTS) on success or an Err containing the wolfSSL
     /// library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let xts = XTS {ws_xtsaes};
         Ok(xts)
@@ -2145,7 +2235,7 @@ impl Drop for XTS {
 ///     0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
 /// ];
 ///
-/// let mut xtsstream = XTSStream::new(None, None).expect("Failed to create XTSStream");
+/// let mut xtsstream = XTSStream::new().expect("Failed to create XTSStream");
 /// xtsstream.init_encrypt(&keys, &tweak).expect("Error with init_encrypt()");
 /// let mut cipher: [u8; 40] = [0; 40];
 /// xtsstream.encrypt_update(&plain[0..16], &mut cipher[0..16]).expect("Error with encrypt_update()");
@@ -2165,6 +2255,16 @@ pub struct XTSStream {
 impl XTSStream {
     /// Create a new `XTSStream` instance.
     ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(XTSStream) on success or an Err containing the
+    /// wolfSSL library return code on failure.
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `XTSStream` instance with optional heap and device ID.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -2174,7 +2274,7 @@ impl XTSStream {
     ///
     /// A Result which is Ok(XTSStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let ws_xtsaesstreamdata: MaybeUninit<ws::XtsAesStreamData> = MaybeUninit::uninit();
         let ws_xtsaesstreamdata = unsafe { ws_xtsaesstreamdata.assume_init() };

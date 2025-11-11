@@ -53,7 +53,7 @@ const BIG_MSG: [u8; 384] = [
 
 #[test]
 fn test_cbc_encrypt_decrypt() {
-    let mut cbc = CBC::new(None, None).expect("Failed to create CBC");
+    let mut cbc = CBC::new().expect("Failed to create CBC");
     let key: &[u8; 16] = b"0123456789abcdef";
     let iv: &[u8; 16] = b"1234567890abcdef";
     let msg: [u8; 16] = [
@@ -76,7 +76,7 @@ fn test_cbc_encrypt_decrypt() {
 
 #[test]
 fn test_cbc_big_msg() {
-    let mut cbc = CBC::new(None, None).expect("Failed to create CBC");
+    let mut cbc = CBC::new().expect("Failed to create CBC");
     let big_key = b"0123456789abcdeffedcba9876543210";
     let iv: &[u8; 16] = b"1234567890abcdef";
     let mut big_cipher: [u8; 384] = [0; 384];
@@ -146,7 +146,7 @@ fn test_ccm_encrypt_decrypt() {
         0x89, 0xd8, 0xd2, 0x02, 0xc5, 0xcf, 0xae, 0xf4
     ];
 
-    let mut ccm = CCM::new(None, None).expect("Failed to create CCM");
+    let mut ccm = CCM::new().expect("Failed to create CCM");
     ccm.init(&key).expect("Error with init()");
     let mut auth_tag_out: [u8; 8] = [0; 8];
     let mut cipher_out: [u8; 23] = [0; 23];
@@ -176,7 +176,7 @@ fn test_ccm_encrypt_decrypt() {
 
 #[test]
 fn test_ccm_big_msg() {
-    let mut ccm = CCM::new(None, None).expect("Failed to create CCM");
+    let mut ccm = CCM::new().expect("Failed to create CCM");
     let big_key = b"0123456789abcdeffedcba9876543210";
     let nonce: [u8; 7] = [0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00];
     let auth_data: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
@@ -194,7 +194,7 @@ fn test_ccm_big_msg() {
 
 #[test]
 fn test_cfb_encrypt_decrypt() {
-    let mut cfb = CFB::new(None, None).expect("Failed to create CFB");
+    let mut cfb = CFB::new().expect("Failed to create CFB");
     let key: [u8; 16] = [
         0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
         0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
@@ -233,7 +233,7 @@ fn test_cfb_encrypt_decrypt() {
 
 #[test]
 fn test_cfb_big_msg() {
-    let mut cfb = CFB::new(None, None).expect("Failed to create CFB");
+    let mut cfb = CFB::new().expect("Failed to create CFB");
     let big_key = b"0123456789abcdeffedcba9876543210";
     let iv: [u8; 16] = [
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
@@ -278,7 +278,7 @@ fn test_ctr_encrypt_decrypt() {
         0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,
         0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee
     ];
-    let mut ctr = CTR::new(None, None).expect("Failed to create CTR");
+    let mut ctr = CTR::new().expect("Failed to create CTR");
     ctr.init(&key, &iv).expect("Error with init()");
     let mut outbuf: [u8; 64] = [0; 64];
     ctr.encrypt(&msg, &mut outbuf).expect("Error with encrypt()");
@@ -291,7 +291,7 @@ fn test_ctr_encrypt_decrypt() {
 
 #[test]
 fn test_ctr_big_msg() {
-    let mut ctr = CTR::new(None, None).expect("Failed to create CTR");
+    let mut ctr = CTR::new().expect("Failed to create CTR");
     let big_key = b"0123456789abcdeffedcba9876543210";
     let iv: [u8; 16] = [
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
@@ -345,7 +345,7 @@ fn test_eax_one_shot_encrypt_decrypt() {
 
 #[test]
 fn test_ecb_encrypt_decrypt() {
-    let mut ecb = ECB::new(None, None).expect("Failed to create ECB");
+    let mut ecb = ECB::new().expect("Failed to create ECB");
     let key_128: &[u8; 16] = b"0123456789abcdef";
     let msg: [u8; 16] = [
         0x6e, 0x6f, 0x77, 0x20, 0x69, 0x73, 0x20, 0x74,
@@ -395,7 +395,7 @@ fn test_gcm_encrypt_decrypt() {
         0x54, 0x24, 0x65, 0xef, 0x59, 0x93, 0x16, 0xf7,
         0x3a, 0x7a, 0x56, 0x05, 0x09, 0xa2, 0xd9, 0xf2
     ];
-    let mut gcm = GCM::new(None, None).expect("Failed to create GCM");
+    let mut gcm = GCM::new().expect("Failed to create GCM");
     gcm.init(&key).expect("Error with init()");
     let mut cipher: [u8; 32] = [0; 32];
     let mut auth_tag: [u8; 16] = [0; 16];
@@ -448,7 +448,7 @@ fn test_gcmstream_encrypt_decrypt() {
         0x76, 0xfc, 0x6e, 0xce, 0x0f, 0x4e, 0x17, 0x68,
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     ];
-    let mut gcmstream = GCMStream::new(None, None).expect("Failed to create GCMStream");
+    let mut gcmstream = GCMStream::new().expect("Failed to create GCMStream");
     for chunk_size in 1..=auth.len() {
         gcmstream.init(&key, &iv).expect("Error with init()");
         let mut cipher: [u8; 60] = [0; 60];
@@ -505,7 +505,7 @@ fn test_ofb_encrypt_decrypt() {
         0x04,0x53,0xe1,0x73,0xf5,0x18,0x74,0xae,
         0xfd,0x64,0xa2,0xe1,0xe2,0x76,0x13,0xb0
     ];
-    let mut ofb = OFB::new(None, None).expect("Failed to create OFB");
+    let mut ofb = OFB::new().expect("Failed to create OFB");
     ofb.init(&key, &iv).expect("Error with init()");
     let mut cipher: [u8; 48] = [0; 48];
     ofb.encrypt(&plain, &mut cipher).expect("Error with encrypt()");
@@ -547,7 +547,7 @@ fn test_xts_one_shot() {
         0x77, 0x8a, 0xe8, 0xb4, 0x3c, 0xb9, 0x8d, 0x5a
     ];
 
-    let mut xts = XTS::new(None, None).expect("Failed to create XTS");
+    let mut xts = XTS::new().expect("Failed to create XTS");
     xts.init_encrypt(&key).expect("Error with init_encrypt()");
     let mut cipher: [u8; 16] = [0; 16];
     xts.encrypt(&plain, &mut cipher, &tweak).expect("Error with encrypt()");
@@ -585,7 +585,7 @@ fn test_xts_sector_128() {
     ];
     let sector = 141;
 
-    let mut xts = XTS::new(None, None).expect("Failed to create XTS");
+    let mut xts = XTS::new().expect("Failed to create XTS");
     xts.init_encrypt(&keys).expect("Error with init_encrypt()");
     let mut cipher: [u8; 16] = [0; 16];
     xts.encrypt_sector(&plain, &mut cipher, sector).expect("Error with encrypt_sector()");
@@ -623,7 +623,7 @@ fn test_xts_sector_256() {
     ];
     let sector = 187;
 
-    let mut xts = XTS::new(None, None).expect("Failed to create XTS");
+    let mut xts = XTS::new().expect("Failed to create XTS");
     xts.init_encrypt(&keys).expect("Error with init_encrypt()");
     let mut cipher: [u8; 32] = [0; 32];
     xts.encrypt_sector(&plain, &mut cipher, sector).expect("Error with encrypt_sector()");
@@ -745,7 +745,7 @@ fn test_xts_consecutive_sectors() {
     let sector = 0x000000ffffffffff;
     let sector_size = 512;
 
-    let mut xts = XTS::new(None, None).expect("Failed to create XTS");
+    let mut xts = XTS::new().expect("Failed to create XTS");
     xts.init_encrypt(&keys).expect("Error with init_encrypt()");
     let mut cipher: [u8; 544] = [0; 544];
     xts.encrypt_consecutive_sectors(&plain, &mut cipher, sector, sector_size).expect("Error with encrypt_consecutive_sectors()");
@@ -784,7 +784,7 @@ fn test_xtsstream() {
         0xB5, 0x5A, 0xDD, 0xCB, 0x80, 0xE0, 0xFC, 0xCD
     ];
 
-    let mut xtsstream = XTSStream::new(None, None).expect("Failed to create XTSStream");
+    let mut xtsstream = XTSStream::new().expect("Failed to create XTSStream");
     xtsstream.init_encrypt(&keys, &tweak).expect("Error with init_encrypt()");
     let mut cipher: [u8; 40] = [0; 40];
     xtsstream.encrypt_update(&plain[0..16], &mut cipher[0..16]).expect("Error with encrypt_update()");
@@ -811,7 +811,7 @@ fn test_xtsstream_big_msg() {
         0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
     ];
 
-    let mut xtsstream = XTSStream::new(None, None).expect("Failed to create XTSStream");
+    let mut xtsstream = XTSStream::new().expect("Failed to create XTSStream");
     xtsstream.init_encrypt(&key, &tweak).expect("Error with init_encrypt()");
     let mut cipher: [u8; 384] = [0; 384];
     let mut i = 0;

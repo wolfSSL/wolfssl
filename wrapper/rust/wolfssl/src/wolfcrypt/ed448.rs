@@ -58,6 +58,29 @@ impl Ed448 {
     /// # Parameters
     ///
     /// * `rng`: `RNG` instance to use for random number generation.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(ed448) containing the Ed448 struct instance or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::ed448::Ed448;
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
+    /// ```
+    pub fn generate(rng: &mut RNG) -> Result<Self, i32> {
+        Self::generate_ex(rng, None, None)
+    }
+
+    /// Generate a new Ed448 key with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng`: `RNG` instance to use for random number generation.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -72,9 +95,9 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// ```
-    pub fn generate(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<ws::ed448_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -105,6 +128,27 @@ impl Ed448 {
     /// A key will not be present but can be imported with one of the import
     /// functions.
     ///
+    /// # Returns
+    ///
+    /// Returns either Ok(ed448) containing the Ed448 struct instance or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::ed448::Ed448;
+    /// let ed = Ed448::new().expect("Error with new()");
+    /// ```
+    pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create and initialize a new Ed448 instance with optional heap and
+    /// device ID.
+    ///
+    /// A key will not be present but can be imported with one of the import
+    /// functions.
+    ///
     /// # Parameters
     ///
     /// * `heap`: Optional heap hint.
@@ -119,9 +163,9 @@ impl Ed448 {
     ///
     /// ```rust
     /// use wolfssl::wolfcrypt::ed448::Ed448;
-    /// let ed = Ed448::new(None, None).expect("Error with new()");
+    /// let ed = Ed448::new_ex(None, None).expect("Error with new()");
     /// ```
-    pub fn new(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<ws::ed448_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -157,7 +201,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// ed.check_key().expect("Error with check_key()");
     /// ```
     pub fn check_key(&mut self) -> Result<(), i32> {
@@ -188,7 +232,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
@@ -225,7 +269,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_public(&mut public).expect("Error with export_public()");
     /// ```
@@ -259,7 +303,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// ed.export_private(&mut private).expect("Error with export_private()");
     /// ```
@@ -293,7 +337,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private_only = [0u8; Ed448::KEY_SIZE];
     /// ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
     /// ```
@@ -330,11 +374,11 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_public(&public).expect("Error with import_public()");
     /// ```
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
@@ -370,11 +414,11 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_public_ex(&public, false).expect("Error with import_public_ex()");
     /// ```
     pub fn import_public_ex(&mut self, public: &[u8], trusted: bool) -> Result<(), i32> {
@@ -406,10 +450,10 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private_only = [0u8; Ed448::KEY_SIZE];
     /// ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_only(&private_only).expect("Error with import_private_only()");
     /// ```
     pub fn import_private_only(&mut self, private: &[u8]) -> Result<(), i32> {
@@ -446,11 +490,11 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_key(&private, Some(&public)).expect("Error with import_private_key()");
     /// ```
     pub fn import_private_key(&mut self, private: &[u8], public: Option<&[u8]>) -> Result<(), i32> {
@@ -493,11 +537,11 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_key_ex(&private, Some(&public), false).expect("Error with import_private_key_ex()");
     /// ```
     pub fn import_private_key_ex(&mut self, private: &[u8], public: Option<&[u8]>, trusted: bool) -> Result<(), i32> {
@@ -538,10 +582,10 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::KEY_SIZE];
     /// ed.export_private_only(&mut private).expect("Error with export_private_only()");
-    /// let mut ed = Ed448::new(None, None).expect("Error with new()");
+    /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_only(&private).expect("Error with import_private_only()");
     /// let mut public = [0u8; Ed448::KEY_SIZE];
     /// ed.make_public(&mut public).expect("Error with make_public()");
@@ -580,7 +624,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -629,7 +673,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let hash = [
     ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
     ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
@@ -687,7 +731,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -736,7 +780,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -783,7 +827,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = b"Hello!";
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -835,7 +879,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let hash = [
     ///     0xddu8,0xaf,0x35,0xa1,0x93,0x61,0x7a,0xba,
     ///     0xcc,0x41,0x73,0x49,0xae,0x20,0x41,0x31,
@@ -895,7 +939,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -946,7 +990,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -994,7 +1038,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = [0x42u8, 1, 2, 3];
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -1040,7 +1084,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = [0x42u8, 1, 2, 3];
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -1080,7 +1124,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let message = [0x42u8, 33, 55, 66];
     /// let context = [0x42u8, 1, 2, 3];
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
@@ -1117,7 +1161,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let key_size = ed.size().expect("Error with size()");
     /// assert_eq!(key_size, Ed448::KEY_SIZE);
     /// ```
@@ -1142,7 +1186,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let priv_size = ed.priv_size().expect("Error with priv_size()");
     /// assert_eq!(priv_size, Ed448::PRV_KEY_SIZE);
     /// ```
@@ -1167,7 +1211,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let pub_size = ed.pub_size().expect("Error with pub_size()");
     /// assert_eq!(pub_size, Ed448::PUB_KEY_SIZE);
     /// ```
@@ -1192,7 +1236,7 @@ impl Ed448 {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let ed = Ed448::generate(&mut rng, None, None).expect("Error with generate()");
+    /// let ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let sig_size = ed.sig_size().expect("Error with sig_size()");
     /// assert_eq!(sig_size, Ed448::SIG_SIZE);
     /// ```

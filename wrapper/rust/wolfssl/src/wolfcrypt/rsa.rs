@@ -38,7 +38,7 @@ use wolfssl::wolfcrypt::rsa::RSA;
 let mut rng = RNG::new().expect("Error creating RNG");
 let key_path = "../../../certs/client-keyPub.der";
 let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
 rsa.set_rng(&mut rng).expect("Error with set_rng()");
 let plain: &[u8] = b"Test message";
 let mut enc: [u8; 512] = [0; 512];
@@ -47,7 +47,7 @@ assert!(enc_len > 0 && enc_len <= 512);
 
 let key_path = "../../../certs/client-key.der";
 let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
 rsa.set_rng(&mut rng).expect("Error with set_rng()");
 let mut plain_out: [u8; 512] = [0; 512];
 let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
@@ -115,6 +115,48 @@ impl RSA {
     /// # Parameters
     ///
     /// * `der`: DER-encoded input buffer.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::fs;
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let key_path = "../../../certs/client-keyPub.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let plain: &[u8] = b"Test message";
+    /// let mut enc: [u8; 512] = [0; 512];
+    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &mut rng).expect("Error with public_encrypt()");
+    /// assert!(enc_len > 0 && enc_len <= 512);
+    ///
+    /// let key_path = "../../../certs/client-key.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let mut plain_out: [u8; 512] = [0; 512];
+    /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
+    /// assert!(dec_len as usize == plain.len());
+    /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// ```
+    pub fn new_from_der(der: &[u8]) -> Result<Self, i32> {
+        Self::new_from_der_ex(der, None, None)
+    }
+
+    /// Load a public and private RSA keypair from DER-encoded buffer with
+    /// optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -133,7 +175,7 @@ impl RSA {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
@@ -142,14 +184,14 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der_ex(&der, None, None).expect("Error with new_from_der_ex()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
-    pub fn new_from_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -183,6 +225,48 @@ impl RSA {
     /// # Parameters
     ///
     /// * `der`: DER-encoded input buffer.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::fs;
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let key_path = "../../../certs/client-keyPub.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let plain: &[u8] = b"Test message";
+    /// let mut enc: [u8; 512] = [0; 512];
+    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &mut rng).expect("Error with public_encrypt()");
+    /// assert!(enc_len > 0 && enc_len <= 512);
+    ///
+    /// let key_path = "../../../certs/client-key.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let mut plain_out: [u8; 512] = [0; 512];
+    /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
+    /// assert!(dec_len as usize == plain.len());
+    /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// ```
+    pub fn new_public_from_der(der: &[u8]) -> Result<Self, i32> {
+        Self::new_public_from_der_ex(der, None, None)
+    }
+
+    /// Load a public RSA key from DER-encoded buffer with optional heap and
+    /// device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -201,7 +285,7 @@ impl RSA {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der_ex(&der, None, None).expect("Error with new_public_from_der_ex()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
@@ -210,14 +294,14 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
     /// assert!(dec_len as usize == plain.len());
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
-    pub fn new_public_from_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -264,6 +348,47 @@ impl RSA {
     ///   choice is 65537.
     /// * `rng`: Reference to a `RNG` struct to use for random number
     ///   generation while making the key.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
+    /// rsa.check().expect("Error with check()");
+    /// let encrypt_size = rsa.get_encrypt_size().expect("Error with get_encrypt_size()");
+    /// assert_eq!(encrypt_size, 256);
+    /// ```
+    pub fn generate(size: i32, e: i64, rng: &mut RNG) -> Result<Self, i32> {
+        Self::generate_ex(size, e, rng, None, None)
+    }
+
+    /// Generate a new RSA key using the given size and exponent with optional
+    /// heap and device ID.
+    ///
+    /// This function generates an RSA private key of length size (in bits) and
+    /// given exponent (e). It then returns the RSA structure instance so that
+    /// it may be used for encryption or signing operations. A secure number to
+    /// use for e is 65537. size is required to be greater than or equal to
+    /// RSA_MIN_SIZE and less than or equal to RSA_MAX_SIZE. For this function
+    /// to be available, the option WOLFSSL_KEY_GEN must be enabled at compile
+    /// time. This can be accomplished with --enable-keygen if using
+    /// `./configure`.
+    ///
+    /// # Parameters
+    ///
+    /// * `size`: Desired key length in bits.
+    /// * `e`: Exponent parameter to use for generating the key. A secure
+    ///   choice is 65537.
+    /// * `rng`: Reference to a `RNG` struct to use for random number
+    ///   generation while making the key.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -279,12 +404,12 @@ impl RSA {
     /// use wolfssl::wolfcrypt::rsa::RSA;
     ///
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut rsa = RSA::generate(2048, 65537, &mut rng, None, None).expect("Error with generate()");
+    /// let mut rsa = RSA::generate_ex(2048, 65537, &mut rng, None, None).expect("Error with generate_ex()");
     /// rsa.check().expect("Error with check()");
     /// let encrypt_size = rsa.get_encrypt_size().expect("Error with get_encrypt_size()");
     /// assert_eq!(encrypt_size, 256);
     /// ```
-    pub fn generate(size: i32, e: i64, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn generate_ex(size: i32, e: i64, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
@@ -337,7 +462,7 @@ impl RSA {
     /// use wolfssl::wolfcrypt::rsa::RSA;
     ///
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut rsa = RSA::generate(2048, 65537, &mut rng, None, None).expect("Error with generate()");
+    /// let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
     /// let mut e: [u8; 256] = [0; 256];
     /// let mut e_size: u32 = 0;
     /// let mut n: [u8; 256] = [0; 256];
@@ -398,7 +523,7 @@ impl RSA {
     /// use wolfssl::wolfcrypt::rsa::RSA;
     ///
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut rsa = RSA::generate(2048, 65537, &mut rng, None, None).expect("Error with generate()");
+    /// let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
     /// let mut e: [u8; 256] = [0; 256];
     /// let mut e_size: u32 = 0;
     /// let mut n: [u8; 256] = [0; 256];
@@ -436,7 +561,7 @@ impl RSA {
     /// use wolfssl::wolfcrypt::rsa::RSA;
     ///
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut rsa = RSA::generate(2048, 65537, &mut rng, None, None).expect("Error with generate()");
+    /// let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
     /// let encrypt_size = rsa.get_encrypt_size().expect("Error with get_encrypt_size()");
     /// assert_eq!(encrypt_size, 256);
     /// ```
@@ -462,7 +587,7 @@ impl RSA {
     /// use wolfssl::wolfcrypt::rsa::RSA;
     ///
     /// let mut rng = RNG::new().expect("Error creating RNG");
-    /// let mut rsa = RSA::generate(2048, 65537, &mut rng, None, None).expect("Error with generate()");
+    /// let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
     /// rsa.check().expect("Error with check()");
     /// ```
     pub fn check(&mut self) -> Result<(), i32> {
@@ -499,7 +624,7 @@ impl RSA {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
@@ -508,7 +633,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
@@ -554,7 +679,7 @@ impl RSA {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
@@ -563,7 +688,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
@@ -615,7 +740,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.pss_sign(msg, &mut signature, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &mut rng).expect("Error with pss_sign()");
@@ -623,7 +748,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
@@ -676,7 +801,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.pss_sign(msg, &mut signature, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &mut rng).expect("Error with pss_sign()");
@@ -684,7 +809,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
@@ -740,7 +865,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.pss_sign(msg, &mut signature, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &mut rng).expect("Error with pss_sign()");
@@ -748,7 +873,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
@@ -808,7 +933,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.pss_sign(msg, &mut signature, RSA::HASH_TYPE_SHA256, RSA::MGF1SHA256, &mut rng).expect("Error with pss_sign()");
@@ -816,7 +941,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
@@ -876,7 +1001,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg = b"A rsa_direct() test input string";
     /// let mut plain = [0u8; 256];
     /// plain[..msg.len()].copy_from_slice(msg);
@@ -929,7 +1054,7 @@ impl RSA {
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let plain: &[u8] = b"Test message";
     /// let mut enc: [u8; 512] = [0; 512];
@@ -938,7 +1063,7 @@ impl RSA {
 
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let mut plain_out: [u8; 512] = [0; 512];
     /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
@@ -982,7 +1107,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.ssl_sign(msg, &mut signature, &mut rng).expect("Error with ssl_sign()");
@@ -990,7 +1115,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];
@@ -1040,7 +1165,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-key.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_from_der(&der, None, None).expect("Error with new_from_der()");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
     /// let msg: &[u8] = b"This is the string to be signed!";
     /// let mut signature: [u8; 512] = [0; 512];
     /// let sig_len = rsa.ssl_sign(msg, &mut signature, &mut rng).expect("Error with ssl_sign()");
@@ -1048,7 +1173,7 @@ impl RSA {
     ///
     /// let key_path = "../../../certs/client-keyPub.der";
     /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
-    /// let mut rsa = RSA::new_public_from_der(&der, None, None).expect("Error with new_public_from_der()");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
     /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
     /// let signature = &signature[0..sig_len];
     /// let mut verify_out: [u8; 512] = [0; 512];

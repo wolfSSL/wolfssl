@@ -73,6 +73,30 @@ impl HMAC {
     ///
     /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
     /// * `key`: Encryption key.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 16];
+    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
+    /// ```
+    pub fn new(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key
+    /// with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -86,9 +110,9 @@ impl HMAC {
     /// ```rust
     /// use wolfssl::wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 16];
-    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new()");
+    /// let mut hmac = HMAC::new_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
         let heap = match heap {
@@ -123,6 +147,30 @@ impl HMAC {
     ///
     /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
     /// * `key`: Encryption key.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 3];
+    /// let mut hmac = HMAC::new_allow_short_key(HMAC::TYPE_SHA256, &key).expect("Error with new_allow_short_key()");
+    /// ```
+    pub fn new_allow_short_key(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_allow_short_key_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key,
+    /// allowing for short encryption keys (< 112 bits) to be used.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -136,9 +184,9 @@ impl HMAC {
     /// ```rust
     /// use wolfssl::wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 3];
-    /// let mut hmac = HMAC::new_allow_short_key(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_allow_short_key()");
+    /// let mut hmac = HMAC::new_allow_short_key_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_allow_short_key_ex()");
     /// ```
-    pub fn new_allow_short_key(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_allow_short_key_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
         let heap = match heap {
@@ -185,7 +233,7 @@ impl HMAC {
     /// ```rust
     /// use wolfssl::wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 16];
-    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new()");
+    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
     /// hmac.update(b"input").expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -216,7 +264,7 @@ impl HMAC {
     /// ```rust
     /// use wolfssl::wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 16];
-    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new()");
+    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
     /// hmac.update(b"input").expect("Error with update()");
     /// let hash_size = hmac.get_hmac_size().expect("Error with get_hmac_size()");
     /// let mut hash = vec![0u8; hash_size];
@@ -255,7 +303,7 @@ impl HMAC {
     /// ```rust
     /// use wolfssl::wolfcrypt::hmac::HMAC;
     /// let key = [0x42u8; 16];
-    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new()");
+    /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
     /// hmac.update(b"input").expect("Error with update()");
     /// let hash_size = hmac.get_hmac_size().expect("Error with get_hmac_size()");
     /// let mut hash = vec![0u8; hash_size];

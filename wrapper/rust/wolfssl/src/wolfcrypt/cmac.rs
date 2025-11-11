@@ -88,6 +88,32 @@ impl CMAC {
     /// # Parameters
     ///
     /// * `key`: Key to use for CMAC generation.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(cmac) containing the CMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::cmac::CMAC;
+    /// let key = [
+    ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+    ///     0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+    /// ];
+    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
+    /// ```
+    pub fn new(key: &[u8]) -> Result<Self, i32> {
+        Self::new_ex(key, None, None)
+    }
+
+    /// Create a new CMAC object using the given key with optional heap and
+    /// device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `key`: Key to use for CMAC generation.
     /// * `heap`: Optional heap hint.
     /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
@@ -104,9 +130,9 @@ impl CMAC {
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
     ///     0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
     /// ];
-    /// let mut cmac = CMAC::new(&key, None, None).expect("Error with new()");
+    /// let mut cmac = CMAC::new_ex(&key, None, None).expect("Error with new_ex()");
     /// ```
-    pub fn new(key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+    pub fn new_ex(key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut ws_cmac: MaybeUninit<ws::Cmac> = MaybeUninit::uninit();
         let typ = ws::CmacType_WC_CMAC_AES as i32;
@@ -204,7 +230,7 @@ impl CMAC {
     ///     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
     /// ];
     /// let mut generate_out = [0u8; 16];
-    /// let mut cmac = CMAC::new(&key, None, None).expect("Error with new()");
+    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
     /// ```
     pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
@@ -254,7 +280,7 @@ impl CMAC {
     ///     0x6bu8, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
     ///     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
     /// ];
-    /// let mut cmac = CMAC::new(&key, None, None).expect("Error with new()");
+    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// cmac.update(&message).expect("Error with update()");
     /// ```
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
@@ -294,7 +320,7 @@ impl CMAC {
     ///     0x6bu8, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
     ///     0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
     /// ];
-    /// let mut cmac = CMAC::new(&key, None, None).expect("Error with new()");
+    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// cmac.update(&message).expect("Error with update()");
     /// let mut finalize_out = [0u8; 16];
     /// cmac.finalize(&mut finalize_out).expect("Error with finalize()");
@@ -341,7 +367,7 @@ impl CMAC {
     /// ];
     /// let mut generate_out = [0u8; 16];
     /// CMAC::generate(&key, &message, &mut generate_out).expect("Error with generate()");
-    /// let mut cmac = CMAC::new(&key, None, None).expect("Error with new()");
+    /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
     /// assert!(valid);
     /// ```
