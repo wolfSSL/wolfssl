@@ -1087,7 +1087,8 @@ then
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
-        test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && enable_quic=yes
+        # Disable QUIC with JNI since incompatible with WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && test "$enable_jni" != "yes" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
@@ -1104,7 +1105,8 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
-        test "$enable_ech" = "" && enable_ech=yes
+        # Disable ECH with JNI since incompatible with WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+        test "$enable_ech" = "" && test "$enable_jni" != "yes" && enable_ech=yes
         test "$enable_scep" = "" && enable_scep=yes
         test "$enable_mcast" = "" && enable_mcast=yes
     fi
