@@ -38364,8 +38364,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     ato16(&input[i], &extSz);
                     i += OPAQUE16_LEN;
 
-                    if (extId < (sizeof(extensions_seen) * 8U)) {
-                        word32 mask = 1u << extId;
+                    if (extId < (word16)(sizeof(extensions_seen) * 8U)) {
+                        word32 mask = 1U << extId;
                         if ((extensions_seen & mask) != 0U) {
                             WOLFSSL_MSG(
                                     "DoClientHello: duplicate extension found");
