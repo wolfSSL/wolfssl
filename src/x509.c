@@ -463,10 +463,14 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     lastpos++;
     if (lastpos < 0)
         lastpos = 0;
-    for (; lastpos < wolfSSL_sk_num(sk); lastpos++)
-        if (wolfSSL_OBJ_cmp(wolfSSL_sk_X509_EXTENSION_value(sk,
-                        lastpos)->obj, obj) == 0)
+    for (; lastpos < wolfSSL_sk_num(sk); lastpos++) {
+        const WOLFSSL_X509_EXTENSION *ext =
+            wolfSSL_sk_X509_EXTENSION_value(sk, lastpos);
+        if (ext == NULL)
+            continue;
+        if (wolfSSL_OBJ_cmp(ext->obj, obj) == 0)
             return lastpos;
+    }
     return WOLFSSL_FATAL_ERROR;
 }
 
@@ -1057,9 +1061,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         if (((ext->obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
             (ext->obj->obj == NULL)) {
+            byte* tmp;
         #ifdef WOLFSSL_NO_REALLOC
-            byte* tmp = NULL;
-
             tmp = (byte*)XMALLOC(objSz, NULL, DYNAMIC_TYPE_ASN1);
             if (tmp != NULL && ext->obj->obj != NULL) {
                 XMEMCPY(tmp, ext->obj->obj, ext->obj->objSz);
@@ -1070,8 +1073,11 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             }
             ext->obj->obj = tmp;
         #else
-            ext->obj->obj = (byte*)XREALLOC((byte*)ext->obj->obj, objSz,
-                                   NULL, DYNAMIC_TYPE_ASN1);
+            tmp = (byte*)XREALLOC((byte*)ext->obj->obj, objSz, NULL,
+                                  DYNAMIC_TYPE_ASN1);
+            if (tmp != NULL) {
+                ext->obj->obj = tmp;
+            }
         #endif
             if (ext->obj->obj == NULL) {
                 wolfSSL_X509_EXTENSION_free(ext);
@@ -8341,6 +8347,9 @@ int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         for (i=0; i < num; i++) {
             info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
 
+            if (info_tmp == NULL)
+                continue;
+
             if (info_tmp->x509) {
                 if (wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509) ==
                     WOLFSSL_SUCCESS) {
@@ -10193,18 +10202,18 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
     keyTypeObj = wolfSSL_OBJ_nid2obj(key->type);
     if (keyTypeObj == NULL) {
         if (ptype == WOLFSSL_V_ASN1_OBJECT)
-            ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
+            wolfSSL_ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
         else
-            ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
+            wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
         goto error;
     }
     if (!wolfSSL_X509_ALGOR_set0(pk->algor, keyTypeObj, ptype, pval)) {
         WOLFSSL_MSG("Failed to create algorithm object");
-        ASN1_OBJECT_free(keyTypeObj);
+        wolfSSL_ASN1_OBJECT_free(keyTypeObj);
         if (ptype == WOLFSSL_V_ASN1_OBJECT)
-            ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
+            wolfSSL_ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
         else
-            ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
+            wolfSSL_ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
         goto error;
     }
 
@@ -12366,7 +12375,14 @@ WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp,
             return WOLFSSL_FAILURE;
         }
 
-        if ((l = wolfSSL_BIO_get_len(bio)) <= 0) {
+        l = wolfSSL_BIO_get_len(bio);
+
+        if (l < 0) {
+            WOLFSSL_ERROR(BAD_FUNC_ARG);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (l <= pem_struct_min_sz) {
             /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
             return WOLFSSL_FAILURE;

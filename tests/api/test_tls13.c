@@ -36,9 +36,9 @@
 
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 #ifdef WC_SHA384_DIGEST_SIZE
-    static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
+    WC_MAYBE_UNUSED static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
 #else
-    static byte fixedKey[WC_SHA256_DIGEST_SIZE] = { 0, };
+    WC_MAYBE_UNUSED static byte fixedKey[WC_SHA256_DIGEST_SIZE] = { 0, };
 #endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -1913,23 +1913,54 @@ int test_tls13_rpk_handshake(void)
 
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
+#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     int group = WOLFSSL_KYBER_LEVEL5;
 #else
     int group = WOLFSSL_ML_KEM_1024;
+#endif /* WOLFSSL_MLKEM_KYBER */
+#elif !defined(WOLFSSL_NO_ML_KEM_768)
+#ifdef WOLFSSL_MLKEM_KYBER
+    int group = WOLFSSL_KYBER_LEVEL3;
+#else
+    int group = WOLFSSL_ML_KEM_768;
+#endif /* WOLFSSL_MLKEM_KYBER */
+#else
+#ifdef WOLFSSL_MLKEM_KYBER
+    int group = WOLFSSL_KYBER_LEVEL1;
+#else
+    int group = WOLFSSL_ML_KEM_512;
+#endif /* WOLFSSL_MLKEM_KYBER */
 #endif
+
     AssertIntEQ(wolfSSL_CTX_set_groups(ctx, &group, 1), WOLFSSL_SUCCESS);
 }
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
+#ifndef WOLFSSL_NO_ML_KEM_1024
 #ifdef WOLFSSL_MLKEM_KYBER
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
 #else
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");
+#endif /* WOLFSSL_MLKEM_KYBER */
+#elif !defined(WOLFSSL_NO_ML_KEM_768)
+#ifdef WOLFSSL_MLKEM_KYBER
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL3");
+#else
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_768");
+#endif /* WOLFSSL_MLKEM_KYBER */
+#else
+#ifdef WOLFSSL_MLKEM_KYBER
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL1");
+#else
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_512");
+#endif /* WOLFSSL_MLKEM_KYBER */
 #endif
 }
 #endif
@@ -1938,7 +1969,9 @@ int test_tls13_pq_groups(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
-    defined(WOLFSSL_HAVE_MLKEM)
+    defined(WOLFSSL_HAVE_MLKEM) && !defined(WOLFSSL_MLKEM_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_DECAPSULATE) && \
+    !defined(WOLFSSL_MLKEM_NO_MAKE_KEY)
     callback_functions func_cb_client;
     callback_functions func_cb_server;
 
@@ -2185,6 +2218,99 @@ int test_tls13_same_ch(void)
             sizeof(hrr)), 0);
     ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), DUPLICATE_MSG_E);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_tls13_hrr_different_cs(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_TLS13) && \
+    defined(BUILD_TLS_AES_256_GCM_SHA384) && \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) && \
+    defined(HAVE_ECC) && defined(HAVE_ECC384)
+    /*
+     * TLSv1.3 Record Layer: Handshake Protocol: Hello Retry Request
+     *     Content Type: Handshake (22)
+     *     Version: TLS 1.2 (0x0303)
+     *     Length: 56
+     *     Handshake Protocol: Hello Retry Request
+     *         Handshake Type: Server Hello (2)
+     *         Length: 52
+     *         Version: TLS 1.2 (0x0303)
+     *         Random: cf21ad74e59a6111be1d8c021e65b891c2a211167abb8c5e079e09e2c8a8339c (HelloRetryRequest magic)
+     *         Session ID Length: 0
+     *         Cipher Suite: TLS_AES_256_GCM_SHA384 (0x1302)
+     *         Compression Method: null (0)
+     *         Extensions Length: 12
+     *         Extension: supported_versions (len=2) TLS 1.3
+     *         Extension: key_share (len=2) secp384r1
+     *
+     */
+    unsigned char hrr[] = {
+        0x16, 0x03, 0x03, 0x00, 0x38, 0x02, 0x00, 0x00, 0x34, 0x03, 0x03, 0xcf,
+        0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
+        0x65, 0xb8, 0x91, 0xc2, 0xa2, 0x11, 0x16, 0x7a, 0xbb, 0x8c, 0x5e, 0x07,
+        0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c, 0x00, 0x13, 0x02, 0x00, 0x00,
+        0x0c, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, 0x00, 0x33, 0x00, 0x02, 0x00,
+        0x18
+    };
+    /*
+     * TLSv1.3 Record Layer: Handshake Protocol: Server Hello
+     *     Content Type: Handshake (22)
+     *     Version: TLS 1.2 (0x0303)
+     *     Length: 155
+     *     Handshake Protocol: Server Hello
+     *         Handshake Type: Server Hello (2)
+     *         Length: 151
+     *         Version: TLS 1.2 (0x0303)
+     *         Random: 0101010101010101010101010101010101010101010101010101010101010101
+     *         Session ID Length: 0
+     *         Cipher Suite: TLS_CHACHA20_POLY1305_SHA256 (0x1303)
+     *         Compression Method: null (0)
+     *         Extensions Length: 111
+     *         Extension: key_share (len=101) secp384r1
+     *         Extension: supported_versions (len=2) TLS 1.3
+     *
+     */
+    unsigned char sh[] = {
+        0x16, 0x03, 0x03, 0x00, 0x9b, 0x02, 0x00, 0x00, 0x97, 0x03, 0x03, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x13, 0x03, 0x00, 0x00,
+        0x6f, 0x00, 0x33, 0x00, 0x65, 0x00, 0x18, 0x00, 0x61, 0x04, 0x53, 0x3e,
+        0xe5, 0xbf, 0x40, 0xec, 0x2d, 0x67, 0x98, 0x8b, 0x77, 0xf3, 0x17, 0x48,
+        0x9b, 0xb6, 0xdf, 0x95, 0x29, 0x25, 0xc7, 0x09, 0xfc, 0x03, 0x81, 0x11,
+        0x1a, 0x59, 0x56, 0xf2, 0xd7, 0x58, 0x11, 0x0e, 0x59, 0xd3, 0xd7, 0xc1,
+        0x72, 0x9e, 0x2c, 0x0d, 0x70, 0xea, 0xf7, 0x73, 0xe6, 0x12, 0x01, 0x16,
+        0x42, 0x6d, 0xe2, 0x43, 0x6a, 0x2f, 0x5f, 0xdd, 0x7f, 0xe5, 0x4f, 0xaf,
+        0x95, 0x2b, 0x04, 0xfd, 0x13, 0xf5, 0x16, 0xce, 0x62, 0x7f, 0x89, 0xd2,
+        0x01, 0x9d, 0x4c, 0x87, 0x96, 0x95, 0x9e, 0x43, 0x33, 0xc7, 0x06, 0x5b,
+        0x49, 0x6c, 0xa6, 0x34, 0xd5, 0xdc, 0x63, 0xbd, 0xe9, 0x1f, 0x00, 0x2b,
+        0x00, 0x02, 0x03, 0x04
+    };
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL *ssl_c = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+            wolfTLSv1_3_client_method, NULL), 0);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (char*)hrr,
+            sizeof(hrr)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(test_memio_inject_message(&test_ctx, 1, (char*)sh,
+            sizeof(sh)), 0);
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), INVALID_PARAMETER);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);

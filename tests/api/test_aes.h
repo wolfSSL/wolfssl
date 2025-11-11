@@ -26,10 +26,16 @@
 
 int test_wc_AesSetKey(void);
 int test_wc_AesSetIV(void);
+int test_wc_AesEncryptDecryptDirect(void);
+int test_wc_AesEcbEncryptDecrypt(void);
 int test_wc_AesCbcEncryptDecrypt(void);
+int test_wc_AesCfbEncryptDecrypt(void);
+int test_wc_AesOfbEncryptDecrypt(void);
 int test_wc_AesCtsEncryptDecrypt(void);
+int test_wc_AesCtrSetKey(void);
 int test_wc_AesCtrEncryptDecrypt(void);
 int test_wc_AesGcmSetKey(void);
+int test_wc_AesGcmEncryptDecrypt_Sizes(void);
 int test_wc_AesGcmEncryptDecrypt(void);
 int test_wc_AesGcmMixedEncDecLongIV(void);
 int test_wc_AesGcmStream(void);
@@ -40,7 +46,7 @@ int test_wc_AesCcmEncryptDecrypt(void);
 int test_wc_AesEaxVectors(void);
 int test_wc_AesEaxEncryptAuth(void);
 int test_wc_AesEaxDecryptAuth(void);
-#endif /* WOLFSSL_AES_EAX */
+#endif /* WOLFSSL_AES_EAX && WOLFSSL_AES_256*/
 
 int test_wc_GmacSetKey(void);
 int test_wc_GmacUpdate(void);
@@ -48,10 +54,16 @@ int test_wc_GmacUpdate(void);
 #define TEST_AES_DECLS                                          \
     TEST_DECL_GROUP("aes", test_wc_AesSetKey),                  \
     TEST_DECL_GROUP("aes", test_wc_AesSetIV),                   \
+    TEST_DECL_GROUP("aes", test_wc_AesEncryptDecryptDirect),    \
+    TEST_DECL_GROUP("aes", test_wc_AesEcbEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesCbcEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesCfbEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesOfbEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesCtsEncryptDecrypt),       \
+    TEST_DECL_GROUP("aes", test_wc_AesCtrSetKey),               \
     TEST_DECL_GROUP("aes", test_wc_AesCtrEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesGcmSetKey),               \
+    TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt_Sizes), \
     TEST_DECL_GROUP("aes", test_wc_AesGcmEncryptDecrypt),       \
     TEST_DECL_GROUP("aes", test_wc_AesGcmMixedEncDecLongIV),    \
     TEST_DECL_GROUP("aes", test_wc_AesGcmStream),               \

@@ -311,7 +311,7 @@ static int linuxkm_lkcapi_sysfs_deinstall(void) {
     return 0;
 }
 
-static volatile int linuxkm_lkcapi_registering_now = 0;
+static wolfSSL_Atomic_Int linuxkm_lkcapi_registering_now = WOLFSSL_ATOMIC_INITIALIZER(0);
 static int linuxkm_lkcapi_registered = 0;
 static int linuxkm_lkcapi_n_registered = 0;
 
@@ -319,8 +319,21 @@ static int linuxkm_lkcapi_register(void)
 {
     int ret = -1;
     int seen_err = 0;
+    int current_linuxkm_lkcapi_registering_now = 0;
 
-    linuxkm_lkcapi_registering_now = 1;
+    if (! wolfSSL_Atomic_Int_CompareExchange(
+            &linuxkm_lkcapi_registering_now,
+            &current_linuxkm_lkcapi_registering_now,
+            1))
+    {
+        return -EDEADLK;
+    }
+
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
 
     ret = linuxkm_lkcapi_sysfs_install();
     if (ret)
@@ -729,7 +742,11 @@ static int linuxkm_lkcapi_register(void)
 
 out:
 
-    linuxkm_lkcapi_registering_now = 0;
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
 
     return ret;
 }
@@ -738,9 +755,27 @@ static int linuxkm_lkcapi_unregister(void)
 {
     int seen_err = 0;
     int n_deregistered = 0;
+    int ret;
+    int current_linuxkm_lkcapi_registering_now = 0;
 
-    if (linuxkm_lkcapi_n_registered == 0)
-        return -ENOENT;
+    if (! wolfSSL_Atomic_Int_CompareExchange(
+            &linuxkm_lkcapi_registering_now,
+            &current_linuxkm_lkcapi_registering_now,
+            1))
+    {
+        return -EDEADLK;
+    }
+
+    if (WC_SIG_IGNORE_BEGIN() < 0) {
+        ret = -ECANCELED;
+        pr_err("ERROR: WC_SIG_IGNORE_BEGIN() failed.\n");
+        goto out_without_sig_ignored;
+    }
+
+    if (linuxkm_lkcapi_n_registered == 0) {
+        ret = -ENOENT;
+        goto out;
+    }
 
 #define UNREGISTER_ALG(alg, alg_class)                                   \
     do {                                                                 \
@@ -863,7 +898,7 @@ static int linuxkm_lkcapi_unregister(void)
      * the system-wide default rng.
      */
     if (wc_linuxkm_drbg_loaded) {
-        int ret = wc_linuxkm_drbg_cleanup();
+        ret = wc_linuxkm_drbg_cleanup();
         if (ret == 0)
             ++n_deregistered;
         else
@@ -975,12 +1010,24 @@ static int linuxkm_lkcapi_unregister(void)
             n_deregistered, n_deregistered == 1 ? "" : "s",
             linuxkm_lkcapi_n_registered, linuxkm_lkcapi_n_registered == 1 ? "s" : "");
 
-    if (linuxkm_lkcapi_n_registered > 0)
-        return -EBUSY;
+    if (linuxkm_lkcapi_n_registered > 0) {
+        ret = -EBUSY;
+        goto out;
+    }
 
     linuxkm_lkcapi_registered = 0;
 
-    return seen_err;
+    ret = seen_err;
+
+out:
+
+    (void)WC_SIG_IGNORE_END();
+
+out_without_sig_ignored:
+
+    WOLFSSL_ATOMIC_STORE(linuxkm_lkcapi_registering_now, 0);
+
+    return ret;
 }
 
 #endif /* !WC_SKIP_INCLUDED_C_FILES */

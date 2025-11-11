@@ -653,10 +653,7 @@ then
     AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[AR_FLAGS="Dcr" lt_ar_flags="Dcr"])
     AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[RANLIB="${RANLIB} -D"])
 
-    if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "backtrace"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD -g0"
-    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_REPRODUCIBLE_BUILD"
 
     # opportunistically use -ffile-prefix-map (added in GCC8 and LLVM10)
 
@@ -697,9 +694,9 @@ AC_ARG_ENABLE([linuxkm-pie],
     [ENABLED_LINUXKM_PIE=$enableval],
     [ENABLED_LINUXKM_PIE=$ENABLED_FIPS]
     )
-if test "$ENABLED_LINUXKM_PIE" = "yes"
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_LINUXKM_PIE" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_LINUXKM_PIE_SUPPORT"
+    AM_CFLAGS="$AM_CFLAGS -DWC_PIE_RELOC_TABLES"
 fi
 AC_SUBST([ENABLED_LINUXKM_PIE])
 
@@ -739,7 +736,18 @@ AC_ARG_WITH([linux-arch],
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM"
+    # Currently DWARF 5 is the default debug format, but it results in
+    # "Unsupported DW_TAG_atomic_type(0x47): type: 0x1eefc" in some
+    # kernel module builds.
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AS_IF([test "$ax_enable_debug" = "yes"],
+          [AM_CFLAGS="$AM_CFLAGS -g3"],
+          [AM_CFLAGS="$AM_CFLAGS -g1"])
+    AM_CCASFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM -DWC_SIPHASH_NO_ASM -gdwarf-4"
+    AS_IF([test "$ax_enable_debug" = "yes"],
+          [AM_CCASFLAGS="$AM_CFLAGS -g3"],
+          [AM_CCASFLAGS="$AM_CFLAGS -g1"])
+
     ENABLED_NO_LIBRARY=yes
     ENABLED_BENCHMARK=no
     output_objdir="$(realpath "$output_objdir")/linuxkm"
@@ -1008,9 +1016,9 @@ fi
 if test "$ENABLED_TLS" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_TLS"
-    test "$enable_tls13" = "" && enable_tls13=no
-    test "$enable_tlsv12" = "" && enable_tlsv12=no
-    test "$enable_tlsv10" = "" && enable_tlsv10=no
+    # don't set enable_tls13 or enable_tlsv12 to "no" -- even in cryptonly and
+    # NO_TLS build, they're needed for their crypto-layer KDFs.
+    # enable_tlsv10 defaults to "no", so we don't need to set it here either.
     test "$enable_dtls" = "" && enable_dtls=no
     test "$enable_dtls13" = "" && enable_dtls13=no
     test "$enable_dtls_mtu" = "" && enable_dtls_mtu=no
@@ -1027,6 +1035,10 @@ then
     test "$enable_quic" = "" && enable_quic=no
     test "$enable_ech" = "" && enable_ech=no
     test "$enable_ocspstapling" = "" && enable_ocspstapling=no
+    test "$enable_earlydata" = "" && enable_earlydata=no
+    test "$enable_renegotiation_indication" = "" && enable_renegotiation_indication=no
+    test "$enable_secure_renegotiation_info" = "" && enable_secure_renegotiation_info=no
+    test "$enable_secure_renegotiation" = "" && enable_secure_renegotiation=no
 
     # Disable all open source compatibility enables that might get set with all
     test "$enable_all_osp" = "" && enable_all_osp=no
@@ -1301,6 +1313,7 @@ AC_ARG_ENABLE([all-crypto],
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
+    test "$enable_aesecb" = "" && enable_aesecb=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
@@ -1322,6 +1335,7 @@ then
     test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
     test "$enable_psk" = "" && enable_psk=yes
     test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_cmac_kdf" = "" && enable_cmac_kdf=yes
     test "$enable_siphash" = "" && enable_siphash=yes
     test "$enable_ocsp" = "" && enable_ocsp=yes
     test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
@@ -1429,6 +1443,9 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+
+    # Enable onestep KDF from NIST SP 800 56c option 1.
+    AM_CFLAGS="$AM_CFLAGS -DWC_KDF_NIST_SP_800_56C"
 fi
 
 # wolfGuard
@@ -2048,8 +2065,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=yes ]
     )
 if test "x$FIPS_VERSION" = "xv1" ||
-        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 ) ||
-        test "$ENABLED_CRYPTONLY" = "yes"
+        ( test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1 )
 then
     ENABLED_TLS13="no"
 fi
@@ -3037,6 +3053,19 @@ AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       ])
 
 
+# AES-ECB
+AC_ARG_ENABLE([aesecb],
+    [AS_HELP_STRING([--enable-aesecb],[Enable wolfSSL AES-ECB support (default: enabled)])],
+    [ ENABLED_AESECB=$enableval ],
+    [ ENABLED_AESECB=no ]
+    )
+
+if test "$ENABLED_AESECB" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AES_ECB"
+fi
+
 # AES-CBC
 AC_ARG_ENABLE([aescbc],
     [AS_HELP_STRING([--enable-aescbc],[Enable wolfSSL AES-CBC support (default: enabled)])],
@@ -3366,7 +3395,7 @@ then
     ENABLED_ARMASM="yes"
 
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM -DWOLFSSL_NO_HASH_RAW"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
     #Check if mcpu and mfpu values already set if not use default
     case $CPPFLAGS in
     *mcpu* | *mfpu*)
@@ -4885,10 +4914,6 @@ AC_ARG_ENABLE([tlsv10],
     [ ENABLED_TLSV10=no ]
     )
 
-if test "$ENABLED_CRYPTONLY" = "yes"
-then
-    ENABLED_TLSV12=no
-fi
 if test "$ENABLED_TLSV10" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
@@ -5593,6 +5618,20 @@ AC_ARG_ENABLE([siphash],
 AS_IF([test "x$ENABLED_SIPHASH" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIPHASH"])
 
+AC_ARG_ENABLE([cmac-kdf],
+    [AS_HELP_STRING([--enable-cmac-kdf],[Enables cmac-kdf support (default: disabled)])],
+    [ ENABLED_CMAC_KDF=$enableval ],
+    [ ENABLED_CMAC_KDF=no ]
+    )
+
+if test "$ENABLED_CMAC_KDF" = "yes"
+then
+ if test "$ENABLED_KDF" != "yes"
+ then
+   AC_MSG_ERROR([enable-cmac-kdf requires --enable-kdf])
+ fi
+  AM_CFLAGS="$AM_CFLAGS -DHAVE_CMAC_KDF"
+fi
 
 # CMAC
 AC_ARG_ENABLE([cmac],
@@ -5601,7 +5640,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes"
+if test "$ENABLED_WPAS" != "no" || test "$ENABLED_NTP" = "yes" || test "$ENABLED_AESSIV" = "yes" || test "$ENABLED_WOLFENGINE" = "yes" || test "$ENABLED_AESEAX" = "yes" || test "$ENABLED_CMAC_KDF" = "yes"
 then
     ENABLED_CMAC=yes
 fi
@@ -6608,6 +6647,7 @@ fi
 if test "$ENABLED_CHACHA" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_CHACHA"
 fi
 
 
@@ -7531,6 +7571,9 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS13_MIDDLEBOX_COMPAT"
+
+    # Enable openssl compat layer AES-CTS to maintain FIPS compatibility
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_CTS"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
@@ -9423,6 +9466,44 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWC_TEST_NO_CRYPTOCB_SW_TEST"
 fi
 
+# Crypto Callbacks Utils (Copy/Free/etc)
+AC_ARG_ENABLE([cryptocbutils],
+    [AS_HELP_STRING([--enable-cryptocbutils@<:@=copy,free,...@:>@],
+                    [Enable crypto callback utilities (default: all)])],
+    [ ENABLED_CRYPTOCB_UTILS=$enableval ],
+    [ ENABLED_CRYPTOCB_UTILS=no ]
+)
+
+if test "$ENABLED_CRYPTOCB_UTILS" != "no"; then
+    if test "$ENABLED_CRYPTOCB" = "no"; then
+        AC_MSG_ERROR([--enable-cryptocbutils requires --enable-cryptocb])
+    fi
+
+    if test "$ENABLED_CRYPTOCB_UTILS" = "yes"; then
+        # Enable all utilities
+        AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY -DWOLF_CRYPTO_CB_FREE"
+        # Future utilities go here when added
+    else
+        # Parse comma-separated list
+        OIFS="$IFS"
+        IFS=','
+        for util in $ENABLED_CRYPTOCB_UTILS; do
+            case "$util" in
+                copy)
+                    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_COPY"
+                    ;;
+                free)
+                    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB_FREE"
+                    ;;
+                # Add future options here (e.g., malloc, realloc, etc)
+                *)
+                    AC_MSG_ERROR([Unknown cryptocbutils option: $util. Valid options: copy, free])
+                    ;;
+            esac
+        done
+        IFS="$OIFS"
+    fi
+fi
 
 
 # Asynchronous Crypto
@@ -10888,11 +10969,12 @@ AM_CONDITIONAL([BUILD_FIPS],[test "x$ENABLED_FIPS" = "xyes"])
 AC_SUBST([ENABLED_FIPS])
 AM_CONDITIONAL([BUILD_FIPS_V1],[test "$HAVE_FIPS_VERSION" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 0])
+AM_CONDITIONAL([BUILD_FIPS_V2_PLUS],[test "$HAVE_FIPS_VERSION" -ge 2 ])
 AM_CONDITIONAL([BUILD_FIPS_RAND],[test "$HAVE_FIPS_VERSION" = 2 && test "$HAVE_FIPS_VERSION_MINOR" = 1])
 AM_CONDITIONAL([BUILD_FIPS_V5],[test "$HAVE_FIPS_VERSION" = 5])
-AM_CONDITIONAL([BUILD_FIPS_V6],[test $HAVE_FIPS_VERSION -ge 6])
-AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "$HAVE_FIPS_VERSION" -ge 2 ])
-    # BUILD_FIPS_CURRENT is for builds after cert 2425.
+AM_CONDITIONAL([BUILD_FIPS_V5_PLUS],[test "$HAVE_FIPS_VERSION" -ge 5])
+AM_CONDITIONAL([BUILD_FIPS_V6],[test $HAVE_FIPS_VERSION = 6])
+AM_CONDITIONAL([BUILD_FIPS_V6_PLUS],[test $HAVE_FIPS_VERSION -ge 6])
 AM_CONDITIONAL([BUILD_SIPHASH],[test "x$ENABLED_SIPHASH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])

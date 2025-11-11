@@ -744,7 +744,7 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
 
     if (ret == 0) {
         /* Start sum with all 2^w - 1s and subtract from that. */
-        sum = ((1 << w) - 1) * ((n * 8) / w);
+        sum = (((word16)1 << w) - 1) * ((n * 8) / w);
         /* For each byte of the hash. */
         for (i = 0; i < n; i++) {
             /* Get next byte. */
@@ -1984,7 +1984,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
             /* Copy out top root nodes. */
             if ((h > params->height - params->rootLevels) &&
                     ((i >> (h-1)) != ((i + 1) >> (h - 1)))) {
-                int off = (1 << (params->height - h)) + (i >> h) - 1;
+                int off = ((int)1 << (params->height - h)) + (i >> h) - 1;
                 XMEMCPY(root + off * params->hash_len, temp, params->hash_len);
             }
 
@@ -2135,7 +2135,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
             if ((ret == 0) && (q == 0) && (!useRoot) &&
                     (h > params->height - params->rootLevels) &&
                     ((i >> (h-1)) != ((i + 1) >> (h - 1)))) {
-                int off = (1 << (params->height - h)) + (i >> h) - 1;
+                int off = ((int)1 << (params->height - h)) + (i >> h) - 1;
                 XMEMCPY(privState->root + off * params->hash_len, temp,
                     params->hash_len);
             }
@@ -2292,7 +2292,7 @@ static int wc_lms_compute_root(LmsState* state, word32 q, const byte* kc,
     byte* node = ip + LMS_P_LEN;
     byte* b[2][2];
     /* node_num = 2^h + q */
-    word32 r = (1 << params->height) + q;
+    word32 r = ((word32)1 << params->height) + q;
 
     /* tmp = H(I || u32str(node_num) || u16str(D_LEAF) || Kc) */
     c32toa(r, rp);
@@ -2752,11 +2752,11 @@ static int wc_lms_next_subtree_init(LmsState* state, LmsPrivState* privState,
     priv += LMS_I_LEN;
 
     ato32(curr, &pq);
-    pq = (pq + 1) & ((1 << params->height) - 1);
+    pq = (pq + 1) & (((word32)1 << params->height) - 1);
     c32toa(pq, priv_q);
 
     privState->stack.offset = 0;
-    privState->leaf.idx = (word32)-(1 << params->cacheBits);
+    privState->leaf.idx = (word32)-((word32)1 << params->cacheBits);
     privState->leaf.offset = 0;
 
     /* Derive SEED and I for next tree. */
@@ -2999,7 +2999,7 @@ static int wc_hss_update_auth_path(LmsState* state, HssPrivKey* priv_key,
                 word32 qm1a = LMS_AUTH_PATH_IDX(q - 1, h);
                 /* If different then copy in cached hash. */
                 if ((qa != qm1a) && (qa > maxq)) {
-                    int off = (1 << (params->height - h)) + (qa >> h) - 1;
+                    int off = ((int)1 << (params->height - h)) + (qa >> h) - 1;
                     XMEMCPY(privState->auth_path + h * params->hash_len,
                         privState->root + off * params->hash_len,
                         params->hash_len);

@@ -89,6 +89,74 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     return ret;
 }
 
+#ifdef HAVE_AES_ECB
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_ENCRYPT,
+        sz,
+        in,
+        out);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    sl_status_t status;
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+    if ((sz % WC_AES_BLOCK_SIZE) != 0) {
+        return BAD_LENGTH_E;
+    }
+
+    status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_DECRYPT,
+        sz,
+        in,
+        out);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+#endif /* HAVE_AES_ECB */
+
+#ifdef WOLFSSL_AES_DIRECT
+int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_ENCRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+
+int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+{
+    sl_status_t status = sl_se_aes_crypt_ecb(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        SL_SE_DECRYPT,
+        WC_AES_BLOCK_SIZE,
+        inBlock,
+        outBlock);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
+}
+#endif /* WOLFSSL_AES_DIRECT */
+
 int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     sl_status_t status = sl_se_aes_crypt_cbc(

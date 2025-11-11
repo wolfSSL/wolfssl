@@ -608,11 +608,6 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
             else {
                 ret = wolfSSL_read_early_data(ssl, tmpbuffer,
                                               sizeof(tmpbuffer), &len);
-                if (ret < 0 && ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
-                    /* this is expected, since QUIC handles the actual early
-                     * data separately. */
-                    ret = WOLFSSL_SUCCESS;
-                }
             }
             if (ret < 0) {
                 goto cleanup;

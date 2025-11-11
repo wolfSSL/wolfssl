@@ -437,10 +437,13 @@ static WC_INLINE int CleanupMemoryTracker(void)
 #ifdef HAVE_STACK_SIZE
 
 #include <stdio.h>
-#include <pthread.h>
-#include <errno.h>
-#include <sched.h>
-#include <unistd.h>
+
+#ifdef HAVE_PTHREAD
+    #include <pthread.h>
+    #include <errno.h>
+    #include <sched.h>
+    #include <unistd.h>
+#endif
 
 typedef void* (*thread_func)(void* args);
 #define STACK_CHECK_VAL 0x01
@@ -458,6 +461,118 @@ struct stack_size_debug_context {
 struct func_args; /* forward declaration */
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
+
+/*
+ * Allow bare-metal targets to register a statically allocated stack region
+ * that should be inspected for high water mark usage. The caller is expected
+ * to invoke this once early during startup, before the stack contains live
+ * frames, using linker-provided low/high water symbols.
+ *
+ * Example (GNU ld symbols) on a downward-growing (ARM Cortex-M) stack:
+ *     extern unsigned char _estack;   - one past highest address
+ *     #define WOLFSSL_STACK_BYTES  (12 * 1024U)
+ *     StackSizeCheck_SetStackRegion((unsigned char*)(&_estack) -
+ *         WOLFSSL_STACK_BYTES, WOLFSSL_STACK_BYTES, NULL);
+ *   or simply
+ *     STACK_SIZE_CHECK_INIT_TOP(&_estack, WOLFSSL_STACK_BYTES);
+ *
+ * The initializer samples the current stack pointer and avoids clobbering
+ * the live call frames. Call it as early as practical (right after the C
+ * runtime start-up, with interrupts masked) so that most of the stack can be
+ * painted with the sentinel before it is used.
+ */
+static WC_INLINE int StackSizeCheck_SetStackRegion(unsigned char* stackBase,
+    size_t stackSize, size_t* hwmStorage)
+{
+    volatile unsigned char currentSpVar;
+    unsigned char* currentSp;
+    unsigned char* stackTop;
+
+    if (stackBase == NULL || stackSize == 0)
+        return -BAD_FUNC_ARG;
+
+    StackSizeCheck_myStack = stackBase;
+    StackSizeCheck_stackSize = stackSize;
+
+    if (hwmStorage != NULL) {
+        StackSizeCheck_stackSizeHWM_ptr = hwmStorage;
+        *StackSizeCheck_stackSizeHWM_ptr = 0;
+    }
+    else {
+        StackSizeCheck_stackSizeHWM = 0;
+        StackSizeCheck_stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    }
+
+    stackTop = stackBase + stackSize;
+    StackSizeCheck_stackOffsetPointer = (void*)stackTop;
+
+    currentSp = (unsigned char*)&currentSpVar;
+
+    if (currentSp >= stackBase && currentSp <= stackTop) {
+        size_t lowerSpan = (size_t)(currentSp - stackBase);
+        size_t upperSpan = (size_t)(stackTop - currentSp);
+
+        if (lowerSpan >= upperSpan) {
+            if (lowerSpan > 0) {
+                XMEMSET(stackBase, STACK_CHECK_VAL, lowerSpan);
+            }
+        }
+        else {
+            if (upperSpan > 0) {
+                XMEMSET(currentSp, STACK_CHECK_VAL, upperSpan);
+            }
+        }
+    }
+    else {
+        XMEMSET(StackSizeCheck_myStack, STACK_CHECK_VAL, stackSize);
+    }
+
+    return 0;
+}
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+static WC_INLINE int StackSizeCheck_Rebaseline(void)
+{
+    size_t* hwmStore;
+
+    if (StackSizeCheck_myStack == NULL || StackSizeCheck_stackSize == 0)
+        return -BAD_FUNC_ARG;
+
+    hwmStore = StackSizeCheck_stackSizeHWM_ptr;
+
+    if (hwmStore == NULL || hwmStore == &StackSizeCheck_stackSizeHWM)
+        hwmStore = NULL;
+
+    return StackSizeCheck_SetStackRegion(StackSizeCheck_myStack,
+        StackSizeCheck_stackSize, hwmStore);
+}
+#endif
+
+#ifndef STACK_SIZE_CHECK_INIT_REGION
+    #define STACK_SIZE_CHECK_INIT_REGION(lowAddr, highAddr) \
+        StackSizeCheck_SetStackRegion((unsigned char*)(lowAddr), \
+            (size_t)((char*)(highAddr) - (char*)(lowAddr)), NULL)
+#endif
+
+#ifndef STACK_SIZE_CHECK_INIT_REGION_EX
+    #define STACK_SIZE_CHECK_INIT_REGION_EX(lowAddr, highAddr, hwmPtr) \
+        StackSizeCheck_SetStackRegion((unsigned char*)(lowAddr), \
+            (size_t)((char*)(highAddr) - (char*)(lowAddr)), (hwmPtr))
+#endif
+
+#ifndef STACK_SIZE_CHECK_INIT_TOP
+    #define STACK_SIZE_CHECK_INIT_TOP(topAddr, sizeBytes) \
+        StackSizeCheck_SetStackRegion( \
+            (unsigned char*)((unsigned char*)(topAddr) - (size_t)(sizeBytes)), \
+            (size_t)(sizeBytes), NULL)
+#endif
+
+#ifndef STACK_SIZE_CHECK_INIT_TOP_EX
+    #define STACK_SIZE_CHECK_INIT_TOP_EX(topAddr, sizeBytes, hwmPtr) \
+        StackSizeCheck_SetStackRegion( \
+            (unsigned char*)((unsigned char*)(topAddr) - (size_t)(sizeBytes)), \
+            (size_t)(sizeBytes), (hwmPtr))
+#endif
 
 /* per-subtest stack high water mark tracking.
  *
@@ -579,6 +694,8 @@ int StackSizeHWMReset(void)
 
 #endif /* HAVE_STACK_SIZE_VERBOSE */
 
+#ifdef HAVE_PTHREAD
+
 static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 {
     size_t         i;
@@ -665,7 +782,7 @@ static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
 }
 
 static WC_INLINE int StackSizeCheck_launch(struct func_args* args,
-    thread_func tf, pthread_t *threadId, void **stack_context)
+    thread_func tf, THREAD_TYPE *threadId, void **stack_context)
 {
     int ret;
     unsigned char* myStack = NULL;
@@ -712,10 +829,10 @@ static WC_INLINE int StackSizeCheck_launch(struct func_args* args,
     shim_args->stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
     shim_args->fn = tf;
     shim_args->args = args;
-    ret = pthread_create(threadId, &myAttr,
+    ret = pthread_create((pthread_t *)threadId, &myAttr,
         (thread_func)debug_stack_size_verbose_shim, (void *)shim_args);
 #else
-    ret = pthread_create(threadId, &myAttr, tf, args);
+    ret = pthread_create((pthread_t *)threadId, &myAttr, tf, args);
 #endif
     if (ret != 0) {
         fprintf(stderr,"pthread_create failed: %s",strerror(ret));
@@ -727,14 +844,14 @@ static WC_INLINE int StackSizeCheck_launch(struct func_args* args,
     return 0;
 }
 
-static WC_INLINE int StackSizeCheck_reap(pthread_t threadId,
+static WC_INLINE int StackSizeCheck_reap(THREAD_TYPE threadId,
     void *stack_context)
 {
     struct stack_size_debug_context *shim_args =
         (struct stack_size_debug_context *)stack_context;
     size_t i;
     void *status;
-    int ret = pthread_join(threadId, &status);
+    int ret = pthread_join((pthread_t)threadId, &status);
     if (ret != 0) {
         wc_mem_printf("pthread_join failed\n");
         return ret;
@@ -762,6 +879,39 @@ static WC_INLINE int StackSizeCheck_reap(pthread_t threadId,
 
     return (int)((size_t)status);
 }
+
+#else /* HAVE_PTHREAD */
+
+static WC_INLINE int StackSizeCheck(struct func_args* args, thread_func tf)
+{
+    void* status;
+
+    if (tf == NULL)
+        return -BAD_FUNC_ARG;
+
+    status = tf(args);
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    {
+        ssize_t used = StackSizeHWM();
+        if (used >= 0) {
+            printf("stack used = %ld\n", (long)used);
+            StackSizeHWMReset();
+        }
+    }
+#endif
+
+    return (int)((size_t)status);
+}
+
+#define StackSizeCheck_launch(args, tf, threadId, stack_context)            \
+    ((void)(args), (void)(tf), (void)(threadId), (void)(stack_context),     \
+        (NOT_COMPILED_IN))
+
+#define StackSizeCheck_reap(threadId, stack_context)                        \
+    ((void)(threadId), (void)(stack_context), (NOT_COMPILED_IN))
+
+#endif /* HAVE_PTHREAD */
 
 #endif /* HAVE_STACK_SIZE */
 

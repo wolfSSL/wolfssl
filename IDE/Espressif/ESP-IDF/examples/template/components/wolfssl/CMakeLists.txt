@@ -845,6 +845,7 @@ else()
         "\"${WOLFSSL_ROOT}/src/ssl_misc.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_p7p12.c\""   # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_sess.c\""    # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_sk.c\""      # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/x509.c\""
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/ext_kyber.c\""     # external non-wolfssl Kyber disabled by default

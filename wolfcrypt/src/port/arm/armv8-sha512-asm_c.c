@@ -82,22 +82,10 @@ static const word64 L_SHA512_transform_neon_len_r8[] = {
 
 void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
 {
+    const word64* k = L_SHA512_transform_neon_len_k;
+    const word64* r8 = L_SHA512_transform_neon_len_r8;
     __asm__ __volatile__ (
-#ifndef __APPLE__
-        "adrp x3, %[L_SHA512_transform_neon_len_k]\n\t"
-        "add  x3, x3, :lo12:%[L_SHA512_transform_neon_len_k]\n\t"
-#else
-        "adrp x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
-        "add  x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x27, %[L_SHA512_transform_neon_len_r8]\n\t"
-        "add  x27, x27, :lo12:%[L_SHA512_transform_neon_len_r8]\n\t"
-#else
-        "adrp x27, %[L_SHA512_transform_neon_len_r8]@PAGE\n\t"
-        "add  x27, x27, %[L_SHA512_transform_neon_len_r8]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        "ld1	{v11.16b}, [x27]\n\t"
+        "ld1	{v11.16b}, [%[r8]]\n\t"
         /* Load digest into working vars */
         "ldp	x4, x5, [%x[sha512]]\n\t"
         "ldp	x6, x7, [%x[sha512], #16]\n\t"
@@ -108,9 +96,9 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
     "L_sha512_len_neon_begin_%=: \n\t"
         /* Load W */
         /* Copy digest to add in at end */
-        "ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [%x[data]], #0x40\n\t"
+        "ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[data]], #0x40\n\t"
         "mov	x19, x4\n\t"
-        "ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [%x[data]], #0x40\n\t"
+        "ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [%x[data]], #0x40\n\t"
         "mov	x20, x5\n\t"
         "rev64	v0.16b, v0.16b\n\t"
         "mov	x21, x6\n\t"
@@ -128,13 +116,13 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "rev64	v7.16b, v7.16b\n\t"
         /* Pre-calc: b ^ c */
         "eor	x16, x5, x6\n\t"
-        "mov	x27, #4\n\t"
+        "mov	%[r8], #4\n\t"
         /* Start of 16 rounds */
         "\n"
     "L_sha512_len_neon_start_%=: \n\t"
         /* Round 0 */
         "mov	x13, v0.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x8, #14\n\t"
         "ror	x14, x4, #28\n\t"
         "eor	x12, x12, x8, ror 18\n\t"
@@ -156,7 +144,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x11, x11, x14\n\t"
         /* Round 1 */
         "mov	x13, v0.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v0.16b, v1.16b, #8\n\t"
         "ror	x12, x7, #14\n\t"
         "shl	v8.2d, v7.2d, #45\n\t"
@@ -196,7 +184,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x10, x10, x14\n\t"
         /* Round 2 */
         "mov	x13, v1.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x6, #14\n\t"
         "ror	x14, x10, #28\n\t"
         "eor	x12, x12, x6, ror 18\n\t"
@@ -218,7 +206,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x9, x9, x14\n\t"
         /* Round 3 */
         "mov	x13, v1.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v1.16b, v2.16b, #8\n\t"
         "ror	x12, x5, #14\n\t"
         "shl	v8.2d, v0.2d, #45\n\t"
@@ -258,7 +246,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x8, x8, x14\n\t"
         /* Round 4 */
         "mov	x13, v2.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x4, #14\n\t"
         "ror	x14, x8, #28\n\t"
         "eor	x12, x12, x4, ror 18\n\t"
@@ -280,7 +268,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x7, x7, x14\n\t"
         /* Round 5 */
         "mov	x13, v2.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v2.16b, v3.16b, #8\n\t"
         "ror	x12, x11, #14\n\t"
         "shl	v8.2d, v1.2d, #45\n\t"
@@ -320,7 +308,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x14\n\t"
         /* Round 6 */
         "mov	x13, v3.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x10, #14\n\t"
         "ror	x14, x6, #28\n\t"
         "eor	x12, x12, x10, ror 18\n\t"
@@ -342,7 +330,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x5, x5, x14\n\t"
         /* Round 7 */
         "mov	x13, v3.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v3.16b, v4.16b, #8\n\t"
         "ror	x12, x9, #14\n\t"
         "shl	v8.2d, v2.2d, #45\n\t"
@@ -382,7 +370,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x4, x4, x14\n\t"
         /* Round 8 */
         "mov	x13, v4.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x8, #14\n\t"
         "ror	x14, x4, #28\n\t"
         "eor	x12, x12, x8, ror 18\n\t"
@@ -404,7 +392,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x11, x11, x14\n\t"
         /* Round 9 */
         "mov	x13, v4.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v4.16b, v5.16b, #8\n\t"
         "ror	x12, x7, #14\n\t"
         "shl	v8.2d, v3.2d, #45\n\t"
@@ -444,7 +432,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x10, x10, x14\n\t"
         /* Round 10 */
         "mov	x13, v5.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x6, #14\n\t"
         "ror	x14, x10, #28\n\t"
         "eor	x12, x12, x6, ror 18\n\t"
@@ -466,7 +454,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x9, x9, x14\n\t"
         /* Round 11 */
         "mov	x13, v5.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v5.16b, v6.16b, #8\n\t"
         "ror	x12, x5, #14\n\t"
         "shl	v8.2d, v4.2d, #45\n\t"
@@ -506,7 +494,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x8, x8, x14\n\t"
         /* Round 12 */
         "mov	x13, v6.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x4, #14\n\t"
         "ror	x14, x8, #28\n\t"
         "eor	x12, x12, x4, ror 18\n\t"
@@ -528,7 +516,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x7, x7, x14\n\t"
         /* Round 13 */
         "mov	x13, v6.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v6.16b, v7.16b, #8\n\t"
         "ror	x12, x11, #14\n\t"
         "shl	v8.2d, v5.2d, #45\n\t"
@@ -568,7 +556,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x14\n\t"
         /* Round 14 */
         "mov	x13, v7.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x10, #14\n\t"
         "ror	x14, x6, #28\n\t"
         "eor	x12, x12, x10, ror 18\n\t"
@@ -590,7 +578,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x5, x5, x14\n\t"
         /* Round 15 */
         "mov	x13, v7.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ext	v10.16b, v7.16b, v0.16b, #8\n\t"
         "ror	x12, x9, #14\n\t"
         "shl	v8.2d, v6.2d, #45\n\t"
@@ -628,11 +616,11 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	v7.2d, v7.2d, v9.2d\n\t"
         "add	x8, x8, x4\n\t"
         "add	x4, x4, x14\n\t"
-        "subs	x27, x27, #1\n\t"
+        "subs	%[r8], %[r8], #1\n\t"
         "b.ne	L_sha512_len_neon_start_%=\n\t"
         /* Round 0 */
         "mov	x13, v0.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x8, #14\n\t"
         "ror	x14, x4, #28\n\t"
         "eor	x12, x12, x8, ror 18\n\t"
@@ -654,7 +642,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x11, x11, x14\n\t"
         /* Round 1 */
         "mov	x13, v0.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x7, #14\n\t"
         "ror	x14, x11, #28\n\t"
         "eor	x12, x12, x7, ror 18\n\t"
@@ -676,7 +664,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x10, x10, x14\n\t"
         /* Round 2 */
         "mov	x13, v1.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x6, #14\n\t"
         "ror	x14, x10, #28\n\t"
         "eor	x12, x12, x6, ror 18\n\t"
@@ -698,7 +686,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x9, x9, x14\n\t"
         /* Round 3 */
         "mov	x13, v1.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x5, #14\n\t"
         "ror	x14, x9, #28\n\t"
         "eor	x12, x12, x5, ror 18\n\t"
@@ -720,7 +708,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x8, x8, x14\n\t"
         /* Round 4 */
         "mov	x13, v2.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x4, #14\n\t"
         "ror	x14, x8, #28\n\t"
         "eor	x12, x12, x4, ror 18\n\t"
@@ -742,7 +730,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x7, x7, x14\n\t"
         /* Round 5 */
         "mov	x13, v2.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x11, #14\n\t"
         "ror	x14, x7, #28\n\t"
         "eor	x12, x12, x11, ror 18\n\t"
@@ -764,7 +752,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x14\n\t"
         /* Round 6 */
         "mov	x13, v3.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x10, #14\n\t"
         "ror	x14, x6, #28\n\t"
         "eor	x12, x12, x10, ror 18\n\t"
@@ -786,7 +774,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x5, x5, x14\n\t"
         /* Round 7 */
         "mov	x13, v3.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x9, #14\n\t"
         "ror	x14, x5, #28\n\t"
         "eor	x12, x12, x9, ror 18\n\t"
@@ -808,7 +796,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x4, x4, x14\n\t"
         /* Round 8 */
         "mov	x13, v4.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x8, #14\n\t"
         "ror	x14, x4, #28\n\t"
         "eor	x12, x12, x8, ror 18\n\t"
@@ -830,7 +818,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x11, x11, x14\n\t"
         /* Round 9 */
         "mov	x13, v4.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x7, #14\n\t"
         "ror	x14, x11, #28\n\t"
         "eor	x12, x12, x7, ror 18\n\t"
@@ -852,7 +840,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x10, x10, x14\n\t"
         /* Round 10 */
         "mov	x13, v5.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x6, #14\n\t"
         "ror	x14, x10, #28\n\t"
         "eor	x12, x12, x6, ror 18\n\t"
@@ -874,7 +862,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x9, x9, x14\n\t"
         /* Round 11 */
         "mov	x13, v5.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x5, #14\n\t"
         "ror	x14, x9, #28\n\t"
         "eor	x12, x12, x5, ror 18\n\t"
@@ -896,7 +884,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x8, x8, x14\n\t"
         /* Round 12 */
         "mov	x13, v6.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x4, #14\n\t"
         "ror	x14, x8, #28\n\t"
         "eor	x12, x12, x4, ror 18\n\t"
@@ -918,7 +906,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x7, x7, x14\n\t"
         /* Round 13 */
         "mov	x13, v6.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x11, #14\n\t"
         "ror	x14, x7, #28\n\t"
         "eor	x12, x12, x11, ror 18\n\t"
@@ -940,7 +928,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x14\n\t"
         /* Round 14 */
         "mov	x13, v7.d[0]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x10, #14\n\t"
         "ror	x14, x6, #28\n\t"
         "eor	x12, x12, x10, ror 18\n\t"
@@ -962,7 +950,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x5, x5, x14\n\t"
         /* Round 15 */
         "mov	x13, v7.d[1]\n\t"
-        "ldr	x15, [x3], #8\n\t"
+        "ldr	x15, [%[k]], #8\n\t"
         "ror	x12, x9, #14\n\t"
         "ror	x14, x5, #28\n\t"
         "eor	x12, x12, x9, ror 18\n\t"
@@ -990,26 +978,19 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x21\n\t"
         "add	x5, x5, x20\n\t"
         "add	x4, x4, x19\n\t"
-#ifndef __APPLE__
-        "adrp x3, %[L_SHA512_transform_neon_len_k]\n\t"
-        "add  x3, x3, :lo12:%[L_SHA512_transform_neon_len_k]\n\t"
-#else
-        "adrp x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
-        "add  x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
         "subs	%w[len], %w[len], #0x80\n\t"
+        "sub	%[k], %[k], #0x280\n\t"
         "b.ne	L_sha512_len_neon_begin_%=\n\t"
         "stp	x4, x5, [%x[sha512]]\n\t"
         "stp	x6, x7, [%x[sha512], #16]\n\t"
         "stp	x8, x9, [%x[sha512], #32]\n\t"
         "stp	x10, x11, [%x[sha512], #48]\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_transform_neon_len_k] "i" (L_SHA512_transform_neon_len_k),
-          [L_SHA512_transform_neon_len_r8] "i" (L_SHA512_transform_neon_len_r8)
-        : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
-            "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
-            "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2",
-            "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+        : [sha512] "+r" (sha512), [len] "+r" (len)
+        : [data] "r" (data), [k] "r" (k), [r8] "r" (r8)
+        : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+            "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21",
+            "x22", "x23", "x24", "x25", "x26", "v0", "v1", "v2", "v3", "v4",
+            "v5", "v6", "v7", "v8", "v9", "v10", "v11"
     );
 }
 
@@ -1062,29 +1043,23 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
 void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
     word32 len)
 {
+    const word64* k = L_SHA512_trans_crypto_len_k;
     __asm__ __volatile__ (
 #ifdef __APPLE__
     ".arch_extension sha3\n\t"
 #endif /* __APPLE__ */
-#ifndef __APPLE__
-        "adrp x4, %[L_SHA512_trans_crypto_len_k]\n\t"
-        "add  x4, x4, :lo12:%[L_SHA512_trans_crypto_len_k]\n\t"
-#else
-        "adrp x4, %[L_SHA512_trans_crypto_len_k]@PAGE\n\t"
-        "add  x4, x4, %[L_SHA512_trans_crypto_len_k]@PAGEOFF\n\t"
-#endif /* __APPLE__ */
-        /* Load first 16 64-bit words of K permanently */
-        "ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [x4], #0x40\n\t"
-        "ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [x4], #0x40\n\t"
+        /* Load K into vector registers */
+        "ld1	{v8.2d, v9.2d, v10.2d, v11.2d}, [%[k]], #0x40\n\t"
+        "ld1	{v12.2d, v13.2d, v14.2d, v15.2d}, [%[k]], #0x40\n\t"
         /* Load digest into working vars */
         "ld1	{v24.2d, v25.2d, v26.2d, v27.2d}, [%x[sha512]]\n\t"
         /* Start of loop processing a block */
         "\n"
     "L_sha512_len_crypto_begin_%=: \n\t"
-        "mov	x3, x4\n\t"
+        "mov	x3, %[k]\n\t"
         /* Load W */
-        "ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [%x[data]], #0x40\n\t"
-        "ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [%x[data]], #0x40\n\t"
+        "ld1	{v0.16b, v1.16b, v2.16b, v3.16b}, [%x[data]], #0x40\n\t"
+        "ld1	{v4.16b, v5.16b, v6.16b, v7.16b}, [%x[data]], #0x40\n\t"
         "rev64	v0.16b, v0.16b\n\t"
         "rev64	v1.16b, v1.16b\n\t"
         "rev64	v2.16b, v2.16b\n\t"
@@ -1579,12 +1554,12 @@ void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
         "b.ne	L_sha512_len_crypto_begin_%=\n\t"
         /* Store digest back */
         "st1	{v24.2d, v25.2d, v26.2d, v27.2d}, [%x[sha512]]\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
-        : [L_SHA512_trans_crypto_len_k] "i" (L_SHA512_trans_crypto_len_k)
-        : "memory", "cc", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6",
-            "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16",
-            "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25",
-            "v26", "v27", "v28", "v29", "v30", "v31"
+        : [sha512] "+r" (sha512), [len] "+r" (len)
+        : [data] "r" (data), [k] "r" (k)
+        : "memory", "cc", "x3", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+            "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17",
+            "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+            "v27", "v28", "v29", "v30", "v31"
     );
 }
 

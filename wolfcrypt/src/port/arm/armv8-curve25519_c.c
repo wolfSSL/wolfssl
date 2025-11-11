@@ -57,8 +57,8 @@ void fe_frombytes(fe out, const unsigned char* in)
         "and	x5, x5, #0x7fffffffffffffff\n\t"
         "stp	x2, x3, [%x[out]]\n\t"
         "stp	x4, x5, [%x[out], #16]\n\t"
-        : [out] "+r" (out), [in] "+r" (in)
-        :
+        : [out] "+r" (out)
+        : [in] "r" (in)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6"
     );
 }
@@ -81,8 +81,8 @@ void fe_tobytes(unsigned char* out, const fe n)
         "and	x5, x5, #0x7fffffffffffffff\n\t"
         "stp	x2, x3, [%x[out]]\n\t"
         "stp	x4, x5, [%x[out], #16]\n\t"
-        : [out] "+r" (out), [n] "+r" (n)
-        :
+        : [out] "+r" (out)
+        : [n] "r" (n)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7"
     );
 }
@@ -120,8 +120,8 @@ void fe_copy(fe r, const fe a)
         "ldp	x4, x5, [%x[a], #16]\n\t"
         "stp	x2, x3, [%x[r]]\n\t"
         "stp	x4, x5, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a)
         : "memory", "cc", "x2", "x3", "x4", "x5"
     );
 }
@@ -151,8 +151,8 @@ void fe_sub(fe r, const fe a, const fe b)
         "sbc	x6, x6, xzr\n\t"
         "stp	x3, x4, [%x[r]]\n\t"
         "stp	x5, x6, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13"
     );
@@ -183,8 +183,8 @@ void fe_add(fe r, const fe a, const fe b)
         "adc	x6, x6, xzr\n\t"
         "stp	x3, x4, [%x[r]]\n\t"
         "stp	x5, x6, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13"
     );
@@ -205,8 +205,8 @@ void fe_neg(fe r, const fe a)
         "sbc	x9, x9, x5\n\t"
         "stp	x6, x7, [%x[r]]\n\t"
         "stp	x8, x9, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
 }
@@ -230,8 +230,8 @@ int fe_isnonzero(const fe a)
         "orr	%x[a], x1, x2\n\t"
         "orr	x3, x3, x4\n\t"
         "orr	%x[a], %x[a], x3\n\t"
-        : [a] "+r" (a)
         :
+        : [a] "r" (a)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6"
     );
     return (word32)(size_t)a;
@@ -249,8 +249,8 @@ int fe_isnegative(const fe a)
         "adc	x5, x4, xzr\n\t"
         "and	%x[a], x1, #1\n\t"
         "eor	%x[a], %x[a], x5, lsr 63\n\t"
-        : [a] "+r" (a)
         :
+        : [a] "r" (a)
         : "memory", "cc", "x1", "x2", "x3", "x4", "x5", "x6"
     );
     return (word32)(size_t)a;
@@ -602,8 +602,8 @@ void fe_mul(fe r, const fe a, const fe b)
         /* Store */
         "stp	x6, x7, [%x[r]]\n\t"
         "stp	x8, x9, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22"
@@ -706,8 +706,8 @@ void fe_sq(fe r, const fe a)
         /* Store */
         "stp	x5, x6, [%x[r]]\n\t"
         "stp	x7, x8, [%x[r], #16]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16"
     );
@@ -1584,8 +1584,8 @@ void fe_invert(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "ldp	x29, x30, [sp], #0xa0\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a)
         : "memory", "cc", "x2", "x20", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"
     );
@@ -2683,7 +2683,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "adcs	x12, x12, x26\n\t"
         "adc	x13, x13, x27\n\t"
         "subs	x24, x24, #1\n\t"
-        "bge	L_curve25519_bits_%=\n\t"
+        "b.ge	L_curve25519_bits_%=\n\t"
         /* Invert */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
@@ -3685,8 +3685,8 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "stp	x16, x17, [%x[r], #16]\n\t"
         "mov	x0, xzr\n\t"
         "ldp	x29, x30, [sp], #0xc0\n\t"
-        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [n] "r" (n), [a] "r" (a)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -4497,8 +4497,8 @@ void fe_pow22523(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "ldp	x29, x30, [sp], #0x80\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        :
+        : [r] "+r" (r)
+        : [a] "r" (a)
         : "memory", "cc", "x2", "x23", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
             "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"
     );
@@ -4868,8 +4868,8 @@ void ge_p1p1_to_p2(ge_p2* r, const ge_p1p1* p)
         "stp	x14, x15, [x0]\n\t"
         "stp	x16, x17, [x0, #16]\n\t"
         "ldp	x29, x30, [sp], #32\n\t"
-        : [r] "+r" (r), [p] "+r" (p)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22"
@@ -5356,8 +5356,8 @@ void ge_p1p1_to_p3(ge_p3* r, const ge_p1p1* p)
         "stp	x14, x15, [x0]\n\t"
         "stp	x16, x17, [x0, #16]\n\t"
         "ldp	x29, x30, [sp], #32\n\t"
-        : [r] "+r" (r), [p] "+r" (p)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26"
@@ -5819,8 +5819,8 @@ void ge_p2_dbl(ge_p1p1* r, const ge_p2* p)
         "stp	x4, x5, [x0]\n\t"
         "stp	x6, x7, [x0, #16]\n\t"
         "ldp	x29, x30, [sp], #32\n\t"
-        : [r] "+r" (r), [p] "+r" (p)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p)
         : "memory", "cc", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -6317,8 +6317,8 @@ void ge_madd(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "stp	x4, x5, [x1]\n\t"
         "stp	x6, x7, [x1, #16]\n\t"
         "ldp	x29, x30, [sp], #48\n\t"
-        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p), [q] "r" (q)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -6815,8 +6815,8 @@ void ge_msub(ge_p1p1* r, const ge_p3* p, const ge_precomp* q)
         "stp	x4, x5, [x1]\n\t"
         "stp	x6, x7, [x1, #16]\n\t"
         "ldp	x29, x30, [sp], #48\n\t"
-        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p), [q] "r" (q)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -7439,8 +7439,8 @@ void ge_add(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "stp	x12, x13, [x1]\n\t"
         "stp	x14, x15, [x1, #16]\n\t"
         "ldp	x29, x30, [sp], #48\n\t"
-        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p), [q] "r" (q)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -8078,8 +8078,8 @@ void ge_sub(ge_p1p1* r, const ge_p3* p, const ge_cached* q)
         "stp	x21, x22, [x1]\n\t"
         "stp	x23, x24, [x1, #16]\n\t"
         "ldp	x29, x30, [sp], #48\n\t"
-        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
-        :
+        : [r] "+r" (r)
+        : [p] "r" (p), [q] "r" (q)
         : "memory", "cc", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10",
             "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20",
             "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -8544,8 +8544,8 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
         /* Store result */
         "stp	x4, x5, [%x[s]]\n\t"
         "stp	x6, x7, [%x[s], #16]\n\t"
-        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
-        :
+        : [s] "+r" (s)
+        : [a] "r" (a), [b] "r" (b), [c] "r" (c)
         : "memory", "cc", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
             "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21",
             "x22", "x23", "x24", "x25", "x26"

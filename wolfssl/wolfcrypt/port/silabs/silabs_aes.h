@@ -38,6 +38,11 @@ typedef struct {
 
 typedef struct Aes Aes;
 
+#ifdef WOLFSSL_AES_DIRECT
+int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock);
+int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock);
+#endif
+
 #ifdef HAVE_AESGCM
 int wc_AesGcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                              const byte* iv, word32 ivSz,

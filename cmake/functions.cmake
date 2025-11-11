@@ -364,14 +364,14 @@ function(generate_lib_src_list LIB_SOURCES)
                 list(APPEND LIB_SOURCES wolfcrypt/src/aes.c)
 
                 if(BUILD_ARMASM AND BUILD_FIPS_READY)
-                    list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-aes.c)
-
                     if(BUILD_ARMASM_INLINE)
                         list(APPEND LIB_SOURCES
-                            wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
+                            wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c
+                            wolfcrypt/src/port/arm/armv8-aes-asm_c.c)
                     else()
                         list(APPEND LIB_SOURCES
-                            wolfcrypt/src/port/arm/armv8-32-aes-asm.S)
+                            wolfcrypt/src/port/arm/armv8-32-aes-asm.S
+                            wolfcrypt/src/port/arm/armv8-aes-asm.S)
                     endif()
 
                     if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
@@ -401,7 +401,23 @@ function(generate_lib_src_list LIB_SOURCES)
             endif()
 
             if(BUILD_ARMASM AND BUILD_FIPS_READY)
-                list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha256.c)
+                if(BUILD_ARMASM_INLINE)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-32-sha256-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-sha256-asm_c.c)
+                else()
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/armv8-32-sha256-asm.S
+                        wolfcrypt/src/port/arm/armv8-sha256-asm.S)
+                endif()
+
+                if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/thumb2-sha256-asm_c.c)
+                elseif(BUILD_ARM_THUMB)
+                    list(APPEND LIB_SOURCES
+                        wolfcrypt/src/port/arm/thumb2-sha256-asm.S)
+                endif()
             endif()
 
             if(BUILD_INTELASM)
@@ -412,9 +428,6 @@ function(generate_lib_src_list LIB_SOURCES)
                 list(APPEND LIB_SOURCES wolfcrypt/src/sha512.c)
 
                 if(BUILD_ARMASM AND BUILD_FIPS_READY)
-                    list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-sha512.c)
-
                     if(BUILD_ARMASM_INLINE)
                         list(APPEND LIB_SOURCES
                             wolfcrypt/src/port/arm/armv8-sha512-asm_c.c
@@ -628,15 +641,14 @@ function(generate_lib_src_list LIB_SOURCES)
                 list(APPEND LIB_SOURCES wolfcrypt/src/aes.c)
 
                 if(BUILD_ARMASM)
-                    list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-aes.c)
-
                     if(BUILD_ARMASM_INLINE)
                         list(APPEND LIB_SOURCES
-                            wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c)
+                            wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c
+                            wolfcrypt/src/port/arm/armv8-aes-asm_c.c)
                     else()
                         list(APPEND LIB_SOURCES
-                            wolfcrypt/src/port/arm/armv8-32-aes-asm.S)
+                            wolfcrypt/src/port/arm/armv8-32-aes-asm.S
+                            wolfcrypt/src/port/arm/armv8-aes-asm.S)
                     endif()
 
                     if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
@@ -672,8 +684,6 @@ function(generate_lib_src_list LIB_SOURCES)
             list(APPEND LIB_SOURCES wolfcrypt/src/sha512.c)
 
             if(BUILD_ARMASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-sha512.c)
-
                 if(BUILD_ARMASM_INLINE)
                     list(APPEND LIB_SOURCES
                         wolfcrypt/src/port/arm/armv8-sha512-asm_c.c
@@ -772,24 +782,21 @@ function(generate_lib_src_list LIB_SOURCES)
     if(NOT BUILD_FIPS_RAND)
         if(BUILD_POLY1305)
             if(BUILD_ARMASM)
-                list(APPEND LIB_SOURCES
-                    wolfcrypt/src/port/arm/armv8-poly1305.c)
-
                 if(BUILD_ARMASM_INLINE)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-32-poly1305-asm_c.c)
+                        wolfcrypt/src/port/arm/armv8-32-poly1305-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-poly1305-asm_c.c)
                 else()
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-32-poly1305-asm.S)
+                        wolfcrypt/src/port/arm/armv8-32-poly1305-asm.S
+                        wolfcrypt/src/port/arm/armv8-poly1305-asm.S)
                 endif()
 
                 if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/thumb2-poly1305.c
                         wolfcrypt/src/port/arm/thumb2-poly1305-asm_c.c)
                 elseif(BUILD_ARM_THUMB)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/thumb2-poly1305.c
                         wolfcrypt/src/port/arm/thumb2-poly1305-asm.S)
                 endif()
             endif()
@@ -853,23 +860,21 @@ function(generate_lib_src_list LIB_SOURCES)
             list(APPEND LIB_SOURCES wolfcrypt/src/chacha.c)
 
             if(BUILD_ARMASM)
-                list(APPEND LIB_SOURCES wolfcrypt/src/port/arm/armv8-chacha.c)
-
                 if(BUILD_ARMASM_INLINE)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-32-chacha-asm_c.c)
+                        wolfcrypt/src/port/arm/armv8-32-chacha-asm_c.c
+                        wolfcrypt/src/port/arm/armv8-chacha-asm_c.c)
                 else()
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/armv8-32-chacha-asm.S)
+                        wolfcrypt/src/port/arm/armv8-32-chacha-asm.S
+                        wolfcrypt/src/port/arm/armv8-chacha-asm.S)
                 endif()
 
                 if(BUILD_ARMASM_INLINE AND BUILD_ARM_THUMB)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/thumb2-chacha.c
                         wolfcrypt/src/port/arm/thumb2-chacha-asm_c.c)
                 elseif(BUILD_ARM_THUMB)
                     list(APPEND LIB_SOURCES
-                        wolfcrypt/src/port/arm/thumb2-chacha.c
                         wolfcrypt/src/port/arm/thumb2-chacha-asm.S)
                 endif()
             else()

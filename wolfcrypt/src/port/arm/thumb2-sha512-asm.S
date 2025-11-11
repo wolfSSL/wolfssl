@@ -201,9 +201,9 @@ L_SHA512_transform_len_k:
 	.word	0x6c44198c
 	.text
 	.align	4
-	.globl	Transform_Sha512_Len
-	.type	Transform_Sha512_Len, %function
-Transform_Sha512_Len:
+	.globl	Transform_Sha512_Len_base
+	.type	Transform_Sha512_Len_base, %function
+Transform_Sha512_Len_base:
 	PUSH	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	SUB	sp, sp, #0xc0
 	ADR	r3, L_SHA512_transform_len_k
@@ -3663,7 +3663,7 @@ L_SHA512_transform_len_start:
 	ADD	sp, sp, #0xc0
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 5021 */
-	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+	.size	Transform_Sha512_Len_base,.-Transform_Sha512_Len_base
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* WOLFSSL_ARMASM_THUMB2 */

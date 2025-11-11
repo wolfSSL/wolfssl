@@ -534,8 +534,7 @@ int wc_Tls13_HKDF_Expand_Label_ex(
     \ingroup HMAC
 
     \brief Expand data using HMAC, salt and label and info. TLS v1.3 defines
-    this function for key derivation. This is the _ex version adding heap hint
-    and device identifier.
+    this function for key derivation.
 
     \return 0 Returned upon successfully generating a key with the given inputs
     \return BAD_FUNC_ARG Returned if an invalid hash type is given (see type param)

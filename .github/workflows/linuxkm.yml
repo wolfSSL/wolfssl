@@ -36,7 +36,7 @@ jobs:
           echo "preparing target kernel $(uname -r)"
           pushd "/lib/modules/$(uname -r)/build" || $(exit 4)
           if [ -f /proc/config.gz ]; then gzip -dc /proc/config.gz > /tmp/.config && sudo mv /tmp/.config . || $(exit 5); elif [ -f "/boot/config-$(uname -r)" ]; then sudo cp -p "/boot/config-$(uname -r)" .config || $(exit 6); fi
-          sudo make -j 4 oldconfig || $(exit 7)
+          sudo make -j 4 olddefconfig || $(exit 7)
           sudo make M="$(pwd)" modules_prepare || $(exit 8)
           popd >/dev/null
 

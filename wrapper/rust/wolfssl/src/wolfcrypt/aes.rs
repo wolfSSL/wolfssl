@@ -27,7 +27,6 @@ the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
 use std::mem::{size_of, MaybeUninit};
-use std::ptr::{null, null_mut};
 use wolfssl_sys as ws;
 
 /// AES Cipher Block Chaining (CBC) mode.
@@ -989,7 +988,7 @@ impl ECB {
         let key_size = key.len() as u32;
         let rc = unsafe {
             ws::wc_AesSetKey(&mut self.ws_aes, key_ptr, key_size,
-                null(), dir)
+                core::ptr::null(), dir)
         };
         if rc != 0 {
             return Err(rc);
@@ -2357,7 +2356,7 @@ impl Drop for XTSStream {
 fn new_ws_aes() -> Result<ws::Aes, i32> {
     let mut ws_aes: MaybeUninit<ws::Aes> = MaybeUninit::uninit();
     let rc = unsafe {
-        ws::wc_AesInit(ws_aes.as_mut_ptr(), null_mut(), ws::INVALID_DEVID)
+        ws::wc_AesInit(ws_aes.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
     };
     if rc != 0 {
         return Err(rc);
@@ -2369,7 +2368,7 @@ fn new_ws_aes() -> Result<ws::Aes, i32> {
 fn new_ws_xtsaes() -> Result<ws::XtsAes, i32> {
     let mut ws_xtsaes: MaybeUninit<ws::XtsAes> = MaybeUninit::uninit();
     let rc = unsafe {
-        ws::wc_AesXtsInit(ws_xtsaes.as_mut_ptr(), null_mut(), ws::INVALID_DEVID)
+        ws::wc_AesXtsInit(ws_xtsaes.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
     };
     if rc != 0 {
         return Err(rc);

@@ -56,7 +56,10 @@ ifeq "$(ENABLED_LINUXKM_BENCHMARKS)" "yes"
 endif
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
-    WOLFCRYPT_PIE_FILES := $(filter wolfcrypt/src/%,$(WOLFSSL_OBJ_FILES)) linuxkm/pie_redirect_table.o
+    WOLFCRYPT_PIE_FILES := \
+	$(filter wolfcrypt/src/%,$(WOLFSSL_OBJ_FILES)) \
+	linuxkm/pie_redirect_table.o \
+	linuxkm/wc_linuxkm_pie_reloc_tab.o
     WOLFSSL_OBJ_FILES := $(WOLFCRYPT_PIE_FILES) $(filter-out $(WOLFCRYPT_PIE_FILES),$(WOLFSSL_OBJ_FILES))
 endif
 
@@ -100,14 +103,14 @@ ifndef MAKE_TMPDIR
     MAKE_TMPDIR := $(TMPDIR)
 endif
 
-GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
-	$(AWK) 'BEGIN {									\
+GENERATE_RELOC_TAB := $(AWK) 'BEGIN {							\
 	    n=0;									\
 	    bad_relocs=0;								\
+	    print "\#include <wolfssl/wolfcrypt/libwolfssl_sources.h>";			\
 	    printf("%s\n    ",								\
-	        "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");			\
+	        "WOLFSSL_LOCAL const unsigned int wc_linuxkm_pie_reloc_tab[] = { ");	\
 	}										\
-	/^Relocation section '\''\.rela\.text\.wolfcrypt'\''/ {				\
+	/^Relocation section '\''\.rela\.text_wolfcrypt'\''/ {				\
 	    p=1;									\
 	    next;									\
 	}										\
@@ -130,7 +133,7 @@ GENERATE_RELOC_TAB := $(READELF) --wide -r libwolfssl.ko |				\
 	        print "Found " bad_relocs " unexpected relocations." >"/dev/stderr";	\
 	        exit(1);								\
 	    }										\
-	    print "~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
+	    print "~0U };\nWOLFSSL_LOCAL const unsigned long wc_linuxkm_pie_reloc_tab_length = sizeof wc_linuxkm_pie_reloc_tab / sizeof wc_linuxkm_pie_reloc_tab[0];";\
 	}'
 
 ifeq "$(V)" "1"
@@ -139,29 +142,31 @@ endif
 
 .PHONY: libwolfssl.ko
 libwolfssl.ko:
+	@function resolved_link_is_equal() { [[ -L "$$1" && ("$$(readlink -f "$$1")" == "$$(readlink -f "$$2")") ]] }
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
 	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
 	@if test -z '$(src_libwolfssl_la_OBJECTS)'; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
         # after commit 9a0ebe5011 (6.10), sources must be in $(obj).  work around this by making links to all needed sources:
 	@mkdir -p '$(MODULE_TOP)/linuxkm'
-	@test '$(MODULE_TOP)/module_hooks.c' -ef '$(MODULE_TOP)/linuxkm/module_hooks.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
-	@test '$(SRC_TOP)/wolfcrypt/src/wc_port.c' -ef '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
-	@test '$(SRC_TOP)/src/wolfio.c' -ef '$(MODULE_TOP)/src/wolfio.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
+	@resolved_link_is_equal '$(MODULE_TOP)/linuxkm/module_hooks.c' '$(MODULE_TOP)/module_hooks.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)/linuxkm/'
+	@resolved_link_is_equal '$(MODULE_TOP)/wolfcrypt/src/wc_port.c' '$(SRC_TOP)/wolfcrypt/src/wc_port.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/wolfcrypt' '$(MODULE_TOP)/'
+	@resolved_link_is_equal '$(MODULE_TOP)/src/wolfio.c' '$(SRC_TOP)/src/wolfio.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/src' '$(MODULE_TOP)/'
 ifeq "$(FIPS_OPTEST)" "1"
-	@test '$(SRC_TOP)/../fips/optest-140-3/linuxkm_optest_wrapper.c' -ef '$(MODULE_TOP)/linuxkm/optest-140-3/linuxkm_optest_wrapper.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/../fips/optest-140-3' '$(MODULE_TOP)/linuxkm'
+	@resolved_link_is_equal '$(MODULE_TOP)/linuxkm/optest-140-3/linuxkm_optest_wrapper.c' '$(SRC_TOP)/../fips/optest-140-3/linuxkm_optest_wrapper.c' || cp $(vflag) --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)/../fips/optest-140-3' '$(MODULE_TOP)/linuxkm'
 endif
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
+	@[[ -f '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' ]] || \
+		{ $(RM) -f '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' && $(GENERATE_RELOC_TAB) < /dev/null > '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'; }
 	@$(eval RELOC_TMP := $(shell mktemp "$(MAKE_TMPDIR)/wc_linuxkm_pie_reloc_tab.c.XXXXXX"))
-	@[[ -f wc_linuxkm_pie_reloc_tab.c ]] || echo -e "const unsigned int wc_linuxkm_pie_reloc_tab[] = { ~0U };\nconst size_t wc_linuxkm_pie_reloc_tab_length = 1;" > wc_linuxkm_pie_reloc_tab.c
-	@if [[ -f libwolfssl.ko ]]; then touch -r libwolfssl.ko "$(RELOC_TMP)"; fi
+	@if [[ -f libwolfssl.ko ]]; then touch -r libwolfssl.ko '$(RELOC_TMP)'; fi
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 	# if the above make didn't build a fresh libwolfssl.ko, then the module is already up to date and we leave it untouched, assuring stability for purposes of module-update-fips-hash.
-	@if [[ ! libwolfssl.ko -nt "$(RELOC_TMP)" ]]; then rm "$(RELOC_TMP)"; exit 0; fi
-	@$(GENERATE_RELOC_TAB) >| wc_linuxkm_pie_reloc_tab.c
+	@if [[ ! libwolfssl.ko -nt '$(RELOC_TMP)' ]]; then rm '$(RELOC_TMP)'; exit 0; fi
+	@$(READELF) --wide -r libwolfssl.ko | $(GENERATE_RELOC_TAB) >| '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c'
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
-	@$(GENERATE_RELOC_TAB) >| $(RELOC_TMP)
-	@if diff wc_linuxkm_pie_reloc_tab.c $(RELOC_TMP); then echo " Relocation table is stable."; else echo "PIE failed: relocation table is unstable." 1>&2; rm $(RELOC_TMP); exit 1; fi
-	@rm $(RELOC_TMP)
+	@$(READELF) --wide -r libwolfssl.ko | $(GENERATE_RELOC_TAB) >| '$(RELOC_TMP)'
+	@if diff '$(MODULE_TOP)/linuxkm/wc_linuxkm_pie_reloc_tab.c' '$(RELOC_TMP)'; then echo " Relocation table is stable."; else echo "PIE failed: relocation table is unstable." 1>&2; rm '$(RELOC_TMP)'; exit 1; fi
+	@rm '$(RELOC_TMP)'
 else
 	+$(MAKE) ARCH='$(KERNEL_ARCH)' $(OVERRIDE_PATHS) $(CROSS_COMPILE) -C '$(KERNEL_ROOT)' M='$(MODULE_TOP)' $(KBUILD_EXTRA_FLAGS)
 endif
@@ -171,7 +176,7 @@ module-update-fips-hash: libwolfssl.ko
 	@if test -z '$(FIPS_HASH)'; then echo '  $$FIPS_HASH is unset' >&2; exit 1; fi
 	@if [[ ! '$(FIPS_HASH)' =~ [0-9a-fA-F]{64} ]]; then echo '  $$FIPS_HASH is malformed' >&2; exit 1; fi
 	@readarray -t rodata_segment < <($(READELF) --wide --sections libwolfssl.ko | \
-	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata\.wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p'); \
+	    sed -E -n 's/^[[:space:]]*\[[[:space:]]*([0-9]+)\][[:space:]]+\.rodata_wolfcrypt[[:space:]]+PROGBITS[[:space:]]+[0-9a-fA-F]+[[:space:]]+([0-9a-fA-F]+)[[:space:]].*$$/\1\n\2/p'); \
 	if [[ $${#rodata_segment[@]} != 2 ]]; then echo '  unexpected rodata_segment.' >&2; exit 1; fi; \
 	readarray -t verifyCore_attrs < <($(READELF) --wide --symbols libwolfssl.ko | \
 	    sed -E -n 's/^[[:space:]]*[0-9]+: ([0-9a-fA-F]+)[[:space:]]+([0-9]+)[[:space:]]+OBJECT[[:space:]]+[A-Z]+[[:space:]]+[A-Z]+[[:space:]]+'"$${rodata_segment[0]}"'[[:space:]]+verifyCore$$/\1\n\2/p'); \

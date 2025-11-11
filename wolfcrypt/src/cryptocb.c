@@ -80,8 +80,13 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
         case WC_ALGO_TYPE_CERT:   return "Cert";
-        case WC_ALGO_TYPE_KDF:
-            return "KDF";
+        case WC_ALGO_TYPE_KDF:    return "KDF";
+#ifdef WOLF_CRYPTO_CB_COPY
+        case WC_ALGO_TYPE_COPY:   return "Copy";
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+        case WC_ALGO_TYPE_FREE:   return "Free";
+#endif /* WOLF_CRYPTO_CB_FREE */
     }
     return NULL;
 }
@@ -174,12 +179,15 @@ static const char* GetCryptoCbCmdTypeStr(int type)
 }
 #endif
 
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+
+#if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || defined(HAVE_CMAC_KDF)
 static const char* GetKdfTypeStr(int type)
 {
     switch (type) {
         case WC_KDF_TYPE_HKDF:
             return "HKDF";
+        case WC_KDF_TYPE_TWOSTEP_CMAC:
+            return "TWOSTEP_CMAC";
     }
     return NULL;
 }
@@ -251,7 +259,22 @@ void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             GetCryptoCbCmdTypeStr(info->cmd.type), info->cmd.type);
     }
 #endif
-#if defined(HAVE_HKDF) && !defined(NO_HMAC)
+#ifdef WOLF_CRYPTO_CB_COPY
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+        printf("Crypto CB: %s %s Type=%d\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetAlgoTypeStr(info->copy.algo), info->copy.type);
+    }
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+    else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+        printf("Crypto CB: %s %s Type=%d\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetAlgoTypeStr(info->free.algo), info->free.type);
+    }
+#endif /* WOLF_CRYPTO_CB_FREE */
+#if (defined(HAVE_HKDF) && !defined(NO_HMAC)) || \
+    defined(HAVE_CMAC_KDF)
     else if (info->algo_type == WC_ALGO_TYPE_KDF) {
         printf("Crypto CB: %s %s (%d)\n", GetAlgoTypeStr(info->algo_type),
                GetKdfTypeStr(info->kdf.type), info->kdf.type);
@@ -2024,5 +2047,111 @@ int wc_CryptoCb_Hkdf(int hashType, const byte* inKey, word32 inKeySz,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_HKDF && !NO_HMAC */
+
+#ifdef WOLF_CRYPTO_CB_COPY
+/* General copy callback function for algorithm structures
+ * devId: The device ID to use for the callback
+ * algo: Algorithm type (enum wc_AlgoType) - WC_ALGO_TYPE_HASH,
+ *       WC_ALGO_TYPE_CIPHER, etc
+ * type: Specific type - for HASH: enum wc_HashType, for CIPHER:
+ *       enum wc_CipherType
+ * src: Pointer to source structure
+ * dst: Pointer to destination structure
+ * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not
+ *          handled
+ */
+int wc_CryptoCb_Copy(int devId, int algo, int type, void* src, void* dst)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_COPY);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_COPY;
+        cryptoInfo.copy.algo = algo;
+        cryptoInfo.copy.type = type;
+        cryptoInfo.copy.src = src;
+        cryptoInfo.copy.dst = dst;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_COPY */
+
+#ifdef WOLF_CRYPTO_CB_FREE
+/* General free callback function for algorithm structures
+ * devId: The device ID to use for the callback
+ * algo: Algorithm type (enum wc_AlgoType) - WC_ALGO_TYPE_HASH,
+ *       WC_ALGO_TYPE_CIPHER, etc
+ * type: Specific type - for HASH: enum wc_HashType, for CIPHER:
+ *       enum wc_CipherType
+ * obj: Pointer to object structure to free
+ * Returns: 0 on success, negative on error, CRYPTOCB_UNAVAILABLE if not
+ *          handled
+ */
+int wc_CryptoCb_Free(int devId, int algo, int type, void* obj)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_FREE);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_FREE;
+        cryptoInfo.free.algo = algo;
+        cryptoInfo.free.type = type;
+        cryptoInfo.free.obj = obj;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLF_CRYPTO_CB_FREE */
+
+
+#if defined(HAVE_CMAC_KDF)
+/* Crypto callback for NIST SP 800 56C two-step CMAC KDF. See software
+ * implementation in wc_KDA_KDF_twostep_cmac for more comments.
+ * */
+int wc_CryptoCb_Kdf_TwostepCmac(const byte * salt, word32 saltSz,
+                                const byte* z, word32 zSz,
+                                const byte* fixedInfo, word32 fixedInfoSz,
+                                byte* output, word32 outputSz, int devId)
+{
+    int       ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* Find registered callback device */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_KDF);
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+
+        cryptoInfo.algo_type                    = WC_ALGO_TYPE_KDF;
+        cryptoInfo.kdf.type                     = WC_KDF_TYPE_TWOSTEP_CMAC;
+        cryptoInfo.kdf.twostep_cmac.salt        = salt;
+        cryptoInfo.kdf.twostep_cmac.saltSz      = saltSz;
+        cryptoInfo.kdf.twostep_cmac.z           = z;
+        cryptoInfo.kdf.twostep_cmac.zSz         = zSz;
+        cryptoInfo.kdf.twostep_cmac.fixedInfo   = fixedInfo;
+        cryptoInfo.kdf.twostep_cmac.fixedInfoSz = fixedInfoSz;
+        cryptoInfo.kdf.twostep_cmac.out         = output;
+        cryptoInfo.kdf.twostep_cmac.outSz       = outputSz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* HAVE_CMAC_KDF */
 
 #endif /* WOLF_CRYPTO_CB */

@@ -3285,6 +3285,9 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
         XMEMSET(info, 0, sizeof(KeyShareInfo));
 
         /* Named group and public key */
+        if (idx + OPAQUE16_LEN > len) {
+            return WOLFSSL_FATAL_ERROR;
+        }
         info->named_group = (word16)((input[idx] << 8) | input[idx+1]);
         idx += OPAQUE16_LEN;
         info->key_len = 0;
@@ -7346,8 +7349,8 @@ static int addSecretNode(unsigned char* clientRandom,
 
     XMEMCPY(node->clientRandom, clientRandom, CLIENT_RANDOM_LENGTH);
     XMEMCPY(node->secrets[type], secret, SECRET_LENGTH);
-    node->next = secretHashTable[index];
-    secretHashTable[index] = node;
+    node->next = secretHashTable[idx];
+    secretHashTable[idx] = node;
 
 unlockReturn:
 

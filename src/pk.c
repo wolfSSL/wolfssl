@@ -970,23 +970,23 @@ WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
     int err;
 
     /* Validate name is not NULL. */
-    err = (name == NULL);
-    if (!err) {
-        /* Allocate an RSA METHOD to return. */
-        meth = (WOLFSSL_RSA_METHOD*)XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-        err = (meth == NULL);
-    }
-    if (!err) {
-        XMEMSET(meth, 0, sizeof(*meth));
-        meth->flags = flags;
-        meth->dynamic = 1;
+    if (name == NULL)
+        return NULL;
+    /* Allocate an RSA METHOD to return. */
+    meth = (WOLFSSL_RSA_METHOD*)XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL,
+                                        DYNAMIC_TYPE_OPENSSL);
+    if (meth == NULL)
+        return NULL;
 
-        name_len = (int)XSTRLEN(name);
-        meth->name = (char*)XMALLOC((size_t)(name_len + 1), NULL,
-            DYNAMIC_TYPE_OPENSSL);
-        err = (meth->name == NULL);
-    }
+    XMEMSET(meth, 0, sizeof(*meth));
+    meth->flags = flags;
+    meth->dynamic = 1;
+
+    name_len = (int)XSTRLEN(name);
+    meth->name = (char*)XMALLOC((size_t)(name_len + 1), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+    err = (meth->name == NULL);
+
     if (!err) {
         XMEMCPY(meth->name, name, (size_t)(name_len + 1));
     }

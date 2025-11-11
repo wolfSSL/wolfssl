@@ -81,8 +81,8 @@ fn test_ecc_import_export_sign_verify() {
     let mut s = [0u8; 32];
     let mut s_size = 0u32;
     ECC::sig_to_rs(signature, &mut r, &mut r_size, &mut s, &mut s_size).expect("Error with sig_to_rs()");
-    assert_eq!(r_size, 32);
-    assert_eq!(s_size, 32);
+    assert!(r_size > 0 && r_size <= 32);
+    assert!(s_size > 0 && s_size <= 32);
     let r = &r[0..r_size as usize];
     let s = &s[0..s_size as usize];
     let mut sig_out = [0u8; 128];

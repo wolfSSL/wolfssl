@@ -31,6 +31,7792 @@
 #if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
+#ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
+	.text
+	.align	4
+	.globl	AES_set_key_AARCH32
+	.type	AES_set_key_AARCH32, %function
+AES_set_key_AARCH32:
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	cmp	r1, #24
+	blt	L_aes_set_key_arm32_crypto_start_128
+	bgt	L_aes_set_key_arm32_crypto_start_256
+	ldr	r4, [r0], #4
+	ldr	r5, [r0], #4
+	ldr	r6, [r0], #4
+	ldr	r7, [r0], #4
+	ldr	r8, [r0], #4
+	ldr	r9, [r0], #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #1
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #2
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #4
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #8
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #16
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #32
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #0x40
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	eor	r8, r8, r7
+	eor	r9, r9, r8
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+	vdup.32	q1, r9
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #0x80
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	cmp	r3, #0
+	beq	L_aes_set_key_arm32_crypto_done
+	sub	r2, r2, #0xd0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xc0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xc0
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xc0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0xb0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xa0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xa0
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xa0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x90
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x80
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x80
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x80
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x70
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x60
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x60
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x60
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x50
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x40
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x40
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x40
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #48
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #32
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #32
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #32
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #16
+	vld1.32	{q0}, [r2]
+	aesimc.8	q0, q0
+	vst1.32	{q0}, [r2]
+	b	L_aes_set_key_arm32_crypto_done
+L_aes_set_key_arm32_crypto_start_256:
+	ldr	r4, [r0], #4
+	ldr	r5, [r0], #4
+	ldr	r6, [r0], #4
+	ldr	r7, [r0], #4
+	ldr	r8, [r0], #4
+	ldr	r9, [r0], #4
+	ldr	r10, [r0], #4
+	ldr	r11, [r0], #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #1
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #2
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #4
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #8
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #16
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #32
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	eor	r8, r8, r12
+	eor	r9, r9, r8
+	eor	r10, r10, r9
+	eor	r11, r11, r10
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r8, r9}
+#else
+	strd	r8, r9, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r10, r11}
+#else
+	strd	r10, r11, [r2], #8
+#endif
+	vdup.32	q1, r11
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #0x40
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	cmp	r3, #0
+	beq	L_aes_set_key_arm32_crypto_done
+	sub	r2, r2, #0xf0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xe0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xe0
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xe0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0xd0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xc0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xc0
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xc0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0xb0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xa0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xa0
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xa0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x90
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x80
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x80
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x80
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x70
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x60
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x60
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x60
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x50
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x40
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x40
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x40
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #48
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #32
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #32
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #32
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #16
+	vld1.32	{q0}, [r2]
+	aesimc.8	q0, q0
+	vst1.32	{q0}, [r2]
+	b	L_aes_set_key_arm32_crypto_done
+L_aes_set_key_arm32_crypto_start_128:
+	ldr	r4, [r0], #4
+	ldr	r5, [r0], #4
+	ldr	r6, [r0], #4
+	ldr	r7, [r0], #4
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #1
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #2
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #4
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #8
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #16
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #32
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #0x40
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	ror	r12, r12, #8
+	eor	r4, r4, #0x80
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	mov	lr, #27
+	ror	r12, r12, #8
+	eor	r4, r4, lr
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	vdup.32	q1, r7
+	vmov.i32	q0, #0
+	aese.8	q0, q1
+	vmov.i32	r12, s0
+	mov	lr, #54
+	ror	r12, r12, #8
+	eor	r4, r4, lr
+	eor	r4, r4, r12
+	eor	r5, r5, r4
+	eor	r6, r6, r5
+	eor	r7, r7, r6
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r4, r5}
+#else
+	strd	r4, r5, [r2], #8
+#endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	stm	r2!, {r6, r7}
+#else
+	strd	r6, r7, [r2], #8
+#endif
+	cmp	r3, #0
+	beq	L_aes_set_key_arm32_crypto_done
+	sub	r2, r2, #0xb0
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0xa0
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0xa0
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0xa0
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x90
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x80
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x80
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x80
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x70
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x60
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x60
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x60
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #0x50
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #0x40
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #0x40
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #0x40
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #48
+	vld1.32	{q0}, [r2]
+	add	r2, r2, #32
+	vld1.32	{q1}, [r2]
+	sub	r2, r2, #32
+	aesimc.8	q0, q0
+	aesimc.8	q1, q1
+	vst1.32	{q1}, [r2]
+	add	r2, r2, #32
+	vst1.32	{q0}, [r2]
+	sub	r2, r2, #16
+	vld1.32	{q0}, [r2]
+	aesimc.8	q0, q0
+	vst1.32	{q0}, [r2]
+L_aes_set_key_arm32_crypto_done:
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	.size	AES_set_key_AARCH32,.-AES_set_key_AARCH32
+#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
+	.text
+	.align	4
+	.globl	AES_encrypt_AARCH32
+	.type	AES_encrypt_AARCH32, %function
+AES_encrypt_AARCH32:
+	vpush	{d8, d9}
+	vld1.8	{q0}, [r0]
+	vldm	r2!, {q1-q4}
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	vldm	r2!, {q1-q4}
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	subs	r3, r3, #10
+	vld1.32	{q1, q2}, [r2]!
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	beq	L_aes_encrypt_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r2]!
+	subs	r3, r3, #2
+	aesmc.8	q0, q0
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	beq	L_aes_encrypt_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r2]!
+	aesmc.8	q0, q0
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+L_aes_encrypt_arm32_crypto_round_done:
+	vld1.32	{q1}, [r2]
+	veor.32	q0, q0, q1
+	vst1.8	{q0}, [r1]
+	vpop	{d8, d9}
+	bx	lr
+	.size	AES_encrypt_AARCH32,.-AES_encrypt_AARCH32
+#endif /* defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC) */
+#if !defined(WC_AES_BITSLICED) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#ifdef HAVE_AES_DECRYPT
+	.text
+	.align	4
+	.globl	AES_decrypt_AARCH32
+	.type	AES_decrypt_AARCH32, %function
+AES_decrypt_AARCH32:
+	vpush	{d8, d9}
+	vld1.8	{q0}, [r0]
+	vldm	r2!, {q1-q4}
+	aesd.8	q0, q1
+	aesimc.8	q0, q0
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	vldm	r2!, {q1-q4}
+	aesd.8	q0, q1
+	aesimc.8	q0, q0
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	vld1.32	{q1, q2}, [r2]!
+	aesd.8	q0, q1
+	aesimc.8	q0, q0
+	aesd.8	q0, q2
+	subs	r3, r3, #10
+	beq	L_aes_decrypt_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r2]!
+	aesimc.8	q0, q0
+	aesd.8	q0, q1
+	aesimc.8	q0, q0
+	aesd.8	q0, q2
+	subs	r3, r3, #2
+	beq	L_aes_decrypt_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r2]!
+	aesimc.8	q0, q0
+	aesd.8	q0, q1
+	aesimc.8	q0, q0
+	aesd.8	q0, q2
+L_aes_decrypt_arm32_crypto_round_done:
+	vld1.32	{q1}, [r2]
+	veor.32	q0, q0, q1
+	vst1.8	{q0}, [r1]
+	vpop	{d8, d9}
+	bx	lr
+	.size	AES_decrypt_AARCH32,.-AES_decrypt_AARCH32
+#endif /* HAVE_AES_DECRYPT */
+#endif /* !defined(WC_AES_BITSLICED) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) */
+#ifdef HAVE_AES_ECB
+	.text
+	.align	4
+	.globl	AES_encrypt_blocks_AARCH32
+	.type	AES_encrypt_blocks_AARCH32, %function
+AES_encrypt_blocks_AARCH32:
+	vpush	{d8-d15}
+	ldr	r12, [sp, #64]
+	vldm.32	r3!, {q0-q7}
+	lsr	r2, r2, #4
+	cmp	r12, #12
+	blt	L_aes_encrypt_blocks_arm32_crypto_start_128
+	bgt	L_aes_encrypt_blocks_arm32_crypto_start_256
+	# AES_ECB_192
+#ifndef NO_AES_192
+	vld1.32	{q8, q9}, [r3]!
+	cmp	r2, #1
+	beq	L_aes_encrypt_blocks_arm32_crypto_192_start_1
+L_aes_encrypt_blocks_arm32_crypto_192_start_4:
+	cmp	r2, #4
+	blt	L_aes_encrypt_blocks_arm32_crypto_192_start_2
+	vldm.8	r0!, {q12-q15}
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q14, q0
+	aesmc.8	q14, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q14, q1
+	aesmc.8	q14, q14
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q14, q2
+	aesmc.8	q14, q14
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q14, q3
+	aesmc.8	q14, q14
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q14, q4
+	aesmc.8	q14, q14
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q14, q5
+	aesmc.8	q14, q14
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q14, q6
+	aesmc.8	q14, q14
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q14, q7
+	aesmc.8	q14, q14
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	aese.8	q14, q8
+	aesmc.8	q14, q14
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	aese.8	q13, q9
+	aesmc.8	q13, q13
+	aese.8	q14, q9
+	aesmc.8	q14, q14
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	aese.8	q14, q10
+	aesmc.8	q14, q14
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	aese.8	q13, q11
+	veor.32	q13, q13, q10
+	aese.8	q14, q11
+	veor.32	q14, q14, q10
+	aese.8	q15, q11
+	veor.32	q15, q15, q10
+	sub	r3, r3, #48
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_encrypt_blocks_arm32_crypto_192_start_4
+L_aes_encrypt_blocks_arm32_crypto_192_start_2:
+	cmp	r2, #2
+	blt	L_aes_encrypt_blocks_arm32_crypto_192_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	aese.8	q13, q9
+	aesmc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	aese.8	q13, q11
+	veor.32	q13, q13, q10
+	sub	r3, r3, #48
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_192_start_1:
+	cmp	r2, #0
+	beq	L_aes_encrypt_blocks_arm32_crypto_192_done
+	vld1.8	{q12}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	sub	r3, r3, #48
+	vst1.8	{q12}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_192_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_encrypt_blocks_arm32_crypto_done
+	# AES_ECB_256
+L_aes_encrypt_blocks_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vld1.32	{q8, q9}, [r3]!
+	cmp	r2, #1
+	beq	L_aes_encrypt_blocks_arm32_crypto_256_start_1
+L_aes_encrypt_blocks_arm32_crypto_256_start_4:
+	cmp	r2, #4
+	blt	L_aes_encrypt_blocks_arm32_crypto_256_start_2
+	vldm.8	r0!, {q12-q15}
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q14, q0
+	aesmc.8	q14, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q14, q1
+	aesmc.8	q14, q14
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q14, q2
+	aesmc.8	q14, q14
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q14, q3
+	aesmc.8	q14, q14
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q14, q4
+	aesmc.8	q14, q14
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q14, q5
+	aesmc.8	q14, q14
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q14, q6
+	aesmc.8	q14, q14
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q14, q7
+	aesmc.8	q14, q14
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	aese.8	q14, q8
+	aesmc.8	q14, q14
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	aese.8	q13, q9
+	aesmc.8	q13, q13
+	aese.8	q14, q9
+	aesmc.8	q14, q14
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	aese.8	q14, q10
+	aesmc.8	q14, q14
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	aesmc.8	q12, q12
+	aese.8	q13, q11
+	aesmc.8	q13, q13
+	aese.8	q14, q11
+	aesmc.8	q14, q14
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	aese.8	q14, q10
+	aesmc.8	q14, q14
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	aese.8	q13, q11
+	veor.32	q13, q13, q10
+	aese.8	q14, q11
+	veor.32	q14, q14, q10
+	aese.8	q15, q11
+	veor.32	q15, q15, q10
+	sub	r3, r3, #0x50
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_encrypt_blocks_arm32_crypto_256_start_4
+L_aes_encrypt_blocks_arm32_crypto_256_start_2:
+	cmp	r2, #2
+	blt	L_aes_encrypt_blocks_arm32_crypto_256_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	aese.8	q13, q9
+	aesmc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	aesmc.8	q12, q12
+	aese.8	q13, q11
+	aesmc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	aese.8	q13, q10
+	aesmc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	aese.8	q13, q11
+	veor.32	q13, q13, q10
+	sub	r3, r3, #0x50
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_256_start_1:
+	cmp	r2, #0
+	beq	L_aes_encrypt_blocks_arm32_crypto_256_done
+	vld1.8	{q12}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q9
+	aesmc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	aesmc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aese.8	q12, q10
+	aesmc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aese.8	q12, q11
+	veor.32	q12, q12, q10
+	sub	r3, r3, #0x50
+	vst1.8	{q12}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_256_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_encrypt_blocks_arm32_crypto_done
+	# AES_ECB_128
+L_aes_encrypt_blocks_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	r3!, {q8-q10}
+	cmp	r2, #1
+	beq	L_aes_encrypt_blocks_arm32_crypto_128_start_1
+L_aes_encrypt_blocks_arm32_crypto_128_start_4:
+	cmp	r2, #4
+	blt	L_aes_encrypt_blocks_arm32_crypto_128_start_2
+	vldm.8	r0!, {q12-q15}
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q14, q0
+	aesmc.8	q14, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q14, q1
+	aesmc.8	q14, q14
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q14, q2
+	aesmc.8	q14, q14
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q14, q3
+	aesmc.8	q14, q14
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q14, q4
+	aesmc.8	q14, q14
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q14, q5
+	aesmc.8	q14, q14
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q14, q6
+	aesmc.8	q14, q14
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q14, q7
+	aesmc.8	q14, q14
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	aese.8	q14, q8
+	aesmc.8	q14, q14
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q12, q9
+	veor.32	q12, q12, q10
+	aese.8	q13, q9
+	veor.32	q13, q13, q10
+	aese.8	q14, q9
+	veor.32	q14, q14, q10
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_encrypt_blocks_arm32_crypto_128_start_4
+L_aes_encrypt_blocks_arm32_crypto_128_start_2:
+	cmp	r2, #2
+	blt	L_aes_encrypt_blocks_arm32_crypto_128_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q13, q0
+	aesmc.8	q13, q13
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q13, q1
+	aesmc.8	q13, q13
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q13, q2
+	aesmc.8	q13, q13
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q13, q3
+	aesmc.8	q13, q13
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q13, q4
+	aesmc.8	q13, q13
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q13, q5
+	aesmc.8	q13, q13
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q13, q6
+	aesmc.8	q13, q13
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q13, q7
+	aesmc.8	q13, q13
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q13, q8
+	aesmc.8	q13, q13
+	aese.8	q12, q9
+	veor.32	q12, q12, q10
+	aese.8	q13, q9
+	veor.32	q13, q13, q10
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_128_start_1:
+	cmp	r2, #0
+	beq	L_aes_encrypt_blocks_arm32_crypto_128_done
+	vld1.8	{q12}, [r0]!
+	aese.8	q12, q0
+	aesmc.8	q12, q12
+	aese.8	q12, q1
+	aesmc.8	q12, q12
+	aese.8	q12, q2
+	aesmc.8	q12, q12
+	aese.8	q12, q3
+	aesmc.8	q12, q12
+	aese.8	q12, q4
+	aesmc.8	q12, q12
+	aese.8	q12, q5
+	aesmc.8	q12, q12
+	aese.8	q12, q6
+	aesmc.8	q12, q12
+	aese.8	q12, q7
+	aesmc.8	q12, q12
+	aese.8	q12, q8
+	aesmc.8	q12, q12
+	aese.8	q12, q9
+	veor.32	q12, q12, q10
+	vst1.8	{q12}, [r1]!
+L_aes_encrypt_blocks_arm32_crypto_128_done:
+#endif /* !NO_AES_128 */
+L_aes_encrypt_blocks_arm32_crypto_done:
+	vpop	{d8-d15}
+	bx	lr
+	.size	AES_encrypt_blocks_AARCH32,.-AES_encrypt_blocks_AARCH32
+#ifdef HAVE_AES_DECRYPT
+	.text
+	.align	4
+	.globl	AES_decrypt_blocks_AARCH32
+	.type	AES_decrypt_blocks_AARCH32, %function
+AES_decrypt_blocks_AARCH32:
+	vpush	{d8-d15}
+	ldr	r12, [sp, #64]
+	vldm.32	r3!, {q0-q7}
+	lsr	r2, r2, #4
+	cmp	r12, #12
+	blt	L_aes_decrypt_blocks_arm32_crypto_start_128
+	bgt	L_aes_decrypt_blocks_arm32_crypto_start_256
+	# AES_ECB_192
+#ifndef NO_AES_192
+	vld1.32	{q8, q9}, [r3]!
+	cmp	r2, #1
+	beq	L_aes_decrypt_blocks_arm32_crypto_192_start_1
+	cmp	r2, #4
+	blt	L_aes_decrypt_blocks_arm32_crypto_192_start_2
+L_aes_decrypt_blocks_arm32_crypto_192_start_4:
+	vldm.8	r0!, {q12-q15}
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	aesd.8	q13, q9
+	aesimc.8	q13, q13
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	aesd.8	q15, q9
+	aesimc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	aesd.8	q13, q11
+	veor.32	q13, q13, q10
+	aesd.8	q14, q11
+	veor.32	q14, q14, q10
+	aesd.8	q15, q11
+	veor.32	q15, q15, q10
+	sub	r3, r3, #48
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_decrypt_blocks_arm32_crypto_192_start_4
+L_aes_decrypt_blocks_arm32_crypto_192_start_2:
+	cmp	r2, #2
+	blt	L_aes_decrypt_blocks_arm32_crypto_192_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	aesd.8	q13, q9
+	aesimc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	aesd.8	q13, q11
+	veor.32	q13, q13, q10
+	sub	r3, r3, #48
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_192_start_1:
+	cmp	r2, #0
+	beq	L_aes_decrypt_blocks_arm32_crypto_192_done
+	vld1.8	{q12}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	sub	r3, r3, #48
+	vst1.8	{q12}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_192_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_decrypt_blocks_arm32_crypto_done
+	# AES_ECB_256
+L_aes_decrypt_blocks_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vld1.32	{q8, q9}, [r3]!
+	cmp	r2, #1
+	beq	L_aes_decrypt_blocks_arm32_crypto_256_start_1
+	cmp	r2, #4
+	blt	L_aes_decrypt_blocks_arm32_crypto_256_start_2
+L_aes_decrypt_blocks_arm32_crypto_256_start_4:
+	vldm.8	r0!, {q12-q15}
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	aesd.8	q13, q9
+	aesimc.8	q13, q13
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	aesd.8	q15, q9
+	aesimc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	aesimc.8	q12, q12
+	aesd.8	q13, q11
+	aesimc.8	q13, q13
+	aesd.8	q14, q11
+	aesimc.8	q14, q14
+	aesd.8	q15, q11
+	aesimc.8	q15, q15
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	aesd.8	q13, q11
+	veor.32	q13, q13, q10
+	aesd.8	q14, q11
+	veor.32	q14, q14, q10
+	aesd.8	q15, q11
+	veor.32	q15, q15, q10
+	sub	r3, r3, #0x50
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_decrypt_blocks_arm32_crypto_256_start_4
+L_aes_decrypt_blocks_arm32_crypto_256_start_2:
+	cmp	r2, #2
+	blt	L_aes_decrypt_blocks_arm32_crypto_256_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	aesd.8	q13, q9
+	aesimc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	aesimc.8	q12, q12
+	aesd.8	q13, q11
+	aesimc.8	q13, q13
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	aesd.8	q13, q10
+	aesimc.8	q13, q13
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	aesd.8	q13, q11
+	veor.32	q13, q13, q10
+	sub	r3, r3, #0x50
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_256_start_1:
+	cmp	r2, #0
+	beq	L_aes_decrypt_blocks_arm32_crypto_256_done
+	vld1.8	{q12}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q9
+	aesimc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	aesimc.8	q12, q12
+	vld1.32	{q11}, [r3]!
+	aesd.8	q12, q10
+	aesimc.8	q12, q12
+	vld1.32	{q10}, [r3]!
+	aesd.8	q12, q11
+	veor.32	q12, q12, q10
+	sub	r3, r3, #0x50
+	vst1.8	{q12}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_256_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_decrypt_blocks_arm32_crypto_done
+	# AES_ECB_128
+L_aes_decrypt_blocks_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	r3!, {q8-q10}
+	cmp	r2, #1
+	beq	L_aes_decrypt_blocks_arm32_crypto_128_start_1
+	cmp	r2, #4
+	blt	L_aes_decrypt_blocks_arm32_crypto_128_start_2
+L_aes_decrypt_blocks_arm32_crypto_128_start_4:
+	vldm.8	r0!, {q12-q15}
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	aesd.8	q12, q9
+	veor.32	q12, q12, q10
+	aesd.8	q13, q9
+	veor.32	q13, q13, q10
+	aesd.8	q14, q9
+	veor.32	q14, q14, q10
+	aesd.8	q15, q9
+	veor.32	q15, q15, q10
+	sub	r2, r2, #4
+	vstm.8	r1!, {q12-q15}
+	cmp	r2, #4
+	bge	L_aes_decrypt_blocks_arm32_crypto_128_start_4
+L_aes_decrypt_blocks_arm32_crypto_128_start_2:
+	cmp	r2, #2
+	blt	L_aes_decrypt_blocks_arm32_crypto_128_start_1
+	vld1.8	{q12, q13}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q13, q0
+	aesimc.8	q13, q13
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q13, q1
+	aesimc.8	q13, q13
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q13, q2
+	aesimc.8	q13, q13
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q13, q3
+	aesimc.8	q13, q13
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q13, q4
+	aesimc.8	q13, q13
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q13, q5
+	aesimc.8	q13, q13
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q13, q6
+	aesimc.8	q13, q13
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q13, q7
+	aesimc.8	q13, q13
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q13, q8
+	aesimc.8	q13, q13
+	aesd.8	q12, q9
+	veor.32	q12, q12, q10
+	aesd.8	q13, q9
+	veor.32	q13, q13, q10
+	sub	r2, r2, #2
+	vst1.8	{q12, q13}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_128_start_1:
+	cmp	r2, #0
+	beq	L_aes_decrypt_blocks_arm32_crypto_128_done
+	vld1.8	{q12}, [r0]!
+	aesd.8	q12, q0
+	aesimc.8	q12, q12
+	aesd.8	q12, q1
+	aesimc.8	q12, q12
+	aesd.8	q12, q2
+	aesimc.8	q12, q12
+	aesd.8	q12, q3
+	aesimc.8	q12, q12
+	aesd.8	q12, q4
+	aesimc.8	q12, q12
+	aesd.8	q12, q5
+	aesimc.8	q12, q12
+	aesd.8	q12, q6
+	aesimc.8	q12, q12
+	aesd.8	q12, q7
+	aesimc.8	q12, q12
+	aesd.8	q12, q8
+	aesimc.8	q12, q12
+	aesd.8	q12, q9
+	veor.32	q12, q12, q10
+	vst1.8	{q12}, [r1]!
+L_aes_decrypt_blocks_arm32_crypto_128_done:
+#endif /* !NO_AES_128 */
+L_aes_decrypt_blocks_arm32_crypto_done:
+	vpop	{d8-d15}
+	bx	lr
+	.size	AES_decrypt_blocks_AARCH32,.-AES_decrypt_blocks_AARCH32
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_ECB */
+#ifdef HAVE_AES_CBC
+	.text
+	.align	4
+	.globl	AES_CBC_encrypt_AARCH32
+	.type	AES_CBC_encrypt_AARCH32, %function
+AES_CBC_encrypt_AARCH32:
+	push	{lr}
+	vpush	{d8-d15}
+	ldr	r12, [sp, #68]
+	ldr	lr, [sp, #72]
+	vldm.32	r12!, {q0-q7}
+	vld1.32	{q15}, [r3]
+	subs	lr, lr, #12
+	lsr	r2, r2, #4
+	blt	L_aes_cbc_encrypt_arm32_crypto_start_128
+	bgt	L_aes_cbc_encrypt_arm32_crypto_start_256
+	# AES_CBC_192
+#ifndef NO_AES_192
+	vld1.8	{q14}, [r0]!
+	vldm.32	r12!, {q8-q12}
+	cmp	r2, #1
+	beq	L_aes_cbc_encrypt_arm32_crypto_192_start_1
+	cmp	r2, #4
+	blt	L_aes_cbc_encrypt_arm32_crypto_192_start_2
+L_aes_cbc_encrypt_arm32_crypto_192_start_4:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	subs	r2, r2, #4
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	beq	L_aes_cbc_encrypt_arm32_crypto_192_done
+	vld1.8	{q14}, [r0]!
+	cmp	r2, #4
+	vst1.8	{q15}, [r1]!
+	bge	L_aes_cbc_encrypt_arm32_crypto_192_start_4
+	cmp	r2, #2
+	blt	L_aes_cbc_encrypt_arm32_crypto_192_start_1
+L_aes_cbc_encrypt_arm32_crypto_192_start_2:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	subs	r2, r2, #2
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+	beq	L_aes_cbc_encrypt_arm32_crypto_192_done
+	vld1.8	{q14}, [r0]!
+	vst1.8	{q15}, [r1]!
+L_aes_cbc_encrypt_arm32_crypto_192_start_1:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	aese.8	q15, q11
+	veor.32	q15, q15, q12
+L_aes_cbc_encrypt_arm32_crypto_192_done:
+	vst1.8	{q15}, [r1]!
+#endif /* !NO_AES_192 */
+	b	L_aes_cbc_encrypt_arm32_crypto_done
+	# AES_CBC_256
+L_aes_cbc_encrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vld1.8	{q14}, [r0]!
+	vldm.32	r12!, {q8-q11}
+	add	r12, r12, #16
+	vld1.32	{q12, q13}, [r12]
+	sub	r12, r12, #16
+	cmp	r2, #1
+	beq	L_aes_cbc_encrypt_arm32_crypto_256_start_1
+	cmp	r2, #4
+	blt	L_aes_cbc_encrypt_arm32_crypto_256_start_2
+L_aes_cbc_encrypt_arm32_crypto_256_start_4:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	subs	r2, r2, #4
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	beq	L_aes_cbc_encrypt_arm32_crypto_256_done
+	vld1.8	{q14}, [r0]!
+	cmp	r2, #4
+	vst1.8	{q15}, [r1]!
+	bge	L_aes_cbc_encrypt_arm32_crypto_256_start_4
+	cmp	r2, #2
+	blt	L_aes_cbc_encrypt_arm32_crypto_256_start_1
+L_aes_cbc_encrypt_arm32_crypto_256_start_2:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	subs	r2, r2, #2
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+	beq	L_aes_cbc_encrypt_arm32_crypto_256_done
+	vld1.8	{q14}, [r0]!
+	vst1.8	{q15}, [r1]!
+L_aes_cbc_encrypt_arm32_crypto_256_start_1:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	aesmc.8	q15, q15
+	aese.8	q15, q10
+	aesmc.8	q15, q15
+	vld1.32	{q14}, [r12]
+	aese.8	q15, q11
+	aesmc.8	q15, q15
+	aese.8	q15, q14
+	aesmc.8	q15, q15
+	aese.8	q15, q12
+	veor.32	q15, q15, q13
+L_aes_cbc_encrypt_arm32_crypto_256_done:
+	vst1.8	{q15}, [r1]!
+#endif /* !NO_AES_256 */
+	b	L_aes_cbc_encrypt_arm32_crypto_done
+	# AES_CBC_128
+L_aes_cbc_encrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vld1.8	{q14}, [r0]!
+	vldm.32	r12!, {q8-q10}
+	cmp	r2, #1
+	beq	L_aes_cbc_encrypt_arm32_crypto_128_start_1
+	cmp	r2, #4
+	blt	L_aes_cbc_encrypt_arm32_crypto_128_start_2
+L_aes_cbc_encrypt_arm32_crypto_128_start_4:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	subs	r2, r2, #4
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	beq	L_aes_cbc_encrypt_arm32_crypto_128_done
+	vld1.8	{q14}, [r0]!
+	cmp	r2, #4
+	vst1.8	{q15}, [r1]!
+	bge	L_aes_cbc_encrypt_arm32_crypto_128_start_4
+	cmp	r2, #2
+	blt	L_aes_cbc_encrypt_arm32_crypto_128_start_1
+L_aes_cbc_encrypt_arm32_crypto_128_start_2:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	vld1.8	{q14}, [r0]!
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	vst1.8	{q15}, [r1]!
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	subs	r2, r2, #2
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+	beq	L_aes_cbc_encrypt_arm32_crypto_128_done
+	vld1.8	{q14}, [r0]!
+	vst1.8	{q15}, [r1]!
+L_aes_cbc_encrypt_arm32_crypto_128_start_1:
+	veor.32	q15, q15, q14
+	aese.8	q15, q0
+	aesmc.8	q15, q15
+	aese.8	q15, q1
+	aesmc.8	q15, q15
+	aese.8	q15, q2
+	aesmc.8	q15, q15
+	aese.8	q15, q3
+	aesmc.8	q15, q15
+	aese.8	q15, q4
+	aesmc.8	q15, q15
+	aese.8	q15, q5
+	aesmc.8	q15, q15
+	aese.8	q15, q6
+	aesmc.8	q15, q15
+	aese.8	q15, q7
+	aesmc.8	q15, q15
+	aese.8	q15, q8
+	aesmc.8	q15, q15
+	aese.8	q15, q9
+	veor.32	q15, q15, q10
+L_aes_cbc_encrypt_arm32_crypto_128_done:
+	vst1.8	{q15}, [r1]!
+#endif /* !NO_AES_128 */
+L_aes_cbc_encrypt_arm32_crypto_done:
+	vst1.32	{q15}, [r3]
+	vpop	{d8-d15}
+	pop	{pc}
+	.size	AES_CBC_encrypt_AARCH32,.-AES_CBC_encrypt_AARCH32
+#ifdef HAVE_AES_DECRYPT
+	.text
+	.align	4
+	.globl	AES_CBC_decrypt_AARCH32
+	.type	AES_CBC_decrypt_AARCH32, %function
+AES_CBC_decrypt_AARCH32:
+	push	{lr}
+	vpush	{d8-d15}
+	ldr	r12, [sp, #68]
+	ldr	lr, [sp, #72]
+	vldm.32	r12!, {q0-q7}
+	vld1.32	{q13}, [r3]
+	lsr	r2, r2, #4
+	cmp	lr, #12
+	blt	L_aes_cbc_decrypt_blocks_arm32_crypto_start_128
+	bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_start_256
+	# AES_CBC_192
+#ifndef NO_AES_192
+	vld1.32	{q8}, [r12]!
+	cmp	r2, #1
+	beq	L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_1
+L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_2:
+	vld1.8	{q14, q15}, [r0]!
+	vmov	q11, q13
+	vmov	q12, q14
+	vmov	q13, q15
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	aesd.8	q15, q9
+	aesimc.8	q15, q15
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r12]
+	aesd.8	q14, q9
+	aesd.8	q15, q9
+	sub	r2, r2, #2
+	veor.32	q14, q14, q10
+	veor.32	q15, q15, q10
+	cmp	r2, #1
+	veor.32	q14, q14, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q14, q15}, [r1]!
+	sub	r12, r12, #48
+	blt	L_aes_cbc_decrypt_blocks_arm32_crypto_192_done
+	bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_2
+L_aes_cbc_decrypt_blocks_arm32_crypto_192_start_1:
+	vld1.8	{q14}, [r0]!
+	vmov	q11, q13
+	vmov	q13, q14
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	vld1.32	{q10}, [r12]
+	aesd.8	q14, q9
+	veor.32	q14, q14, q10
+	veor.32	q14, q14, q11
+	vst1.8	{q14}, [r1]!
+L_aes_cbc_decrypt_blocks_arm32_crypto_192_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_cbc_decrypt_blocks_arm32_crypto_done
+	# AES_CBC_256
+L_aes_cbc_decrypt_blocks_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vld1.32	{q8}, [r12]!
+	cmp	r2, #1
+	beq	L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_1
+L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_2:
+	vld1.8	{q14, q15}, [r0]!
+	vmov	q11, q13
+	vmov	q12, q14
+	vmov	q13, q15
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	aesd.8	q15, q9
+	aesimc.8	q15, q15
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	aesd.8	q15, q9
+	aesimc.8	q15, q15
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	aesd.8	q15, q10
+	aesimc.8	q15, q15
+	vld1.32	{q10}, [r12]
+	aesd.8	q14, q9
+	aesd.8	q15, q9
+	sub	r2, r2, #2
+	veor.32	q14, q14, q10
+	veor.32	q15, q15, q10
+	cmp	r2, #1
+	veor.32	q14, q14, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q14, q15}, [r1]!
+	sub	r12, r12, #0x50
+	blt	L_aes_cbc_decrypt_blocks_arm32_crypto_256_done
+	bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_2
+L_aes_cbc_decrypt_blocks_arm32_crypto_256_start_1:
+	vld1.8	{q14}, [r0]!
+	vmov	q11, q13
+	vmov	q13, q14
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	vld1.32	{q10}, [r12]!
+	aesd.8	q14, q9
+	aesimc.8	q14, q14
+	vld1.32	{q9}, [r12]!
+	aesd.8	q14, q10
+	aesimc.8	q14, q14
+	vld1.32	{q10}, [r12]
+	aesd.8	q14, q9
+	veor.32	q14, q14, q10
+	veor.32	q14, q14, q11
+	vst1.8	{q14}, [r1]!
+L_aes_cbc_decrypt_blocks_arm32_crypto_256_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_cbc_decrypt_blocks_arm32_crypto_done
+	# AES_CBC_128
+L_aes_cbc_decrypt_blocks_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	r12!, {q8-q10}
+	cmp	r2, #1
+	beq	L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_1
+L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_2:
+	vld1.8	{q14, q15}, [r0]!
+	vmov	q11, q13
+	vmov	q12, q14
+	vmov	q13, q15
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q15, q0
+	aesimc.8	q15, q15
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q15, q1
+	aesimc.8	q15, q15
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q15, q2
+	aesimc.8	q15, q15
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q15, q3
+	aesimc.8	q15, q15
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q15, q4
+	aesimc.8	q15, q15
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q15, q5
+	aesimc.8	q15, q15
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q15, q6
+	aesimc.8	q15, q15
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q15, q7
+	aesimc.8	q15, q15
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q15, q8
+	aesimc.8	q15, q15
+	aesd.8	q14, q9
+	aesd.8	q15, q9
+	sub	r2, r2, #2
+	veor.32	q14, q14, q10
+	veor.32	q15, q15, q10
+	cmp	r2, #1
+	veor.32	q14, q14, q11
+	veor.32	q15, q15, q12
+	vst1.8	{q14, q15}, [r1]!
+	blt	L_aes_cbc_decrypt_blocks_arm32_crypto_128_done
+	bgt	L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_2
+L_aes_cbc_decrypt_blocks_arm32_crypto_128_start_1:
+	vld1.8	{q14}, [r0]!
+	vmov	q11, q13
+	vmov	q13, q14
+	aesd.8	q14, q0
+	aesimc.8	q14, q14
+	aesd.8	q14, q1
+	aesimc.8	q14, q14
+	aesd.8	q14, q2
+	aesimc.8	q14, q14
+	aesd.8	q14, q3
+	aesimc.8	q14, q14
+	aesd.8	q14, q4
+	aesimc.8	q14, q14
+	aesd.8	q14, q5
+	aesimc.8	q14, q14
+	aesd.8	q14, q6
+	aesimc.8	q14, q14
+	aesd.8	q14, q7
+	aesimc.8	q14, q14
+	aesd.8	q14, q8
+	aesimc.8	q14, q14
+	aesd.8	q14, q9
+	veor.32	q14, q14, q10
+	veor.32	q14, q14, q11
+	vst1.8	{q14}, [r1]!
+L_aes_cbc_decrypt_blocks_arm32_crypto_128_done:
+#endif /* !NO_AES_128 */
+L_aes_cbc_decrypt_blocks_arm32_crypto_done:
+	vst1.32	{q13}, [r3]
+	vpop	{d8-d15}
+	pop	{pc}
+	.size	AES_CBC_decrypt_AARCH32,.-AES_CBC_decrypt_AARCH32
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
+#ifdef WOLFSSL_AES_COUNTER
+	.text
+	.align	4
+	.globl	AES_CTR_encrypt_AARCH32
+	.type	AES_CTR_encrypt_AARCH32, %function
+AES_CTR_encrypt_AARCH32:
+	push	{r4, r5, r6, r7, r8, lr}
+	vpush	{d8-d15}
+	vld1.32	{q0}, [r3]
+	ldr	r12, [sp, #88]
+	vrev32.8	q2, q0
+	lsr	r4, r2, #4
+	vmov	r5, r6, d4
+	and	r2, r2, #15
+	vmov	r7, r8, d5
+	vldm.32	r12!, {q3-q10}
+	ldr	lr, [sp, #100]
+	cmp	lr, #12
+	blt	L_aes_ctr_encrypt_arm32_crypto_start_128
+	bgt	L_aes_ctr_encrypt_arm32_crypto_start_256
+	# AES_CTR_192
+#ifndef NO_AES_192
+	vldm.32	r12!, {q11-q13}
+	mov	lr, #1
+	cmp	r4, #1
+	blt	L_aes_ctr_encrypt_arm32_crypto_192_done
+	beq	L_aes_ctr_encrypt_arm32_crypto_192_start_1
+	adds	r8, r8, #1
+	adcs	r7, r7, #0
+	adcs	r6, r6, #0
+	adc	r5, r5, #0
+	vmov	d3, r7, r8
+	vmov	d2, r5, r6
+	vrev32.8	q1, q1
+L_aes_ctr_encrypt_arm32_crypto_192_start_2:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	adds	r8, r8, #1
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	vmov	d5, r7, r8
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	aese.8	q1, q13
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [r12]
+	vmov	d4, r5, r6
+	aese.8	q0, q14
+	aese.8	q1, q14
+	sub	r4, r4, #2
+	veor.32	q0, q0, q15
+	veor.32	q1, q1, q15
+	adds	r8, r8, #1
+	vld1.8	{q14, q15}, [r0]!
+	adcs	r7, r7, #0
+	sub	r12, r12, #16
+	veor.32	q14, q14, q0
+	veor.32	q15, q15, q1
+	adcs	r6, r6, #0
+	vrev32.8	q0, q2
+	adc	r5, r5, #0
+	vmov	d2, r5, r6
+	vmov	d3, r7, r8
+	cmp	r4, #1
+	vst1.8	{q14, q15}, [r1]!
+	vrev32.8	q1, q1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_192_start_2
+	mov	lr, #0
+	blt	L_aes_ctr_encrypt_arm32_crypto_192_done
+L_aes_ctr_encrypt_arm32_crypto_192_start_1:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]
+	aese.8	q0, q14
+	vld1.8	{q14}, [r0]!
+	veor.32	q0, q0, q15
+	veor.32	q14, q14, q0
+	sub	r12, r12, #16
+	vst1.8	{q14}, [r1]!
+	mov	lr, #1
+	vrev32.8	q0, q2
+L_aes_ctr_encrypt_arm32_crypto_192_done:
+	cmp	r2, #0
+	beq	L_aes_ctr_encrypt_arm32_crypto_192_partial_done
+	ldr	r4, [sp, #96]
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]
+	ldr	lr, [sp, #92]
+	aese.8	q0, q14
+	veor.32	q0, q0, q15
+	vst1.32	{q0}, [lr]
+	vmov	q0, q2
+	mov	r5, #16
+	sub	r5, r5, r2
+L_aes_ctr_encrypt_arm32_crypto_192_start_byte:
+	ldrb	r7, [lr], #1
+	ldrb	r8, [r0], #1
+	eor	r7, r7, r8
+	subs	r2, r2, #1
+	strb	r7, [r1], #1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_192_start_byte
+	vrev32.8	q0, q2
+	str	r5, [r4]
+L_aes_ctr_encrypt_arm32_crypto_192_partial_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_ctr_encrypt_arm32_crypto_done
+	# AES_CTR_256
+L_aes_ctr_encrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vldm.32	r12!, {q11-q13}
+	mov	lr, #1
+	cmp	r4, #1
+	blt	L_aes_ctr_encrypt_arm32_crypto_256_done
+	beq	L_aes_ctr_encrypt_arm32_crypto_256_start_1
+	adds	r8, r8, #1
+	adcs	r7, r7, #0
+	adcs	r6, r6, #0
+	adc	r5, r5, #0
+	vmov	d3, r7, r8
+	vmov	d2, r5, r6
+	vrev32.8	q1, q1
+L_aes_ctr_encrypt_arm32_crypto_256_start_2:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	adds	r8, r8, #1
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	vmov	d5, r7, r8
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	aese.8	q1, q13
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [r12]!
+	vmov	d4, r5, r6
+	aese.8	q0, q14
+	aesmc.8	q0, q0
+	aese.8	q1, q14
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	adds	r8, r8, #1
+	aese.8	q0, q15
+	aesmc.8	q0, q0
+	aese.8	q1, q15
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [r12]
+	adcs	r7, r7, #0
+	aese.8	q0, q14
+	aese.8	q1, q14
+	sub	r4, r4, #2
+	veor.32	q0, q0, q15
+	veor.32	q1, q1, q15
+	adcs	r6, r6, #0
+	vld1.8	{q14, q15}, [r0]!
+	sub	r12, r12, #48
+	veor.32	q14, q14, q0
+	veor.32	q15, q15, q1
+	adc	r5, r5, #0
+	vrev32.8	q0, q2
+	vmov	d2, r5, r6
+	vmov	d3, r7, r8
+	cmp	r4, #1
+	vst1.8	{q14, q15}, [r1]!
+	vrev32.8	q1, q1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_256_start_2
+	mov	lr, #0
+	blt	L_aes_ctr_encrypt_arm32_crypto_256_done
+L_aes_ctr_encrypt_arm32_crypto_256_start_1:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]!
+	aese.8	q0, q14
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q15
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]
+	aese.8	q0, q14
+	vld1.8	{q14}, [r0]!
+	veor.32	q0, q0, q15
+	veor.32	q14, q14, q0
+	sub	r12, r12, #48
+	vst1.8	{q14}, [r1]!
+	mov	lr, #1
+	vrev32.8	q0, q2
+L_aes_ctr_encrypt_arm32_crypto_256_done:
+	cmp	r2, #0
+	beq	L_aes_ctr_encrypt_arm32_crypto_256_partial_done
+	ldr	r4, [sp, #96]
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]!
+	aese.8	q0, q14
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aese.8	q0, q15
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [r12]
+	ldr	lr, [sp, #92]
+	aese.8	q0, q14
+	veor.32	q0, q0, q15
+	vst1.32	{q0}, [lr]
+	vmov	q0, q2
+	mov	r5, #16
+	sub	r5, r5, r2
+L_aes_ctr_encrypt_arm32_crypto_256_start_byte:
+	ldrb	r7, [lr], #1
+	ldrb	r8, [r0], #1
+	eor	r7, r7, r8
+	subs	r2, r2, #1
+	strb	r7, [r1], #1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_256_start_byte
+	vrev32.8	q0, q2
+	str	r5, [r4]
+L_aes_ctr_encrypt_arm32_crypto_256_partial_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_ctr_encrypt_arm32_crypto_done
+	# AES_CTR_128
+L_aes_ctr_encrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	r12!, {q11-q13}
+	mov	lr, #1
+	cmp	r4, #1
+	blt	L_aes_ctr_encrypt_arm32_crypto_128_done
+	beq	L_aes_ctr_encrypt_arm32_crypto_128_start_1
+	adds	r8, r8, #1
+	adcs	r7, r7, #0
+	adcs	r6, r6, #0
+	adc	r5, r5, #0
+	vmov	d3, r7, r8
+	vmov	d2, r5, r6
+	vrev32.8	q1, q1
+L_aes_ctr_encrypt_arm32_crypto_128_start_2:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	adds	r8, r8, #1
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	adds	r8, r8, #1
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	adcs	r7, r7, #0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	adcs	r6, r6, #0
+	vld1.8	{q14, q15}, [r0]!
+	adc	r5, r5, #0
+	aese.8	q0, q12
+	aese.8	q1, q12
+	sub	r4, r4, #2
+	veor.32	q14, q14, q13
+	veor.32	q15, q15, q13
+	veor.32	q14, q14, q0
+	veor.32	q15, q15, q1
+	vrev32.8	q0, q2
+	vmov	d2, r5, r6
+	vmov	d3, r7, r8
+	cmp	r4, #1
+	vst1.8	{q14, q15}, [r1]!
+	vrev32.8	q1, q1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_128_start_2
+	mov	lr, #0
+	blt	L_aes_ctr_encrypt_arm32_crypto_128_done
+L_aes_ctr_encrypt_arm32_crypto_128_start_1:
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	vld1.8	{q14}, [r0]!
+	aese.8	q0, q12
+	veor.32	q0, q0, q13
+	veor.32	q14, q14, q0
+	vst1.8	{q14}, [r1]!
+	mov	lr, #1
+	vrev32.8	q0, q2
+L_aes_ctr_encrypt_arm32_crypto_128_done:
+	cmp	r2, #0
+	beq	L_aes_ctr_encrypt_arm32_crypto_128_partial_done
+	ldr	r4, [sp, #96]
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	adds	r8, r8, lr
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	adcs	r7, r7, #0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	adcs	r6, r6, #0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	adc	r5, r5, #0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	vmov	d5, r7, r8
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	vmov	d4, r5, r6
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	ldr	lr, [sp, #92]
+	aese.8	q0, q12
+	veor.32	q0, q0, q13
+	vst1.32	{q0}, [lr]
+	vmov	q0, q2
+	mov	r5, #16
+	sub	r5, r5, r2
+L_aes_ctr_encrypt_arm32_crypto_128_start_byte:
+	ldrb	r7, [lr], #1
+	ldrb	r8, [r0], #1
+	eor	r7, r7, r8
+	subs	r2, r2, #1
+	strb	r7, [r1], #1
+	bgt	L_aes_ctr_encrypt_arm32_crypto_128_start_byte
+	vrev32.8	q0, q2
+	str	r5, [r4]
+L_aes_ctr_encrypt_arm32_crypto_128_partial_done:
+#endif /* !NO_AES_128 */
+L_aes_ctr_encrypt_arm32_crypto_done:
+	vst1.32	{q0}, [r3]
+	vpop	{d8-d15}
+	pop	{r4, r5, r6, r7, r8, pc}
+	.size	AES_CTR_encrypt_AARCH32,.-AES_CTR_encrypt_AARCH32
+#endif /* WOLFSSL_AES_COUNTER */
+#ifdef HAVE_AESGCM
+	.text
+	.align	4
+	.globl	AES_GCM_set_key_AARCH32
+	.type	AES_GCM_set_key_AARCH32, %function
+AES_GCM_set_key_AARCH32:
+	vpush	{d8, d9}
+	vld1.8	{q0}, [r0]
+	vldm	r1!, {q1-q4}
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	vldm	r1!, {q1-q4}
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	subs	r3, r3, #10
+	vld1.32	{q1, q2}, [r1]!
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	beq	L_aes_gcm_set_key_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r1]!
+	subs	r3, r3, #2
+	aesmc.8	q0, q0
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+	beq	L_aes_gcm_set_key_arm32_crypto_round_done
+	vld1.32	{q1, q2}, [r1]!
+	aesmc.8	q0, q0
+	aese.8	q0, q1
+	aesmc.8	q0, q0
+	aese.8	q0, q2
+L_aes_gcm_set_key_arm32_crypto_round_done:
+	vld1.32	{q1}, [r1]
+	veor	q0, q0, q1
+	vmov.i8	q1, #0x55
+	vshl.u8	q2, q0, #1
+	vshr.u8	q0, q0, #1
+	vbif.8	q0, q2, q1
+	vmov.i8	q1, #51
+	vshl.u8	q2, q0, #2
+	vshr.u8	q0, q0, #2
+	vbit.8	q2, q0, q1
+	vshl.u8	q0, q2, #4
+	vsri.u8	q0, q2, #4
+	vst1.32	{q0}, [r2]
+	vpop	{d8, d9}
+	bx	lr
+	.size	AES_GCM_set_key_AARCH32,.-AES_GCM_set_key_AARCH32
+	.text
+	.align	4
+	.globl	AES_GCM_encrypt_AARCH32
+	.type	AES_GCM_encrypt_AARCH32, %function
+AES_GCM_encrypt_AARCH32:
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	vpush	{d8-d15}
+	# key
+	ldr	r7, [sp, #120]
+	# tmp
+	ldr	r9, [sp, #128]
+	# nonceSz
+	ldr	r12, [sp, #100]
+	cmp	r12, #12
+	beq	L_aes_gcm_encrypt_arm32_crypto_nonce_setup_done
+	vmov.i8	q13, #0x87
+	# gcm_h
+	ldr	r8, [sp, #124]
+	veor.8	q6, q6, q6
+	vshr.u64	q13, q13, #56
+	vld1.32	{q8}, [r8]
+L_aes_gcm_encrypt_arm32_crypto_nonce_setup_done:
+	# Load Nonce
+	cmp	r12, #12
+	bne	L_aes_gcm_encrypt_arm32_crypto_ghash_nonce
+	ldr	r5, [r3]
+	ldr	r8, [r3, #4]
+	ldr	r12, [r3, #8]
+	vmov.i32	q6, #0x1000000
+	vmov.32	s24, r5
+	vmov.32	s25, r8
+	vmov.32	s26, r12
+	mov	r5, #1
+	b	L_aes_gcm_encrypt_arm32_crypto_done_nonce
+L_aes_gcm_encrypt_arm32_crypto_ghash_nonce:
+	lsr	r10, r12, #4
+	cmp	r10, #0
+	beq	L_aes_gcm_encrypt_arm32_crypto_nonce_done
+L_aes_gcm_encrypt_arm32_crypto_nonce_start_1:
+	vld1.32	{q14}, [r3]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q6, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q6, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q6
+	#   Reduce
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	# Done GHASH
+	subs	r10, r10, #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_nonce_start_1
+L_aes_gcm_encrypt_arm32_crypto_nonce_done:
+	ands	r11, r12, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_nonce_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_nonce_start_sw
+L_aes_gcm_encrypt_arm32_crypto_nonce_start_dw:
+	ldr	r8, [r3], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_nonce_start_dw
+L_aes_gcm_encrypt_arm32_crypto_nonce_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte
+	ldrh	r8, [r3], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_nonce_end_bytes
+	ldrb	r8, [r3], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_nonce_start_byte
+L_aes_gcm_encrypt_arm32_crypto_nonce_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q6, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q6, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q6
+	#   Reduce
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	# Done GHASH
+L_aes_gcm_encrypt_arm32_crypto_nonce_partial_done:
+	veor.8	q0, q0, q0
+	# nonceSz
+	ldr	r12, [sp, #100]
+	lsr	r10, r12, #29
+	lsl	r11, r12, #3
+	rbit	r10, r10
+	rbit	r11, r11
+	vmov.32	s2, r10
+	vmov.32	s3, r11
+	veor.8	q6, q6, q0
+	vmull.p64	q2, d13, d16
+	vmull.p64	q12, d12, d17
+	vmull.p64	q0, d12, d16
+	vmull.p64	q1, d13, d17
+	veor.8	q2, q2, q12
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	vmov.32	r5, s24
+	vmov.32	r8, s25
+	vmov.32	r12, s26
+	rbit	r5, r5
+	rbit	r8, r8
+	rbit	r12, r12
+	rev	r5, r5
+	rev	r8, r8
+	rev	r12, r12
+	vmov.32	s24, r5
+	vmov.32	s25, r8
+	vmov.32	s26, r12
+	vmov.32	r5, s27
+	rbit	r5, r5
+	rev	r5, r5
+	vmov.32	s27, r5
+	rev	r5, r5
+L_aes_gcm_encrypt_arm32_crypto_done_nonce:
+	vldm.32	r7!, {q0-q3}
+	vldm.32	r7!, {q7-q13}
+	# nr
+	ldr	r12, [sp, #136]
+	lsr	r10, r2, #4
+	cmp	r12, #12
+	blt	L_aes_gcm_encrypt_arm32_crypto_start_128
+	bgt	L_aes_gcm_encrypt_arm32_crypto_start_256
+	# AES_GCM_192
+#ifndef NO_AES_192
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_192_start_1
+L_aes_gcm_encrypt_arm32_crypto_192_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	aese.8	q5, q12
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	aese.8	q5, q13
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	aese.8	q5, q14
+	veor.8	q5, q5, q15
+	vld1.8	{q14, q15}, [r0]!
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_encrypt_arm32_crypto_192_start_2
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_done
+L_aes_gcm_encrypt_arm32_crypto_192_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r0]!
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_encrypt_arm32_crypto_192_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_192_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_start_sw
+L_aes_gcm_encrypt_arm32_crypto_192_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_192_start_dw
+L_aes_gcm_encrypt_arm32_crypto_192_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_192_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_192_start_byte
+L_aes_gcm_encrypt_arm32_crypto_192_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r9]
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_out_start_sw
+L_aes_gcm_encrypt_arm32_crypto_192_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_192_out_start_dw
+L_aes_gcm_encrypt_arm32_crypto_192_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_192_out_start_byte
+L_aes_gcm_encrypt_arm32_crypto_192_out_end_bytes:
+L_aes_gcm_encrypt_arm32_crypto_192_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q13
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]
+	aese.8	q6, q14
+	veor.8	q6, q6, q15
+	sub	r7, r7, #16
+#endif /* !NO_AES_192 */
+	b	L_aes_gcm_encrypt_arm32_crypto_done_enc
+	# AES_GCM_256
+L_aes_gcm_encrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_256_start_1
+L_aes_gcm_encrypt_arm32_crypto_256_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	aese.8	q5, q12
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	aese.8	q5, q13
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	aese.8	q5, q14
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	aese.8	q5, q15
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	aese.8	q5, q14
+	veor.8	q5, q5, q15
+	vld1.8	{q14, q15}, [r0]!
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_encrypt_arm32_crypto_256_start_2
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_done
+L_aes_gcm_encrypt_arm32_crypto_256_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r0]!
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_encrypt_arm32_crypto_256_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_256_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_start_sw
+L_aes_gcm_encrypt_arm32_crypto_256_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_256_start_dw
+L_aes_gcm_encrypt_arm32_crypto_256_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_256_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_256_start_byte
+L_aes_gcm_encrypt_arm32_crypto_256_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r9]
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_out_start_sw
+L_aes_gcm_encrypt_arm32_crypto_256_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_256_out_start_dw
+L_aes_gcm_encrypt_arm32_crypto_256_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_256_out_start_byte
+L_aes_gcm_encrypt_arm32_crypto_256_out_end_bytes:
+L_aes_gcm_encrypt_arm32_crypto_256_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q13
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]!
+	aese.8	q6, q14
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q15
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]
+	aese.8	q6, q14
+	veor.8	q6, q6, q15
+	sub	r7, r7, #48
+#endif /* !NO_AES_256 */
+	b	L_aes_gcm_encrypt_arm32_crypto_done_enc
+	# AES_GCM_128
+L_aes_gcm_encrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_128_start_1
+L_aes_gcm_encrypt_arm32_crypto_128_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	vld1.8	{q14, q15}, [r0]!
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	aese.8	q5, q12
+	veor.8	q5, q5, q13
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_encrypt_arm32_crypto_128_start_2
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_done
+L_aes_gcm_encrypt_arm32_crypto_128_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	vld1.8	{q14}, [r0]!
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_encrypt_arm32_crypto_128_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_128_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_start_sw
+L_aes_gcm_encrypt_arm32_crypto_128_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_128_start_dw
+L_aes_gcm_encrypt_arm32_crypto_128_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_128_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_128_start_byte
+L_aes_gcm_encrypt_arm32_crypto_128_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	vld1.8	{q14}, [r9]
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_out_start_sw
+L_aes_gcm_encrypt_arm32_crypto_128_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_128_out_start_dw
+L_aes_gcm_encrypt_arm32_crypto_128_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_128_out_start_byte
+L_aes_gcm_encrypt_arm32_crypto_128_out_end_bytes:
+L_aes_gcm_encrypt_arm32_crypto_128_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	veor.8	q6, q6, q13
+#endif /* !NO_AES_128 */
+L_aes_gcm_encrypt_arm32_crypto_done_enc:
+	# aadSz
+	ldr	r6, [sp, #116]
+	# gcm_h
+	ldr	r8, [sp, #124]
+	sub	r1, r1, r2
+	vmov.i8	q13, #0x87
+	veor.8	q7, q7, q7
+	vshr.u64	q13, q13, #56
+	vld1.32	{q8}, [r8]
+	orr	r10, r6, r2
+	cmp	r10, #32
+	blt	L_aes_gcm_encrypt_arm32_crypto_h_done
+	# Square H => H^2
+	vmull.p64	q1, d17, d17
+	vmull.p64	q0, d16, d16
+	vmull.p64	q9, d3, d27
+	veor.8	d2, d2, d19
+	veor.8	d1, d1, d18
+	vmull.p64	q9, d2, d26
+	veor.8	q9, q9, q0
+	cmp	r10, #0x40
+	blt	L_aes_gcm_encrypt_arm32_crypto_h_done
+	# Multiply H and H^2  => H^3
+	vmull.p64	q2, d17, d18
+	vmull.p64	q3, d16, d19
+	vmull.p64	q0, d16, d18
+	vmull.p64	q1, d17, d19
+	veor.8	q2, q2, q3
+	#   Reduce
+	vmull.p64	q10, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d21
+	veor.8	d1, d1, d20
+	vmull.p64	q10, d2, d26
+	veor.8	q10, q10, q0
+	# Square H^2 => H^4
+	vmull.p64	q1, d19, d19
+	vmull.p64	q0, d18, d18
+	vmull.p64	q11, d3, d27
+	veor.8	d2, d2, d23
+	veor.8	d1, d1, d22
+	vmull.p64	q11, d2, d26
+	veor.8	q11, q11, q0
+	# Done
+L_aes_gcm_encrypt_arm32_crypto_h_done:
+	# aad
+	ldr	r5, [sp, #112]
+	lsr	r10, r6, #4
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_aad_start_1
+	cmp	r10, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_2
+L_aes_gcm_encrypt_arm32_crypto_aad_start_4:
+	vldm	r5!, {q0-q2}
+	vmov.i8	q12, #0x55
+	vmov.i8	q5, #51
+	vshl.u8	q14, q0, #1
+	vshl.u8	q15, q1, #1
+	vshl.u8	q4, q2, #1
+	ldr	lr, [r5], #4
+	vshr.u8	q0, q0, #1
+	vshr.u8	q1, q1, #1
+	vshr.u8	q2, q2, #1
+	ldr	r4, [r5], #4
+	vbit.8	q14, q0, q12
+	vbit.8	q15, q1, q12
+	vbit.8	q4, q2, q12
+	ldr	r8, [r5], #4
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshl.u8	q2, q4, #2
+	ldr	r12, [r5], #4
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vshr.u8	q4, q4, #2
+	rbit	lr, lr
+	vbit.8	q0, q14, q5
+	rbit	r4, r4
+	vbit.8	q1, q15, q5
+	rbit	r8, r8
+	vbit.8	q2, q4, q5
+	rbit	r12, r12
+	vshl.u8	q14, q0, #4
+	rev	lr, lr
+	vshl.u8	q15, q1, #4
+	rev	r4, r4
+	vshl.u8	q4, q2, #4
+	rev	r8, r8
+	vsri.u8	q14, q0, #4
+	rev	r12, r12
+	vsri.u8	q15, q1, #4
+	vsri.u8	q4, q2, #4
+	vmov	d10, lr, r4
+	vmov	d11, r8, r12
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d11, d16
+	vmull.p64	q7, d10, d17
+	vmull.p64	q0, d10, d16
+	vmull.p64	q1, d11, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d8, d18
+	vmull.p64	q7, d9, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d9, d18
+	vmull.p64	q7, d8, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^3
+	vmull.p64	q3, d30, d20
+	vmull.p64	q7, d31, d21
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d31, d20
+	vmull.p64	q7, d30, d21
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^4
+	vmull.p64	q3, d24, d22
+	vmull.p64	q7, d25, d23
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d22
+	vmull.p64	q7, d24, d23
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #4
+	cmp	r10, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_aad_start_4
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_aad_start_1
+L_aes_gcm_encrypt_arm32_crypto_aad_start_2:
+	vld1.32	{q14, q15}, [r5]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshl.u8	q1, q15, #1
+	vshr.u8	q14, q14, #1
+	vshr.u8	q15, q15, #1
+	vbif.8	q14, q0, q12
+	vbif.8	q15, q1, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vbit.8	q0, q14, q12
+	vbit.8	q1, q15, q12
+	vshl.u8	q14, q0, #4
+	vshl.u8	q15, q1, #4
+	vsri.u8	q14, q0, #4
+	vsri.u8	q15, q1, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d31, d16
+	vmull.p64	q7, d30, d17
+	vmull.p64	q0, d30, d16
+	vmull.p64	q1, d31, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d24, d18
+	vmull.p64	q7, d25, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d18
+	vmull.p64	q7, d24, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #2
+	cmp	r10, #0
+	beq	L_aes_gcm_encrypt_arm32_crypto_aad_done
+L_aes_gcm_encrypt_arm32_crypto_aad_start_1:
+	vld1.32	{q14}, [r5]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_encrypt_arm32_crypto_aad_done:
+	ands	r11, r6, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_aad_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_sw
+L_aes_gcm_encrypt_arm32_crypto_aad_start_dw:
+	ldr	r8, [r5], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_aad_start_dw
+L_aes_gcm_encrypt_arm32_crypto_aad_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_start_byte
+	ldrh	r8, [r5], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_aad_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_aad_end_bytes
+	ldrb	r8, [r5], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_aad_start_byte
+L_aes_gcm_encrypt_arm32_crypto_aad_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_encrypt_arm32_crypto_aad_partial_done:
+	# out
+	lsr	r10, r2, #4
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_out_start_1
+	cmp	r10, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_start_2
+L_aes_gcm_encrypt_arm32_crypto_out_start_4:
+	vldm	r1!, {q0-q2}
+	vmov.i8	q12, #0x55
+	vmov.i8	q5, #51
+	vshl.u8	q14, q0, #1
+	vshl.u8	q15, q1, #1
+	vshl.u8	q4, q2, #1
+	ldr	lr, [r1], #4
+	vshr.u8	q0, q0, #1
+	vshr.u8	q1, q1, #1
+	vshr.u8	q2, q2, #1
+	ldr	r4, [r1], #4
+	vbit.8	q14, q0, q12
+	vbit.8	q15, q1, q12
+	vbit.8	q4, q2, q12
+	ldr	r8, [r1], #4
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshl.u8	q2, q4, #2
+	ldr	r12, [r1], #4
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vshr.u8	q4, q4, #2
+	rbit	lr, lr
+	vbit.8	q0, q14, q5
+	rbit	r4, r4
+	vbit.8	q1, q15, q5
+	rbit	r8, r8
+	vbit.8	q2, q4, q5
+	rbit	r12, r12
+	vshl.u8	q14, q0, #4
+	rev	lr, lr
+	vshl.u8	q15, q1, #4
+	rev	r4, r4
+	vshl.u8	q4, q2, #4
+	rev	r8, r8
+	vsri.u8	q14, q0, #4
+	rev	r12, r12
+	vsri.u8	q15, q1, #4
+	vsri.u8	q4, q2, #4
+	vmov	d10, lr, r4
+	vmov	d11, r8, r12
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d11, d16
+	vmull.p64	q7, d10, d17
+	vmull.p64	q0, d10, d16
+	vmull.p64	q1, d11, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d8, d18
+	vmull.p64	q7, d9, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d9, d18
+	vmull.p64	q7, d8, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^3
+	vmull.p64	q3, d30, d20
+	vmull.p64	q7, d31, d21
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d31, d20
+	vmull.p64	q7, d30, d21
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^4
+	vmull.p64	q3, d24, d22
+	vmull.p64	q7, d25, d23
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d22
+	vmull.p64	q7, d24, d23
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #4
+	cmp	r10, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_out_start_4
+	cmp	r10, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_done
+	beq	L_aes_gcm_encrypt_arm32_crypto_out_start_1
+L_aes_gcm_encrypt_arm32_crypto_out_start_2:
+	vld1.32	{q14, q15}, [r1]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshl.u8	q1, q15, #1
+	vshr.u8	q14, q14, #1
+	vshr.u8	q15, q15, #1
+	vbif.8	q14, q0, q12
+	vbif.8	q15, q1, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vbit.8	q0, q14, q12
+	vbit.8	q1, q15, q12
+	vshl.u8	q14, q0, #4
+	vshl.u8	q15, q1, #4
+	vsri.u8	q14, q0, #4
+	vsri.u8	q15, q1, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d31, d16
+	vmull.p64	q7, d30, d17
+	vmull.p64	q0, d30, d16
+	vmull.p64	q1, d31, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d24, d18
+	vmull.p64	q7, d25, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d18
+	vmull.p64	q7, d24, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #2
+	cmp	r10, #0
+	beq	L_aes_gcm_encrypt_arm32_crypto_out_done
+L_aes_gcm_encrypt_arm32_crypto_out_start_1:
+	vld1.32	{q14}, [r1]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_encrypt_arm32_crypto_out_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_encrypt_arm32_crypto_out_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_start_sw
+L_aes_gcm_encrypt_arm32_crypto_out_start_dw:
+	ldr	r8, [r1], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_out_start_dw
+L_aes_gcm_encrypt_arm32_crypto_out_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_start_byte
+	ldrh	r8, [r1], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_encrypt_arm32_crypto_out_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_out_end_bytes
+	ldrb	r8, [r1], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_out_start_byte
+L_aes_gcm_encrypt_arm32_crypto_out_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_encrypt_arm32_crypto_out_partial_done:
+	lsr	lr, r6, #29
+	lsl	r6, r6, #3
+	rbit	lr, lr
+	rbit	r6, r6
+	vmov	s0, lr
+	vmov	s1, r6
+	lsr	lr, r2, #29
+	lsl	r2, r2, #3
+	rbit	lr, lr
+	rbit	r2, r2
+	vmov	s2, lr
+	vmov	s3, r2
+	veor.8	q7, q7, q0
+	vmull.p64	q2, d15, d16
+	vmull.p64	q3, d14, d17
+	vmull.p64	q0, d14, d16
+	vmull.p64	q1, d15, d17
+	veor.8	q2, q2, q3
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	vmov.i8	q0, #0x55
+	vshl.u8	q1, q7, #1
+	vshr.u8	q7, q7, #1
+	vbif.8	q7, q1, q0
+	vmov.i8	q0, #51
+	vshl.u8	q1, q7, #2
+	vshr.u8	q7, q7, #2
+	vbit.8	q1, q7, q0
+	vshl.u8	q7, q1, #4
+	vsri.u8	q7, q1, #4
+	# DONE
+	veor.8	q7, q7, q6
+	# tag
+	ldr	lr, [sp, #104]
+	# tagSz
+	ldr	r4, [sp, #108]
+	cmp	r4, #16
+	bne	L_aes_gcm_encrypt_arm32_crypto_tag_tag_partial
+	vst1.8	{q7}, [lr]
+	b	L_aes_gcm_encrypt_arm32_crypto_done_gcm
+L_aes_gcm_encrypt_arm32_crypto_tag_tag_partial:
+	vst1.8	{q7}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_sw
+L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_dw:
+	ldr	r8, [r9], #4
+	sub	r4, r4, #4
+	str	r8, [lr], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_dw
+L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte
+	ldrh	r8, [r9], #2
+	sub	r4, r4, #2
+	strh	r8, [lr], #2
+L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_encrypt_arm32_crypto_tag_tag_end_bytes
+	ldrb	r8, [r9], #1
+	subs	r4, r4, #1
+	strb	r8, [lr], #1
+	bne	L_aes_gcm_encrypt_arm32_crypto_tag_tag_start_byte
+L_aes_gcm_encrypt_arm32_crypto_tag_tag_end_bytes:
+L_aes_gcm_encrypt_arm32_crypto_done_gcm:
+	vpop	{d8-d15}
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	.size	AES_GCM_encrypt_AARCH32,.-AES_GCM_encrypt_AARCH32
+#ifdef HAVE_AES_DECRYPT
+	.text
+	.align	4
+	.globl	AES_GCM_decrypt_AARCH32
+	.type	AES_GCM_decrypt_AARCH32, %function
+AES_GCM_decrypt_AARCH32:
+	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
+	vpush	{d8-d15}
+	# key
+	ldr	r7, [sp, #120]
+	# tmp
+	ldr	r9, [sp, #128]
+	# aadSz
+	ldr	r6, [sp, #116]
+	# gcm_h
+	ldr	r8, [sp, #124]
+	vmov.i8	q13, #0x87
+	veor.8	q7, q7, q7
+	vshr.u64	q13, q13, #56
+	vld1.32	{q8}, [r8]
+	orr	r10, r6, r2
+	cmp	r10, #32
+	blt	L_aes_gcm_decrypt_arm32_crypto_h_done
+	# Square H => H^2
+	vmull.p64	q1, d17, d17
+	vmull.p64	q0, d16, d16
+	vmull.p64	q9, d3, d27
+	veor.8	d2, d2, d19
+	veor.8	d1, d1, d18
+	vmull.p64	q9, d2, d26
+	veor.8	q9, q9, q0
+	cmp	r10, #0x40
+	blt	L_aes_gcm_decrypt_arm32_crypto_h_done
+	# Multiply H and H^2  => H^3
+	vmull.p64	q2, d17, d18
+	vmull.p64	q3, d16, d19
+	vmull.p64	q0, d16, d18
+	vmull.p64	q1, d17, d19
+	veor.8	q2, q2, q3
+	#   Reduce
+	vmull.p64	q10, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d21
+	veor.8	d1, d1, d20
+	vmull.p64	q10, d2, d26
+	veor.8	q10, q10, q0
+	# Square H^2 => H^4
+	vmull.p64	q1, d19, d19
+	vmull.p64	q0, d18, d18
+	vmull.p64	q11, d3, d27
+	veor.8	d2, d2, d23
+	veor.8	d1, d1, d22
+	vmull.p64	q11, d2, d26
+	veor.8	q11, q11, q0
+	# Done
+L_aes_gcm_decrypt_arm32_crypto_h_done:
+	# aad
+	ldr	r5, [sp, #112]
+	lsr	r10, r6, #4
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_aad_start_1
+	cmp	r10, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_2
+L_aes_gcm_decrypt_arm32_crypto_aad_start_4:
+	vldm	r5!, {q0-q2}
+	vmov.i8	q12, #0x55
+	vmov.i8	q5, #51
+	vshl.u8	q14, q0, #1
+	vshl.u8	q15, q1, #1
+	vshl.u8	q4, q2, #1
+	ldr	lr, [r5], #4
+	vshr.u8	q0, q0, #1
+	vshr.u8	q1, q1, #1
+	vshr.u8	q2, q2, #1
+	ldr	r4, [r5], #4
+	vbit.8	q14, q0, q12
+	vbit.8	q15, q1, q12
+	vbit.8	q4, q2, q12
+	ldr	r8, [r5], #4
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshl.u8	q2, q4, #2
+	ldr	r12, [r5], #4
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vshr.u8	q4, q4, #2
+	rbit	lr, lr
+	vbit.8	q0, q14, q5
+	rbit	r4, r4
+	vbit.8	q1, q15, q5
+	rbit	r8, r8
+	vbit.8	q2, q4, q5
+	rbit	r12, r12
+	vshl.u8	q14, q0, #4
+	rev	lr, lr
+	vshl.u8	q15, q1, #4
+	rev	r4, r4
+	vshl.u8	q4, q2, #4
+	rev	r8, r8
+	vsri.u8	q14, q0, #4
+	rev	r12, r12
+	vsri.u8	q15, q1, #4
+	vsri.u8	q4, q2, #4
+	vmov	d10, lr, r4
+	vmov	d11, r8, r12
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d11, d16
+	vmull.p64	q7, d10, d17
+	vmull.p64	q0, d10, d16
+	vmull.p64	q1, d11, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d8, d18
+	vmull.p64	q7, d9, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d9, d18
+	vmull.p64	q7, d8, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^3
+	vmull.p64	q3, d30, d20
+	vmull.p64	q7, d31, d21
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d31, d20
+	vmull.p64	q7, d30, d21
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^4
+	vmull.p64	q3, d24, d22
+	vmull.p64	q7, d25, d23
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d22
+	vmull.p64	q7, d24, d23
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #4
+	cmp	r10, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_aad_start_4
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_aad_start_1
+L_aes_gcm_decrypt_arm32_crypto_aad_start_2:
+	vld1.32	{q14, q15}, [r5]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshl.u8	q1, q15, #1
+	vshr.u8	q14, q14, #1
+	vshr.u8	q15, q15, #1
+	vbif.8	q14, q0, q12
+	vbif.8	q15, q1, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vbit.8	q0, q14, q12
+	vbit.8	q1, q15, q12
+	vshl.u8	q14, q0, #4
+	vshl.u8	q15, q1, #4
+	vsri.u8	q14, q0, #4
+	vsri.u8	q15, q1, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d31, d16
+	vmull.p64	q7, d30, d17
+	vmull.p64	q0, d30, d16
+	vmull.p64	q1, d31, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d24, d18
+	vmull.p64	q7, d25, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d18
+	vmull.p64	q7, d24, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #2
+	cmp	r10, #0
+	beq	L_aes_gcm_decrypt_arm32_crypto_aad_done
+L_aes_gcm_decrypt_arm32_crypto_aad_start_1:
+	vld1.32	{q14}, [r5]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_decrypt_arm32_crypto_aad_done:
+	ands	r11, r6, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_aad_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_sw
+L_aes_gcm_decrypt_arm32_crypto_aad_start_dw:
+	ldr	r8, [r5], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_aad_start_dw
+L_aes_gcm_decrypt_arm32_crypto_aad_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_start_byte
+	ldrh	r8, [r5], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_aad_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_aad_end_bytes
+	ldrb	r8, [r5], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_aad_start_byte
+L_aes_gcm_decrypt_arm32_crypto_aad_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_decrypt_arm32_crypto_aad_partial_done:
+	# in
+	lsr	r10, r2, #4
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_in_start_1
+	cmp	r10, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_start_2
+L_aes_gcm_decrypt_arm32_crypto_in_start_4:
+	vldm	r0!, {q0-q2}
+	vmov.i8	q12, #0x55
+	vmov.i8	q5, #51
+	vshl.u8	q14, q0, #1
+	vshl.u8	q15, q1, #1
+	vshl.u8	q4, q2, #1
+	ldr	lr, [r0], #4
+	vshr.u8	q0, q0, #1
+	vshr.u8	q1, q1, #1
+	vshr.u8	q2, q2, #1
+	ldr	r4, [r0], #4
+	vbit.8	q14, q0, q12
+	vbit.8	q15, q1, q12
+	vbit.8	q4, q2, q12
+	ldr	r8, [r0], #4
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshl.u8	q2, q4, #2
+	ldr	r12, [r0], #4
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vshr.u8	q4, q4, #2
+	rbit	lr, lr
+	vbit.8	q0, q14, q5
+	rbit	r4, r4
+	vbit.8	q1, q15, q5
+	rbit	r8, r8
+	vbit.8	q2, q4, q5
+	rbit	r12, r12
+	vshl.u8	q14, q0, #4
+	rev	lr, lr
+	vshl.u8	q15, q1, #4
+	rev	r4, r4
+	vshl.u8	q4, q2, #4
+	rev	r8, r8
+	vsri.u8	q14, q0, #4
+	rev	r12, r12
+	vsri.u8	q15, q1, #4
+	vsri.u8	q4, q2, #4
+	vmov	d10, lr, r4
+	vmov	d11, r8, r12
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d11, d16
+	vmull.p64	q7, d10, d17
+	vmull.p64	q0, d10, d16
+	vmull.p64	q1, d11, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d8, d18
+	vmull.p64	q7, d9, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d9, d18
+	vmull.p64	q7, d8, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^3
+	vmull.p64	q3, d30, d20
+	vmull.p64	q7, d31, d21
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d31, d20
+	vmull.p64	q7, d30, d21
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   X += C * H^4
+	vmull.p64	q3, d24, d22
+	vmull.p64	q7, d25, d23
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d22
+	vmull.p64	q7, d24, d23
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #4
+	cmp	r10, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_in_start_4
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_in_start_1
+L_aes_gcm_decrypt_arm32_crypto_in_start_2:
+	vld1.32	{q14, q15}, [r0]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshl.u8	q1, q15, #1
+	vshr.u8	q14, q14, #1
+	vshr.u8	q15, q15, #1
+	vbif.8	q14, q0, q12
+	vbif.8	q15, q1, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshl.u8	q1, q15, #2
+	vshr.u8	q14, q14, #2
+	vshr.u8	q15, q15, #2
+	vbit.8	q0, q14, q12
+	vbit.8	q1, q15, q12
+	vshl.u8	q14, q0, #4
+	vshl.u8	q15, q1, #4
+	vsri.u8	q14, q0, #4
+	vsri.u8	q15, q1, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d31, d16
+	vmull.p64	q7, d30, d17
+	vmull.p64	q0, d30, d16
+	vmull.p64	q1, d31, d17
+	veor.8	q2, q2, q7
+	#   X += C * H^2
+	vmull.p64	q3, d24, d18
+	vmull.p64	q7, d25, d19
+	veor.8	q0, q0, q3
+	veor.8	q1, q1, q7
+	vmull.p64	q3, d25, d18
+	vmull.p64	q7, d24, d19
+	veor.8	q2, q2, q3
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+	sub	r10, r10, #2
+	cmp	r10, #0
+	beq	L_aes_gcm_decrypt_arm32_crypto_in_done
+L_aes_gcm_decrypt_arm32_crypto_in_start_1:
+	vld1.32	{q14}, [r0]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_decrypt_arm32_crypto_in_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_in_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_start_sw
+L_aes_gcm_decrypt_arm32_crypto_in_start_dw:
+	ldr	r8, [r0], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_in_start_dw
+L_aes_gcm_decrypt_arm32_crypto_in_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_start_byte
+	ldrh	r8, [r0], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_in_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_in_end_bytes
+	ldrb	r8, [r0], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_in_start_byte
+L_aes_gcm_decrypt_arm32_crypto_in_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q7, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q7, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q7
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	# Done GHASH
+L_aes_gcm_decrypt_arm32_crypto_in_partial_done:
+	sub	r0, r0, r2
+L_aes_gcm_decrypt_arm32_crypto_done_gcm:
+	# nonceSz
+	ldr	r12, [sp, #100]
+	# Load Nonce
+	cmp	r12, #12
+	bne	L_aes_gcm_decrypt_arm32_crypto_ghash_nonce
+	ldr	r5, [r3]
+	ldr	r8, [r3, #4]
+	ldr	r12, [r3, #8]
+	vmov.i32	q6, #0x1000000
+	vmov.32	s24, r5
+	vmov.32	s25, r8
+	vmov.32	s26, r12
+	mov	r5, #1
+	b	L_aes_gcm_decrypt_arm32_crypto_done_nonce
+L_aes_gcm_decrypt_arm32_crypto_ghash_nonce:
+	lsr	r10, r12, #4
+	cmp	r10, #0
+	beq	L_aes_gcm_decrypt_arm32_crypto_nonce_done
+L_aes_gcm_decrypt_arm32_crypto_nonce_start_1:
+	vld1.32	{q14}, [r3]!
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q6, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q6, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q6
+	#   Reduce
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	# Done GHASH
+	subs	r10, r10, #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_nonce_start_1
+L_aes_gcm_decrypt_arm32_crypto_nonce_done:
+	ands	r11, r12, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_nonce_partial_done
+	veor.8	q0, q0, q0
+	mov	r12, r11
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_nonce_start_sw
+L_aes_gcm_decrypt_arm32_crypto_nonce_start_dw:
+	ldr	r8, [r3], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_nonce_start_dw
+L_aes_gcm_decrypt_arm32_crypto_nonce_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte
+	ldrh	r8, [r3], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_nonce_end_bytes
+	ldrb	r8, [r3], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_nonce_start_byte
+L_aes_gcm_decrypt_arm32_crypto_nonce_end_bytes:
+	sub	r9, r9, r11
+	vld1.32	{q14}, [r9]
+	vmov.i8	q12, #0x55
+	vshl.u8	q0, q14, #1
+	vshr.u8	q14, q14, #1
+	vbif.8	q14, q0, q12
+	vmov.i8	q12, #51
+	vshl.u8	q0, q14, #2
+	vshr.u8	q14, q14, #2
+	vbit.8	q0, q14, q12
+	vshl.u8	q14, q0, #4
+	vsri.u8	q14, q0, #4
+	veor.8	q12, q6, q14
+	#   X  = C * H^1
+	vmull.p64	q2, d25, d16
+	vmull.p64	q6, d24, d17
+	vmull.p64	q0, d24, d16
+	vmull.p64	q1, d25, d17
+	veor.8	q2, q2, q6
+	#   Reduce
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	# Done GHASH
+L_aes_gcm_decrypt_arm32_crypto_nonce_partial_done:
+	veor.8	q0, q0, q0
+	# nonceSz
+	ldr	r12, [sp, #100]
+	lsr	r10, r12, #29
+	lsl	r11, r12, #3
+	rbit	r10, r10
+	rbit	r11, r11
+	vmov.32	s2, r10
+	vmov.32	s3, r11
+	veor.8	q6, q6, q0
+	vmull.p64	q2, d13, d16
+	vmull.p64	q12, d12, d17
+	vmull.p64	q0, d12, d16
+	vmull.p64	q1, d13, d17
+	veor.8	q2, q2, q12
+	vmull.p64	q6, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d13
+	veor.8	d1, d1, d12
+	vmull.p64	q6, d2, d26
+	veor.8	q6, q6, q0
+	vmov.32	r5, s24
+	vmov.32	r8, s25
+	vmov.32	r12, s26
+	rbit	r5, r5
+	rbit	r8, r8
+	rbit	r12, r12
+	rev	r5, r5
+	rev	r8, r8
+	rev	r12, r12
+	vmov.32	s24, r5
+	vmov.32	s25, r8
+	vmov.32	s26, r12
+	vmov.32	r5, s27
+	rbit	r5, r5
+	rev	r5, r5
+	vmov.32	s27, r5
+	rev	r5, r5
+L_aes_gcm_decrypt_arm32_crypto_done_nonce:
+	# reg
+	ldr	r9, [sp, #132]
+	vst1.32	{q7}, [r9]
+	# tmp
+	ldr	r9, [sp, #128]
+	vldm.32	r7!, {q0-q3}
+	vldm.32	r7!, {q7-q13}
+	# nr
+	ldr	r12, [sp, #136]
+	lsr	r10, r2, #4
+	and	r11, r2, #15
+	cmp	r12, #12
+	blt	L_aes_gcm_decrypt_arm32_crypto_start_128
+	bgt	L_aes_gcm_decrypt_arm32_crypto_start_256
+	# AES_GCM_192
+#ifndef NO_AES_192
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_192_start_1
+L_aes_gcm_decrypt_arm32_crypto_192_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	aese.8	q5, q12
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	aese.8	q5, q13
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	aese.8	q5, q14
+	veor.8	q5, q5, q15
+	vld1.8	{q14, q15}, [r0]!
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_decrypt_arm32_crypto_192_start_2
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_done
+L_aes_gcm_decrypt_arm32_crypto_192_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r0]!
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_decrypt_arm32_crypto_192_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_192_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_start_sw
+L_aes_gcm_decrypt_arm32_crypto_192_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_192_start_dw
+L_aes_gcm_decrypt_arm32_crypto_192_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_192_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_192_start_byte
+L_aes_gcm_decrypt_arm32_crypto_192_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r9]
+	sub	r7, r7, #16
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_out_start_sw
+L_aes_gcm_decrypt_arm32_crypto_192_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_192_out_start_dw
+L_aes_gcm_decrypt_arm32_crypto_192_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_192_out_start_byte
+L_aes_gcm_decrypt_arm32_crypto_192_out_end_bytes:
+L_aes_gcm_decrypt_arm32_crypto_192_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q13
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]
+	aese.8	q6, q14
+	veor.8	q6, q6, q15
+	sub	r7, r7, #16
+#endif /* !NO_AES_192 */
+	b	L_aes_gcm_decrypt_arm32_crypto_done_enc
+	# AES_GCM_256
+L_aes_gcm_decrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_256_start_1
+L_aes_gcm_decrypt_arm32_crypto_256_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	aese.8	q5, q12
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	aese.8	q5, q13
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	aese.8	q5, q14
+	aesmc.8	q5, q5
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	aese.8	q5, q15
+	aesmc.8	q5, q5
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	aese.8	q5, q14
+	veor.8	q5, q5, q15
+	vld1.8	{q14, q15}, [r0]!
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_decrypt_arm32_crypto_256_start_2
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_done
+L_aes_gcm_decrypt_arm32_crypto_256_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r0]!
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_decrypt_arm32_crypto_256_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_256_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_start_sw
+L_aes_gcm_decrypt_arm32_crypto_256_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_256_start_dw
+L_aes_gcm_decrypt_arm32_crypto_256_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_256_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_256_start_byte
+L_aes_gcm_decrypt_arm32_crypto_256_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q4, q12
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q13
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]!
+	aese.8	q4, q14
+	aesmc.8	q4, q4
+	vld1.32	{q14}, [r7]!
+	aese.8	q4, q15
+	aesmc.8	q4, q4
+	vld1.32	{q15}, [r7]
+	aese.8	q4, q14
+	veor.8	q4, q4, q15
+	vld1.8	{q14}, [r9]
+	sub	r7, r7, #48
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_out_start_sw
+L_aes_gcm_decrypt_arm32_crypto_256_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_256_out_start_dw
+L_aes_gcm_decrypt_arm32_crypto_256_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_256_out_start_byte
+L_aes_gcm_decrypt_arm32_crypto_256_out_end_bytes:
+L_aes_gcm_decrypt_arm32_crypto_256_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q13
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]!
+	aese.8	q6, q14
+	aesmc.8	q6, q6
+	vld1.32	{q14}, [r7]!
+	aese.8	q6, q15
+	aesmc.8	q6, q6
+	vld1.32	{q15}, [r7]
+	aese.8	q6, q14
+	veor.8	q6, q6, q15
+	sub	r7, r7, #48
+#endif /* !NO_AES_256 */
+	b	L_aes_gcm_decrypt_arm32_crypto_done_enc
+	# AES_GCM_128
+L_aes_gcm_decrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	cmp	r10, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_done
+	beq	L_aes_gcm_decrypt_arm32_crypto_128_start_1
+L_aes_gcm_decrypt_arm32_crypto_128_start_2:
+	add	r8, r5, #1
+	vmov.8	q4, q6
+	add	r5, r5, #2
+	vmov.8	q5, q6
+	rev	r8, r8
+	rev	r12, r5
+	vmov	s19, r8
+	vmov	s23, r12
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q5, q0
+	aesmc.8	q5, q5
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q5, q1
+	aesmc.8	q5, q5
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q5, q2
+	aesmc.8	q5, q5
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q5, q3
+	aesmc.8	q5, q5
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q5, q7
+	aesmc.8	q5, q5
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q5, q8
+	aesmc.8	q5, q5
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q5, q9
+	aesmc.8	q5, q5
+	subs	r10, r10, #2
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q5, q10
+	aesmc.8	q5, q5
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	aese.8	q5, q11
+	aesmc.8	q5, q5
+	vld1.8	{q14, q15}, [r0]!
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	aese.8	q5, q12
+	veor.8	q5, q5, q13
+	veor.8	q14, q14, q4
+	veor.8	q15, q15, q5
+	vst1.8	{q14, q15}, [r1]!
+	cmp	r10, #1
+	bgt	L_aes_gcm_decrypt_arm32_crypto_128_start_2
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_done
+L_aes_gcm_decrypt_arm32_crypto_128_start_1:
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	vld1.8	{q14}, [r0]!
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r1]!
+L_aes_gcm_decrypt_arm32_crypto_128_done:
+	ands	r11, r2, #15
+	beq	L_aes_gcm_decrypt_arm32_crypto_128_partial_done
+	veor.8	q14, q14, q14
+	mov	r4, r11
+	vst1.32	{q14}, [r9]
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_start_sw
+L_aes_gcm_decrypt_arm32_crypto_128_start_dw:
+	ldr	lr, [r0], #4
+	sub	r4, r4, #4
+	str	lr, [r9], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_128_start_dw
+L_aes_gcm_decrypt_arm32_crypto_128_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_start_byte
+	ldrh	lr, [r0], #2
+	sub	r4, r4, #2
+	strh	lr, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_128_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_end_bytes
+	ldrb	lr, [r0], #1
+	subs	r4, r4, #1
+	strb	lr, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_128_start_byte
+L_aes_gcm_decrypt_arm32_crypto_128_end_bytes:
+	sub	r9, r9, r11
+	add	r5, r5, #1
+	vmov.8	q4, q6
+	rev	r8, r5
+	vmov	s19, r8
+	aese.8	q4, q0
+	aesmc.8	q4, q4
+	aese.8	q4, q1
+	aesmc.8	q4, q4
+	aese.8	q4, q2
+	aesmc.8	q4, q4
+	aese.8	q4, q3
+	aesmc.8	q4, q4
+	aese.8	q4, q7
+	aesmc.8	q4, q4
+	aese.8	q4, q8
+	aesmc.8	q4, q4
+	aese.8	q4, q9
+	aesmc.8	q4, q4
+	aese.8	q4, q10
+	aesmc.8	q4, q4
+	aese.8	q4, q11
+	aesmc.8	q4, q4
+	vld1.8	{q14}, [r9]
+	aese.8	q4, q12
+	veor.8	q4, q4, q13
+	veor.8	q14, q14, q4
+	vst1.32	{q14}, [r9]
+	mov	r4, r11
+	cmp	r4, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_out_start_sw
+L_aes_gcm_decrypt_arm32_crypto_128_out_start_dw:
+	ldr	lr, [r9], #4
+	sub	r4, r4, #4
+	str	lr, [r1], #4
+	cmp	r4, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_128_out_start_dw
+L_aes_gcm_decrypt_arm32_crypto_128_out_start_sw:
+	cmp	r4, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte
+	ldrh	lr, [r9], #2
+	sub	r4, r4, #2
+	strh	lr, [r1], #2
+L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte:
+	cmp	r4, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes
+	ldrb	lr, [r9], #1
+	subs	r4, r4, #1
+	strb	lr, [r1], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_128_out_start_byte
+L_aes_gcm_decrypt_arm32_crypto_128_out_end_bytes:
+L_aes_gcm_decrypt_arm32_crypto_128_partial_done:
+	# Finish
+	add	r8, r2, #15
+	sub	r8, r5, r8, lsr #4
+	rev	r8, r8
+	vmov.32	s27, r8
+	aese.8	q6, q0
+	aesmc.8	q6, q6
+	aese.8	q6, q1
+	aesmc.8	q6, q6
+	aese.8	q6, q2
+	aesmc.8	q6, q6
+	aese.8	q6, q3
+	aesmc.8	q6, q6
+	aese.8	q6, q7
+	aesmc.8	q6, q6
+	aese.8	q6, q8
+	aesmc.8	q6, q6
+	aese.8	q6, q9
+	aesmc.8	q6, q6
+	aese.8	q6, q10
+	aesmc.8	q6, q6
+	aese.8	q6, q11
+	aesmc.8	q6, q6
+	aese.8	q6, q12
+	veor.8	q6, q6, q13
+#endif /* !NO_AES_128 */
+L_aes_gcm_decrypt_arm32_crypto_done_enc:
+	vmov.i8	q13, #0x87
+	vshr.u64	q13, q13, #56
+	# gcm_h
+	ldr	r8, [sp, #124]
+	vld1.32	{q8}, [r8]
+	# reg
+	ldr	r9, [sp, #132]
+	vld1.32	{q7}, [r9]
+	# tmp
+	ldr	r9, [sp, #128]
+	lsr	lr, r6, #29
+	lsl	r6, r6, #3
+	rbit	lr, lr
+	rbit	r6, r6
+	vmov	s0, lr
+	vmov	s1, r6
+	lsr	lr, r2, #29
+	lsl	r2, r2, #3
+	rbit	lr, lr
+	rbit	r2, r2
+	vmov	s2, lr
+	vmov	s3, r2
+	veor.8	q7, q7, q0
+	vmull.p64	q2, d15, d16
+	vmull.p64	q3, d14, d17
+	vmull.p64	q0, d14, d16
+	vmull.p64	q1, d15, d17
+	veor.8	q2, q2, q3
+	#   Reduce
+	vmull.p64	q7, d3, d27
+	veor.8	d2, d2, d5
+	veor.8	d1, d1, d4
+	veor.8	d2, d2, d15
+	veor.8	d1, d1, d14
+	vmull.p64	q7, d2, d26
+	veor.8	q7, q7, q0
+	vmov.i8	q0, #0x55
+	vshl.u8	q1, q7, #1
+	vshr.u8	q7, q7, #1
+	vbif.8	q7, q1, q0
+	vmov.i8	q0, #51
+	vshl.u8	q1, q7, #2
+	vshr.u8	q7, q7, #2
+	vbit.8	q1, q7, q0
+	vshl.u8	q7, q1, #4
+	vsri.u8	q7, q1, #4
+	# DONE
+	veor.8	q7, q7, q6
+	# tag
+	ldr	lr, [sp, #104]
+	# tagSz
+	ldr	r4, [sp, #108]
+	cmp	r4, #16
+	blt	L_aes_gcm_decrypt_arm32_crypto_tag_part_tag
+	vld1.8	{q0}, [lr]
+	b	L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded
+L_aes_gcm_decrypt_arm32_crypto_tag_part_tag:
+	veor.8	q0, q0, q0
+	mov	r12, r4
+	vst1.32	{q0}, [r9]
+	cmp	r12, #4
+	blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_sw
+L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_dw:
+	ldr	r8, [lr], #4
+	sub	r12, r12, #4
+	str	r8, [r9], #4
+	cmp	r12, #4
+	bge	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_dw
+L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_sw:
+	cmp	r12, #2
+	blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte
+	ldrh	r8, [lr], #2
+	sub	r12, r12, #2
+	strh	r8, [r9], #2
+L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte:
+	cmp	r12, #1
+	blt	L_aes_gcm_decrypt_arm32_crypto_tag_tag_end_bytes
+	ldrb	r8, [lr], #1
+	subs	r12, r12, #1
+	strb	r8, [r9], #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_tag_tag_start_byte
+L_aes_gcm_decrypt_arm32_crypto_tag_tag_end_bytes:
+	sub	r9, r9, r4
+	vld1.32	{q0}, [r9]
+	mov	r12, #16
+	vst1.32	{q7}, [r9]
+	sub	r12, r12, r4
+	eor	r8, r8, r8
+	add	r9, r9, r4
+L_aes_gcm_decrypt_arm32_crypto_tag_calc_tag_byte:
+	strb	r8, [r9], #1
+	subs	r12, r12, #1
+	bne	L_aes_gcm_decrypt_arm32_crypto_tag_calc_tag_byte
+	subs	r9, r9, #16
+	vld1.32	{q7}, [r9]
+L_aes_gcm_decrypt_arm32_crypto_tag_tag_loaded:
+	vceq.i32	q0, q0, q7
+	vmov	r5, s0
+	vmov	r8, s1
+	and	r12, r5, r8
+	vmov	r5, s2
+	vmov	r8, s3
+	and	r12, r12, r5
+	and	r12, r12, r8
+	mov	r5, #-180
+	mvn	r12, r12
+	and	r0, r5, r12
+	vpop	{d8-d15}
+	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
+	.size	AES_GCM_decrypt_AARCH32,.-AES_GCM_decrypt_AARCH32
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AESGCM */
+#ifdef WOLFSSL_AES_XTS
+	.text
+	.align	4
+	.globl	AES_XTS_encrypt_AARCH32
+	.type	AES_XTS_encrypt_AARCH32, %function
+AES_XTS_encrypt_AARCH32:
+	push	{r4, r5, r6, r7, r8, r9, lr}
+	vpush	{d8-d15}
+	ldr	r12, [sp, #92]
+	ldr	lr, [sp, #96]
+	ldr	r5, [sp, #104]
+	vldm.32	lr!, {q2-q9}
+	lsr	r4, r2, #4
+	and	r2, r2, #15
+	vld1.8	{q0}, [r3]
+	cmp	r5, #12
+	blt	L_aes_xts_encrypt_arm32_crypto_start_128
+	bgt	L_aes_xts_encrypt_arm32_crypto_start_256
+	# AES_XTS_192
+#ifndef NO_AES_192
+	vldm.32	lr!, {q10-q14}
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	aese.8	q0, q13
+	veor.32	q0, q0, q14
+	vmov	r6, r7, d0
+	vmov	r8, r9, d1
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q14}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_encrypt_arm32_crypto_192_done
+L_aes_xts_encrypt_arm32_crypto_192_start_1:
+	vld1.8	{q1}, [r0]!
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	and	r5, lr, r9, asr #31
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	lsl	r9, r9, #1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	orr	r9, r9, r8, lsr #31
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	lsl	r8, r8, #1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	orr	r8, r8, r7, lsr #31
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	lsl	r7, r7, #1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	orr	r7, r7, r6, lsr #31
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	eor	r6, r5, r6, lsl #1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	aese.8	q1, q13
+	veor.32	q1, q1, q14
+	veor.32	q1, q1, q0
+	vmov	d0, r6, r7
+	vmov	d1, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q1}, [r1]!
+	bne	L_aes_xts_encrypt_arm32_crypto_192_start_1
+L_aes_xts_encrypt_arm32_crypto_192_done:
+	cmp	r2, #0
+	beq	L_aes_xts_encrypt_arm32_crypto_192_partial_done
+	sub	r1, r1, #16
+	ldr	r4, [sp, #100]
+	vld1.8	{q1}, [r1]!
+	vst1.32	{q1}, [r4]
+	mov	r5, r2
+L_aes_xts_encrypt_arm32_crypto_192_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_encrypt_arm32_crypto_192_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q1}, [r4]
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	aese.8	q1, q13
+	veor.32	q1, q1, q14
+	veor.32	q1, q1, q0
+	vst1.8	{q1}, [r1]
+L_aes_xts_encrypt_arm32_crypto_192_partial_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_xts_encrypt_arm32_crypto_done
+	# AES_XTS_256
+L_aes_xts_encrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vldm.32	lr!, {q10-q13}
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	aesmc.8	q0, q0
+	aese.8	q0, q12
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [lr]!
+	aese.8	q0, q13
+	aesmc.8	q0, q0
+	vld1.32	{q15}, [lr]!
+	aese.8	q0, q14
+	aesmc.8	q0, q0
+	vld1.32	{q14}, [lr]!
+	aese.8	q0, q15
+	veor.32	q0, q0, q14
+	vmov	r6, r7, d0
+	vmov	r8, r9, d1
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q13}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_encrypt_arm32_crypto_256_done
+L_aes_xts_encrypt_arm32_crypto_256_start_1:
+	vld1.8	{q1}, [r0]!
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	and	r5, lr, r9, asr #31
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	lsl	r9, r9, #1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	orr	r9, r9, r8, lsr #31
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	lsl	r8, r8, #1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	orr	r8, r8, r7, lsr #31
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	lsl	r7, r7, #1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	orr	r7, r7, r6, lsr #31
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	eor	r6, r5, r6, lsl #1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	aese.8	q1, q13
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [r12]!
+	aese.8	q1, q14
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	aese.8	q1, q15
+	veor.32	q1, q1, q14
+	sub	r12, r12, #48
+	veor.32	q1, q1, q0
+	vmov	d0, r6, r7
+	vmov	d1, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q1}, [r1]!
+	bne	L_aes_xts_encrypt_arm32_crypto_256_start_1
+L_aes_xts_encrypt_arm32_crypto_256_done:
+	cmp	r2, #0
+	beq	L_aes_xts_encrypt_arm32_crypto_256_partial_done
+	sub	r1, r1, #16
+	ldr	r4, [sp, #100]
+	vld1.8	{q1}, [r1]!
+	vst1.32	{q1}, [r4]
+	mov	r5, r2
+L_aes_xts_encrypt_arm32_crypto_256_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_encrypt_arm32_crypto_256_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q1}, [r4]
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	aese.8	q1, q13
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [r12]!
+	aese.8	q1, q14
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [r12]!
+	aese.8	q1, q15
+	veor.32	q1, q1, q14
+	veor.32	q1, q1, q0
+	vst1.8	{q1}, [r1]
+L_aes_xts_encrypt_arm32_crypto_256_partial_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_xts_encrypt_arm32_crypto_done
+	# AES_XTS_128
+L_aes_xts_encrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	lr!, {q10-q12}
+	aese.8	q0, q2
+	aesmc.8	q0, q0
+	aese.8	q0, q3
+	aesmc.8	q0, q0
+	aese.8	q0, q4
+	aesmc.8	q0, q0
+	aese.8	q0, q5
+	aesmc.8	q0, q0
+	aese.8	q0, q6
+	aesmc.8	q0, q0
+	aese.8	q0, q7
+	aesmc.8	q0, q0
+	aese.8	q0, q8
+	aesmc.8	q0, q0
+	aese.8	q0, q9
+	aesmc.8	q0, q0
+	aese.8	q0, q10
+	aesmc.8	q0, q0
+	aese.8	q0, q11
+	veor.32	q0, q0, q12
+	vmov	r6, r7, d0
+	vmov	r8, r9, d1
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q12}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_encrypt_arm32_crypto_128_done
+L_aes_xts_encrypt_arm32_crypto_128_start_1:
+	vld1.8	{q1}, [r0]!
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	and	r5, lr, r9, asr #31
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	lsl	r9, r9, #1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	orr	r9, r9, r8, lsr #31
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	lsl	r8, r8, #1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	orr	r8, r8, r7, lsr #31
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	lsl	r7, r7, #1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	orr	r7, r7, r6, lsr #31
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	eor	r6, r5, r6, lsl #1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	veor.32	q1, q1, q12
+	veor.32	q1, q1, q0
+	vmov	d0, r6, r7
+	vmov	d1, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q1}, [r1]!
+	bne	L_aes_xts_encrypt_arm32_crypto_128_start_1
+L_aes_xts_encrypt_arm32_crypto_128_done:
+	cmp	r2, #0
+	beq	L_aes_xts_encrypt_arm32_crypto_128_partial_done
+	sub	r1, r1, #16
+	ldr	r4, [sp, #100]
+	vld1.8	{q1}, [r1]!
+	vst1.32	{q1}, [r4]
+	mov	r5, r2
+L_aes_xts_encrypt_arm32_crypto_128_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_encrypt_arm32_crypto_128_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q1}, [r4]
+	veor.32	q1, q1, q0
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	veor.32	q1, q1, q12
+	veor.32	q1, q1, q0
+	vst1.8	{q1}, [r1]
+L_aes_xts_encrypt_arm32_crypto_128_partial_done:
+#endif /* !NO_AES_128 */
+L_aes_xts_encrypt_arm32_crypto_done:
+	vpop	{d8-d15}
+	pop	{r4, r5, r6, r7, r8, r9, pc}
+	.size	AES_XTS_encrypt_AARCH32,.-AES_XTS_encrypt_AARCH32
+#ifdef HAVE_AES_DECRYPT
+	.text
+	.align	4
+	.globl	AES_XTS_decrypt_AARCH32
+	.type	AES_XTS_decrypt_AARCH32, %function
+AES_XTS_decrypt_AARCH32:
+	push	{r4, r5, r6, r7, r8, r9, lr}
+	vpush	{d8-d15}
+	ldr	r12, [sp, #92]
+	ldr	lr, [sp, #96]
+	vldm.32	lr!, {q2-q9}
+	eor	r5, r5, r5
+	lsr	r4, r2, #4
+	ands	r2, r2, #15
+	sub	r5, r5, r2
+	sub	r4, r4, r5, lsr #31
+	vld1.8	{q1}, [r3]
+	ldr	r5, [sp, #104]
+	cmp	r5, #12
+	blt	L_aes_xts_decrypt_arm32_crypto_start_128
+	bgt	L_aes_xts_decrypt_arm32_crypto_start_256
+	# AES_XTS_192
+#ifndef NO_AES_192
+	vldm.32	lr!, {q10-q14}
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	aese.8	q1, q13
+	veor.32	q1, q1, q14
+	vmov	r6, r7, d2
+	vmov	r8, r9, d3
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q14}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_decrypt_arm32_crypto_192_done
+L_aes_xts_decrypt_arm32_crypto_192_start_1:
+	vld1.8	{q0}, [r0]!
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	and	r5, lr, r9, asr #31
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	lsl	r9, r9, #1
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	orr	r9, r9, r8, lsr #31
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	lsl	r8, r8, #1
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	orr	r8, r8, r7, lsr #31
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	lsl	r7, r7, #1
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	orr	r7, r7, r6, lsr #31
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	eor	r6, r5, r6, lsl #1
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	veor.32	q0, q0, q1
+	vmov	d2, r6, r7
+	vmov	d3, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q0}, [r1]!
+	bne	L_aes_xts_decrypt_arm32_crypto_192_start_1
+L_aes_xts_decrypt_arm32_crypto_192_done:
+	cmp	r2, #0
+	beq	L_aes_xts_decrypt_arm32_crypto_192_partial_done
+	and	r5, lr, r9, asr #31
+	lsl	r9, r9, #1
+	orr	r9, r9, r8, lsr #31
+	lsl	r8, r8, #1
+	orr	r8, r8, r7, lsr #31
+	lsl	r7, r7, #1
+	orr	r7, r7, r6, lsr #31
+	eor	r6, r5, r6, lsl #1
+	vmov	d30, r6, r7
+	vmov	d31, r8, r9
+	vld1.8	{q0}, [r0]!
+	ldr	r4, [sp, #100]
+	veor.32	q0, q0, q15
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	veor.32	q0, q0, q15
+	vst1.32	{q0}, [r4]
+	add	r1, r1, #16
+	mov	r5, r2
+L_aes_xts_decrypt_arm32_crypto_192_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_decrypt_arm32_crypto_192_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q0}, [r4]
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	veor.32	q0, q0, q1
+	vst1.8	{q0}, [r1]
+L_aes_xts_decrypt_arm32_crypto_192_partial_done:
+#endif /* !NO_AES_192 */
+	b	L_aes_xts_decrypt_arm32_crypto_done
+	# AES_XTS_256
+L_aes_xts_decrypt_arm32_crypto_start_256:
+#ifndef NO_AES_256
+	vldm.32	lr!, {q10-q13}
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	aesmc.8	q1, q1
+	aese.8	q1, q12
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [lr]!
+	aese.8	q1, q13
+	aesmc.8	q1, q1
+	vld1.32	{q15}, [lr]!
+	aese.8	q1, q14
+	aesmc.8	q1, q1
+	vld1.32	{q14}, [lr]!
+	aese.8	q1, q15
+	veor.32	q1, q1, q14
+	vmov	r6, r7, d2
+	vmov	r8, r9, d3
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q12}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_decrypt_arm32_crypto_256_done
+L_aes_xts_decrypt_arm32_crypto_256_start_1:
+	vld1.8	{q0}, [r0]!
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	and	r5, lr, r9, asr #31
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	lsl	r9, r9, #1
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	orr	r9, r9, r8, lsr #31
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	lsl	r8, r8, #1
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	orr	r8, r8, r7, lsr #31
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	lsl	r7, r7, #1
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	orr	r7, r7, r6, lsr #31
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	eor	r6, r5, r6, lsl #1
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aesd.8	q0, q13
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q14
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	sub	r12, r12, #48
+	veor.32	q0, q0, q1
+	vmov	d2, r6, r7
+	vmov	d3, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q0}, [r1]!
+	bne	L_aes_xts_decrypt_arm32_crypto_256_start_1
+L_aes_xts_decrypt_arm32_crypto_256_done:
+	cmp	r2, #0
+	beq	L_aes_xts_decrypt_arm32_crypto_256_partial_done
+	and	r5, lr, r9, asr #31
+	lsl	r9, r9, #1
+	orr	r9, r9, r8, lsr #31
+	lsl	r8, r8, #1
+	orr	r8, r8, r7, lsr #31
+	lsl	r7, r7, #1
+	orr	r7, r7, r6, lsr #31
+	eor	r6, r5, r6, lsl #1
+	vmov	d30, r6, r7
+	vmov	d31, r8, r9
+	vld1.8	{q0}, [r0]!
+	ldr	r4, [sp, #100]
+	veor.32	q0, q0, q15
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aesd.8	q0, q13
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q14
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	sub	r12, r12, #48
+	veor.32	q0, q0, q15
+	vst1.32	{q0}, [r4]
+	add	r1, r1, #16
+	mov	r5, r2
+L_aes_xts_decrypt_arm32_crypto_256_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_decrypt_arm32_crypto_256_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q0}, [r4]
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q12
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]!
+	aesd.8	q0, q13
+	aesimc.8	q0, q0
+	vld1.32	{q13}, [r12]!
+	aesd.8	q0, q14
+	aesimc.8	q0, q0
+	vld1.32	{q14}, [r12]
+	aesd.8	q0, q13
+	veor.32	q0, q0, q14
+	veor.32	q0, q0, q1
+	vst1.8	{q0}, [r1]
+L_aes_xts_decrypt_arm32_crypto_256_partial_done:
+#endif /* !NO_AES_256 */
+	b	L_aes_xts_decrypt_arm32_crypto_done
+	# AES_XTS_128
+L_aes_xts_decrypt_arm32_crypto_start_128:
+#ifndef NO_AES_128
+	vldm.32	lr!, {q10-q12}
+	aese.8	q1, q2
+	aesmc.8	q1, q1
+	aese.8	q1, q3
+	aesmc.8	q1, q1
+	aese.8	q1, q4
+	aesmc.8	q1, q1
+	aese.8	q1, q5
+	aesmc.8	q1, q1
+	aese.8	q1, q6
+	aesmc.8	q1, q1
+	aese.8	q1, q7
+	aesmc.8	q1, q1
+	aese.8	q1, q8
+	aesmc.8	q1, q1
+	aese.8	q1, q9
+	aesmc.8	q1, q1
+	aese.8	q1, q10
+	aesmc.8	q1, q1
+	aese.8	q1, q11
+	veor.32	q1, q1, q12
+	vmov	r6, r7, d2
+	vmov	r8, r9, d3
+	vldm.32	r12!, {q2-q9}
+	vldm.32	r12!, {q10-q12}
+	mov	lr, #0x87
+	cmp	r4, #1
+	blt	L_aes_xts_decrypt_arm32_crypto_128_done
+L_aes_xts_decrypt_arm32_crypto_128_start_1:
+	vld1.8	{q0}, [r0]!
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	and	r5, lr, r9, asr #31
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	lsl	r9, r9, #1
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	orr	r9, r9, r8, lsr #31
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	lsl	r8, r8, #1
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	orr	r8, r8, r7, lsr #31
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	lsl	r7, r7, #1
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	orr	r7, r7, r6, lsr #31
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	eor	r6, r5, r6, lsl #1
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	veor.32	q0, q0, q12
+	veor.32	q0, q0, q1
+	vmov	d2, r6, r7
+	vmov	d3, r8, r9
+	subs	r4, r4, #1
+	vst1.8	{q0}, [r1]!
+	bne	L_aes_xts_decrypt_arm32_crypto_128_start_1
+L_aes_xts_decrypt_arm32_crypto_128_done:
+	cmp	r2, #0
+	beq	L_aes_xts_decrypt_arm32_crypto_128_partial_done
+	and	r5, lr, r9, asr #31
+	lsl	r9, r9, #1
+	orr	r9, r9, r8, lsr #31
+	lsl	r8, r8, #1
+	orr	r8, r8, r7, lsr #31
+	lsl	r7, r7, #1
+	orr	r7, r7, r6, lsr #31
+	eor	r6, r5, r6, lsl #1
+	vmov	d30, r6, r7
+	vmov	d31, r8, r9
+	vld1.8	{q0}, [r0]!
+	ldr	r4, [sp, #100]
+	veor.32	q0, q0, q15
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	veor.32	q0, q0, q12
+	veor.32	q0, q0, q15
+	vst1.32	{q0}, [r4]
+	add	r1, r1, #16
+	mov	r5, r2
+L_aes_xts_decrypt_arm32_crypto_128_start_byte:
+	ldrb	r8, [r4]
+	ldrb	r9, [r0], #1
+	strb	r8, [r1], #1
+	strb	r9, [r4], #1
+	subs	r5, r5, #1
+	bgt	L_aes_xts_decrypt_arm32_crypto_128_start_byte
+	sub	r1, r1, r2
+	sub	r4, r4, r2
+	sub	r1, r1, #16
+	vld1.32	{q0}, [r4]
+	veor.32	q0, q0, q1
+	aesd.8	q0, q2
+	aesimc.8	q0, q0
+	aesd.8	q0, q3
+	aesimc.8	q0, q0
+	aesd.8	q0, q4
+	aesimc.8	q0, q0
+	aesd.8	q0, q5
+	aesimc.8	q0, q0
+	aesd.8	q0, q6
+	aesimc.8	q0, q0
+	aesd.8	q0, q7
+	aesimc.8	q0, q0
+	aesd.8	q0, q8
+	aesimc.8	q0, q0
+	aesd.8	q0, q9
+	aesimc.8	q0, q0
+	aesd.8	q0, q10
+	aesimc.8	q0, q0
+	aesd.8	q0, q11
+	veor.32	q0, q0, q12
+	veor.32	q0, q0, q1
+	vst1.8	{q0}, [r1]
+L_aes_xts_decrypt_arm32_crypto_128_partial_done:
+#endif /* !NO_AES_128 */
+L_aes_xts_decrypt_arm32_crypto_done:
+	vpop	{d8-d15}
+	pop	{r4, r5, r6, r7, r8, r9, pc}
+	.size	AES_XTS_decrypt_AARCH32,.-AES_XTS_decrypt_AARCH32
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_XTS */
+#else
 #ifdef HAVE_AES_DECRYPT
 	.text
 	.type	L_AES_ARM32_td_data, %object
@@ -810,17 +8596,10 @@ AES_set_encrypt_key:
 	beq	L_AES_set_encrypt_key_start_128
 	cmp	r1, #0xc0
 	beq	L_AES_set_encrypt_key_start_192
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -849,18 +8628,10 @@ AES_set_encrypt_key:
 	rev	r7, r7
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
 	stm	r2!, {r4, r5, r6, r7}
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
 	ldr	r5, [r0, #20]
-#else
-	ldrd	r4, r5, [r0, #16]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #24]
 	ldr	r7, [r0, #28]
-#else
-	ldrd	r6, r7, [r0, #24]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -1039,23 +8810,12 @@ L_AES_set_encrypt_key_loop_256:
 	sub	r2, r2, #16
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_192:
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r1, [r0, #20]
 	ldr	r0, [r0, #16]
-#else
-	ldrd	r0, r1, [r0, #16]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -1203,17 +8963,10 @@ L_AES_set_encrypt_key_loop_192:
 	stm	r2, {r0, r1, r4, r5}
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_128:
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldm	r0, {r4, r5}
-#else
-	ldrd	r4, r5, [r0]
-#endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	ldr	r4, [r0]
+	ldr	r5, [r0, #4]
 	ldr	r6, [r0, #8]
 	ldr	r7, [r0, #12]
-#else
-	ldrd	r6, r7, [r0, #8]
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 6)
 	# REV r4, r4
 	eor	r3, r4, r4, ror #16
@@ -1939,7 +9692,8 @@ L_AES_encrypt_block_nr:
 	pop	{pc}
 	.size	AES_encrypt_block,.-AES_encrypt_block
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
-    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+    defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB)
 	.text
 	.type	L_AES_ARM32_te_ecb, %object
 	.size	L_AES_ARM32_te_ecb, 12
@@ -2180,7 +9934,7 @@ L_AES_ECB_encrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_ECB_encrypt,.-AES_ECB_encrypt
 #endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
-        * WOLFSSL_AES_COUNTER */
+        * WOLFSSL_AES_COUNTER || HAVE_AES_ECB */
 #ifdef HAVE_AES_CBC
 	.text
 	.type	L_AES_ARM32_te_cbc, %object
@@ -2696,8 +10450,8 @@ L_AES_CTR_encrypt_end:
 	.size	AES_CTR_encrypt,.-AES_CTR_encrypt
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-    #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(HAVE_AES_CBC)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_CBC) || defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_decrypt_block
@@ -3608,7 +11362,7 @@ L_AES_ARM32_td4:
 	.byte	0x21
 	.byte	0xc
 	.byte	0x7d
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB)
 	.text
 	.align	4
 	.globl	AES_ECB_decrypt
@@ -3839,7 +11593,7 @@ L_AES_ECB_decrypt_loop_block_128:
 L_AES_ECB_decrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_ECB_decrypt,.-AES_ECB_decrypt
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || defined(HAVE_AES_ECB) */
 #ifdef HAVE_AES_CBC
 	.text
 	.align	4
@@ -4453,7 +12207,8 @@ L_AES_CBC_decrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_CBC_decrypt,.-AES_CBC_decrypt
 #endif /* HAVE_AES_CBC */
-#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC */
+#endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC
+        * HAVE_AES_ECB */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
 	.text
@@ -5303,6 +13058,7 @@ L_AES_GCM_encrypt_end:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
+#endif /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #endif /* !NO_AES */
 #endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */

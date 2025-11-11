@@ -289,7 +289,8 @@ int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
 
     recvd = wolfSSL_BIO_read(biord, buf, sz);
     if (recvd <= 0) {
-        if (/* ssl->biowr->wrIdx is checked for Bind9 */
+        if (biowr != NULL &&
+            /* ssl->biowr->wrIdx is checked for Bind9 */
             wolfSSL_BIO_method_type(biowr) == WOLFSSL_BIO_BIO &&
             wolfSSL_BIO_wpending(biowr) != 0 &&
             /* Not sure this pending check is necessary but let's double
@@ -1152,20 +1153,42 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 static int linuxkm_send(struct socket *socket, void *buf, int size,
     unsigned int flags)
 {
+    size_t len;
     int ret;
-    struct kvec vec = { .iov_base = buf, .iov_len = size };
+    struct kvec vec;
     struct msghdr msg = { .msg_flags = flags };
-    ret = kernel_sendmsg(socket, &msg, &vec, 1, size);
+
+    if (size < 0)
+        return -EINVAL;
+    if (size == 0)
+        return 0;
+
+    len = (size_t)size;
+    vec.iov_base = buf;
+    vec.iov_len  = len;
+
+    ret = kernel_sendmsg(socket, &msg, &vec, 1, len);
     return ret;
 }
 
 static int linuxkm_recv(struct socket *socket, void *buf, int size,
     unsigned int flags)
 {
+    size_t len;
     int ret;
-    struct kvec vec = { .iov_base = buf, .iov_len = size };
+    struct kvec vec;
     struct msghdr msg = { .msg_flags = flags };
-    ret = kernel_recvmsg(socket, &msg, &vec, 1, size, msg.msg_flags);
+
+    if (size < 0)
+        return -EINVAL;
+    if (size == 0)
+        return 0;
+
+    len = (size_t)size;
+    vec.iov_base = buf;
+    vec.iov_len  = len;
+
+    ret = kernel_recvmsg(socket, &msg, &vec, 1, len, msg.msg_flags);
     return ret;
 }
 #endif /* WOLFSSL_LINUXKM */
@@ -1681,12 +1704,17 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
     return result;
 }
 
+#ifndef WOLFIO_HTTP_MAX_BODY
+/* Upper bound on an HTTP body that will be buffered in memory. */
+#define WOLFIO_HTTP_MAX_BODY (32 * 1024 * 1024)
+#endif
+
 static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
     void* ioCbCtx, byte **recvBuf, int* recvBufSz, int chunkSz, char* start,
     int len, int dynType, void* heap)
 {
     byte* newRecvBuf = NULL;
-    int newRecvSz = *recvBufSz + chunkSz;
+    int newRecvSz;
     int pos = 0;
 
     WOLFSSL_MSG("Processing HTTP response");
@@ -1701,6 +1729,23 @@ static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf invalid chunk or length size");
         return MEMORY_E;
     }
+
+    if (chunkSz > WOLFIO_HTTP_MAX_BODY) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf chunk too large");
+        return BUFFER_ERROR;
+    }
+
+    if (*recvBufSz < 0 || *recvBufSz > WOLFIO_HTTP_MAX_BODY - chunkSz) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf aggregate body too large");
+        return BUFFER_ERROR;
+    }
+
+    if (len > chunkSz) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf len exceeds chunk size");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    newRecvSz = *recvBufSz + chunkSz;
 
     if (newRecvSz <= 0) {
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf new receive size overflow");
@@ -2712,11 +2757,15 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         }
     }
     else {
-        if (dtlsCtx->peer.sz > 0
-                && peerSz != (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz
-                && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("\tIgnored packet from invalid peer");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
+        if (dtlsCtx->peer.sz > 0) {
+            NET_SOCK_ADDR_LEN expectedPeerSz =
+                (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz;
+            if (dtlsCtx->peer.sa == NULL ||
+                peerSz != expectedPeerSz ||
+                XMEMCMP(&peer, dtlsCtx->peer.sa, expectedPeerSz) != 0) {
+                WOLFSSL_MSG("\tIgnored packet from invalid peer");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
         }
     }
 

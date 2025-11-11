@@ -89,12 +89,14 @@ typedef struct Poly1305 {
     unsigned char finished;
     unsigned char started;
 #elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
-    ALIGN128 word64 r64[2];
-    ALIGN128 word32 r[5];
-    ALIGN128 word32 r_2[5]; /* r^2 */
-    ALIGN128 word32 r_4[5]; /* r^4 */
-    ALIGN128 word32 h[5];
-    word32 pad[4];
+    ALIGN8 word64 r64[2];
+    ALIGN8 word32 r4[4];
+    ALIGN8 word32 r3[4];
+    ALIGN8 word32 r2[4];
+    ALIGN8 word32 r1[4];
+    ALIGN8 word32 r4321[4];
+    ALIGN8 word32 h[6];
+    ALIGN8 word32 pad[4];
     word64 leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
@@ -108,6 +110,7 @@ typedef struct Poly1305 {
     unsigned char buffer[4*POLY1305_BLOCK_SIZE];
     word32 r_21[10];
     word32 r_43[10];
+    unsigned char finished;
 #elif defined(WOLFSSL_ARMASM)
     /* ARM32 (non-NEON) and Thumb2 */
     word32 r[4];
@@ -115,6 +118,7 @@ typedef struct Poly1305 {
     word32 pad[4];
     word32 leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
+    unsigned char finished;
 #elif defined(WOLFSSL_RISCV_ASM)
     word64 r[2];
 #ifdef WOLFSSL_RISCV_VECTOR
@@ -160,17 +164,13 @@ WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
 
 #if defined(WOLFSSL_ARMASM)
 #if defined(__aarch64__ )
-#define poly1305_blocks     poly1305_blocks_aarch64
-#define poly1305_block      poly1305_block_aarch64
+void poly1305_arm64_block_16(Poly1305* ctx, const unsigned char* m);
+void poly1305_arm64_blocks(Poly1305* ctx, const unsigned char* m, size_t bytes);
 
 void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
     size_t bytes);
 void poly1305_block_aarch64(Poly1305* ctx, const unsigned char *m);
-#else
-#if defined(WOLFSSL_ARMASM_THUMB2)
-#define poly1305_blocks     poly1305_blocks_thumb2
-#define poly1305_block      poly1305_block_thumb2
-
+#elif defined(WOLFSSL_ARMASM_THUMB2)
 void poly1305_blocks_thumb2(Poly1305* ctx, const unsigned char *m,
     size_t bytes);
 void poly1305_block_thumb2(Poly1305* ctx, const unsigned char *m);
@@ -178,9 +178,6 @@ void poly1305_block_thumb2(Poly1305* ctx, const unsigned char *m);
 void poly1305_blocks_thumb2_16(Poly1305* ctx, const unsigned char* m,
     word32 len, int notLast);
 #else
-#define poly1305_blocks     poly1305_blocks_arm32
-#define poly1305_block      poly1305_block_arm32
-
 void poly1305_blocks_arm32(Poly1305* ctx, const unsigned char *m, size_t bytes);
 void poly1305_block_arm32(Poly1305* ctx, const unsigned char *m);
 
@@ -188,9 +185,9 @@ void poly1305_arm32_blocks(Poly1305* ctx, const unsigned char* m, word32 len);
 void poly1305_arm32_blocks_16(Poly1305* ctx, const unsigned char* m, word32 len,
     int notLast);
 #endif
+
 void poly1305_set_key(Poly1305* ctx, const byte* key);
 void poly1305_final(Poly1305* ctx, byte* mac);
-#endif
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(WOLFSSL_RISCV_ASM)

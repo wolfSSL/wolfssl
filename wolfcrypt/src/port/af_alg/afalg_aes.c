@@ -186,6 +186,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         if ((sz / WC_AES_BLOCK_SIZE) > 0) {
             /* update IV */
             cmsg = CMSG_FIRSTHDR(&(aes->msg));
+            if (cmsg == NULL) {
+                WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesCbcEncrypt() returned NULL unexpectedly.");
+                return SYSLIB_FAILED_E;
+            }
             ret = wc_Afalg_SetIv(CMSG_NXTHDR(&(aes->msg), cmsg),
                     (byte*)(aes->reg), AES_IV_SIZE);
             if (ret < 0) {
@@ -245,6 +249,10 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         if ((sz / WC_AES_BLOCK_SIZE) > 0) {
             /* update IV */
             cmsg = CMSG_FIRSTHDR(&(aes->msg));
+            if (cmsg == NULL) {
+                WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesCbcDecrypt() returned NULL unexpectedly.");
+                return SYSLIB_FAILED_E;
+            }
             ret = wc_Afalg_SetIv(CMSG_NXTHDR(&(aes->msg), cmsg),
                     (byte*)(aes->reg), AES_IV_SIZE);
             if (ret != 0) {
@@ -397,6 +405,10 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
                 /* update IV */
                 cmsg = CMSG_FIRSTHDR(&(aes->msg));
+                if (cmsg == NULL) {
+                    WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesCtrEncrypt() returned NULL unexpectedly.");
+                    return SYSLIB_FAILED_E;
+                }
                 ret = wc_Afalg_SetIv(CMSG_NXTHDR(&(aes->msg), cmsg),
                         (byte*)(aes->reg), AES_IV_SIZE);
                 if (ret < 0) {
@@ -501,7 +513,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
 #endif
 
-    if (aes == NULL ||
+    if (aes == NULL || key == NULL ||
             !((len == 16) || (len == 24) || (len == 32))) {
         return BAD_FUNC_ARG;
     }
@@ -613,7 +625,15 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     msg = &(aes->msg);
     cmsg = CMSG_FIRSTHDR(msg);
+    if (cmsg == NULL) {
+        WOLFSSL_MSG("CMSG_FIRSTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
+        return SYSLIB_FAILED_E;
+    }
     cmsg = CMSG_NXTHDR(msg, cmsg);
+    if (cmsg == NULL) {
+        WOLFSSL_MSG("CMSG_NEXTHDR() in wc_AesGcmEncrypt() returned NULL unexpectedly.");
+        return SYSLIB_FAILED_E;
+    }
 
     /* set IV and AAD size */
     ret = wc_Afalg_SetIv(cmsg, (byte*)iv, ivSz);

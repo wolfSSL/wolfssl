@@ -2682,16 +2682,17 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_pkcs7.c
         tests/api/test_pkcs12.c
         tests/api/test_ossl_asn1.c
-        tests/api/test_ossl_bn.c
         tests/api/test_ossl_bio.c
-        tests/api/test_ossl_dgst.c
-        tests/api/test_ossl_mac.c
+        tests/api/test_ossl_bn.c
         tests/api/test_ossl_cipher.c
-        tests/api/test_ossl_rsa.c
         tests/api/test_ossl_dh.c
+        tests/api/test_ossl_dgst.c
+        tests/api/test_ossl_dsa.c
         tests/api/test_ossl_ec.c
         tests/api/test_ossl_ecx.c
-        tests/api/test_ossl_dsa.c
+        tests/api/test_ossl_mac.c
+        tests/api/test_ossl_rsa.c
+        tests/api/test_ossl_sk.c
         tests/api/test_tls13.c
         tests/srp.c
         tests/suites.c

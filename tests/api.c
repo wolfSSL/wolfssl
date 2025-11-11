@@ -227,6 +227,7 @@
 #include <tests/api/test_ossl_ec.h>
 #include <tests/api/test_ossl_ecx.h>
 #include <tests/api/test_ossl_dsa.h>
+#include <tests/api/test_ossl_sk.h>
 #include <tests/api/test_tls13.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
@@ -18848,7 +18849,8 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
 {
     EXPECT_DECLS;
 #ifdef OPENSSL_EXTRA
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && \
+    defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AES_128)
     const char *priv = "ABCDEFGHIJKLMNOP";
     const WOLFSSL_EVP_CIPHER* cipher = EVP_aes_128_cbc();
     WOLFSSL_EVP_PKEY* key = NULL;
@@ -18863,7 +18865,7 @@ static int test_wolfSSL_EVP_PKEY_new_CMAC_key(void)
     ExpectNotNull(key = wolfSSL_EVP_PKEY_new_CMAC_key(
         NULL, (const unsigned char *)priv, AES_128_KEY_SIZE, cipher));
     wolfSSL_EVP_PKEY_free(key);
-#endif /* WOLFSSL_CMAC && !NO_AES && WOLFSSL_AES_DIRECT */
+#endif /* WOLFSSL_CMAC && !NO_AES && WOLFSSL_AES_DIRECT && WOLFSSL_AES_128 */
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -20116,8 +20118,8 @@ static int test_wolfSSL_PKCS7_certs(void)
         while (EXPECT_SUCCESS() && (sk_X509_INFO_num(info_sk) > 0)) {
             X509_INFO* info = NULL;
             ExpectNotNull(info = sk_X509_INFO_shift(info_sk));
-            ExpectIntGT(sk_X509_push(sk, info->x509), 0);
-            if (EXPECT_SUCCESS() && (info != NULL)) {
+            if (info != NULL) {
+                ExpectIntGT(sk_X509_push(sk, info->x509), 0);
                 info->x509 = NULL;
             }
             X509_INFO_free(info);
@@ -20972,13 +20974,14 @@ static int test_wolfSSL_X509_LOOKUP_load_file(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(HAVE_ECC) && \
    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     WOLFSSL_X509_STORE*  store = NULL;
     WOLFSSL_X509_LOOKUP* lookup = NULL;
 
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
     ExpectNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    /* One RSA and one ECC certificate in file. */
     ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/client-ca.pem",
         X509_FILETYPE_PEM), 1);
     ExpectIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/crl/crl2.pem",
@@ -32422,8 +32425,10 @@ static int test_wolfSSL_X509V3_EXT_get(void)
         ExpectIntNE((extNid = ext->obj->nid), NID_undef);
         ExpectNotNull(method = wolfSSL_X509V3_EXT_get(ext));
         ExpectIntEQ(method->ext_nid, extNid);
-        if (method->ext_nid == NID_subject_key_identifier) {
-            ExpectNotNull(method->i2s);
+        if (EXPECT_SUCCESS()) {
+            if (method->ext_nid == NID_subject_key_identifier) {
+                ExpectNotNull(method->i2s);
+            }
         }
     }
 
@@ -36197,7 +36202,8 @@ static int test_sk_X509(void)
 static int test_sk_X509_CRL(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA)
     X509_CRL* crl = NULL;
     XFILE fp = XBADFILE;
     STACK_OF(X509_CRL)* s = NULL;
@@ -36633,7 +36639,7 @@ static int test_X509_REQ(void)
 static int test_wolfSSL_X509_REQ_print(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && !defined(NO_BIO)
     WOLFSSL_X509* req = NULL;
     XFILE fp = XBADFILE;
@@ -36899,6 +36905,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         flags = PKCS7_BINARY | PKCS7_DETACHED;
         ExpectNotNull(p7 = PKCS7_sign(signCert, signKey, NULL, inBio, flags));
         ExpectIntGT((outLen = i2d_PKCS7(p7, &out)), 0);
+        ExpectNotNull(out);
 
         /* verify with wolfCrypt, d2i_PKCS7 does not support detached content */
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -36918,14 +36925,16 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->contentSz = sizeof(data);
         }
         /* test for streaming */
-        ret = -1;
-        for (z = 0; z < outLen && ret != 0; z++) {
-            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
-            if (ret < 0){
-                ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+        if (EXPECT_SUCCESS()) {
+            ret = -1;
+            for (z = 0; z < outLen && ret != 0; z++) {
+                ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+                if (ret < 0){
+                    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+                }
             }
+            ExpectIntEQ(ret, 0);
         }
-        ExpectIntEQ(ret, 0);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
     #endif /* !NO_PKCS7_STREAM */
@@ -36937,7 +36946,6 @@ static int test_wolfSSL_PKCS7_sign(void)
         PKCS7_free(p7Ver);
         p7Ver = NULL;
 
-        ExpectNotNull(out);
         XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         out = NULL;
         PKCS7_free(p7);
@@ -36977,15 +36985,16 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->contentSz = sizeof(data);
         }
         /* test for streaming */
-        ret = -1;
-        for (z = 0; z < outLen && ret != 0; z++) {
-            ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
-            if (ret < 0){
-                ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+        if (EXPECT_SUCCESS()) {
+            ret = -1;
+            for (z = 0; z < outLen && ret != 0; z++) {
+                ret = wc_PKCS7_VerifySignedData(p7Ver, out + z, 1);
+                if (ret < 0){
+                    ExpectIntEQ(ret, WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E));
+                }
             }
+            ExpectIntEQ(ret, 0);
         }
-        ExpectIntEQ(ret, 0);
-        ExpectNotNull(out);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
     #endif /* !NO_PKCS7_STREAM */
@@ -44805,6 +44814,271 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_ED25519 */
     }
+#ifdef WOLF_CRYPTO_CB_COPY
+    else if (info->algo_type == WC_ALGO_TYPE_COPY) {
+    #ifdef DEBUG_WOLFSSL
+        fprintf(stderr, "test_CryptoCb_Func: Copy Algo=%d Type=%d\n",
+                info->copy.algo, info->copy.type);
+    #endif
+        if (info->copy.algo == WC_ALGO_TYPE_HASH) {
+            switch (info->copy.type) {
+    #ifndef NO_SHA
+                case WC_HASH_TYPE_SHA:
+                {
+                    wc_Sha* src = (wc_Sha*)info->copy.src;
+                    wc_Sha* dst = (wc_Sha*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_ShaCopy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA224
+                case WC_HASH_TYPE_SHA224:
+                {
+                    wc_Sha224* src = (wc_Sha224*)info->copy.src;
+                    wc_Sha224* dst = (wc_Sha224*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha224Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #ifndef NO_SHA256
+                case WC_HASH_TYPE_SHA256:
+                {
+                    wc_Sha256* src = (wc_Sha256*)info->copy.src;
+                    wc_Sha256* dst = (wc_Sha256*)info->copy.dst;
+                    /* set devId to invalid, so software is used */
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha256Copy(src, dst);
+
+                    /* reset devId */
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        /* Set the devId of the destination to the same */
+                        /* since we used the software implementation of copy */
+                        /* so dst would have been set to INVALID_DEVID */
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                {
+                    wc_Sha384* src = (wc_Sha384*)info->copy.src;
+                    wc_Sha384* dst = (wc_Sha384*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha384Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                {
+                    wc_Sha512* src = (wc_Sha512*)info->copy.src;
+                    wc_Sha512* dst = (wc_Sha512*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha512Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                case WC_HASH_TYPE_SHA3_224:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_224_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                case WC_HASH_TYPE_SHA3_256:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_256_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+                case WC_HASH_TYPE_SHA3_384:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_384_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                case WC_HASH_TYPE_SHA3_512:
+                {
+                    wc_Sha3* src = (wc_Sha3*)info->copy.src;
+                    wc_Sha3* dst = (wc_Sha3*)info->copy.dst;
+                    src->devId = INVALID_DEVID;
+                    ret = wc_Sha3_512_Copy(src, dst);
+                    src->devId = thisDevId;
+                    if (ret == 0) {
+                        dst->devId = thisDevId;
+                    }
+                    break;
+                }
+    #endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else {
+            ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+    }
+#endif /* WOLF_CRYPTO_CB_COPY */
+#ifdef WOLF_CRYPTO_CB_FREE
+    else if (info->algo_type == WC_ALGO_TYPE_FREE) {
+    #ifdef DEBUG_WOLFSSL
+        fprintf(stderr, "test_CryptoCb_Func: Free Algo=%d Type=%d\n",
+                info->free.algo, info->free.type);
+    #endif
+
+        if (info->free.algo == WC_ALGO_TYPE_HASH) {
+            switch (info->free.type) {
+    #ifndef NO_SHA
+                case WC_HASH_TYPE_SHA:
+                {
+                    wc_Sha* sha = (wc_Sha*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_ShaFree(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA224
+                case WC_HASH_TYPE_SHA224:
+                {
+                    wc_Sha224* sha = (wc_Sha224*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha224Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifndef NO_SHA256
+                case WC_HASH_TYPE_SHA256:
+                {
+                    wc_Sha256* sha = (wc_Sha256*)info->free.obj;
+
+                    /* set devId to invalid, so software is used */
+                    sha->devId = INVALID_DEVID;
+
+                    /* Call the actual free function */
+                    wc_Sha256Free(sha);
+
+                    /* Note: devId doesn't need to be restored as object is freed */
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                {
+                    wc_Sha384* sha = (wc_Sha384*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha384Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                {
+                    wc_Sha512* sha = (wc_Sha512*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha512Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                case WC_HASH_TYPE_SHA3_224:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_224_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                case WC_HASH_TYPE_SHA3_256:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_256_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+                case WC_HASH_TYPE_SHA3_384:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_384_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+    #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                case WC_HASH_TYPE_SHA3_512:
+                {
+                    wc_Sha3* sha = (wc_Sha3*)info->free.obj;
+                    sha->devId = INVALID_DEVID;
+                    wc_Sha3_512_Free(sha);
+                    ret = 0;
+                    break;
+                }
+    #endif
+                default:
+                    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+                    break;
+            }
+        }
+        else {
+            ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+        }
+    }
+#endif /* WOLF_CRYPTO_CB_FREE */
     (void)thisDevId;
     (void)keyFormat;
 
@@ -47860,9 +48134,8 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
     EXPECT_DECLS;
 #if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES) && \
-    defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA384) && \
-    defined(HAVE_NULL_CIPHER) && defined(HAVE_CHACHA) && \
-    defined(HAVE_POLY1305)
+    defined(OPENSSL_EXTRA) && defined(BUILD_TLS_CHACHA20_POLY1305_SHA256) && \
+    defined(HAVE_ECC) && !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
     /* This test should only fail (with BUFFER_ERROR) when we actually try to
      * parse the CA Names extension. Otherwise it will return other non-related
      * errors. If CA Names will be parsed in more configurations, that should
@@ -47870,7 +48143,7 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
     WOLFSSL *ssl_c = NULL;
     WOLFSSL_CTX *ctx_c = NULL;
     struct test_memio_ctx test_ctx;
-    /* HRR + SH using TLS_DHE_PSK_WITH_NULL_SHA384 */
+    /* HRR + SH using TLS_CHACHA20_POLY1305_SHA256 */
     const byte shBadCaNamesExt[] = {
         0x16, 0x03, 0x04, 0x00, 0x3f, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0xcf,
         0x21, 0xad, 0x74, 0xe5, 0x9a, 0x61, 0x11, 0xbe, 0x1d, 0x8c, 0x02, 0x1e,
@@ -47881,7 +48154,7 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         0x5c, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0x03, 0xcf, 0x21, 0xad, 0x74,
         0x00, 0x00, 0x83, 0x3f, 0x3b, 0x80, 0x01, 0xac, 0x65, 0x8c, 0x19, 0x2a,
         0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x02, 0x00, 0x9e, 0x09, 0x1c, 0xe8,
-        0xa8, 0x09, 0x9c, 0x00, 0xc0, 0xb5, 0x00, 0x00, 0x11, 0x8f, 0x00, 0x00,
+        0xa8, 0x09, 0x9c, 0x00, 0x13, 0x03, 0x00, 0x00, 0x11, 0x8f, 0x00, 0x00,
         0x03, 0x3f, 0x00, 0x0c, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, 0x13, 0x05,
         0x00, 0x00, 0x08, 0x00, 0x00, 0x06, 0x00, 0x04, 0x00, 0x09, 0x00, 0x00,
         0x0d, 0x00, 0x00, 0x11, 0x00, 0x00, 0x0d, 0x00, 0x2f, 0x00, 0x01, 0xff,
@@ -47897,7 +48170,7 @@ static int test_TLSX_CA_NAMES_bad_extension(void)
         0x5e, 0x02, 0x00, 0x00, 0x3b, 0x03, 0x03, 0x7f, 0xd0, 0x2d, 0xea, 0x6e,
         0x53, 0xa1, 0x6a, 0xc9, 0xc8, 0x54, 0xef, 0x75, 0xe4, 0xd9, 0xc6, 0x3e,
         0x74, 0xcb, 0x30, 0x80, 0xcc, 0x83, 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0xc0, 0x5a, 0x00, 0xc0, 0xb5, 0x00, 0x00, 0x11, 0x8f, 0x00, 0x00,
+        0x00, 0xc0, 0x5a, 0x00, 0x13, 0x03, 0x00, 0x00, 0x11, 0x8f, 0x00, 0x00,
         0x03, 0x03, 0x00, 0x0c, 0x00, 0x2b, 0x00, 0x02, 0x03, 0x04, 0x53, 0x25,
         0x00, 0x00, 0x08, 0x00, 0x00, 0x06, 0x00, 0x04, 0x02, 0x05, 0x00, 0x00,
         0x0d, 0x00, 0x00, 0x11, 0x00, 0x00, 0x0d, 0x00, 0x2f, 0x00, 0x06, 0x00,
@@ -50599,6 +50872,8 @@ TEST_CASE testCases[] = {
     TEST_OSSL_ASN1_STRING_DECLS,
     TEST_OSSL_ASN1_TIME_DECLS,
     TEST_OSSL_ASN1_TYPE_DECLS,
+
+    TEST_SSL_SK_DECLS,
 
     TEST_DECL(test_wolfSSL_lhash),
 

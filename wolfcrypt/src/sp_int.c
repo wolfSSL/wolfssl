@@ -18272,7 +18272,7 @@ int sp_to_unsigned_bin_len_ct(const sp_int* a, byte* out, int outSz)
                 out[j--] = (byte)(d & mask);
                 d >>= 8;
             }
-            mask &= (sp_int_digit)0 - notFull;
+            mask &= (sp_int_digit)(-(int)notFull);
             i += (unsigned int)(1 & mask);
         }
     }

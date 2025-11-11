@@ -68,6 +68,10 @@ Block counter is located at index 12.
     #define USE_INTEL_CHACHA_SPEEDUP
     #define HAVE_INTEL_AVX1
 #endif
+#elif defined(WOLFSSL_ARMASM)
+    #ifndef NO_CHACHA_ASM
+        #define USE_ARM_CHACHA_SPEEDUP
+    #endif
 #endif
 
 enum {
@@ -82,7 +86,7 @@ typedef struct ChaCha {
     byte extra[12];
 #endif
     word32 left;                            /* number of bytes leftover */
-#if defined(USE_INTEL_CHACHA_SPEEDUP) || defined(WOLFSSL_ARMASM) || \
+#if defined(USE_INTEL_CHACHA_SPEEDUP) || defined(USE_ARM_CHACHA_SPEEDUP) || \
     defined(WOLFSSL_RISCV_ASM)
     word32 over[CHACHA_CHUNK_WORDS];
 #endif
@@ -107,18 +111,15 @@ WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
                                   word32 counter);
 #endif
 
-#if defined(WOLFSSL_ARMASM)
+#if defined(USE_ARM_CHACHA_SPEEDUP)
 
-#ifndef __aarch64__
-void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
-void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
-#endif
+WOLFSSL_LOCAL void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
+WOLFSSL_LOCAL void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
+WOLFSSL_LOCAL void wc_chacha_use_over(byte* over, byte* output,
+    const byte* input, word32 len);
 
-#if defined(WOLFSSL_ARMASM_NO_NEON) || defined(WOLFSSL_ARMASM_THUMB2)
-void wc_chacha_use_over(byte* over, byte* output, const byte* input,
+WOLFSSL_LOCAL void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m,
     word32 len);
-void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m, word32 len);
-#endif
 
 #endif
 

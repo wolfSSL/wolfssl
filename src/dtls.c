@@ -732,8 +732,13 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
 
         /* Ask the user for the ciphersuite matching this identity */
         if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
-                tlsx.elements, (word16)tlsx.size, ssl->heap) == 0)
+                tlsx.elements, (word16)tlsx.size, ssl->heap) == 0) {
+            /* suites only needs to be refined when searching for a PSK.
+             * MatchSuite_ex handles refining internally. */
+            refineSuites(WOLFSSL_SUITES(ssl), &suites, &suites,
+                    ssl->options.useClientOrder);
             FindPskSuiteFromExt(ssl, parsedExts, &pskInfo, &suites);
+        }
         /* Revert to full handshake if PSK parsing failed */
 
         if (pskInfo.isValid) {
@@ -753,8 +758,9 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
                     ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
                 doKE = 1;
             }
-            else if ((modes & (1 << PSK_KE)) == 0) {
-                    ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
+            else if ((modes & (1 << PSK_KE)) == 0 ||
+                    ssl->options.onlyPskDheKe) {
+                ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
             }
             usePSK = 1;
         }

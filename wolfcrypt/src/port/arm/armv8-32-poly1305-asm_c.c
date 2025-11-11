@@ -309,7 +309,6 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
 #else
     register word32* L_poly1305_arm32_clamp_c =
         (word32*)&L_poly1305_arm32_clamp;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1153,7 +1152,6 @@ WC_OMIT_FRAME_POINTER void poly1305_set_key(Poly1305* ctx, const byte* key)
 #else
     register word32* L_poly1305_arm32_clamp_c =
         (word32*)&L_poly1305_arm32_clamp;
-
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

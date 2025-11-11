@@ -135,7 +135,7 @@ int mem_fail_allocs = 0;
 int mem_fail_frees = 0;
 int mem_fail_cnt = 0;
 
-void wc_MemFailCount_Init()
+void wc_MemFailCount_Init(void)
 {
     char* cnt;
 #ifndef WOLFSSL_MUTEX_INITIALIZER
@@ -168,7 +168,7 @@ static void wc_MemFailCount_FreeMem(void)
     mem_fail_frees++;
     wc_UnLockMutex(&memFailMutex);
 }
-void wc_MemFailCount_Free()
+void wc_MemFailCount_Free(void)
 {
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     wc_FreeMutex(&memFailMutex);
@@ -1549,7 +1549,7 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
 #endif
 
     if (malloc_function) {
-#ifndef WOLFSSL_STATIC_MEMORY
+#if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
         p32 = malloc_function(n + sizeof(word32) * 4);
 #else
         p32 = malloc_function(n + sizeof(word32) * 4, heap, type);
@@ -1592,7 +1592,7 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
     }
 
     if (realloc_function) {
-#ifndef WOLFSSL_STATIC_MEMORY
+#if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
         p32 = realloc_function(oldp32, n + sizeof(word32) * 4);
 #else
         p32 = realloc_function(oldp32, n + sizeof(word32) * 4, heap, type);
@@ -1638,7 +1638,7 @@ void xfree(void *p, void* heap, int type, const char* func, const char* file,
                                                               func, file, line);
 
         if (free_function) {
-#ifndef WOLFSSL_STATIC_MEMORY
+#if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_DEBUG_MEMORY)
             free_function(p32);
 #else
             free_function(p32, heap, type);

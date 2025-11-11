@@ -10470,7 +10470,7 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 {
     const byte* adj;
 
-    if (ssl->hsHashes == NULL)
+    if ((ssl->hsHashes == NULL) || (output == NULL))
         return BAD_FUNC_ARG;
 
     adj = output + RECORD_HEADER_SZ + ivSz;
@@ -11192,7 +11192,7 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 #else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
 #endif
-    word32 newSz;
+    word32 newSz = 0;
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
@@ -22842,8 +22842,8 @@ default:
                                    exit */
                                 ssl->earlyData = no_early_data;
                                 ssl->options.processReply = doProcessInit;
-
-                                return ZERO_RETURN;
+                                if (ssl->options.clientInEarlyData)
+                                    return APP_DATA_READY;
                             }
 #endif /* WOLFSSL_EARLY_DATA */
                             if (ret == 0 ||
@@ -22889,7 +22889,8 @@ default:
                                 ssl->options.handShakeState == HANDSHAKE_DONE) {
                             ssl->earlyData = no_early_data;
                             ssl->options.processReply = doProcessInit;
-                            return ZERO_RETURN;
+                            if (ssl->options.clientInEarlyData)
+                                return APP_DATA_READY;
                         }
     #endif
 #else
@@ -33196,6 +33197,196 @@ static void FreeSckeArgs(WOLFSSL* ssl, void* pArgs)
     XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     args->input = NULL;
 }
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
+static int EcExportHsKey(WOLFSSL* ssl, byte* out, word32* len)
+{
+    int ret = 0;
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+    #ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->X25519SharedSecretCb != NULL)
+            return 0;
+    #endif
+        if (wc_curve25519_export_public_ex((curve25519_key*)ssl->hsKey,
+                           out + OPAQUE8_LEN, len, EC25519_LITTLE_ENDIAN))
+            ret = ECC_EXPORT_ERROR;
+    } else
+#endif
+#ifdef HAVE_CURVE448
+    if (ssl->ecdhCurveOID == ECC_X448_OID) {
+    #ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->X448SharedSecretCb != NULL)
+            return 0;
+    #endif
+        if (wc_curve448_export_public_ex((curve448_key*)ssl->hsKey,
+                             out + OPAQUE8_LEN, len, EC448_LITTLE_ENDIAN))
+            ret = ECC_EXPORT_ERROR;
+    } else
+#endif
+    {
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->EccSharedSecretCb != NULL)
+            return 0;
+#endif
+        /* Place ECC key in output buffer, leaving room for size */
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey, out + OPAQUE8_LEN, len);
+        PRIVATE_KEY_LOCK();
+        if (ret != 0)
+            ret = ECC_EXPORT_ERROR;
+#endif
+    }
+    return ret;
+}
+#endif /*HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448*/
+
+#ifndef NO_PSK
+static int AddPSKtoPreMasterSecret(WOLFSSL* ssl)
+{
+    int ret = 0;
+    /* Use the PSK hint to look up the PSK and add it to the
+     * preMasterSecret here. */
+    ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+        ssl->arrays->client_identity, ssl->arrays->psk_key,
+        MAX_PSK_KEY_LEN);
+
+    if (ssl->arrays->psk_keySz == 0 ||
+        (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
+    (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
+    #if defined(WOLFSSL_EXTRA_ALERTS) || defined(WOLFSSL_PSK_IDENTITY_ALERT)
+        SendAlert(ssl, alert_fatal, unknown_psk_identity);
+    #endif
+        ret = 1;
+    }
+    if (ret == 0)
+        /* Pre-shared Key for peer authentication. */
+        ssl->options.peerAuthGood = 1;
+    return ret;
+}
+
+static void MakePSKPreMasterSecret(Arrays* arrays, byte use_psk_key)
+{
+    byte* pms = arrays->preMasterSecret;
+    word16 sz;
+
+    /* sz + (use_psk_key ? sz 0s : sz unaltered) + length of psk + psk */
+    if (!use_psk_key) {
+        sz = (word16)arrays->preMasterSz;
+        c16toa(sz, pms);
+        pms += OPAQUE16_LEN + sz;
+    }
+    if ((int)arrays->psk_keySz > 0) {
+        if (use_psk_key) {
+            sz = (word16)arrays->psk_keySz;
+            c16toa(sz, pms);
+            pms += OPAQUE16_LEN;
+            XMEMSET(pms, 0, sz);
+            pms += sz;
+        }
+        c16toa(arrays->psk_keySz, pms);
+        pms += OPAQUE16_LEN;
+        XMEMCPY(pms, arrays->psk_key, arrays->psk_keySz);
+        arrays->preMasterSz = sz + arrays->psk_keySz + OPAQUE16_LEN * 2;
+        ForceZero(arrays->psk_key, arrays->psk_keySz);
+    }
+    arrays->psk_keySz = 0; /* no further need */
+}
+#endif /*!NO_PSK*/
+
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
+static int EcMakeKey(WOLFSSL* ssl)
+{
+    int ret = 0;
+#ifdef HAVE_ECC
+    int kea = ssl->specs.kea;
+    ecc_key* peerKey;
+#endif
+#ifdef HAVE_CURVE25519
+    if (ssl->peerX25519KeyPresent) {
+        /* Check client ECC public key */
+        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
+            return NO_PEER_KEY;
+        }
+        /* if callback then use it for shared secret */
+    #ifdef HAVE_PK_CALLBACKS
+        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+            if (ssl->ctx->X25519SharedSecretCb != NULL)
+                return 0;
+        }
+    #endif
+        /* create private key */
+        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
+        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
+                            ssl->peerX25519Key);
+        return ret;
+    }
+#endif
+#ifdef HAVE_CURVE448
+    if (ssl->peerX448KeyPresent) {
+        /* Check client ECC public key */
+        if (!ssl->peerX448Key) {
+            return NO_PEER_KEY;
+        }
+    #ifdef HAVE_PK_CALLBACKS
+        if (ssl->ecdhCurveOID == ECC_X448_OID) {
+            if (ssl->ctx->X448SharedSecretCb != NULL)
+                return 0;
+        }
+    #endif
+        /* create private key */
+        ssl->hsType = DYNAMIC_TYPE_CURVE448;
+        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
+                          ssl->peerX448Key);
+        return ret;
+    }
+#endif
+#ifdef HAVE_ECC
+    if (kea == ecc_diffie_hellman_kea && ssl->specs.static_ecdh) {
+        /* Note: EccDsa is really fixed Ecc key here */
+        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent) {
+            return NO_PEER_KEY;
+        }
+        peerKey = ssl->peerEccDsaKey;
+    }
+    else {
+        /* Check client ECC public key */
+        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
+                                !ssl->peerEccKey->dp) {
+            return NO_PEER_KEY;
+        }
+        peerKey = ssl->peerEccKey;
+    }
+    if (peerKey == NULL) {
+        return NO_PEER_KEY;
+    }
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->EccSharedSecretCb != NULL) {
+        return 0;
+    }
+#endif /* HAVE_PK_CALLBACKS*/
+    /* create ephemeral private key */
+    ssl->hsType = DYNAMIC_TYPE_ECC;
+    ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, ssl->peerEccKey);
+#endif /*HAVE_ECC*/
+    return ret;
+}
+#endif /*defined(HAVE_ECC)||defined(HAVE_CURVE25519)||defined(HAVE_CURVE448)*/
 
 /* handle generation client_key_exchange (16) */
 int SendClientKeyExchange(WOLFSSL* ssl)
@@ -33310,181 +33501,18 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         WOLFSSL_MSG("No client PSK callback set");
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->peerX25519KeyPresent) {
-                        /* Check client ECC public key */
-                        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
-                        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
-                                            ssl->peerX25519Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->peerX448KeyPresent) {
-                        /* Check client ECC public key */
-                        if (!ssl->peerX448Key) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE448;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
-                                          ssl->peerX448Key);
-                        break;
-                    }
-                #endif
-                    /* Check client ECC public key */
-                    if (!ssl->peerEccKey || !ssl->peerEccKeyPresent ||
-                                            !ssl->peerEccKey->dp) {
-                        ERROR_OUT(NO_PEER_KEY, exit_scke);
-                    }
-
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* create ephemeral private key */
-                    ssl->hsType = DYNAMIC_TYPE_ECC;
-                    ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, ssl->peerEccKey);
-
+                    ret = EcMakeKey(ssl);
+                    if (ret)
+                        ERROR_OUT(ret, exit_scke);
                     break;
-            #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
+            #endif /* (HAVE_ECC||HAVE_CURVE25519||HAVE_CURVE448) && !NO_PSK */
             #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
                 case ecc_diffie_hellman_kea:
                 {
-                #ifdef HAVE_ECC
-                    ecc_key* peerKey;
-                #endif
-
-            #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->ctx->X25519SharedSecretCb != NULL)
-                            break;
-                    }
-                    else
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        if (ssl->ctx->X448SharedSecretCb != NULL)
-                            break;
-                    }
-                    else
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                    else
-                #endif
-                    {
-                    }
-            #endif /* HAVE_PK_CALLBACKS */
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->peerX25519KeyPresent) {
-                        if (!ssl->peerX25519Key || !ssl->peerX25519Key->dp) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE25519;
-                        ret = AllocKey(ssl, (int)(ssl->hsType), &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X25519MakeKey(ssl, (curve25519_key*)ssl->hsKey,
-                                            ssl->peerX25519Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->peerX448KeyPresent) {
-                        if (!ssl->peerX448Key) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-
-                        /* create private key */
-                        ssl->hsType = DYNAMIC_TYPE_CURVE448;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                        if (ret != 0) {
-                            goto exit_scke;
-                        }
-
-                        ret = X448MakeKey(ssl, (curve448_key*)ssl->hsKey,
-                                          ssl->peerX448Key);
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_ECC
-                    if (ssl->specs.static_ecdh) {
-                        /* Note: EccDsa is really fixed Ecc key here */
-                        if (!ssl->peerEccDsaKey || !ssl->peerEccDsaKeyPresent) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-                        peerKey = ssl->peerEccDsaKey;
-                    }
-                    else {
-                        if (!ssl->peerEccKey || !ssl->peerEccKeyPresent) {
-                            ERROR_OUT(NO_PEER_KEY, exit_scke);
-                        }
-                        peerKey = ssl->peerEccKey;
-                    }
-                    if (peerKey == NULL) {
-                        ERROR_OUT(NO_PEER_KEY, exit_scke);
-                    }
-
-                    /* create ephemeral private key */
-                    ssl->hsType = DYNAMIC_TYPE_ECC;
-                    ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
-
-                    ret = EccMakeKey(ssl, (ecc_key*)ssl->hsKey, peerKey);
-                #endif /* HAVE_ECC */
-
+                    ret = EcMakeKey(ssl);
+                    if (ret)
+                        ERROR_OUT(ret, exit_scke);
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
@@ -33626,7 +33654,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_PSK
                 case psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
                     ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
@@ -33645,24 +33672,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     XMEMCPY(args->encSecret, ssl->arrays->client_identity,
                             args->encSz);
                     ssl->options.peerAuthGood = 1;
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        /* CLIENT: Pre-shared Key for peer authentication. */
-
-                        /* make psk pre master secret */
-                        /* length of key + length 0s + length of key + key */
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-                        pms += ssl->arrays->psk_keySz;
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key,
-                                ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2)
-                                                   + (2 * OPAQUE16_LEN);
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    MakePSKPreMasterSecret(ssl->arrays, 1);
                     break;
                 }
             #endif /* !NO_PSK */
@@ -33785,63 +33795,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* Create shared ECC key leaving room at the beginning
                      * of buffer for size of shared key. */
                     ssl->arrays->preMasterSz = ENCRYPT_LEN - OPAQUE16_LEN;
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve25519_export_public_ex(
-                                (curve25519_key*)ssl->hsKey,
-                                args->output + OPAQUE8_LEN, &args->length,
-                                EC25519_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve448_export_public_ex(
-                                (curve448_key*)ssl->hsKey,
-                                args->output + OPAQUE8_LEN, &args->length,
-                                EC448_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* Place ECC key in output buffer, leaving room for size */
-                    PRIVATE_KEY_UNLOCK();
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
-                                    args->output + OPAQUE8_LEN, &args->length);
-                    PRIVATE_KEY_LOCK();
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                    }
-
+                    ret = EcExportHsKey(ssl, args->output, &args->length);
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
@@ -33850,64 +33804,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case ecc_diffie_hellman_kea:
                 {
                     ssl->arrays->preMasterSz = ENCRYPT_LEN;
-
-                #ifdef HAVE_CURVE25519
-                    if (ssl->hsType == DYNAMIC_TYPE_CURVE25519) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve25519_export_public_ex(
-                                (curve25519_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz,
-                                EC25519_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #ifdef HAVE_CURVE448
-                    if (ssl->hsType == DYNAMIC_TYPE_CURVE448) {
-                    #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->X448SharedSecretCb != NULL) {
-                            break;
-                        }
-                    #endif
-
-                        ret = wc_curve448_export_public_ex(
-                                (curve448_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz,
-                                EC448_LITTLE_ENDIAN);
-                        if (ret != 0) {
-                            ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                        }
-
-                        break;
-                    }
-                #endif
-                #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
-                #ifdef HAVE_PK_CALLBACKS
-                    /* if callback then use it for shared secret */
-                    if (ssl->ctx->EccSharedSecretCb != NULL) {
-                        break;
-                    }
-                #endif
-
-                    /* Place ECC key in buffer, leaving room for size */
-                    PRIVATE_KEY_UNLOCK();
-                    ret = wc_ecc_export_x963((ecc_key*)ssl->hsKey,
-                                args->encSecret + OPAQUE8_LEN, &args->encSz);
-                    PRIVATE_KEY_LOCK();
-                    if (ret != 0) {
-                        ERROR_OUT(ECC_EXPORT_ERROR, exit_scke);
-                    }
-                #endif /* HAVE_ECC */
+                    ret = EcExportHsKey(ssl, args->encSecret, &args->encSz);
                     break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
@@ -33987,9 +33884,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
-                        ret = X25519SharedSecret(ssl,
+                        ret = X25519SharedSecret(
+                            ssl,
                             (curve25519_key*)ssl->hsKey, ssl->peerX25519Key,
-                            args->output + OPAQUE8_LEN, &args->length,
+                            args->output ? args->output + OPAQUE8_LEN : NULL,
+                            &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34008,9 +33907,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
                 #ifdef HAVE_CURVE448
                     if (ssl->peerX448KeyPresent) {
-                        ret = X448SharedSecret(ssl,
+                        ret = X448SharedSecret(
+                            ssl,
                             (curve448_key*)ssl->hsKey, ssl->peerX448Key,
-                            args->output + OPAQUE8_LEN, &args->length,
+                            args->output ? args->output + OPAQUE8_LEN : NULL,
+                            &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34027,9 +33928,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
-                    ret = EccSharedSecret(ssl,
+                    ret = EccSharedSecret(
+                        ssl,
                         (ecc_key*)ssl->hsKey, ssl->peerEccKey,
-                        args->output + OPAQUE8_LEN, &args->length,
+                        args->output ? args->output + OPAQUE8_LEN : NULL,
+                        &args->length,
                         ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                         &ssl->arrays->preMasterSz,
                         WOLFSSL_CLIENT_END
@@ -34055,9 +33958,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
-                        ret = X25519SharedSecret(ssl,
+                        ret = X25519SharedSecret(
+                            ssl,
                             (curve25519_key*)ssl->hsKey, ssl->peerX25519Key,
-                            args->encSecret + OPAQUE8_LEN, &args->encSz,
+                            args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                            &args->encSz,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34076,9 +33981,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #endif
                 #ifdef HAVE_CURVE448
                     if (ssl->peerX448KeyPresent) {
-                        ret = X448SharedSecret(ssl,
+                        ret = X448SharedSecret(
+                            ssl,
                             (curve448_key*)ssl->hsKey, ssl->peerX448Key,
-                            args->encSecret + OPAQUE8_LEN, &args->encSz,
+                            args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                            &args->encSz,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
@@ -34099,12 +34006,14 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     peerKey = (ssl->specs.static_ecdh) ?
                               ssl->peerEccDsaKey : ssl->peerEccKey;
 
-                    ret = EccSharedSecret(ssl,
-                              (ecc_key*)ssl->hsKey, peerKey,
-                              args->encSecret + OPAQUE8_LEN, &args->encSz,
-                              ssl->arrays->preMasterSecret,
-                              &ssl->arrays->preMasterSz,
-                              WOLFSSL_CLIENT_END);
+                    ret = EccSharedSecret(
+                        ssl,
+                        (ecc_key*)ssl->hsKey, peerKey,
+                        args->encSecret ? args->encSecret + OPAQUE8_LEN : NULL,
+                        &args->encSz,
+                        ssl->arrays->preMasterSecret,
+                        &ssl->arrays->preMasterSz,
+                        WOLFSSL_CLIENT_END);
 
                     if (!ssl->specs.static_ecdh
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -34160,8 +34069,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #if !defined(NO_DH) && !defined(NO_PSK)
                 case dhe_psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
-
                     /* validate args */
                     if (args->output == NULL || args->length == 0) {
                         ERROR_OUT(BAD_FUNC_ARG, exit_scke);
@@ -34169,21 +34076,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     c16toa((word16)args->length, args->output);
                     args->encSz += args->length + OPAQUE16_LEN;
-                    c16toa((word16)ssl->arrays->preMasterSz, pms);
-                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                    pms += ssl->arrays->preMasterSz;
 
-                    /* make psk pre master secret */
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        /* length of key + length 0s + length of key + key */
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz +=
-                                            ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    MakePSKPreMasterSecret(ssl->arrays, 0);
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
@@ -34191,8 +34085,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
-                    byte* pms = ssl->arrays->preMasterSecret;
-
                     /* validate args */
                     if (args->output == NULL || args->length > ENCRYPT_LEN) {
                         ERROR_OUT(BAD_FUNC_ARG, exit_scke);
@@ -34204,19 +34096,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* Create pre master secret is the concatenation of
                      * eccSize + eccSharedKey + pskSize + pskKey */
-                    c16toa((word16)ssl->arrays->preMasterSz, pms);
-                    ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                    pms += ssl->arrays->preMasterSz;
-
-                    if ((int)ssl->arrays->psk_keySz > 0) {
-                        c16toa((word16)ssl->arrays->psk_keySz, pms);
-                        pms += OPAQUE16_LEN;
-                        XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-
-                        ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                    }
-                    ssl->arrays->psk_keySz = 0; /* No further need */
+                    MakePSKPreMasterSecret(ssl->arrays, 0);
                     break;
                 }
             #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) && !NO_PSK */
@@ -37404,6 +37284,74 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_TLS13 */
 
         return 1;
+    }
+
+    void refineSuites(const Suites* sslSuites, const Suites* peerSuites,
+            Suites* outSuites, byte useClientOrder)
+    {
+        byte   suites[WOLFSSL_MAX_SUITE_SZ];
+        word16 suiteSz = 0;
+        word16 i;
+        word16 j;
+
+        XMEMSET(suites, 0, sizeof(suites));
+
+        if (!useClientOrder) {
+            /* Server order refining. */
+            for (i = 0; i < sslSuites->suiteSz; i += 2) {
+                for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                    if ((sslSuites->suites[i+0] == peerSuites->suites[j+0]) &&
+                        (sslSuites->suites[i+1] == peerSuites->suites[j+1])) {
+                        suites[suiteSz++] = peerSuites->suites[j+0];
+                        suites[suiteSz++] = peerSuites->suites[j+1];
+                        break;
+                    }
+                }
+                if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                    break;
+            }
+        }
+        else {
+            /* Client order refining. */
+            for (j = 0; j < peerSuites->suiteSz; j += 2) {
+                for (i = 0; i < sslSuites->suiteSz; i += 2) {
+                    if ((sslSuites->suites[i+0] == peerSuites->suites[j+0]) &&
+                        (sslSuites->suites[i+1] == peerSuites->suites[j+1])) {
+                        suites[suiteSz++] = peerSuites->suites[j+0];
+                        suites[suiteSz++] = peerSuites->suites[j+1];
+                        break;
+                    }
+                }
+                if (suiteSz == WOLFSSL_MAX_SUITE_SZ)
+                    break;
+            }
+        }
+
+        outSuites->suiteSz = suiteSz;
+        XMEMCPY(outSuites->suites, &suites, sizeof(suites));
+    #ifdef WOLFSSL_DEBUG_TLS
+        {
+            int ii;
+            WOLFSSL_MSG("Refined Ciphers:");
+            for (ii = 0 ; ii < suites->suiteSz; ii += 2) {
+                WOLFSSL_MSG(GetCipherNameInternal(suites->suites[ii+0],
+                                                  suites->suites[ii+1]));
+            }
+        }
+    #endif
+    }
+
+    /* Refine list of supported cipher suites to those common to server and client.
+     *
+     * ssl         SSL/TLS object.
+     * peerSuites  The peer's advertised list of supported cipher suites.
+     */
+    void sslRefineSuites(WOLFSSL* ssl, Suites* peerSuites)
+    {
+        if (AllocateSuites(ssl) != 0)
+            return;
+        refineSuites(ssl->suites, peerSuites, ssl->suites,
+                (byte)ssl->options.useClientOrder);
     }
 
     static int CompareSuites(const WOLFSSL* ssl, const Suites* suites,
@@ -40773,6 +40721,198 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         (void)args;
     }
 
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                             defined(HAVE_CURVE448)
+    static int ImportPeerECCKey(WOLFSSL* ssl, byte* input, DckeArgs* args,
+                                word32 size, ecc_key* private_key, byte* haveCb)
+    {
+        int ret;
+        int kea = ssl->specs.kea;
+
+        *haveCb = 0;
+        if ((args->idx - args->begin) + OPAQUE8_LEN > size)
+            return BUFFER_ERROR;
+
+        args->length = input[args->idx++];
+
+        if ((args->idx - args->begin) + args->length > size)
+            return BUFFER_ERROR;
+
+        if (kea == ecdhe_psk_kea)
+            args->sigSz = ENCRYPT_LEN - OPAQUE16_LEN;
+
+    #ifdef HAVE_CURVE25519
+        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
+        #ifdef HAVE_PK_CALLBACKS
+            /* if callback then use it for shared secret */
+            if (ssl->ctx->X25519SharedSecretCb != NULL) {
+                *haveCb = 1;
+                return 0;
+            }
+        #endif
+
+            if (kea == ecdhe_psk_kea && ssl->eccTempKeyPresent == 0) {
+                WOLFSSL_MSG("X25519 ephemeral key not made correctly");
+                return ECC_MAKEKEY_ERROR;
+            }
+
+            if (ssl->peerX25519Key == NULL) {
+                /* alloc/init on demand */
+                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                               (void**)&ssl->peerX25519Key);
+                if (ret != 0) {
+                    return ret;
+                }
+            } else if (ssl->peerX25519KeyPresent) {
+                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                               ssl->peerX25519Key);
+                ssl->peerX25519KeyPresent = 0;
+                if (ret != 0) {
+                    return ret;
+                }
+            }
+
+            if ((ret = wc_curve25519_check_public(input + args->idx,
+                                   args->length, EC25519_LITTLE_ENDIAN)) != 0) {
+            #ifdef WOLFSSL_EXTRA_ALERTS
+                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                    SendAlert(ssl, alert_fatal, decode_error);
+                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                else {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                }
+            #else
+                (void)ret;
+            #endif
+                return ECC_PEERKEY_ERROR;
+            }
+
+            if (wc_curve25519_import_public_ex(input + args->idx, args->length,
+                               ssl->peerX25519Key, EC25519_LITTLE_ENDIAN)) {
+             #ifdef WOLFSSL_EXTRA_ALERTS
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+             #endif
+                return ECC_PEERKEY_ERROR;
+            }
+            if (kea == ecc_diffie_hellman_kea)
+                ssl->arrays->preMasterSz = CURVE25519_KEYSIZE;
+
+            ssl->peerX25519KeyPresent = 1;
+            return 0;
+        }
+    #endif
+    #ifdef HAVE_CURVE448
+        if (ssl->ecdhCurveOID == ECC_X448_OID) {
+        #ifdef HAVE_PK_CALLBACKS
+            /* if callback then use it for shared secret */
+            if (ssl->ctx->X448SharedSecretCb != NULL) {
+                *haveCb = 1;
+                return 0;
+            }
+        #endif
+
+            if (kea == ecdhe_psk_kea && ssl->eccTempKeyPresent == 0) {
+                WOLFSSL_MSG("X448 ephemeral key not made correctly");
+                return ECC_MAKEKEY_ERROR;
+            }
+
+            if (ssl->peerX448Key == NULL) {
+                /* alloc/init on demand */
+                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
+                               (void**)&ssl->peerX448Key);
+                if (ret != 0)
+                    return ret;
+            } else if (ssl->peerX448KeyPresent) {
+                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
+                               ssl->peerX448Key);
+                ssl->peerX448KeyPresent = 0;
+                if (ret != 0)
+                    return ret;
+            }
+
+            if ((ret = wc_curve448_check_public(input + args->idx, args->length,
+                                                EC448_LITTLE_ENDIAN)) != 0) {
+            #ifdef WOLFSSL_EXTRA_ALERTS
+                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
+                    SendAlert(ssl, alert_fatal, decode_error);
+                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
+                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                else {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                }
+            #else
+                (void)ret;
+            #endif
+                return ECC_PEERKEY_ERROR;
+            }
+
+            if (wc_curve448_import_public_ex(input + args->idx, args->length,
+                                    ssl->peerX448Key, EC448_LITTLE_ENDIAN)) {
+            #ifdef WOLFSSL_EXTRA_ALERTS
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+            #endif
+
+                return ECC_PEERKEY_ERROR;
+            }
+
+            if (kea == ecc_diffie_hellman_kea)
+                ssl->arrays->preMasterSz = CURVE448_KEY_SIZE;
+
+            ssl->peerX448KeyPresent = 1;
+
+            return 0;
+        }
+    #endif
+    #ifdef HAVE_ECC
+    #ifdef HAVE_PK_CALLBACKS
+        /* if callback then use it for shared secret */
+        if (ssl->ctx->EccSharedSecretCb != NULL) {
+            *haveCb = 1;
+            return 0;
+        }
+    #endif
+
+        if (ssl->eccTempKeyPresent == 0 &&
+            (kea == ecdhe_psk_kea || !ssl->specs.static_ecdh)) {
+            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
+            return ECC_MAKEKEY_ERROR;
+        }
+
+        if (ssl->peerEccKey == NULL) {
+            /* alloc/init on demand */
+            ret = AllocKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
+            if (ret != 0)
+                return ret;
+        }
+        else if (ssl->peerEccKeyPresent) {
+            ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
+            ssl->peerEccKeyPresent = 0;
+            if (ret != 0)
+                return ret;
+        }
+        if (wc_ecc_import_x963_ex(input + args->idx, args->length,
+                 ssl->peerEccKey, kea == ecdhe_psk_kea ? ssl->eccTempKey->dp->id
+                                                       : private_key->dp->id)) {
+        #ifdef WOLFSSL_EXTRA_ALERTS
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+        #endif
+
+            return ECC_PEERKEY_ERROR;
+        }
+
+        if (kea == ecc_diffie_hellman_kea)
+            ssl->arrays->preMasterSz = (word32)private_key->dp->size;
+
+        ssl->peerEccKeyPresent = 1;
+    #else
+        (void)private_key;
+    #endif /* HAVE_ECC */
+        return 0;
+    }
+    #endif /* defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                   defined(HAVE_CURVE448) */
+
     /* handle processing client_key_exchange (16) */
     static int DoClientKeyExchange(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                                     word32 size)
@@ -40999,7 +41139,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #ifndef NO_PSK
                     case psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 ci_sz;
 
                         if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -41020,42 +41159,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         XMEMCPY(ssl->arrays->client_identity,
                                                     input + args->idx, ci_sz);
                         args->idx += ci_sz;
-
                         ssl->arrays->client_identity[ci_sz] = '\0'; /* null term */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
-                        #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                            defined(WOLFSSL_PSK_IDENTITY_ALERT)
-                            SendAlert(ssl, alert_fatal,
-                                    unknown_psk_identity);
-                        #endif
+                        if (AddPSKtoPreMasterSecret(ssl))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-
-                        /* make psk pre master secret */
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            /* length of key + length 0s + length of key + key */
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMSET(pms, 0, ssl->arrays->psk_keySz);
-                            pms += ssl->arrays->psk_keySz;
-
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz = (ssl->arrays->psk_keySz * 2) +
-                                (OPAQUE16_LEN * 2);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
+                        MakePSKPreMasterSecret(ssl->arrays, 1);
                         break;
                     }
                 #endif /* !NO_PSK */
@@ -41063,8 +41170,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                                                           defined(HAVE_CURVE448)
                     case ecc_diffie_hellman_kea:
                     {
+                        ecc_key* private_key = NULL;
+                        byte haveCb;
                     #ifdef HAVE_ECC
-                        ecc_key* private_key = ssl->eccTempKey;
+                        private_key = ssl->eccTempKey;
 
                         /* handle static private key */
                         if (ssl->specs.static_ecdh &&
@@ -41081,173 +41190,17 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         }
                     #endif
 
-                        /* import peer ECC key */
-                        if ((args->idx - args->begin) + OPAQUE8_LEN > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        args->length = input[args->idx++];
-
-                        if ((args->idx - args->begin) + args->length > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            /* if callback then use it for shared secret */
-                            if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                                break;
-                            }
-                        #endif
-                            if (ssl->peerX25519Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                    (void**)&ssl->peerX25519Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX25519KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                               ssl->peerX25519Key);
-                                ssl->peerX25519KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
-
-                            if ((ret = wc_curve25519_check_public(
-                                    input + args->idx, args->length,
-                                    EC25519_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                    SendAlert(ssl, alert_fatal, decode_error);
-                                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                                else {
-                                    SendAlert(ssl, alert_fatal,
-                                                             illegal_parameter);
-                                }
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            if (wc_curve25519_import_public_ex(
-                                    input + args->idx, args->length,
-                                    ssl->peerX25519Key,
-                                    EC25519_LITTLE_ENDIAN)) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            ssl->arrays->preMasterSz = CURVE25519_KEYSIZE;
-
-                            ssl->peerX25519KeyPresent = 1;
-
-                            break;
-                        }
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            /* if callback then use it for shared secret */
-                            if (ssl->ctx->X448SharedSecretCb != NULL) {
-                                break;
-                            }
-                        #endif
-                            if (ssl->peerX448Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                    (void**)&ssl->peerX448Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX448KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                               ssl->peerX448Key);
-                                ssl->peerX448KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
-
-                            if ((ret = wc_curve448_check_public(
-                                    input + args->idx, args->length,
-                                    EC448_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                    SendAlert(ssl, alert_fatal, decode_error);
-                                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                                else {
-                                    SendAlert(ssl, alert_fatal,
-                                                             illegal_parameter);
-                                }
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            if (wc_curve448_import_public_ex(
-                                    input + args->idx, args->length,
-                                    ssl->peerX448Key,
-                                    EC448_LITTLE_ENDIAN)) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                SendAlert(ssl, alert_fatal, illegal_parameter);
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            ssl->arrays->preMasterSz = CURVE448_KEY_SIZE;
-
-                            ssl->peerX448KeyPresent = 1;
-
-                            break;
-                        }
-                    #endif
-                #ifdef HAVE_ECC
+                        if ((ret = ImportPeerECCKey(ssl, input, args, size,
+                                                    private_key, &haveCb)))
+                            ERROR_OUT(ret, exit_dcke);
                     #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->EccSharedSecretCb != NULL) {
+                        if (haveCb) {
+                            WOLFSSL_MSG("Using PK callback for peer key");
                             break;
                         }
+                    #else
+                        (void)haveCb; /* not used */
                     #endif
-
-                        if (!ssl->specs.static_ecdh &&
-                            ssl->eccTempKeyPresent == 0) {
-                            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                            ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
-                        }
-
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                (void**)&ssl->peerEccKey);
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        } else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
-                                           ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
-
-                        if (wc_ecc_import_x963_ex(input + args->idx,
-                                                  args->length, ssl->peerEccKey,
-                                                  private_key->dp->id)) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                            SendAlert(ssl, alert_fatal, illegal_parameter);
-                        #endif
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                        }
-
-                        ssl->arrays->preMasterSz = (word32)private_key->dp->size;
-
-                        ssl->peerEccKeyPresent = 1;
 
                     #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                         /* client_hello may have sent FFEDH2048, which sets namedGroup,
@@ -41255,8 +41208,6 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         /* resolves issue with server side wolfSSL_get_curve_name */
                         ssl->namedGroup = 0;
                     #endif
-                #endif /* HAVE_ECC */
-
                         break;
                     }
                 #endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
@@ -41354,6 +41305,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                     case ecdhe_psk_kea:
                     {
                         word16 clientSz;
+                        byte haveCb;
 
                         /* Read in the PSK hint */
                         if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -41374,172 +41326,17 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         args->idx += clientSz;
                         ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
 
-                        /* import peer ECC key */
-                        if ((args->idx - args->begin) + OPAQUE8_LEN > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        args->length = input[args->idx++];
-
-                        if ((args->idx - args->begin) + args->length > size) {
-                            ERROR_OUT(BUFFER_ERROR, exit_dcke);
-                        }
-
-                        args->sigSz = ENCRYPT_LEN - OPAQUE16_LEN;
-
-                    #ifdef HAVE_CURVE25519
-                        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            /* if callback then use it for shared secret */
-                            if (ssl->ctx->X25519SharedSecretCb != NULL) {
-                                break;
-                            }
-                        #endif
-
-                            if (ssl->eccTempKeyPresent == 0) {
-                                WOLFSSL_MSG(
-                                     "X25519 ephemeral key not made correctly");
-                                ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
-                            }
-
-                            if (ssl->peerX25519Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                    (void**)&ssl->peerX25519Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX25519KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                               ssl->peerX25519Key);
-                                ssl->peerX25519KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
-
-                            if ((ret = wc_curve25519_check_public(
-                                    input + args->idx, args->length,
-                                    EC25519_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                    SendAlert(ssl, alert_fatal, decode_error);
-                                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                                else {
-                                    SendAlert(ssl, alert_fatal,
-                                                             illegal_parameter);
-                                }
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            if (wc_curve25519_import_public_ex(
-                                    input + args->idx, args->length,
-                                    ssl->peerX25519Key,
-                                    EC25519_LITTLE_ENDIAN)) {
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            ssl->peerX25519KeyPresent = 1;
-
-                            break;
-                        }
-                    #endif
-                    #ifdef HAVE_CURVE448
-                        if (ssl->ecdhCurveOID == ECC_X448_OID) {
-                        #ifdef HAVE_PK_CALLBACKS
-                            /* if callback then use it for shared secret */
-                            if (ssl->ctx->X448SharedSecretCb != NULL) {
-                                break;
-                            }
-                        #endif
-
-                            if (ssl->eccTempKeyPresent == 0) {
-                                WOLFSSL_MSG(
-                                       "X448 ephemeral key not made correctly");
-                                ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
-                            }
-
-                            if (ssl->peerX448Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                    (void**)&ssl->peerX448Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX448KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE448,
-                                               ssl->peerX448Key);
-                                ssl->peerX448KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
-
-                            if ((ret = wc_curve448_check_public(
-                                    input + args->idx, args->length,
-                                    EC448_LITTLE_ENDIAN)) != 0) {
-                        #ifdef WOLFSSL_EXTRA_ALERTS
-                                if (ret == WC_NO_ERR_TRACE(BUFFER_E))
-                                    SendAlert(ssl, alert_fatal, decode_error);
-                                else if (ret == WC_NO_ERR_TRACE(ECC_OUT_OF_RANGE_E))
-                                    SendAlert(ssl, alert_fatal, bad_record_mac);
-                                else {
-                                    SendAlert(ssl, alert_fatal,
-                                                             illegal_parameter);
-                                }
-                        #endif
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            if (wc_curve448_import_public_ex(
-                                    input + args->idx, args->length,
-                                    ssl->peerX448Key,
-                                    EC448_LITTLE_ENDIAN)) {
-                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                            }
-
-                            ssl->peerX448KeyPresent = 1;
-
-                            break;
-                        }
-                    #endif
+                        if ((ret = ImportPeerECCKey(ssl, input, args, size,
+                                                    NULL, &haveCb)))
+                            ERROR_OUT(ret, exit_dcke);
                     #ifdef HAVE_PK_CALLBACKS
-                        /* if callback then use it for shared secret */
-                        if (ssl->ctx->EccSharedSecretCb != NULL) {
+                        if (haveCb) {
+                            WOLFSSL_MSG("Using PK callback for peer key");
                             break;
                         }
+                    #else
+                        (void)haveCb; /* not used */
                     #endif
-
-                        if (ssl->eccTempKeyPresent == 0) {
-                            WOLFSSL_MSG("Ecc ephemeral key not made correctly");
-                            ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
-                        }
-
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                (void**)&ssl->peerEccKey);
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
-                        else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
-                                           ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
-                        if (wc_ecc_import_x963_ex(input + args->idx,
-                                 args->length, ssl->peerEccKey,
-                                 ssl->eccTempKey->dp->id)) {
-                            ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
-                        }
-
-                        ssl->peerEccKeyPresent = 1;
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
@@ -41854,42 +41651,15 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 #if !defined(NO_DH) && !defined(NO_PSK)
                     case dhe_psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 clientSz = (word16)args->sigSz;
 
                         args->idx += clientSz;
-                        c16toa((word16)ssl->arrays->preMasterSz, pms);
-                        ssl->arrays->preMasterSz += OPAQUE16_LEN;
-                        pms += ssl->arrays->preMasterSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the
                          * preMasterSecret here. */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
-                        #if defined(WOLFSSL_EXTRA_ALERTS) || \
-                            defined(WOLFSSL_PSK_IDENTITY_ALERT)
-                            SendAlert(ssl, alert_fatal,
-                                    unknown_psk_identity);
-                        #endif
+                        if (AddPSKtoPreMasterSecret(ssl))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                            ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
+                        MakePSKPreMasterSecret(ssl->arrays, 0);
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
@@ -41897,39 +41667,19 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                                      defined(HAVE_CURVE448)) && !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
-                        byte* pms = ssl->arrays->preMasterSecret;
                         word16 clientSz = (word16)args->sigSz;
 
                         /* skip past the imported peer key */
                         args->idx += args->length;
 
                         /* Add preMasterSecret */
-                        c16toa(clientSz, pms);
-                        ssl->arrays->preMasterSz = OPAQUE16_LEN + clientSz;
-                        pms += ssl->arrays->preMasterSz;
+                        ssl->arrays->preMasterSz = clientSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the
                          * preMasterSecret here. */
-                        ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
-                            ssl->arrays->client_identity, ssl->arrays->psk_key,
-                            MAX_PSK_KEY_LEN);
-
-                        if (ssl->arrays->psk_keySz == 0 ||
-                            (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                        (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
+                        if (AddPSKtoPreMasterSecret(ssl))
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
-                        }
-                        /* SERVER: Pre-shared Key for peer authentication. */
-                        ssl->options.peerAuthGood = 1;
-                        if ((int)ssl->arrays->psk_keySz > 0) {
-                            c16toa((word16) ssl->arrays->psk_keySz, pms);
-                            pms += OPAQUE16_LEN;
-
-                            XMEMCPY(pms, ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                            ssl->arrays->preMasterSz += ssl->arrays->psk_keySz + OPAQUE16_LEN;
-                            ForceZero(ssl->arrays->psk_key, ssl->arrays->psk_keySz);
-                        }
-                        ssl->arrays->psk_keySz = 0; /* no further need */
+                        MakePSKPreMasterSecret(ssl->arrays, 0);
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
