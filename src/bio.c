@@ -2440,6 +2440,11 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     {
         WOLFSSL_BIO *bio;
         WOLFSSL_ENTER("wolfSSL_BIO_new_accept");
+
+        if (port == NULL) {
+            return NULL;
+        }
+
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_socket());
         if (bio) {
             const char* portStr = port;
