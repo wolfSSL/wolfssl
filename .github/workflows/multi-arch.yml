@@ -37,6 +37,7 @@ jobs:
             CFLAGS: -marm -DWOLFSSL_SP_ARM_ARCH=6
             ARCH: armel
             EXTRA_OPTS: --enable-sp-asm
+        opts: [ '-O2', '-O3', '-O1 -UFP_ECC', '-O0', '-Os', '-Ofast' ]
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
@@ -47,10 +48,10 @@ jobs:
           sudo apt update
           sudo apt install -y crossbuild-essential-${{ matrix.ARCH }} qemu-user
       - uses: actions/checkout@v4
-      - name: Build
+      - name: Build for ${{ matrix.ARCH }} with Opt Level ${{ matrix.opts }}
         env:
             CC: ${{ matrix.CC }}
-            CFLAGS: ${{ matrix.CFLAGS }}
+            CFLAGS: ${{ matrix.CFLAGS }} ${{ matrix.opts }}
             QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
         run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples CPPFLAGS="-pedantic -Wdeclaration-after-statement -DTEST_LIBWOLFSSL_SOURCES_INCLUSION_SEQUENCE -DWOLFCRYPT_TEST_LINT" ${{ matrix.EXTRA_OPTS }} && make
       - name: Print errors
