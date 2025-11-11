@@ -16492,7 +16492,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 
     int  alen = 0;
     int  plen = 0;
-#ifdef ENABLE_NON_12BYTE_IV_TEST
+#if defined(ENABLE_NON_12BYTE_IV_TEST) && defined(WOLFSSL_AES_128)
     int  tlen = 0;
 #endif
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
@@ -16918,12 +16918,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
     #endif
+    #ifdef HAVE_AES_DECRYPT
         ret = wc_AesGcmDecrypt(enc, resultP, resultC, sizeof(c3),
                       iv3, sizeof(iv3), resultT, tlen, a3, sizeof(a3));
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(p3, resultP, sizeof(p3)))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+    #endif
     }
 
     /* Large buffer test */
