@@ -63,6 +63,7 @@ jobs:
           '--enable-coding=no',
           '--enable-dtls --enable-dtls13 --enable-ocspstapling --enable-ocspstapling2
            --enable-cert-setup-cb --enable-sessioncerts',
+          '--disable-sni --disable-ecc --disable-tls13 --disable-secure-renegotiation-info',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
