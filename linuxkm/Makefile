@@ -142,7 +142,7 @@ endif
 
 .PHONY: libwolfssl.ko
 libwolfssl.ko:
-	@function resolved_link_is_equal() { [[ -L "$$1" && ("$$(readlink -f "$$1")" == "$$(readlink -f "$$2")") ]] }
+	@function resolved_link_is_equal() { [[ -L "$$1" && ("$$(readlink -f "$$1")" == "$$(readlink -f "$$2")") ]]; }
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
 	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
 	@if test -z '$(src_libwolfssl_la_OBJECTS)'; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
