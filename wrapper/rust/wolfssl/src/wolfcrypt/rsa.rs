@@ -112,6 +112,10 @@ impl RSA {
 
     /// Load a public and private RSA keypair from DER-encoded buffer.
     ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
+    ///
     /// # Returns
     ///
     /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
@@ -144,8 +148,60 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
     pub fn new_from_der(der: &[u8]) -> Result<Self, i32> {
+        Self::new_from_der_ex(der, None, None)
+    }
+
+    /// Load a public and private RSA keypair from DER-encoded buffer with
+    /// optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::fs;
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let key_path = "../../../certs/client-keyPub.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_public_from_der(&der).expect("Error with new_public_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let plain: &[u8] = b"Test message";
+    /// let mut enc: [u8; 512] = [0; 512];
+    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &mut rng).expect("Error with public_encrypt()");
+    /// assert!(enc_len > 0 && enc_len <= 512);
+    ///
+    /// let key_path = "../../../certs/client-key.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_from_der_ex(&der, None, None).expect("Error with new_from_der_ex()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let mut plain_out: [u8; 512] = [0; 512];
+    /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
+    /// assert!(dec_len as usize == plain.len());
+    /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// ```
+    pub fn new_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitRsaKey_ex(wc_rsakey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -165,6 +221,10 @@ impl RSA {
     }
 
     /// Load a public RSA key from DER-encoded buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
     ///
     /// # Returns
     ///
@@ -198,8 +258,60 @@ impl RSA {
     /// assert_eq!(plain_out[0..dec_len], *plain);
     /// ```
     pub fn new_public_from_der(der: &[u8]) -> Result<Self, i32> {
+        Self::new_public_from_der_ex(der, None, None)
+    }
+
+    /// Load a public RSA key from DER-encoded buffer with optional heap and
+    /// device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `der`: DER-encoded input buffer.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::fs;
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let key_path = "../../../certs/client-keyPub.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_public_from_der_ex(&der, None, None).expect("Error with new_public_from_der_ex()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let plain: &[u8] = b"Test message";
+    /// let mut enc: [u8; 512] = [0; 512];
+    /// let enc_len = rsa.public_encrypt(plain, &mut enc, &mut rng).expect("Error with public_encrypt()");
+    /// assert!(enc_len > 0 && enc_len <= 512);
+    ///
+    /// let key_path = "../../../certs/client-key.der";
+    /// let der: Vec<u8> = fs::read(key_path).expect("Error reading key file");
+    /// let mut rsa = RSA::new_from_der(&der).expect("Error with new_from_der()");
+    /// rsa.set_rng(&mut rng).expect("Error with set_rng()");
+    /// let mut plain_out: [u8; 512] = [0; 512];
+    /// let dec_len = rsa.private_decrypt(&enc[0..enc_len], &mut plain_out).expect("Error with private_decrypt()");
+    /// assert!(dec_len as usize == plain.len());
+    /// assert_eq!(plain_out[0..dec_len], *plain);
+    /// ```
+    pub fn new_public_from_der_ex(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitRsaKey_ex(wc_rsakey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -255,8 +367,59 @@ impl RSA {
     /// assert_eq!(encrypt_size, 256);
     /// ```
     pub fn generate(size: i32, e: i64, rng: &mut RNG) -> Result<Self, i32> {
+        Self::generate_ex(size, e, rng, None, None)
+    }
+
+    /// Generate a new RSA key using the given size and exponent with optional
+    /// heap and device ID.
+    ///
+    /// This function generates an RSA private key of length size (in bits) and
+    /// given exponent (e). It then returns the RSA structure instance so that
+    /// it may be used for encryption or signing operations. A secure number to
+    /// use for e is 65537. size is required to be greater than or equal to
+    /// RSA_MIN_SIZE and less than or equal to RSA_MAX_SIZE. For this function
+    /// to be available, the option WOLFSSL_KEY_GEN must be enabled at compile
+    /// time. This can be accomplished with --enable-keygen if using
+    /// `./configure`.
+    ///
+    /// # Parameters
+    ///
+    /// * `size`: Desired key length in bits.
+    /// * `e`: Exponent parameter to use for generating the key. A secure
+    ///   choice is 65537.
+    /// * `rng`: Reference to a `RNG` struct to use for random number
+    ///   generation while making the key.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(RSA) containing the RSA struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::rsa::RSA;
+    ///
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let mut rsa = RSA::generate_ex(2048, 65537, &mut rng, None, None).expect("Error with generate_ex()");
+    /// rsa.check().expect("Error with check()");
+    /// let encrypt_size = rsa.get_encrypt_size().expect("Error with get_encrypt_size()");
+    /// assert_eq!(encrypt_size, 256);
+    /// ```
+    pub fn generate_ex(size: i32, e: i64, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_rsakey: MaybeUninit<ws::RsaKey> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRsaKey(wc_rsakey.as_mut_ptr(), core::ptr::null_mut()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_InitRsaKey_ex(wc_rsakey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }

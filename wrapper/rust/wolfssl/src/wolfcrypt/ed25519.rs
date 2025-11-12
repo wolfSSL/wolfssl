@@ -74,8 +74,41 @@ impl Ed25519 {
     /// let ed = Ed25519::generate(&mut rng).expect("Error with generate()");
     /// ```
     pub fn generate(rng: &mut RNG) -> Result<Self, i32> {
+        Self::generate_ex(rng, None, None)
+    }
+
+    /// Generate a new Ed25519 key with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `rng`: `RNG` instance to use for random number generation.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(ed25519) containing the Ed25519 struct instance or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::random::RNG;
+    /// use wolfssl::wolfcrypt::ed25519::Ed25519;
+    /// let mut rng = RNG::new().expect("Error creating RNG");
+    /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
+    /// ```
+    pub fn generate_ex(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<ws::ed25519_key> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_ed25519_init(ws_key.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -108,8 +141,42 @@ impl Ed25519 {
     /// let ed = Ed25519::new().expect("Error with new()");
     /// ```
     pub fn new() -> Result<Self, i32> {
+        Self::new_ex(None, None)
+    }
+
+    /// Create and initialize a new Ed25519 instance with optional heap and
+    /// device ID.
+    ///
+    /// A key will not be present but can be imported with one of the import
+    /// functions.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(ed25519) containing the Ed25519 struct instance or
+    /// Err(e) containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::ed25519::Ed25519;
+    /// let ed = Ed25519::new_ex(None, None).expect("Error with new()");
+    /// ```
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut ws_key: MaybeUninit<ws::ed25519_key> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_ed25519_init(ws_key.as_mut_ptr()) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe { ws::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }

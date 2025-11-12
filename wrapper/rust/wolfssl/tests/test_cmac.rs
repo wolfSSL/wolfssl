@@ -25,4 +25,11 @@ fn test_cmac() {
     assert_eq!(generate_out, finalize_out);
     let valid = CMAC::verify(&key, &message, &generate_out).expect("Error with verify()");
     assert!(valid);
+
+    let mut cmac = CMAC::new(&key).expect("Error with new()");
+    let mut generate_out = [0u8; 16];
+    cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
+    assert_eq!(generate_out, finalize_out);
+    let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
+    assert!(valid);
 }

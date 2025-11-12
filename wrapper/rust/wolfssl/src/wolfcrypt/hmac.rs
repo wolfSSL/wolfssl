@@ -87,10 +87,44 @@ impl HMAC {
     /// let mut hmac = HMAC::new(HMAC::TYPE_SHA256, &key).expect("Error with new()");
     /// ```
     pub fn new(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key
+    /// with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 16];
+    /// let mut hmac = HMAC::new_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_ex()");
+    /// ```
+    pub fn new_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
         let rc = unsafe {
-            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -127,10 +161,44 @@ impl HMAC {
     /// let mut hmac = HMAC::new_allow_short_key(HMAC::TYPE_SHA256, &key).expect("Error with new_allow_short_key()");
     /// ```
     pub fn new_allow_short_key(typ: i32, key: &[u8]) -> Result<Self, i32> {
+        Self::new_allow_short_key_ex(typ, key, None, None)
+    }
+
+    /// Create a new HMAC object with the given hash type and encryption key,
+    /// allowing for short encryption keys (< 112 bits) to be used.
+    ///
+    /// # Parameters
+    ///
+    /// * `typ`: Hash type, one of `HMAC::TYPE_*`.
+    /// * `key`: Encryption key.
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// Returns either Ok(hmac) containing the HMAC struct instance or Err(e)
+    /// containing the wolfSSL library error code value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wolfssl::wolfcrypt::hmac::HMAC;
+    /// let key = [0x42u8; 3];
+    /// let mut hmac = HMAC::new_allow_short_key_ex(HMAC::TYPE_SHA256, &key, None, None).expect("Error with new_allow_short_key_ex()");
+    /// ```
+    pub fn new_allow_short_key_ex(typ: i32, key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
         let mut wc_hmac: MaybeUninit<ws::Hmac> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
         let rc = unsafe {
-            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+            ws::wc_HmacInit(wc_hmac.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);

@@ -72,8 +72,36 @@ impl RNG {
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
+        RNG::new_ex(None, None)
+    }
+
+    /// Initialize a new `RNG` instance with optional heap and device ID.
+    ///
+    /// This function wraps the wolfssl library function `wc_InitRng`, which
+    /// performs the necessary initialization for the RNG context.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
-        let rc = unsafe { ws::wc_InitRng(&mut (*rng.as_mut_ptr()).wc_rng) };
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
+        let rc = unsafe {
+            ws::wc_InitRng_ex(&mut (*rng.as_mut_ptr()).wc_rng, heap, dev_id)
+        };
         if rc == 0 {
             let rng = unsafe { rng.assume_init() };
             Ok(rng)
@@ -93,11 +121,38 @@ impl RNG {
     /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new_with_nonce<T>(nonce: &mut [T]) -> Result<Self, i32> {
+        RNG::new_with_nonce_ex(nonce, None, None)
+    }
+
+    /// Initialize a new `RNG` instance and provide a nonce input.
+    ///
+    /// This function wraps the wolfssl library function `wc_InitRngNonce`,
+    /// which performs the necessary initialization for the RNG context and
+    /// accepts a nonce input buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(RNG) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_with_nonce_ex<T>(nonce: &mut [T], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let ptr = nonce.as_mut_ptr() as *mut u8;
         let size: u32 = (nonce.len() * size_of::<T>()) as u32;
         let mut rng: MaybeUninit<RNG> = MaybeUninit::uninit();
+        let heap = match heap {
+            Some(heap) => heap,
+            None => core::ptr::null_mut(),
+        };
+        let dev_id = match dev_id {
+            Some(dev_id) => dev_id,
+            None => ws::INVALID_DEVID,
+        };
         let rc = unsafe {
-            ws::wc_InitRngNonce(&mut (*rng.as_mut_ptr()).wc_rng, ptr, size)
+            ws::wc_InitRngNonce_ex(&mut (*rng.as_mut_ptr()).wc_rng, ptr, size, heap, dev_id)
         };
         if rc == 0 {
             let rng = unsafe { rng.assume_init() };

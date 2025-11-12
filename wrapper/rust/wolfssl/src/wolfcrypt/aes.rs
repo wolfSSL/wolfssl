@@ -65,7 +65,22 @@ impl CBC {
     /// A Result which is Ok(CBC) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CBC` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CBC) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let cbc = CBC {ws_aes};
         Ok(cbc)
     }
@@ -250,7 +265,22 @@ impl CCM {
     /// A Result which is Ok(CCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CCM` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CCM) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let ccm = CCM {ws_aes};
         Ok(ccm)
     }
@@ -426,7 +456,22 @@ impl CFB {
     /// A Result which is Ok(CFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CFB` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CFB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let cfb = CFB {ws_aes};
         Ok(cfb)
     }
@@ -711,7 +756,22 @@ impl CTR {
     /// A Result which is Ok(CTR) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `CTR` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(CTR) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let ctr = CTR {ws_aes};
         Ok(ctr)
     }
@@ -978,7 +1038,22 @@ impl ECB {
     /// A Result which is Ok(ECB) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `ECB` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(ECB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let ecb = ECB {ws_aes};
         Ok(ecb)
     }
@@ -1159,7 +1234,22 @@ impl GCM {
     /// A Result which is Ok(GCM) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `GCM` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(GCM) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcm = GCM {ws_aes};
         Ok(gcm)
     }
@@ -1372,7 +1462,22 @@ impl GCMStream {
     /// A Result which is Ok(GCMStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `GCMStream` instance with heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(GCMStream) on success or an Err containing the
+    /// wolfSSL library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let gcmstream = GCMStream {ws_aes};
         Ok(gcmstream)
     }
@@ -1605,7 +1710,22 @@ impl OFB {
     /// A Result which is Ok(OFB) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_aes = new_ws_aes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `OFB` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(OFB) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_aes = new_ws_aes(heap, dev_id)?;
         let ofb = OFB {ws_aes};
         Ok(ofb)
     }
@@ -1779,7 +1899,22 @@ impl XTS {
     /// A Result which is Ok(XTS) on success or an Err containing the wolfSSL
     /// library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_xtsaes = new_ws_xtsaes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `XTS` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(XTS) on success or an Err containing the wolfSSL
+    /// library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let xts = XTS {ws_xtsaes};
         Ok(xts)
     }
@@ -2125,7 +2260,22 @@ impl XTSStream {
     /// A Result which is Ok(XTSStream) on success or an Err containing the
     /// wolfSSL library return code on failure.
     pub fn new() -> Result<Self, i32> {
-        let ws_xtsaes = new_ws_xtsaes()?;
+        Self::new_ex(None, None)
+    }
+
+    /// Create a new `XTSStream` instance with optional heap and device ID.
+    ///
+    /// # Parameters
+    ///
+    /// * `heap`: Optional heap hint.
+    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
+    ///
+    /// # Returns
+    ///
+    /// A Result which is Ok(XTSStream) on success or an Err containing the
+    /// wolfSSL library return code on failure.
+    pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
+        let ws_xtsaes = new_ws_xtsaes(heap, dev_id)?;
         let ws_xtsaesstreamdata: MaybeUninit<ws::XtsAesStreamData> = MaybeUninit::uninit();
         let ws_xtsaesstreamdata = unsafe { ws_xtsaesstreamdata.assume_init() };
         let xtsstream = XTSStream {ws_xtsaes, ws_xtsaesstreamdata};
@@ -2353,10 +2503,18 @@ impl Drop for XTSStream {
     }
 }
 
-fn new_ws_aes() -> Result<ws::Aes, i32> {
+fn new_ws_aes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ws::Aes, i32> {
+    let heap = match heap {
+        Some(heap) => heap,
+        None => core::ptr::null_mut(),
+    };
+    let dev_id = match dev_id {
+        Some(dev_id) => dev_id,
+        None => ws::INVALID_DEVID,
+    };
     let mut ws_aes: MaybeUninit<ws::Aes> = MaybeUninit::uninit();
     let rc = unsafe {
-        ws::wc_AesInit(ws_aes.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+        ws::wc_AesInit(ws_aes.as_mut_ptr(), heap, dev_id)
     };
     if rc != 0 {
         return Err(rc);
@@ -2365,10 +2523,18 @@ fn new_ws_aes() -> Result<ws::Aes, i32> {
     Ok(ws_aes)
 }
 
-fn new_ws_xtsaes() -> Result<ws::XtsAes, i32> {
+fn new_ws_xtsaes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ws::XtsAes, i32> {
+    let heap = match heap {
+        Some(heap) => heap,
+        None => core::ptr::null_mut(),
+    };
+    let dev_id = match dev_id {
+        Some(dev_id) => dev_id,
+        None => ws::INVALID_DEVID,
+    };
     let mut ws_xtsaes: MaybeUninit<ws::XtsAes> = MaybeUninit::uninit();
     let rc = unsafe {
-        ws::wc_AesXtsInit(ws_xtsaes.as_mut_ptr(), core::ptr::null_mut(), ws::INVALID_DEVID)
+        ws::wc_AesXtsInit(ws_xtsaes.as_mut_ptr(), heap, dev_id)
     };
     if rc != 0 {
         return Err(rc);
