@@ -47323,6 +47323,7 @@ static int test_rpk_set_xxx_cert_type(void)
     ssl = wolfSSL_new(ctx);
     ExpectNotNull(ssl);
 
+    XMEMSET(ctype, 0, sizeof(ctype));
     /*--------------------------------------------*/
     /* tests for wolfSSL_CTX_set_client_cert_type */
     /*--------------------------------------------*/
