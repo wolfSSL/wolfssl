@@ -45,8 +45,6 @@ impl CMAC {
     /// * `key`: Key to use for CMAC generation.
     /// * `data`: CMAC input data.
     /// * `dout`: Output buffer where CMAC is written.
-    /// * `heap`: Optional heap hint.
-    /// * `dev_id` Optional device ID to use with crypto callbacks or async hardware.
     ///
     /// # Returns
     ///
