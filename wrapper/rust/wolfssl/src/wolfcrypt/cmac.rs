@@ -21,13 +21,10 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's Cipher-based
 Message Authentication Code (CMAC) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
+use crate::sys;
 use std::mem::MaybeUninit;
-use wolfssl_sys as ws;
 
 /// The `CMAC` struct manages the lifecycle of a wolfSSL `Cmac` object.
 ///
@@ -35,7 +32,7 @@ use wolfssl_sys as ws;
 ///
 /// An instance can be created with `new()`.
 pub struct CMAC {
-    ws_cmac: ws::Cmac,
+    ws_cmac: sys::Cmac,
 }
 impl CMAC {
     /// One-shot CMAC generation function.
@@ -71,7 +68,7 @@ impl CMAC {
         let data_size = data.len() as u32;
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_AesCmacGenerate(dout.as_mut_ptr(), &mut dout_size,
+            sys::wc_AesCmacGenerate(dout.as_mut_ptr(), &mut dout_size,
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size)
         };
@@ -132,18 +129,18 @@ impl CMAC {
     /// ```
     pub fn new_ex(key: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let key_size = key.len() as u32;
-        let mut ws_cmac: MaybeUninit<ws::Cmac> = MaybeUninit::uninit();
-        let typ = ws::CmacType_WC_CMAC_AES as i32;
+        let mut ws_cmac: MaybeUninit<sys::Cmac> = MaybeUninit::uninit();
+        let typ = sys::CmacType_WC_CMAC_AES as i32;
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitCmac_ex(ws_cmac.as_mut_ptr(), key.as_ptr(), key_size,
+            sys::wc_InitCmac_ex(ws_cmac.as_mut_ptr(), key.as_ptr(), key_size,
                 typ, core::ptr::null_mut(), heap, dev_id)
         };
         if rc != 0 {
@@ -190,7 +187,7 @@ impl CMAC {
         let data_size = data.len() as u32;
         let check_size = check.len() as u32;
         let rc = unsafe {
-            ws::wc_AesCmacVerify(check.as_ptr(), check_size,
+            sys::wc_AesCmacVerify(check.as_ptr(), check_size,
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size)
         };
@@ -241,10 +238,10 @@ impl CMAC {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_AesCmacGenerate_ex(&mut self.ws_cmac,
+            sys::wc_AesCmacGenerate_ex(&mut self.ws_cmac,
                 dout.as_mut_ptr(), &mut dout_size,
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size, heap, dev_id)
@@ -284,7 +281,7 @@ impl CMAC {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_CmacUpdate(&mut self.ws_cmac, data.as_ptr(), data_size)
+            sys::wc_CmacUpdate(&mut self.ws_cmac, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -326,7 +323,7 @@ impl CMAC {
     pub fn finalize(mut self, dout: &mut [u8]) -> Result<(), i32> {
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_CmacFinalNoFree(&mut self.ws_cmac,
+            sys::wc_CmacFinalNoFree(&mut self.ws_cmac,
                 dout.as_mut_ptr(), &mut dout_size)
         };
         if rc != 0 {
@@ -379,10 +376,10 @@ impl CMAC {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_AesCmacVerify_ex(&mut self.ws_cmac,
+            sys::wc_AesCmacVerify_ex(&mut self.ws_cmac,
                 check.as_ptr(), check_size,
                 data.as_ptr(), data_size,
                 key.as_ptr(), key_size, heap, dev_id)
@@ -396,6 +393,6 @@ impl CMAC {
 impl Drop for CMAC {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
-        unsafe { ws::wc_CmacFree(&mut self.ws_cmac); }
+        unsafe { sys::wc_CmacFree(&mut self.ws_cmac); }
     }
 }

@@ -21,13 +21,10 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's HMAC Key
 Derivation Function (HKDF) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
+use crate::sys;
 use crate::wolfcrypt::hmac::HMAC;
-use wolfssl_sys as ws;
 
 /// Perform HKDF-Extract operation.
 ///
@@ -102,7 +99,7 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
     }
     let key_size = key.len() as u32;
     if out.len() != HMAC::get_hmac_size_by_type(typ)? {
-        return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+        return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
     }
     let heap = match heap {
         Some(heap) => heap,
@@ -110,10 +107,10 @@ pub fn hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: &[u8], out: &mut [u8]
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_HKDF_Extract_ex(typ, salt_ptr, salt_size,
+        sys::wc_HKDF_Extract_ex(typ, salt_ptr, salt_size,
             key.as_ptr(), key_size, out.as_mut_ptr(), heap, dev_id)
     };
     if rc != 0 {
@@ -207,10 +204,10 @@ pub fn hkdf_expand_ex(typ: i32, key: &[u8], info: Option<&[u8]>, out: &mut [u8],
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_HKDF_Expand_ex(typ, key.as_ptr(), key_size,
+        sys::wc_HKDF_Expand_ex(typ, key.as_ptr(), key_size,
             info_ptr, info_size, out.as_mut_ptr(), out_size, heap, dev_id)
     };
     if rc != 0 {
@@ -266,7 +263,7 @@ pub fn hkdf(typ: i32, key: &[u8], salt: Option<&[u8]>, info: Option<&[u8]>, out:
     }
     let out_size = out.len() as u32;
     let rc = unsafe {
-        ws::wc_HKDF(typ, key.as_ptr(), key_size, salt_ptr, salt_size,
+        sys::wc_HKDF(typ, key.as_ptr(), key_size, salt_ptr, salt_size,
             info_ptr, info_size, out.as_mut_ptr(), out_size)
     };
     if rc != 0 {

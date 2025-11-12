@@ -21,14 +21,11 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 25519 (Ed25519) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
+use crate::sys;
 use crate::wolfcrypt::random::RNG;
 use std::mem::MaybeUninit;
-use wolfssl_sys as ws;
 
 /// The `Ed25519` struct manages the lifecycle of a wolfSSL `ed25519_key`
 /// object.
@@ -37,22 +34,22 @@ use wolfssl_sys as ws;
 ///
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed25519 {
-    ws_key: ws::ed25519_key,
+    ws_key: sys::ed25519_key,
 }
 
 impl Ed25519 {
     /** Size of private key only. */
-    pub const KEY_SIZE: usize = ws::ED25519_KEY_SIZE as usize;
+    pub const KEY_SIZE: usize = sys::ED25519_KEY_SIZE as usize;
     /** Size of signature. */
-    pub const SIG_SIZE: usize = ws::ED25519_SIG_SIZE as usize;
+    pub const SIG_SIZE: usize = sys::ED25519_SIG_SIZE as usize;
     /** Compressed public key size. */
-    pub const PUB_KEY_SIZE: usize = ws::ED25519_PUB_KEY_SIZE as usize;
+    pub const PUB_KEY_SIZE: usize = sys::ED25519_PUB_KEY_SIZE as usize;
     /** Size of both private and public key. */
-    pub const PRV_KEY_SIZE: usize = ws::ED25519_PRV_KEY_SIZE as usize;
+    pub const PRV_KEY_SIZE: usize = sys::ED25519_PRV_KEY_SIZE as usize;
 
-    pub const ED25519: u8 = ws::Ed25519 as u8;
-    pub const ED25519CTX: u8 = ws::Ed25519ctx as u8;
-    pub const ED25519PH: u8 = ws::Ed25519ph as u8;
+    pub const ED25519: u8 = sys::Ed25519 as u8;
+    pub const ED25519CTX: u8 = sys::Ed25519ctx as u8;
+    pub const ED25519PH: u8 = sys::Ed25519ph as u8;
 
     /// Generate a new Ed25519 key.
     ///
@@ -99,24 +96,24 @@ impl Ed25519 {
     /// let ed = Ed25519::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// ```
     pub fn generate_ex(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut ws_key: MaybeUninit<ws::ed25519_key> = MaybeUninit::uninit();
+        let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
         let mut ed25519 = Ed25519 { ws_key };
         let rc = unsafe {
-            ws::wc_ed25519_make_key(&mut rng.wc_rng,
-                ws::ED25519_KEY_SIZE as i32, &mut ed25519.ws_key)
+            sys::wc_ed25519_make_key(&mut rng.wc_rng,
+                sys::ED25519_KEY_SIZE as i32, &mut ed25519.ws_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -167,16 +164,16 @@ impl Ed25519 {
     /// let ed = Ed25519::new_ex(None, None).expect("Error with new()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut ws_key: MaybeUninit<ws::ed25519_key> = MaybeUninit::uninit();
+        let mut ws_key: MaybeUninit<sys::ed25519_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ed25519_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -206,7 +203,7 @@ impl Ed25519 {
     /// ed.check_key().expect("Error with check_key()");
     /// ```
     pub fn check_key(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_ed25519_check_key(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_check_key(&mut self.ws_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -242,7 +239,7 @@ impl Ed25519 {
         let mut private_size = private.len() as u32;
         let mut public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_export_key(&self.ws_key,
+            sys::wc_ed25519_export_key(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size)
         };
@@ -278,7 +275,7 @@ impl Ed25519 {
     pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
         let mut public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_export_public(&self.ws_key, public.as_mut_ptr(),
+            sys::wc_ed25519_export_public(&self.ws_key, public.as_mut_ptr(),
                 &mut public_size)
         };
         if rc != 0 {
@@ -313,7 +310,7 @@ impl Ed25519 {
     pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
         let mut keyout_size = keyout.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_export_private(&self.ws_key, keyout.as_mut_ptr(),
+            sys::wc_ed25519_export_private(&self.ws_key, keyout.as_mut_ptr(),
                 &mut keyout_size)
         };
         if rc != 0 {
@@ -348,7 +345,7 @@ impl Ed25519 {
     pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
         let mut private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_export_private_only(&self.ws_key,
+            sys::wc_ed25519_export_private_only(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size)
         };
         if rc != 0 {
@@ -388,7 +385,7 @@ impl Ed25519 {
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_import_public(public.as_ptr(), public_size, &mut self.ws_key)
+            sys::wc_ed25519_import_public(public.as_ptr(), public_size, &mut self.ws_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -428,7 +425,7 @@ impl Ed25519 {
     pub fn import_public_ex(&mut self, public: &[u8], trusted: bool) -> Result<(), i32> {
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_import_public_ex(public.as_ptr(), public_size,
+            sys::wc_ed25519_import_public_ex(public.as_ptr(), public_size,
                 &mut self.ws_key, if trusted {1} else {0})
         };
         if rc != 0 {
@@ -463,7 +460,7 @@ impl Ed25519 {
     pub fn import_private_only(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_import_private_only(private.as_ptr(), private_size,
+            sys::wc_ed25519_import_private_only(private.as_ptr(), private_size,
                 &mut self.ws_key)
         };
         if rc != 0 {
@@ -510,7 +507,7 @@ impl Ed25519 {
             public_size = public.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_ed25519_import_private_key(private.as_ptr(), private_size,
+            sys::wc_ed25519_import_private_key(private.as_ptr(), private_size,
                 public_ptr, public_size, &mut self.ws_key)
         };
         if rc != 0 {
@@ -557,7 +554,7 @@ impl Ed25519 {
             public_size = public.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_ed25519_import_private_key_ex(private.as_ptr(), private_size,
+            sys::wc_ed25519_import_private_key_ex(private.as_ptr(), private_size,
                 public_ptr, public_size, &mut self.ws_key, if trusted {1} else {0})
         };
         if rc != 0 {
@@ -597,7 +594,7 @@ impl Ed25519 {
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = pubkey.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_make_public(&mut self.ws_key,
+            sys::wc_ed25519_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
         };
         if rc != 0 {
@@ -634,7 +631,7 @@ impl Ed25519 {
         let message_size = message.len() as u32;
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_sign_msg(message.as_ptr(), message_size,
+            sys::wc_ed25519_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key)
         };
         if rc != 0 {
@@ -676,7 +673,7 @@ impl Ed25519 {
         let context_size = context.len() as u8;
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519ctx_sign_msg(message.as_ptr(), message_size,
+            sys::wc_ed25519ctx_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context.as_ptr(), context_size)
         };
@@ -734,7 +731,7 @@ impl Ed25519 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519ph_sign_hash(hash.as_ptr(), hash_size,
+            sys::wc_ed25519ph_sign_hash(hash.as_ptr(), hash_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -783,7 +780,7 @@ impl Ed25519 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519ph_sign_msg(message.as_ptr(), message_size,
+            sys::wc_ed25519ph_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -832,7 +829,7 @@ impl Ed25519 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_sign_msg_ex(din.as_ptr(), din_size,
+            sys::wc_ed25519_sign_msg_ex(din.as_ptr(), din_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 typ, context_ptr, context_size)
         };
@@ -872,7 +869,7 @@ impl Ed25519 {
         let message_size = message.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519_verify_msg(signature.as_ptr(), signature_size,
+            sys::wc_ed25519_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key)
         };
         if rc != 0 {
@@ -916,7 +913,7 @@ impl Ed25519 {
         let context_size = context.len() as u8;
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519ctx_verify_msg(signature.as_ptr(), signature_size,
+            sys::wc_ed25519ctx_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context.as_ptr(), context_size)
         };
@@ -977,7 +974,7 @@ impl Ed25519 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519ph_verify_hash(signature.as_ptr(), signature_size,
+            sys::wc_ed25519ph_verify_hash(signature.as_ptr(), signature_size,
                 hash.as_ptr(), hash_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -1028,7 +1025,7 @@ impl Ed25519 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519ph_verify_msg(signature.as_ptr(), signature_size,
+            sys::wc_ed25519ph_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -1079,7 +1076,7 @@ impl Ed25519 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519_verify_msg_ex(signature.as_ptr(), signature_size,
+            sys::wc_ed25519_verify_msg_ex(signature.as_ptr(), signature_size,
                 din.as_ptr(), din_size, &mut res, &mut self.ws_key, typ,
                 context_ptr, context_size)
         };
@@ -1127,7 +1124,7 @@ impl Ed25519 {
             context_size = context.len() as u8;
         }
         let rc = unsafe {
-            ws::wc_ed25519_verify_msg_init(signature.as_ptr(), signature_size,
+            sys::wc_ed25519_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
@@ -1166,7 +1163,7 @@ impl Ed25519 {
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = din.len() as u32;
         let rc = unsafe {
-            ws::wc_ed25519_verify_msg_update(din.as_ptr(), din_size,
+            sys::wc_ed25519_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
         };
         if rc != 0 {
@@ -1206,7 +1203,7 @@ impl Ed25519 {
         let signature_size = signature.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,
+            sys::wc_ed25519_verify_msg_final(signature.as_ptr(), signature_size,
                 &mut res, &mut self.ws_key)
         };
         if rc != 0 {
@@ -1233,7 +1230,7 @@ impl Ed25519 {
     /// assert_eq!(key_size, Ed25519::KEY_SIZE);
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed25519_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1258,7 +1255,7 @@ impl Ed25519 {
     /// assert_eq!(priv_size, Ed25519::PRV_KEY_SIZE);
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed25519_priv_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_priv_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1283,7 +1280,7 @@ impl Ed25519 {
     /// assert_eq!(pub_size, Ed25519::PUB_KEY_SIZE);
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed25519_pub_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_pub_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1308,7 +1305,7 @@ impl Ed25519 {
     /// assert_eq!(sig_size, Ed25519::SIG_SIZE);
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed25519_sig_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed25519_sig_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1319,6 +1316,6 @@ impl Ed25519 {
 impl Drop for Ed25519 {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
-        unsafe { ws::wc_ed25519_free(&mut self.ws_key); }
+        unsafe { sys::wc_ed25519_free(&mut self.ws_key); }
     }
 }

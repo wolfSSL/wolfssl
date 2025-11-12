@@ -22,21 +22,17 @@
 This module provides a Rust wrapper for the wolfCrypt library's ECC
 functionality.
 
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
-
 The primary component is the `ECC` struct, which manages the lifecycle of a
 wolfSSL `ecc_key` object. It ensures proper initialization and deallocation.
 */
 
-use wolfssl_sys as ws;
-
-use std::mem::{MaybeUninit};
+use crate::sys;
 use crate::wolfcrypt::random::RNG;
+use std::mem::{MaybeUninit};
 
 /// Rust wrapper for wolfSSL `ecc_point` object.
 pub struct ECCPoint {
-    wc_ecc_point: *mut ws::ecc_point,
+    wc_ecc_point: *mut sys::ecc_point,
     heap: *mut std::os::raw::c_void,
 }
 
@@ -69,7 +65,7 @@ impl ECCPoint {
     /// ECCPoint::import_der(&der[0..size], curve_id, None).expect("Error with import_der()");
     /// ```
     pub fn import_der(din: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>) -> Result<Self, i32> {
-        let curve_idx = unsafe { ws::wc_ecc_get_curve_idx(curve_id) };
+        let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
         }
@@ -77,14 +73,14 @@ impl ECCPoint {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
-        let wc_ecc_point = unsafe { ws::wc_ecc_new_point_h(heap) };
+        let wc_ecc_point = unsafe { sys::wc_ecc_new_point_h(heap) };
         if wc_ecc_point.is_null() {
-            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
+            return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let eccpoint = ECCPoint { wc_ecc_point, heap };
         let din_size = din.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_import_point_der(din.as_ptr(), din_size, curve_idx,
+            sys::wc_ecc_import_point_der(din.as_ptr(), din_size, curve_idx,
                 eccpoint.wc_ecc_point)
         };
         if rc != 0 {
@@ -123,7 +119,7 @@ impl ECCPoint {
     /// ECCPoint::import_der_ex(&der[0..size], curve_id, 1, None).expect("Error with import_der_ex()");
     /// ```
     pub fn import_der_ex(din: &[u8], curve_id: i32, short_key_size: i32, heap: Option<*mut std::os::raw::c_void>) -> Result<Self, i32> {
-        let curve_idx = unsafe { ws::wc_ecc_get_curve_idx(curve_id) };
+        let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
         }
@@ -131,14 +127,14 @@ impl ECCPoint {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
-        let wc_ecc_point = unsafe { ws::wc_ecc_new_point_h(heap) };
+        let wc_ecc_point = unsafe { sys::wc_ecc_new_point_h(heap) };
         if wc_ecc_point.is_null() {
-            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
+            return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let eccpoint = ECCPoint { wc_ecc_point, heap };
         let din_size = din.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_import_point_der_ex(din.as_ptr(), din_size, curve_idx,
+            sys::wc_ecc_import_point_der_ex(din.as_ptr(), din_size, curve_idx,
                 wc_ecc_point, short_key_size)
         };
         if rc != 0 {
@@ -175,13 +171,13 @@ impl ECCPoint {
     /// ECCPoint::import_der(&der[0..size], curve_id, None).expect("Error with import_der()");
     /// ```
     pub fn export_der(&self, dout: &mut [u8], curve_id: i32) -> Result<usize, i32> {
-        let curve_idx = unsafe { ws::wc_ecc_get_curve_idx(curve_id) };
+        let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
         }
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_point_der(curve_idx, self.wc_ecc_point,
+            sys::wc_ecc_export_point_der(curve_idx, self.wc_ecc_point,
                 dout.as_mut_ptr(), &mut dout_size)
         };
         if rc != 0 {
@@ -217,13 +213,13 @@ impl ECCPoint {
     /// ECCPoint::import_der_ex(&der[0..size], curve_id, 1, None).expect("Error with import_der_ex()");
     /// ```
     pub fn export_der_compressed(&self, dout: &mut [u8], curve_id: i32) -> Result<usize, i32> {
-        let curve_idx = unsafe { ws::wc_ecc_get_curve_idx(curve_id) };
+        let curve_idx = unsafe { sys::wc_ecc_get_curve_idx(curve_id) };
         if curve_idx < 0 {
             return Err(curve_idx);
         }
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_point_der_ex(curve_idx, self.wc_ecc_point,
+            sys::wc_ecc_export_point_der_ex(curve_idx, self.wc_ecc_point,
                 dout.as_mut_ptr(), &mut dout_size, 1)
         };
         if rc != 0 {
@@ -245,7 +241,7 @@ impl ECCPoint {
     /// ecc_point.forcezero();
     /// ```
     pub fn forcezero(&mut self) {
-        unsafe { ws::wc_ecc_forcezero_point(self.wc_ecc_point) };
+        unsafe { sys::wc_ecc_forcezero_point(self.wc_ecc_point) };
     }
 }
 
@@ -258,7 +254,7 @@ impl Drop for ECCPoint {
     /// ECCPoint struct instance goes out of scope, automatically cleaning up
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_ecc_del_point_h(self.wc_ecc_point, self.heap); }
+        unsafe { sys::wc_ecc_del_point_h(self.wc_ecc_point, self.heap); }
     }
 }
 
@@ -270,49 +266,49 @@ impl Drop for ECCPoint {
 /// `import_x963_ex()`, `import_private_key()`, `import_private_key_ex()`,
 /// `import_raw()`, or `import_raw_ex()`.
 pub struct ECC {
-    wc_ecc_key: ws::ecc_key,
+    wc_ecc_key: sys::ecc_key,
 }
 
 impl ECC {
-    pub const CURVE_INVALID: i32 = ws::ecc_curve_ids_ECC_CURVE_INVALID;
-    pub const CURVE_DEF: i32 = ws::ecc_curve_ids_ECC_CURVE_DEF;
-    pub const SECP192R1: i32 = ws::ecc_curve_ids_ECC_SECP192R1;
-    pub const PRIME192V2: i32 = ws::ecc_curve_ids_ECC_PRIME192V2;
-    pub const PRIME192V3: i32 = ws::ecc_curve_ids_ECC_PRIME192V3;
-    pub const PRIME239V1: i32 = ws::ecc_curve_ids_ECC_PRIME239V1;
-    pub const PRIME239V2: i32 = ws::ecc_curve_ids_ECC_PRIME239V2;
-    pub const PRIME239V3: i32 = ws::ecc_curve_ids_ECC_PRIME239V3;
-    pub const SECP256R1: i32 = ws::ecc_curve_ids_ECC_SECP256R1;
-    pub const SECP112R1: i32 = ws::ecc_curve_ids_ECC_SECP112R1;
-    pub const SECP112R2: i32 = ws::ecc_curve_ids_ECC_SECP112R2;
-    pub const SECP128R1: i32 = ws::ecc_curve_ids_ECC_SECP128R1;
-    pub const SECP128R2: i32 = ws::ecc_curve_ids_ECC_SECP128R2;
-    pub const SECP160R1: i32 = ws::ecc_curve_ids_ECC_SECP160R1;
-    pub const SECP160R2: i32 = ws::ecc_curve_ids_ECC_SECP160R2;
-    pub const SECP224R1: i32 = ws::ecc_curve_ids_ECC_SECP224R1;
-    pub const SECP384R1: i32 = ws::ecc_curve_ids_ECC_SECP384R1;
-    pub const SECP521R1: i32 = ws::ecc_curve_ids_ECC_SECP521R1;
-    pub const SECP160K1: i32 = ws::ecc_curve_ids_ECC_SECP160K1;
-    pub const SECP192K1: i32 = ws::ecc_curve_ids_ECC_SECP192K1;
-    pub const SECP224K1: i32 = ws::ecc_curve_ids_ECC_SECP224K1;
-    pub const SECP256K1: i32 = ws::ecc_curve_ids_ECC_SECP256K1;
-    pub const BRAINPOOLP160R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP160R1;
-    pub const BRAINPOOLP192R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP192R1;
-    pub const BRAINPOOLP224R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP224R1;
-    pub const BRAINPOOLP256R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP256R1;
-    pub const BRAINPOOLP320R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP320R1;
-    pub const BRAINPOOLP384R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP384R1;
-    pub const BRAINPOOLP512R1: i32 = ws::ecc_curve_ids_ECC_BRAINPOOLP512R1;
-    pub const SM2P256V1: i32 = ws::ecc_curve_ids_ECC_SM2P256V1;
-    pub const X25519: i32 = ws::ecc_curve_ids_ECC_X25519;
-    pub const X448: i32 = ws::ecc_curve_ids_ECC_X448;
-    pub const SAKKE_1: i32 = ws::ecc_curve_ids_ECC_SAKKE_1;
-    pub const CURVE_CUSTOM: i32 = ws::ecc_curve_ids_ECC_CURVE_CUSTOM;
-    pub const CURVE_MAX: i32 = ws::ecc_curve_ids_ECC_CURVE_MAX;
+    pub const CURVE_INVALID: i32 = sys::ecc_curve_ids_ECC_CURVE_INVALID;
+    pub const CURVE_DEF: i32 = sys::ecc_curve_ids_ECC_CURVE_DEF;
+    pub const SECP192R1: i32 = sys::ecc_curve_ids_ECC_SECP192R1;
+    pub const PRIME192V2: i32 = sys::ecc_curve_ids_ECC_PRIME192V2;
+    pub const PRIME192V3: i32 = sys::ecc_curve_ids_ECC_PRIME192V3;
+    pub const PRIME239V1: i32 = sys::ecc_curve_ids_ECC_PRIME239V1;
+    pub const PRIME239V2: i32 = sys::ecc_curve_ids_ECC_PRIME239V2;
+    pub const PRIME239V3: i32 = sys::ecc_curve_ids_ECC_PRIME239V3;
+    pub const SECP256R1: i32 = sys::ecc_curve_ids_ECC_SECP256R1;
+    pub const SECP112R1: i32 = sys::ecc_curve_ids_ECC_SECP112R1;
+    pub const SECP112R2: i32 = sys::ecc_curve_ids_ECC_SECP112R2;
+    pub const SECP128R1: i32 = sys::ecc_curve_ids_ECC_SECP128R1;
+    pub const SECP128R2: i32 = sys::ecc_curve_ids_ECC_SECP128R2;
+    pub const SECP160R1: i32 = sys::ecc_curve_ids_ECC_SECP160R1;
+    pub const SECP160R2: i32 = sys::ecc_curve_ids_ECC_SECP160R2;
+    pub const SECP224R1: i32 = sys::ecc_curve_ids_ECC_SECP224R1;
+    pub const SECP384R1: i32 = sys::ecc_curve_ids_ECC_SECP384R1;
+    pub const SECP521R1: i32 = sys::ecc_curve_ids_ECC_SECP521R1;
+    pub const SECP160K1: i32 = sys::ecc_curve_ids_ECC_SECP160K1;
+    pub const SECP192K1: i32 = sys::ecc_curve_ids_ECC_SECP192K1;
+    pub const SECP224K1: i32 = sys::ecc_curve_ids_ECC_SECP224K1;
+    pub const SECP256K1: i32 = sys::ecc_curve_ids_ECC_SECP256K1;
+    pub const BRAINPOOLP160R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP160R1;
+    pub const BRAINPOOLP192R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP192R1;
+    pub const BRAINPOOLP224R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP224R1;
+    pub const BRAINPOOLP256R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP256R1;
+    pub const BRAINPOOLP320R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP320R1;
+    pub const BRAINPOOLP384R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP384R1;
+    pub const BRAINPOOLP512R1: i32 = sys::ecc_curve_ids_ECC_BRAINPOOLP512R1;
+    pub const SM2P256V1: i32 = sys::ecc_curve_ids_ECC_SM2P256V1;
+    pub const X25519: i32 = sys::ecc_curve_ids_ECC_X25519;
+    pub const X448: i32 = sys::ecc_curve_ids_ECC_X448;
+    pub const SAKKE_1: i32 = sys::ecc_curve_ids_ECC_SAKKE_1;
+    pub const CURVE_CUSTOM: i32 = sys::ecc_curve_ids_ECC_CURVE_CUSTOM;
+    pub const CURVE_MAX: i32 = sys::ecc_curve_ids_ECC_CURVE_MAX;
 
-    pub const FLAG_NONE: i32 = ws::WC_ECC_FLAG_NONE as i32;
-    pub const FLAG_COFACTOR: i32 = ws::WC_ECC_FLAG_COFACTOR as i32;
-    pub const FLAG_DEC_SIGN: i32 = ws::WC_ECC_FLAG_DEC_SIGN as i32;
+    pub const FLAG_NONE: i32 = sys::WC_ECC_FLAG_NONE as i32;
+    pub const FLAG_COFACTOR: i32 = sys::WC_ECC_FLAG_COFACTOR as i32;
+    pub const FLAG_DEC_SIGN: i32 = sys::WC_ECC_FLAG_DEC_SIGN as i32;
 
     /// Generate a new ECC key with the given size.
     ///
@@ -339,25 +335,25 @@ impl ECC {
     /// ecc.check().expect("Error with check()");
     /// ```
     pub fn generate(size: i32, rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_make_key(&mut rng.wc_rng, size, &mut wc_ecc_key)
+            sys::wc_ecc_make_key(&mut rng.wc_rng, size, &mut wc_ecc_key)
         };
         if rc != 0 {
-            unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
+            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
         let ecc = ECC { wc_ecc_key };
@@ -392,25 +388,25 @@ impl ECC {
     /// ecc.check().expect("Error with check()");
     /// ```
     pub fn generate_ex(size: i32, rng: &mut RNG, curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_make_key_ex(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id)
+            sys::wc_ecc_make_key_ex(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id)
         };
         if rc != 0 {
-            unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
+            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
         let ecc = ECC { wc_ecc_key };
@@ -446,25 +442,25 @@ impl ECC {
     /// ecc.check().expect("Error with check()");
     /// ```
     pub fn generate_ex2(size: i32, rng: &mut RNG, curve_id: i32, flags: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_make_key_ex2(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id, flags)
+            sys::wc_ecc_make_key_ex2(&mut rng.wc_rng, size, &mut wc_ecc_key, curve_id, flags)
         };
         if rc != 0 {
-            unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
+            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
         let ecc = ECC { wc_ecc_key };
@@ -494,7 +490,7 @@ impl ECC {
     /// ecc.check().expect("Error with check()");
     /// ```
     pub fn get_curve_size_from_id(curve_id: i32) -> Result<i32, i32> {
-        let rc = unsafe { ws::wc_ecc_get_curve_size_from_id(curve_id) };
+        let rc = unsafe { sys::wc_ecc_get_curve_size_from_id(curve_id) };
         if rc < 0 {
             return Err(rc);
         }
@@ -526,16 +522,16 @@ impl ECC {
     /// let mut ecc = ECC::import_der(&der, None, None).expect("Error with import_der()");
     /// ```
     pub fn import_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -543,7 +539,7 @@ impl ECC {
         let mut idx = 0u32;
         let der_size = der.len() as u32;
         let rc = unsafe {
-            ws::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
+            sys::wc_EccPrivateKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -585,16 +581,16 @@ impl ECC {
     /// let mut ecc = ECC::import_public_der(&der, None, None).expect("Error with import_public_der()");
     /// ```
     pub fn import_public_der(der: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -602,7 +598,7 @@ impl ECC {
         let mut idx = 0u32;
         let der_size = der.len() as u32;
         let rc = unsafe {
-            ws::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
+            sys::wc_EccPublicKeyDecode(der.as_ptr(), &mut idx, &mut wc_ecc_key, der_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -650,16 +646,16 @@ impl ECC {
     /// assert_eq!(valid, true);
     /// ```
     pub fn import_private_key(priv_buf: &[u8], pub_buf: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -667,7 +663,7 @@ impl ECC {
         let priv_size = priv_buf.len() as u32;
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
+            sys::wc_ecc_import_private_key(priv_buf.as_ptr(), priv_size,
                 pub_buf.as_ptr(), pub_size, &mut wc_ecc_key)
         };
         if rc != 0 {
@@ -719,16 +715,16 @@ impl ECC {
     /// assert_eq!(valid, true);
     /// ```
     pub fn import_private_key_ex(priv_buf: &[u8], pub_buf: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -736,7 +732,7 @@ impl ECC {
         let priv_size = priv_buf.len() as u32;
         let pub_size = pub_buf.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
+            sys::wc_ecc_import_private_key_ex(priv_buf.as_ptr(), priv_size,
                 pub_buf.as_ptr(), pub_size, &mut wc_ecc_key, curve_id)
         };
         if rc != 0 {
@@ -774,16 +770,16 @@ impl ECC {
     /// ECC::import_raw(qx, qy, d, b"SECP256R1\0", None, None).expect("Error with import_raw()");
     /// ```
     pub fn import_raw(qx: &[u8], qy: &[u8], d: &[u8], curve_name: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -793,7 +789,7 @@ impl ECC {
         let d_ptr = d.as_ptr() as *const i8;
         let curve_name_ptr = curve_name.as_ptr() as *const i8;
         let rc = unsafe {
-            ws::wc_ecc_import_raw(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
+            sys::wc_ecc_import_raw(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_name_ptr)
         };
         if rc != 0 {
@@ -831,16 +827,16 @@ impl ECC {
     /// ECC::import_raw_ex(qx, qy, d, ECC::SECP256R1, None, None).expect("Error with import_raw_ex()");
     /// ```
     pub fn import_raw_ex(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -849,7 +845,7 @@ impl ECC {
         let qy_ptr = qy.as_ptr() as *const i8;
         let d_ptr = d.as_ptr() as *const i8;
         let rc = unsafe {
-            ws::wc_ecc_import_raw_ex(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
+            sys::wc_ecc_import_raw_ex(&mut wc_ecc_key, qx_ptr, qy_ptr, d_ptr,
                 curve_id)
         };
         if rc != 0 {
@@ -895,22 +891,22 @@ impl ECC {
     /// let mut ecc2 = ECC::import_unsigned(&qx, &qy, &d, curve_id, None, None).expect("Error with import_unsigned()");
     /// ```
     pub fn import_unsigned(qx: &[u8], qy: &[u8], d: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_import_unsigned(&mut wc_ecc_key, qx.as_ptr(), qy.as_ptr(),
+            sys::wc_ecc_import_unsigned(&mut wc_ecc_key, qx.as_ptr(), qy.as_ptr(),
                 d.as_ptr(), curve_id)
         };
         if rc != 0 {
@@ -950,25 +946,25 @@ impl ECC {
     /// ```
     pub fn import_x963(din: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = din.len() as u32;
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_import_x963(din.as_ptr(), din_size, &mut wc_ecc_key)
+            sys::wc_ecc_import_x963(din.as_ptr(), din_size, &mut wc_ecc_key)
         };
         if rc != 0 {
-            unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
+            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
         let ecc = ECC { wc_ecc_key };
@@ -1010,25 +1006,25 @@ impl ECC {
     /// ```
     pub fn import_x963_ex(din: &[u8], curve_id: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<ECC, i32> {
         let din_size = din.len() as u32;
-        let mut wc_ecc_key: MaybeUninit<ws::ecc_key> = MaybeUninit::uninit();
+        let mut wc_ecc_key: MaybeUninit<sys::ecc_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ecc_init_ex(wc_ecc_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let mut wc_ecc_key = unsafe { wc_ecc_key.assume_init() };
         let rc = unsafe {
-            ws::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut wc_ecc_key, curve_id)
+            sys::wc_ecc_import_x963_ex(din.as_ptr(), din_size, &mut wc_ecc_key, curve_id)
         };
         if rc != 0 {
-            unsafe { ws::wc_ecc_free(&mut wc_ecc_key); }
+            unsafe { sys::wc_ecc_free(&mut wc_ecc_key); }
             return Err(rc);
         }
         let ecc = ECC { wc_ecc_key };
@@ -1091,7 +1087,7 @@ impl ECC {
         let r_ptr = r.as_ptr() as *const i8;
         let s_ptr = s.as_ptr() as *const i8;
         let rc = unsafe {
-            ws::wc_ecc_rs_to_sig(r_ptr, s_ptr, dout.as_mut_ptr(),
+            sys::wc_ecc_rs_to_sig(r_ptr, s_ptr, dout.as_mut_ptr(),
                 &mut dout_size)
         };
         if rc != 0 {
@@ -1144,7 +1140,7 @@ impl ECC {
         let s_size = s.len() as u32;
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_rs_raw_to_sig(r.as_ptr(), r_size, s.as_ptr(), s_size,
+            sys::wc_ecc_rs_raw_to_sig(r.as_ptr(), r_size, s.as_ptr(), s_size,
                 dout.as_mut_ptr(), &mut dout_size)
         };
         if rc != 0 {
@@ -1193,7 +1189,7 @@ impl ECC {
         *r_size = r.len() as u32;
         *s_size = s.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_sig_to_rs(sig.as_ptr(), sig_len,
+            sys::wc_ecc_sig_to_rs(sig.as_ptr(), sig_len,
                 r.as_mut_ptr(), r_size, s.as_mut_ptr(), s_size)
         };
         if rc != 0 {
@@ -1219,7 +1215,7 @@ impl ECC {
     /// ecc.check().expect("Error with check()");
     /// ```
     pub fn check(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_ecc_check_key(&mut self.wc_ecc_key) };
+        let rc = unsafe { sys::wc_ecc_check_key(&mut self.wc_ecc_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1263,7 +1259,7 @@ impl ECC {
         *qy_len = qy.len() as u32;
         *d_len = d.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_private_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_raw(&mut self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len)
@@ -1316,12 +1312,12 @@ impl ECC {
         *d_len = d.len() as u32;
         let enc_type =
             if hex {
-                ws::WC_TYPE_HEX_STR as i32
+                sys::WC_TYPE_HEX_STR as i32
             } else {
-                ws::WC_TYPE_UNSIGNED_BIN as i32
+                sys::WC_TYPE_UNSIGNED_BIN as i32
             };
         let rc = unsafe {
-            ws::wc_ecc_export_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_ex(&mut self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len,
                 d.as_mut_ptr(), d_len,
@@ -1358,7 +1354,7 @@ impl ECC {
     pub fn export_private(&mut self, d: &mut [u8]) -> Result<usize, i32> {
         let mut d_size = d.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_private_only(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_private_only(&mut self.wc_ecc_key,
                 d.as_mut_ptr(), &mut d_size)
         };
         if rc != 0 {
@@ -1399,7 +1395,7 @@ impl ECC {
         *qx_len = qx.len() as u32;
         *qy_len = qy.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_public_raw(&mut self.wc_ecc_key,
+            sys::wc_ecc_export_public_raw(&mut self.wc_ecc_key,
                 qx.as_mut_ptr(), qx_len,
                 qy.as_mut_ptr(), qy_len)
         };
@@ -1433,7 +1429,7 @@ impl ECC {
     pub fn export_x963(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len: u32 = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_x963(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
+            sys::wc_ecc_export_x963(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
             return Err(rc);
@@ -1465,7 +1461,7 @@ impl ECC {
     pub fn export_x963_compressed(&mut self, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len: u32 = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
+            sys::wc_ecc_export_x963_ex(&mut self.wc_ecc_key, dout.as_mut_ptr(), &mut out_len, 1)
         };
         if rc != 0 {
             return Err(rc);
@@ -1503,7 +1499,7 @@ impl ECC {
             None => core::ptr::null_mut(),
         };
         let rc = unsafe {
-            ws::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
+            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, core::ptr::null_mut(), rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1545,13 +1541,13 @@ impl ECC {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
-        let wc_ecc_point = unsafe { ws::wc_ecc_new_point_h(heap) };
+        let wc_ecc_point = unsafe { sys::wc_ecc_new_point_h(heap) };
         if wc_ecc_point.is_null() {
-            return Err(ws::wolfCrypt_ErrorCodes_MEMORY_E);
+            return Err(sys::wolfCrypt_ErrorCodes_MEMORY_E);
         }
         let ecc_point = ECCPoint { wc_ecc_point, heap };
         let rc = unsafe {
-            ws::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, wc_ecc_point, rng_ptr)
+            sys::wc_ecc_make_pub_ex(&mut self.wc_ecc_key, wc_ecc_point, rng_ptr)
         };
         if rc != 0 {
             return Err(rc);
@@ -1586,7 +1582,7 @@ impl ECC {
     /// ```
     pub fn set_rng(&mut self, rng: &mut RNG) -> Result<(), i32> {
         let rc = unsafe {
-            ws::wc_ecc_set_rng(&mut self.wc_ecc_key, &mut rng.wc_rng)
+            sys::wc_ecc_set_rng(&mut self.wc_ecc_key, &mut rng.wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -1627,7 +1623,7 @@ impl ECC {
     pub fn shared_secret(&mut self, peer_key: &mut ECC, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_shared_secret(&mut self.wc_ecc_key,
+            sys::wc_ecc_shared_secret(&mut self.wc_ecc_key,
                 &mut peer_key.wc_ecc_key, dout.as_mut_ptr(), &mut out_len)
         };
         if rc < 0 {
@@ -1671,7 +1667,7 @@ impl ECC {
     pub fn shared_secret_ex(&mut self, peer: &ECCPoint, dout: &mut [u8]) -> Result<usize, i32> {
         let mut out_len = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_shared_secret_ex(&mut self.wc_ecc_key,
+            sys::wc_ecc_shared_secret_ex(&mut self.wc_ecc_key,
                 peer.wc_ecc_point, dout.as_mut_ptr(), &mut out_len)
         };
         if rc != 0 {
@@ -1711,7 +1707,7 @@ impl ECC {
         let din_size = din.len() as u32;
         let mut dout_size = dout.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_sign_hash(din.as_ptr(), din_size, dout.as_mut_ptr(),
+            sys::wc_ecc_sign_hash(din.as_ptr(), din_size, dout.as_mut_ptr(),
                 &mut dout_size, &mut rng.wc_rng, &mut self.wc_ecc_key)
         };
         if rc != 0 {
@@ -1751,7 +1747,7 @@ impl ECC {
         let sig_len = sig.len() as u32;
         let hash_len = hash.len() as u32;
         let rc = unsafe {
-            ws::wc_ecc_verify_hash(sig.as_ptr(), sig_len,
+            sys::wc_ecc_verify_hash(sig.as_ptr(), sig_len,
                 hash.as_ptr(), hash_len, &mut res, &mut self.wc_ecc_key)
         };
         if rc != 0 {
@@ -1770,6 +1766,6 @@ impl Drop for ECC {
     /// struct goes out of scope, automatically cleaning up resources and
     /// preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_ecc_free(&mut self.wc_ecc_key); }
+        unsafe { sys::wc_ecc_free(&mut self.wc_ecc_key); }
     }
 }
