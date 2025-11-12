@@ -9830,7 +9830,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
 
     if (seenGroups != NULL) {
-        if (*seenGroupsCnt == MAX_KEYSHARE_NAMED_GROUPS) {
+        if (*seenGroupsCnt >= MAX_KEYSHARE_NAMED_GROUPS) {
             return BAD_KEY_SHARE_DATA;
         }
         for (i = 0; i < *seenGroupsCnt; i++) {
