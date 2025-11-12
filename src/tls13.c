@@ -14419,7 +14419,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 else
             #endif
                 {
-                    WOLFSSL_MSG("accept error: server key required");
+                    WOLFSSL_MSG("accept error: server key required (tls13)");
                     ssl->error = NO_PRIVATE_KEY;
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;

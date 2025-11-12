@@ -1354,25 +1354,27 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    /* The blinding operation's return code is purposely ignored because we want
+     * to report back the status of the buffer decode; not the blinding. */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (type == ALT_PRIVATEKEY_TYPE) {
         if (ssl != NULL) {
-            ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+            wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
                 &ssl->buffers.altKeyMask);
         }
         else {
-            ret = wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
+            wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
                 &ctx->altPrivateKeyMask);
         }
     }
     else
 #endif
     if (ssl != NULL) {
-        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+        wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
             &ssl->buffers.keyMask);
     }
     else {
-        ret = wolfssl_priv_der_blind(NULL, ctx->privateKey,
+        wolfssl_priv_der_blind(NULL, ctx->privateKey,
             &ctx->privateKeyMask);
     }
 #endif

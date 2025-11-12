@@ -7088,7 +7088,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         if (ret != 0) {
             return ret;
         }
-        ssl->buffers.weOwnKey = 1;
+        ret = WOLFSSL_SUCCESS;
+
+        /* todo: this is making injection test fail. with:
+         * ./configure CFLAGS=-DWOLFSSL_BLIND_PRIVATE_KEY */ 
+        //ssl->buffers.weOwnKey = 1;
         /* Blind the private key for the SSL with new random mask. */
         wolfssl_priv_der_unblind(ssl->buffers.key, ctx->privateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
@@ -7096,6 +7100,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         if (ret != 0) {
             return ret;
         }
+        ret = WOLFSSL_SUCCESS;
     }
 #endif
     ssl->buffers.keyType  = ctx->privateKeyType;
