@@ -12741,7 +12741,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 pkcs7->cachedEncryptedContentSz = 0;
             }
 
-            ret = pkcs7->totalEncryptedContentSz - padLen;
+            ret = (int)pkcs7->totalEncryptedContentSz - padLen;
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = NULL;
             pkcs7->stream->aadSz = 0;
