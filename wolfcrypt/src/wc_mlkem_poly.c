@@ -4775,7 +4775,7 @@ static MLKEM_NOINLINE void mlkem_csubq_c(sword16* p)
     for (i = 0; i < MLKEM_N; ++i) {
         sword16 t = p[i] - MLKEM_Q;
         /* When top bit set, -ve number - need to add q back. */
-        p[i] = ((t >> 15) & MLKEM_Q) + t;
+        p[i] = (sword16)((word16)(-((word16)t >> 15)) & MLKEM_Q) + t;
     }
 }
 
@@ -6021,11 +6021,11 @@ static void mlkem_to_bytes_c(byte* b, sword16* p, int k)
     int i;
     int j;
 
-    /* Reduce each coefficient to mod q. */
-    mlkem_csubq_c(p);
-    /* All values are now positive. */
-
     for (j = 0; j < k; j++) {
+        /* Reduce each coefficient to mod q. */
+        mlkem_csubq_c(p);
+        /* All values are now positive. */
+
         for (i = 0; i < MLKEM_N / 2; i++) {
             word16 t0 = p[2 * i];
             word16 t1 = p[2 * i + 1];
