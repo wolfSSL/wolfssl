@@ -1354,26 +1354,31 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    {
+        int blindRet = 0;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (type == ALT_PRIVATEKEY_TYPE) {
+        if (type == ALT_PRIVATEKEY_TYPE) {
+            if (ssl != NULL) {
+                blindRet = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+                    &ssl->buffers.altKeyMask);
+            }
+            else {
+                blindRet = wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
+                    &ctx->altPrivateKeyMask);
+            }
+        }
+        else
+#endif
         if (ssl != NULL) {
-            ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
-                &ssl->buffers.altKeyMask);
+            blindRet = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+                &ssl->buffers.keyMask);
         }
         else {
-            ret = wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
-                &ctx->altPrivateKeyMask);
+            blindRet = wolfssl_priv_der_blind(NULL, ctx->privateKey,
+                &ctx->privateKeyMask);
         }
-    }
-    else
-#endif
-    if (ssl != NULL) {
-        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
-            &ssl->buffers.keyMask);
-    }
-    else {
-        ret = wolfssl_priv_der_blind(NULL, ctx->privateKey,
-            &ctx->privateKeyMask);
+        if (ret == 0 && blindRet != 0)
+            ret = blindRet;
     }
 #endif
 

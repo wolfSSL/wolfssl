@@ -50626,6 +50626,8 @@ static int test_wolfSSL_inject(void)
         struct test_memio_ctx test_ctx;
         WOLFSSL_ALERT_HISTORY h;
         int rounds;
+        int hs_c = 0;
+        int hs_s = 0;
 
         printf("Testing %s\n", params[i].tls_version);
 
@@ -50635,31 +50637,41 @@ static int test_wolfSSL_inject(void)
                 params[i].client_meth, params[i].server_meth), 0);
 
         for (rounds = 0; rounds < 10 && EXPECT_SUCCESS(); rounds++) {
-            wolfSSL_SetLoggingPrefix("client");
-            if (wolfSSL_negotiate(ssl_c) != 1) {
-                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
-                        WOLFSSL_ERROR_WANT_READ);
+            if (!hs_c) {
+                wolfSSL_SetLoggingPrefix("client");
+                if (wolfSSL_negotiate(ssl_c) != 1) {
+                    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
+                            WOLFSSL_ERROR_WANT_READ);
+                }
+                else
+                    hs_c = 1;
             }
-            wolfSSL_SetLoggingPrefix("server");
-            if (test_ctx.s_len > 0) {
-                ExpectIntEQ(wolfSSL_inject(ssl_s, test_ctx.s_buff,
-                                           test_ctx.s_len), 1);
-                test_memio_clear_buffer(&test_ctx, 0);
+            if (!hs_s) {
+                wolfSSL_SetLoggingPrefix("server");
+                if (test_ctx.s_len > 0) {
+                    ExpectIntEQ(wolfSSL_inject(ssl_s, test_ctx.s_buff,
+                                            test_ctx.s_len), 1);
+                    test_memio_clear_buffer(&test_ctx, 0);
+                }
+                if (wolfSSL_negotiate(ssl_s) != 1) {
+                    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
+                            WOLFSSL_ERROR_WANT_READ);
+                }
+                else
+                    hs_s = 1;
             }
-            if (wolfSSL_negotiate(ssl_s) != 1) {
-                ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
-                        WOLFSSL_ERROR_WANT_READ);
-            }
-            wolfSSL_SetLoggingPrefix("client");
-            if (test_ctx.c_len > 0) {
-                ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
-                                           test_ctx.c_len), 1);
-                test_memio_clear_buffer(&test_ctx, 1);
+            if (!hs_c) {
+                wolfSSL_SetLoggingPrefix("client");
+                if (test_ctx.c_len > 0) {
+                    ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
+                                            test_ctx.c_len), 1);
+                    test_memio_clear_buffer(&test_ctx, 1);
+                }
             }
             wolfSSL_SetLoggingPrefix(NULL);
         }
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+        ExpectIntEQ(hs_c, 1);
+        ExpectIntEQ(hs_s, 1);
 
         wolfSSL_free(ssl_c);
         wolfSSL_free(ssl_s);
