@@ -7559,7 +7559,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
  * Return the private key of the WOLFSSL_CTX struct
  * @return WOLFSSL_EVP_PKEY* The caller doesn *NOT*` free the returned object.
  */
-WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
+WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_EVP_PKEY* res;
     const unsigned char *key;
