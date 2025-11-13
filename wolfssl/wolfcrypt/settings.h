@@ -350,9 +350,12 @@
     #define NO_WRITEV
     #define NO_STDIO_FILESYSTEM
     #define WOLFSSL_NO_SOCK
-    #define NO_ASN_TIME
-    #define WOLFCRYPT_ONLY
     #define WOLFSSL_NO_GETPID
+    /* Only disable ASN time checking if building crypto-only.
+     * For systems without RTC, this bypasses certificate date checking. */
+    #ifdef WOLFCRYPT_ONLY
+        #define NO_ASN_TIME
+    #endif
 #endif
 
 #if !defined(WOLFSSL_CUSTOM_CONFIG) && \
