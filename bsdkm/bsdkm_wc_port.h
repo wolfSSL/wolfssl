@@ -110,7 +110,7 @@ extern struct malloc_type M_WOLFSSL[1];
     typedef volatile int wolfSSL_Atomic_Int;
     typedef volatile unsigned int wolfSSL_Atomic_Uint;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-    #define WOLFSSL_ATOMIC_LOAD(x)  atomic_load_acq_int(&(x))
+    #define WOLFSSL_ATOMIC_LOAD(x)  (int)atomic_load_acq_int(&(x))
     #define WOLFSSL_ATOMIC_STORE(x, v)  atomic_store_rel_int(&(x), (v))
     #define WOLFSSL_ATOMIC_OPS
 #endif /* WOLFSSL_HAVE_ATOMIC_H && !WOLFSSL_NO_ATOMICS */
