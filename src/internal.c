@@ -37166,6 +37166,30 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
+#ifdef WOLFSSL_TLS13
+    /* Check if a cipher suite is a TLS 1.3 cipher suite
+     * Returns 1 if TLS 1.3 cipher suite, 0 otherwise
+     */
+    static WC_INLINE int IsTls13CipherSuite(byte first, byte second)
+    {
+        /* TLS 1.3 cipher suites use TLS13_BYTE (0x13) as first byte */
+        if (first == TLS13_BYTE)
+            return 1;
+
+        /* Special cases for integrity-only cipher suites */
+        if (first == ECC_BYTE && (second == TLS_SHA256_SHA256 ||
+                                  second == TLS_SHA384_SHA384))
+            return 1;
+
+        /* SM4 cipher suites for TLS 1.3 */
+        if (first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
+                                     second == TLS_SM4_CCM_SM3))
+            return 1;
+
+        return 0;
+    }
+#endif /* WOLFSSL_TLS13 */
+
     /* Make sure server cert/key are valid for this suite, true on success
      * Returns 1 for valid server suite or 0 if not found
      * For asynchronous this can return WC_PENDING_E
@@ -37191,6 +37215,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         first   = suites->suites[idx];
         second  = suites->suites[idx+1];
+
+#ifdef WOLFSSL_TLS13
+        /* When negotiating TLS 1.3, reject non-TLS 1.3 cipher suites */
+        if (IsAtLeastTLSv1_3(ssl->version) &&
+            ssl->options.side == WOLFSSL_SERVER_END) {
+            if (!IsTls13CipherSuite(first, second)) {
+                WOLFSSL_MSG("TLS 1.2 cipher suite not valid for TLS 1.3");
+                return 0;
+            }
+        }
+#endif /* WOLFSSL_TLS13 */
 
         if (CipherRequires(first, second, REQUIRES_RSA)) {
             WOLFSSL_MSG("Requires RSA");
