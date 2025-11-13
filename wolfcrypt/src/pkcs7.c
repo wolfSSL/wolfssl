@@ -12493,6 +12493,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
             }
 
         #endif
+            pkcs7->totalEncryptedContentSz = 0;
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_ENV_5);
             FALL_THROUGH;
 
@@ -12628,6 +12629,10 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                     /* advance idx past encrypted content */
                     localIdx += (word32)encryptedContentSz;
 
+                    /* keep track of total encrypted content size */
+                    pkcs7->totalEncryptedContentSz +=
+                        (word32)encryptedContentSz;
+
                     if (localIdx + ASN_INDEF_END_SZ <= pkiMsgSz) {
                         if (pkiMsg[localIdx] == ASN_EOC &&
                                 pkiMsg[localIdx+1] == ASN_EOC) {
@@ -12672,6 +12677,8 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 wc_PKCS7_DecryptContentFree(pkcs7, encOID, pkcs7->heap);
             } else {
                 pkcs7->cachedEncryptedContentSz =
+                    (word32)encryptedContentTotalSz;
+                pkcs7->totalEncryptedContentSz =
                     (word32)encryptedContentTotalSz;
                 pkcs7->cachedEncryptedContent = (byte*)XMALLOC(
                         pkcs7->cachedEncryptedContentSz, pkcs7->heap,
@@ -12734,7 +12741,7 @@ int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 pkcs7->cachedEncryptedContentSz = 0;
             }
 
-            ret = encryptedContentSz - padLen;
+            ret = pkcs7->totalEncryptedContentSz - padLen;
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = NULL;
             pkcs7->stream->aadSz = 0;
