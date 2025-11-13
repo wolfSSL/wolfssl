@@ -342,6 +342,19 @@
     #endif
 #endif
 
+/* Bare metal configuration */
+#ifdef WOLFSSL_BAREMETAL
+    #define SINGLE_THREADED
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    #define NO_WRITEV
+    #define NO_STDIO_FILESYSTEM
+    #define WOLFSSL_NO_SOCK
+    #define NO_ASN_TIME
+    #define WOLFCRYPT_ONLY
+    #define WOLFSSL_NO_GETPID
+#endif
+
 #if !defined(WOLFSSL_CUSTOM_CONFIG) && \
     ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
      (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
