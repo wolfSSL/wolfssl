@@ -429,6 +429,10 @@ int test_wc_ecc_signVerify_hash(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, NULL),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_sign_hash(digest, WC_MAX_DIGEST_SIZE+1, sig, &siglen,
+        &rng, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 
 #ifdef HAVE_ECC_VERIFY
     ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, digestlen, &verify,
@@ -457,6 +461,10 @@ int test_wc_ecc_signVerify_hash(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, digestlen, &verify,
         NULL), WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GT(7,0)) && !defined(HAVE_SELFTEST)
+    ExpectIntEQ(wc_ecc_verify_hash(sig, siglen, digest, WC_MAX_DIGEST_SIZE+1,
+        &verify, &key), WC_NO_ERR_TRACE(BAD_LENGTH_E));
+#endif
 #endif /* HAVE_ECC_VERIFY */
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
