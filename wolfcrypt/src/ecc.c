@@ -6716,6 +6716,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     if (in == NULL || out == NULL || outlen == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
+    if (inlen > WC_MAX_DIGEST_SIZE) {
+        return BAD_LENGTH_E;
+    }
 
 #ifdef WOLF_CRYPTO_CB
     #ifndef WOLF_CRYPTO_CB_FIND
@@ -8495,6 +8498,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
+    }
+    if (hashlen > WC_MAX_DIGEST_SIZE) {
+        return BAD_LENGTH_E;
     }
 
 #ifdef WOLF_CRYPTO_CB

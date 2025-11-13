@@ -31118,7 +31118,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
 #define HAVE_ECC_DETERMINISTIC_K
 #define ECC_DIGEST_SIZE     WC_SHA256_DIGEST_SIZE
 #else
-#define ECC_DIGEST_SIZE     MAX_ECC_BYTES
+#define ECC_DIGEST_SIZE     WC_MAX_DIGEST_SIZE
 #endif
 #define ECC_SIG_SIZE        ECC_MAX_SIG_SIZE
 
