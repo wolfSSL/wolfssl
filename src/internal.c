@@ -37176,15 +37176,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (first == TLS13_BYTE)
             return 1;
 
+#ifdef HAVE_NULL_CIPHER
         /* Special cases for integrity-only cipher suites */
         if (first == ECC_BYTE && (second == TLS_SHA256_SHA256 ||
                                   second == TLS_SHA384_SHA384))
             return 1;
+#endif
 
+#if (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)) && \
+     defined(WOLFSSL_SM3)
         /* SM4 cipher suites for TLS 1.3 */
         if (first == CIPHER_BYTE && (second == TLS_SM4_GCM_SM3 ||
                                      second == TLS_SM4_CCM_SM3))
             return 1;
+#endif
 
         return 0;
     }
