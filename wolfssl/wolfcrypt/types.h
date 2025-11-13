@@ -725,7 +725,11 @@ enum {
 
 #elif defined(WOLFSSL_LINUXKM)
 
-    /* definitions are in linuxkm/linuxkm_wc_port.h */
+    /* definitions are in linuxkm/linuxkm_wc_port.h. */
+
+#elif defined(WOLFSSL_BSDKM)
+
+    /* definitions are in bsdkm/bsdkm_wc_port.h */
 
 #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
         && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
@@ -1829,7 +1833,7 @@ WOLFSSL_API word32 CheckRunTimeSettings(void);
     #define WOLFSSL_THREAD
     #define INFINITE TX_WAIT_FOREVER
     #define WAIT_OBJECT_0 TX_NO_WAIT
-#elif defined(WOLFSSL_LINUXKM)
+#elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_BSDKM)
     typedef unsigned int  THREAD_RETURN;
     typedef size_t        THREAD_TYPE;
     #define WOLFSSL_THREAD

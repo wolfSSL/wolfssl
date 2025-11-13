@@ -16,3 +16,5 @@ rsource "Kconfig.tls-generic"
 \pagenumbering{alph}
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
 /* functions added to support above needed, removed TOOM and KARATSUBA */
+#include <sys/systm.h>
+ * extern global version from /usr/src/sys/sys/systm.h */
