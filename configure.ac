@@ -2047,6 +2047,17 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
 
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED" ])
 
+# BARE METAL
+AC_ARG_ENABLE([baremetal],
+    [AS_HELP_STRING([--enable-baremetal],[Enable wolfSSL bare metal build (default: disabled)])],
+    [ ENABLED_BAREMETAL=$enableval ],
+    [ ENABLED_BAREMETAL=no ])
+
+if test "$ENABLED_BAREMETAL" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BAREMETAL"
+fi
+
 # Enable rwlock
 AC_ARG_ENABLE([rwlock],
     [AS_HELP_STRING([--enable-rwlock],[Enable use of rwlock (default: disabled)])],

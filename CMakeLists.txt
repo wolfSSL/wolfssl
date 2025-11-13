@@ -328,6 +328,15 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
 endif()
 
+# Bare metal
+add_option("WOLFSSL_BAREMETAL"
+    "Enable wolfSSL bare metal build (default: disabled)"
+    "no" "yes;no")
+
+if(WOLFSSL_BAREMETAL)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_BAREMETAL")
+endif()
+
 # DTLS-SRTP
 add_option("WOLFSSL_SRTP"
     "Enables wolfSSL DTLS-SRTP (default: disabled)"
