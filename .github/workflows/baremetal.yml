@@ -1,0 +1,151 @@
+name: Bare-Metal Configuration Tests
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baremetal_autotools:
+    name: Bare-metal build (autotools)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [
+          '--enable-baremetal',
+          '--enable-baremetal --enable-cryptonly'
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
+      
+      - name: autogen
+        run: ./autogen.sh
+      
+      - name: configure
+        run: CPPFLAGS="-DWOLFSSL_USER_IO" ./configure ${{ matrix.config }} --disable-examples --enable-cryptocb
+      
+      - name: build
+        run: make -j$(nproc)
+      
+      - name: Verify macro definitions
+        run: |
+          cat > test_baremetal_defines.c <<'EOF'
+          #include <wolfssl/options.h>
+          #include <wolfssl/wolfcrypt/settings.h>
+          #include <stdio.h>
+          
+          int main() {
+              int errors = 0;
+              
+              #ifdef WOLFSSL_BAREMETAL
+                  printf("✓ WOLFSSL_BAREMETAL is defined\n");
+              #else
+                  printf("✗ ERROR: WOLFSSL_BAREMETAL should be defined\n");
+                  errors++;
+              #endif
+              
+              #ifdef WOLFCRYPT_ONLY
+                  printf("✓ WOLFCRYPT_ONLY is defined\n");
+                  #ifdef NO_ASN_TIME
+                      printf("✓ NO_ASN_TIME is defined (expected with WOLFCRYPT_ONLY)\n");
+                  #else
+                      printf("✗ ERROR: NO_ASN_TIME should be defined when WOLFCRYPT_ONLY is set\n");
+                      errors++;
+                  #endif
+              #else
+                  printf("✓ WOLFCRYPT_ONLY is NOT defined\n");
+                  #ifdef NO_ASN_TIME
+                      printf("✗ ERROR: NO_ASN_TIME should NOT be defined without WOLFCRYPT_ONLY\n");
+                      errors++;
+                  #else
+                      printf("✓ NO_ASN_TIME is NOT defined (expected without WOLFCRYPT_ONLY)\n");
+                  #endif
+              #endif
+              
+              return errors;
+          }
+          EOF
+          gcc -I. test_baremetal_defines.c -o test_baremetal_defines
+          ./test_baremetal_defines
+
+  baremetal_cmake:
+    name: Bare-metal build (CMake)
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        cryptonly: [false, true]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential
+      
+      - name: Configure CMake
+        run: |
+          mkdir build && cd build
+          if [ "${{ matrix.cryptonly }}" = "true" ]; then
+            cmake -DWOLFSSL_BAREMETAL=yes -DWOLFSSL_CRYPTONLY=yes -DWOLFSSL_EXAMPLES=no -DWOLFSSL_CRYPTOCB=yes -DCMAKE_C_FLAGS="-DWOLFSSL_USER_IO -DWOLFCRYPT_ONLY" ..
+          else
+            cmake -DWOLFSSL_BAREMETAL=yes -DWOLFSSL_EXAMPLES=no -DWOLFSSL_CRYPTOCB=yes -DCMAKE_C_FLAGS="-DWOLFSSL_USER_IO" ..
+          fi
+      
+      - name: Build
+        run: cd build && cmake --build . -j$(nproc)
+      
+      - name: Verify macro definitions
+        run: |
+          cd build
+          cat > test_baremetal_defines.c <<'EOF'
+          #include <wolfssl/options.h>
+          #include <wolfssl/wolfcrypt/settings.h>
+          #include <stdio.h>
+          
+          int main() {
+              int errors = 0;
+              
+              #ifdef WOLFSSL_BAREMETAL
+                  printf("✓ WOLFSSL_BAREMETAL is defined\n");
+              #else
+                  printf("✗ ERROR: WOLFSSL_BAREMETAL should be defined\n");
+                  errors++;
+              #endif
+              
+              #ifdef WOLFCRYPT_ONLY
+                  printf("✓ WOLFCRYPT_ONLY is defined\n");
+                  #ifdef NO_ASN_TIME
+                      printf("✓ NO_ASN_TIME is defined (expected with WOLFCRYPT_ONLY)\n");
+                  #else
+                      printf("✗ ERROR: NO_ASN_TIME should be defined when WOLFCRYPT_ONLY is set\n");
+                      errors++;
+                  #endif
+              #else
+                  printf("✓ WOLFCRYPT_ONLY is NOT defined\n");
+                  #ifdef NO_ASN_TIME
+                      printf("✗ ERROR: NO_ASN_TIME should NOT be defined without WOLFCRYPT_ONLY\n");
+                      errors++;
+                  #else
+                      printf("✓ NO_ASN_TIME is NOT defined (expected without WOLFCRYPT_ONLY)\n");
+                  #endif
+              #endif
+              
+              return errors;
+          }
+          EOF
+          # Key: -I. comes BEFORE -I.. so build/wolfssl/options.h is found first
+          gcc -I. -I.. test_baremetal_defines.c -o test_baremetal_defines
+          ./test_baremetal_defines
+
