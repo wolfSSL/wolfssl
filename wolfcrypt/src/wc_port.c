@@ -150,12 +150,96 @@
 #endif
 #endif
 
+#if !defined(NO_AES)
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
 int aarch64_use_sb = 0;
 #endif
+
+#ifdef WOLFCRYPT_WARMUP
+static int wolfCrypt_Warmup(void)
+{
+    int ret = 0;
+    WC_RNG rng;
+    byte dummy;
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    Aes aes;
+    unsigned char key16[16];
+    unsigned char out[16];
+    unsigned char in[16];
+    unsigned char iv[12];
+    int devId;
+#endif
+
+#if defined(DEBUG_WOLFSSL_MALLOC_VERBOSE)
+    WOLFSSL_MSG("Warming up RNG");
+#endif
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        /* forces Hash_DRBG/SHA */
+        ret = wc_RNG_GenerateBlock(&rng, &dummy, 1);
+        if (ret != 0) {
+            WOLFSSL_MSG("wolfCrypt_Init wc_RNG_GenerateBlock failed");
+        }
+    }
+    if (ret != 0) {
+        WOLFSSL_MSG("wolfCrypt_Init RNG warmup failed");
+    }
+    ret = wc_FreeRng(&rng);
+    if (ret != 0) {
+        WOLFSSL_MSG("wolfCrypt_Init wc_FreeRng failed");
+    }
+
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if defined(DEBUG_WOLFSSL_MALLOC_VERBOSE)
+    WOLFSSL_MSG("Warming up AES");
+#endif
+    memset(key16, 0, sizeof(key16));
+    memset(iv, 0, sizeof(iv));
+    memset(in, 0, sizeof(in));
+    devId = INVALID_DEVID;
+
+    ret = wc_AesInit(&aes, NULL, devId);
+    if (ret == 0) {
+        /* Set an ECB key (no IV). This avoids pulling in GCM/GHASH. */
+        ret = wc_AesSetKey(&aes, key16, (word32)sizeof(key16), NULL,
+                            AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+#ifdef WOLFSSL_AES_DIRECT
+        /* Single direct block encrypt to exercise the core/driver. */
+        ret = wc_AesEncryptDirect(&aes, out, in);
+#elif !defined(NO_AES_CBC)
+    /* One-block CBC (tiny; no padding; does not pull GCM). */
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0) {
+        ret = wc_AesCbcEncrypt(&aes, out, in, (word32)sizeof(in));
+    }
+#elif defined(HAVE_AES_CTR) || defined(WOLFSSL_AES_COUNTER)
+    /* As another lightweight option, CTR one-block. */
+    ret = wc_AesSetIV(&aes, iv);
+    if (ret == 0) {
+        ret = wc_AesCtrEncrypt(&aes, out, in, (word32)sizeof(in));
+    }
+#else
+    /* No small mode available; setting the key already did most of the warmup. */
+    ret = 0;
+#endif
+    }
+    if (ret != 0) {
+        WOLFSSL_MSG("AES warmup failed during wolfCrypt_Init");
+    }
+    wc_AesFree(&aes);
+#endif /* !NO_AES && HAVE_AESGCM */
+
+    return ret;
+}
+#endif /* WOLFCRYPT_WARMUP */
 
 /* Used to initialize state for wolfcrypt
    return 0 on success
@@ -164,8 +248,17 @@ WOLFSSL_ABI
 int wolfCrypt_Init(void)
 {
     int ret = 0;
+
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
+
+    #ifdef WOLFCRYPT_WARMUP
+        /* Warm up the hardware to allocate any heap & semaphore early */
+        ret = wolfCrypt_Warmup();
+        if (ret != 0) {
+            WOLFSSL_MSG("wolfCrypt_Warmup failed during wolfCrypt_Init");
+        }
+    #endif
 
     #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
         aarch64_use_sb = IS_AARCH64_SB(cpuid_get_flags());
@@ -444,11 +537,13 @@ int wolfCrypt_Init(void)
             return ret;
         }
 #endif
-    }
+
+    } /* (initRefCount == 0) */
+
     initRefCount++;
 
     return ret;
-}
+} /* wolfCrypt_Init */
 
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
 long wolfCrypt_heap_peakAllocs_checkpoint(void) {
