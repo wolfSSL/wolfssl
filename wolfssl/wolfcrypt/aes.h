@@ -156,6 +156,9 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
     #include <wolfssl/wolfcrypt/port/maxim/maxq10xx.h>
 #endif
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include "cy_crypto_common.h"
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 
 #ifdef __cplusplus
     extern "C" {
@@ -433,6 +436,12 @@ struct Aes {
 #ifdef WOLFSSL_AES_CTS
     byte ctsBlock[WC_AES_BLOCK_SIZE * 2];
 #endif
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    cy_stc_crypto_aes_state_t aes_state;
+#ifdef HAVE_AESGCM
+    cy_stc_crypto_aes_gcm_state_t aes_gcm_state;
+#endif
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 
 #ifndef WC_AES_TYPE_DEFINED

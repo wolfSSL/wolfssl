@@ -46,7 +46,16 @@
 
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
-#endif
+#endif /* HAVE_ECC */
+
+#ifndef NO_AES
+#include <wolfssl/wolfcrypt/aes.h>
+
+#include "cy_crypto_common.h"
+#include "cy_crypto_core_aes.h"
+#include "cy_crypto_core_aes_v2.h"
+
+#endif /* NO_AES */
 
 #if defined(PSOC6_HASH_SHA3)
 
@@ -190,13 +199,23 @@ int wc_Psoc6_Sha1_Sha2_Init(void* sha, wc_psoc6_hash_sha1_sha2_t hash_mode,
  * No parameters.
  * No return value.
  */
-void wc_Psoc6_Sha_Free(void)
+int wc_Psoc6_Sha_Free(void)
 {
+    int ret;
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+
     /* Clear the register buffer */
     Cy_Crypto_Core_V2_RBClear(crypto_base);
 
     /* Wait until the instruction is complete */
     Cy_Crypto_Core_V2_Sync(crypto_base);
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+
+    return ret;
 }
 
 /* SHA */
@@ -413,8 +432,8 @@ int wc_Sha224Final(wc_Sha224* sha, byte* hash)
     return wc_InitSha224(sha);
 }
 
-#endif /* #if !NO_SHA224 */
-#endif /* #if !NO_SHA256 */
+#endif /* WOLFSSL_SHA224 */
+#endif /* !NO_SHA256 */
 
 /* SHA-384 */
 #if defined(WOLFSSL_SHA384)
@@ -1015,6 +1034,991 @@ int wc_Psoc6_Shake_SqueezeBlocks(void* shake, byte* out, word32 blockCnt)
 
 #endif /* WOLFSSL_SHA3 && PSOC6_HASH_SHA3 */
 
+#if defined(PSOC6_CRYPTO_AES)
+
+/* Convert wolfSSL AES key length to PSoC6 crypto key length enumeration.
+ *
+ * This helper function maps standard AES key sizes to the corresponding
+ * PSoC6 hardware crypto enumeration values.
+ *
+ * keyLen   AES key length in bytes (16, 24, or 32)
+ * returns  Corresponding PSoC6 key length enumeration value
+ *          - CY_CRYPTO_KEY_AES_128 for 16-byte keys (AES-128)
+ *          - CY_CRYPTO_KEY_AES_192 for 24-byte keys (AES-192)
+ *          - CY_CRYPTO_KEY_AES_256 for 32-byte keys (AES-256)
+ *          - CY_CRYPTO_KEY_AES_128 as safe default (key validation done
+ * earlier)
+ */
+static cy_en_crypto_aes_key_length_t psoc6_get_aes_key_length(word32 keyLen)
+{
+    switch (keyLen) {
+        case 16:
+            return CY_CRYPTO_KEY_AES_128;
+        case 24:
+            return CY_CRYPTO_KEY_AES_192;
+        case 32:
+            return CY_CRYPTO_KEY_AES_256;
+        default:
+            /* Safe default - validation done in wc_Psoc6_Aes_SetKey */
+            return CY_CRYPTO_KEY_AES_128;
+    }
+}
+
+/* Initialize AES context with key and optional IV for PSoC6 hardware
+ * acceleration.
+ *
+ * Sets up the AES context structure with the provided key and optional
+ * initialization vector. This function validates key length, stores key
+ * information, and prepares the context for subsequent crypto operations.
+ * The actual hardware key scheduling is performed during encrypt/decrypt calls.
+ *
+ * aes     Pointer to AES context structure to initialize
+ * userKey Pointer to AES key buffer (16, 24, or 32 bytes)
+ * len     Key length in bytes (must be 16, 24, or 32)
+ * iv      Pointer to initialization vector (AES_BLOCK_SIZE bytes, optional)
+ * dir     Encryption direction (currently unused, direction handled
+ * per-operation)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters
+ *
+ * Note: This function only stores the key and IV in the wolfSSL context.
+ *       Hardware initialization occurs during actual crypto operations.
+ */
+int wc_Psoc6_Aes_SetKey(Aes* aes, const byte* userKey, word32 len,
+                        const byte* iv, int dir)
+{
+    int ret = 0;
+
+    if (aes == NULL || userKey == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Validate key length */
+    if (len != 16 && len != 24 && len != 32) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Store key information in wolfSSL structure */
+    aes->keylen = len;
+    aes->rounds = len / 4 + 6;
+    aes->left   = 0;
+
+    XMEMCPY(aes->key, userKey, len);
+
+    /* Store IV if provided */
+    if (iv != NULL) {
+        XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+    }
+
+    (void)dir; /* Direction is handled per-operation */
+
+    return ret;
+}
+
+/* Free the internal AES buffers used by PSOC6 CRYPTO block.
+ *
+ * This function clears the internal AES buffers allocated
+ * in the AES context. It is called after encryption/decryption operations
+ * to ensure sensitive data is not left in memory.
+ *
+ * aes   Pointer to initialized AES context
+ *
+ * Note: Thread safety is implemented in the functions it is called, so no
+ * need to lock the mutex again here.
+ */
+void wc_Psoc6_Aes_Free(Aes* aes)
+{
+    /* Only aes_buffers are cleared here. aes_state is cleared in wc_AesFree()
+     */
+    if (aes->aes_state.buffers != NULL) {
+        Cy_Crypto_Core_V2_MemSet(
+            crypto_base, (void*)aes->aes_state.buffers, 0u,
+            ((uint16_t)sizeof(cy_stc_crypto_aes_buffers_t)));
+    }
+
+#ifdef HAVE_AESGCM
+    /* No need to clear the buffers again if internal buffers are not
+     * initialized */
+    if (aes->aes_gcm_state.aes_buffer != NULL) {
+        Cy_Crypto_Core_Aes_GCM_Free(crypto_base, &aes->aes_gcm_state);
+    }
+#endif /* HAVE_AESGCM */
+}
+
+/* Encrypt a single AES block using PSoC6 hardware acceleration.
+ *
+ * Performs AES encryption on exactly one block (16 bytes) of data using
+ * the PSoC6 crypto hardware in ECB mode. The function initializes the
+ * hardware with the key from the AES context, performs the encryption,
+ * and cleans up resources.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * in    Pointer to input plaintext block (exactly AES_BLOCK_SIZE bytes)
+ * out   Pointer to output ciphertext buffer (exactly AES_BLOCK_SIZE bytes)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters, WC_HW_E for
+ *         hardware errors, or mutex error codes
+ */
+int wc_Psoc6_Aes_Encrypt(Aes* aes, const byte* in, byte* out)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Encrypt single block using ECB mode */
+    status = Cy_Crypto_Core_Aes_Ecb(crypto_base, CY_CRYPTO_ENCRYPT, out, in,
+                                    &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#ifdef WOLFSSL_AES_DIRECT
+/* Direct AES encryption wrapper with parameter order compatibility.
+ *
+ * Provides parameter order compatibility with wolfSSL's direct AES interface.
+ * This is a simple wrapper around wc_Psoc6_Aes_Encrypt that reorders parameters
+ * to match the expected direct encryption API.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * out   Pointer to output ciphertext buffer (exactly AES_BLOCK_SIZE bytes)
+ * in    Pointer to input plaintext block (exactly AES_BLOCK_SIZE bytes)
+ *
+ * returns 0 on success, or error codes from wc_Psoc6_Aes_Encrypt
+ */
+int wc_Psoc6_Aes_EncryptDirect(Aes* aes, byte* out, const byte* in)
+{
+    return wc_Psoc6_Aes_Encrypt(aes, in, out);
+}
+#endif /* WOLFSSL_AES_DIRECT */
+
+#ifdef HAVE_AES_DECRYPT
+/* Decrypt a single AES block using PSoC6 hardware acceleration.
+ *
+ * Performs AES decryption on exactly one block (16 bytes) of data using
+ * the PSoC6 crypto hardware in ECB mode. The function initializes the
+ * hardware with the key from the AES context, performs the decryption,
+ * and cleans up resources.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * in    Pointer to input ciphertext block (exactly AES_BLOCK_SIZE bytes)
+ * out   Pointer to output plaintext buffer (exactly AES_BLOCK_SIZE bytes)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters, WC_HW_E for
+ *         hardware errors, or mutex error codes
+ */
+int wc_Psoc6_Aes_Decrypt(Aes* aes, const byte* in, byte* out)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Decrypt single block using ECB mode */
+    status = Cy_Crypto_Core_Aes_Ecb(crypto_base, CY_CRYPTO_DECRYPT, out, in,
+                                    &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#ifdef WOLFSSL_AES_DIRECT
+/* Direct AES decryption wrapper with parameter order compatibility.
+ *
+ * Provides parameter order compatibility with wolfSSL's direct AES interface.
+ * This is a simple wrapper around wc_Psoc6_Aes_Decrypt that reorders parameters
+ * to match the expected direct decryption API.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * out   Pointer to output plaintext buffer (exactly AES_BLOCK_SIZE bytes)
+ * in    Pointer to input ciphertext block (exactly AES_BLOCK_SIZE bytes)
+ *
+ * returns 0 on success, or error codes from wc_Psoc6_Aes_Decrypt
+ */
+int wc_Psoc6_Aes_DecryptDirect(Aes* aes, byte* out, const byte* in)
+{
+    return wc_Psoc6_Aes_Decrypt(aes, in, out);
+}
+#endif /* WOLFSSL_AES_DIRECT */
+#endif /* HAVE_AES_DECRYPT */
+
+#if defined(HAVE_AES_ECB)
+/* Encrypt multiple blocks using AES-ECB mode with PSoC6 hardware.
+ *
+ * Performs AES encryption on multiple blocks of data using Electronic
+ * Codebook (ECB) mode. Each block is encrypted independently using the
+ * same key. The input size must be a multiple of AES_BLOCK_SIZE.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * out   Pointer to output ciphertext buffer (sz bytes)
+ * in    Pointer to input plaintext buffer (sz bytes)
+ * sz    Size of data in bytes (must be multiple of AES_BLOCK_SIZE)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters (including
+ *         non-block-aligned sizes), WC_HW_E for hardware errors, or
+ *         mutex error codes
+ */
+int wc_Psoc6_Aes_EcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz % AES_BLOCK_SIZE != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state once for all blocks */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+    Cy_Crypto_Core_V2_Aes_LoadEncKey(crypto_base, &aes->aes_state);
+    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0, in, sz);
+    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE, out, sz);
+
+    for (; sz > 0; sz -= CY_CRYPTO_AES_BLOCK_SIZE) {
+        Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_BLOCK0,
+                                   CY_CRYPTO_V2_RB_FF_LOAD0,
+                                   CY_CRYPTO_AES_BLOCK_SIZE);
+        Cy_Crypto_Core_V2_RunAes(crypto_base);
+
+        Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
+                                   CY_CRYPTO_V2_RB_BLOCK1,
+                                   CY_CRYPTO_AES_BLOCK_SIZE);
+    }
+
+    Cy_Crypto_Core_WaitForReady(crypto_base);
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#ifdef HAVE_AES_DECRYPT
+/* Decrypt multiple blocks using AES-ECB mode with PSoC6 hardware.
+ *
+ * Performs AES decryption on multiple blocks of data using Electronic
+ * Codebook (ECB) mode. Each block is decrypted independently using the
+ * same key. The input size must be a multiple of AES_BLOCK_SIZE.
+ *
+ * aes   Pointer to initialized AES context containing key
+ * out   Pointer to output plaintext buffer (sz bytes)
+ * in    Pointer to input ciphertext buffer (sz bytes)
+ * sz    Size of data in bytes (must be multiple of AES_BLOCK_SIZE)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters (including
+ *         non-block-aligned sizes), WC_HW_E for hardware errors, or
+ *         mutex error codes
+ */
+int wc_Psoc6_Aes_EcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz % AES_BLOCK_SIZE != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state once for all blocks */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    Cy_Crypto_Core_V2_Aes_LoadDecKey(crypto_base, &aes->aes_state);
+    Cy_Crypto_Core_V2_FFContinue(crypto_base, CY_CRYPTO_V2_RB_FF_LOAD0, in, sz);
+    Cy_Crypto_Core_V2_FFStart(crypto_base, CY_CRYPTO_V2_RB_FF_STORE, out, sz);
+
+    for (; sz > 0; sz -= CY_CRYPTO_AES_BLOCK_SIZE) {
+        Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_BLOCK0,
+                                   CY_CRYPTO_V2_RB_FF_LOAD0,
+                                   CY_CRYPTO_AES_BLOCK_SIZE);
+        Cy_Crypto_Core_V2_RunAesInv(crypto_base);
+
+        Cy_Crypto_Core_V2_BlockMov(crypto_base, CY_CRYPTO_V2_RB_FF_STORE,
+                                   CY_CRYPTO_V2_RB_BLOCK1,
+                                   CY_CRYPTO_AES_BLOCK_SIZE);
+    }
+
+    Cy_Crypto_Core_WaitForReady(crypto_base);
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_ECB */
+
+/* AES CBC */
+#ifdef HAVE_AES_CBC
+/* Encrypt multiple blocks using AES-CBC mode with PSoC6 hardware.
+ *
+ * Performs AES encryption using Cipher Block Chaining (CBC) mode where
+ * each plaintext block is XORed with the previous ciphertext block before
+ * encryption. The initialization vector (IV) from the AES context is used
+ * for the first block and updated during the operation.
+ *
+ * aes   Pointer to initialized AES context containing key and IV
+ * out   Pointer to output ciphertext buffer (sz bytes)
+ * in    Pointer to input plaintext buffer (sz bytes)
+ * sz    Size of data in bytes (must be multiple of AES_BLOCK_SIZE)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters (including
+ *         non-block-aligned sizes), WC_HW_E for hardware errors, or
+ *         mutex error codes
+ */
+int wc_Psoc6_Aes_CbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz % AES_BLOCK_SIZE != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+    status =
+        Cy_Crypto_Core_Aes_Cbc(crypto_base, CY_CRYPTO_ENCRYPT, sz,
+                               (uint8_t*)aes->reg, out, in, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#ifdef HAVE_AES_DECRYPT
+/* Decrypt multiple blocks using AES-CBC mode with PSoC6 hardware.
+ *
+ * Performs AES decryption using Cipher Block Chaining (CBC) mode where
+ * each ciphertext block is decrypted and XORed with the previous ciphertext
+ * block. The initialization vector (IV) from the AES context is used for
+ * the first block and updated during the operation.
+ *
+ * aes   Pointer to initialized AES context containing key and IV
+ * out   Pointer to output plaintext buffer (sz bytes)
+ * in    Pointer to input ciphertext buffer (sz bytes)
+ * sz    Size of data in bytes (must be multiple of AES_BLOCK_SIZE)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters (including
+ *         non-block-aligned sizes), WC_HW_E for hardware errors, or
+ *         mutex error codes
+ */
+int wc_Psoc6_Aes_CbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz % AES_BLOCK_SIZE != 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    status =
+        Cy_Crypto_Core_Aes_Cbc(crypto_base, CY_CRYPTO_DECRYPT, sz,
+                               (uint8_t*)aes->reg, out, in, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* HAVE_AES_CBC */
+
+/* AES CFB */
+#ifdef WOLFSSL_AES_CFB
+/* Encrypt data using AES-CFB mode with PSoC6 hardware acceleration.
+ *
+ * Performs AES encryption using Cipher Feedback (CFB) mode, which operates
+ * as a stream cipher. CFB can handle data that is not block-aligned and
+ * maintains state between calls for streaming operations. The IV and
+ * partial block state are managed automatically.
+ *
+ * aes   Pointer to initialized AES context containing key, IV, and state
+ * out   Pointer to output ciphertext buffer (sz bytes)
+ * in    Pointer to input plaintext buffer (sz bytes)
+ * sz    Size of data in bytes (can be any length, not limited to block size)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters, WC_HW_E for
+ *         hardware errors, or mutex error codes
+ */
+int wc_Psoc6_Aes_CfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Setup CFB mode */
+    status = Cy_Crypto_Core_Aes_Cfb_Setup(crypto_base, CY_CRYPTO_ENCRYPT,
+                                          &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Set IV */
+    status = Cy_Crypto_Core_Aes_Cfb_Set_IV(crypto_base, (uint8_t*)aes->reg,
+                                           &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Copy the unprocessed bytes */
+    aes->aes_state.unProcessedBytes = aes->left;
+    XMEMCPY(aes->aes_state.buffers->unProcessedData, aes->tmp, AES_BLOCK_SIZE);
+
+    /* Update operation */
+    status = Cy_Crypto_Core_Aes_Cfb_Update(crypto_base, sz, out, in,
+                                           &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Finish operation */
+    status = Cy_Crypto_Core_Aes_Cfb_Finish(crypto_base, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Copy the updated IV into the AES context */
+    XMEMCPY(aes->reg, aes->aes_state.buffers->iv, AES_BLOCK_SIZE);
+
+    /* Copy the number of bytes processed in the current block */
+    aes->left = aes->aes_state.unProcessedBytes;
+    XMEMCPY(aes->tmp, aes->aes_state.buffers->unProcessedData, AES_BLOCK_SIZE);
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#ifdef HAVE_AES_DECRYPT
+/* Decrypt data using AES-CFB mode with PSoC6 hardware acceleration.
+ *
+ * Performs AES decryption using Cipher Feedback (CFB) mode, which operates
+ * as a stream cipher. CFB can handle data that is not block-aligned and
+ * maintains state between calls for streaming operations. The IV and
+ * partial block state are managed automatically.
+ *
+ * aes   Pointer to initialized AES context containing key, IV, and state
+ * out   Pointer to output plaintext buffer (sz bytes)
+ * in    Pointer to input ciphertext buffer (sz bytes)
+ * sz    Size of data in bytes (can be any length, not limited to block size)
+ *
+ * returns 0 on success, BAD_FUNC_ARG for invalid parameters, WC_HW_E for
+ *         hardware errors, or mutex error codes
+ */
+int wc_Psoc6_Aes_CfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    if (aes == NULL || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Initialize AES state with key */
+    status = Cy_Crypto_Core_Aes_Init(crypto_base, (const uint8_t*)aes->key,
+                                     keyLength, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Setup CFB mode */
+    status = Cy_Crypto_Core_Aes_Cfb_Setup(crypto_base, CY_CRYPTO_DECRYPT,
+                                          &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Set IV */
+    status = Cy_Crypto_Core_Aes_Cfb_Set_IV(crypto_base, (uint8_t*)aes->reg,
+                                           &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Copy the unprocessed bytes */
+    aes->aes_state.unProcessedBytes = aes->left;
+    XMEMCPY(aes->aes_state.buffers->unProcessedData, aes->tmp, AES_BLOCK_SIZE);
+
+    /* Update operation */
+    status = Cy_Crypto_Core_Aes_Cfb_Update(crypto_base, sz, out, in,
+                                           &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Finish operation */
+    status = Cy_Crypto_Core_Aes_Cfb_Finish(crypto_base, &aes->aes_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Copy the updated IV into the AES context */
+    XMEMCPY(aes->reg, aes->aes_state.buffers->iv, AES_BLOCK_SIZE);
+
+    /* Copy the number of bytes processed in the current block */
+    aes->left = aes->aes_state.unProcessedBytes;
+    XMEMCPY(aes->tmp, aes->aes_state.buffers->unProcessedData, AES_BLOCK_SIZE);
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_CFB */
+
+/* AES GCM */
+#ifdef HAVE_AESGCM
+
+/* Perform authenticated AES-GCM encryption using PSoC6 hardware.
+ *
+ * Encrypts plaintext data and generates an authentication tag using
+ * AES-GCM (Galois/Counter Mode). This mode provides both confidentiality
+ * and authenticity in a single operation, making it ideal for secure
+ * communications.
+ *
+ * aes        Pointer to initialized AES-GCM context (key must be set)
+ * out        Pointer to output ciphertext buffer (sz bytes, can be NULL if
+ * sz=0) in         Pointer to input plaintext buffer (sz bytes, can be NULL if
+ * sz=0) sz         Size of plaintext/ciphertext data in bytes iv Pointer to
+ * initialization vector/nonce buffer ivSz       Size of IV in bytes
+ * (recommended: 12 bytes for GCM) authTag    Pointer to output authentication
+ * tag buffer (authTagSz bytes) authTagSz  Size of authentication tag (typically
+ * 12 or 16 bytes) authIn     Pointer to additional authenticated data (AAD),
+ * can be NULL authInSz   Size of AAD in bytes (0 if no AAD)
+ *
+ * returns 0 on success WC_HW_E for hardware errors, or mutex error codes
+ */
+int wc_Psoc6_Aes_GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                            const byte* iv, word32 ivSz, byte* authTag,
+                            word32 authTagSz, const byte* authIn,
+                            word32 authInSz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    int aesInited = 0;
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Initialize AES GCM state */
+    cy_stc_crypto_aes_gcm_buffers_t* aesBuffers =
+        (cy_stc_crypto_aes_gcm_buffers_t*)((
+            void*)Cy_Crypto_Core_GetVuMemoryAddress(crypto_base));
+    status = Cy_Crypto_Core_Aes_GCM_Init(crypto_base, aesBuffers,
+                                         &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Set the key */
+    status = Cy_Crypto_Core_Aes_GCM_SetKey(crypto_base, (uint8_t*)aes->key,
+                                           keyLength, &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Start GCM operation */
+    status = Cy_Crypto_Core_Aes_GCM_Start(crypto_base, CY_CRYPTO_ENCRYPT, iv,
+                                          ivSz, &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Process AAD if present */
+    if (authIn != NULL && authInSz > 0) {
+        status = Cy_Crypto_Core_Aes_GCM_AAD_Update(
+            crypto_base, (uint8_t*)authIn, authInSz, &aes->aes_gcm_state);
+        if (status != CY_CRYPTO_SUCCESS) {
+            ret = WC_HW_E;
+            goto cleanup;
+        }
+    }
+
+    /* Encrypt data if present */
+    if (sz > 0) {
+        status = Cy_Crypto_Core_Aes_GCM_Update(crypto_base, in, sz, out,
+                                               &aes->aes_gcm_state);
+        if (status != CY_CRYPTO_SUCCESS) {
+            ret = WC_HW_E;
+            goto cleanup;
+        }
+    }
+
+    /* Finalize and get tag */
+    status = Cy_Crypto_Core_Aes_GCM_Finish(crypto_base, authTag, authTagSz,
+                                           &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+/* Perform authenticated AES-GCM decryption using PSoC6 hardware.
+ *
+ * Decrypts ciphertext data and verifies the authentication tag using
+ * AES-GCM (Galois/Counter Mode). The authentication tag is verified
+ * before returning the plaintext to ensure data authenticity and integrity.
+ *
+ * aes        Pointer to initialized AES-GCM context (key must be set)
+ * out        Pointer to output plaintext buffer (sz bytes, can be NULL if sz=0)
+ * in         Pointer to input ciphertext buffer (sz bytes, can be NULL if sz=0)
+ * sz         Size of ciphertext/plaintext data in bytes
+ * iv         Pointer to initialization vector/nonce buffer (same as encryption)
+ * ivSz       Size of IV in bytes (must match encryption)
+ * authTag    Pointer to authentication tag from encryption (authTagSz bytes)
+ * authTagSz  Size of authentication tag (must match encryption)
+ * authIn     Pointer to additional authenticated data (AAD), can be NULL
+ * authInSz   Size of AAD in bytes (must match encryption, 0 if no AAD)
+ *
+ * returns 0 on success and valid authentication, AES_GCM_AUTH_E for
+ * authentication failure (tag mismatch), WC_HW_E for hardware errors, or mutex
+ * error codes
+ */
+int wc_Psoc6_Aes_GcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+                            const byte* iv, word32 ivSz, const byte* authTag,
+                            word32 authTagSz, const byte* authIn,
+                            word32 authInSz)
+{
+    int ret = 0;
+    cy_en_crypto_status_t status;
+    cy_en_crypto_aes_key_length_t keyLength;
+    byte computedTag[AES_BLOCK_SIZE];
+    int aesInited = 0;
+
+    /* Lock the mutex to perform crypto operations */
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
+    keyLength = psoc6_get_aes_key_length(aes->keylen);
+
+    /* Initialize AES GCM state */
+    cy_stc_crypto_aes_gcm_buffers_t* aesBuffers =
+        (cy_stc_crypto_aes_gcm_buffers_t*)((
+            void*)Cy_Crypto_Core_GetVuMemoryAddress(crypto_base));
+    status = Cy_Crypto_Core_Aes_GCM_Init(crypto_base, aesBuffers,
+                                         &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    aesInited = 1;
+
+    /* Set the key */
+    status = Cy_Crypto_Core_Aes_GCM_SetKey(crypto_base, (uint8_t*)aes->key,
+                                           keyLength, &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Start GCM operation */
+    status = Cy_Crypto_Core_Aes_GCM_Start(crypto_base, CY_CRYPTO_DECRYPT, iv,
+                                          ivSz, &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Process AAD if present */
+    if (authIn != NULL && authInSz > 0) {
+        status = Cy_Crypto_Core_Aes_GCM_AAD_Update(
+            crypto_base, (uint8_t*)authIn, authInSz, &aes->aes_gcm_state);
+        if (status != CY_CRYPTO_SUCCESS) {
+            ret = WC_HW_E;
+            goto cleanup;
+        }
+    }
+
+    /* Decrypt data if present */
+    if (sz > 0) {
+        status = Cy_Crypto_Core_Aes_GCM_Update(crypto_base, in, sz, out,
+                                               &aes->aes_gcm_state);
+        if (status != CY_CRYPTO_SUCCESS) {
+            ret = WC_HW_E;
+            goto cleanup;
+        }
+    }
+
+    /* Finalize and get computed tag */
+    status = Cy_Crypto_Core_Aes_GCM_Finish(crypto_base, computedTag, authTagSz,
+                                           &aes->aes_gcm_state);
+    if (status != CY_CRYPTO_SUCCESS) {
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Verify tag */
+    if (ConstantCompare(computedTag, authTag, authTagSz) != 0) {
+        ret = AES_GCM_AUTH_E;
+        goto cleanup;
+    }
+
+cleanup:
+    if (aesInited) {
+        wc_Psoc6_Aes_Free(aes);
+    }
+
+    /* Release the lock */
+    wolfSSL_CryptHwMutexUnLock();
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* HAVE_AESGCM */
+#endif /* PSOC6_CRYPTO_AES */
+
 /* ECDSA */
 #ifdef HAVE_ECC
 
@@ -1162,4 +2166,4 @@ int psoc6_ecc_verify_hash_ex(MATH_INT_T* r, MATH_INT_T* s, const byte* hash,
 }
 #endif /* HAVE_ECC */
 
-#endif /* defined(WOLFSSL_PSOC6_CRYPTO) */
+#endif /* WOLFSSL_PSOC6_CRYPTO */
