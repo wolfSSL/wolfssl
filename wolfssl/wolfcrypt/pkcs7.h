@@ -349,6 +349,7 @@ struct wc_PKCS7 {
     /* used by DecodeEnvelopedData with multiple encrypted contents */
     byte*  cachedEncryptedContent;
     word32 cachedEncryptedContentSz;
+    word32 totalEncryptedContentSz; /* track encrypted content across octets */
     WC_BITFIELD contentCRLF:1; /* have content line endings been converted to CRLF */
     WC_BITFIELD contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
     WC_BITFIELD hashParamsAbsent:1;
