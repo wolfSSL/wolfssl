@@ -319,3 +319,46 @@ We also have vcpkg ports for wolftpm, wolfmqtt and curl.
 
     Deprecated. wolfSSL now has its own XMMS/XMSS^MT implementation in
     wolfCrypt.
+
+21. Building for Bare-Metal Embedded Systems
+
+    wolfSSL provides a simplified configuration for bare-metal embedded
+    systems through the --enable-baremetal option. This configuration
+    disables OS-dependent features and is suitable for microcontrollers
+    and RTOS environments without POSIX support.
+
+    $ ./autogen.sh
+    $ ./configure --enable-baremetal
+    $ make
+
+    The --enable-baremetal option defines the following macros:
+
+    - SINGLE_THREADED: Disables multi-threading support
+    - NO_DEV_RANDOM: Removes /dev/random dependency
+    - NO_FILESYSTEM: Disables file system operations
+    - NO_WRITEV: Disables writev() system call
+    - NO_STDIO_FILESYSTEM: Removes stdio-based file I/O
+    - WOLFSSL_NO_SOCK: Disables socket support
+    - WOLFSSL_NO_GETPID: Removes getpid() dependency
+    - NO_ASN_TIME: Conditionally defined when WOLFCRYPT_ONLY is also set
+      (for systems without RTC to bypass certificate date checking)
+
+    For crypto-only builds (no TLS/SSL protocol layer), combine with
+    --enable-cryptonly:
+
+    $ ./configure --enable-baremetal --enable-cryptonly
+
+    Important: Bare-metal systems must provide their own entropy source.
+    You will need to implement wc_GenerateSeed() with platform-specific
+    hardware RNG or define CUSTOM_RAND_GENERATE_BLOCK and implement
+    wc_GenerateRand().
+
+    For CMake builds:
+
+    $ mkdir build && cd build
+    $ cmake -DWOLFSSL_BAREMETAL=yes ..
+    $ cmake --build .
+
+    Or with crypto-only:
+
+    $ cmake -DWOLFSSL_BAREMETAL=yes -DWOLFSSL_CRYPTONLY=yes ..

@@ -158,6 +158,27 @@ https://www.wolfssl.com/docs/security-vulnerabilities/
 See INSTALL file for build instructions.
 More info can be found on-line at: https://wolfssl.com/wolfSSL/Docs.html
 
+## Building
+
+### Bare-Metal Embedded Systems
+
+For bare-metal embedded systems (microcontrollers, RTOS without POSIX), use the `--enable-baremetal` configuration:
+
+```bash
+./configure --enable-baremetal
+make
+```
+
+This configuration disables OS-dependent features including file systems, sockets, threading, and process management. For crypto-only builds without the TLS protocol layer, add `--enable-cryptonly`:
+
+```bash
+./configure --enable-baremetal --enable-cryptonly
+```
+
+**Important:** You must provide a platform-specific entropy source by implementing `wc_GenerateSeed()` or defining `CUSTOM_RAND_GENERATE_BLOCK`.
+
+See the INSTALL file for complete details.
+
 # Resources
 
 [wolfSSL Website](https://www.wolfssl.com/)
