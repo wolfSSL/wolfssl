@@ -276,6 +276,8 @@ extern "C" {
 #cmakedefine WOLFSSL_ASIO
 #undef WOLFSSL_BASE64_ENCODE
 #cmakedefine WOLFSSL_BASE64_ENCODE
+#undef WOLFSSL_BAREMETAL
+#cmakedefine WOLFSSL_BAREMETAL
 #undef WOLFSSL_CAAM
 #cmakedefine WOLFSSL_CAAM
 #undef WOLFSSL_CERT_EXT

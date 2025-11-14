@@ -342,6 +342,26 @@
     #endif
 #endif
 
+/* Bare metal configuration */
+#ifdef WOLFSSL_BAREMETAL
+    #define SINGLE_THREADED
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    #define NO_WRITEV
+    #define NO_STDIO_FILESYSTEM
+    #define WOLFSSL_NO_GETPID
+    #ifndef HAVE_SYS_SOCKET_H
+        #define WOLFSSL_NO_SOCK
+    #endif
+
+    #ifdef WOLFCRYPT_ONLY
+        /* Only disable ASN time checking (by default) if building crypto-only.
+         * For systems without RTC this can be used to bypass certificate date
+         * checking. */
+        #define NO_ASN_TIME
+    #endif
+#endif
+
 #if !defined(WOLFSSL_CUSTOM_CONFIG) && \
     ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
      (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
