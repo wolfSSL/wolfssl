@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's Cipher-based
 Message Authentication Code (CMAC) functionality.
 */
 
+#![cfg(cmac)]
+
 use crate::sys;
 use std::mem::MaybeUninit;
 
@@ -51,6 +53,8 @@ impl CMAC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(aes)]
+    /// {
     /// use wolfssl::wolfcrypt::cmac::CMAC;
     /// let key = [
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -62,7 +66,9 @@ impl CMAC {
     /// ];
     /// let mut generate_out = [0u8; 16];
     /// CMAC::generate(&key, &message, &mut generate_out).expect("Error with generate()");
+    /// }
     /// ```
+    #[cfg(aes)]
     pub fn generate(key: &[u8], data: &[u8], dout: &mut [u8]) -> Result<(), i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;
@@ -168,6 +174,8 @@ impl CMAC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(aes)]
+    /// {
     /// use wolfssl::wolfcrypt::cmac::CMAC;
     /// let key = [
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -181,7 +189,9 @@ impl CMAC {
     /// CMAC::generate(&key, &message, &mut generate_out).expect("Error with generate()");
     /// let valid = CMAC::verify(&key, &message, &generate_out).expect("Error with verify()");
     /// assert!(valid);
+    /// }
     /// ```
+    #[cfg(aes)]
     pub fn verify(key: &[u8], data: &[u8], check: &[u8]) -> Result<bool, i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;
@@ -215,6 +225,8 @@ impl CMAC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(aes)]
+    /// {
     /// use wolfssl::wolfcrypt::cmac::CMAC;
     /// let key = [
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -227,7 +239,9 @@ impl CMAC {
     /// let mut generate_out = [0u8; 16];
     /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// cmac.generate_ex(&key, &message, &mut generate_out, None, None).expect("Error with generate_ex()");
+    /// }
     /// ```
+    #[cfg(aes)]
     pub fn generate_ex(&mut self, key: &[u8], data: &[u8], dout: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;
@@ -351,6 +365,8 @@ impl CMAC {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(aes)]
+    /// {
     /// use wolfssl::wolfcrypt::cmac::CMAC;
     /// let key = [
     ///     0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -365,7 +381,9 @@ impl CMAC {
     /// let mut cmac = CMAC::new(&key).expect("Error with new()");
     /// let valid = cmac.verify_ex(&key, &message, &generate_out, None, None).expect("Error with verify_ex()");
     /// assert!(valid);
+    /// }
     /// ```
+    #[cfg(aes)]
     pub fn verify_ex(&mut self, key: &[u8], data: &[u8], check: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<bool, i32> {
         let key_size = key.len() as u32;
         let data_size = data.len() as u32;

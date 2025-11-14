@@ -8,6 +8,7 @@ std = []
 
 [build-dependencies]
 bindgen = "0.72.1"
+regex = "1.5"
 
 [profile.release]
 strip = true

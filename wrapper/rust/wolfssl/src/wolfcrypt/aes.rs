@@ -23,6 +23,8 @@ This module provides a Rust wrapper for the wolfCrypt library's Advanced
 Encryption Standard (AES) functionality.
 */
 
+#![cfg(aes)]
+
 use crate::sys;
 use std::mem::{size_of, MaybeUninit};
 
@@ -30,6 +32,8 @@ use std::mem::{size_of, MaybeUninit};
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_cbc)]
+/// {
 /// use wolfssl::wolfcrypt::aes::CBC;
 /// let mut cbc = CBC::new().expect("Failed to create CBC");
 /// let key: &[u8; 16] = b"0123456789abcdef";
@@ -50,10 +54,13 @@ use std::mem::{size_of, MaybeUninit};
 /// cbc.init_decrypt(key, iv).expect("Error with init_decrypt()");
 /// cbc.decrypt(&cipher, &mut plain_out).expect("Error with decrypt()");
 /// assert_eq!(&plain_out, &msg);
+/// }
 /// ```
+#[cfg(aes_cbc)]
 pub struct CBC {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_cbc)]
 impl CBC {
     /// Create a new `CBC` instance.
     ///
@@ -200,6 +207,7 @@ impl CBC {
         Ok(())
     }
 }
+#[cfg(aes_cbc)]
 impl Drop for CBC {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -211,6 +219,8 @@ impl Drop for CBC {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_ccm)]
+/// {
 /// use wolfssl::wolfcrypt::aes::CCM;
 /// let key: [u8; 16] = [
 ///     0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
@@ -218,8 +228,7 @@ impl Drop for CBC {
 /// ];
 /// let nonce: [u8; 13] = [
 ///     0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
-///     0xa1, 0xa2, 0xa3, 0xa4, 0xa5
-/// ];
+///     0xa1, 0xa2, 0xa3, 0xa4, 0xa5 ];
 /// let plaintext: [u8; 23] = [
 ///     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 ///     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -250,10 +259,13 @@ impl Drop for CBC {
 /// ccm.decrypt(&cipher_out, &mut plain_out,
 ///     &nonce, &auth_data, &auth_tag_out).expect("Error with decrypt()");
 /// assert_eq!(plain_out, plaintext);
+/// }
 /// ```
+#[cfg(aes_ccm)]
 pub struct CCM {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_ccm)]
 impl CCM {
     /// Create a new `CCM` instance.
     ///
@@ -395,6 +407,7 @@ impl CCM {
         Ok(())
     }
 }
+#[cfg(aes_ccm)]
 impl Drop for CCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -406,6 +419,8 @@ impl Drop for CCM {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_cfb)]
+/// {
 /// use wolfssl::wolfcrypt::aes::CFB;
 /// let mut cfb = CFB::new().expect("Failed to create CFB");
 /// let key: [u8; 16] = [
@@ -439,12 +454,18 @@ impl Drop for CCM {
 /// assert_eq!(outbuf, cipher);
 /// cfb.init(&key, &iv).expect("Error with init()");
 /// let mut plain: [u8; 48] = [0; 48];
+/// #[cfg(aes_decrypt)]
+/// {
 /// cfb.decrypt(&outbuf, &mut plain).expect("Error with decrypt()");
 /// assert_eq!(plain, msg);
+/// }
+/// }
 /// ```
+#[cfg(aes_cfb)]
 pub struct CFB {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_cfb)]
 impl CFB {
     /// Create a new `CFB` instance.
     ///
@@ -613,6 +634,7 @@ impl CFB {
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
+    #[cfg(aes_decrypt)]
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
         let in_size = (din.len() * size_of::<I>()) as u32;
@@ -644,6 +666,7 @@ impl CFB {
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
+    #[cfg(aes_decrypt)]
     pub fn decrypt1<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
         let in_size = (din.len() * size_of::<I>()) as u32;
@@ -675,6 +698,7 @@ impl CFB {
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
+    #[cfg(aes_decrypt)]
     pub fn decrypt8<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
         let in_size = (din.len() * size_of::<I>()) as u32;
@@ -692,6 +716,7 @@ impl CFB {
         Ok(())
     }
 }
+#[cfg(aes_cfb)]
 impl Drop for CFB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -703,6 +728,8 @@ impl Drop for CFB {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_ctr)]
+/// {
 /// use wolfssl::wolfcrypt::aes::CTR;
 /// let iv: [u8; 16] = [
 ///     0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
@@ -741,10 +768,13 @@ impl Drop for CFB {
 /// let mut plain: [u8; 64] = [0; 64];
 /// ctr.decrypt(&outbuf, &mut plain).expect("Error with decrypt()");
 /// assert_eq!(plain, msg);
+/// }
 /// ```
+#[cfg(aes_ctr)]
 pub struct CTR {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_ctr)]
 impl CTR {
     /// Create a new `CTR` instance.
     ///
@@ -858,6 +888,7 @@ impl CTR {
         return self.encrypt_decrypt(din, dout);
     }
 }
+#[cfg(aes_ctr)]
 impl Drop for CTR {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -869,6 +900,8 @@ impl Drop for CTR {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_eax)]
+/// {
 /// use wolfssl::wolfcrypt::aes::EAX;
 /// let key: [u8; 16] = [
 ///     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -903,9 +936,12 @@ impl Drop for CTR {
 /// let mut plain: [u8; 32] = [0; 32];
 /// EAX::decrypt(&cipher, &mut plain, &key, &nonce, auth, &auth_tag).expect("Error with decrypt()");
 /// assert_eq!(plain, msg);
+/// }
 /// ```
+#[cfg(aes_eax)]
 pub struct EAX {
 }
+#[cfg(aes_eax)]
 impl EAX {
     /// Encrypt data.
     ///
@@ -1004,6 +1040,8 @@ impl EAX {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_ecb)]
+/// {
 /// use wolfssl::wolfcrypt::aes::ECB;
 /// let mut ecb = ECB::new().expect("Failed to create ECB");
 /// let key_128: &[u8; 16] = b"0123456789abcdef";
@@ -1023,10 +1061,13 @@ impl EAX {
 /// ecb.init_decrypt(key_128).expect("Error with init_decrypt()");
 /// ecb.decrypt(&verify_ecb_128, &mut outbuf).expect("Error with decrypt()");
 /// assert_eq!(&outbuf, &msg);
+/// }
 /// ```
+#[cfg(aes_ecb)]
 pub struct ECB {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_ecb)]
 impl ECB {
     /// Create a new `ECB` instance.
     ///
@@ -1166,6 +1207,7 @@ impl ECB {
         Ok(())
     }
 }
+#[cfg(aes_ecb)]
 impl Drop for ECB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -1180,6 +1222,8 @@ impl Drop for ECB {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_gcm)]
+/// {
 /// use wolfssl::wolfcrypt::aes::GCM;
 /// let key: [u8; 16] = [
 ///     0x29, 0x8e, 0xfa, 0x1c, 0xcf, 0x29, 0xcf, 0x62,
@@ -1219,10 +1263,13 @@ impl Drop for ECB {
 /// let mut plain_out: [u8; 32] = [0; 32];
 /// gcm.decrypt(&cipher, &mut plain_out, &iv, &auth, &auth_tag).expect("Error with decrypt()");
 /// assert_eq!(plain_out, plain);
+/// }
 /// ```
+#[cfg(aes_gcm)]
 pub struct GCM {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_gcm)]
 impl GCM {
     /// Create a new `GCM` instance.
     ///
@@ -1366,6 +1413,7 @@ impl GCM {
         Ok(())
     }
 }
+#[cfg(aes_gcm)]
 impl Drop for GCM {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -1380,6 +1428,8 @@ impl Drop for GCM {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_gcm_stream)]
+/// {
 /// use wolfssl::wolfcrypt::aes::GCMStream;
 /// let plain: [u8; 60] = [
 ///     0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
@@ -1447,10 +1497,13 @@ impl Drop for GCM {
 ///     assert_eq!(cipher, expected_cipher);
 ///     assert_eq!(auth_tag, expected_auth_tag);
 /// }
+/// }
 /// ```
+#[cfg(aes_gcm_stream)]
 pub struct GCMStream {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_gcm_stream)]
 impl GCMStream {
     /// Create a new `GCMStream` instance.
     ///
@@ -1648,6 +1701,7 @@ impl GCMStream {
         Ok(())
     }
 }
+#[cfg(aes_gcm_stream)]
 impl Drop for GCMStream {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -1659,6 +1713,8 @@ impl Drop for GCMStream {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_ofb)]
+/// {
 /// use wolfssl::wolfcrypt::aes::OFB;
 /// let key: [u8; 32] = [
 ///     0xc4,0xc7,0xfa,0xd6,0x53,0x5c,0xb8,0x71,
@@ -1693,12 +1749,18 @@ impl Drop for GCMStream {
 /// assert_eq!(cipher, expected_cipher);
 /// ofb.init(&key, &iv).expect("Error with init()");
 /// let mut plain_out: [u8; 48] = [0; 48];
+/// #[cfg(aes_decrypt)]
+/// {
 /// ofb.decrypt(&cipher, &mut plain_out).expect("Error with decrypt()");
 /// assert_eq!(plain_out, plain);
+/// }
+/// }
 /// ```
+#[cfg(aes_ofb)]
 pub struct OFB {
     ws_aes: sys::Aes,
 }
+#[cfg(aes_ofb)]
 impl OFB {
     /// Create a new `OFB` instance.
     ///
@@ -1804,6 +1866,7 @@ impl OFB {
     ///
     /// A Result which is Ok(()) on success or an Err containing the wolfSSL
     /// library return code on failure.
+    #[cfg(aes_decrypt)]
     pub fn decrypt<I,O>(&mut self, din: &[I], dout: &mut [O]) -> Result<(), i32> {
         let in_ptr = din.as_ptr() as *const u8;
         let in_size = (din.len() * size_of::<I>()) as u32;
@@ -1821,6 +1884,7 @@ impl OFB {
         Ok(())
     }
 }
+#[cfg(aes_ofb)]
 impl Drop for OFB {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -1836,6 +1900,8 @@ impl Drop for OFB {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_xts)]
+/// {
 /// use wolfssl::wolfcrypt::aes::XTS;
 /// let key: [u8; 32] = [
 ///     0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
@@ -1884,10 +1950,13 @@ impl Drop for OFB {
 /// let mut partial_out: [u8; 24] = [0; 24];
 /// xts.decrypt(&partial_cipher, &mut partial_out, &tweak).expect("Error with decrypt()");
 /// assert_eq!(partial_out, partial);
+/// }
 /// ```
+#[cfg(aes_xts)]
 pub struct XTS {
     ws_xtsaes: sys::XtsAes,
 }
+#[cfg(aes_xts)]
 impl XTS {
     /// Create a new `XTS` instance.
     ///
@@ -2191,6 +2260,7 @@ impl XTS {
         Ok(())
     }
 }
+#[cfg(aes_xts)]
 impl Drop for XTS {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -2206,6 +2276,8 @@ impl Drop for XTS {
 ///
 /// # Example
 /// ```rust
+/// #[cfg(aes_xts_stream)]
+/// {
 /// use wolfssl::wolfcrypt::aes::XTSStream;
 /// let keys: [u8; 32] = [
 ///     0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -2244,11 +2316,14 @@ impl Drop for XTS {
 /// xtsstream.decrypt_update(&cipher[0..16], &mut plain_out[0..16]).expect("Error with decrypt_update()");
 /// xtsstream.decrypt_final(&cipher[16..40], &mut plain_out[16..40]).expect("Error with decrypt_final()");
 /// assert_eq!(plain_out, plain);
+/// }
 /// ```
+#[cfg(aes_xts_stream)]
 pub struct XTSStream {
     ws_xtsaes: sys::XtsAes,
     ws_xtsaesstreamdata: sys::XtsAesStreamData,
 }
+#[cfg(aes_xts_stream)]
 impl XTSStream {
     /// Create a new `XTSStream` instance.
     ///
@@ -2493,6 +2568,7 @@ impl XTSStream {
         Ok(())
     }
 }
+#[cfg(aes_xts_stream)]
 impl Drop for XTSStream {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
@@ -2520,6 +2596,7 @@ fn new_ws_aes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> R
     Ok(ws_aes)
 }
 
+#[cfg(any(aes_xts, aes_xts_stream))]
 fn new_ws_xtsaes(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<sys::XtsAes, i32> {
     let heap = match heap {
         Some(heap) => heap,

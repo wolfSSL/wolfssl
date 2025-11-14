@@ -26,6 +26,8 @@ The primary component is the `DH` struct, which manages the lifecycle of a
 wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 */
 
+#![cfg(dh)]
+
 use crate::sys;
 use crate::wolfcrypt::random::RNG;
 use std::mem::{MaybeUninit};
@@ -164,11 +166,15 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(dh_keygen)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
     /// let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
+    /// }
     /// ```
+    #[cfg(dh_keygen)]
     pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
         Self::generate_ex(rng, modulus_size, None, None)
     }
@@ -191,11 +197,15 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(dh_keygen)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
     /// let mut dh = DH::generate_ex(&mut rng, 2048, None, None).expect("Error with generate_ex()");
+    /// }
     /// ```
+    #[cfg(dh_keygen)]
     pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {

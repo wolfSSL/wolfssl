@@ -290,4 +290,5 @@ name = "wolfssl"
 version = "0.1.0"
 dependencies = [
  "bindgen",
+ "regex",
 ]

@@ -27,10 +27,12 @@ use crate::sys;
 use std::mem::MaybeUninit;
 
 /// Context for SHA-1 computation.
+#[cfg(sha)]
 pub struct SHA {
     wc_sha: sys::wc_Sha,
 }
 
+#[cfg(sha)]
 impl SHA {
     /// SHA-1 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA_DIGEST_SIZE as usize;
@@ -213,6 +215,7 @@ impl SHA {
     }
 }
 
+#[cfg(sha)]
 impl Drop for SHA {
     /// Safely free the underlying wolfSSL SHA context.
     ///
@@ -227,10 +230,12 @@ impl Drop for SHA {
 }
 
 /// Context for SHA-224 (SHA-2) computation.
+#[cfg(sha256)]
 pub struct SHA224 {
     wc_sha224: sys::wc_Sha224,
 }
 
+#[cfg(sha256)]
 impl SHA224 {
     /// SHA-224 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA224_DIGEST_SIZE as usize;
@@ -413,6 +418,7 @@ impl SHA224 {
     }
 }
 
+#[cfg(sha256)]
 impl Drop for SHA224 {
     /// Safely free the underlying wolfSSL SHA224 context.
     ///
@@ -427,10 +433,12 @@ impl Drop for SHA224 {
 }
 
 /// Context for SHA-256 (SHA-2) computation.
+#[cfg(sha256)]
 pub struct SHA256 {
     wc_sha256: sys::wc_Sha256,
 }
 
+#[cfg(sha256)]
 impl SHA256 {
     /// SHA-256 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA256_DIGEST_SIZE as usize;
@@ -613,6 +621,7 @@ impl SHA256 {
     }
 }
 
+#[cfg(sha256)]
 impl Drop for SHA256 {
     /// Safely free the underlying wolfSSL SHA256 context.
     ///
@@ -627,10 +636,12 @@ impl Drop for SHA256 {
 }
 
 /// Context for SHA-384 (SHA-2) computation.
+#[cfg(sha512)]
 pub struct SHA384 {
     wc_sha384: sys::wc_Sha384,
 }
 
+#[cfg(sha512)]
 impl SHA384 {
     /// SHA-384 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA384_DIGEST_SIZE as usize;
@@ -813,6 +824,7 @@ impl SHA384 {
     }
 }
 
+#[cfg(sha512)]
 impl Drop for SHA384 {
     /// Safely free the underlying wolfSSL SHA384 context.
     ///
@@ -827,10 +839,12 @@ impl Drop for SHA384 {
 }
 
 /// Context for SHA-512 (SHA-2) computation.
+#[cfg(sha512)]
 pub struct SHA512 {
     wc_sha512: sys::wc_Sha512,
 }
 
+#[cfg(sha512)]
 impl SHA512 {
     /// SHA-512 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA512_DIGEST_SIZE as usize;
@@ -1013,6 +1027,7 @@ impl SHA512 {
     }
 }
 
+#[cfg(sha512)]
 impl Drop for SHA512 {
     /// Safely free the underlying wolfSSL SHA512 context.
     ///
@@ -1027,10 +1042,12 @@ impl Drop for SHA512 {
 }
 
 /// Context for SHA3-224 computation.
+#[cfg(sha3)]
 pub struct SHA3_224 {
     wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_224 {
     /// SHA3-224 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA3_224_DIGEST_SIZE as usize;
@@ -1213,6 +1230,7 @@ impl SHA3_224 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_224 {
     /// Safely free the underlying wolfSSL SHA3_224 context.
     ///
@@ -1227,10 +1245,12 @@ impl Drop for SHA3_224 {
 }
 
 /// Context for SHA3-256 computation.
+#[cfg(sha3)]
 pub struct SHA3_256 {
     wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_256 {
     /// SHA3-256 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA3_256_DIGEST_SIZE as usize;
@@ -1413,6 +1433,7 @@ impl SHA3_256 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_256 {
     /// Safely free the underlying wolfSSL SHA3_256 context.
     ///
@@ -1427,10 +1448,12 @@ impl Drop for SHA3_256 {
 }
 
 /// Context for SHA3-384 computation.
+#[cfg(sha3)]
 pub struct SHA3_384 {
     wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_384 {
     /// SHA3-384 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA3_384_DIGEST_SIZE as usize;
@@ -1613,6 +1636,7 @@ impl SHA3_384 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_384 {
     /// Safely free the underlying wolfSSL SHA3_384 context.
     ///
@@ -1627,10 +1651,12 @@ impl Drop for SHA3_384 {
 }
 
 /// Context for SHA3-512 computation.
+#[cfg(sha3)]
 pub struct SHA3_512 {
     wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_512 {
     /// SHA3-512 digest size in bytes.
     pub const DIGEST_SIZE: usize = sys::WC_SHA3_512_DIGEST_SIZE as usize;
@@ -1813,6 +1839,7 @@ impl SHA3_512 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_512 {
     /// Safely free the underlying wolfSSL SHA3_512 context.
     ///
@@ -1827,10 +1854,12 @@ impl Drop for SHA3_512 {
 }
 
 /// Context for SHAKE128 (SHA-3) computation.
+#[cfg(shake128)]
 pub struct SHAKE128 {
     wc_shake: sys::wc_Shake,
 }
 
+#[cfg(shake128)]
 impl SHAKE128 {
     /// Squeeze block size.
     pub const SQUEEZE_BLOCK_SIZE: usize = sys::WC_SHA3_128_BLOCK_SIZE as usize;
@@ -2080,6 +2109,7 @@ impl SHAKE128 {
     }
 }
 
+#[cfg(shake128)]
 impl Drop for SHAKE128 {
     /// Safely free the underlying wolfSSL SHAKE128 context.
     ///
@@ -2094,10 +2124,12 @@ impl Drop for SHAKE128 {
 }
 
 /// Context for SHAKE256 (SHA-3) computation.
+#[cfg(shake256)]
 pub struct SHAKE256 {
     wc_shake: sys::wc_Shake,
 }
 
+#[cfg(shake256)]
 impl SHAKE256 {
     /// Squeeze block size.
     pub const SQUEEZE_BLOCK_SIZE: usize = sys::WC_SHA3_256_BLOCK_SIZE as usize;
@@ -2347,6 +2379,7 @@ impl SHAKE256 {
     }
 }
 
+#[cfg(shake256)]
 impl Drop for SHAKE256 {
     /// Safely free the underlying wolfSSL SHAKE256 context.
     ///
