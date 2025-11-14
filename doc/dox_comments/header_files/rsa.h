@@ -351,7 +351,7 @@ int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
     \brief Used to verify that the message was signed by RSA key.  The output
     uses the same byte array as the input.
 
-    \return >0 Length of text.
+    \return >0 Length of the digest.
     \return <0 An error occurred.
 
     \param in Byte array to be decrypted.
@@ -388,7 +388,7 @@ int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
 
     \brief Used to verify that the message was signed by key.
 
-    \return Success Length of text on no error.
+    \return Success Length of digest on no error.
     \return MEMORY_E memory exception.
 
     \param in The byte array to be decrypted.
