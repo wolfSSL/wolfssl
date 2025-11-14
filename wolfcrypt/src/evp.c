@@ -13062,20 +13062,26 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             return 1;
 
     }
-    /* if the last data is '\n', remove it */
-    c = in[j - 1];
-    if (c == '\n') {
-        c = (in[j - 2]);
+    /* If the last data is '\n', remove it */
+    if (j > 0) {
+        c = in[j - 1];
+        if (c == '\n' && (j > 1)) {
+            c = (in[j - 2]);
+            if (c == '=')
+                return 0;
+            else
+                return 1;
+        } else if (c == '\n') {
+            return 1;
+        }
         if (c == '=')
             return 0;
         else
             return 1;
     }
-    if (c == '=')
-        return 0;
-    else
-        return 1;
 
+    /* j == 0 */
+    return 1;
 }
 /*  wolfSSL_EVP_DecodeFinal decode remaining data in ctx
  *  to outputs to out.
