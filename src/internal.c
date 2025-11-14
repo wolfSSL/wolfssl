@@ -37173,7 +37173,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     static WC_INLINE int IsTls13CipherSuite(byte first, byte second)
     {
         (void)second;  /* Suppress unused parameter warning */
-        
+
         /* TLS 1.3 cipher suites use TLS13_BYTE (0x13) as first byte */
         if (first == TLS13_BYTE)
             return 1;
