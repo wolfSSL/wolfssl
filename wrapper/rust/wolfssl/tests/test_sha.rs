@@ -1,6 +1,7 @@
 use wolfssl::wolfcrypt::sha::*;
 
 #[test]
+#[cfg(sha)]
 fn test_sha() {
     let mut sha = SHA::new().expect("Error with new()");
     fn test1(sha: &mut SHA, input: &[u8], expected_hash: &[u8]) {
@@ -26,6 +27,7 @@ fn test_sha() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_sha224() {
     let mut sha = SHA224::new().expect("Error with new()");
     fn test1(sha: &mut SHA224, input: &[u8], expected_hash: &[u8]) {
@@ -45,6 +47,7 @@ fn test_sha224() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_sha256() {
     let mut sha = SHA256::new().expect("Error with new()");
     fn test1(sha: &mut SHA256, input: &[u8], expected_hash: &[u8]) {
@@ -70,6 +73,7 @@ fn test_sha256() {
 }
 
 #[test]
+#[cfg(sha512)]
 fn test_sha384() {
     let mut sha = SHA384::new().expect("Error with new()");
     fn test1(sha: &mut SHA384, input: &[u8], expected_hash: &[u8]) {
@@ -92,6 +96,7 @@ fn test_sha384() {
 }
 
 #[test]
+#[cfg(sha512)]
 fn test_sha512() {
     let mut sha = SHA512::new().expect("Error with new()");
     fn test1(sha: &mut SHA512, input: &[u8], expected_hash: &[u8]) {
@@ -114,6 +119,7 @@ fn test_sha512() {
 }
 
 #[test]
+#[cfg(sha3)]
 fn test_sha3_224() {
     let mut sha = SHA3_224::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_224, input: &[u8], expected_hash: &[u8]) {
@@ -136,6 +142,7 @@ fn test_sha3_224() {
 }
 
 #[test]
+#[cfg(sha3)]
 fn test_sha3_256() {
     let mut sha = SHA3_256::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_256, input: &[u8], expected_hash: &[u8]) {
@@ -158,6 +165,7 @@ fn test_sha3_256() {
 }
 
 #[test]
+#[cfg(sha3)]
 fn test_sha3_384() {
     let mut sha = SHA3_384::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_384, input: &[u8], expected_hash: &[u8]) {
@@ -184,6 +192,7 @@ fn test_sha3_384() {
 }
 
 #[test]
+#[cfg(sha3)]
 fn test_sha3_512() {
     let mut sha = SHA3_512::new().expect("Error with new()");
     fn test1(sha: &mut SHA3_512, input: &[u8], expected_hash: &[u8]) {
@@ -206,6 +215,7 @@ fn test_sha3_512() {
 }
 
 #[test]
+#[cfg(shake128)]
 fn test_shake128() {
     let mut sha = SHAKE128::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE128, input: &[u8], expected_hash: &[u8]) {
@@ -236,6 +246,7 @@ fn test_shake128() {
 }
 
 #[test]
+#[cfg(shake128)]
 fn test_shake128_absorb_squeeze() {
     let mut sha = SHAKE128::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE128, input: &[u8], expected_squeeze_out: &[u8]) {
@@ -266,6 +277,7 @@ fn test_shake128_absorb_squeeze() {
 }
 
 #[test]
+#[cfg(shake256)]
 fn test_shake256() {
     let mut sha = SHAKE256::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE256, input: &[u8], expected_hash: &[u8]) {
@@ -296,6 +308,7 @@ fn test_shake256() {
 }
 
 #[test]
+#[cfg(shake256)]
 fn test_shake256_absorb_squeeze() {
     let mut sha = SHAKE256::new().expect("Error with new()");
     fn test1(sha: &mut SHAKE256, input: &[u8], expected_squeeze_out: &[u8]) {

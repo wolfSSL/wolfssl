@@ -21,14 +21,13 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's EdDSA Curve
 448 (Ed448) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
+#![cfg(ed448)]
+
+use crate::sys;
 use crate::wolfcrypt::random::RNG;
 use std::mem::MaybeUninit;
-use wolfssl_sys as ws;
 
 /// The `Ed448` struct manages the lifecycle of a wolfSSL `ed448_key`
 /// object.
@@ -37,21 +36,21 @@ use wolfssl_sys as ws;
 ///
 /// An instance can be created with `generate()` or `new()`.
 pub struct Ed448 {
-    ws_key: ws::ed448_key,
+    ws_key: sys::ed448_key,
 }
 
 impl Ed448 {
     /** Size of private key only. */
-    pub const KEY_SIZE: usize = ws::ED448_KEY_SIZE as usize;
+    pub const KEY_SIZE: usize = sys::ED448_KEY_SIZE as usize;
     /** Size of signature. */
-    pub const SIG_SIZE: usize = ws::ED448_SIG_SIZE as usize;
+    pub const SIG_SIZE: usize = sys::ED448_SIG_SIZE as usize;
     /** Compressed public key size. */
-    pub const PUB_KEY_SIZE: usize = ws::ED448_PUB_KEY_SIZE as usize;
+    pub const PUB_KEY_SIZE: usize = sys::ED448_PUB_KEY_SIZE as usize;
     /** Size of both private and public key. */
-    pub const PRV_KEY_SIZE: usize = ws::ED448_PRV_KEY_SIZE as usize;
+    pub const PRV_KEY_SIZE: usize = sys::ED448_PRV_KEY_SIZE as usize;
 
-    pub const ED448: u8 = ws::Ed448 as u8;
-    pub const ED448PH: u8 = ws::Ed448ph as u8;
+    pub const ED448: u8 = sys::Ed448 as u8;
+    pub const ED448PH: u8 = sys::Ed448ph as u8;
 
     /// Generate a new Ed448 key.
     ///
@@ -98,24 +97,24 @@ impl Ed448 {
     /// let ed = Ed448::generate_ex(&mut rng, None, None).expect("Error with generate_ex()");
     /// ```
     pub fn generate_ex(rng: &mut RNG, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut ws_key: MaybeUninit<ws::ed448_key> = MaybeUninit::uninit();
+        let mut ws_key: MaybeUninit<sys::ed448_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ed448_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ed448_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let ws_key = unsafe { ws_key.assume_init() };
         let mut ed448 = Ed448 { ws_key };
         let rc = unsafe {
-            ws::wc_ed448_make_key(&mut rng.wc_rng,
-                ws::ED448_KEY_SIZE as i32, &mut ed448.ws_key)
+            sys::wc_ed448_make_key(&mut rng.wc_rng,
+                sys::ED448_KEY_SIZE as i32, &mut ed448.ws_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -166,16 +165,16 @@ impl Ed448 {
     /// let ed = Ed448::new_ex(None, None).expect("Error with new()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut ws_key: MaybeUninit<ws::ed448_key> = MaybeUninit::uninit();
+        let mut ws_key: MaybeUninit<sys::ed448_key> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_ed448_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_ed448_init_ex(ws_key.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -205,7 +204,7 @@ impl Ed448 {
     /// ed.check_key().expect("Error with check_key()");
     /// ```
     pub fn check_key(&mut self) -> Result<(), i32> {
-        let rc = unsafe { ws::wc_ed448_check_key(&mut self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_check_key(&mut self.ws_key) };
         if rc != 0 {
             return Err(rc);
         }
@@ -229,6 +228,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_export)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -236,12 +237,14 @@ impl Ed448 {
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
+    /// }
     /// ```
+    #[cfg(ed448_export)]
     pub fn export_key(&self, private: &mut [u8], public: &mut [u8]) -> Result<(), i32> {
         let mut private_size = private.len() as u32;
         let mut public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_export_key(&self.ws_key,
+            sys::wc_ed448_export_key(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size,
                 public.as_mut_ptr(), &mut public_size)
         };
@@ -266,17 +269,21 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_export)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut public = [0u8; Ed448::PUB_KEY_SIZE];
     /// ed.export_public(&mut public).expect("Error with export_public()");
+    /// }
     /// ```
+    #[cfg(ed448_export)]
     pub fn export_public(&self, public: &mut [u8]) -> Result<(), i32> {
         let mut public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_export_public(&self.ws_key, public.as_mut_ptr(),
+            sys::wc_ed448_export_public(&self.ws_key, public.as_mut_ptr(),
                 &mut public_size)
         };
         if rc != 0 {
@@ -300,17 +307,21 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_export)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private = [0u8; Ed448::PRV_KEY_SIZE];
     /// ed.export_private(&mut private).expect("Error with export_private()");
+    /// }
     /// ```
+    #[cfg(ed448_export)]
     pub fn export_private(&self, keyout: &mut [u8]) -> Result<(), i32> {
         let mut keyout_size = keyout.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_export_private(&self.ws_key, keyout.as_mut_ptr(),
+            sys::wc_ed448_export_private(&self.ws_key, keyout.as_mut_ptr(),
                 &mut keyout_size)
         };
         if rc != 0 {
@@ -334,17 +345,21 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_export)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
     /// let mut ed = Ed448::generate(&mut rng).expect("Error with generate()");
     /// let mut private_only = [0u8; Ed448::KEY_SIZE];
     /// ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
+    /// }
     /// ```
+    #[cfg(ed448_export)]
     pub fn export_private_only(&self, private: &mut [u8]) -> Result<(), i32> {
         let mut private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_export_private_only(&self.ws_key,
+            sys::wc_ed448_export_private_only(&self.ws_key,
                 private.as_mut_ptr(), &mut private_size)
         };
         if rc != 0 {
@@ -371,6 +386,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_import)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -380,11 +397,13 @@ impl Ed448 {
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
     /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_public(&public).expect("Error with import_public()");
+    /// }
     /// ```
+    #[cfg(ed448_import)]
     pub fn import_public(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_import_public(public.as_ptr(), public_size, &mut self.ws_key)
+            sys::wc_ed448_import_public(public.as_ptr(), public_size, &mut self.ws_key)
         };
         if rc != 0 {
             return Err(rc);
@@ -411,6 +430,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_import)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -420,11 +441,13 @@ impl Ed448 {
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
     /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_public_ex(&public, false).expect("Error with import_public_ex()");
+    /// }
     /// ```
+    #[cfg(ed448_import)]
     pub fn import_public_ex(&mut self, public: &[u8], trusted: bool) -> Result<(), i32> {
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_import_public_ex(public.as_ptr(), public_size,
+            sys::wc_ed448_import_public_ex(public.as_ptr(), public_size,
                 &mut self.ws_key, if trusted {1} else {0})
         };
         if rc != 0 {
@@ -447,6 +470,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_import)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -455,11 +480,13 @@ impl Ed448 {
     /// ed.export_private_only(&mut private_only).expect("Error with export_private_only()");
     /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_only(&private_only).expect("Error with import_private_only()");
+    /// }
     /// ```
+    #[cfg(ed448_import)]
     pub fn import_private_only(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_import_private_only(private.as_ptr(), private_size,
+            sys::wc_ed448_import_private_only(private.as_ptr(), private_size,
                 &mut self.ws_key)
         };
         if rc != 0 {
@@ -487,6 +514,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_import)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -496,7 +525,9 @@ impl Ed448 {
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
     /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_key(&private, Some(&public)).expect("Error with import_private_key()");
+    /// }
     /// ```
+    #[cfg(ed448_import)]
     pub fn import_private_key(&mut self, private: &[u8], public: Option<&[u8]>) -> Result<(), i32> {
         let private_size = private.len() as u32;
         let mut public_ptr: *const u8 = core::ptr::null();
@@ -506,7 +537,7 @@ impl Ed448 {
             public_size = public.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_ed448_import_private_key(private.as_ptr(), private_size,
+            sys::wc_ed448_import_private_key(private.as_ptr(), private_size,
                 public_ptr, public_size, &mut self.ws_key)
         };
         if rc != 0 {
@@ -534,6 +565,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_import)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -543,7 +576,9 @@ impl Ed448 {
     /// ed.export_key(&mut private, &mut public).expect("Error with export_key()");
     /// let mut ed = Ed448::new().expect("Error with new()");
     /// ed.import_private_key_ex(&private, Some(&public), false).expect("Error with import_private_key_ex()");
+    /// }
     /// ```
+    #[cfg(ed448_import)]
     pub fn import_private_key_ex(&mut self, private: &[u8], public: Option<&[u8]>, trusted: bool) -> Result<(), i32> {
         let private_size = private.len() as u32;
         let mut public_ptr: *const u8 = core::ptr::null();
@@ -553,7 +588,7 @@ impl Ed448 {
             public_size = public.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_ed448_import_private_key_ex(private.as_ptr(), private_size,
+            sys::wc_ed448_import_private_key_ex(private.as_ptr(), private_size,
                 public_ptr, public_size, &mut self.ws_key, if trusted {1} else {0})
         };
         if rc != 0 {
@@ -593,7 +628,7 @@ impl Ed448 {
     pub fn make_public(&mut self, pubkey: &mut [u8]) -> Result<(), i32> {
         let pubkey_size = pubkey.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_make_public(&mut self.ws_key,
+            sys::wc_ed448_make_public(&mut self.ws_key,
                 pubkey.as_mut_ptr(), pubkey_size)
         };
         if rc != 0 {
@@ -621,6 +656,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_sign)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -629,7 +666,9 @@ impl Ed448 {
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
     /// ed.sign_msg(&message, Some(context), &mut signature).expect("Error with sign_msg()");
+    /// }
     /// ```
+    #[cfg(ed448_sign)]
     pub fn sign_msg(&mut self, message: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
         let message_size = message.len() as u32;
         let mut context_ptr: *const u8 = core::ptr::null();
@@ -640,7 +679,7 @@ impl Ed448 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_sign_msg(message.as_ptr(), message_size,
+            sys::wc_ed448_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -670,6 +709,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_sign)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -687,7 +728,9 @@ impl Ed448 {
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
     /// ed.sign_hash_ph(&hash, Some(context), &mut signature).expect("Error with sign_hash_ph()");
+    /// }
     /// ```
+    #[cfg(ed448_sign)]
     pub fn sign_hash_ph(&mut self, hash: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
         let hash_size = hash.len() as u32;
         let mut context_ptr: *const u8 = core::ptr::null();
@@ -698,7 +741,7 @@ impl Ed448 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448ph_sign_hash(hash.as_ptr(), hash_size,
+            sys::wc_ed448ph_sign_hash(hash.as_ptr(), hash_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -728,6 +771,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_sign)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -736,7 +781,9 @@ impl Ed448 {
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
     /// ed.sign_msg_ph(&message, Some(context), &mut signature).expect("Error with sign_msg_ph()");
+    /// }
     /// ```
+    #[cfg(ed448_sign)]
     pub fn sign_msg_ph(&mut self, message: &[u8], context: Option<&[u8]>, signature: &mut [u8]) -> Result<usize, i32> {
         let message_size = message.len() as u32;
         let mut context_ptr: *const u8 = core::ptr::null();
@@ -747,7 +794,7 @@ impl Ed448 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448ph_sign_msg(message.as_ptr(), message_size,
+            sys::wc_ed448ph_sign_msg(message.as_ptr(), message_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -777,6 +824,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_sign)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -785,7 +834,9 @@ impl Ed448 {
     /// let context = b"context";
     /// let mut signature = [0u8; Ed448::SIG_SIZE];
     /// ed.sign_msg_ex(&message, Some(context), Ed448::ED448, &mut signature).expect("Error with sign_msg_ex()");
+    /// }
     /// ```
+    #[cfg(ed448_sign)]
     pub fn sign_msg_ex(&mut self, din: &[u8], context: Option<&[u8]>, typ: u8, signature: &mut [u8]) -> Result<usize, i32> {
         let din_size = din.len() as u32;
         let mut context_ptr: *const u8 = core::ptr::null();
@@ -796,7 +847,7 @@ impl Ed448 {
         }
         let mut signature_size = signature.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_sign_msg_ex(din.as_ptr(), din_size,
+            sys::wc_ed448_sign_msg_ex(din.as_ptr(), din_size,
                 signature.as_mut_ptr(), &mut signature_size, &mut self.ws_key,
                 typ, context_ptr, context_size)
         };
@@ -824,6 +875,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -834,7 +887,9 @@ impl Ed448 {
     /// ed.sign_msg(message, Some(context), &mut signature).expect("Error with sign_msg()");
     /// let signature_valid = ed.verify_msg(&signature, message, Some(context)).expect("Error with verify_msg()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_verify)]
     pub fn verify_msg(&mut self, signature: &[u8], message: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let message_size = message.len() as u32;
@@ -846,7 +901,7 @@ impl Ed448 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed448_verify_msg(signature.as_ptr(), signature_size,
+            sys::wc_ed448_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -876,6 +931,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -895,7 +952,9 @@ impl Ed448 {
     /// ed.sign_hash_ph(&hash, Some(context), &mut signature).expect("Error with sign_hash_ph()");
     /// let signature_valid = ed.verify_hash_ph(&signature, &hash, Some(context)).expect("Error with verify_hash_ph()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_verify)]
     pub fn verify_hash_ph(&mut self, signature: &[u8], hash: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let hash_size = hash.len() as u32;
@@ -907,7 +966,7 @@ impl Ed448 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed448ph_verify_hash(signature.as_ptr(), signature_size,
+            sys::wc_ed448ph_verify_hash(signature.as_ptr(), signature_size,
                 hash.as_ptr(), hash_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -936,6 +995,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -946,7 +1007,9 @@ impl Ed448 {
     /// ed.sign_msg_ph(&message, Some(context), &mut signature).expect("Error with sign_msg_ph()");
     /// let signature_valid = ed.verify_msg_ph(&signature, &message, Some(context)).expect("Error with verify_msg_ph()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_verify)]
     pub fn verify_msg_ph(&mut self, signature: &[u8], message: &[u8], context: Option<&[u8]>) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let message_size = message.len() as u32;
@@ -958,7 +1021,7 @@ impl Ed448 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed448ph_verify_msg(signature.as_ptr(), signature_size,
+            sys::wc_ed448ph_verify_msg(signature.as_ptr(), signature_size,
                 message.as_ptr(), message_size, &mut res, &mut self.ws_key,
                 context_ptr, context_size)
         };
@@ -987,6 +1050,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -997,7 +1062,9 @@ impl Ed448 {
     /// ed.sign_msg_ex(&message, Some(context), Ed448::ED448, &mut signature).expect("Error with sign_msg_ex()");
     /// let signature_valid = ed.verify_msg_ex(&signature, &message, Some(context), Ed448::ED448).expect("Error with verify_msg_ex()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_verify)]
     pub fn verify_msg_ex(&mut self, signature: &[u8], din: &[u8], context: Option<&[u8]>, typ: u8) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let din_size = din.len() as u32;
@@ -1009,7 +1076,7 @@ impl Ed448 {
         }
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed448_verify_msg_ex(signature.as_ptr(), signature_size,
+            sys::wc_ed448_verify_msg_ex(signature.as_ptr(), signature_size,
                 din.as_ptr(), din_size, &mut res, &mut self.ws_key, typ,
                 context_ptr, context_size)
         };
@@ -1035,6 +1102,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_streaming_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -1048,7 +1117,9 @@ impl Ed448 {
     /// ed.verify_msg_update(&message[2..4]).expect("Error with verify_msg_update()");
     /// let signature_valid = ed.verify_msg_final(&signature).expect("Error with verify_msg_final()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_init(&mut self, signature: &[u8], context: Option<&[u8]>, typ: u8) -> Result<(), i32> {
         let signature_size = signature.len() as u32;
         let mut context_ptr: *const u8 = core::ptr::null();
@@ -1058,7 +1129,7 @@ impl Ed448 {
             context_size = context.len() as u8;
         }
         let rc = unsafe {
-            ws::wc_ed448_verify_msg_init(signature.as_ptr(), signature_size,
+            sys::wc_ed448_verify_msg_init(signature.as_ptr(), signature_size,
                 &mut self.ws_key, typ, context_ptr, context_size)
         };
         if rc != 0 {
@@ -1081,6 +1152,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_streaming_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -1094,11 +1167,13 @@ impl Ed448 {
     /// ed.verify_msg_update(&message[2..4]).expect("Error with verify_msg_update()");
     /// let signature_valid = ed.verify_msg_final(&signature).expect("Error with verify_msg_final()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_update(&mut self, din: &[u8]) -> Result<(), i32> {
         let din_size = din.len() as u32;
         let rc = unsafe {
-            ws::wc_ed448_verify_msg_update(din.as_ptr(), din_size,
+            sys::wc_ed448_verify_msg_update(din.as_ptr(), din_size,
                 &mut self.ws_key)
         };
         if rc != 0 {
@@ -1121,6 +1196,8 @@ impl Ed448 {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(ed448_streaming_verify)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::ed448::Ed448;
     /// let mut rng = RNG::new().expect("Error creating RNG");
@@ -1134,12 +1211,14 @@ impl Ed448 {
     /// ed.verify_msg_update(&message[2..4]).expect("Error with verify_msg_update()");
     /// let signature_valid = ed.verify_msg_final(&signature).expect("Error with verify_msg_final()");
     /// assert!(signature_valid);
+    /// }
     /// ```
+    #[cfg(ed448_streaming_verify)]
     pub fn verify_msg_final(&mut self, signature: &[u8]) -> Result<bool, i32> {
         let signature_size = signature.len() as u32;
         let mut res = 0i32;
         let rc = unsafe {
-            ws::wc_ed448_verify_msg_final(signature.as_ptr(), signature_size,
+            sys::wc_ed448_verify_msg_final(signature.as_ptr(), signature_size,
                 &mut res, &mut self.ws_key)
         };
         if rc != 0 {
@@ -1166,7 +1245,7 @@ impl Ed448 {
     /// assert_eq!(key_size, Ed448::KEY_SIZE);
     /// ```
     pub fn size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed448_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1191,7 +1270,7 @@ impl Ed448 {
     /// assert_eq!(priv_size, Ed448::PRV_KEY_SIZE);
     /// ```
     pub fn priv_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed448_priv_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_priv_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1216,7 +1295,7 @@ impl Ed448 {
     /// assert_eq!(pub_size, Ed448::PUB_KEY_SIZE);
     /// ```
     pub fn pub_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed448_pub_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_pub_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1241,7 +1320,7 @@ impl Ed448 {
     /// assert_eq!(sig_size, Ed448::SIG_SIZE);
     /// ```
     pub fn sig_size(&self) -> Result<usize, i32> {
-        let rc = unsafe { ws::wc_ed448_sig_size(&self.ws_key) };
+        let rc = unsafe { sys::wc_ed448_sig_size(&self.ws_key) };
         if rc < 0 {
             return Err(rc);
         }
@@ -1252,6 +1331,6 @@ impl Ed448 {
 impl Drop for Ed448 {
     /// Safely free the wolfSSL resources.
     fn drop(&mut self) {
-        unsafe { ws::wc_ed448_free(&mut self.ws_key); }
+        unsafe { sys::wc_ed448_free(&mut self.ws_key); }
     }
 }

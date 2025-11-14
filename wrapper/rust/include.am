@@ -4,16 +4,11 @@
 
 EXTRA_DIST += wrapper/rust/Makefile
 EXTRA_DIST += wrapper/rust/README.md
-EXTRA_DIST += wrapper/rust/wolfssl-sys/Cargo.lock
-EXTRA_DIST += wrapper/rust/wolfssl-sys/Cargo.toml
-EXTRA_DIST += wrapper/rust/wolfssl-sys/Makefile
-EXTRA_DIST += wrapper/rust/wolfssl-sys/build.rs
-EXTRA_DIST += wrapper/rust/wolfssl-sys/headers.h
-EXTRA_DIST += wrapper/rust/wolfssl-sys/src/lib.rs
 EXTRA_DIST += wrapper/rust/wolfssl/Cargo.lock
 EXTRA_DIST += wrapper/rust/wolfssl/Cargo.toml
 EXTRA_DIST += wrapper/rust/wolfssl/Makefile
 EXTRA_DIST += wrapper/rust/wolfssl/build.rs
+EXTRA_DIST += wrapper/rust/wolfssl/headers.h
 EXTRA_DIST += wrapper/rust/wolfssl/src/lib.rs
 EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt.rs
 EXTRA_DIST += wrapper/rust/wolfssl/src/wolfcrypt/aes.rs

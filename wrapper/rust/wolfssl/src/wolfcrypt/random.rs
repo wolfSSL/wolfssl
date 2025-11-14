@@ -22,9 +22,6 @@
 This module provides a Rust wrapper for the wolfCrypt library's random number
 generator (RNG).
 
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
-
 The primary component is the `RNG` struct, which manages the lifecycle of a
 wolfSSL `WC_RNG` object. It ensures proper initialization and deallocation.
 
@@ -46,8 +43,8 @@ fn main() {
 }
 ```
 */
-use wolfssl_sys as ws;
 
+use crate::sys;
 use std::mem::{size_of, MaybeUninit};
 
 /// A cryptographically secure random number generator based on the wolfSSL
@@ -58,7 +55,7 @@ use std::mem::{size_of, MaybeUninit};
 /// ensures that the underlying wolfSSL RNG context is correctly freed when the
 /// `RNG` struct goes out of scope, preventing memory leaks.
 pub struct RNG {
-    pub(crate) wc_rng: ws::WC_RNG,
+    pub(crate) wc_rng: sys::WC_RNG,
 }
 
 impl RNG {
@@ -97,10 +94,10 @@ impl RNG {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitRng_ex(&mut (*rng.as_mut_ptr()).wc_rng, heap, dev_id)
+            sys::wc_InitRng_ex(&mut (*rng.as_mut_ptr()).wc_rng, heap, dev_id)
         };
         if rc == 0 {
             let rng = unsafe { rng.assume_init() };
@@ -149,10 +146,10 @@ impl RNG {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitRngNonce_ex(&mut (*rng.as_mut_ptr()).wc_rng, ptr, size, heap, dev_id)
+            sys::wc_InitRngNonce_ex(&mut (*rng.as_mut_ptr()).wc_rng, ptr, size, heap, dev_id)
         };
         if rc == 0 {
             let rng = unsafe { rng.assume_init() };
@@ -173,7 +170,7 @@ impl RNG {
     /// an `Err` with the wolfssl library return code on failure.
     pub fn generate_byte(&mut self) -> Result<u8, i32> {
         let mut b: u8 = 0;
-        let rc = unsafe { ws::wc_RNG_GenerateByte(&mut self.wc_rng, &mut b) };
+        let rc = unsafe { sys::wc_RNG_GenerateByte(&mut self.wc_rng, &mut b) };
         if rc == 0 {
             Ok(b)
         } else {
@@ -198,7 +195,7 @@ impl RNG {
     pub fn generate_block<T>(&mut self, buf: &mut [T]) -> Result<(), i32> {
         let ptr = buf.as_mut_ptr() as *mut u8;
         let size: u32 = (buf.len() * size_of::<T>()) as u32;
-        let rc = unsafe { ws::wc_RNG_GenerateBlock(&mut self.wc_rng, ptr, size) };
+        let rc = unsafe { sys::wc_RNG_GenerateBlock(&mut self.wc_rng, ptr, size) };
         if rc == 0 {
             Ok(())
         } else {
@@ -216,6 +213,6 @@ impl Drop for RNG {
     /// struct goes out of scope, automatically cleaning up resources and
     /// preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_FreeRng(&mut self.wc_rng); }
+        unsafe { sys::wc_FreeRng(&mut self.wc_rng); }
     }
 }

@@ -21,22 +21,27 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's Key Derivation
 Function (KDF) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
+use crate::sys;
 use crate::wolfcrypt::hmac::HMAC;
-use wolfssl_sys as ws;
 
-pub const SRTP_LABEL_ENCRYPTION: u8 = ws::WC_SRTP_LABEL_ENCRYPTION as u8;
-pub const SRTP_LABEL_MSG_AUTH: u8 = ws::WC_SRTP_LABEL_MSG_AUTH as u8;
-pub const SRTP_LABEL_SALT: u8 = ws::WC_SRTP_LABEL_SALT as u8;
-pub const SRTCP_LABEL_ENCRYPTION: u8 = ws::WC_SRTCP_LABEL_ENCRYPTION as u8;
-pub const SRTCP_LABEL_MSG_AUTH: u8 = ws::WC_SRTCP_LABEL_MSG_AUTH as u8;
-pub const SRTCP_LABEL_SALT: u8 = ws::WC_SRTCP_LABEL_SALT as u8;
-pub const SRTP_LABEL_HDR_ENCRYPTION: u8 = ws::WC_SRTP_LABEL_HDR_ENCRYPTION as u8;
-pub const SRTP_LABEL_HDR_SALT: u8 = ws::WC_SRTP_LABEL_HDR_SALT as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_LABEL_ENCRYPTION: u8 = sys::WC_SRTP_LABEL_ENCRYPTION as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_LABEL_MSG_AUTH: u8 = sys::WC_SRTP_LABEL_MSG_AUTH as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_LABEL_SALT: u8 = sys::WC_SRTP_LABEL_SALT as u8;
+#[cfg(kdf_srtp)]
+pub const SRTCP_LABEL_ENCRYPTION: u8 = sys::WC_SRTCP_LABEL_ENCRYPTION as u8;
+#[cfg(kdf_srtp)]
+pub const SRTCP_LABEL_MSG_AUTH: u8 = sys::WC_SRTCP_LABEL_MSG_AUTH as u8;
+#[cfg(kdf_srtp)]
+pub const SRTCP_LABEL_SALT: u8 = sys::WC_SRTCP_LABEL_SALT as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_LABEL_HDR_ENCRYPTION: u8 = sys::WC_SRTP_LABEL_HDR_ENCRYPTION as u8;
+#[cfg(kdf_srtp)]
+pub const SRTP_LABEL_HDR_SALT: u8 = sys::WC_SRTP_LABEL_HDR_SALT as u8;
 
 /// Implement Password Based Key Derivation Function 2 (PBKDF2) converting an
 /// input password with a concatenated salt into a more secure key which is
@@ -58,6 +63,8 @@ pub const SRTP_LABEL_HDR_SALT: u8 = ws::WC_SRTP_LABEL_HDR_SALT as u8;
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_pbkdf2)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::pbkdf2;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// let password = b"passwordpassword";
@@ -70,7 +77,9 @@ pub const SRTP_LABEL_HDR_SALT: u8 = ws::WC_SRTP_LABEL_HDR_SALT as u8;
 /// let mut keyout = [0u8; 24];
 /// pbkdf2(password, &salt, iterations, HMAC::TYPE_SHA256, &mut keyout).expect("Error with pbkdf2()");
 /// assert_eq!(keyout, expected_key);
+/// }
 /// ```
+#[cfg(kdf_pbkdf2)]
 pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut [u8]) -> Result<(), i32> {
     pbkdf2_ex(password, salt, iterations, typ, None, None, out)
 }
@@ -98,6 +107,8 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_pbkdf2)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::pbkdf2_ex;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// let password = b"passwordpassword";
@@ -108,9 +119,11 @@ pub fn pbkdf2(password: &[u8], salt: &[u8], iterations: i32, typ: i32, out: &mut
 ///     0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
 /// ];
 /// let mut keyout = [0u8; 24];
-/// pbkdf2_ex(password, &salt, iterations, HMAC::TYPE_SHA256, None, None, &mut keyout).expect("Error with pbkdf2()");
+/// pbkdf2_ex(password, &salt, iterations, HMAC::TYPE_SHA256, None, None, &mut keyout).expect("Error with pbkdf2_ex()");
 /// assert_eq!(keyout, expected_key);
+/// }
 /// ```
+#[cfg(kdf_pbkdf2)]
 pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>, out: &mut [u8]) -> Result<(), i32> {
     let password_size = password.len() as i32;
     let salt_size = salt.len() as i32;
@@ -121,10 +134,10 @@ pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: 
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_PBKDF2_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
+        sys::wc_PBKDF2_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
             salt.as_ptr(), salt_size, iterations, out_size, typ, heap, dev_id)
     };
     if rc != 0 {
@@ -162,6 +175,8 @@ pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: 
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_pkcs12)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
@@ -175,7 +190,9 @@ pub fn pbkdf2_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, heap: 
 /// let mut keyout = [0u8; 24];
 /// pkcs12_pbkdf(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, &mut keyout).expect("Error with pkcs12_pbkdf()");
 /// assert_eq!(keyout, expected_key);
+/// }
 /// ```
+#[cfg(kdf_pkcs12)]
 pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, out: &mut [u8]) -> Result<(), i32> {
     pkcs12_pbkdf_ex(password, salt, iterations, typ, id, None, out)
 }
@@ -211,6 +228,8 @@ pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id:
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_pkcs12)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::pkcs12_pbkdf_ex;
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// let password = [0x00u8, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67, 0x00, 0x00];
@@ -224,7 +243,9 @@ pub fn pkcs12_pbkdf(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id:
 /// let mut keyout = [0u8; 24];
 /// pkcs12_pbkdf_ex(&password, &salt, iterations, HMAC::TYPE_SHA256, 1, None, &mut keyout).expect("Error with pkcs12_pbkdf_ex()");
 /// assert_eq!(keyout, expected_key);
+/// }
 /// ```
+#[cfg(kdf_pkcs12)]
 pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, id: i32, heap: Option<*mut std::os::raw::c_void>, out: &mut [u8]) -> Result<(), i32> {
     let password_size = password.len() as i32;
     let salt_size = salt.len() as i32;
@@ -234,7 +255,7 @@ pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, 
         None => core::ptr::null_mut(),
     };
     let rc = unsafe {
-        ws::wc_PKCS12_PBKDF_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
+        sys::wc_PKCS12_PBKDF_ex(out.as_mut_ptr(), password.as_ptr(), password_size,
             salt.as_ptr(), salt_size, iterations, out_size, typ, id, heap)
     };
     if rc != 0 {
@@ -262,12 +283,16 @@ pub fn pkcs12_pbkdf_ex(password: &[u8], salt: &[u8], iterations: i32, typ: i32, 
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_tls13)]
+/// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
 /// use wolfssl::wolfcrypt::sha::SHA256;
 /// let mut secret = [0u8; SHA256::DIGEST_SIZE];
 /// tls13_hkdf_extract(HMAC::TYPE_SHA256, None, None, &mut secret).expect("Error with tls13_hkdf_extract()");
+/// }
 /// ```
+#[cfg(kdf_tls13)]
 pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8]) -> Result<(), i32> {
     tls13_hkdf_extract_ex(typ, salt, key, out, None, None)
 }
@@ -294,12 +319,16 @@ pub fn tls13_hkdf_extract(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>,
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_tls13)]
+/// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
 /// use wolfssl::wolfcrypt::sha::SHA256;
 /// let mut secret = [0u8; SHA256::DIGEST_SIZE];
 /// tls13_hkdf_extract_ex(HMAC::TYPE_SHA256, None, None, &mut secret, None, None).expect("Error with tls13_hkdf_extract_ex()");
+/// }
 /// ```
+#[cfg(kdf_tls13)]
 pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8]>, out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let mut salt_ptr = core::ptr::null();
     let mut salt_size = 0u32;
@@ -307,7 +336,7 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
         salt_ptr = salt.as_ptr();
         salt_size = salt.len() as u32;
     }
-    let mut ikm_buf = [0u8; ws::WC_MAX_DIGEST_SIZE as usize];
+    let mut ikm_buf = [0u8; sys::WC_MAX_DIGEST_SIZE as usize];
     let mut ikm_ptr = ikm_buf.as_mut_ptr();
     let mut ikm_size = 0u32;
     if let Some(key) = key {
@@ -317,7 +346,7 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
         }
     }
     if out.len() != HMAC::get_hmac_size_by_type(typ)? {
-        return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+        return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
     }
     let heap = match heap {
         Some(heap) => heap,
@@ -325,10 +354,10 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_Tls13_HKDF_Extract_ex(out.as_mut_ptr(), salt_ptr, salt_size,
+        sys::wc_Tls13_HKDF_Extract_ex(out.as_mut_ptr(), salt_ptr, salt_size,
             ikm_ptr, ikm_size, typ, heap, dev_id)
     };
     if rc != 0 {
@@ -360,6 +389,8 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_tls13)]
+/// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
 /// use wolfssl::wolfcrypt::sha::SHA256;
@@ -382,7 +413,9 @@ pub fn tls13_hkdf_extract_ex(typ: i32, salt: Option<&[u8]>, key: Option<&mut [u8
 /// tls13_hkdf_expand_label(HMAC::TYPE_SHA256, &secret,
 ///     protocol_label, ce_traffic_label,
 ///     &hash_hello1, &mut expand_out).expect("Error with tls13_hkdf_expand_label()");
+/// }
 /// ```
+#[cfg(kdf_tls13)]
 pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8]) -> Result<(), i32> {
     tls13_hkdf_expand_label_ex(typ, key, protocol, label, info, out, None, None)
 }
@@ -413,6 +446,8 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_tls13)]
+/// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
 /// use wolfssl::wolfcrypt::sha::SHA256;
@@ -435,7 +470,9 @@ pub fn tls13_hkdf_expand_label(typ: i32, key: &[u8], protocol: &[u8], label: &[u
 /// tls13_hkdf_expand_label_ex(HMAC::TYPE_SHA256, &secret,
 ///     protocol_label, ce_traffic_label,
 ///     &hash_hello1, &mut expand_out, None, None).expect("Error with tls13_hkdf_expand_label_ex()");
+/// }
 /// ```
+#[cfg(kdf_tls13)]
 pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: &[u8], info: &[u8], out: &mut [u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let protocol_size = protocol.len() as u32;
@@ -448,10 +485,10 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_Tls13_HKDF_Expand_Label_ex(out.as_mut_ptr(), out_size,
+        sys::wc_Tls13_HKDF_Expand_Label_ex(out.as_mut_ptr(), out_size,
             key.as_ptr(), key_size, protocol.as_ptr(), protocol_size,
             label.as_ptr(), label_size, info.as_ptr(), info_size, typ,
             heap, dev_id)
@@ -481,6 +518,8 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_ssh)]
+/// {
 /// use wolfssl::wolfcrypt::hmac::HMAC;
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let k = [0x42u8; 256];
@@ -488,14 +527,16 @@ pub fn tls13_hkdf_expand_label_ex(typ: i32, key: &[u8], protocol: &[u8], label: 
 /// let sid = [0x44u8; 32];
 /// let mut out = [0u8; 16];
 /// ssh_kdf(HMAC::TYPE_SHA256, b'A', &k, &h, &sid, &mut out).expect("Error with ssh_kdf()");
+/// }
 /// ```
+#[cfg(kdf_ssh)]
 pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key: &mut [u8]) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let k_size = k.len() as u32;
     let h_size = h.len() as u32;
     let session_size = session_id.len() as u32;
     let rc = unsafe {
-        ws::wc_SSH_KDF(typ as u8, key_id,
+        sys::wc_SSH_KDF(typ as u8, key_id,
             key.as_mut_ptr(), key_size,
             k.as_ptr(), k_size, h.as_ptr(), h_size,
             session_id.as_ptr(), session_size)
@@ -526,6 +567,8 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_srtp)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let key = [0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
@@ -536,7 +579,9 @@ pub fn ssh_kdf(typ: i32, key_id: u8, k: &[u8], h: &[u8], session_id: &[u8], key:
 /// let mut key_a = [0u8; 20];
 /// let mut key_s = [0u8; 14];
 /// srtp_kdf(&key, &salt, -1, &index, &mut key_e, &mut key_a, &mut key_s).expect("Error with srtp_kdf()");
+/// }
 /// ```
+#[cfg(kdf_srtp)]
 pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
     let key_size = key.len() as u32;
@@ -545,7 +590,7 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
     let key2_size = key2.len() as u32;
     let key3_size = key3.len() as u32;
     let rc = unsafe {
-        ws::wc_SRTP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
+        sys::wc_SRTP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), key1.as_mut_ptr(), key1_size,
             key2.as_mut_ptr(), key2_size, key3.as_mut_ptr(), key3_size)
     };
@@ -574,6 +619,8 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_srtp)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let key = [0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
@@ -582,14 +629,16 @@ pub fn srtp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
 /// let mut key_a = [0u8; 20];
 /// srtp_kdf_label(&key, &salt, -1, &index, SRTP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtp_kdf_label()");
+/// }
 /// ```
+#[cfg(kdf_srtp)]
 pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let salt_size = salt.len() as u32;
     let keyout_size = keyout.len() as u32;
     let rc = unsafe {
-        ws::wc_SRTP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
+        sys::wc_SRTP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), label, keyout.as_mut_ptr(), keyout_size)
     };
     if rc != 0 {
@@ -618,6 +667,8 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_srtp)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let key = [0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
@@ -628,7 +679,9 @@ pub fn srtp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// let mut key_a = [0u8; 20];
 /// let mut key_s = [0u8; 14];
 /// srtcp_kdf(&key, &salt, -1, &index, &mut key_e, &mut key_a, &mut key_s).expect("Error with srtcp_kdf()");
+/// }
 /// ```
+#[cfg(kdf_srtp)]
 pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         key1: &mut [u8], key2: &mut [u8], key3: &mut [u8]) -> Result<(), i32> {
     let key_size = key.len() as u32;
@@ -637,7 +690,7 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
     let key2_size = key2.len() as u32;
     let key3_size = key3.len() as u32;
     let rc = unsafe {
-        ws::wc_SRTCP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
+        sys::wc_SRTCP_KDF(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), key1.as_mut_ptr(), key1_size,
             key2.as_mut_ptr(), key2_size, key3.as_mut_ptr(), key3_size)
     };
@@ -666,6 +719,8 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_srtp)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let key = [0xc4u8, 0x80, 0x9f, 0x6d, 0x36, 0x98, 0x88, 0x72,
 ///     0x8e, 0x26, 0xad, 0xb5, 0x32, 0x12, 0x98, 0x90];
@@ -674,14 +729,16 @@ pub fn srtcp_kdf(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// let index = [0x48u8, 0x71, 0x65, 0x64, 0x9c, 0xca];
 /// let mut key_a = [0u8; 20];
 /// srtcp_kdf_label(&key, &salt, -1, &index, SRTCP_LABEL_MSG_AUTH, &mut key_a).expect("Error with srtcp_kdf_label()");
+/// }
 /// ```
+#[cfg(kdf_srtp)]
 pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
         label: u8, keyout: &mut [u8]) -> Result<(), i32> {
     let key_size = key.len() as u32;
     let salt_size = salt.len() as u32;
     let keyout_size = keyout.len() as u32;
     let rc = unsafe {
-        ws::wc_SRTCP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
+        sys::wc_SRTCP_KDF_label(key.as_ptr(), key_size, salt.as_ptr(), salt_size,
             kdr_index, idx.as_ptr(), label, keyout.as_mut_ptr(), keyout_size)
     };
     if rc != 0 {
@@ -704,9 +761,13 @@ pub fn srtcp_kdf_label(key: &[u8], salt: &[u8], kdr_index: i32, idx: &[u8],
 /// # Example
 ///
 /// ```rust
+/// #[cfg(kdf_srtp)]
+/// {
 /// use wolfssl::wolfcrypt::kdf::*;
 /// let kdr_index = srtp_kdr_to_index(16);
+/// }
 /// ```
+#[cfg(kdf_srtp)]
 pub fn srtp_kdr_to_index(kdr: u32) -> i32 {
-    unsafe { ws::wc_SRTP_KDF_kdr_to_idx(kdr) }
+    unsafe { sys::wc_SRTP_KDF_kdr_to_idx(kdr) }
 }

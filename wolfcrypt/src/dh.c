@@ -3228,6 +3228,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     return ret;
 }
 
+#endif /* WOLFSSL_KEY_GEN */
 
 /* Export raw DH parameters from DhKey structure
  *
@@ -3324,7 +3325,5 @@ int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
 
     return ret;
 }
-
-#endif /* WOLFSSL_KEY_GEN */
 
 #endif /* NO_DH */

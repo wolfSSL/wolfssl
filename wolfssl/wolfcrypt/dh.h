@@ -196,10 +196,11 @@ WOLFSSL_API int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv,
         word32 privSz, const byte* prime, word32 primeSz);
 WOLFSSL_API int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
                         const byte* priv, word32 privSz);
+#ifdef WOLFSSL_KEY_GEN
 WOLFSSL_API int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh);
+#endif
 WOLFSSL_API int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
                        byte* q, word32* qSz, byte* g, word32* gSz);
-
 
 #ifdef __cplusplus
     } /* extern "C" */

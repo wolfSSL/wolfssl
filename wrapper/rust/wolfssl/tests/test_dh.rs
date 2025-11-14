@@ -1,8 +1,10 @@
-//use std::fs;
+#![cfg(dh)]
+
 use wolfssl::wolfcrypt::dh::DH;
 use wolfssl::wolfcrypt::random::RNG;
 
 #[test]
+#[cfg(dh_keygen)]
 fn test_dh_named_parameters() {
     assert_eq!(DH::get_min_key_size_for_named_parameters(DH::FFDHE_2048), 29);
 
@@ -25,6 +27,7 @@ fn test_dh_named_parameters() {
 }
 
 #[test]
+#[cfg(dh_keygen)]
 fn test_generate_params() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
@@ -37,6 +40,7 @@ fn test_generate_params() {
 }
 
 #[test]
+#[cfg(dh_keygen)]
 fn test_generate_key_pair() {
     let mut rng = RNG::new().expect("Error with RNG::new()");
     let mut dh = DH::new_named(DH::FFDHE_2048).expect("Error with new_named()");

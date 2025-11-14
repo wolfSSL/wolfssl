@@ -1,8 +1,11 @@
+#![cfg(rsa)]
+
 use std::fs;
 use wolfssl::wolfcrypt::random::RNG;
 use wolfssl::wolfcrypt::rsa::*;
 
 #[test]
+#[cfg(rsa_keygen)]
 fn test_rsa_generate() {
     let mut rng = RNG::new().expect("Error creating RNG");
     let mut rsa = RSA::generate(2048, 65537, &mut rng).expect("Error with generate()");
@@ -68,6 +71,7 @@ fn test_rsa_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(sha256)]
 fn test_rsa_pss() {
     let mut rng = RNG::new().expect("Error creating RNG");
 
@@ -94,6 +98,7 @@ fn test_rsa_pss() {
 }
 
 #[test]
+#[cfg(rsa_direct)]
 fn test_rsa_direct() {
     let mut rng = RNG::new().expect("Error creating RNG");
 
