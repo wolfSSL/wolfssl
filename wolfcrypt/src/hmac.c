@@ -814,6 +814,9 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
     if (hmac == NULL || (msg == NULL && length > 0)) {
         return BAD_FUNC_ARG;
     }
+    if (length == 0) {
+        return 0; /* nothing to do, return success */
+    }
 
 #ifdef WOLF_CRYPTO_CB
     if (hmac->devId != INVALID_DEVID) {
