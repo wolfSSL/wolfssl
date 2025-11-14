@@ -26,6 +26,8 @@ resume_port=0
 no_pid=-1
 server_pid=$no_pid
 counter=0
+has_readyfile=no
+
 # let's use absolute path to a local dir (make distcheck may be in sub dir)
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
@@ -33,10 +35,23 @@ ready_file=`pwd`/wolfssl_resume_ready$$
 
 echo "ready file $ready_file"
 
+
 remove_ready_file() {
     if test -e "$ready_file"; then
         echo -e "removing existing ready file"
     rm "$ready_file"
+    fi
+}
+
+check_ready_file_support() {
+    ./examples/server/server -? 2>&1 | grep -- 'Ready file '
+    if [ $? -eq 0 ]; then
+        has_readyfile=yes
+    fi
+
+    if [ $has_readyfile != "yes" ]; then
+        echo -e "\nReady file not supported with build"
+        exit 77
     fi
 }
 
@@ -72,6 +87,8 @@ do_test() {
         echo -e "\nResume test not supported with build"
         return;;
     esac
+
+    check_ready_file_support
 
     remove_ready_file
     echo "./examples/server/server -r -R \"$ready_file\" -p $resume_port"
