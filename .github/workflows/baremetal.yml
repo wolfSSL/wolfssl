@@ -20,23 +20,24 @@ jobs:
       fail-fast: false
       matrix:
         config: [
-          '--enable-baremetal --enable-cryptonly'
+          '--enable-baremetal --enable-cryptonly',
+          '--enable-baremetal'
         ]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
-      
+
       - name: autogen
         run: ./autogen.sh
-      
+
       - name: configure
-        run: CPPFLAGS="-DWOLFSSL_USER_IO" ./configure ${{ matrix.config }} --disable-examples --disable-rng
-      
+        run: CPPFLAGS="-DWOLFSSL_USER_IO -DWOLFSSL_GENSEED_FORTEST -DWOLFSSL_IGNORE_TESTSEED_WARN" ./configure ${{ matrix.config }}
+
       - name: build
         run: make -j$(nproc)
-      
+
       - name: Run tests
         run: ./wolfcrypt/test/testwolfcrypt
 
@@ -47,18 +48,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake build-essential
-      
+
       - name: Configure CMake
         run: |
           mkdir build && cd build
-          cmake -DWOLFSSL_BAREMETAL=yes -DWOLFSSL_EXAMPLES=no -DWOLFSSL_RNG=no -DCMAKE_C_FLAGS="-DWOLFSSL_USER_IO -DWOLFCRYPT_ONLY" ..
-      
+          cmake -DWOLFSSL_BAREMETAL=yes -DCMAKE_C_FLAGS="-DWOLFSSL_USER_IO -DWOLFSSL_GENSEED_FORTEST -DWOLFSSL_IGNORE_TESTSEED_WARN" ..
+
       - name: Build
         run: cd build && cmake --build . -j$(nproc)
-      
+
       - name: Run tests
         run: cd build && ./wolfcrypt/test/testwolfcrypt
 

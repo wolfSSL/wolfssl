@@ -925,8 +925,10 @@ static const char* server_usage_msg[][66] = {
         "-c <file>   Certificate file,           default",               /* 5 */
         "-k <file>   Key file,                   default",               /* 6 */
         "-A <file>   Certificate Authority file, default",               /* 7 */
+#ifndef NO_FILESYSTEM
         "-R <file>   Create Ready file for external monitor"
                                                      " default none\n",  /* 8 */
+#endif
 #ifndef NO_DH
         "-D <file>   Diffie-Hellman Params file, default",               /* 9 */
         "-Z <num>    Minimum DH key bits,        default",              /* 10 */
