@@ -1271,12 +1271,15 @@ char* wc_strdup_ex(const char *src, int memType) {
 }
 #endif
 
-#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+#ifdef WOLFSSL_ATOMIC_OPS
 
-#ifdef HAVE_C___ATOMIC
-/* Atomic ops using standard C lib */
-#ifdef __cplusplus
-/* C++ using direct calls to compiler built-in functions */
+#if defined(WOLFSSL_USER_DEFINED_ATOMICS)
+
+#elif defined(SINGLE_THREADED)
+
+#elif defined(__GNUC__) && defined(__ATOMIC_RELAXED)
+/* direct calls using gcc-style compiler built-ins */
+
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
 {
     *c = i;
@@ -1357,7 +1360,16 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         c, expected_i, new_i, 0 /* weak */, __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
 }
 
-#else
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void **c, void **expected_ptr, void *new_ptr)
+{
+    return __atomic_compare_exchange_n(
+        c, expected_ptr, new_ptr, 0 /* weak */,
+        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
+
+#elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
+        !defined(__cplusplus)
 
 /* Default C Implementation */
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
@@ -1444,9 +1456,19 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         c, expected_i, new_i, memory_order_seq_cst, memory_order_acquire);
 }
 
-#endif /* __cplusplus */
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void **c, void **expected_ptr, void *new_ptr)
+{
+    /* use gcc-built-in __atomic_compare_exchange_n(), not
+     * atomic_compare_exchange_strong_explicit(), to sidestep _Atomic type
+     * requirements.
+     */
+    return __atomic_compare_exchange_n(
+        c, expected_ptr, new_ptr, 0 /* weak */,
+        __ATOMIC_SEQ_CST, __ATOMIC_ACQUIRE);
+}
 
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
 
 void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
 {
@@ -1527,8 +1549,8 @@ unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
-    long actual_i = InterlockedCompareExchange
-        ((wolfSSL_Atomic_Int *)c, (long)new_i, (long)*expected_i);
+    long actual_i = InterlockedCompareExchange(
+        (wolfSSL_Atomic_Int *)c, (long)new_i, (long)*expected_i);
     if (actual_i == (long)*expected_i) {
         return 1;
     }
@@ -1536,6 +1558,32 @@ int wolfSSL_Atomic_Uint_CompareExchange(
         *expected_i = (unsigned int)actual_i;
         return 0;
     }
+}
+
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void ** c, void **expected_ptr, void *new_ptr)
+{
+#ifdef _WIN64
+    LONG64 actual_ptr = InterlockedCompareExchange64(
+        (LONG64 *)c, (LONG64)new_ptr, (LONG64)*expected_ptr);
+    if (actual_ptr == (LONG64)*expected_ptr) {
+        return 1;
+    }
+    else {
+        *expected_ptr = (void *)actual_ptr;
+        return 0;
+    }
+#else /* !_WIN64 */
+    LONG actual_ptr = InterlockedCompareExchange(
+        (LONG *)c, (LONG)new_ptr, (LONG)*expected_ptr);
+    if (actual_ptr == (LONG)*expected_ptr) {
+        return 1;
+    }
+    else {
+        *expected_ptr = (void *)actual_ptr;
+        return 0;
+    }
+#endif /* !_WIN64 */
 }
 
 #endif

@@ -494,31 +494,26 @@
         #define WOLFSSL_ATOMIC_LOAD(x) (x)
         #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
         #define WOLFSSL_ATOMIC_OPS
-    #elif defined(HAVE_C___ATOMIC)
-        #ifdef __cplusplus
-            #if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
-                /* C++ using direct calls to compiler built-in functions */
-                typedef volatile int wolfSSL_Atomic_Int;
-                typedef volatile unsigned int wolfSSL_Atomic_Uint;
-                #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-                #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
-                                                               __ATOMIC_CONSUME)
-                #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
-                                                          val, __ATOMIC_RELEASE)
-                #define WOLFSSL_ATOMIC_OPS
-            #endif
-        #else
-            #ifdef WOLFSSL_HAVE_ATOMIC_H
-                /* Default C Implementation */
-                #include <stdatomic.h>
-                typedef atomic_int wolfSSL_Atomic_Int;
-                typedef atomic_uint wolfSSL_Atomic_Uint;
-                #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
-                #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
-                #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
-                #define WOLFSSL_ATOMIC_OPS
-            #endif /* WOLFSSL_HAVE_ATOMIC_H */
-        #endif
+    #elif defined(__GNUC__) && defined(__ATOMIC_CONSUME)
+        /* direct calls using gcc-style compiler built-ins */
+        typedef volatile int wolfSSL_Atomic_Int;
+        typedef volatile unsigned int wolfSSL_Atomic_Uint;
+        #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+        #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), \
+                                                       __ATOMIC_CONSUME)
+        #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), \
+                                                  val, __ATOMIC_RELEASE)
+        #define WOLFSSL_ATOMIC_OPS
+    #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
+        !defined(__cplusplus)
+        /* Default C Implementation */
+        #include <stdatomic.h>
+        typedef atomic_int wolfSSL_Atomic_Int;
+        typedef atomic_uint wolfSSL_Atomic_Uint;
+        #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+        #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+        #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
+        #define WOLFSSL_ATOMIC_OPS
     #elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
         /* Use MSVC compiler intrinsics for atomic ops */
         #ifdef _WIN32_WCE
@@ -534,8 +529,8 @@
         #define WOLFSSL_ATOMIC_OPS
     #endif
 
-    #ifndef WOLFSSL_ATOMIC_INITIALIZER
-        /* If we weren't able to implement atomics above, disable them here. */
+    /* If we weren't able to implement atomics above, disable them here. */
+    #ifndef WOLFSSL_ATOMIC_OPS
         #define WOLFSSL_NO_ATOMICS
     #endif
 #endif
@@ -586,6 +581,8 @@
         wolfSSL_Atomic_Uint* c, unsigned int i);
     WOLFSSL_API int wolfSSL_Atomic_Uint_CompareExchange(
         wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i);
+    WOLFSSL_API int wolfSSL_Atomic_Ptr_CompareExchange(
+        void** c, void **expected_ptr, void *new_ptr);
 #else
     /* Code using these fallback implementations in non-SINGLE_THREADED builds
      * needs to arrange its own explicit fallback to int for wolfSSL_Atomic_Int
@@ -620,6 +617,18 @@
         }
         else {
             *expected_i = *c;
+            return 0;
+        }
+    }
+    static WC_INLINE int wolfSSL_Atomic_Ptr_CompareExchange(
+        void **c, void *expected_ptr, void *new_ptr)
+    {
+        if (*(char **)c == *(char **)expected_ptr) {
+            *(char **)c = (char *)new_ptr;
+            return 1;
+        }
+        else {
+            *(char **)expected_ptr = *(char **)c;
             return 0;
         }
     }

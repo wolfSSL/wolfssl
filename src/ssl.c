@@ -7559,7 +7559,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
  * Return the private key of the WOLFSSL_CTX struct
  * @return WOLFSSL_EVP_PKEY* The caller doesn *NOT*` free the returned object.
  */
-WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
+WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_EVP_PKEY* res;
     const unsigned char *key;
@@ -7605,12 +7605,25 @@ WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx)
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
     #endif
-        res = wolfSSL_d2i_PrivateKey(type,
-                (WOLFSSL_EVP_PKEY**)&ctx->privateKeyPKey, &key,
+        res = wolfSSL_d2i_PrivateKey(type, NULL, &key,
                 (long)ctx->privateKey->length);
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         wolfssl_priv_der_unblind(ctx->privateKey, ctx->privateKeyMask);
     #endif
+        if (res) {
+#ifdef WOLFSSL_ATOMIC_OPS
+            WOLFSSL_EVP_PKEY *current_pkey = NULL;
+            if (! wolfSSL_Atomic_Ptr_CompareExchange(
+                    (void **)&ctx->privateKeyPKey,
+                    (void **)&current_pkey, res))
+            {
+                wolfSSL_EVP_PKEY_free(res);
+                res = current_pkey;
+            }
+#else
+            ctx->privateKeyPKey = res;
+#endif
+        }
     }
 
     return res;
