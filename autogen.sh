@@ -17,7 +17,7 @@ if [ -n "$WSL_DISTRO_NAME" ]; then
 fi
 
 # if and as needed, create empty dummy versions of various files, mostly
-# associated with fips/self-test and asynccrypt:
+# associated with fips/self-test:
 
 for dir in \
         ./wolfssl/wolfcrypt/port/intel \
@@ -35,15 +35,7 @@ for file in \
         ./wolfcrypt/src/wolfcrypt_first.c \
         ./wolfcrypt/src/wolfcrypt_last.c \
         ./wolfssl/wolfcrypt/fips.h \
-        ./wolfcrypt/src/selftest.c \
-        ./wolfcrypt/src/async.c \
-        ./wolfssl/wolfcrypt/async.h \
-        ./wolfcrypt/src/port/intel/quickassist.c \
-        ./wolfcrypt/src/port/intel/quickassist_mem.c \
-        ./wolfcrypt/src/port/cavium/cavium_nitrox.c \
-        ./wolfssl/wolfcrypt/port/intel/quickassist.h \
-        ./wolfssl/wolfcrypt/port/intel/quickassist_mem.h \
-        ./wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
+        ./wolfcrypt/src/selftest.c
 do
     if [ ! -e "$file" ]; then
         > "$file" || exit $?

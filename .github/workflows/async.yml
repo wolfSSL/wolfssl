@@ -33,7 +33,7 @@ jobs:
 
       - name: Test wolfSSL async
         run: |
-          ./async-check.sh install
+          ./autogen.sh
           ./configure ${{ matrix.config }}
           make check
 

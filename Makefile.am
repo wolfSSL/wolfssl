@@ -148,6 +148,7 @@ EXTRA_DIST+= valgrind-bash.supp
 EXTRA_DIST+= fips-hash.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
+EXTRA_DIST+= README-async.md
 EXTRA_DIST+= README
 EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
