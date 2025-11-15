@@ -2,7 +2,7 @@
 # All paths should be given relative to the root
 
 if BUILD_WOLFCRYPT_TESTS
-if !BUILD_LINUXKM
+if !BUILD_KERNEL_MODULE
 
 noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 if BUILD_CRYPTONLY

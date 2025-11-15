@@ -302,7 +302,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #ifdef XPRINTF
         #undef  printf
         #define printf XPRINTF
-    #elif !defined(printf)
+    #elif !defined(printf) && !defined(NO_STDIO_FILESYSTEM)
         /* arrange for printf() to flush after every message -- this assures
          * redirected output (to a log file) records progress right up to the
          * moment of a crash/abort(); otherwise anything queued in stdout would

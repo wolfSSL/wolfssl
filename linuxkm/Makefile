@@ -51,7 +51,7 @@ else
     WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
 endif
 
-ifeq "$(ENABLED_LINUXKM_BENCHMARKS)" "yes"
+ifeq "$(ENABLED_KERNEL_BENCHMARKS)" "yes"
     WOLFSSL_OBJ_FILES+=wolfcrypt/benchmark/benchmark.o
 endif
 

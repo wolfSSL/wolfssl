@@ -249,6 +249,12 @@ linuxkm/linuxkm
 linuxkm/src
 linuxkm/patches/src
 *.nds
+bsdkm/export_syms
+bsdkm/i386
+bsdkm/libwolfssl.ko
+bsdkm/machine
+bsdkm/opt_global.h
+bsdkm/x86
 
 # autotools generated
 scripts/unit.test

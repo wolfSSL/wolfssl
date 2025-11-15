@@ -480,6 +480,8 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     /* the requisite linux/kernel.h is included in linuxkm_wc_port.h, with
      * incompatible warnings masked out.
      */
+#elif defined(WOLFSSL_BSDKM)
+    /* see bsdkm/bsdkm_wc_port.h for includes and defines. */
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
     #define fprintf FCL_FPRINTF
