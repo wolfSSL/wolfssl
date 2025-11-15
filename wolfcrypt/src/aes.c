@@ -93,6 +93,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/port/ti/ti-aes.c>
 #else
 
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif /* WOLFSSL_PSOC6_CRYPTO */
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -1118,6 +1123,24 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(Aes* aes, const byte* inBlock,
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
 /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    #if (defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT))
+        static WARN_UNUSED_RESULT int wc_AesEncrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            return wc_Psoc6_Aes_Encrypt(aes, inBlock, outBlock);
+        }
+    #endif
+
+    #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
+        static WARN_UNUSED_RESULT int wc_AesDecrypt(
+            Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            return wc_Psoc6_Aes_Decrypt(aes, inBlock, outBlock);
+        }
+
+    #endif
 #else
 
     /* using wolfCrypt software implementation */
@@ -4405,6 +4428,22 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return AesSetKey(aes, userKey, keylen, iv, dir);
     }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
+        const byte* iv, int dir)
+    {
+        return wc_Psoc6_Aes_SetKey(aes, userKey, keylen, iv, dir);
+    }
+
+    #if defined(WOLFSSL_AES_DIRECT)
+        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                            const byte* iv, int dir)
+        {
+            return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+        }
+    #endif /* WOLFSSL_AES_DIRECT */
 #else
     #define NEED_SOFTWARE_AES_SETKEY
 #endif
@@ -6108,6 +6147,20 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
     /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return wc_Psoc6_Aes_CbcEncrypt(aes, out, in, sz);
+    }
+
+    #if defined(HAVE_AES_DECRYPT)
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return wc_Psoc6_Aes_CbcDecrypt(aes, out, in, sz);
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
 #else
     /* Reminder: Some HW implementations may also define this as needed.
      * (e.g. for unsupported key length fallback)  */
@@ -7237,7 +7290,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
     else
 #endif
-#if !defined(FREESCALE_LTC_AES_GCM)
+#if !defined(FREESCALE_LTC_AES_GCM) && !defined(WOLFSSL_PSOC6_CRYPTO)
     if (ret == 0) {
         VECTOR_REGISTERS_PUSH;
         /* AES-NI code generates its own H value, but generate it here too, to
@@ -7275,7 +7328,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
 #endif /* GCM_TABLE || GCM_TABLE_4BIT */
     }
-#endif /* FREESCALE_LTC_AES_GCM */
+#endif /* !FREESCALE_LTC_AES_GCM && !WOLFSSL_PSOC6_CRYPTO */
 #endif
 
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX_AES)
@@ -9380,6 +9433,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         authTag, authTagSz, authIn, authInSz);
 #endif /* STM32_CRYPTO_AES_GCM */
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    return wc_Psoc6_Aes_GcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                   authTagSz, authIn, authInSz);
+#endif /* WOLFSSL_PSOC6_CRYPTO */
+
     VECTOR_REGISTERS_PUSH;
 
 #if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
@@ -10059,6 +10117,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         aes, out, in, sz, iv, ivSz,
         authTag, authTagSz, authIn, authInSz);
 #endif /* STM32_CRYPTO_AES_GCM */
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    return wc_Psoc6_Aes_GcmDecrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                   authTagSz, authIn, authInSz);
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 
     VECTOR_REGISTERS_PUSH;
 
@@ -13100,6 +13163,30 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AES_ECB_decrypt(aes, in, out, sz);
 }
 
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    return wc_Psoc6_Aes_EcbEncrypt(aes, out, in, sz);
+}
+
+#define _AesEcbEncrypt(aes, out, in, sz) wc_AesEcbEncrypt(aes, out, in, sz)
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    return wc_Psoc6_Aes_EcbDecrypt(aes, out, in, sz);
+}
+
+#define _AesEcbDecrypt(aes, out, in, sz) wc_AesEcbDecrypt(aes, out, in, sz)
+#endif /* HAVE_AES_DECRYPT */
+
 #else
 
 /* Software AES - ECB */
@@ -13264,6 +13351,22 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_ECB */
 
 #if defined(WOLFSSL_AES_CFB)
+
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_Psoc6_Aes_CfbEncrypt(aes, out, in, sz);
+}
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_Psoc6_Aes_CfbDecrypt(aes, out, in, sz);
+}
+#endif /* HAVE_AES_DECRYPT */
+
+#else
 /* Feedback AES mode
  *
  * aes structure holding key to use for encryption
@@ -13456,6 +13559,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return AesCfbDecrypt_C(aes, out, in, sz, AES_CFB_MODE);
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_PSOC6_CRYPTO */
 
 #ifndef WOLFSSL_NO_AES_CFB_1_8
 /* shift the whole WC_AES_BLOCK_SIZE array left by 8 or 1 bits */
