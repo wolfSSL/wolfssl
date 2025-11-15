@@ -2130,7 +2130,7 @@ int test_wc_PKCS7_DecodeEnvelopedData_stream(void)
         ExpectIntEQ(ret, ALGO_ID_E);
     #else
         /* expecting the size of ca-cert.pem */
-        ExpectIntEQ(ret, 5539);
+        ExpectIntEQ(ret, 5512);
     #endif
     }
 
