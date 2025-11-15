@@ -9131,7 +9131,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendTls13CertificateVerify");
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
 #endif
 
     ssl->options.buildingMsg = 1;
@@ -9187,7 +9187,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                wolfssl_priv_der_unblind(ssl->buffers.key,
+                wolfssl_priv_der_blind_toggle(ssl->buffers.key,
                     ssl->buffers.keyMask);
             #endif
                 return 0;  /* sent blank cert, can't verify */
@@ -9882,7 +9882,7 @@ exit_scv:
             &ssl->buffers.keyMask);
     }
     else {
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     }
 #endif
 

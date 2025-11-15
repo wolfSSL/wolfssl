@@ -2183,7 +2183,11 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
 WOLFSSL_LOCAL int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key,
     DerBuffer** mask);
-WOLFSSL_LOCAL void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask);
+WOLFSSL_LOCAL void wolfssl_priv_der_blind_toggle(DerBuffer* key,
+    const DerBuffer* mask);
+WOLFSSL_LOCAL WARN_UNUSED_RESULT DerBuffer *wolfssl_priv_der_unblind(
+    const DerBuffer* key, const DerBuffer* mask);
+WOLFSSL_LOCAL void wolfssl_priv_der_unblind_free(DerBuffer* key);
 #endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* length);
 #ifdef WOLFSSL_DUAL_ALG_CERTS

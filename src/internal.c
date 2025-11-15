@@ -293,12 +293,32 @@ int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key, DerBuffer** mask)
     return ret;
 }
 
-void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
+void wolfssl_priv_der_blind_toggle(DerBuffer* key, const DerBuffer* mask)
 {
-    if (key != NULL) {
+    if ((key != NULL) && (mask != NULL)) {
         xorbuf(key->buffer, mask->buffer, mask->length);
     }
 }
+
+DerBuffer *wolfssl_priv_der_unblind(const DerBuffer* key, const DerBuffer* mask)
+{
+    DerBuffer *ret;
+    if ((key == NULL) || (mask == NULL))
+        return NULL;
+    if (mask->length > key->length)
+        return NULL;
+    if (AllocDer(&ret, key->length, key->type, key->heap) != 0)
+        return NULL;
+    xorbufout(ret->buffer, key->buffer, mask->buffer, mask->length);
+    return ret;
+}
+
+void wolfssl_priv_der_unblind_free(DerBuffer* key)
+{
+    if (key != NULL)
+        FreeDer(&key);
+}
+
 #endif /* !NO_CERT && WOLFSSL_BLIND_PRIVATE_KEY */
 
 
@@ -7090,7 +7110,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         ssl->buffers.weOwnKey = 1;
         /* Blind the private key for the SSL with new random mask. */
-        wolfssl_priv_der_unblind(ssl->buffers.key, ctx->privateKeyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ctx->privateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
             &ssl->buffers.keyMask);
         if (ret != 0) {
@@ -7115,7 +7135,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return ret;
         }
         /* Blind the private key for the SSL with new random mask. */
-        wolfssl_priv_der_unblind(ssl->buffers.altKey, ctx->altPrivateKeyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.altKey,
+            ctx->altPrivateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
             &ssl->buffers.altKeyMask);
         if (ret != 0) {
@@ -30281,7 +30302,7 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
     }
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ssl->buffers.altKey, ssl->buffers.altKeyMask);
+    wolfssl_priv_der_blind_toggle(ssl->buffers.altKey, ssl->buffers.altKeyMask);
 #endif
 
 #ifdef WOLF_PRIVATE_KEY_ID
@@ -30691,7 +30712,7 @@ exit_dapk:
             &ssl->buffers.altKeyMask);
     }
     else {
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     }
 #endif
 
@@ -34386,7 +34407,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendCertificateVerify");
 
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
 #endif
 
 #ifdef WOLFSSL_ASYNC_IO
@@ -34436,7 +34457,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
             #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-                wolfssl_priv_der_unblind(ssl->buffers.key,
+                wolfssl_priv_der_blind_toggle(ssl->buffers.key,
                     ssl->buffers.keyMask);
             #endif
                 return 0;  /* sent blank cert, can't verify */
@@ -34864,7 +34885,7 @@ exit_scv:
             &ssl->buffers.keyMask);
     }
     else {
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     }
 #endif
 
@@ -35538,7 +35559,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("SendServerKeyExchange");
 
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     #endif
 
     #ifdef WOLFSSL_ASYNC_IO
@@ -37123,7 +37144,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 &ssl->buffers.keyMask);
         }
         else {
-            wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+            wolfssl_priv_der_blind_toggle(ssl->buffers.key,
+                                          ssl->buffers.keyMask);
         }
     #endif
 
@@ -41041,7 +41063,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         WOLFSSL_ENTER("DoClientKeyExchange");
 
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
-        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        wolfssl_priv_der_blind_toggle(ssl->buffers.key, ssl->buffers.keyMask);
     #endif
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -41848,7 +41870,8 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                 &ssl->buffers.keyMask);
         }
         else {
-            wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+            wolfssl_priv_der_blind_toggle(ssl->buffers.key,
+                                          ssl->buffers.keyMask);
         }
     #endif
 
