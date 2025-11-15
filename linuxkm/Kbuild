@@ -127,6 +127,9 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
 	OBJECT_FILES_NON_STANDARD := y
     endif
+    ifeq "$(KERNEL_ARCH)" "arm"
+        PIE_FLAGS += -fno-unwind-tables
+    endif
     ifeq "$(KERNEL_ARCH)" "mips"
         PIE_FLAGS += -mabicalls
     endif
