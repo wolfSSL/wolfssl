@@ -710,11 +710,16 @@ void fe_frombytes(fe h,const unsigned char *s)
 
 void fe_invert(fe out,const fe z)
 {
-  fe t0 = {0};
-  fe t1 = {0};
-  fe t2 = {0};
-  fe t3 = {0};
+  fe t0;
+  fe t1;
+  fe t2;
+  fe t3;
   int i = 0;
+
+  XMEMSET(&t0, 0, sizeof(t0));
+  XMEMSET(&t1, 0, sizeof(t1));
+  XMEMSET(&t2, 0, sizeof(t2));
+  XMEMSET(&t3, 0, sizeof(t3));
 
   /* pow225521 */
   fe_sq(t0,z);
@@ -1328,10 +1333,14 @@ void fe_sq2(fe h,const fe f)
 
 void fe_pow22523(fe out,const fe z)
 {
-  fe t0 = {0};
-  fe t1 = {0};
-  fe t2 = {0};
+  fe t0;
+  fe t1;
+  fe t2;
   int i = 0;
+
+  XMEMSET(&t0, 0, sizeof(t0));
+  XMEMSET(&t1, 0, sizeof(t1));
+  XMEMSET(&t2, 0, sizeof(t2));
 
   fe_sq(t0,z);
   fe_sq(t1,t0); for (i = 1;i < 2;++i) fe_sq(t1,t1);
