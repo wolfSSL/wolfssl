@@ -295,7 +295,7 @@ int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key, DerBuffer** mask)
 
 void wolfssl_priv_der_blind_toggle(DerBuffer* key, const DerBuffer* mask)
 {
-    if (key != NULL) {
+    if ((key != NULL) && (mask != NULL)) {
         xorbuf(key->buffer, mask->buffer, mask->length);
     }
 }
@@ -303,28 +303,20 @@ void wolfssl_priv_der_blind_toggle(DerBuffer* key, const DerBuffer* mask)
 DerBuffer *wolfssl_priv_der_unblind(const DerBuffer* key, const DerBuffer* mask)
 {
     DerBuffer *ret;
-    if (key == NULL)
+    if ((key == NULL) || (mask == NULL))
         return NULL;
     if (mask->length > key->length)
         return NULL;
-    ret = (DerBuffer *)XMALLOC(sizeof(*key) + key->length, key->heap,
-                               DYNAMIC_TYPE_TMP_BUFFER);
-    if (ret == NULL)
+    if (AllocDer(&ret, key->length, key->type, key->heap) != 0)
         return NULL;
-    XMEMCPY(ret, key, sizeof(*key));
-    ret->buffer = (byte *)ret + sizeof(*key);
     xorbufout(ret->buffer, key->buffer, mask->buffer, mask->length);
     return ret;
 }
 
 void wolfssl_priv_der_unblind_free(DerBuffer* key)
 {
-    if (key != NULL) {
-        void *heap = key->heap;
-        ForceZero(key->buffer, key->length);
-        ForceZero(key, sizeof(*key));
-        XFREE(key, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    if (key != NULL)
+        FreeDer(&key);
 }
 
 #endif /* !NO_CERT && WOLFSSL_BLIND_PRIVATE_KEY */
