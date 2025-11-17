@@ -3184,8 +3184,9 @@ int mlkem_derive_secret(wc_Shake* shake256, const byte* z, const byte* ct,
 
 #ifdef USE_INTEL_SPEEDUP
     XMEMCPY(shake256->t, z, WC_ML_KEM_SYM_SZ);
-    XMEMCPY(shake256->t, ct, WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
-    shake256->i = WC_ML_KEM_SYM_SZ;
+    XMEMCPY(shake256->t + WC_ML_KEM_SYM_SZ, ct,
+        WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ);
+    shake256->i = WC_ML_KEM_SYM_SZ + WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ct += WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ctSz -= WC_SHA3_256_COUNT * 8 - WC_ML_KEM_SYM_SZ;
     ret = wc_Shake256_Update(shake256, ct, ctSz);
@@ -3193,7 +3194,10 @@ int mlkem_derive_secret(wc_Shake* shake256, const byte* z, const byte* ct,
         ret = wc_Shake256_Final(shake256, ss, WC_ML_KEM_SS_SZ);
     }
 #else
-    ret = wc_Shake256_Update(shake256, z, WC_ML_KEM_SYM_SZ);
+    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Shake256_Update(shake256, z, WC_ML_KEM_SYM_SZ);
+    }
     if (ret == 0) {
         ret = wc_Shake256_Update(shake256, ct, ctSz);
     }
