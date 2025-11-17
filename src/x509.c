@@ -4315,7 +4315,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(const WOLFSSL_X509* x509)
 
 
 /* return number of elements on success 0 on fail */
-int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
+int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509)* sk,
     WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_push");
@@ -4329,7 +4329,7 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 
 
 /* Return and remove the last x509 pushed on stack */
-WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 {
     return (WOLFSSL_X509*)wolfSSL_sk_pop(sk);
 }
