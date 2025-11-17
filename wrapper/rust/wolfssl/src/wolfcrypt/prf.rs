@@ -21,23 +21,20 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's Pseudo Random
 Function (PRF) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
-use wolfssl_sys as ws;
+use crate::sys;
 
-pub const PRF_HASH_NONE: i32 = ws::wc_MACAlgorithm_no_mac as i32;
-pub const PRF_HASH_MD5: i32 = ws::wc_MACAlgorithm_md5_mac as i32;
-pub const PRF_HASH_SHA: i32 = ws::wc_MACAlgorithm_sha_mac as i32;
-pub const PRF_HASH_SHA224: i32 = ws::wc_MACAlgorithm_sha224_mac as i32;
-pub const PRF_HASH_SHA256: i32 = ws::wc_MACAlgorithm_sha256_mac as i32;
-pub const PRF_HASH_SHA384: i32 = ws::wc_MACAlgorithm_sha384_mac as i32;
-pub const PRF_HASH_SHA512: i32 = ws::wc_MACAlgorithm_sha512_mac as i32;
-pub const PRF_HASH_RMD: i32 = ws::wc_MACAlgorithm_rmd_mac as i32;
-pub const PRF_HASH_BLAKE2B: i32 = ws::wc_MACAlgorithm_blake2b_mac as i32;
-pub const PRF_HASH_SM3: i32 = ws::wc_MACAlgorithm_sm3_mac as i32;
+pub const PRF_HASH_NONE: i32 = sys::wc_MACAlgorithm_no_mac as i32;
+pub const PRF_HASH_MD5: i32 = sys::wc_MACAlgorithm_md5_mac as i32;
+pub const PRF_HASH_SHA: i32 = sys::wc_MACAlgorithm_sha_mac as i32;
+pub const PRF_HASH_SHA224: i32 = sys::wc_MACAlgorithm_sha224_mac as i32;
+pub const PRF_HASH_SHA256: i32 = sys::wc_MACAlgorithm_sha256_mac as i32;
+pub const PRF_HASH_SHA384: i32 = sys::wc_MACAlgorithm_sha384_mac as i32;
+pub const PRF_HASH_SHA512: i32 = sys::wc_MACAlgorithm_sha512_mac as i32;
+pub const PRF_HASH_RMD: i32 = sys::wc_MACAlgorithm_rmd_mac as i32;
+pub const PRF_HASH_BLAKE2B: i32 = sys::wc_MACAlgorithm_blake2b_mac as i32;
+pub const PRF_HASH_SM3: i32 = sys::wc_MACAlgorithm_sm3_mac as i32;
 
 /// Pseudo Random Function for MD5, SHA-1, SHA-256, SHA-384, or SHA-512.
 ///
@@ -57,7 +54,6 @@ pub const PRF_HASH_SM3: i32 = ws::wc_MACAlgorithm_sm3_mac as i32;
 ///
 /// ```rust
 /// use wolfssl::wolfcrypt::prf::*;
-/// use wolfssl_sys as ws;
 /// let secret = [0x10u8, 0xbc, 0xb4, 0xa2, 0xe8, 0xdc, 0xf1, 0x9b, 0x4c,
 ///     0x51, 0x9c, 0xed, 0x31, 0x1b, 0x51, 0x57, 0x02, 0x3f,
 ///     0xa1, 0x7d, 0xfb, 0x0e, 0xf3, 0x4e, 0x8f, 0x6f, 0x71,
@@ -99,7 +95,6 @@ pub fn prf(secret: &[u8], seed: &[u8], hash_type: i32, dout: &mut [u8]) -> Resul
 ///
 /// ```rust
 /// use wolfssl::wolfcrypt::prf::*;
-/// use wolfssl_sys as ws;
 /// let secret = [0x10u8, 0xbc, 0xb4, 0xa2, 0xe8, 0xdc, 0xf1, 0x9b, 0x4c,
 ///     0x51, 0x9c, 0xed, 0x31, 0x1b, 0x51, 0x57, 0x02, 0x3f,
 ///     0xa1, 0x7d, 0xfb, 0x0e, 0xf3, 0x4e, 0x8f, 0x6f, 0x71,
@@ -126,10 +121,10 @@ pub fn prf_ex(secret: &[u8], seed: &[u8], hash_type: i32, heap: Option<*mut ::st
     };
     let dev_id = match dev_id {
         Some(dev_id) => dev_id,
-        None => ws::INVALID_DEVID,
+        None => sys::INVALID_DEVID,
     };
     let rc = unsafe {
-        ws::wc_PRF(dout.as_mut_ptr(), dout_size,
+        sys::wc_PRF(dout.as_mut_ptr(), dout_size,
             secret.as_ptr(), secret_size,
             seed.as_ptr(), seed_size,
             hash_type, heap, dev_id)

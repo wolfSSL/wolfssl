@@ -22,33 +22,31 @@
 This module provides a Rust wrapper for the wolfCrypt library's Diffie-Hellman
 (DH) functionality.
 
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
-
 The primary component is the `DH` struct, which manages the lifecycle of a
 wolfSSL `DhKey` object. It ensures proper initialization and deallocation.
 */
 
-use wolfssl_sys as ws;
+#![cfg(dh)]
 
-use std::mem::{MaybeUninit};
+use crate::sys;
 use crate::wolfcrypt::random::RNG;
+use std::mem::{MaybeUninit};
 
 pub struct DH {
-    wc_dhkey: ws::DhKey,
+    wc_dhkey: sys::DhKey,
 }
 
 impl DH {
     /// ffdhe2048 named parameter group.
-    pub const FFDHE_2048: i32 = ws::WC_FFDHE_2048 as i32;
+    pub const FFDHE_2048: i32 = sys::WC_FFDHE_2048 as i32;
     /// ffdhe3072 named parameter group.
-    pub const FFDHE_3072: i32 = ws::WC_FFDHE_3072 as i32;
+    pub const FFDHE_3072: i32 = sys::WC_FFDHE_3072 as i32;
     /// ffdhe4096 named parameter group.
-    pub const FFDHE_4096: i32 = ws::WC_FFDHE_4096 as i32;
+    pub const FFDHE_4096: i32 = sys::WC_FFDHE_4096 as i32;
     /// ffdhe6144 named parameter group.
-    pub const FFDHE_6144: i32 = ws::WC_FFDHE_6144 as i32;
+    pub const FFDHE_6144: i32 = sys::WC_FFDHE_6144 as i32;
     /// ffdhe8192 named parameter group.
-    pub const FFDHE_8192: i32 = ws::WC_FFDHE_8192 as i32;
+    pub const FFDHE_8192: i32 = sys::WC_FFDHE_8192 as i32;
 
     /// Perform quick validity check of public key value against prime.
     ///
@@ -94,7 +92,7 @@ impl DH {
         let prime_size = prime.len() as u32;
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_DhCheckPubValue(prime.as_ptr(), prime_size,
+            sys::wc_DhCheckPubValue(prime.as_ptr(), prime_size,
                 public.as_ptr(), public_size)
         };
         if rc != 0 {
@@ -145,7 +143,7 @@ impl DH {
             q_size = q.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_DhCmpNamedKey(name, no_q,
+            sys::wc_DhCmpNamedKey(name, no_q,
                 p.as_ptr(), p_size,
                 g.as_ptr(), g_size,
                 q_ptr, q_size)
@@ -168,11 +166,15 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(dh_keygen)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
     /// let mut dh = DH::generate(&mut rng, 2048).expect("Error with generate()");
+    /// }
     /// ```
+    #[cfg(dh_keygen)]
     pub fn generate(rng: &mut RNG, modulus_size: i32) -> Result<Self, i32> {
         Self::generate_ex(rng, modulus_size, None, None)
     }
@@ -195,29 +197,33 @@ impl DH {
     /// # Example
     ///
     /// ```rust
+    /// #[cfg(dh_keygen)]
+    /// {
     /// use wolfssl::wolfcrypt::random::RNG;
     /// use wolfssl::wolfcrypt::dh::DH;
     /// let mut rng = RNG::new().expect("Error with RNG::new()");
     /// let mut dh = DH::generate_ex(&mut rng, 2048, None, None).expect("Error with generate_ex()");
+    /// }
     /// ```
+    #[cfg(dh_keygen)]
     pub fn generate_ex(rng: &mut RNG, modulus_size: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
+        let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            ws::wc_DhGenerateParams(&mut rng.wc_rng, modulus_size, &mut dh.wc_dhkey)
+            sys::wc_DhGenerateParams(&mut rng.wc_rng, modulus_size, &mut dh.wc_dhkey)
         };
         if rc != 0 {
             return Err(rc);
@@ -244,7 +250,7 @@ impl DH {
     /// assert_eq!(min_key_size, 29);
     /// ```
     pub fn get_min_key_size_for_named_parameters(name: i32) -> u32 {
-        unsafe { ws::wc_DhGetNamedKeyMinSize(name) }
+        unsafe { sys::wc_DhGetNamedKeyMinSize(name) }
     }
 
     /// Get parameter sizes for a named parameter set.
@@ -268,7 +274,7 @@ impl DH {
     /// ```
     pub fn get_named_parameter_sizes(name: i32, p_size: &mut u32, g_size: &mut u32, q_size: &mut u32) {
         unsafe {
-            ws::wc_DhGetNamedKeyParamSize(name, p_size, g_size, q_size)
+            sys::wc_DhGetNamedKeyParamSize(name, p_size, g_size, q_size)
         };
     }
 
@@ -316,22 +322,22 @@ impl DH {
     /// let mut dh = DH::new_named_ex(DH::FFDHE_2048, None, None).expect("Error with new_named_ex()");
     /// ```
     pub fn new_named_ex(name: i32, heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
+        let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
-        let rc = unsafe { ws::wc_DhSetNamedKey(&mut dh.wc_dhkey, name) };
+        let rc = unsafe { sys::wc_DhSetNamedKey(&mut dh.wc_dhkey, name) };
         if rc != 0 {
             return Err(rc);
         }
@@ -522,23 +528,23 @@ impl DH {
     pub fn new_from_pg_ex(p: &[u8], g: &[u8], heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
-        let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
+        let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            ws::wc_DhSetKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size)
+            sys::wc_DhSetKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -745,23 +751,23 @@ impl DH {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;
-        let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
+        let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            ws::wc_DhSetKey_ex(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size)
+            sys::wc_DhSetKey_ex(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -977,23 +983,23 @@ impl DH {
         let p_size = p.len() as u32;
         let g_size = g.len() as u32;
         let q_size = q.len() as u32;
-        let mut wc_dhkey: MaybeUninit<ws::DhKey> = MaybeUninit::uninit();
+        let mut wc_dhkey: MaybeUninit<sys::DhKey> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitDhKey_ex(wc_dhkey.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
         let wc_dhkey = unsafe { wc_dhkey.assume_init() };
         let mut dh = DH { wc_dhkey };
         let rc = unsafe {
-            ws::wc_DhSetCheckKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size, trusted, &mut rng.wc_rng)
+            sys::wc_DhSetCheckKey(&mut dh.wc_dhkey, p.as_ptr(), p_size, g.as_ptr(), g_size, q.as_ptr(), q_size, trusted, &mut rng.wc_rng)
         };
         if rc != 0 {
             return Err(rc);
@@ -1034,7 +1040,7 @@ impl DH {
         let public_size = public.len() as u32;
         let private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_DhCheckKeyPair(&mut self.wc_dhkey,
+            sys::wc_DhCheckKeyPair(&mut self.wc_dhkey,
                 public.as_ptr(), public_size,
                 private.as_ptr(), private_size)
         };
@@ -1075,7 +1081,7 @@ impl DH {
     pub fn check_priv_key(&mut self, private: &[u8]) -> Result<(), i32> {
         let private_size = private.len() as u32;
         let rc = unsafe {
-            ws::wc_DhCheckPrivKey(&mut self.wc_dhkey,
+            sys::wc_DhCheckPrivKey(&mut self.wc_dhkey,
                 private.as_ptr(), private_size)
         };
         if rc != 0 {
@@ -1198,7 +1204,7 @@ impl DH {
             prime_size = prime.len() as u32;
         }
         let rc = unsafe {
-            ws::wc_DhCheckPrivKey_ex(&mut self.wc_dhkey,
+            sys::wc_DhCheckPrivKey_ex(&mut self.wc_dhkey,
                 private.as_ptr(), private_size,
                 prime_ptr, prime_size)
         };
@@ -1239,7 +1245,7 @@ impl DH {
     pub fn check_pub_key(&mut self, public: &[u8]) -> Result<(), i32> {
         let public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_DhCheckPubKey(&mut self.wc_dhkey, public.as_ptr(), public_size)
+            sys::wc_DhCheckPubKey(&mut self.wc_dhkey, public.as_ptr(), public_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1361,7 +1367,7 @@ impl DH {
         let public_size = public.len() as u32;
         let prime_size = prime.len() as u32;
         let rc = unsafe {
-            ws::wc_DhCheckPubKey_ex(&mut self.wc_dhkey,
+            sys::wc_DhCheckPubKey_ex(&mut self.wc_dhkey,
                 public.as_ptr(), public_size,
                 prime.as_ptr(), prime_size)
         };
@@ -1394,7 +1400,7 @@ impl DH {
         *q_size = q.len() as u32;
         *g_size = g.len() as u32;
         let rc = unsafe {
-            ws::wc_DhExportParamsRaw(&mut self.wc_dhkey,
+            sys::wc_DhExportParamsRaw(&mut self.wc_dhkey,
                 p.as_mut_ptr(), p_size,
                 q.as_mut_ptr(), q_size,
                 g.as_mut_ptr(), g_size)
@@ -1439,7 +1445,7 @@ impl DH {
         *private_size = private.len() as u32;
         *public_size = public.len() as u32;
         let rc = unsafe {
-            ws::wc_DhGenerateKeyPair(&mut self.wc_dhkey, &mut rng.wc_rng,
+            sys::wc_DhGenerateKeyPair(&mut self.wc_dhkey, &mut rng.wc_rng,
                 private.as_mut_ptr(), private_size,
                 public.as_mut_ptr(), public_size)
         };
@@ -1488,7 +1494,7 @@ impl DH {
         let private_size = private.len() as u32;
         let other_pub_size = other_pub.len() as u32;
         let rc = unsafe {
-            ws::wc_DhAgree(&mut self.wc_dhkey,
+            sys::wc_DhAgree(&mut self.wc_dhkey,
                 dout.as_mut_ptr(), &mut dout_size,
                 private.as_ptr(), private_size,
                 other_pub.as_ptr(), other_pub_size)
@@ -1509,6 +1515,6 @@ impl Drop for DH {
     /// DH struct instance goes out of scope, automatically cleaning up
     /// resources and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_FreeDhKey(&mut self.wc_dhkey); }
+        unsafe { sys::wc_FreeDhKey(&mut self.wc_dhkey); }
     }
 }

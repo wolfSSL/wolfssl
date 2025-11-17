@@ -21,23 +21,21 @@
 /*!
 This module provides a Rust wrapper for the wolfCrypt library's Secure Hash
 Algorithm (SHA) functionality.
-
-It leverages the `wolfssl-sys` crate for low-level FFI bindings, encapsulating
-the raw C functions in a memory-safe and easy-to-use Rust API.
 */
 
-use wolfssl_sys as ws;
-
+use crate::sys;
 use std::mem::MaybeUninit;
 
 /// Context for SHA-1 computation.
+#[cfg(sha)]
 pub struct SHA {
-    wc_sha: ws::wc_Sha,
+    wc_sha: sys::wc_Sha,
 }
 
+#[cfg(sha)]
 impl SHA {
     /// SHA-1 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA_DIGEST_SIZE as usize;
 
     /// Build a new SHA instance.
     ///
@@ -75,16 +73,16 @@ impl SHA {
     /// let sha = SHA::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha: MaybeUninit<ws::wc_Sha> = MaybeUninit::uninit();
+        let mut wc_sha: MaybeUninit<sys::wc_Sha> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha_ex(wc_sha.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha_ex(wc_sha.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -144,9 +142,9 @@ impl SHA {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha_ex(&mut self.wc_sha, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha_ex(&mut self.wc_sha, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -174,7 +172,7 @@ impl SHA {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_ShaUpdate(&mut self.wc_sha, data.as_ptr(), data_size)
+            sys::wc_ShaUpdate(&mut self.wc_sha, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -205,10 +203,10 @@ impl SHA {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_ShaFinal(&mut self.wc_sha, hash.as_mut_ptr())
+            sys::wc_ShaFinal(&mut self.wc_sha, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -217,6 +215,7 @@ impl SHA {
     }
 }
 
+#[cfg(sha)]
 impl Drop for SHA {
     /// Safely free the underlying wolfSSL SHA context.
     ///
@@ -226,18 +225,20 @@ impl Drop for SHA {
     /// struct goes out of scope, automatically cleaning up resources and
     /// preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_ShaFree(&mut self.wc_sha); }
+        unsafe { sys::wc_ShaFree(&mut self.wc_sha); }
     }
 }
 
 /// Context for SHA-224 (SHA-2) computation.
+#[cfg(sha256)]
 pub struct SHA224 {
-    wc_sha224: ws::wc_Sha224,
+    wc_sha224: sys::wc_Sha224,
 }
 
+#[cfg(sha256)]
 impl SHA224 {
     /// SHA-224 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA224_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA224_DIGEST_SIZE as usize;
 
     /// Build a new SHA224 instance.
     ///
@@ -275,16 +276,16 @@ impl SHA224 {
     /// let sha = SHA224::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha224: MaybeUninit<ws::wc_Sha224> = MaybeUninit::uninit();
+        let mut wc_sha224: MaybeUninit<sys::wc_Sha224> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha224_ex(wc_sha224.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha224_ex(wc_sha224.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -344,9 +345,9 @@ impl SHA224 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha224_ex(&mut self.wc_sha224, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha224_ex(&mut self.wc_sha224, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -374,7 +375,7 @@ impl SHA224 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha224Update(&mut self.wc_sha224, data.as_ptr(), data_size)
+            sys::wc_Sha224Update(&mut self.wc_sha224, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -405,10 +406,10 @@ impl SHA224 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha224Final(&mut self.wc_sha224, hash.as_mut_ptr())
+            sys::wc_Sha224Final(&mut self.wc_sha224, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -417,6 +418,7 @@ impl SHA224 {
     }
 }
 
+#[cfg(sha256)]
 impl Drop for SHA224 {
     /// Safely free the underlying wolfSSL SHA224 context.
     ///
@@ -426,18 +428,20 @@ impl Drop for SHA224 {
     /// SHA224 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha224Free(&mut self.wc_sha224); }
+        unsafe { sys::wc_Sha224Free(&mut self.wc_sha224); }
     }
 }
 
 /// Context for SHA-256 (SHA-2) computation.
+#[cfg(sha256)]
 pub struct SHA256 {
-    wc_sha256: ws::wc_Sha256,
+    wc_sha256: sys::wc_Sha256,
 }
 
+#[cfg(sha256)]
 impl SHA256 {
     /// SHA-256 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA256_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA256_DIGEST_SIZE as usize;
 
     /// Build a new SHA256 instance.
     ///
@@ -475,16 +479,16 @@ impl SHA256 {
     /// let sha = SHA256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha256: MaybeUninit<ws::wc_Sha256> = MaybeUninit::uninit();
+        let mut wc_sha256: MaybeUninit<sys::wc_Sha256> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha256_ex(wc_sha256.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha256_ex(wc_sha256.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -544,9 +548,9 @@ impl SHA256 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha256_ex(&mut self.wc_sha256, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha256_ex(&mut self.wc_sha256, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -574,7 +578,7 @@ impl SHA256 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha256Update(&mut self.wc_sha256, data.as_ptr(), data_size)
+            sys::wc_Sha256Update(&mut self.wc_sha256, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -605,10 +609,10 @@ impl SHA256 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha256Final(&mut self.wc_sha256, hash.as_mut_ptr())
+            sys::wc_Sha256Final(&mut self.wc_sha256, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -617,6 +621,7 @@ impl SHA256 {
     }
 }
 
+#[cfg(sha256)]
 impl Drop for SHA256 {
     /// Safely free the underlying wolfSSL SHA256 context.
     ///
@@ -626,18 +631,20 @@ impl Drop for SHA256 {
     /// SHA256 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha256Free(&mut self.wc_sha256); }
+        unsafe { sys::wc_Sha256Free(&mut self.wc_sha256); }
     }
 }
 
 /// Context for SHA-384 (SHA-2) computation.
+#[cfg(sha512)]
 pub struct SHA384 {
-    wc_sha384: ws::wc_Sha384,
+    wc_sha384: sys::wc_Sha384,
 }
 
+#[cfg(sha512)]
 impl SHA384 {
     /// SHA-384 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA384_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA384_DIGEST_SIZE as usize;
 
     /// Build a new SHA384 instance.
     ///
@@ -675,16 +682,16 @@ impl SHA384 {
     /// let sha = SHA384::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha384: MaybeUninit<ws::wc_Sha384> = MaybeUninit::uninit();
+        let mut wc_sha384: MaybeUninit<sys::wc_Sha384> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha384_ex(wc_sha384.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha384_ex(wc_sha384.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -744,9 +751,9 @@ impl SHA384 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha384_ex(&mut self.wc_sha384, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha384_ex(&mut self.wc_sha384, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -774,7 +781,7 @@ impl SHA384 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha384Update(&mut self.wc_sha384, data.as_ptr(), data_size)
+            sys::wc_Sha384Update(&mut self.wc_sha384, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -805,10 +812,10 @@ impl SHA384 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha384Final(&mut self.wc_sha384, hash.as_mut_ptr())
+            sys::wc_Sha384Final(&mut self.wc_sha384, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -817,6 +824,7 @@ impl SHA384 {
     }
 }
 
+#[cfg(sha512)]
 impl Drop for SHA384 {
     /// Safely free the underlying wolfSSL SHA384 context.
     ///
@@ -826,18 +834,20 @@ impl Drop for SHA384 {
     /// SHA384 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha384Free(&mut self.wc_sha384); }
+        unsafe { sys::wc_Sha384Free(&mut self.wc_sha384); }
     }
 }
 
 /// Context for SHA-512 (SHA-2) computation.
+#[cfg(sha512)]
 pub struct SHA512 {
-    wc_sha512: ws::wc_Sha512,
+    wc_sha512: sys::wc_Sha512,
 }
 
+#[cfg(sha512)]
 impl SHA512 {
     /// SHA-512 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA512_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA512_DIGEST_SIZE as usize;
 
     /// Build a new SHA512 instance.
     ///
@@ -875,16 +885,16 @@ impl SHA512 {
     /// let sha = SHA512::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha512: MaybeUninit<ws::wc_Sha512> = MaybeUninit::uninit();
+        let mut wc_sha512: MaybeUninit<sys::wc_Sha512> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha512_ex(wc_sha512.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha512_ex(wc_sha512.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -944,9 +954,9 @@ impl SHA512 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha512_ex(&mut self.wc_sha512, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha512_ex(&mut self.wc_sha512, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -974,7 +984,7 @@ impl SHA512 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha512Update(&mut self.wc_sha512, data.as_ptr(), data_size)
+            sys::wc_Sha512Update(&mut self.wc_sha512, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1005,10 +1015,10 @@ impl SHA512 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha512Final(&mut self.wc_sha512, hash.as_mut_ptr())
+            sys::wc_Sha512Final(&mut self.wc_sha512, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -1017,6 +1027,7 @@ impl SHA512 {
     }
 }
 
+#[cfg(sha512)]
 impl Drop for SHA512 {
     /// Safely free the underlying wolfSSL SHA512 context.
     ///
@@ -1026,18 +1037,20 @@ impl Drop for SHA512 {
     /// SHA512 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha512Free(&mut self.wc_sha512); }
+        unsafe { sys::wc_Sha512Free(&mut self.wc_sha512); }
     }
 }
 
 /// Context for SHA3-224 computation.
+#[cfg(sha3)]
 pub struct SHA3_224 {
-    wc_sha3: ws::wc_Sha3,
+    wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_224 {
     /// SHA3-224 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA3_224_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA3_224_DIGEST_SIZE as usize;
 
     /// Build a new SHA3_224 instance.
     ///
@@ -1075,16 +1088,16 @@ impl SHA3_224 {
     /// let sha = SHA3_224::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
+        let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_224(wc_sha3.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_224(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1144,9 +1157,9 @@ impl SHA3_224 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_224(&mut self.wc_sha3, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_224(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1174,7 +1187,7 @@ impl SHA3_224 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha3_224_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
+            sys::wc_Sha3_224_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1205,10 +1218,10 @@ impl SHA3_224 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha3_224_Final(&mut self.wc_sha3, hash.as_mut_ptr())
+            sys::wc_Sha3_224_Final(&mut self.wc_sha3, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -1217,6 +1230,7 @@ impl SHA3_224 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_224 {
     /// Safely free the underlying wolfSSL SHA3_224 context.
     ///
@@ -1226,18 +1240,20 @@ impl Drop for SHA3_224 {
     /// SHA3_224 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha3_224_Free(&mut self.wc_sha3); }
+        unsafe { sys::wc_Sha3_224_Free(&mut self.wc_sha3); }
     }
 }
 
 /// Context for SHA3-256 computation.
+#[cfg(sha3)]
 pub struct SHA3_256 {
-    wc_sha3: ws::wc_Sha3,
+    wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_256 {
     /// SHA3-256 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA3_256_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA3_256_DIGEST_SIZE as usize;
 
     /// Build a new SHA3_256 instance.
     ///
@@ -1275,16 +1291,16 @@ impl SHA3_256 {
     /// let sha = SHA3_256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
+        let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_256(wc_sha3.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_256(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1344,9 +1360,9 @@ impl SHA3_256 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_256(&mut self.wc_sha3, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_256(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1374,7 +1390,7 @@ impl SHA3_256 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha3_256_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
+            sys::wc_Sha3_256_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1405,10 +1421,10 @@ impl SHA3_256 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha3_256_Final(&mut self.wc_sha3, hash.as_mut_ptr())
+            sys::wc_Sha3_256_Final(&mut self.wc_sha3, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -1417,6 +1433,7 @@ impl SHA3_256 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_256 {
     /// Safely free the underlying wolfSSL SHA3_256 context.
     ///
@@ -1426,18 +1443,20 @@ impl Drop for SHA3_256 {
     /// SHA3_256 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha3_256_Free(&mut self.wc_sha3); }
+        unsafe { sys::wc_Sha3_256_Free(&mut self.wc_sha3); }
     }
 }
 
 /// Context for SHA3-384 computation.
+#[cfg(sha3)]
 pub struct SHA3_384 {
-    wc_sha3: ws::wc_Sha3,
+    wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_384 {
     /// SHA3-384 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA3_384_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA3_384_DIGEST_SIZE as usize;
 
     /// Build a new SHA3_384 instance.
     ///
@@ -1475,16 +1494,16 @@ impl SHA3_384 {
     /// let sha = SHA3_384::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
+        let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_384(wc_sha3.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_384(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1544,9 +1563,9 @@ impl SHA3_384 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_384(&mut self.wc_sha3, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_384(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1574,7 +1593,7 @@ impl SHA3_384 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha3_384_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
+            sys::wc_Sha3_384_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1605,10 +1624,10 @@ impl SHA3_384 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha3_384_Final(&mut self.wc_sha3, hash.as_mut_ptr())
+            sys::wc_Sha3_384_Final(&mut self.wc_sha3, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -1617,6 +1636,7 @@ impl SHA3_384 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_384 {
     /// Safely free the underlying wolfSSL SHA3_384 context.
     ///
@@ -1626,18 +1646,20 @@ impl Drop for SHA3_384 {
     /// SHA3_384 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha3_384_Free(&mut self.wc_sha3); }
+        unsafe { sys::wc_Sha3_384_Free(&mut self.wc_sha3); }
     }
 }
 
 /// Context for SHA3-512 computation.
+#[cfg(sha3)]
 pub struct SHA3_512 {
-    wc_sha3: ws::wc_Sha3,
+    wc_sha3: sys::wc_Sha3,
 }
 
+#[cfg(sha3)]
 impl SHA3_512 {
     /// SHA3-512 digest size in bytes.
-    pub const DIGEST_SIZE: usize = ws::WC_SHA3_512_DIGEST_SIZE as usize;
+    pub const DIGEST_SIZE: usize = sys::WC_SHA3_512_DIGEST_SIZE as usize;
 
     /// Build a new SHA3_512 instance.
     ///
@@ -1675,16 +1697,16 @@ impl SHA3_512 {
     /// let sha = SHA3_512::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_sha3: MaybeUninit<ws::wc_Sha3> = MaybeUninit::uninit();
+        let mut wc_sha3: MaybeUninit<sys::wc_Sha3> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_512(wc_sha3.as_mut_ptr(), heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_512(wc_sha3.as_mut_ptr(), heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1744,9 +1766,9 @@ impl SHA3_512 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
-        let rc = unsafe { ws::wc_InitSha3_512(&mut self.wc_sha3, heap, dev_id) };
+        let rc = unsafe { sys::wc_InitSha3_512(&mut self.wc_sha3, heap, dev_id) };
         if rc != 0 {
             return Err(rc);
         }
@@ -1774,7 +1796,7 @@ impl SHA3_512 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Sha3_512_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
+            sys::wc_Sha3_512_Update(&mut self.wc_sha3, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -1805,10 +1827,10 @@ impl SHA3_512 {
     /// ```
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         if hash.len() != Self::DIGEST_SIZE {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let rc = unsafe {
-            ws::wc_Sha3_512_Final(&mut self.wc_sha3, hash.as_mut_ptr())
+            sys::wc_Sha3_512_Final(&mut self.wc_sha3, hash.as_mut_ptr())
         };
         if rc != 0 {
             return Err(rc);
@@ -1817,6 +1839,7 @@ impl SHA3_512 {
     }
 }
 
+#[cfg(sha3)]
 impl Drop for SHA3_512 {
     /// Safely free the underlying wolfSSL SHA3_512 context.
     ///
@@ -1826,18 +1849,20 @@ impl Drop for SHA3_512 {
     /// SHA3_512 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Sha3_512_Free(&mut self.wc_sha3); }
+        unsafe { sys::wc_Sha3_512_Free(&mut self.wc_sha3); }
     }
 }
 
 /// Context for SHAKE128 (SHA-3) computation.
+#[cfg(shake128)]
 pub struct SHAKE128 {
-    wc_shake: ws::wc_Shake,
+    wc_shake: sys::wc_Shake,
 }
 
+#[cfg(shake128)]
 impl SHAKE128 {
     /// Squeeze block size.
-    pub const SQUEEZE_BLOCK_SIZE: usize = ws::WC_SHA3_128_BLOCK_SIZE as usize;
+    pub const SQUEEZE_BLOCK_SIZE: usize = sys::WC_SHA3_128_BLOCK_SIZE as usize;
 
     /// Build a new SHAKE128 instance.
     ///
@@ -1875,17 +1900,17 @@ impl SHAKE128 {
     /// let sha = SHAKE128::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
+        let mut wc_shake: MaybeUninit<sys::wc_Shake> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitShake128(wc_shake.as_mut_ptr(), heap, dev_id)
+            sys::wc_InitShake128(wc_shake.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -1946,10 +1971,10 @@ impl SHAKE128 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitShake128(&mut self.wc_shake, heap, dev_id)
+            sys::wc_InitShake128(&mut self.wc_shake, heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -1978,7 +2003,7 @@ impl SHAKE128 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake128_Update(&mut self.wc_shake, data.as_ptr(), data_size)
+            sys::wc_Shake128_Update(&mut self.wc_shake, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2009,7 +2034,7 @@ impl SHAKE128 {
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         let hash_size = hash.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake128_Final(&mut self.wc_shake, hash.as_mut_ptr(), hash_size)
+            sys::wc_Shake128_Final(&mut self.wc_shake, hash.as_mut_ptr(), hash_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2038,7 +2063,7 @@ impl SHAKE128 {
     pub fn absorb(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake128_Absorb(&mut self.wc_shake, data.as_ptr(), data_size)
+            sys::wc_Shake128_Absorb(&mut self.wc_shake, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2071,11 +2096,11 @@ impl SHAKE128 {
     pub fn squeeze_blocks(&mut self, dout: &mut [u8]) -> Result<(), i32> {
         let dout_size = dout.len() as u32;
         if dout_size % (Self::SQUEEZE_BLOCK_SIZE as u32) != 0 {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let n_blocks = (dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32)) as u32;
         let rc = unsafe {
-            ws::wc_Shake128_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
+            sys::wc_Shake128_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
         };
         if rc != 0 {
             return Err(rc);
@@ -2084,6 +2109,7 @@ impl SHAKE128 {
     }
 }
 
+#[cfg(shake128)]
 impl Drop for SHAKE128 {
     /// Safely free the underlying wolfSSL SHAKE128 context.
     ///
@@ -2093,18 +2119,20 @@ impl Drop for SHAKE128 {
     /// SHAKE128 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Shake128_Free(&mut self.wc_shake); }
+        unsafe { sys::wc_Shake128_Free(&mut self.wc_shake); }
     }
 }
 
 /// Context for SHAKE256 (SHA-3) computation.
+#[cfg(shake256)]
 pub struct SHAKE256 {
-    wc_shake: ws::wc_Shake,
+    wc_shake: sys::wc_Shake,
 }
 
+#[cfg(shake256)]
 impl SHAKE256 {
     /// Squeeze block size.
-    pub const SQUEEZE_BLOCK_SIZE: usize = ws::WC_SHA3_256_BLOCK_SIZE as usize;
+    pub const SQUEEZE_BLOCK_SIZE: usize = sys::WC_SHA3_256_BLOCK_SIZE as usize;
 
     /// Build a new SHAKE256 instance.
     ///
@@ -2142,17 +2170,17 @@ impl SHAKE256 {
     /// let sha = SHAKE256::new_ex(None, None).expect("Error with new_ex()");
     /// ```
     pub fn new_ex(heap: Option<*mut std::os::raw::c_void>, dev_id: Option<i32>) -> Result<Self, i32> {
-        let mut wc_shake: MaybeUninit<ws::wc_Shake> = MaybeUninit::uninit();
+        let mut wc_shake: MaybeUninit<sys::wc_Shake> = MaybeUninit::uninit();
         let heap = match heap {
             Some(heap) => heap,
             None => core::ptr::null_mut(),
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitShake256(wc_shake.as_mut_ptr(), heap, dev_id)
+            sys::wc_InitShake256(wc_shake.as_mut_ptr(), heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -2213,10 +2241,10 @@ impl SHAKE256 {
         };
         let dev_id = match dev_id {
             Some(dev_id) => dev_id,
-            None => ws::INVALID_DEVID,
+            None => sys::INVALID_DEVID,
         };
         let rc = unsafe {
-            ws::wc_InitShake256(&mut self.wc_shake, heap, dev_id)
+            sys::wc_InitShake256(&mut self.wc_shake, heap, dev_id)
         };
         if rc != 0 {
             return Err(rc);
@@ -2245,7 +2273,7 @@ impl SHAKE256 {
     pub fn update(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake256_Update(&mut self.wc_shake, data.as_ptr(), data_size)
+            sys::wc_Shake256_Update(&mut self.wc_shake, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2276,7 +2304,7 @@ impl SHAKE256 {
     pub fn finalize(&mut self, hash: &mut [u8]) -> Result<(), i32> {
         let hash_size = hash.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake256_Final(&mut self.wc_shake, hash.as_mut_ptr(), hash_size)
+            sys::wc_Shake256_Final(&mut self.wc_shake, hash.as_mut_ptr(), hash_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2305,7 +2333,7 @@ impl SHAKE256 {
     pub fn absorb(&mut self, data: &[u8]) -> Result<(), i32> {
         let data_size = data.len() as u32;
         let rc = unsafe {
-            ws::wc_Shake256_Absorb(&mut self.wc_shake, data.as_ptr(), data_size)
+            sys::wc_Shake256_Absorb(&mut self.wc_shake, data.as_ptr(), data_size)
         };
         if rc != 0 {
             return Err(rc);
@@ -2338,11 +2366,11 @@ impl SHAKE256 {
     pub fn squeeze_blocks(&mut self, dout: &mut [u8]) -> Result<(), i32> {
         let dout_size = dout.len() as u32;
         if dout_size % (Self::SQUEEZE_BLOCK_SIZE as u32) != 0 {
-            return Err(ws::wolfCrypt_ErrorCodes_BUFFER_E);
+            return Err(sys::wolfCrypt_ErrorCodes_BUFFER_E);
         }
         let n_blocks = (dout_size / (Self::SQUEEZE_BLOCK_SIZE as u32)) as u32;
         let rc = unsafe {
-            ws::wc_Shake256_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
+            sys::wc_Shake256_SqueezeBlocks(&mut self.wc_shake, dout.as_mut_ptr(), n_blocks)
         };
         if rc != 0 {
             return Err(rc);
@@ -2351,6 +2379,7 @@ impl SHAKE256 {
     }
 }
 
+#[cfg(shake256)]
 impl Drop for SHAKE256 {
     /// Safely free the underlying wolfSSL SHAKE256 context.
     ///
@@ -2360,6 +2389,6 @@ impl Drop for SHAKE256 {
     /// SHAKE256 struct goes out of scope, automatically cleaning up resources
     /// and preventing memory leaks.
     fn drop(&mut self) {
-        unsafe { ws::wc_Shake256_Free(&mut self.wc_shake); }
+        unsafe { sys::wc_Shake256_Free(&mut self.wc_shake); }
     }
 }

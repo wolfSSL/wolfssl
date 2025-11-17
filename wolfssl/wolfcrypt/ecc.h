@@ -913,9 +913,11 @@ int wc_ecc_export_point_der_ex(const int curve_idx, ecc_point* point, byte* out,
 WOLFSSL_API
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
+#ifdef HAVE_COMP_KEY
 WOLFSSL_LOCAL
 int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
                                        byte* out, word32* outLen);
+#endif /* HAVE_COMP_KEY */
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 

@@ -1,3 +1,5 @@
+#![cfg(aes)]
+
 use wolfssl::wolfcrypt::aes::*;
 
 const BIG_MSG: [u8; 384] = [
@@ -52,6 +54,7 @@ const BIG_MSG: [u8; 384] = [
 ];
 
 #[test]
+#[cfg(aes_cbc)]
 fn test_cbc_encrypt_decrypt() {
     let mut cbc = CBC::new().expect("Failed to create CBC");
     let key: &[u8; 16] = b"0123456789abcdef";
@@ -75,6 +78,7 @@ fn test_cbc_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_cbc)]
 fn test_cbc_big_msg() {
     let mut cbc = CBC::new().expect("Failed to create CBC");
     let big_key = b"0123456789abcdeffedcba9876543210";
@@ -93,6 +97,7 @@ fn test_cbc_big_msg() {
 }
 
 #[test]
+#[cfg(aes_ccm)]
 fn test_ccm_encrypt_decrypt() {
     let key: [u8; 16] = [
         0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
@@ -175,6 +180,7 @@ fn test_ccm_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_ccm)]
 fn test_ccm_big_msg() {
     let mut ccm = CCM::new().expect("Failed to create CCM");
     let big_key = b"0123456789abcdeffedcba9876543210";
@@ -193,6 +199,7 @@ fn test_ccm_big_msg() {
 }
 
 #[test]
+#[cfg(aes_cfb)]
 fn test_cfb_encrypt_decrypt() {
     let mut cfb = CFB::new().expect("Failed to create CFB");
     let key: [u8; 16] = [
@@ -232,6 +239,7 @@ fn test_cfb_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_cfb)]
 fn test_cfb_big_msg() {
     let mut cfb = CFB::new().expect("Failed to create CFB");
     let big_key = b"0123456789abcdeffedcba9876543210";
@@ -249,6 +257,7 @@ fn test_cfb_big_msg() {
 }
 
 #[test]
+#[cfg(aes_ctr)]
 fn test_ctr_encrypt_decrypt() {
     let iv: [u8; 16] = [
         0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
@@ -290,6 +299,7 @@ fn test_ctr_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_ctr)]
 fn test_ctr_big_msg() {
     let mut ctr = CTR::new().expect("Failed to create CTR");
     let big_key = b"0123456789abcdeffedcba9876543210";
@@ -307,6 +317,7 @@ fn test_ctr_big_msg() {
 }
 
 #[test]
+#[cfg(aes_eax)]
 fn test_eax_one_shot_encrypt_decrypt() {
     let key: [u8; 16] = [
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -344,6 +355,7 @@ fn test_eax_one_shot_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_ecb)]
 fn test_ecb_encrypt_decrypt() {
     let mut ecb = ECB::new().expect("Failed to create ECB");
     let key_128: &[u8; 16] = b"0123456789abcdef";
@@ -366,6 +378,7 @@ fn test_ecb_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_gcm)]
 fn test_gcm_encrypt_decrypt() {
     let key: [u8; 16] = [
         0x29, 0x8e, 0xfa, 0x1c, 0xcf, 0x29, 0xcf, 0x62,
@@ -408,6 +421,7 @@ fn test_gcm_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_gcm_stream)]
 fn test_gcmstream_encrypt_decrypt() {
     let plain: [u8; 60] = [
         0xd9, 0x31, 0x32, 0x25, 0xf8, 0x84, 0x06, 0xe5,
@@ -478,6 +492,7 @@ fn test_gcmstream_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_ofb)]
 fn test_ofb_encrypt_decrypt() {
     let key: [u8; 32] = [
         0xc4,0xc7,0xfa,0xd6,0x53,0x5c,0xb8,0x71,
@@ -517,6 +532,7 @@ fn test_ofb_encrypt_decrypt() {
 }
 
 #[test]
+#[cfg(aes_xts)]
 fn test_xts_one_shot() {
     let key: [u8; 32] = [
         0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
@@ -568,6 +584,7 @@ fn test_xts_one_shot() {
 }
 
 #[test]
+#[cfg(aes_xts)]
 fn test_xts_sector_128() {
     let keys: [u8; 32] = [
         0xa3, 0xe4, 0x0d, 0x5b, 0xd4, 0xb6, 0xbb, 0xed,
@@ -598,6 +615,7 @@ fn test_xts_sector_128() {
 }
 
 #[test]
+#[cfg(aes_xts)]
 fn test_xts_sector_256() {
     let keys: [u8; 64] = [
         0xef, 0x01, 0x0c, 0xa1, 0xa3, 0x66, 0x3e, 0x32,
@@ -636,6 +654,7 @@ fn test_xts_sector_256() {
 }
 
 #[test]
+#[cfg(aes_xts)]
 fn test_xts_consecutive_sectors() {
     let keys: [u8; 32] = [
         0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
@@ -758,6 +777,7 @@ fn test_xts_consecutive_sectors() {
 }
 
 #[test]
+#[cfg(aes_xts_stream)]
 fn test_xtsstream() {
     let keys: [u8; 32] = [
         0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -799,6 +819,7 @@ fn test_xtsstream() {
 }
 
 #[test]
+#[cfg(aes_xts_stream)]
 fn test_xtsstream_big_msg() {
     let key: [u8; 32] = [
         0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,

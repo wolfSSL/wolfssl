@@ -1,6 +1,9 @@
+#![cfg(cmac)]
+
 use wolfssl::wolfcrypt::cmac::CMAC;
 
 #[test]
+#[cfg(aes)]
 fn test_cmac() {
     let key = [
         0x2bu8, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
