@@ -803,7 +803,7 @@ fi
 #
 # FreeBSD
 AC_ARG_WITH([bsd-export-syms],
-    [AS_HELP_STRING([--with-bsd-export-syms=LIST],[LIST of symbols to export])],
+    [AS_HELP_STRING([--with-bsd-export-syms=LIST],[Sets FreeBSD kernel module EXPORT_SYMS. Allowed values: YES, NO, or LIST of symbols to export (default NO).])],
     [BSDKM_EXPORT_SYMS=$withval],
     [BSDKM_EXPORT_SYMS="NO"])
 
