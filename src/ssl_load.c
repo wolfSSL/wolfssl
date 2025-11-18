@@ -1624,6 +1624,12 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minRsaKeySz :
                     ctx->minRsaKeySz, RSA_MAX_SIZE / 8, keySz, RSA_KEY_SIZE_E);
             }
+    #ifdef WC_RSA_PSS
+            if (ssl)
+                ssl->ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1u : 0u;
+            else
+                ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1u : 0u;
+    #endif
             break;
 #endif /* !NO_RSA */
     #ifdef HAVE_ECC
