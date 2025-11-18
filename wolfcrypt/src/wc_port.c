@@ -1352,12 +1352,20 @@ int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
 int wolfSSL_Atomic_Uint_CompareExchange(
     wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
 {
-    u_int exp = (u_int) *expected_i;
+    u_int exp = (u_int)*expected_i;
     int ret = atomic_fcmpset_int(c, &exp, new_i);
     *expected_i = (unsigned int)exp;
     return ret;
 }
 
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void **c, void **expected_ptr, void *new_ptr)
+{
+    uintptr_t exp = (uintptr_t)*expected_ptr;
+    int ret = atomic_fcmpset_ptr((uintptr_t *)c, &exp, (uintptr_t)new_ptr);
+    *expected_ptr = (void *)exp;
+    return ret;
+}
 
 #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
         !defined(__cplusplus)
