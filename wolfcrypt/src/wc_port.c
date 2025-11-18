@@ -1277,6 +1277,10 @@ char* wc_strdup_ex(const char *src, int memType) {
 
 #elif defined(SINGLE_THREADED)
 
+#elif defined(WOLFSSL_BSDKM)
+
+/* definitions are in bsdkm/bsdkm_wc_port.h */
+
 #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
         !defined(__cplusplus)
 

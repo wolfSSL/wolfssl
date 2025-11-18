@@ -302,7 +302,7 @@ static const byte const_byte_array[] = "A+Gd\0\0\0";
     #ifdef XPRINTF
         #undef  printf
         #define printf XPRINTF
-    #elif !defined(printf)
+    #elif !defined(printf) && !defined(NO_STDIO_FILESYSTEM)
         /* arrange for printf() to flush after every message -- this assures
          * redirected output (to a log file) records progress right up to the
          * moment of a crash/abort(); otherwise anything queued in stdout would
@@ -10439,9 +10439,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des3_test(void)
 }
 #endif /* NO_DES3 */
 
-static const int fiducial1 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial1 = WC_TEST_RET_LN;
 
 #ifndef NO_AES
 
@@ -30100,9 +30099,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls13_kdf_test(void)
 
 #endif /* WOLFSSL_TLS13 && !NO_HMAC */
 
-static const int fiducial2 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial2 = WC_TEST_RET_LN;
 
 #if defined(HAVE_ECC) && defined(HAVE_X963_KDF)
 
@@ -49880,9 +49878,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
 #endif
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK) */
 
-static const int fiducial3 = WC_TEST_RET_LN; /* source code reference point --
-                                              * see print_fiducials() below.
-                                              */
+ /* source code reference point -- see print_fiducials() below. */
+static WC_MAYBE_UNUSED const int fiducial3 = WC_TEST_RET_LN;
 
 #ifdef WOLFCRYPT_HAVE_ECCSI
 static wc_test_ret_t eccsi_api_test(WC_RNG* rng, EccsiKey* key, mp_int* ssk,
@@ -62831,7 +62828,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_siv_test(void)
 
 #undef ERROR_OUT
 
-static const int fiducial4 = WC_TEST_RET_LN;
+static WC_MAYBE_UNUSED const int fiducial4 = WC_TEST_RET_LN;
 
 /* print the fiducial line numbers assigned above, allowing confirmation of
  * source code version match when in doubt.
