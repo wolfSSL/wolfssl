@@ -1,25 +1,27 @@
-# wolfssl module name and source.
+# wolfssl kernel module name and source, and root dir.
 KMOD=libwolfssl
 SRCS=wolfkmod.c
 WOLFSSL_DIR=../
 
 CFLAGS+=-I${WOLFSSL_DIR}
-CFLAGS+=-DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H
-CFLAGS+=-DNO_MAIN_DRIVER
-# debug mode
-CFLAGS+=-DWOLFSSL_BSDKM_VERBOSE_DEBUG
+CFLAGS+=-DWOLFSSL_IGNORE_FILE_WARN -DHAVE_CONFIG_H -DNO_MAIN_DRIVER
+# debug printing
+# CFLAGS+=-DWOLFSSL_BSDKM_VERBOSE_DEBUG
 CFLAGS+=$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS)
 
 # FreeBSD make does not support GNU make's patsubst and related. Filter
 # through sed instead.
-OBJS != echo ${src_libwolfssl_la_OBJECTS} | sed 's|src_libwolfssl_la-||g' | \
-  sed 's|\.lo|.o|g' | sed 's|wolfcrypt/src/|${WOLFSSL_DIR}/wolfcrypt/src/|g'
+WOLFSSL_OBJS != echo ${src_libwolfssl_la_OBJECTS} | \
+  sed 's|src_libwolfssl_la-||g' | sed 's|\.lo|.o|g' | \
+  sed 's|wolfcrypt/src/|${WOLFSSL_DIR}/wolfcrypt/src/|g'
 
 .if ${ENABLED_CRYPT_TESTS} == "yes"
-    OBJS += ${WOLFSSL_DIR}/wolfcrypt/test/test.o
+    WOLFSSL_OBJS += ${WOLFSSL_DIR}/wolfcrypt/test/test.o
 .else
     CFLAGS+=-DNO_CRYPT_TEST
 .endif
+
+OBJS += ${WOLFSSL_OBJS}
 
 # Export no public symbols by default.
 .if !defined(BSDKM_EXPORT_SYMS)
