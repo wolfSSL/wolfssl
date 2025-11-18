@@ -957,7 +957,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 #ifndef XINET_NTOP
     #if defined(__WATCOMC__)
-        #if defined(__OS2__) || defined(__NT__) && \
+        #if (defined(__OS2__) || defined(__NT__)) && \
                 (NTDDI_VERSION >= NTDDI_VISTA)
             #define XINET_NTOP(a,b,c,d) inet_ntop((a),(b),(c),(d))
         #else
@@ -972,7 +972,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 #endif
 #ifndef XINET_PTON
     #if defined(__WATCOMC__)
-        #if defined(__OS2__) || defined(__NT__) && \
+        #if (defined(__OS2__) || defined(__NT__)) && \
                 (NTDDI_VERSION >= NTDDI_VISTA)
             #define XINET_PTON(a,b,c)   inet_pton((a),(b),(c))
         #else

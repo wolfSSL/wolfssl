@@ -4549,7 +4549,7 @@ WOLFSSL_LOCAL int wolfSSL_quic_add_transport_extensions(WOLFSSL *ssl, int msg_ty
 #endif /* WOLFSSL_QUIC */
 
 /** Session Ticket - RFC 5077 (session 3.2) */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
 /* Ticket nonce - for deriving PSK.
    Length allowed to be: 1..255. Only support
  * TLS13_TICKET_NONCE_STATIC_SZ length bytes.
@@ -4564,7 +4564,6 @@ typedef struct TicketNonce {
     byte data[MAX_TICKET_NONCE_STATIC_SZ];
 #endif /* WOLFSSL_TICKET_NONCE_MALLOC  && FIPS_VERSION_GE(5,3) */
 } TicketNonce;
-
 #endif
 
 /* wolfSSL session type */

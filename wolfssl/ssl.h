@@ -5322,8 +5322,8 @@ WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
         WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md);
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) || \
-                                                       defined(WOLFSSL_CERT_REQ)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_REQ))
 WOLFSSL_API int wolfSSL_X509_REQ_get_attr_count(const WOLFSSL_X509 *req);
 WOLFSSL_API WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
         const WOLFSSL_X509 *req, int loc);

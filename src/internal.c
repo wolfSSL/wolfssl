@@ -4967,7 +4967,7 @@ word32 MacSize(const WOLFSSL* ssl)
 }
 
 #ifndef NO_RSA
-#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12) || \
+#if (!defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)) || \
     (defined(WC_RSA_PSS) && defined(HAVE_PK_CALLBACKS))
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 static int TypeHash(int hashAlgo)
@@ -29094,8 +29094,8 @@ static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
     return sigAlgo == ssl->options.sigAlgo;
 }
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_TLS13) || \
-                                              defined(USE_ECDSA_KEYSZ_HASH_ALGO)
+#if defined(HAVE_ECC) && \
+    (defined(WOLFSSL_TLS13) || defined(USE_ECDSA_KEYSZ_HASH_ALGO))
 static int CmpEccStrength(int hashAlgo, int curveSz)
 {
     int dgstSz = GetMacDigestSize((byte)hashAlgo);
