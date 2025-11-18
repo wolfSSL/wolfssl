@@ -3638,7 +3638,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                     word32 j;
                     int start = (int)((size_t)pad - (size_t)key->data);
 
-                    for (j = 0; j < key->dataLen; j++) {
+                    for (j = 0; j < key->dataLen && i < outLen; j++) {
                         signed char c;
                         out[i] = key->data[j];
                         c  = (signed char)ctMaskGTE((int)j, start);

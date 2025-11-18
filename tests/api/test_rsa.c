@@ -822,7 +822,10 @@ int test_wc_RsaPublicEncryptDecrypt(void)
     ExpectIntGE(wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain, plainLen,
         &key), 0);
     ExpectIntEQ(XMEMCMP(plain, inStr, plainLen), 0);
-    /* Pass bad args - tested in another testing function.*/
+
+    /* Pass bad args - additionally tested in another testing function.*/
+    ExpectIntEQ(wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain, inLen - 1,
+        &key), RSA_BUFFER_E);
 
     WC_FREE_VAR(in, NULL);
     WC_FREE_VAR(plain, NULL);
