@@ -671,7 +671,6 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
             /* For each byte of the hash. */
             for (i = 0; i < n; i++) {
                 /* Get coefficients. */
-                qe[0] = (q[i] >> 4)      ;
                 qe[0] = (q[i] >> 6)      ;
                 qe[1] = (q[i] >> 4) & 0x3;
                 qe[2] = (q[i] >> 2) & 0x3;
@@ -697,7 +696,6 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
             /* For each byte of the hash. */
             for (i = 0; i < n; i++) {
                 /* Get coefficients. */
-                qe[0] = (q[i] >> 4)      ;
                 qe[0] = (q[i] >> 7)      ;
                 qe[1] = (q[i] >> 6) & 0x1;
                 qe[2] = (q[i] >> 5) & 0x1;
@@ -719,15 +717,21 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
                 qe += 8;
             }
             /* Put coefficients of checksum on the end. */
-            qe[0] = (word8)((sum >>  8)      );
-            qe[1] = (word8)((sum >>  7) & 0x1);
-            qe[2] = (word8)((sum >>  6) & 0x1);
-            qe[3] = (word8)((sum >>  5) & 0x1);
-            qe[4] = (word8)((sum >>  4) & 0x1);
-            qe[5] = (word8)((sum >>  3) & 0x1);
-            qe[6] = (word8)((sum >>  2) & 0x1);
-            qe[7] = (word8)((sum >>  1) & 0x1);
-            qe[8] = (word8)((sum      ) & 0x1);
+#ifdef WOLFSSL_LMS_SHA256_192
+            if (ls == 7)
+#endif
+            {
+                qe[0] = (word8)((sum >>  8)      );
+                qe++;
+            }
+            qe[0] = (word8)((sum >>  7) & 0x1);
+            qe[1] = (word8)((sum >>  6) & 0x1);
+            qe[2] = (word8)((sum >>  5) & 0x1);
+            qe[3] = (word8)((sum >>  4) & 0x1);
+            qe[4] = (word8)((sum >>  3) & 0x1);
+            qe[5] = (word8)((sum >>  2) & 0x1);
+            qe[6] = (word8)((sum >>  1) & 0x1);
+            qe[7] = (word8)((sum      ) & 0x1);
             break;
         default:
             ret = BAD_FUNC_ARG;
@@ -763,7 +767,7 @@ static WC_INLINE int wc_lmots_q_expand(byte* q, word8 n, word8 w, word8 ls,
         }
         /* Shift sum up as required to pack it on the end of hash. */
         sum <<= ls;
-        /* For each width buts of checksum. */
+        /* For each width bit of checksum. */
         for (j = 16 - w; j >= ls; j--) {
             /* Get coefficient. */
             *(qe++) = sum >> (16 - w);
