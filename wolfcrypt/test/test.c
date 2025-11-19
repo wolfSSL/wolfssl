@@ -5887,7 +5887,7 @@ static wc_test_ret_t sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#if defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#ifndef NO_INTM_HASH_TEST
     /* NIST test vector with a length that is a multiple of 4 */
     b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
                "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
@@ -5914,7 +5914,7 @@ static wc_test_ret_t sha3_384_test(void)
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#if defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_XILINX_CRYPT_VERSAL)
+#ifndef NO_INTM_HASH_TEST
     test_sha[0] = b; /* hardware acc. pre-Versal can not handle "" string */
 #else
     test_sha[0] = a;

@@ -30,10 +30,12 @@
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* api version compatibility */
-#if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x009070dfL) ||\
-    defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x0090810fL) ||\
-    defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10100000L) ||\
-    defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10001040L)
+#if defined(OPENSSL_VERSION_NUMBER) && \
+    ((OPENSSL_VERSION_NUMBER == 0x009070dfL) || \
+     (OPENSSL_VERSION_NUMBER == 0x0090810fL) || \
+     (OPENSSL_VERSION_NUMBER == 0x10100000L) || \
+     (OPENSSL_VERSION_NUMBER == 0x10001040L))
+
     /* valid version */
 #elif defined(OPENSSL_VERSION_NUMBER)
     /* unrecognized version, but continue. */

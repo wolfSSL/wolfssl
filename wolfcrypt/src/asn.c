@@ -1077,7 +1077,7 @@ static int GetOID(const byte* input, word32* inOutIdx, word32* oid,
 static int GetASN_Integer(const byte* input, word32 idx, int length,
                           int positive)
 {
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
+#if (!defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     /* Check contents consist of one or more octets. */
     if (length == 0) {
@@ -1125,7 +1125,7 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
  */
 int GetASN_BitString(const byte* input, word32 idx, int length)
 {
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
+#if (!defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     /* Check contents consist of one or more octets. */
     if (length == 0) {
@@ -26480,7 +26480,7 @@ static wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 static wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
 static wcchar END_PKCS7            = "-----END PKCS7-----";
 #endif
-#if defined(HAVE_ECC) || !defined(NO_DSA) && defined(WOLFSSL_PEM_TO_DER)
+#if (defined(HAVE_ECC) || !defined(NO_DSA)) && defined(WOLFSSL_PEM_TO_DER)
     static wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
     static wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
