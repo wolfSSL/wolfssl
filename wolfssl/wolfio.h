@@ -143,7 +143,10 @@
         #include <externs.h>
         #include <errno.h>
     #elif defined(WOLFSSL_LINUXKM)
-        /* the requisite linux/net.h is included in wc_port.h, with incompatible warnings masked out. */
+        /* the requisite linux/net.h is included in wc_port.h,
+         * with incompatible warnings masked out. */
+    #elif defined(WOLFSSL_BSDKM)
+        /* definitions are in bsdkm/bsdkm_wc_port.h */
     #elif defined(WOLFSSL_ATMEL)
         #include "socket/include/socket.h"
     #elif defined(INTIME_RTOS)

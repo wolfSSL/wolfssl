@@ -1277,6 +1277,96 @@ char* wc_strdup_ex(const char *src, int memType) {
 
 #elif defined(SINGLE_THREADED)
 
+#elif defined(WOLFSSL_BSDKM)
+/* Note: using compiler built-ins like __atomic_fetch_add will technically
+ * build in FreeBSD kernel, but are not commonly used in FreeBSD kernel and
+ * might not be safe or portable.
+ * */
+void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i)
+{
+    *c = i;
+}
+
+void wolfSSL_Atomic_Uint_Init(wolfSSL_Atomic_Uint* c, unsigned int i)
+{
+    *c = i;
+}
+
+int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i)
+{
+    return atomic_fetchadd_int(c, i);
+}
+
+int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
+{
+    return atomic_fetchadd_int(c, -i);
+}
+
+int wolfSSL_Atomic_Int_AddFetch(wolfSSL_Atomic_Int* c, int i)
+{
+    int val = atomic_fetchadd_int(c, i);
+    return val + i;
+}
+
+int wolfSSL_Atomic_Int_SubFetch(wolfSSL_Atomic_Int* c, int i)
+{
+    int val = atomic_fetchadd_int(c, -i);
+    return val - i;
+}
+
+unsigned int wolfSSL_Atomic_Uint_FetchAdd(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return atomic_fetchadd_int(c, i);
+}
+
+unsigned int wolfSSL_Atomic_Uint_FetchSub(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    return atomic_fetchadd_int(c, -i);
+}
+
+unsigned int wolfSSL_Atomic_Uint_AddFetch(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    unsigned int val = atomic_fetchadd_int(c, i);
+    return val + i;
+}
+
+unsigned int wolfSSL_Atomic_Uint_SubFetch(wolfSSL_Atomic_Uint* c,
+                                          unsigned int i)
+{
+    unsigned int val = atomic_fetchadd_int(c, -i);
+    return val - i;
+}
+
+int wolfSSL_Atomic_Int_CompareExchange(wolfSSL_Atomic_Int* c, int *expected_i,
+                                       int new_i)
+{
+    u_int exp = (u_int) *expected_i;
+    int ret = atomic_fcmpset_int(c, &exp, new_i);
+    *expected_i = (int)exp;
+    return ret;
+}
+
+int wolfSSL_Atomic_Uint_CompareExchange(
+    wolfSSL_Atomic_Uint* c, unsigned int *expected_i, unsigned int new_i)
+{
+    u_int exp = (u_int)*expected_i;
+    int ret = atomic_fcmpset_int(c, &exp, new_i);
+    *expected_i = (unsigned int)exp;
+    return ret;
+}
+
+int wolfSSL_Atomic_Ptr_CompareExchange(
+    void **c, void **expected_ptr, void *new_ptr)
+{
+    uintptr_t exp = (uintptr_t)*expected_ptr;
+    int ret = atomic_fcmpset_ptr((uintptr_t *)c, &exp, (uintptr_t)new_ptr);
+    *expected_ptr = (void *)exp;
+    return ret;
+}
+
 #elif defined(HAVE_C___ATOMIC) && defined(WOLFSSL_HAVE_ATOMIC_H) && \
         !defined(__cplusplus)
 

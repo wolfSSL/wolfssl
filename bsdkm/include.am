@@ -1,0 +1,8 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST += m4/ax_bsdkm.m4 \
+	      bsdkm/Makefile \
+	      bsdkm/wolfkmod.c \
+	      bsdkm/bsdkm_wc_port.h

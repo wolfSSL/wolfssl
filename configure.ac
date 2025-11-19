@@ -134,16 +134,28 @@ AC_ARG_ENABLE([linuxkm],
 
 AC_ARG_ENABLE([linuxkm-defaults],
     [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable feature defaults for Linux Kernel Module (default: disabled)])],
-    [ENABLED_LINUXKM_DEFAULTS=$enableval],
-    [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
+    [KERNEL_MODE_DEFAULTS=$enableval],
+    [KERNEL_MODE_DEFAULTS=$ENABLED_LINUXKM]
     )
 
+# FreeBSD Kernel Module
+AC_ARG_ENABLE([freebsdkm],
+    [AS_HELP_STRING([--enable-freebsdkm],[Enable FreeBSD Kernel Module (default: disabled)])],
+    [ENABLED_BSDKM=$enableval],
+    [ENABLED_BSDKM=no]
+    )
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h sys/un.h ctype.h sys/random.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 AC_C___ATOMIC
-AC_CHECK_HEADER(stdatomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
+if test "x$ENABLED_BSDKM" = "xyes"; then
+    # The <stdatomic.h> header should not be included in freebsd kernel build.
+    # Look for <machine/atomic.h> instead.
+    AC_CHECK_HEADER(machine/atomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
+else
+    AC_CHECK_HEADER(stdatomic.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ATOMIC_H"],[])
+fi
 AC_CHECK_HEADER(assert.h, [AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_HAVE_ASSERT_H"],[])
 
 # check if functions of interest are linkable, but also check if
@@ -705,16 +717,16 @@ AC_SUBST([ENABLED_LINUXKM_PIE])
 
 AC_ARG_ENABLE([linuxkm-benchmarks],
     [AS_HELP_STRING([--enable-linuxkm-benchmarks],[Enable crypto benchmarking autorun at module load time for Linux kernel module (default: disabled)])],
-    [ENABLED_LINUXKM_BENCHMARKS=$enableval],
-    [ENABLED_LINUXKM_BENCHMARKS=no]
+    [ENABLED_KERNEL_BENCHMARKS=$enableval],
+    [ENABLED_KERNEL_BENCHMARKS=no]
     )
-if test "$ENABLED_LINUXKM_BENCHMARKS" = "yes"
+if test "$ENABLED_KERNEL_BENCHMARKS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM_BENCHMARKS"
 fi
-AC_SUBST([ENABLED_LINUXKM_BENCHMARKS])
+AC_SUBST([ENABLED_KERNEL_BENCHMARKS])
 
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_LINUXKM" = "yes" && test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DWOLFSSL_SMALL_STACK_STATIC -DWC_SHA3_NO_ASM"
     if test "$ENABLED_LINUXKM_PIE" = "yes"; then
@@ -727,10 +739,20 @@ then
     DEF_FAST_MATH="no"
 fi
 
+#
+# kernel mode variables. Shared by linuxkm, freebsdkm.
+KERNEL_ROOT=""
+HAVE_KERNEL_MODE=no
+
+# Kernel root source tree.
+AC_ARG_WITH([kernel-source],
+    [AS_HELP_STRING([--with-kernel-source=PATH],[PATH to root of kernel build tree])],
+    [KERNEL_ROOT=$withval])
+
+# For backwards compatibility.
 AC_ARG_WITH([linux-source],
     [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
-    [KERNEL_ROOT=$withval],
-    [KERNEL_ROOT=""])
+    [KERNEL_ROOT=$withval])
 
 AC_ARG_WITH([linux-arch],
     [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
@@ -739,6 +761,7 @@ AC_ARG_WITH([linux-arch],
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
+    HAVE_KERNEL_MODE=yes
     # Currently DWARF 5 is the default debug format, but it results in
     # "Unsupported DW_TAG_atomic_type(0x47): type: 0x1eefc" in some
     # kernel module builds.
@@ -777,6 +800,40 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
 fi
 
+#
+# FreeBSD
+AC_ARG_WITH([bsd-export-syms],
+    [AS_HELP_STRING([--with-bsd-export-syms=LIST],[Sets FreeBSD kernel module EXPORT_SYMS. Allowed values: YES, NO, or LIST of symbols to export (default NO).])],
+    [BSDKM_EXPORT_SYMS=$withval],
+    [BSDKM_EXPORT_SYMS="NO"])
+
+if test "x$ENABLED_BSDKM" = "xyes"
+then
+    # wolfcrypt only, no-asm supported for now.
+    HAVE_KERNEL_MODE=yes
+    KERNEL_MODE_DEFAULTS=yes
+    ENABLED_NO_LIBRARY=yes
+    ENABLED_BENCHMARK=no
+    ENABLED_ASM=no
+
+    output_objdir="$(realpath "$output_objdir")/bsdkm"
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BSDKM -DWC_SIPHASH_NO_ASM"
+    AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
+    AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
+    AM_CFLAGS="$AM_CFLAGS -DXMALLOC_OVERRIDE -DWOLFCRYPT_ONLY"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN_TIME"
+
+    if test "$KERNEL_ROOT" = ""; then
+        AC_PATH_DEFAULT_BSDKM_SOURCE
+        KERNEL_ROOT="$DEFAULT_BSDKM_ROOT"
+    fi
+    AC_SUBST([KERNEL_ROOT])
+    AC_SUBST([BSDKM_EXPORT_SYMS])
+
+fi
+# end FreeBSD configure
 
 # MATH LIBRARY SELECTION
 
@@ -805,7 +862,7 @@ AC_ARG_ENABLE([sp-math-all],
     )
 
 # Single Precision maths (acceleration for common key sizes and curves)
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no" && test "$ENABLED_SP_MATH_ALL" = "no"
+if test "$KERNEL_MODE_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no" && test "$ENABLED_SP_MATH_ALL" = "no"
 then
     ENABLED_SP_MATH_DEFAULT=yes
 else
@@ -835,7 +892,7 @@ fi
 
 # enable SP math assembly support automatically for x86_64 and aarch64 (except Linux kernel module)
 SP_ASM_DEFAULT=no
-if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_LINUXKM_DEFAULTS" = "no"
+if test "$ENABLED_SP_MATH" = "yes" && test "$KERNEL_MODE_DEFAULTS" = "no"
 then
     if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64" || test "$host_cpu" = "amd64"
     then
@@ -1058,7 +1115,7 @@ if test "$ENABLED_ALL" = "yes"
 then
     test "$enable_all_crypto" = "" && enable_all_crypto=yes
 
-    test "$enable_all_osp" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_all_osp=yes
+    test "$enable_all_osp" = "" && test "$KERNEL_MODE_DEFAULTS" != "yes" && enable_all_osp=yes
 
     test "$enable_dtls" = "" && enable_dtls=yes
     test "$enable_dtls_mtu" = "" && enable_dtls_mtu=yes
@@ -1085,7 +1142,7 @@ then
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
-    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    if test "$KERNEL_MODE_DEFAULTS" != "yes"
     then
         # Disable QUIC with JNI since incompatible with WOLFSSL_TLS13_MIDDLEBOX_COMPAT
         test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && test "$enable_jni" != "yes" && enable_quic=yes
@@ -1095,7 +1152,7 @@ then
     if test "$ENABLED_SP_MATH" != "yes"
     then
         # linuxkm is incompatible with opensslextra and its dependents.
-        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+        if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
@@ -1138,7 +1195,7 @@ AC_ARG_ENABLE([all-osp],
 
 if test "$ENABLED_ALL_OSP" = "yes"
 then
-    if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+    if test "$KERNEL_MODE_DEFAULTS" = "yes"
     then
         AC_MSG_ERROR([--enable-all-osp is incompatible with --enable-linuxkm-defaults])
     fi
@@ -1202,7 +1259,7 @@ then
 fi
 
 if test "$enable_all_crypto" = "yes" &&
-   test "$ENABLED_LINUXKM_DEFAULTS" = "no" &&
+   test "$KERNEL_MODE_DEFAULTS" = "no" &&
    test "$ENABLED_ASM" != "no" &&
    test "$HAVE_GNUC" = "yes" &&
    test "$enable_sp_asm" != "no" &&
@@ -1405,7 +1462,7 @@ then
         test "$enable_aessiv" = "" && enable_aessiv=yes
         test "$enable_aeseax" = "" && enable_aeseax=yes
 
-        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+        if test "$KERNEL_MODE_DEFAULTS" != "yes"
         then
             test "$enable_cryptocb" = "" && enable_cryptocb=yes
             test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
@@ -3815,7 +3872,7 @@ then
     if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
-        if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+        if test "$KERNEL_MODE_DEFAULTS" = "yes"
         then
                 AM_CFLAGS="$AM_CFLAGS -DWC_C_DYNAMIC_FALLBACK"
         fi
@@ -5760,7 +5817,7 @@ AC_ARG_ENABLE([pwdbased],
 # MemUse Entropy
 # wolfEntropy Software Jitter SP800-90B certifiable entropy source
 
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && \
+if test "$KERNEL_MODE_DEFAULTS" = "yes" && \
    test "$ENABLED_AMDRDSEED" != "yes" && \
    test "$ENABLED_INTELRDRAND" != "yes" && \
    test "$ENABLED_INTELRDSEED" != "yes" && \
@@ -6736,7 +6793,7 @@ fi
 
 
 # Filesystem Build
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$HAVE_KERNEL_MODE" = "yes"
 then
     ENABLED_FILESYSTEM_DEFAULT=no
 else
@@ -7443,7 +7500,7 @@ then
 fi
 
 # Small Stack - Cache on object
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
+if test "$KERNEL_MODE_DEFAULTS" = "yes" && (test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6)
 then
     ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
 else
@@ -7461,7 +7518,7 @@ then
 fi
 
 # Small Stack
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
     ENABLED_SMALL_STACK_DEFAULT=yes
 else
@@ -8559,7 +8616,7 @@ fi
 
 
 # Enable Examples, used to disable examples
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$HAVE_KERNEL_MODE" = "yes"
 then
     ENABLED_EXAMPLES_DEFAULT=no
 else
@@ -8576,7 +8633,7 @@ AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
 # Enable wolfCrypt test and benchmark
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$HAVE_KERNEL_MODE" = "yes"
 then
     ENABLED_CRYPT_TESTS_DEFAULT=no
 else
@@ -10182,12 +10239,12 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_CURVE25519" != "no" && test "$ENABLED_CURVE25519" != "asm" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_CURVE25519" != "no" && test "$ENABLED_CURVE25519" != "asm" && test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
     ENABLED_CURVE25519=noasm
 fi
 
-if test "$ENABLED_ED25519" != "no" && test "$ENABLED_ED25519" != "asm" && test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+if test "$ENABLED_ED25519" != "no" && test "$ENABLED_ED25519" != "asm" && test "$KERNEL_MODE_DEFAULTS" = "yes"
 then
     ENABLED_ED25519=noasm
 fi
@@ -11058,6 +11115,8 @@ AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
+AM_CONDITIONAL([BUILD_BSDKM],[test "$ENABLED_BSDKM" = "yes"])
+AM_CONDITIONAL([BUILD_KERNEL_MODULE],[test "$ENABLED_BSDKM" = "yes" || test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_BENCHMARK],[test "$ENABLED_BENCHMARK" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
@@ -11314,6 +11373,10 @@ echo "   * LD Flags:                   $LDFLAGS"
 echo "   * LIB Flags:                  $LIB"
 echo "   * Library Suffix:             $LIBSUFFIX"
 
+test "$HAVE_KERNEL_MODE" = "yes" && \
+echo "   * Kernel mode:                $HAVE_KERNEL_MODE" && \
+echo "   * Kernel mode defaults:       $KERNEL_MODE_DEFAULTS" && \
+
 test "$ENABLED_LINUXKM" = "yes" && \
 echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
 echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH" && \
@@ -11328,6 +11391,9 @@ echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
 echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
 echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE" && \
 echo "   * Linux kernel module PIE:    $ENABLED_LINUXKM_PIE"
+
+test "$ENABLED_BSDKM" = "yes" && \
+echo "   * FreeBSD Kernel Build Root:  $KERNEL_ROOT"
 
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
@@ -11563,7 +11629,7 @@ echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 
 test "$ENABLED_LINUXKM" = "yes" && \
-echo "   * Linux kernel module bench:  $ENABLED_LINUXKM_BENCHMARKS" && \
+echo "   * Linux kernel module bench:  $ENABLED_KERNEL_BENCHMARKS" && \
 echo "   * Linux kernel alg register:  $ENABLED_LINUXKM_LKCAPI_REGISTER"
 
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
