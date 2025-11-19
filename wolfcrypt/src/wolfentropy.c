@@ -34,7 +34,7 @@ data, use this implementation to seed and re-seed the DRBG.
 
 #ifdef HAVE_ENTROPY_MEMUSE
 
-#include <wolfssl/wolfcrypt/wolfEntropy.h>
+#include <wolfssl/wolfcrypt/wolfentropy.h>
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #if defined(__APPLE__) || defined(__MACH__)
