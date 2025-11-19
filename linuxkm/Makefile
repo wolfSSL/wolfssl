@@ -207,6 +207,47 @@ endif
 .PHONY: libwolfssl.ko
 libwolfssl.ko:
 	@set -e
+	@[[ '$(V)' == 1 ]] && { echo 'MODULE_TOP = "$(MODULE_TOP)"';
+	echo 'SRC_TOP = "$(SRC_TOP)"';
+	echo 'AM_CPPFLAGS = "$(AM_CPPFLAGS)"';
+	echo 'CPPFLAGS = "$(CPPFLAGS)"';
+	echo 'AM_CFLAGS = "$(AM_CFLAGS)"';
+	echo 'CFLAGS = "$(CFLAGS)"';
+	echo 'KERNEL_EXTRA_CFLAGS = "$(KERNEL_EXTRA_CFLAGS)"';
+	echo 'FIPS_OPTEST = "$(FIPS_OPTEST)"';
+	echo 'AM_CCASFLAGS = "$(AM_CCASFLAGS)"';
+	echo 'CCASFLAGS = "$(CCASFLAGS)"';
+	echo 'src_libwolfssl_la_OBJECTS = "$(src_libwolfssl_la_OBJECTS)"';
+	echo 'ENABLED_CRYPT_TESTS = "$(ENABLED_CRYPT_TESTS)"';
+	echo 'ENABLED_LINUXKM_LKCAPI_REGISTER = "$(ENABLED_LINUXKM_LKCAPI_REGISTER)"';
+	echo 'ENABLED_LINUXKM_BENCHMARKS = "$(ENABLED_LINUXKM_BENCHMARKS)"';
+	echo 'ENABLED_LINUXKM_PIE = "$(ENABLED_LINUXKM_PIE)"';
+	echo 'host_triplet = "$(host_triplet)"';
+	echo 'build_triplet = "$(build_triplet)"';
+	echo 'CC = "$(CC)"';
+	echo 'AS = "$(AS)"';
+	echo 'LD = "$(LD)"';
+	echo 'READELF = "$(READELF)"';
+	echo 'AWK = "$(AWK)"';
+	echo 'TMPDIR = "$(TMPDIR)"';
+	echo 'MAKE_TMPDIR = "$(MAKE_TMPDIR)"';
+	echo 'KERNEL_ROOT = "$(KERNEL_ROOT)"';
+	echo 'obj = "$(obj)"';
+	echo 'RM = "$(RM)"';
+	echo 'KERNEL_ARCH = "$(KERNEL_ARCH)"';
+	echo 'FIPS_HASH = "$(FIPS_HASH)"';
+	echo 'MAKE = "$(MAKE)"';
+	echo 'ENABLED_ASM = "$(ENABLED_ASM)"';
+	echo 'CFLAGS_FPU_DISABLE = "$(CFLAGS_FPU_DISABLE)"';
+	echo 'CFLAGS_FPU_ENABLE = "$(CFLAGS_FPU_ENABLE)"';
+	echo 'CFLAGS_SIMD_DISABLE = "$(CFLAGS_SIMD_DISABLE)"';
+	echo 'CFLAGS_SIMD_ENABLE = "$(CFLAGS_SIMD_ENABLE)"';
+	echo 'CFLAGS_AUTO_VECTORIZE_DISABLE = "$(CFLAGS_AUTO_VECTORIZE_DISABLE)"';
+	echo 'CFLAGS_AUTO_VECTORIZE_ENABLE = "$(CFLAGS_AUTO_VECTORIZE_ENABLE)"';
+	echo 'ASFLAGS_FPU_DISABLE_SIMD_ENABLE = "$(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)"';
+	echo 'ASFLAGS_FPU_ENABLE_SIMD_DISABLE = "$(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)"';
+	echo 'ASFLAGS_FPUSIMD_DISABLE = "$(ASFLAGS_FPUSIMD_DISABLE)"';
+	echo 'ASFLAGS_FPUSIMD_ENABLE = "$(ASFLAGS_FPUSIMD_ENABLE)"'; }
 	@function resolved_link_is_equal() { [[ -L "$$1" && "$$(readlink -f "$$1")" == "$$(readlink -f "$$2")" ]]; }
 	@if test -z '$(KERNEL_ROOT)'; then echo '$$KERNEL_ROOT is unset' >&2; exit 1; fi
 	@if test -z '$(AM_CFLAGS)$(CFLAGS)'; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi

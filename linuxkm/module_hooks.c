@@ -142,11 +142,11 @@ static void lkmFipsCb(int ok, int err, const char* hash)
         }
     }
 }
-#endif
 
 #ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
 static int updateFipsHash(void);
 #endif
+#endif /* HAVE_FIPS */
 
 #ifdef WOLFSSL_LINUXKM_BENCHMARKS
 extern int wolfcrypt_benchmark_main(int argc, char** argv);
@@ -1507,7 +1507,7 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
 #endif /* WC_PIE_RELOC_TABLES */
 
-#ifdef WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE
+#if defined(HAVE_FIPS) && defined(WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE)
 
 #include <wolfssl/wolfcrypt/coding.h>
 
@@ -1763,7 +1763,7 @@ static int updateFipsHash(void)
     return ret;
 }
 
-#endif /* WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
+#endif /* HAVE_FIPS && WOLFCRYPT_FIPS_CORE_DYNAMIC_HASH_VALUE */
 
 #ifdef CONFIG_HAVE_KPROBES
 

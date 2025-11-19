@@ -43,6 +43,10 @@ ifeq "$(KERNEL_ARCH)" "aarch64"
     WOLFSSL_CFLAGS += -mno-outline-atomics
 else ifeq "$(KERNEL_ARCH)" "arm64"
     WOLFSSL_CFLAGS += -mno-outline-atomics
+else ifeq "$(KERNEL_ARCH)" "arm"
+    # avoids R_ARM_THM_JUMP11 relocations, including a stubborn tail recursion
+    # optimization from wc_sp_cmp to wc_sp_cmp_mag:
+    WOLFSSL_CFLAGS += -fno-optimize-sibling-calls -Os
 endif
 
 obj-m := libwolfssl.o
@@ -97,7 +101,7 @@ else
     WOLFSSL_CFLAGS_YES_VECTOR_INSNS := $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 endif
 
-ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
+ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     # note, we need -fno-stack-protector to avoid references to
@@ -142,7 +146,7 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 endif
 
 ifdef KERNEL_EXTRA_CFLAGS_REMOVE
-    ccflags-remove-y += KERNEL_EXTRA_CFLAGS_REMOVE
+    ccflags-remove-y += $(KERNEL_EXTRA_CFLAGS_REMOVE)
 endif
 
 $(obj)/libwolfssl.mod.o: ccflags-y := $(PIE_SUPPORT_FLAGS)

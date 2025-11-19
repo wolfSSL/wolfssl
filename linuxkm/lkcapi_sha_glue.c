@@ -1198,7 +1198,7 @@ static int wc_linuxkm_drbg_seed(struct crypto_rng *tfm,
 {
     struct wc_linuxkm_drbg_ctx *ctx = (struct wc_linuxkm_drbg_ctx *)crypto_rng_ctx(tfm);
     u8 *seed_copy = NULL;
-    int ret;
+    int ret = 0;
     int n;
 
     if ((tfm->base.__crt_alg->cra_init != wc_linuxkm_drbg_init_tfm) ||
