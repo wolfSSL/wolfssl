@@ -28,6 +28,8 @@ with Interfaces.C.Strings;
 
 with SPARK_Terminal;
 
+with WolfSSL.Full_Runtime;
+
 package body Tls_Client with SPARK_Mode is
 
    use type WolfSSL.Mode_Type;
@@ -41,7 +43,7 @@ package body Tls_Client with SPARK_Mode is
 
    subtype Byte_Type is WolfSSL.Byte_Type;
 
-   subtype chars_ptr is WolfSSL.chars_ptr;
+   subtype chars_ptr is WolfSSL.Full_Runtime.chars_ptr;
    subtype unsigned is WolfSSL.unsigned;
 
    package Natural_IO is new Ada.Text_IO.Integer_IO (Natural);
@@ -110,7 +112,7 @@ package body Tls_Client with SPARK_Mode is
 
    procedure Put (Number : Natural)
    with
-     Annotate => (GNATprove, Might_Not_Return)
+     Always_Terminates => False
    is
    begin
       Natural_IO.Put (Item => Number, Width => 0, Base => 10);
@@ -118,7 +120,7 @@ package body Tls_Client with SPARK_Mode is
 
    procedure Put (Number : Byte_Index)
    with
-     Annotate => (GNATprove, Might_Not_Return)
+     Always_Terminates => False
    is
    begin
       Natural_IO.Put (Item => Natural (Number), Width => 0, Base => 10);
@@ -348,14 +350,14 @@ package body Tls_Client with SPARK_Mode is
 
       if PSK then
          --  Use PSK for authentication.
-         WolfSSL.Set_PSK_Client_Callback
+         WolfSSL.Full_Runtime.Set_PSK_Client_Callback
            (Ssl      => Ssl,
             Callback => PSK_Client_Callback'Access);
       end if;
 
       if DTLS then
-         Result := WolfSSL.DTLS_Set_Peer(Ssl     => Ssl,
-                                         Address => A);
+         Result := WolfSSL.Full_Runtime.DTLS_Set_Peer(Ssl     => Ssl,
+                                                      Address => A);
          if Result /= Success then
             Put_Line ("ERROR: Failed to set the DTLS peer.");
             SPARK_Sockets.Close_Socket (C);

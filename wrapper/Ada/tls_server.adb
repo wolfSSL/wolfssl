@@ -28,6 +28,8 @@ with Interfaces.C.Strings;
 
 with SPARK_Terminal; pragma Elaborate_All (SPARK_Terminal);
 
+with WolfSSL.Full_Runtime;
+
 package body Tls_Server with SPARK_Mode is
 
    use type WolfSSL.Mode_Type;
@@ -37,7 +39,7 @@ package body Tls_Server with SPARK_Mode is
 
    Success : WolfSSL.Subprogram_Result renames WolfSSL.Success;
 
-   subtype chars_ptr is WolfSSL.chars_ptr;
+   subtype chars_ptr is WolfSSL.Full_Runtime.chars_ptr;
    subtype unsigned is WolfSSL.unsigned;
 
    procedure Put (Char : Character) is
@@ -158,7 +160,7 @@ package body Tls_Server with SPARK_Mode is
       Ch : Character;
 
       Result : WolfSSL.Subprogram_Result;
-      DTLS, PSK : Boolean := True;
+      DTLS, PSK : Boolean := False;
       Shall_Continue : Boolean := True;
 
       Input  : WolfSSL.Read_Result;
@@ -318,7 +320,7 @@ package body Tls_Server with SPARK_Mode is
 
       if PSK then
          --  Use PSK for authentication.
-         WolfSSL.Set_Context_PSK_Server_Callback
+         WolfSSL.Full_Runtime.Set_Context_PSK_Server_Callback
             (Context  => Ctx,
              Callback => PSK_Server_Callback'Access);
       end if;

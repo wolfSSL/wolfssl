@@ -21,9 +21,9 @@
 
 with Ada.Command_Line;
 
---  SPARK wrapper package around Ada.Command_Line and Interfaces.C
---  packages because these packages lack contracts in their specification
---  files that SPARK can use to verify the context in which
+--  SPARK wrapper package around the Ada.Command_Line package
+--  because this package lacks contracts in the specification
+--  file that SPARK can use to verify the context in which
 --  subprograms can safely be called.
 package SPARK_Terminal with SPARK_Mode is
 
