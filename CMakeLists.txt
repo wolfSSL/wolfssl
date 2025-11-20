@@ -34,7 +34,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.8.2 LANGUAGES C ASM)
+project(wolfssl VERSION 5.8.4 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -58,7 +58,7 @@ set(WOLFSSL_LIBRARY_VERSION_SECOND 0)
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
 # WOLFSSL_LIBRARY_VERSION_SECOND is incremented
-set(WOLFSSL_LIBRARY_VERSION_THIRD 0)
+set(WOLFSSL_LIBRARY_VERSION_THIRD 1)
 
 set(LIBTOOL_FULL_VERSION ${WOLFSSL_LIBRARY_VERSION_FIRST}.${WOLFSSL_LIBRARY_VERSION_SECOND}.${WOLFSSL_LIBRARY_VERSION_THIRD})
 
