@@ -11,16 +11,6 @@ library project WolfSSL is
                         "../../src",
                         "../../wolfcrypt/src");
 
-   --  Don't build the tls client or server application.
-   --  They are not needed in order to build the library.
-   for Excluded_Source_Files use
-      ("tls_client_main.adb",
-      "tls_client.ads",
-      "tls_client.adb",
-      "tls_server_main.adb",
-      "tls_server.ads",
-      "tls_server.adb");
-
    for Object_Dir use "obj";
    for Library_Dir use "lib";
    for Create_Missing_Dirs use "True";

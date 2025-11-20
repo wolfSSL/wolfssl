@@ -28,9 +28,9 @@ been developed with maximum portability in mind.
 Not only can the WolfSSL Ada binding be used in Ada applications but
 also SPARK applications (a subset of the Ada language suitable for
 formal verification). To formally verify the Ada code in this repository
-open the examples.gpr with GNAT Studio and then select
+open the examples/examples.gpr with GNAT Studio and then select
 SPARK -> Prove All Sources and use Proof Level 2. Or when using the command
-line, use `gnatprove -Pexamples.gpr --level=4 -j12` (`-j12` is there in
+line, use `gnatprove -Pexamples/examples.gpr --level=4 -j12` (`-j12` is there in
 order to instruct the prover to use 12 CPUs if available).
 
 ```
@@ -62,6 +62,8 @@ ecosystem.  The latest version is available for Windows, OSX, Linux and FreeBSD
 systems.  It can install a complete Ada toolchain if needed, see `alr install`
 for more information.
 
+**Note:** If you encounter a missing dependency error, it may be caused by the installed dependency being too old. In this case, either install a newer toolchain or decrease the required dependency version in your project.
+
 In order to use WolfSSL in a project, just add WolfSSL as a dependency by
 running `alr with wolfssl` within your project's directory.
 
@@ -84,6 +86,8 @@ and use gprbuild to build the source code.
 cd wrapper/Ada
 gprclean
 gprbuild default.gpr
+
+cd examples
 gprbuild examples.gpr
 
 cd obj/
@@ -91,21 +95,39 @@ cd obj/
 ./tls_client_main 127.0.0.1
 ```
 
+If you are using Alire, you can build the library and examples with:
+
+```sh
+cd wrapper/Ada
+alr install
+
+cd examples
+alr build
+```
+
+You can also run the examples directly with Alire:
+
+```sh
+cd wrapper/Ada/examples
+alr run tls_server_main &
+alr run tls_client_main --args=127.0.0.1
+```
+
 On Windows, build the executables with:
 ```sh
-gprbuild -XOS=Windows default.gpr
+cd wrapper/Ada/examples
 gprbuild -XOS=Windows examples.gpr
 ```
 
 ## Files
 The (D)TLS v1.3 client example in the Ada/SPARK programming language
 using the WolfSSL library can be found in the files:
-tls_client_main.adb
-tls_client.ads
-tls_client.adb
+examples/src/tls_client_main.adb
+examples/src/tls_client.ads
+examples/src/tls_client.adb
 
 The (D)TLS v1.3 server example in the Ada/SPARK programming language
 using the WolfSSL library can be found in the files:
-tls_server_main.adb
-tls_server.ads
-tls_server.adb
+examples/src/tls_server_main.adb
+examples/src/tls_server.ads
+examples/src/tls_server.adb

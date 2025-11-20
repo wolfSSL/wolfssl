@@ -15,20 +15,59 @@ jobs:
     steps:
     - uses: actions/checkout@master
 
-    - name: Install gnat
+    - name: Install alire
+      uses: alire-project/setup-alire@v5
+
+    - name: Install wolfssl Ada
+      working-directory: ./wrapper/Ada
+      run: alr install
+
+    - name: Build default.gpr
+      working-directory: ./wrapper/Ada
+      run: alr exec -- gprbuild default.gpr -j$(nproc)
+
+    - name: Run Ada wrapper tests
+      working-directory: ./wrapper/Ada/tests
+      run: alr run
+
+    - name: Run Ada examples
+      id: examples
+      working-directory: ./wrapper/Ada/examples
+      run: |
+        alr build
+
+        echo "Running sha256_main example..."
+        alr run sha256_main
+
+        echo "Running aes_verify_main example..."
+        alr run aes_verify_main
+
+        echo "Running rsa_verify_main example..."
+        alr run rsa_verify_main
+
+        echo "Running TLS server/client example..."
+        alr run tls_server_main &> server.log &
+        SERVER_PID=$!
+        sleep 1
+        echo "test message" | alr run tls_client_main --args=127.0.0.1
+        kill $SERVER_PID || true
+
+    - name: show errors
+      if: ${{ failure() && steps.examples.outcome == 'failure' }}
+      run: cat ./wrapper/Ada/examples/server.log
+
+    - name: Run Ada wrapper tests (valgrind)
+      working-directory: ./wrapper/Ada/tests
       run: |
         sudo apt-get update
-        sudo apt-get install -y gnat gprbuild
+        sudo apt-get install -y valgrind
+        valgrind --leak-check=full --error-exitcode=1 \
+          --suppressions=valgrind.supp ./bin/tests
 
-    - name: Checkout wolfssl
-      uses: actions/checkout@master
-      with:
-        repository: wolfssl/wolfssl
-        path: wolfssl
+    - name: Run gnatprove on wolfssl
+      working-directory: ./wrapper/Ada
+      run: alr gnatprove --level=4 -P wolfssl.gpr -j 0 --warnings=error --checks-as-errors --proof-warnings -U
 
-    - name: Build wolfssl Ada
-      working-directory: ./wolfssl/wrapper/Ada
-      run: |
-        mkdir obj
-        gprbuild default.gpr
-        gprbuild examples.gpr
+    - name: Run gnatprove on examples
+      working-directory: ./wrapper/Ada/examples
+      run: alr gnatprove --level=4 -P examples.gpr -j 0 --warnings=error --checks-as-errors --proof-warnings -U
