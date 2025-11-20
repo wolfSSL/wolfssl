@@ -7908,7 +7908,7 @@ static WC_INLINE void EncodeSigAlg(const WOLFSSL * ssl, byte hashAlgo, byte hsTy
              * the rsa_pss_pss_* signature algorithm in use, then report
              * rsa_pss_pss_* rather than rsa_pss_rsae_*. */
             if (ssl->ctx->useRsaPss &&
-                ((ssl->pssAlgo & (1u << hashAlgo)) != 0u) &&
+                ((ssl->pssAlgo & (1U << hashAlgo)) != 0U) &&
                 (sha256_mac <= hashAlgo) && (hashAlgo <= sha512_mac))
             {
                 output[1] = PSS_RSAE_TO_PSS_PSS(hashAlgo);
