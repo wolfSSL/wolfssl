@@ -41,6 +41,9 @@
 #if !defined(NO_CRYPT_TEST) || defined(LINUXKM_LKCAPI_REGISTER)
     #include <wolfcrypt/test/test.h>
 #endif
+#ifdef HAVE_ENTROPY_MEMUSE
+    #include <wolfssl/wolfcrypt/wolfentropy.h>
+#endif
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #ifdef NO_INLINE
