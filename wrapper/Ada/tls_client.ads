@@ -29,10 +29,10 @@ package Tls_Client with SPARK_Mode is
    procedure Run (Ssl    : in out WolfSSL.WolfSSL_Type;
                   Ctx    : in out WolfSSL.Context_Type;
                   Client : in out SPARK_Sockets.Optional_Socket) with
-      Pre  => (not Client.Exists and not
-                  WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx)),
-      Post => (not Client.Exists and not WolfSSL.Is_Valid (Ssl) and
-                  not WolfSSL.Is_Valid (Ctx)),
-     Annotate => (GNATprove, Might_Not_Return);
+     Pre  => (not Client.Exists and not
+                WolfSSL.Is_Valid (Ssl) and not WolfSSL.Is_Valid (Ctx)),
+     Post => (not Client.Exists and not WolfSSL.Is_Valid (Ssl) and
+                not WolfSSL.Is_Valid (Ctx)),
+     Always_Terminates => False;
 
 end Tls_Client;

@@ -1,6 +1,6 @@
 -- wolfssl.adb
 --
--- Copyright (C) 2006-2023 wolfSSL Inc.
+-- Copyright (C) 2006-2025 wolfSSL Inc.
 --
 -- This file is part of wolfSSL.
 --
@@ -20,12 +20,7 @@
 --
 
 with Ada.Unchecked_Conversion;
-pragma Warnings (Off, "* is an internal GNAT unit");
-with GNAT.Sockets.Thin_Common;
-pragma Warnings (On, "* is an internal GNAT unit");
-with Interfaces.C.Extensions;
 with Interfaces.C.Strings;
-with System;
 
 package body WolfSSL is
 
@@ -231,7 +226,7 @@ package body WolfSSL is
    end Get_Verify;
 
    function Use_Certificate_File (Context : Context_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -244,7 +239,7 @@ package body WolfSSL is
                                   return Subprogram_Result is
       Ctx : constant Context_Type := Context;
       C : size_t;
-      F : char_array (1 .. File'Length + 1);
+      F : Byte_Array (1 .. File'Length + 1);
       Result : int;
    begin
       Interfaces.C.To_C (Item       => File,
@@ -256,7 +251,7 @@ package body WolfSSL is
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -265,7 +260,7 @@ package body WolfSSL is
       Import        => True;
 
    function Use_Certificate_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Format  : File_Format)
                                     return Subprogram_Result is
       Result : int;
@@ -276,7 +271,7 @@ package body WolfSSL is
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Context : Context_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -289,7 +284,7 @@ package body WolfSSL is
                                   return Subprogram_Result is
       Ctx : constant Context_Type := Context;
       C : size_t;
-      F : char_array (1 .. File'Length + 1);
+      F : Byte_Array (1 .. File'Length + 1);
       Result : int;
    begin
       Interfaces.C.To_C (Item       => File,
@@ -301,7 +296,7 @@ package body WolfSSL is
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Context : Context_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -322,8 +317,8 @@ package body WolfSSL is
 
    function Load_Verify_Locations1
       (Context : Context_Type;
-       File    : char_array;
-       Path    : char_array) return int with
+       File    : Byte_Array;
+       Path    : Byte_Array) return int with
       Convention    => C,
       External_Name => "wolfSSL_CTX_load_verify_locations",
       Import        => True;
@@ -343,28 +338,26 @@ package body WolfSSL is
    --  attempt to load all files in the directory. This function expects
    --  PEM formatted CERT_TYPE file with header "--BEGIN CERTIFICATE--".
 
-   subtype char_array_ptr is Interfaces.C.Strings.char_array_access;
-
    function Load_Verify_Locations2
       (Context : Context_Type;
-       File    : char_array;
-       Path    : char_array_ptr) return int with
+       File    : Byte_Array;
+       Path    : access Interfaces.C.char) return int with
       Convention    => C,
       External_Name => "wolfSSL_CTX_load_verify_locations",
       Import        => True;
 
    function Load_Verify_Locations3
       (Context : Context_Type;
-       File    : char_array_ptr;
-       Path    : char_array) return int with
+       File    : access Interfaces.C.char;
+       Path    : Byte_Array) return int with
       Convention    => C,
       External_Name => "wolfSSL_CTX_load_verify_locations",
       Import        => True;
 
    function Load_Verify_Locations4
       (Context : Context_Type;
-       File    : char_array_ptr;
-       Path    : char_array_ptr) return int with
+       File    : access Interfaces.C.char;
+       Path    : access Interfaces.C.char) return int with
       Convention    => C,
       External_Name => "wolfSSL_CTX_load_verify_locations",
       Import        => True;
@@ -375,10 +368,10 @@ package body WolfSSL is
                                    return Subprogram_Result is
       Ctx : constant Context_Type := Context;
       FC : size_t;  -- File Count, specifies the characters used in F.
-      F : aliased char_array := (1 .. File'Length + 1 => '#');
+      F : aliased Byte_Array := (1 .. File'Length + 1 => '#');
 
       PC : size_t;  -- Path Count, specifies the characters used in P.
-      P : aliased char_array := (1 .. Path'Length + 1 => '#');
+      P : aliased Byte_Array := (1 .. Path'Length + 1 => '#');
 
       Result : int;
    begin
@@ -418,7 +411,7 @@ package body WolfSSL is
 
    function Load_Verify_Buffer
       (Context : Context_Type;
-       Input   : char_array;
+       Input   : Byte_Array;
        Size    : int;
        Format  : int) return int with
       Convention    => C,
@@ -456,7 +449,7 @@ package body WolfSSL is
    end Create_WolfSSL;
 
    function Use_Certificate_File (Ssl     : WolfSSL_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                   return int with
      Convention    => C,
@@ -468,7 +461,7 @@ package body WolfSSL is
                                   Format  : File_Format)
                                   return Subprogram_Result is
       C : size_t;
-      F : char_array (1 .. File'Length + 1);
+      F : Byte_Array (1 .. File'Length + 1);
       Result : int;
    begin
       Interfaces.C.To_C (Item       => File,
@@ -480,7 +473,7 @@ package body WolfSSL is
    end Use_Certificate_File;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -489,7 +482,7 @@ package body WolfSSL is
       Import        => True;
 
    function Use_Certificate_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Format  : File_Format)
                                     return Subprogram_Result is
       Result : int;
@@ -500,7 +493,7 @@ package body WolfSSL is
    end Use_Certificate_Buffer;
 
    function Use_Private_Key_File (Ssl     : WolfSSL_Type;
-                                  File    : char_array;
+                                  File    : Byte_Array;
                                   Format  : int)
                                    return int with
       Convention    => C,
@@ -512,7 +505,7 @@ package body WolfSSL is
                                   Format  : File_Format)
                                   return Subprogram_Result is
       C : size_t;
-      F : char_array (1 .. File'Length + 1);
+      F : Byte_Array (1 .. File'Length + 1);
       Result : int;
    begin
       Interfaces.C.To_C (Item       => File,
@@ -524,7 +517,7 @@ package body WolfSSL is
    end Use_Private_Key_File;
 
    function Use_Private_Key_Buffer (Ssl     : WolfSSL_Type;
-                                    Input   : char_array;
+                                    Input   : Byte_Array;
                                     Size    : long;
                                     Format  : int)
                                     return int with
@@ -542,86 +535,6 @@ package body WolfSSL is
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
    end Use_Private_Key_Buffer;
-
-   function WolfSSL_DTLS_Set_Peer
-     (ssl    : WolfSSL_Type;
-      peer   : GNAT.Sockets.Thin_Common.Sockaddr_Access;
-      peerSz : Interfaces.C.unsigned)
-      return int with
-     Convention    => C,
-     External_Name => "wolfSSL_dtls_set_peer",
-     Import        => True;
-
-   function DTLS_Set_Peer
-     (Ssl     : WolfSSL_Type;
-      Address : GNAT.Sockets.Sock_Addr_Type)
-      return Subprogram_Result is
-
-      Sin    : aliased GNAT.Sockets.Thin_Common.Sockaddr;
-      Length : Interfaces.C.int;
-
-   begin
-
-      GNAT.Sockets.Thin_Common.Set_Address
-        (Sin     => Sin'Unchecked_Access,
-         Address => Address,
-         Length  => Length);
-
-      pragma Assert (Length >= 0);
-
-      return
-        Subprogram_Result
-          (WolfSSL_DTLS_Set_Peer
-             (ssl    => Ssl,
-              peer   => Sin'Unchecked_Access,
-              peerSz => Interfaces.C.unsigned (Length)));
-
-   end DTLS_Set_Peer;
-
-   procedure WolfSSL_Set_Psk_Client_Callback
-     (Ssl : WolfSSL_Type;
-      Cb  : PSK_Client_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_set_psk_client_callback",
-     Import        => True;
-
-   procedure Set_PSK_Client_Callback
-     (Ssl      : WolfSSL_Type;
-      Callback : PSK_Client_Callback) is
-   begin
-      WolfSSL_Set_Psk_Client_Callback (Ssl, Callback);
-   end Set_PSK_Client_Callback;
-
-   procedure WolfSSL_Set_Psk_Server_Callback
-     (Ssl : WolfSSL_Type;
-      Cb  : PSK_Server_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_set_psk_server_callback",
-     Import        => True;
-
-   procedure Set_PSK_Server_Callback
-       (Ssl      : WolfSSL_Type;
-        Callback : PSK_Server_Callback) is
-   begin
-      WolfSSL_Set_Psk_Server_Callback (Ssl, Callback);
-   end Set_PSK_Server_Callback;
-
-   procedure WolfSSL_CTX_Set_Psk_Server_Callback
-     (Ctx : Context_Type;
-      Cb  : PSK_Server_Callback)
-   with
-     Convention    => C,
-     External_Name => "wolfSSL_CTX_set_psk_server_callback",
-     Import        => True;
-
-   procedure Set_Context_PSK_Server_Callback
-       (Context  : Context_Type;
-        Callback : PSK_Server_Callback) is
-   begin
-      WolfSSL_CTX_Set_Psk_Server_Callback (Context, Callback);
-   end Set_Context_PSK_Server_Callback;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
      Convention    => C,
@@ -669,7 +582,7 @@ package body WolfSSL is
    end Free_Arrays;
 
    function WolfSSL_Read (Ssl  : WolfSSL_Type;
-                          Data : out char_array;
+                          Data : out Byte_Array;
                           Sz   : int) return int with
      Convention    => C,
      External_Name => "wolfSSL_read",
@@ -705,7 +618,7 @@ package body WolfSSL is
    --  Use wolfSSL_get_error() to get a specific error code.
 
    function Read (Ssl : WolfSSL_Type) return Read_Result is
-      Data   : char_array (1 .. Byte_Index'Last);
+      Data   : Byte_Array (1 .. Byte_Index'Last);
       Size   : int;
    begin
       Size := WolfSSL_Read (Ssl, Data, int (Byte_Index'Last));
@@ -721,7 +634,7 @@ package body WolfSSL is
    end Read;
 
    function WolfSSL_Write (Ssl  : WolfSSL_Type;
-                           Data : char_array;
+                           Data : Byte_Array;
                            Sz   : int) return int with
      Convention    => C,
      External_Name => "wolfSSL_write",
