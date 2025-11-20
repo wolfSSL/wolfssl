@@ -47,6 +47,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/chacha.h \
                          wolfssl/wolfcrypt/chacha20_poly1305.h \
                          wolfssl/wolfcrypt/random.h \
+                         wolfssl/wolfcrypt/wolfentropy.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
                          wolfssl/wolfcrypt/rc2.h \

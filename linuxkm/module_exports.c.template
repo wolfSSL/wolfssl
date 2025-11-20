@@ -62,6 +62,9 @@
 #if defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/integer.h>
 #else
+    #ifdef HAVE_ENTROPY_MEMUSE
+        #include <wolfssl/wolfcrypt/wolfentropy.h>
+    #endif
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 #include <wolfssl/wolfcrypt/coding.h>
