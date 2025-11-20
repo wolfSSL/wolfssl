@@ -1626,9 +1626,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
     #ifdef WC_RSA_PSS
             if (ssl)
-                ssl->ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1u : 0u;
+                ssl->ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1U : 0U;
             else
-                ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1u : 0u;
+                ctx->useRsaPss = (cert->keyOID == RSAPSSk) ? 1U : 0U;
     #endif
             break;
 #endif /* !NO_RSA */
