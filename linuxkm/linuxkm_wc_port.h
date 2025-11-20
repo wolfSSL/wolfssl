@@ -428,7 +428,9 @@
          */
         #ifdef __PIE__
             #include <linux/mm_types.h>
+            #if USE_SPLIT_PMD_PTLOCKS
             static __always_inline struct page *pmd_to_page(pmd_t *pmd);
+            #endif
         #endif
         #include <linux/mm.h>
     #endif
@@ -496,10 +498,21 @@
             #endif /* linux ver >= 6.13 */
 
             #if defined(_LINUX_REFCOUNT_H) || defined(_LINUX_REFCOUNT_TYPES_H)
-                #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount.refs)))
+                static inline int wc_lkm_refcount_to_int(refcount_t *refcount) {
+                    _Pragma("GCC diagnostic push");
+                    _Pragma("GCC diagnostic ignored \"-Wnested-externs\"");
+                    return atomic_read(&(refcount->refs));
+                    _Pragma("GCC diagnostic pop");
+                }
             #else
-                #define WC_LKM_REFCOUNT_TO_INT(refcount) (atomic_read(&(refcount)))
+                static inline int wc_lkm_refcount_to_int(atomic_t *refcount) {
+                    _Pragma("GCC diagnostic push");
+                    _Pragma("GCC diagnostic ignored \"-Wnested-externs\"");
+                    return atomic_read(&refcount);
+                    _Pragma("GCC diagnostic pop");
+                }
             #endif
+            #define WC_LKM_REFCOUNT_TO_INT(refcount) wc_lkm_refcount_to_int(&(refcount))
         #endif /* !__PIE__ */
     #endif /* LINUXKM_LKCAPI_REGISTER */
 
@@ -747,7 +760,7 @@
         __wc_bss_start[],
         __wc_bss_end[];
     extern const unsigned int wc_linuxkm_pie_reloc_tab[];
-    extern const size_t wc_linuxkm_pie_reloc_tab_length;
+    extern const unsigned long wc_linuxkm_pie_reloc_tab_length;
     extern ssize_t wc_linuxkm_normalize_relocations(
         const u8 *text_in,
         size_t text_in_len,

@@ -9824,8 +9824,8 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
  * then curve25519() won't get its WOLFSSL_LOCAL attribute unless we dummy-call
  * it here.
  */
-#if defined(WOLFSSL_API_PREFIX_MAP) && !defined(HAVE_CURVE25519) && \
-    !defined(FREESCALE_LTC_ECC)
+#if defined(CURVED25519_ASM) && defined(WOLFSSL_API_PREFIX_MAP) && \
+    !defined(HAVE_CURVE25519) && !defined(FREESCALE_LTC_ECC)
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void);
 WOLFSSL_LOCAL void _wc_curve25519_dummy(void) {
     (void)curve25519((byte *)0, (byte *)0, (const byte *)0);
