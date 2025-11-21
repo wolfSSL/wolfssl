@@ -37448,3 +37448,333 @@ int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
     \sa wolfSSL_AllowEncryptThenMac
 */
 int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX* ctx, int set);
+
+/*!
+    \ingroup Setup
+
+    \brief Allows encrypt-then-MAC.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s WOLFSSL object
+    \param set Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_AllowEncryptThenMac(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_CTX_AllowEncryptThenMac
+*/
+int wolfSSL_AllowEncryptThenMac(WOLFSSL *s, int set);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Checks EVP key parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx EVP key context
+
+    _Example_
+    \code
+    int ret = wolfSSL_EVP_PKEY_param_check(pkeyCtx);
+    \endcode
+
+    \sa wolfSSL_EVP_PKEY_CTX_new
+*/
+int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets context security level.
+
+    \return none
+
+    \param ctx Context
+    \param level Security level
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_security_level(ctx, 2);
+    \endcode
+
+    \sa wolfSSL_CTX_get_security_level
+*/
+void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets context security level.
+
+    \return int Security level
+
+    \param ctx Context
+
+    _Example_
+    \code
+    int level = wolfSSL_CTX_get_security_level(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_security_level
+*/
+int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if session is resumable.
+
+    \return WOLFSSL_SUCCESS if resumable
+    \return WOLFSSL_FAILURE if not resumable
+
+    \param s Session
+
+    _Example_
+    \code
+    int resumable = wolfSSL_SESSION_is_resumable(session);
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees memory with tracking.
+
+    \return none
+
+    \param str Pointer
+    \param file File name
+    \param line Line number
+
+    _Example_
+    \code
+    wolfSSL_CRYPTO_free(ptr, __FILE__, __LINE__);
+    \endcode
+
+    \sa wolfSSL_CRYPTO_malloc
+*/
+void wolfSSL_CRYPTO_free(void *str, const char *file, int line);
+
+/*!
+    \ingroup Setup
+
+    \brief Creates new configuration context.
+
+    \return WOLFSSL_CONF_CTX* Context
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_CONF_CTX* cctx = wolfSSL_CONF_CTX_new();
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_free
+*/
+WOLFSSL_CONF_CTX* wolfSSL_CONF_CTX_new(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees configuration context.
+
+    \return none
+
+    \param cctx Configuration context
+
+    _Example_
+    \code
+    wolfSSL_CONF_CTX_free(cctx);
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_new
+*/
+void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets SSL context for configuration.
+
+    \return none
+
+    \param cctx Configuration context
+    \param ctx SSL context
+
+    _Example_
+    \code
+    wolfSSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_new
+*/
+void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx,
+                                   WOLFSSL_CTX *ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets configuration flags.
+
+    \return unsigned int Flags
+
+    \param cctx Configuration context
+    \param flags Flags
+
+    _Example_
+    \code
+    unsigned int flags = wolfSSL_CONF_CTX_set_flags(cctx,
+                                                     SSL_CONF_FLAG_SERVER);
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_new
+*/
+unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx,
+                                         unsigned int flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Finishes configuration context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cctx Configuration context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CONF_CTX_finish(cctx);
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_new
+*/
+int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Executes configuration command.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param cctx Configuration context
+    \param cmd Command
+    \param value Value
+
+    _Example_
+    \code
+    int ret = wolfSSL_CONF_cmd(cctx, "Protocol", "TLSv1.2");
+    \endcode
+
+    \sa wolfSSL_CONF_CTX_new
+*/
+int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd,
+                     const char* value);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets configuration command value type.
+
+    \return int Value type
+
+    \param cctx Configuration context
+    \param cmd Command
+
+    _Example_
+    \code
+    int type = wolfSSL_CONF_cmd_value_type(cctx, "Protocol");
+    \endcode
+
+    \sa wolfSSL_CONF_cmd
+*/
+int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets DTLS CID max size.
+
+    \return int Max size
+
+    _Example_
+    \code
+    int maxSize = wolfSSL_dtls_cid_max_size();
+    \endcode
+
+    \sa wolfSSL_dtls_cid_set
+*/
+int wolfSSL_dtls_cid_max_size(void);
+
+/*!
+    \ingroup Setup
+
+    \brief Parses DTLS CID from message.
+
+    \return const unsigned char* CID pointer
+    \return NULL on failure
+
+    \param msg Message
+    \param msgSz Message size
+    \param cidSz CID size
+
+    _Example_
+    \code
+    const unsigned char* cid = wolfSSL_dtls_cid_parse(msg, msgSz, cidSz);
+    \endcode
+
+    \sa wolfSSL_dtls_cid_set
+*/
+const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
+                                             unsigned int msgSz,
+                                             unsigned int cidSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Allows DTLS 1.3 ClientHello fragmentation.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param enabled Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_dtls13_allow_ch_frag(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_dtls13_no_hrr_on_resume
+*/
+int wolfSSL_dtls13_allow_ch_frag(WOLFSSL *ssl, int enabled);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables HRR on DTLS 1.3 resume.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param enabled Enable flag
+
+    _Example_
+    \code
+    int ret = wolfSSL_dtls13_no_hrr_on_resume(ssl, 1);
+    \endcode
+
+    \sa wolfSSL_dtls13_allow_ch_frag
+*/
+int wolfSSL_dtls13_no_hrr_on_resume(WOLFSSL *ssl, int enabled);
