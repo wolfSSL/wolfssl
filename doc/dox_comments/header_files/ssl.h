@@ -2732,8 +2732,38 @@ int  wolfSSL_write(WOLFSSL* ssl, const void* data, int sz);
 /*!
     \ingroup IO
 
+    \brief Writes data to SSL connection with size_t parameters.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to write to
+    \param data Buffer containing data to write
+    \param sz Number of bytes to write
+    \param wr Pointer to store number of bytes written
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    const char* msg = "Hello";
+    size_t written;
+    int ret = wolfSSL_write_ex(ssl, msg, strlen(msg), &written);
+    if (ret == SSL_SUCCESS) {
+        printf("Wrote %zu bytes\n", written);
+    }
+    \endcode
+
+    \sa wolfSSL_write
+    \sa wolfSSL_read_ex
+*/
+int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, size_t sz,
+                      size_t* wr);
+
+/*!
+    \ingroup IO
+
     \brief This function reads sz bytes from the SSL session (ssl)
-    internal read buffer into the buffer data. The bytes read are removed
+    internal read buffer into the buffer data.The bytes read are removed
     from the internal receive buffer. If necessary wolfSSL_read() will
     negotiate an SSL/TLS session if the handshake has not already been
     performed yet by wolfSSL_connect() or wolfSSL_accept(). The SSL/TLS
@@ -2790,10 +2820,39 @@ int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
 /*!
     \ingroup IO
 
+    \brief Reads data from SSL connection with size_t parameters.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to read from
+    \param data Buffer to store read data
+    \param sz Maximum number of bytes to read
+    \param rd Pointer to store number of bytes read
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    char buffer[1024];
+    size_t bytes_read;
+    int ret = wolfSSL_read_ex(ssl, buffer, sizeof(buffer), &bytes_read);
+    if (ret == SSL_SUCCESS) {
+        printf("Read %zu bytes\n", bytes_read);
+    }
+    \endcode
+
+    \sa wolfSSL_read
+    \sa wolfSSL_write_ex
+*/
+int wolfSSL_read_ex(WOLFSSL* ssl, void* data, size_t sz, size_t* rd);
+
+/*!
+    \ingroup IO
+
     \brief This function copies sz bytes from the SSL session (ssl) internal
     read buffer into the buffer data. This function is identical to
     wolfSSL_read() except that the data in the internal SSL session
-    receive buffer is not removed or modified. If necessary, like
+    receive buffer is not removed or modified.If necessary, like
     wolfSSL_read(), wolfSSL_peek() will negotiate an SSL/TLS session if
     the handshake has not already been performed yet by wolfSSL_connect()
     or wolfSSL_accept(). The SSL/TLS protocol uses SSL records which have a
