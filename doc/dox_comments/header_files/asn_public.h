@@ -1484,6 +1484,111 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 
 /*!
     \ingroup ASN
+    \brief Gets PEM header and footer strings for given type.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+
+    \param type PEM type (CERT_TYPE, PRIVATEKEY_TYPE, etc.)
+    \param header Pointer to header string pointer
+    \param footer Pointer to footer string pointer
+
+    _Example_
+    \code
+    const char* header;
+    const char* footer;
+    int ret = wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer);
+    \endcode
+
+    \sa wc_PemToDer
+*/
+int wc_PemGetHeaderFooter(int type, const char** header,
+                          const char** footer);
+
+/*!
+    \ingroup ASN
+    \brief Allocates DER buffer with specified length and type.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if pDer is NULL
+    \return MEMORY_E if allocation fails
+
+    \param pDer Pointer to DerBuffer pointer to allocate
+    \param length Length of buffer to allocate
+    \param type Buffer type for tracking
+    \param heap Heap hint for memory allocation
+
+    _Example_
+    \code
+    DerBuffer* der = NULL;
+    int ret = wc_AllocDer(&der, 1024, CERT_TYPE, NULL);
+    if (ret == 0) {
+        // Use der->buffer
+        wc_FreeDer(&der);
+    }
+    \endcode
+
+    \sa wc_FreeDer
+*/
+int wc_AllocDer(DerBuffer** pDer, word32 length, int type,
+                void* heap);
+
+/*!
+    \ingroup ASN
+    \brief Frees DER buffer allocated by wc_AllocDer or wc_PemToDer.
+
+    \param pDer Pointer to DerBuffer pointer to free
+
+    _Example_
+    \code
+    DerBuffer* der = NULL;
+    wc_AllocDer(&der, 1024, CERT_TYPE, NULL);
+    // Use der
+    wc_FreeDer(&der);
+    \endcode
+
+    \sa wc_AllocDer
+    \sa wc_PemToDer
+*/
+void wc_FreeDer(DerBuffer** pDer);
+
+/*!
+    \ingroup ASN
+    \brief Converts PEM to DER format with encryption info support.
+
+    \return 0 on success
+    \return negative on error
+
+    \param buff PEM buffer
+    \param longSz Size of PEM buffer
+    \param type PEM type (CERT_TYPE, PRIVATEKEY_TYPE, etc.)
+    \param pDer Pointer to DerBuffer pointer to allocate
+    \param heap Heap hint for memory allocation
+    \param info Encryption info for encrypted PEM
+    \param keyFormat Pointer to store key format
+
+    _Example_
+    \code
+    const unsigned char* pem;
+    DerBuffer* der = NULL;
+    EncryptedInfo info;
+    int keyFormat;
+    int ret = wc_PemToDer(pem, pemSz, PRIVATEKEY_TYPE, &der,
+                          NULL, &info, &keyFormat);
+    if (ret == 0) {
+        wc_FreeDer(&der);
+    }
+    \endcode
+
+    \sa wc_PemCertToDer
+    \sa wc_FreeDer
+*/
+int wc_PemToDer(const unsigned char* buff, long longSz, int type,
+                DerBuffer** pDer, void* heap, EncryptedInfo* info,
+                int* keyFormat);
+
+/*!
+    \ingroup ASN
 
     \brief This function converts a pem certificate to a der certificate,
     and places the resulting certificate in the derBuf buffer provided.
