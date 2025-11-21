@@ -2735,6 +2735,224 @@ int wc_Ed25519PublicKeyToDer(const ed25519_key* key, byte* output,
                               int inLen);
 
 /*!
+    \ingroup Ed448
+    \brief Decodes Ed448 private key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed448 private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed448 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    ed448_key key;
+    word32 idx = 0;
+    int ret = wc_Ed448PrivateKeyDecode(derBuf, &idx, &key,
+                                       derSz);
+    \endcode
+
+    \sa wc_Ed448PrivateKeyToDer
+*/
+int wc_Ed448PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                              ed448_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed448
+    \brief Decodes Ed448 public key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Ed448 public key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Ed448 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    ed448_key key;
+    word32 idx = 0;
+    int ret = wc_Ed448PublicKeyDecode(derBuf, &idx, &key,
+                                      derSz);
+    \endcode
+
+    \sa wc_Ed448PublicKeyToDer
+*/
+int wc_Ed448PublicKeyDecode(const byte* input, word32* inOutIdx,
+                             ed448_key* key, word32 inSz);
+
+/*!
+    \ingroup Ed448
+    \brief Encodes Ed448 key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed448 key structure
+    \param output Buffer for DER encoded key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed448_key key;
+    byte der[1024];
+    int derSz = wc_Ed448KeyToDer(&key, der, sizeof(der));
+    \endcode
+
+    \sa wc_Ed448PrivateKeyToDer
+*/
+int wc_Ed448KeyToDer(ed448_key* key, byte* output, word32 inLen);
+
+/*!
+    \ingroup Ed448
+    \brief Encodes Ed448 private key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed448 key structure with private key
+    \param output Buffer for DER encoded private key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed448_key key;
+    byte der[1024];
+    int derSz = wc_Ed448PrivateKeyToDer(&key, der,
+                                        sizeof(der));
+    \endcode
+
+    \sa wc_Ed448PrivateKeyDecode
+*/
+int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output,
+                             word32 inLen);
+
+/*!
+    \ingroup Ed448
+    \brief Encodes Ed448 public key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Ed448 key structure with public key
+    \param output Buffer for DER encoded public key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ed448_key key;
+    byte der[1024];
+    int derSz = wc_Ed448PublicKeyToDer(&key, der,
+                                       sizeof(der));
+    \endcode
+
+    \sa wc_Ed448PublicKeyDecode
+*/
+int wc_Ed448PublicKeyToDer(ed448_key* key, byte* output,
+                            int inLen);
+
+/*!
+    \ingroup Curve448
+    \brief Decodes Curve448 private key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Curve448 private key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Curve448 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    curve448_key key;
+    word32 idx = 0;
+    int ret = wc_Curve448PrivateKeyDecode(derBuf, &idx, &key,
+                                          derSz);
+    \endcode
+
+    \sa wc_Curve448PrivateKeyToDer
+*/
+int wc_Curve448PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                 curve448_key* key, word32 inSz);
+
+/*!
+    \ingroup Curve448
+    \brief Decodes Curve448 public key from DER format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param input DER encoded Curve448 public key buffer
+    \param inOutIdx Pointer to index in buffer
+    \param key Curve448 key structure to store key
+    \param inSz Size of input buffer
+
+    _Example_
+    \code
+    curve448_key key;
+    word32 idx = 0;
+    int ret = wc_Curve448PublicKeyDecode(derBuf, &idx, &key,
+                                         derSz);
+    \endcode
+
+    \sa wc_Curve448PublicKeyToDer
+*/
+int wc_Curve448PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                curve448_key* key, word32 inSz);
+
+/*!
+    \ingroup Curve448
+    \brief Encodes Curve448 private key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Curve448 key structure with private key
+    \param output Buffer for DER encoded private key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    curve448_key key;
+    byte der[1024];
+    int derSz = wc_Curve448PrivateKeyToDer(&key, der,
+                                           sizeof(der));
+    \endcode
+
+    \sa wc_Curve448PrivateKeyDecode
+*/
+int wc_Curve448PrivateKeyToDer(curve448_key* key, byte* output,
+                                word32 inLen);
+
+/*!
+    \ingroup Curve448
+    \brief Encodes Curve448 public key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Curve448 key structure with public key
+    \param output Buffer for DER encoded public key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    curve448_key key;
+    byte der[1024];
+    int derSz = wc_Curve448PublicKeyToDer(&key, der,
+                                          sizeof(der));
+    \endcode
+
+    \sa wc_Curve448PublicKeyDecode
+*/
+int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output,
+                               word32 inLen);
+
+/*!
     \ingroup ASN
 
     \brief This function encodes a digital signature into the output buffer,
