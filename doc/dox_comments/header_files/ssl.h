@@ -22476,3 +22476,603 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY* key, unsigned char** der);
 */
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey,
                              unsigned char** der);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes public key from buffer with type.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to public key
+    \return NULL on failure
+
+    \param type Key type
+    \param pkey Pointer to store result
+    \param in Pointer to key buffer
+    \param inSz Length of key buffer
+
+    _Example_
+    \code
+    const unsigned char* buf = keyData;
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PublicKey(EVP_PKEY_RSA, NULL,
+                                                     &buf, keyLen);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** pkey,
+                                         const unsigned char** in,
+                                         long inSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes private key from buffer with type.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to private key
+    \return NULL on failure
+
+    \param type Key type
+    \param out Pointer to store result
+    \param in Pointer to key buffer
+    \param inSz Length of key buffer
+
+    _Example_
+    \code
+    const unsigned char* buf = keyData;
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                                      &buf, keyLen);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PublicKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
+                                          const unsigned char** in,
+                                          long inSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes private key with heap and device ID.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to private key
+    \return NULL on failure
+
+    \param type Key type
+    \param out Pointer to store result
+    \param heap Heap hint
+    \param devId Device ID
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PrivateKey_id(EVP_PKEY_RSA,
+                                                         NULL, NULL,
+                                                         INVALID_DEVID);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_id(int type,
+                                              WOLFSSL_EVP_PKEY** out,
+                                              void* heap, int devId);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Decodes private key from EVP format.
+
+    \return WOLFSSL_EVP_PKEY* Pointer to private key
+    \return NULL on failure
+
+    \param key Pointer to store result
+    \param in Pointer to key buffer
+    \param inSz Length of key buffer
+
+    _Example_
+    \code
+    unsigned char* buf = keyData;
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PrivateKey_EVP(NULL, &buf,
+                                                          keyLen);
+    if (pkey != NULL) {
+        wolfSSL_EVP_PKEY_free(pkey);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** key,
+                                               unsigned char** in,
+                                               long inSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes private key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param key Private key to encode
+    \param der Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                                                      &buf, len);
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_PrivateKey(pkey, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PrivateKey
+*/
+int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key,
+                            unsigned char** der);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Encodes public key to DER.
+
+    \return int Length of DER encoding
+    \return negative value on failure
+
+    \param key Public key to encode
+    \param der Pointer to store DER buffer
+
+    _Example_
+    \code
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_d2i_PublicKey(EVP_PKEY_RSA, NULL,
+                                                     &buf, len);
+    unsigned char* der = NULL;
+    int derLen = wolfSSL_i2d_PublicKey(pkey, &der);
+    if (derLen > 0) {
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_PublicKey
+*/
+int wolfSSL_i2d_PublicKey(const WOLFSSL_EVP_PKEY* key,
+                           unsigned char** der);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Writes private key to BIO in DER format.
+
+    \return int Length written
+    \return negative value on failure
+
+    \param bio BIO to write to
+    \param key Private key to write
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_file("key.der", "wb");
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_EVP_PKEY_new();
+    int ret = wolfSSL_i2d_PrivateKey_bio(bio, pkey);
+    \endcode
+
+    \sa wolfSSL_i2d_PrivateKey
+*/
+int wolfSSL_i2d_PrivateKey_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Prints public key to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param out BIO to write to
+    \param pkey Public key to print
+    \param indent Indentation level
+    \param pctx Print context
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_X509_get_pubkey(x509);
+    int ret = wolfSSL_EVP_PKEY_print_public(bio, pkey, 0, NULL);
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey
+*/
+int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
+                                    const WOLFSSL_EVP_PKEY* pkey,
+                                    int indent, WOLFSSL_ASN1_PCTX* pctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Compares ASN1_TIME with current time.
+
+    \return negative if time is before current time
+    \return 0 if time equals current time
+    \return positive if time is after current time
+
+    \param asnTime ASN1_TIME to compare
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* notAfter = wolfSSL_X509_get_notAfter(x509);
+    int cmp = wolfSSL_X509_cmp_current_time(notAfter);
+    if (cmp < 0) {
+        printf("Certificate has expired\n");
+    }
+    \endcode
+
+    \sa wolfSSL_X509_cmp_time
+*/
+int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Compares ASN1_TIME with specified time.
+
+    \return negative if asnTime is before cmpTime
+    \return 0 if times are equal
+    \return positive if asnTime is after cmpTime
+
+    \param asnTime ASN1_TIME to compare
+    \param cmpTime Time to compare against
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* notAfter = wolfSSL_X509_get_notAfter(x509);
+    time_t checkTime = time(NULL) + 86400;
+    int cmp = wolfSSL_X509_cmp_time(notAfter, &checkTime);
+    \endcode
+
+    \sa wolfSSL_X509_cmp_current_time
+*/
+int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime,
+                           time_t* cmpTime);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Adjusts ASN1_TIME by offset.
+
+    \return WOLFSSL_ASN1_TIME* Pointer to adjusted time
+    \return NULL on failure
+
+    \param s ASN1_TIME to adjust (NULL to allocate new)
+    \param adj Adjustment in seconds
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* time = wolfSSL_X509_gmtime_adj(NULL, 86400);
+    if (time != NULL) {
+        printf("Time 24 hours from now\n");
+        wolfSSL_ASN1_TIME_free(time);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_cmp_current_time
+*/
+WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME* s,
+                                             long adj);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets count of revoked certificates.
+
+    \return int Number of revoked certificates
+
+    \param revoked Revoked certificate stack
+
+    _Example_
+    \code
+    WOLFSSL_X509_REVOKED* revoked = wolfSSL_X509_CRL_get_REVOKED(crl);
+    int count = wolfSSL_sk_X509_REVOKED_num(revoked);
+    printf("CRL has %d revoked certificates\n", count);
+    \endcode
+
+    \sa wolfSSL_X509_CRL_get_REVOKED
+*/
+int wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED* revoked);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verification time for store context.
+
+    \return none
+
+    \param ctx X509_STORE_CTX to set time for
+    \param flags Flags
+    \param t Time to set
+
+    _Example_
+    \code
+    WOLFSSL_X509_STORE_CTX* ctx = wolfSSL_X509_STORE_CTX_new();
+    time_t checkTime = time(NULL) - 86400;
+    wolfSSL_X509_STORE_CTX_set_time(ctx, 0, checkTime);
+    \endcode
+
+    \sa wolfSSL_X509_STORE_CTX_init
+*/
+void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
+                                       unsigned long flags, time_t t);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Creates new X509_VERIFY_PARAM.
+
+    \return WOLFSSL_X509_VERIFY_PARAM* Pointer to new param
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    if (param != NULL) {
+        wolfSSL_X509_VERIFY_PARAM_free(param);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_free
+*/
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Frees X509_VERIFY_PARAM.
+
+    \return none
+
+    \param param X509_VERIFY_PARAM to free
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    wolfSSL_X509_VERIFY_PARAM_free(param);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_new
+*/
+void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM* param);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets verification flags.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param param X509_VERIFY_PARAM to modify
+    \param flags Flags to set
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_set_flags(param,
+                                                    X509_V_FLAG_CRL_CHECK);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_get_flags
+*/
+int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM* param,
+                                          unsigned long flags);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets verification flags.
+
+    \return int Verification flags
+
+    \param param X509_VERIFY_PARAM to get flags from
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int flags = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    printf("Flags: 0x%x\n", flags);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set_flags
+*/
+int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM* param);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Clears verification flags.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param param X509_VERIFY_PARAM to modify
+    \param flags Flags to clear
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_clear_flags(param,
+                                                      X509_V_FLAG_CRL_CHECK);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set_flags
+*/
+int wolfSSL_X509_VERIFY_PARAM_clear_flags(
+    WOLFSSL_X509_VERIFY_PARAM* param, unsigned long flags);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets host flags for verification.
+
+    \return none
+
+    \param param X509_VERIFY_PARAM to modify
+    \param flags Host flags to set
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(param,
+                                              X509_CHECK_FLAG_NO_WILDCARDS);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set1_host
+*/
+void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
+    WOLFSSL_X509_VERIFY_PARAM* param, unsigned int flags);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets expected hostname for verification.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object to set hostname for
+    \param name Hostname to verify
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_set1_host(ssl, "www.example.com");
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set1_host
+*/
+int wolfSSL_set1_host(WOLFSSL* ssl, const char* name);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets expected hostname in verify param.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param pParam X509_VERIFY_PARAM to modify
+    \param name Hostname to verify
+    \param nameSz Length of hostname
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_set1_host(param,
+                                                    "www.example.com", 0);
+    \endcode
+
+    \sa wolfSSL_set1_host
+*/
+int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
+                                          const char* name,
+                                          unsigned int nameSz);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets expected IP address from ASCII string.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param param X509_VERIFY_PARAM to modify
+    \param ipasc IP address string
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param,
+                                                      "192.168.1.1");
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set1_ip
+*/
+int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM* param,
+                                            const char* ipasc);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets expected IP address from binary.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param param X509_VERIFY_PARAM to modify
+    \param ip IP address bytes
+    \param iplen Length of IP address
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param = wolfSSL_X509_VERIFY_PARAM_new();
+    unsigned char ip[4] = {192, 168, 1, 1};
+    int ret = wolfSSL_X509_VERIFY_PARAM_set1_ip(param, ip, 4);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
+*/
+int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
+                                        const unsigned char* ip,
+                                        size_t iplen);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Copies verification parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param to Destination param
+    \param from Source param
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param1 = wolfSSL_X509_VERIFY_PARAM_new();
+    WOLFSSL_X509_VERIFY_PARAM* param2 = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_set1(param1, param2);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_inherit
+*/
+int wolfSSL_X509_VERIFY_PARAM_set1(WOLFSSL_X509_VERIFY_PARAM* to,
+                                     const WOLFSSL_X509_VERIFY_PARAM* from);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Inherits verification parameters.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param to Destination param
+    \param from Source param
+
+    _Example_
+    \code
+    WOLFSSL_X509_VERIFY_PARAM* param1 = wolfSSL_X509_VERIFY_PARAM_new();
+    WOLFSSL_X509_VERIFY_PARAM* param2 = wolfSSL_X509_VERIFY_PARAM_new();
+    int ret = wolfSSL_X509_VERIFY_PARAM_inherit(param1, param2);
+    \endcode
+
+    \sa wolfSSL_X509_VERIFY_PARAM_set1
+*/
+int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM* to,
+                                        const WOLFSSL_X509_VERIFY_PARAM* from);
