@@ -18603,3 +18603,530 @@ void wolfSSL_BIO_free_all(WOLFSSL_BIO* bio);
     \sa wolfSSL_BIO_write
 */
 int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz);
+
+/*!
+    \ingroup BIO
+
+    \brief Writes a string to BIO.
+
+    \return int Number of bytes written on success
+    \return negative value on failure
+
+    \param bio BIO to write to
+    \param buf String to write
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    int ret = wolfSSL_BIO_puts(bio, "Hello World");
+    if (ret > 0) {
+        printf("Wrote %d bytes\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_write
+    \sa wolfSSL_BIO_gets
+*/
+int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* buf);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets next BIO in chain.
+
+    \return WOLFSSL_BIO* Pointer to next BIO
+    \return NULL if no next BIO
+
+    \param bio BIO to get next from
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BIO* bio2 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_push(bio1, bio2);
+    WOLFSSL_BIO* next = wolfSSL_BIO_next(bio1);
+    \endcode
+
+    \sa wolfSSL_BIO_push
+*/
+WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Finds BIO of specified type in chain.
+
+    \return WOLFSSL_BIO* Pointer to BIO of specified type
+    \return NULL if not found
+
+    \param bio BIO chain to search
+    \param type BIO type to find
+
+    _Example_
+    \code
+    WOLFSSL_BIO* chain = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BIO* found = wolfSSL_BIO_find_type(chain, BIO_TYPE_MEM);
+    \endcode
+
+    \sa wolfSSL_BIO_next
+*/
+WOLFSSL_BIO* wolfSSL_BIO_find_type(WOLFSSL_BIO* bio, int type);
+
+/*!
+    \ingroup BIO
+
+    \brief Reads data from BIO.
+
+    \return int Number of bytes read on success
+    \return negative value on failure
+
+    \param bio BIO to read from
+    \param buf Buffer to store data
+    \param len Maximum bytes to read
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    char buffer[256];
+    int ret = wolfSSL_BIO_read(bio, buffer, sizeof(buffer));
+    if (ret > 0) {
+        printf("Read %d bytes\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_write
+    \sa wolfSSL_BIO_gets
+*/
+int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len);
+
+/*!
+    \ingroup BIO
+
+    \brief Writes data to BIO.
+
+    \return int Number of bytes written on success
+    \return negative value on failure
+
+    \param bio BIO to write to
+    \param data Data to write
+    \param len Number of bytes to write
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    const char* msg = "Hello";
+    int ret = wolfSSL_BIO_write(bio, msg, strlen(msg));
+    if (ret > 0) {
+        printf("Wrote %d bytes\n", ret);
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_read
+    \sa wolfSSL_BIO_puts
+*/
+int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len);
+
+/*!
+    \ingroup BIO
+
+    \brief Pushes BIO onto chain.
+
+    \return WOLFSSL_BIO* Pointer to top of chain
+    \return NULL on failure
+
+    \param top Top of BIO chain
+    \param append BIO to append
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BIO* bio2 = wolfSSL_BIO_new(wolfSSL_BIO_f_base64());
+    WOLFSSL_BIO* chain = wolfSSL_BIO_push(bio1, bio2);
+    \endcode
+
+    \sa wolfSSL_BIO_pop
+*/
+WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append);
+
+/*!
+    \ingroup BIO
+
+    \brief Pops BIO from chain.
+
+    \return WOLFSSL_BIO* Pointer to next BIO in chain
+    \return NULL if no next BIO
+
+    \param bio BIO to pop
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    WOLFSSL_BIO* bio2 = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_push(bio1, bio2);
+    WOLFSSL_BIO* next = wolfSSL_BIO_pop(bio1);
+    \endcode
+
+    \sa wolfSSL_BIO_push
+*/
+WOLFSSL_BIO* wolfSSL_BIO_pop(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Flushes BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to flush
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_write(bio, "data", 4);
+    int ret = wolfSSL_BIO_flush(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_write
+*/
+int wolfSSL_BIO_flush(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets number of pending bytes in BIO.
+
+    \return int Number of pending bytes
+    \return 0 if no pending data
+
+    \param bio BIO to query
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_write(bio, "data", 4);
+    int pending = wolfSSL_BIO_pending(bio);
+    printf("Pending: %d bytes\n", pending);
+    \endcode
+
+    \sa wolfSSL_BIO_read
+*/
+int wolfSSL_BIO_pending(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets BIO callback function.
+
+    \return none
+
+    \param bio BIO to set callback for
+    \param callback_func Callback function to set
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_set_callback(bio, my_callback);
+    \endcode
+
+    \sa wolfSSL_BIO_get_callback
+*/
+void wolfSSL_BIO_set_callback(WOLFSSL_BIO* bio,
+                               wolf_bio_info_cb callback_func);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets BIO callback function.
+
+    \return wolf_bio_info_cb Callback function
+    \return NULL if no callback set
+
+    \param bio BIO to get callback from
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolf_bio_info_cb cb = wolfSSL_BIO_get_callback(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_set_callback
+*/
+wolf_bio_info_cb wolfSSL_BIO_get_callback(WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets BIO callback argument.
+
+    \return none
+
+    \param bio BIO to set callback argument for
+    \param arg Callback argument to set
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_set_callback_arg(bio, "my_arg");
+    \endcode
+
+    \sa wolfSSL_BIO_get_callback_arg
+*/
+void wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO* bio, char* arg);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets BIO callback argument.
+
+    \return char* Callback argument
+    \return NULL if no argument set
+
+    \param bio BIO to get callback argument from
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    char* arg = wolfSSL_BIO_get_callback_arg(bio);
+    \endcode
+
+    \sa wolfSSL_BIO_set_callback_arg
+*/
+char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO* bio);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets message digest BIO method.
+
+    \return WOLFSSL_BIO_METHOD* Pointer to BIO method
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_BIO_METHOD* method = wolfSSL_BIO_f_md();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(method);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets message digest context from BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to get context from
+    \param mdcp Pointer to store context pointer
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_f_md());
+    WOLFSSL_EVP_MD_CTX* ctx = NULL;
+    int ret = wolfSSL_BIO_get_md_ctx(bio, &ctx);
+    \endcode
+
+    \sa wolfSSL_BIO_f_md
+*/
+int wolfSSL_BIO_get_md_ctx(WOLFSSL_BIO* bio, WOLFSSL_EVP_MD_CTX** mdcp);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets buffer BIO method.
+
+    \return WOLFSSL_BIO_METHOD* Pointer to BIO method
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_BIO_METHOD* method = wolfSSL_BIO_f_buffer();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(method);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets write buffer size for BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to set buffer size for
+    \param size Buffer size to set
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_f_buffer());
+    long ret = wolfSSL_BIO_set_write_buffer_size(bio, 8192);
+    \endcode
+
+    \sa wolfSSL_BIO_f_buffer
+*/
+long wolfSSL_BIO_set_write_buffer_size(WOLFSSL_BIO* bio, long size);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets SSL BIO method.
+
+    \return WOLFSSL_BIO_METHOD* Pointer to BIO method
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_BIO_METHOD* method = wolfSSL_BIO_f_ssl();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(method);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_ssl(void);
+
+/*!
+    \ingroup BIO
+
+    \brief Creates new socket BIO.
+
+    \return WOLFSSL_BIO* Pointer to new BIO
+    \return NULL on failure
+
+    \param sfd Socket file descriptor
+    \param flag Close flag
+
+    _Example_
+    \code
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_socket(sockfd, BIO_CLOSE);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_socket(int sfd, int flag);
+
+/*!
+    \ingroup BIO
+
+    \brief Creates new datagram BIO.
+
+    \return WOLFSSL_BIO* Pointer to new BIO
+    \return NULL on failure
+
+    \param fd File descriptor
+    \param closeF Close flag
+
+    _Example_
+    \code
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new_dgram(sockfd, BIO_CLOSE);
+    \endcode
+
+    \sa wolfSSL_BIO_new_socket
+*/
+WOLFSSL_BIO* wolfSSL_BIO_new_dgram(int fd, int closeF);
+
+/*!
+    \ingroup BIO
+
+    \brief Checks if BIO is at end of file.
+
+    \return 1 if at EOF
+    \return 0 if not at EOF
+
+    \param b BIO to check
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    if (wolfSSL_BIO_eof(bio)) {
+        printf("At end of file\n");
+    }
+    \endcode
+
+    \sa wolfSSL_BIO_read
+*/
+int wolfSSL_BIO_eof(WOLFSSL_BIO* b);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets memory BIO method.
+
+    \return WOLFSSL_BIO_METHOD* Pointer to BIO method
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_BIO_METHOD* method = wolfSSL_BIO_s_mem();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(method);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void);
+
+/*!
+    \ingroup BIO
+
+    \brief Gets base64 BIO method.
+
+    \return WOLFSSL_BIO_METHOD* Pointer to BIO method
+    \return NULL on failure
+
+    _Example_
+    \code
+    WOLFSSL_BIO_METHOD* method = wolfSSL_BIO_f_base64();
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(method);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+*/
+WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void);
+
+/*!
+    \ingroup BIO
+
+    \brief Sets BIO flags.
+
+    \return none
+
+    \param bio BIO to set flags for
+    \param flags Flags to set
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    \endcode
+
+    \sa wolfSSL_BIO_clear_flags
+*/
+void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags);
+
+/*!
+    \ingroup BIO
+
+    \brief Clears BIO flags.
+
+    \return none
+
+    \param bio BIO to clear flags for
+    \param flags Flags to clear
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    wolfSSL_BIO_clear_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    \endcode
+
+    \sa wolfSSL_BIO_set_flags
+*/
+void wolfSSL_BIO_clear_flags(WOLFSSL_BIO* bio, int flags);
