@@ -16549,3 +16549,380 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
 */
 int wolfSSL_get_sigalg_info(byte first, byte second,
         int* hashAlgo, int* sigAlgo);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets extra data associated with an SSL session.
+
+    \return void* Pointer to the data
+    \return NULL if ssl is NULL or idx is invalid
+
+    \param ssl WOLFSSL object to get data from
+    \param idx Index of the data to retrieve
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    void* data = wolfSSL_get_ex_data(ssl, 0);
+    if (data != NULL) {
+        // use the data
+    }
+    \endcode
+
+    \sa wolfSSL_set_ex_data
+    \sa wolfSSL_get_ex_new_index
+*/
+void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets extra data associated with an SSL session.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to set data for
+    \param idx Index of the data to set
+    \param data Pointer to the data to store
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    void* myData = malloc(sizeof(MyData));
+    int ret = wolfSSL_set_ex_data(ssl, 0, myData);
+    if (ret != SSL_SUCCESS) {
+        // failed to set data
+    }
+    \endcode
+
+    \sa wolfSSL_get_ex_data
+    \sa wolfSSL_set_ex_data_with_cleanup
+*/
+int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets extra data with cleanup callback for an SSL session.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to set data for
+    \param idx Index of the data to set
+    \param data Pointer to the data to store
+    \param cleanup_routine Callback to free data when SSL is freed
+
+    _Example_
+    \code
+    void myCleanup(void* data) {
+        free(data);
+    }
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    void* myData = malloc(sizeof(MyData));
+    int ret = wolfSSL_set_ex_data_with_cleanup(ssl, 0, myData,
+                                                 myCleanup);
+    \endcode
+
+    \sa wolfSSL_set_ex_data
+    \sa wolfSSL_get_ex_data
+*/
+int wolfSSL_set_ex_data_with_cleanup(WOLFSSL* ssl, int idx, void* data,
+                                       wolfSSL_ex_data_cleanup_routine_t
+                                       cleanup_routine);
+
+/*!
+    \ingroup Setup
+
+    \brief Allocates a new index for extra data storage.
+
+    \return int New index on success
+    \return -1 on failure
+
+    \param argValue Unused argument value
+    \param arg Unused argument pointer
+    \param a Callback for new data allocation
+    \param b Callback for data duplication
+    \param c Callback for data cleanup
+
+    _Example_
+    \code
+    int idx = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    if (idx < 0) {
+        // failed to get new index
+    }
+    \endcode
+
+    \sa wolfSSL_set_ex_data
+    \sa wolfSSL_get_ex_data
+*/
+int wolfSSL_get_ex_new_index(long argValue, void* arg,
+                               WOLFSSL_CRYPTO_EX_new* a,
+                               WOLFSSL_CRYPTO_EX_dup* b,
+                               WOLFSSL_CRYPTO_EX_free* c);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets extra data associated with an SSL context.
+
+    \return void* Pointer to the data
+    \return NULL if ctx is NULL or idx is invalid
+
+    \param ctx WOLFSSL_CTX object to get data from
+    \param idx Index of the data to retrieve
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    void* data = wolfSSL_CTX_get_ex_data(ctx, 0);
+    if (data != NULL) {
+        // use the data
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_ex_data
+    \sa wolfSSL_CTX_get_ex_new_index
+*/
+void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets extra data associated with an SSL context.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object to set data for
+    \param idx Index of the data to set
+    \param data Pointer to the data to store
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    void* myData = malloc(sizeof(MyData));
+    int ret = wolfSSL_CTX_set_ex_data(ctx, 0, myData);
+    if (ret != SSL_SUCCESS) {
+        // failed to set data
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_get_ex_data
+    \sa wolfSSL_CTX_set_ex_data_with_cleanup
+*/
+int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets extra data with cleanup callback for an SSL context.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object to set data for
+    \param idx Index of the data to set
+    \param data Pointer to the data to store
+    \param cleanup_routine Callback to free data when CTX is freed
+
+    _Example_
+    \code
+    void myCleanup(void* data) {
+        free(data);
+    }
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    void* myData = malloc(sizeof(MyData));
+    int ret = wolfSSL_CTX_set_ex_data_with_cleanup(ctx, 0, myData,
+                                                     myCleanup);
+    \endcode
+
+    \sa wolfSSL_CTX_set_ex_data
+    \sa wolfSSL_CTX_get_ex_data
+*/
+int wolfSSL_CTX_set_ex_data_with_cleanup(WOLFSSL_CTX* ctx, int idx,
+                                           void* data,
+                                           wolfSSL_ex_data_cleanup_routine_t
+                                           cleanup_routine);
+
+/*!
+    \ingroup Setup
+
+    \brief Allocates a new index for CTX extra data storage.
+
+    \return int New index on success
+    \return -1 on failure
+
+    \param idx Unused index value
+    \param arg Unused argument pointer
+    \param new_func Callback for new data allocation
+    \param dup_func Callback for data duplication
+    \param free_func Callback for data cleanup
+
+    _Example_
+    \code
+    int idx = wolfSSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    if (idx < 0) {
+        // failed to get new index
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_ex_data
+    \sa wolfSSL_CTX_get_ex_data
+*/
+int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
+                                   WOLFSSL_CRYPTO_EX_new* new_func,
+                                   WOLFSSL_CRYPTO_EX_dup* dup_func,
+                                   WOLFSSL_CRYPTO_EX_free* free_func);
+
+/*!
+    \ingroup Setup
+
+    \brief Checks if SSL connection has pending data to read.
+
+    \return 1 if data is pending
+    \return 0 if no data is pending
+
+    \param ssl WOLFSSL object to check
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    if (wolfSSL_has_pending(ssl)) {
+        // read the pending data
+        wolfSSL_read(ssl, buffer, sizeof(buffer));
+    }
+    \endcode
+
+    \sa wolfSSL_pending
+    \sa wolfSSL_read
+*/
+int wolfSSL_has_pending(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets certificate verification callback for context.
+
+    \return none
+
+    \param ctx WOLFSSL_CTX object to set callback for
+    \param cb Callback function for certificate verification
+    \param arg User argument passed to callback
+
+    _Example_
+    \code
+    int verifyCb(int ok, WOLFSSL_X509_STORE_CTX* store) {
+        // custom verification logic
+        return ok;
+    }
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    wolfSSL_CTX_set_cert_verify_callback(ctx, verifyCb, NULL);
+    \endcode
+
+    \sa wolfSSL_CTX_set_verify
+    \sa wolfSSL_set_verify
+*/
+void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
+                                            CertVerifyCallback cb,
+                                            void* arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets the verification result for an SSL session.
+
+    \return none
+
+    \param ssl WOLFSSL object to set result for
+    \param v Verification result value
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    wolfSSL_set_verify_result(ssl, X509_V_OK);
+    \endcode
+
+    \sa wolfSSL_get_verify_result
+    \sa wolfSSL_CTX_set_verify
+*/
+void wolfSSL_set_verify_result(WOLFSSL* ssl, long v);
+
+/*!
+    \ingroup TLS
+
+    \brief Requests client certificate after handshake (TLS 1.3).
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object for the connection
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    // complete handshake first
+    wolfSSL_accept(ssl);
+    // request client certificate
+    int ret = wolfSSL_verify_client_post_handshake(ssl);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to request certificate
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_post_handshake_auth
+    \sa wolfSSL_set_post_handshake_auth
+*/
+int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables post-handshake authentication for context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx WOLFSSL_CTX object to configure
+    \param val 1 to enable, 0 to disable
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    int ret = wolfSSL_CTX_set_post_handshake_auth(ctx, 1);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to enable post-handshake auth
+    }
+    \endcode
+
+    \sa wolfSSL_set_post_handshake_auth
+    \sa wolfSSL_verify_client_post_handshake
+*/
+int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val);
+
+/*!
+    \ingroup Setup
+
+    \brief Enables post-handshake authentication for session.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object to configure
+    \param val 1 to enable, 0 to disable
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    int ret = wolfSSL_set_post_handshake_auth(ssl, 1);
+    if (ret != WOLFSSL_SUCCESS) {
+        // failed to enable post-handshake auth
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_set_post_handshake_auth
+    \sa wolfSSL_verify_client_post_handshake
+*/
+int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val);
