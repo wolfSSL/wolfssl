@@ -1077,6 +1077,32 @@ int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
 
 /*!
     \ingroup ASN
+    \brief Sets authority key ID from public key with generic key type.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return MEMORY_E if memory allocation fails
+
+    \param cert Certificate structure
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    RsaKey key;
+    int ret = wc_SetAuthKeyIdFromPublicKey_ex(&myCert, RSA_TYPE,
+                                              &key);
+    \endcode
+
+    \sa wc_SetAuthKeyIdFromPublicKey
+*/
+int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType,
+                                    void* key);
+
+/*!
+    \ingroup ASN
 
     \brief Set AKID from from DER encoded certificate.
 
@@ -1165,6 +1191,33 @@ int wc_SetAuthKeyId(Cert *cert, const char* file);
 */
 int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
+
+/*!
+    \ingroup ASN
+    \brief Sets subject key ID from public key with generic key type.
+
+    \return 0 on success
+    \return BAD_FUNC_ARG if parameters invalid
+    \return MEMORY_E if memory allocation fails
+    \return PUBLIC_KEY_E if error getting public key
+
+    \param cert Certificate structure
+    \param keyType Key type (RSA_TYPE, ECC_TYPE, ED25519_TYPE, etc.)
+    \param key Pointer to key structure
+
+    _Example_
+    \code
+    Cert myCert;
+    wc_InitCert(&myCert);
+    EccKey key;
+    int ret = wc_SetSubjectKeyIdFromPublicKey_ex(&myCert, ECC_TYPE,
+                                                 &key);
+    \endcode
+
+    \sa wc_SetSubjectKeyIdFromPublicKey
+*/
+int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType,
+                                       void* key);
 
 /*!
     \ingroup ASN
