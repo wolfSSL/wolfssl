@@ -1496,3 +1496,564 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_gcm(void);
     \sa wolfSSL_EVP_sm4_gcm
 */
 const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_sm4_ccm(void);
+
+/*!
+    \ingroup openSSL
+    \brief Creates new EVP_ENCODE_CTX structure for base64 encoding.
+
+    \return Pointer to new EVP_ENCODE_CTX structure on success
+    \return NULL on failure
+
+    \param none No parameters
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    if (ctx != NULL) {
+        wolfSSL_EVP_EncodeInit(ctx);
+    }
+    \endcode
+
+    \sa wolfSSL_EVP_ENCODE_CTX_free
+    \sa wolfSSL_EVP_EncodeInit
+*/
+struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void);
+
+/*!
+    \ingroup openSSL
+    \brief Frees EVP_ENCODE_CTX structure.
+
+    \return none No returns
+
+    \param ctx EVP_ENCODE_CTX structure to free
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_ENCODE_CTX_new
+*/
+void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_ENCODE_CTX for base64 encoding.
+
+    \return none No returns
+
+    \param ctx EVP_ENCODE_CTX structure to initialize
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    wolfSSL_EVP_EncodeInit(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_EncodeUpdate
+    \sa wolfSSL_EVP_EncodeFinal
+*/
+void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Updates base64 encoding with input data.
+
+    \return 1 on success
+    \return 0 on failure
+
+    \param ctx EVP_ENCODE_CTX structure
+    \param out Output buffer for encoded data
+    \param outl Pointer to output length
+    \param in Input data to encode
+    \param inl Input data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    unsigned char out[100];
+    int outl;
+    wolfSSL_EVP_EncodeInit(ctx);
+    wolfSSL_EVP_EncodeUpdate(ctx, out, &outl, data, dataLen);
+    \endcode
+
+    \sa wolfSSL_EVP_EncodeInit
+    \sa wolfSSL_EVP_EncodeFinal
+*/
+int wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx, unsigned char*out,
+                              int *outl, const unsigned char*in, int inl);
+
+/*!
+    \ingroup openSSL
+    \brief Finalizes base64 encoding.
+
+    \return none No returns
+
+    \param ctx EVP_ENCODE_CTX structure
+    \param out Output buffer for final encoded data
+    \param outl Pointer to output length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    unsigned char out[100];
+    int outl;
+    wolfSSL_EVP_EncodeInit(ctx);
+    wolfSSL_EVP_EncodeFinal(ctx, out, &outl);
+    \endcode
+
+    \sa wolfSSL_EVP_EncodeInit
+    \sa wolfSSL_EVP_EncodeUpdate
+*/
+void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx, unsigned char*out,
+                              int *outl);
+
+/*!
+    \ingroup openSSL
+    \brief Encodes data to base64 in one operation.
+
+    \return Length of encoded data on success
+    \return Negative value on failure
+
+    \param out Output buffer for encoded data
+    \param in Input data to encode
+    \param inLen Input data length
+
+    _Example_
+    \code
+    unsigned char out[100];
+    int len = wolfSSL_EVP_EncodeBlock(out, data, dataLen);
+    \endcode
+
+    \sa wolfSSL_EVP_DecodeBlock
+*/
+int wolfSSL_EVP_EncodeBlock(unsigned char *out, const unsigned char *in,
+                             int inLen);
+
+/*!
+    \ingroup openSSL
+    \brief Decodes base64 data in one operation.
+
+    \return Length of decoded data on success
+    \return Negative value on failure
+
+    \param out Output buffer for decoded data
+    \param in Input base64 data to decode
+    \param inLen Input data length
+
+    _Example_
+    \code
+    unsigned char out[100];
+    int len = wolfSSL_EVP_DecodeBlock(out, b64Data, b64Len);
+    \endcode
+
+    \sa wolfSSL_EVP_EncodeBlock
+*/
+int wolfSSL_EVP_DecodeBlock(unsigned char *out, const unsigned char *in,
+                             int inLen);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_ENCODE_CTX for base64 decoding.
+
+    \return none No returns
+
+    \param ctx EVP_ENCODE_CTX structure to initialize
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    wolfSSL_EVP_DecodeInit(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_DecodeUpdate
+    \sa wolfSSL_EVP_DecodeFinal
+*/
+void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Updates base64 decoding with input data.
+
+    \return 1 on success
+    \return 0 on failure
+    \return -1 on decode error
+
+    \param ctx EVP_ENCODE_CTX structure
+    \param out Output buffer for decoded data
+    \param outl Pointer to output length
+    \param in Input base64 data to decode
+    \param inl Input data length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    unsigned char out[100];
+    int outl;
+    wolfSSL_EVP_DecodeInit(ctx);
+    wolfSSL_EVP_DecodeUpdate(ctx, out, &outl, b64Data, b64Len);
+    \endcode
+
+    \sa wolfSSL_EVP_DecodeInit
+    \sa wolfSSL_EVP_DecodeFinal
+*/
+int wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx, unsigned char*out,
+                              int *outl, const unsigned char*in, int inl);
+
+/*!
+    \ingroup openSSL
+    \brief Finalizes base64 decoding.
+
+    \return 1 on success
+    \return 0 on failure
+    \return -1 on decode error
+
+    \param ctx EVP_ENCODE_CTX structure
+    \param out Output buffer for final decoded data
+    \param outl Pointer to output length
+
+    _Example_
+    \code
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    unsigned char out[100];
+    int outl;
+    wolfSSL_EVP_DecodeInit(ctx);
+    int ret = wolfSSL_EVP_DecodeFinal(ctx, out, &outl);
+    \endcode
+
+    \sa wolfSSL_EVP_DecodeInit
+    \sa wolfSSL_EVP_DecodeUpdate
+*/
+int wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx, unsigned char*out,
+                             int *outl);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for BLAKE2b-512.
+
+    \return Pointer to EVP_MD structure for BLAKE2b-512
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_blake2b512();
+    \endcode
+
+    \sa wolfSSL_EVP_blake2s256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for BLAKE2s-256.
+
+    \return Pointer to EVP_MD structure for BLAKE2s-256
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_blake2s256();
+    \endcode
+
+    \sa wolfSSL_EVP_blake2b512
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256(void);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP library.
+
+    \return none No returns
+
+    \param none No parameters
+
+    _Example_
+    \code
+    wolfSSL_EVP_init();
+    \endcode
+
+    \sa wolfSSL_EVP_cleanup
+*/
+void wolfSSL_EVP_init(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns size of message digest in bytes.
+
+    \return Size of digest in bytes
+    \return 0 if type is NULL
+
+    \param type EVP_MD structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    int size = wolfSSL_EVP_MD_size(md);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_type
+    \sa wolfSSL_EVP_MD_block_size
+*/
+int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type);
+
+/*!
+    \ingroup openSSL
+    \brief Returns NID (numeric identifier) of message digest.
+
+    \return NID of message digest
+    \return 0 if type is NULL
+
+    \param type EVP_MD structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    int nid = wolfSSL_EVP_MD_type(md);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_size
+    \sa wolfSSL_EVP_MD_block_size
+*/
+int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type);
+
+/*!
+    \ingroup openSSL
+    \brief Returns flags for message digest.
+
+    \return Flags for message digest
+    \return 0 if md is NULL
+
+    \param md EVP_MD structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    unsigned long flags = wolfSSL_EVP_MD_flags(md);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_type
+    \sa wolfSSL_EVP_MD_size
+*/
+unsigned long wolfSSL_EVP_MD_flags(const WOLFSSL_EVP_MD *md);
+
+/*!
+    \ingroup openSSL
+    \brief Returns block size of message digest in bytes.
+
+    \return Block size in bytes
+    \return 0 if type is NULL
+
+    \param type EVP_MD structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    int blockSize = wolfSSL_EVP_MD_block_size(md);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_size
+    \sa wolfSSL_EVP_MD_type
+*/
+int wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD* type);
+
+/*!
+    \ingroup openSSL
+    \brief Returns public key type for message digest.
+
+    \return Public key NID
+    \return 0 if type is NULL
+
+    \param type EVP_MD structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    int pkeyType = wolfSSL_EVP_MD_pkey_type(md);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_type
+*/
+int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type);
+
+/*!
+    \ingroup openSSL
+    \brief Frees EVP_MD_CTX structure.
+
+    \return none No returns
+
+    \param ctx EVP_MD_CTX structure to free
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX* ctx = wolfSSL_EVP_MD_CTX_new();
+    wolfSSL_EVP_MD_CTX_free(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_new
+*/
+void wolfSSL_EVP_MD_CTX_free(WOLFSSL_EVP_MD_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Initializes EVP_MD_CTX structure.
+
+    \return none No returns
+
+    \param ctx EVP_MD_CTX structure to initialize
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX ctx;
+    wolfSSL_EVP_MD_CTX_init(&ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_cleanup
+*/
+void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Cleans up EVP_MD_CTX structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param ctx EVP_MD_CTX structure to clean up
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX ctx;
+    wolfSSL_EVP_MD_CTX_init(&ctx);
+    wolfSSL_EVP_MD_CTX_cleanup(&ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_init
+*/
+int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Copies EVP_MD_CTX structure.
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param out Destination EVP_MD_CTX structure
+    \param in Source EVP_MD_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX in, out;
+    wolfSSL_EVP_MD_CTX_init(&in);
+    wolfSSL_EVP_MD_CTX_init(&out);
+    wolfSSL_EVP_MD_CTX_copy(&out, &in);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_copy_ex
+*/
+int wolfSSL_EVP_MD_CTX_copy(WOLFSSL_EVP_MD_CTX *out,
+                             const WOLFSSL_EVP_MD_CTX *in);
+
+/*!
+    \ingroup openSSL
+    \brief Copies EVP_MD_CTX structure (extended version).
+
+    \return SSL_SUCCESS on success
+    \return SSL_FAILURE on failure
+
+    \param out Destination EVP_MD_CTX structure
+    \param in Source EVP_MD_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX* in = wolfSSL_EVP_MD_CTX_new();
+    WOLFSSL_EVP_MD_CTX* out = wolfSSL_EVP_MD_CTX_new();
+    wolfSSL_EVP_MD_CTX_copy_ex(out, in);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_copy
+*/
+int wolfSSL_EVP_MD_CTX_copy_ex(WOLFSSL_EVP_MD_CTX *out,
+                                const WOLFSSL_EVP_MD_CTX *in);
+
+/*!
+    \ingroup openSSL
+    \brief Returns NID of message digest in context.
+
+    \return NID of message digest
+    \return 0 if ctx is NULL
+
+    \param ctx EVP_MD_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX* ctx = wolfSSL_EVP_MD_CTX_new();
+    wolfSSL_EVP_DigestInit(ctx, wolfSSL_EVP_sha256());
+    int type = wolfSSL_EVP_MD_CTX_type(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_size
+*/
+int wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Returns size of message digest in context.
+
+    \return Size of digest in bytes
+    \return 0 if ctx is NULL
+
+    \param ctx EVP_MD_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX* ctx = wolfSSL_EVP_MD_CTX_new();
+    wolfSSL_EVP_DigestInit(ctx, wolfSSL_EVP_sha256());
+    int size = wolfSSL_EVP_MD_CTX_size(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_type
+*/
+int wolfSSL_EVP_MD_CTX_size(const WOLFSSL_EVP_MD_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Returns block size of message digest in context.
+
+    \return Block size in bytes
+    \return 0 if ctx is NULL
+
+    \param ctx EVP_MD_CTX structure
+
+    _Example_
+    \code
+    WOLFSSL_EVP_MD_CTX* ctx = wolfSSL_EVP_MD_CTX_new();
+    wolfSSL_EVP_DigestInit(ctx, wolfSSL_EVP_sha256());
+    int blockSize = wolfSSL_EVP_MD_CTX_block_size(ctx);
+    \endcode
+
+    \sa wolfSSL_EVP_MD_CTX_size
+*/
+int wolfSSL_EVP_MD_CTX_block_size(const WOLFSSL_EVP_MD_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Returns NID of cipher.
+
+    \return NID of cipher
+    \return 0 if cipher is NULL
+
+    \param cipher EVP_CIPHER structure
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_cbc();
+    int nid = wolfSSL_EVP_CIPHER_nid(cipher);
+    \endcode
+
+    \sa wolfSSL_EVP_CIPHER_CTX_nid
+*/
+int wolfSSL_EVP_CIPHER_nid(const WOLFSSL_EVP_CIPHER *cipher);
