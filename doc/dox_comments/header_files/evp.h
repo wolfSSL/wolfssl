@@ -442,3 +442,377 @@ int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, int pad);
     \sa wolfSSL_EVP_CIPHER_flags
 */
 unsigned long wolfSSL_EVP_CIPHER_CTX_flags(const WOLFSSL_EVP_CIPHER_CTX *ctx);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for MD4.
+
+    \return Pointer to EVP_MD structure for MD4
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_md4();
+    \endcode
+
+    \sa wolfSSL_EVP_md5
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for MD5.
+
+    \return Pointer to EVP_MD structure for MD5
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_md5();
+    \endcode
+
+    \sa wolfSSL_EVP_sha1
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
+
+/*!
+    \ingroup openSSL
+    \brief Sets password prompt string.
+
+    \return none No returns
+
+    \param prompt Password prompt string
+
+    _Example_
+    \code
+    wolfSSL_EVP_set_pw_prompt("Enter password:");
+    \endcode
+
+    \sa wolfSSL_EVP_read_pw_string
+*/
+void wolfSSL_EVP_set_pw_prompt(const char *prompt);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for MDC2.
+
+    \return Pointer to EVP_MD structure for MDC2
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_mdc2();
+    \endcode
+
+    \sa wolfSSL_EVP_md5
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_mdc2(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA-1.
+
+    \return Pointer to EVP_MD structure for SHA-1
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha1();
+    \endcode
+
+    \sa wolfSSL_EVP_sha256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA-224.
+
+    \return Pointer to EVP_MD structure for SHA-224
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha224();
+    \endcode
+
+    \sa wolfSSL_EVP_sha256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA-256.
+
+    \return Pointer to EVP_MD structure for SHA-256
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha256();
+    \endcode
+
+    \sa wolfSSL_EVP_sha384
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA-384.
+
+    \return Pointer to EVP_MD structure for SHA-384
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha384();
+    \endcode
+
+    \sa wolfSSL_EVP_sha512
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA-512.
+
+    \return Pointer to EVP_MD structure for SHA-512
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha512();
+    \endcode
+
+    \sa wolfSSL_EVP_sha256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHAKE-128.
+
+    \return Pointer to EVP_MD structure for SHAKE-128
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_shake128();
+    \endcode
+
+    \sa wolfSSL_EVP_shake256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_shake128(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHAKE-256.
+
+    \return Pointer to EVP_MD structure for SHAKE-256
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_shake256();
+    \endcode
+
+    \sa wolfSSL_EVP_shake128
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_shake256(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA3-224.
+
+    \return Pointer to EVP_MD structure for SHA3-224
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha3_224();
+    \endcode
+
+    \sa wolfSSL_EVP_sha3_256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA3-256.
+
+    \return Pointer to EVP_MD structure for SHA3-256
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha3_256();
+    \endcode
+
+    \sa wolfSSL_EVP_sha3_384
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA3-384.
+
+    \return Pointer to EVP_MD structure for SHA3-384
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha3_384();
+    \endcode
+
+    \sa wolfSSL_EVP_sha3_512
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_384(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SHA3-512.
+
+    \return Pointer to EVP_MD structure for SHA3-512
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sha3_512();
+    \endcode
+
+    \sa wolfSSL_EVP_sha3_256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_512(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_MD structure for SM3.
+
+    \return Pointer to EVP_MD structure for SM3
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_MD* md = wolfSSL_EVP_sm3();
+    \endcode
+
+    \sa wolfSSL_EVP_sha256
+*/
+const WOLFSSL_EVP_MD* wolfSSL_EVP_sm3(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-ECB.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-ECB.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-ECB.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-ECB
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_ecb();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_cbc
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ecb(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-128-CBC.
+
+    \return Pointer to EVP_CIPHER structure for AES-128-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_128_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_128_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-192-CBC.
+
+    \return Pointer to EVP_CIPHER structure for AES-192-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_192_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_192_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void);
+
+/*!
+    \ingroup openSSL
+    \brief Returns EVP_CIPHER structure for AES-256-CBC.
+
+    \return Pointer to EVP_CIPHER structure for AES-256-CBC
+
+    \param none No parameters
+
+    _Example_
+    \code
+    const WOLFSSL_EVP_CIPHER* cipher = wolfSSL_EVP_aes_256_cbc();
+    \endcode
+
+    \sa wolfSSL_EVP_aes_256_ecb
+*/
+const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void);
