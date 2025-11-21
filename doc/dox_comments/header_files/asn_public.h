@@ -2125,6 +2125,117 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                            ecc_key* key, word32 inSz);
 
 /*!
+    \ingroup ECC
+    \brief Encodes ECC private key to DER format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key ECC key structure with private key
+    \param output Buffer for DER encoded private key
+    \param inLen Size of output buffer
+
+    _Example_
+    \code
+    ecc_key key;
+    byte der[1024];
+    int derSz = wc_EccPrivateKeyToDer(&key, der, sizeof(der));
+    \endcode
+
+    \sa wc_EccPrivateKeyDecode
+*/
+int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
+                          word32 inLen);
+
+/*!
+    \ingroup ECC
+    \brief Calculates DER encoded ECC key size.
+
+    \return Size on success
+    \return negative on error
+
+    \param key ECC key structure
+    \param pub Non-zero to include public key
+
+    _Example_
+    \code
+    ecc_key key;
+    int derSz = wc_EccKeyDerSize(&key, 1);
+    \endcode
+
+    \sa wc_EccPrivateKeyToDer
+*/
+int wc_EccKeyDerSize(ecc_key* key, int pub);
+
+/*!
+    \ingroup ECC
+    \brief Encodes ECC private key to PKCS#8 format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key ECC key structure with private key
+    \param output Buffer for PKCS#8 encoded key
+    \param inLen Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    ecc_key key;
+    byte pkcs8[1024];
+    word32 pkcs8Sz = sizeof(pkcs8);
+    int ret = wc_EccPrivateKeyToPKCS8(&key, pkcs8, &pkcs8Sz);
+    \endcode
+
+    \sa wc_EccPrivateKeyToDer
+*/
+int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
+                             word32* inLen);
+
+/*!
+    \ingroup ECC
+    \brief Encodes ECC key pair to PKCS#8 format.
+
+    \return Size on success
+    \return negative on error
+
+    \param key ECC key structure with key pair
+    \param output Buffer for PKCS#8 encoded key
+    \param inLen Pointer to buffer size (in/out)
+
+    _Example_
+    \code
+    ecc_key key;
+    byte pkcs8[1024];
+    word32 pkcs8Sz = sizeof(pkcs8);
+    int ret = wc_EccKeyToPKCS8(&key, pkcs8, &pkcs8Sz);
+    \endcode
+
+    \sa wc_EccPrivateKeyToPKCS8
+*/
+int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
+                     word32* inLen);
+
+/*!
+    \ingroup ECC
+    \brief Calculates DER encoded ECC public key size.
+
+    \return Size on success
+    \return negative on error
+
+    \param key ECC key structure
+    \param with_AlgCurve Include algorithm and curve if non-zero
+
+    _Example_
+    \code
+    ecc_key key;
+    int derSz = wc_EccPublicKeyDerSize(&key, 1);
+    \endcode
+
+    \sa wc_EccPublicKeyToDer
+*/
+int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve);
+
+/*!
     \ingroup ASN
 
     \brief This function writes a private ECC key to der format.
