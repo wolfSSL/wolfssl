@@ -3197,9 +3197,301 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out,
 
 /*!
     \ingroup ASN
+    \brief Encrypts PKCS#8 key with extended parameters.
+
+    \return Size on success
+    \return negative on error
+
+    \param key Private key buffer
+    \param keySz Size of private key
+    \param out Output buffer for encrypted key
+    \param outSz Pointer to output buffer size (in/out)
+    \param password Password for encryption
+    \param passwordSz Password length
+    \param vPKCS PKCS version
+    \param pbeOid PBE algorithm OID
+    \param encAlgId Encryption algorithm ID
+    \param salt Salt buffer
+    \param saltSz Salt size
+    \param itt Iteration count
+    \param rng Random number generator
+    \param heap Heap hint for memory allocation
+    \param devId Device ID for hardware acceleration
+
+    _Example_
+    \code
+    byte key[256], encrypted[512];
+    word32 encSz = sizeof(encrypted);
+    WC_RNG rng;
+    int ret = wc_EncryptPKCS8Key_ex(key, keySz, encrypted,
+                                    &encSz, "password", 8,
+                                    PKCS5, PBES2, AES256CBCb,
+                                    NULL, 0, 2048, &rng, NULL,
+                                    INVALID_DEVID);
+    \endcode
+
+    \sa wc_EncryptPKCS8Key
+*/
+int wc_EncryptPKCS8Key_ex(byte* key, word32 keySz, byte* out,
+                          word32* outSz, const char* password,
+                          int passwordSz, int vPKCS, int pbeOid,
+                          int encAlgId, byte* salt, word32 saltSz,
+                          int itt, WC_RNG* rng, void* heap,
+                          int devId);
+
+/*!
+    \ingroup ASN
+    \brief Gets current time for certificate operations.
+
+    \return 0 on success
+    \return negative on error
+
+    \param timePtr Pointer to time buffer
+    \param timeSize Size of time buffer
+
+    _Example_
+    \code
+    time_t currentTime;
+    int ret = wc_GetTime(&currentTime, sizeof(currentTime));
+    \endcode
+
+    \sa wc_GetDateInfo
+*/
+int wc_GetTime(void* timePtr, word32 timeSize);
+
+/*!
+    \ingroup ASN
+    \brief Gets encryption info from encrypted PEM.
+
+    \return 0 on success
+    \return negative on error
+
+    \param info EncryptedInfo structure to populate
+    \param cipherName Cipher name string
+
+    _Example_
+    \code
+    EncryptedInfo info;
+    int ret = wc_EncryptedInfoGet(&info, "AES-256-CBC");
+    \endcode
+
+    \sa wc_PemToDer
+*/
+int wc_EncryptedInfoGet(EncryptedInfo* info,
+                        const char* cipherName);
+
+/*!
+    \ingroup ASN
+    \brief Parses PIV certificate format.
+
+    \return 0 on success
+    \return negative on error
+
+    \param cert PIV certificate structure to populate
+    \param buf Buffer containing PIV certificate
+    \param totalSz Size of buffer
+
+    _Example_
+    \code
+    wc_CertPIV cert;
+    int ret = wc_ParseCertPIV(&cert, pivBuf, pivSz);
+    \endcode
+
+    \sa wc_InitDecodedCert
+*/
+int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf,
+                    word32 totalSz);
+
+/*!
+    \ingroup ASN
+    \brief Extracts subject public key info from certificate.
+
+    \return Size on success
+    \return negative on error
+
+    \param certDer DER encoded certificate buffer
+    \param certDerSz Size of certificate
+    \param pubKeyDer Output buffer for public key
+    \param pubKeyDerSz Pointer to output buffer size (in/out)
+
+    _Example_
+    \code
+    byte pubKey[1024];
+    word32 pubKeySz = sizeof(pubKey);
+    int ret = wc_GetSubjectPubKeyInfoDerFromCert(certDer,
+                                                 certSz,
+                                                 pubKey,
+                                                 &pubKeySz);
+    \endcode
+
+    \sa wc_GetPubKeyDerFromCert
+*/
+int wc_GetSubjectPubKeyInfoDerFromCert(const byte* certDer,
+                                       word32 certDerSz,
+                                       byte* pubKeyDer,
+                                       word32* pubKeyDerSz);
+
+/*!
+    \ingroup ASN
+    \brief Extracts UUID from certificate.
+
+    \return 0 on success
+    \return negative on error
+
+    \param cert Decoded certificate structure
+    \param uuid Output buffer for UUID
+    \param uuidSz Pointer to UUID buffer size (in/out)
+
+    _Example_
+    \code
+    DecodedCert cert;
+    byte uuid[16];
+    int uuidSz = sizeof(uuid);
+    int ret = wc_GetUUIDFromCert(&cert, uuid, &uuidSz);
+    \endcode
+
+    \sa wc_ParseCert
+*/
+int wc_GetUUIDFromCert(struct DecodedCert* cert,
+                       byte* uuid, int* uuidSz);
+
+/*!
+    \ingroup ASN
+    \brief Extracts FASCN from certificate.
+
+    \return 0 on success
+    \return negative on error
+
+    \param cert Decoded certificate structure
+    \param fascn Output buffer for FASCN
+    \param fascnSz Pointer to FASCN buffer size (in/out)
+
+    _Example_
+    \code
+    DecodedCert cert;
+    byte fascn[25];
+    int fascnSz = sizeof(fascn);
+    int ret = wc_GetFASCNFromCert(&cert, fascn, &fascnSz);
+    \endcode
+
+    \sa wc_ParseCert
+*/
+int wc_GetFASCNFromCert(struct DecodedCert* cert,
+                        byte* fascn, int* fascnSz);
+
+/*!
+    \ingroup ASN
+    \brief Generates pre-TBS certificate data.
+
+    \return Size on success
+    \return negative on error
+
+    \param cert Decoded certificate structure
+    \param der Output buffer for pre-TBS data
+    \param derSz Size of output buffer
+
+    _Example_
+    \code
+    DecodedCert cert;
+    byte preTbs[2048];
+    int ret = wc_GeneratePreTBS(&cert, preTbs, sizeof(preTbs));
+    \endcode
+
+    \sa wc_MakeCert
+*/
+int wc_GeneratePreTBS(struct DecodedCert* cert, byte *der,
+                      int derSz);
+
+/*!
+    \ingroup ASN
+    \brief Initializes decoded attribute certificate structure.
+
+    \return void
+
+    \param acert Attribute certificate structure to initialize
+    \param heap Heap hint for memory allocation
+
+    _Example_
+    \code
+    DecodedAcert acert;
+    wc_InitDecodedAcert(&acert, NULL);
+    \endcode
+
+    \sa wc_FreeDecodedAcert
+*/
+void wc_InitDecodedAcert(struct DecodedAcert* acert,
+                         void* heap);
+
+/*!
+    \ingroup ASN
+    \brief Frees decoded attribute certificate structure.
+
+    \return void
+
+    \param acert Attribute certificate structure to free
+
+    _Example_
+    \code
+    DecodedAcert acert;
+    wc_InitDecodedAcert(&acert, NULL);
+    wc_FreeDecodedAcert(&acert);
+    \endcode
+
+    \sa wc_InitDecodedAcert
+*/
+void wc_FreeDecodedAcert(struct DecodedAcert * acert);
+
+/*!
+    \ingroup ASN
+    \brief Parses X.509 attribute certificate.
+
+    \return 0 on success
+    \return negative on error
+
+    \param acert Decoded attribute certificate structure
+    \param verify Non-zero to verify signature
+
+    _Example_
+    \code
+    DecodedAcert acert;
+    wc_InitDecodedAcert(&acert, NULL);
+    int ret = wc_ParseX509Acert(&acert, 1);
+    \endcode
+
+    \sa wc_VerifyX509Acert
+*/
+int wc_ParseX509Acert(struct DecodedAcert* acert, int verify);
+
+/*!
+    \ingroup ASN
+    \brief Verifies X.509 attribute certificate.
+
+    \return 0 on success
+    \return negative on error
+
+    \param acert Attribute certificate buffer
+    \param acertSz Size of attribute certificate
+    \param issuerCert Issuer certificate buffer
+    \param issuerCertSz Size of issuer certificate
+    \param cm Certificate manager
+
+    _Example_
+    \code
+    int ret = wc_VerifyX509Acert(acertBuf, acertSz,
+                                 issuerBuf, issuerSz, cm);
+    \endcode
+
+    \sa wc_ParseX509Acert
+*/
+int wc_VerifyX509Acert(const byte* acert, word32 acertSz,
+                       const byte* issuerCert,
+                       word32 issuerCertSz, void* cm);
+
+/*!
+    \ingroup ASN
 
     \brief This function takes an encrypted PKCS#8 DER key and decrypts it to
-     PKCS#8 unencrypted DER. Undoes the encryption done by wc_EncryptPKCS8Key.
+     PKCS#8 unencrypted DER.Undoes the encryption done by wc_EncryptPKCS8Key.
      See RFC5208. The input buffer is overwritten with the decrypted data.
 
     \return The length of the decrypted buffer on success.
