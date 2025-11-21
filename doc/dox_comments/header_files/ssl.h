@@ -31303,3 +31303,496 @@ int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb);
     \sa wolfSSL_UseOCSPStapling
 */
 int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Disables OCSP stapling.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_DisableOCSPStapling(ssl);
+    \endcode
+
+    \sa wolfSSL_EnableOCSPStapling
+*/
+int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CRL from file in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param path CRL file path
+    \param type CRL type
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_LoadCRLFile(ctx, "crl.pem", SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_LoadCRLBuffer
+*/
+int wolfSSL_CTX_LoadCRLFile(WOLFSSL_CTX* ctx, const char* path, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Loads CRL from buffer in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param buff CRL buffer
+    \param sz Buffer size
+    \param type CRL type
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_LoadCRLBuffer(ctx, buf, sz, SSL_FILETYPE_PEM);
+    \endcode
+
+    \sa wolfSSL_CTX_LoadCRLFile
+*/
+int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
+                               long sz, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL error callback in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param cb Callback function
+    \param cbCtx Context pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_SetCRL_ErrorCb(ctx, myCrlErrorCb, ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_SetCRL_IOCb
+*/
+int wolfSSL_CTX_SetCRL_ErrorCb(WOLFSSL_CTX* ctx, crlErrorCb cb, void* cbCtx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets CRL I/O callback in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_SetCRL_IOCb(ctx, myCrlIOCb);
+    \endcode
+
+    \sa wolfSSL_CTX_SetCRL_ErrorCb
+*/
+int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX* ctx, CbCrlIO cb);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Disables OCSP stapling in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_DisableOCSPStapling(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_UseOCSPStapling
+*/
+int wolfSSL_CTX_DisableOCSPStapling(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Enables OCSP must staple in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_EnableOCSPMustStaple(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_DisableOCSPMustStaple
+*/
+int wolfSSL_CTX_EnableOCSPMustStaple(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Disables OCSP must staple in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_DisableOCSPMustStaple(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_EnableOCSPMustStaple
+*/
+int wolfSSL_CTX_DisableOCSPMustStaple(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Creates new RNG in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_new_rng(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_new
+*/
+int wolfSSL_CTX_new_rng(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Keeps handshake resources after handshake.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_KeepHandshakeResources(ssl);
+    \endcode
+
+    \sa wolfSSL_FreeHandshakeResources
+*/
+int wolfSSL_KeepHandshakeResources(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees handshake resources.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_FreeHandshakeResources(ssl);
+    \endcode
+
+    \sa wolfSSL_KeepHandshakeResources
+*/
+int wolfSSL_FreeHandshakeResources(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Uses client cipher suites in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_UseClientSuites(ctx);
+    \endcode
+
+    \sa wolfSSL_UseClientSuites
+*/
+int wolfSSL_CTX_UseClientSuites(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Uses client cipher suites.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_UseClientSuites(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_UseClientSuites
+*/
+int wolfSSL_UseClientSuites(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets heap from context.
+
+    \return void* Heap pointer
+    \return NULL if not set
+
+    \param ctx SSL context
+    \param ssl SSL object
+
+    _Example_
+    \code
+    void* heap = wolfSSL_CTX_GetHeap(ctx, ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_new_ex
+*/
+void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Uses trusted CA extension.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param type CA type
+    \param certId Certificate ID
+    \param certIdSz Certificate ID size
+
+    _Example_
+    \code
+    int ret = wolfSSL_UseTrustedCA(ssl, 0, id, idSz);
+    \endcode
+
+    \sa wolfSSL_CTX_UseTrustedCA
+*/
+int wolfSSL_UseTrustedCA(WOLFSSL* ssl, unsigned char type,
+                          const unsigned char* certId, unsigned int certIdSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Frees peer protocol list.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param list Protocol list
+
+    _Example_
+    \code
+    int ret = wolfSSL_ALPN_FreePeerProtocol(ssl, &list);
+    \endcode
+
+    \sa wolfSSL_ALPN_GetPeerProtocol
+*/
+int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list);
+
+/*!
+    \ingroup Setup
+
+    \brief Uses cookie key share extension.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+    \param sigSpec Signature specification
+    \param sigSpecSz Specification size
+
+    _Example_
+    \code
+    int ret = wolfSSL_UseCKS(ssl, spec, specSz);
+    \endcode
+
+    \sa wolfSSL_CTX_UseCKS
+*/
+int wolfSSL_UseCKS(WOLFSSL* ssl, byte *sigSpec, word16 sigSpecSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Uses cookie key share extension in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param sigSpec Signature specification
+    \param sigSpecSz Specification size
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_UseCKS(ctx, spec, specSz);
+    \endcode
+
+    \sa wolfSSL_UseCKS
+*/
+int wolfSSL_CTX_UseCKS(WOLFSSL_CTX* ctx, byte *sigSpec, word16 sigSpecSz);
+
+/*!
+    \ingroup Setup
+
+    \brief Uses secure renegotiation in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_UseSecureRenegotiation(ctx);
+    \endcode
+
+    \sa wolfSSL_SecureResume
+*/
+int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Securely resumes session.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_SecureResume(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_UseSecureRenegotiation
+*/
+int wolfSSL_SecureResume(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets secure renegotiation support.
+
+    \return 1 if supported
+    \return 0 if not supported
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    long ret = wolfSSL_SSL_get_secure_renegotiation_support(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_UseSecureRenegotiation
+*/
+long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables session tickets for TLS 1.2 in context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_NoTicketTLSv12(ctx);
+    \endcode
+
+    \sa wolfSSL_NoTicketTLSv12
+*/
+int wolfSSL_CTX_NoTicketTLSv12(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Disables session tickets for TLS 1.2.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int ret = wolfSSL_NoTicketTLSv12(ssl);
+    \endcode
+
+    \sa wolfSSL_CTX_NoTicketTLSv12
+*/
+int wolfSSL_NoTicketTLSv12(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets ticket encryption context.
+
+    \return void* Context pointer
+    \return NULL if not set
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    void* ticketCtx = wolfSSL_CTX_get_TicketEncCtx(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_TicketEncCb
+*/
+void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets number of tickets.
+
+    \return size_t Number of tickets
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    size_t num = wolfSSL_CTX_get_num_tickets(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_num_tickets
+*/
+size_t wolfSSL_CTX_get_num_tickets(WOLFSSL_CTX* ctx);
