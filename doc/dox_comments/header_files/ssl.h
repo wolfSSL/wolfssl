@@ -34829,3 +34829,509 @@ int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk);
     \sa wolfSSL_ASN1_BIT_STRING_free
 */
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void);
+
+/*!
+    \ingroup ASN
+
+    \brief Frees ASN1 bit string.
+
+    \return none
+
+    \param str Bit string
+
+    _Example_
+    \code
+    wolfSSL_ASN1_BIT_STRING_free(bs);
+    \endcode
+
+    \sa wolfSSL_ASN1_BIT_STRING_new
+*/
+void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING* str);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets public key bit string from X509.
+
+    \return WOLFSSL_ASN1_BIT_STRING* Bit string
+    \return NULL on failure
+
+    \param x X509 certificate
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_BIT_STRING* bs = wolfSSL_X509_get0_pubkey_bitstr(x509);
+    \endcode
+
+    \sa wolfSSL_X509_get_pubkey
+*/
+WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(
+                                                    const WOLFSSL_X509* x);
+
+/*!
+    \ingroup ASN
+
+    \brief Gets bit from ASN1 bit string.
+
+    \return int Bit value (0 or 1)
+    \return negative on failure
+
+    \param str Bit string
+    \param i Bit index
+
+    _Example_
+    \code
+    int bit = wolfSSL_ASN1_BIT_STRING_get_bit(bs, 5);
+    \endcode
+
+    \sa wolfSSL_ASN1_BIT_STRING_set_bit
+*/
+int wolfSSL_ASN1_BIT_STRING_get_bit(const WOLFSSL_ASN1_BIT_STRING* str,
+                                     int i);
+
+/*!
+    \ingroup ASN
+
+    \brief Sets bit in ASN1 bit string.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param str Bit string
+    \param pos Bit position
+    \param val Bit value (0 or 1)
+
+    _Example_
+    \code
+    int ret = wolfSSL_ASN1_BIT_STRING_set_bit(bs, 5, 1);
+    \endcode
+
+    \sa wolfSSL_ASN1_BIT_STRING_get_bit
+*/
+int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos,
+                                     int val);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts ASN1 bit string to DER.
+
+    \return int Bytes written
+    \return negative on failure
+
+    \param bstr Bit string
+    \param pp Output buffer pointer
+
+    _Example_
+    \code
+    unsigned char* der = NULL;
+    int len = wolfSSL_i2d_ASN1_BIT_STRING(bs, &der);
+    \endcode
+
+    \sa wolfSSL_d2i_ASN1_BIT_STRING
+*/
+int wolfSSL_i2d_ASN1_BIT_STRING(const WOLFSSL_ASN1_BIT_STRING* bstr,
+                                 unsigned char** pp);
+
+/*!
+    \ingroup ASN
+
+    \brief Converts DER to ASN1 bit string.
+
+    \return WOLFSSL_ASN1_BIT_STRING* Bit string
+    \return NULL on failure
+
+    \param out Output bit string pointer
+    \param src DER buffer pointer
+    \param len DER length
+
+    _Example_
+    \code
+    const byte* der = buffer;
+    WOLFSSL_ASN1_BIT_STRING* bs = wolfSSL_d2i_ASN1_BIT_STRING(NULL, &der,
+                                                                len);
+    \endcode
+
+    \sa wolfSSL_i2d_ASN1_BIT_STRING
+*/
+WOLFSSL_ASN1_BIT_STRING* wolfSSL_d2i_ASN1_BIT_STRING(
+                                        WOLFSSL_ASN1_BIT_STRING** out,
+                                        const byte** src, long len);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets SSL version.
+
+    \return int Version
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int ver = wolfSSL_version(ssl);
+    \endcode
+
+    \sa wolfSSL_get_version
+*/
+int wolfSSL_version(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets SSL handshake state.
+
+    \return int State
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    int state = wolfSSL_get_state(ssl);
+    \endcode
+
+    \sa wolfSSL_state
+*/
+int wolfSSL_get_state(const WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets session external data.
+
+    \return void* Data pointer
+    \return NULL on failure
+
+    \param session Session
+    \param idx Index
+
+    _Example_
+    \code
+    void* data = wolfSSL_SESSION_get_ex_data(session, idx);
+    \endcode
+
+    \sa wolfSSL_SESSION_set_ex_data
+*/
+void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session external data.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param session Session
+    \param idx Index
+    \param data Data pointer
+
+    _Example_
+    \code
+    int ret = wolfSSL_SESSION_set_ex_data(session, idx, myData);
+    \endcode
+
+    \sa wolfSSL_SESSION_get_ex_data
+*/
+int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx,
+                                 void* data);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets session external data with cleanup.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param session Session
+    \param idx Index
+    \param data Data pointer
+    \param cleanup_routine Cleanup function
+
+    _Example_
+    \code
+    int ret = wolfSSL_SESSION_set_ex_data_with_cleanup(session, idx,
+                                                         myData, myCleanup);
+    \endcode
+
+    \sa wolfSSL_SESSION_set_ex_data
+*/
+int wolfSSL_SESSION_set_ex_data_with_cleanup(WOLFSSL_SESSION* session,
+                                               int idx, void* data,
+                                               wolfSSL_ex_data_cleanup_routine_t
+                                               cleanup_routine);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets session ID.
+
+    \return const unsigned char* Session ID
+    \return NULL on failure
+
+    \param sess Session
+    \param idLen ID length pointer
+
+    _Example_
+    \code
+    unsigned int len;
+    const unsigned char* id = wolfSSL_SESSION_get_id(session, &len);
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+const unsigned char* wolfSSL_SESSION_get_id(const WOLFSSL_SESSION* sess,
+                                             unsigned int* idLen);
+
+/*!
+    \ingroup Setup
+
+    \brief Prints session to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bp BIO object
+    \param session Session
+
+    _Example_
+    \code
+    int ret = wolfSSL_SESSION_print(bio, session);
+    \endcode
+
+    \sa wolfSSL_get_session
+*/
+int wolfSSL_SESSION_print(WOLFSSL_BIO* bp, const WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets TLS extension host name.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ssl WOLFSSL object
+    \param host_name Host name
+
+    _Example_
+    \code
+    int ret = wolfSSL_set_tlsext_host_name(ssl, "example.com");
+    \endcode
+
+    \sa wolfSSL_get_servername
+*/
+int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets server name.
+
+    \return const char* Server name
+    \return NULL on failure
+
+    \param ssl WOLFSSL object
+    \param type Type
+
+    _Example_
+    \code
+    const char* name = wolfSSL_get_servername(ssl,
+                                               WOLFSSL_SNI_HOST_NAME);
+    \endcode
+
+    \sa wolfSSL_set_tlsext_host_name
+*/
+const char* wolfSSL_get_servername(WOLFSSL* ssl, unsigned char type);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets SSL context.
+
+    \return WOLFSSL_CTX* Context
+    \return NULL on failure
+
+    \param ssl WOLFSSL object
+    \param ctx Context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* newCtx = wolfSSL_set_SSL_CTX(ssl, ctx);
+    \endcode
+
+    \sa wolfSSL_get_SSL_CTX
+*/
+WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets context verify callback.
+
+    \return VerifyCallback Callback function
+
+    \param ctx Context
+
+    _Example_
+    \code
+    VerifyCallback cb = wolfSSL_CTX_get_verify_callback(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_set_verify
+*/
+VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets verify callback.
+
+    \return VerifyCallback Callback function
+
+    \param ssl WOLFSSL object
+
+    _Example_
+    \code
+    VerifyCallback cb = wolfSSL_get_verify_callback(ssl);
+    \endcode
+
+    \sa wolfSSL_set_verify
+*/
+VerifyCallback wolfSSL_get_verify_callback(WOLFSSL* ssl);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets servername callback.
+
+    \return none
+
+    \param ctx Context
+    \param cb Callback function
+
+    _Example_
+    \code
+    wolfSSL_CTX_set_servername_callback(ctx, myCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_set_servername_arg
+*/
+void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx,
+                                          CallbackSniRecv cb);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets servername callback argument.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param arg Argument
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_servername_arg(ctx, myArg);
+    \endcode
+
+    \sa wolfSSL_CTX_set_servername_callback
+*/
+int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets TLS extension servername callback.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx Context
+    \param cb Callback function
+
+    _Example_
+    \code
+    int ret = wolfSSL_CTX_set_tlsext_servername_callback(ctx, myCallback);
+    \endcode
+
+    \sa wolfSSL_CTX_set_servername_callback
+*/
+int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
+                                                 CallbackSniRecv cb);
+
+/*!
+    \ingroup Debug
+
+    \brief Removes thread error state.
+
+    \return none
+
+    \param pid Thread ID
+
+    _Example_
+    \code
+    wolfSSL_ERR_remove_thread_state(NULL);
+    \endcode
+
+    \sa wolfSSL_ERR_clear_error
+*/
+void wolfSSL_ERR_remove_thread_state(void* pid);
+
+/*!
+    \ingroup Debug
+
+    \brief Prints all errors to file.
+
+    \return none
+
+    \param fp File pointer
+
+    _Example_
+    \code
+    wolfSSL_print_all_errors_fp(stderr);
+    \endcode
+
+    \sa wolfSSL_ERR_print_errors_fp
+*/
+void wolfSSL_print_all_errors_fp(XFILE fp);
+
+/*!
+    \ingroup Setup
+
+    \brief Sets thread ID numeric value.
+
+    \return none
+
+    \param id Thread ID
+    \param val Value
+
+    _Example_
+    \code
+    wolfSSL_THREADID_set_numeric(id, 12345);
+    \endcode
+
+    \sa wolfSSL_THREADID_current
+*/
+void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
+
+/*!
+    \ingroup Setup
+
+    \brief Gets current thread ID.
+
+    \return none
+
+    \param id Thread ID
+
+    _Example_
+    \code
+    WOLFSSL_CRYPTO_THREADID tid;
+    wolfSSL_THREADID_current(&tid);
+    \endcode
+
+    \sa wolfSSL_THREADID_set_numeric
+*/
+void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id);
