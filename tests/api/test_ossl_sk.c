@@ -55,7 +55,7 @@ int test_wolfSSL_sk_push_get_node(void)
     WOLFSSL_STACK* stack = NULL;
     WOLFSSL_STACK* node1 = NULL;
     WOLFSSL_STACK* node2 = NULL;
-    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* node = NULL;
 
     ExpectNotNull(node1 = wolfSSL_sk_new_node(HEAP_HINT));
     ExpectNotNull(node2 = wolfSSL_sk_new_node(HEAP_HINT));
