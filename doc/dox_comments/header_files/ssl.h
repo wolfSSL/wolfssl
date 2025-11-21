@@ -26235,3 +26235,544 @@ const char* wolfSSL_X509_get_default_cert_file(void);
     \sa wolfSSL_X509_get_default_cert_dir
 */
 const char* wolfSSL_X509_get_default_cert_dir_env(void);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets default cert directory path.
+
+    \return const char* Default cert directory path
+
+    _Example_
+    \code
+    const char* path = wolfSSL_X509_get_default_cert_dir();
+    printf("Default cert dir: %s\n", path);
+    \endcode
+
+    \sa wolfSSL_X509_get_default_cert_dir_env
+*/
+const char* wolfSSL_X509_get_default_cert_dir(void);
+
+/*!
+    \ingroup openSSL
+
+    \brief Sets session ID context.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param ctx SSL context
+    \param sid_ctx Session ID context
+    \param sid_ctx_len Context length
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    unsigned char sid_ctx[] = "MyApp";
+    int ret = wolfSSL_CTX_set_session_id_context(ctx, sid_ctx,
+                                                   sizeof(sid_ctx));
+    \endcode
+
+    \sa wolfSSL_set_session_id_context
+*/
+int wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX* ctx,
+                                         const unsigned char* sid_ctx,
+                                         unsigned int sid_ctx_len);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets peer certificate.
+
+    \return WOLFSSL_X509* Peer certificate
+    \return NULL if no peer certificate
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_get_peer_certificate(ssl);
+    if (cert != NULL) {
+        wolfSSL_X509_free(cert);
+    }
+    \endcode
+
+    \sa wolfSSL_X509_free
+*/
+WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets what SSL wants to do.
+
+    \return SSL_NOTHING No operation pending
+    \return SSL_WRITING Want to write
+    \return SSL_READING Want to read
+    \return SSL_X509_LOOKUP Want X509 lookup
+
+    \param ssl SSL object
+
+    _Example_
+    \code
+    int want = wolfSSL_want(ssl);
+    if (want == SSL_READING) {
+        printf("SSL wants to read\n");
+    }
+    \endcode
+
+    \sa wolfSSL_want_read
+*/
+int wolfSSL_want(WOLFSSL* ssl);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Gets private key from context.
+
+    \return WOLFSSL_EVP_PKEY* Private key
+    \return NULL if not set
+
+    \param ctx SSL context
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
+    WOLFSSL_EVP_PKEY* pkey = wolfSSL_CTX_get0_privatekey(ctx);
+    \endcode
+
+    \sa wolfSSL_CTX_use_PrivateKey
+*/
+WOLFSSL_EVP_PKEY* wolfSSL_CTX_get0_privatekey(const WOLFSSL_CTX* ctx);
+
+/*!
+    \ingroup openSSL
+
+    \brief Prints formatted output to BIO with va_list.
+
+    \return int Number of bytes written
+    \return negative on error
+
+    \param bio BIO to write to
+    \param format Format string
+    \param args Variable argument list
+
+    _Example_
+    \code
+    va_list args;
+    va_start(args, format);
+    int ret = wolfSSL_BIO_vprintf(bio, format, args);
+    va_end(args);
+    \endcode
+
+    \sa wolfSSL_BIO_printf
+*/
+int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args);
+
+/*!
+    \ingroup openSSL
+
+    \brief Prints formatted output to BIO.
+
+    \return int Number of bytes written
+    \return negative on error
+
+    \param bio BIO to write to
+    \param format Format string
+    \param ... Variable arguments
+
+    _Example_
+    \code
+    int ret = wolfSSL_BIO_printf(bio, "Value: %d\n", 42);
+    \endcode
+
+    \sa wolfSSL_BIO_vprintf
+*/
+int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...);
+
+/*!
+    \ingroup openSSL
+
+    \brief Dumps binary data to BIO.
+
+    \return int Number of bytes written
+    \return negative on error
+
+    \param bio BIO to write to
+    \param buf Buffer to dump
+    \param length Buffer length
+
+    _Example_
+    \code
+    unsigned char data[16];
+    int ret = wolfSSL_BIO_dump(bio, (const char*)data, sizeof(data));
+    \endcode
+
+    \sa wolfSSL_BIO_printf
+*/
+int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char* buf, int length);
+
+/*!
+    \ingroup ASN
+
+    \brief Prints UTC time to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param a UTC time to print
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_UTCTIME* utc = wolfSSL_X509_get_notBefore(cert);
+    int ret = wolfSSL_ASN1_UTCTIME_print(bio, utc);
+    \endcode
+
+    \sa wolfSSL_ASN1_GENERALIZEDTIME_print
+*/
+int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio,
+                                 const WOLFSSL_ASN1_UTCTIME* a);
+
+/*!
+    \ingroup ASN
+
+    \brief Prints generalized time to BIO.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param bio BIO to write to
+    \param asnTime Generalized time to print
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_GENERALIZEDTIME* gt = wolfSSL_X509_get_notAfter(cert);
+    int ret = wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gt);
+    \endcode
+
+    \sa wolfSSL_ASN1_UTCTIME_print
+*/
+int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
+                                        const WOLFSSL_ASN1_GENERALIZEDTIME*
+                                        asnTime);
+
+/*!
+    \ingroup ASN
+
+    \brief Frees generalized time.
+
+    \return none
+
+    \param gt Generalized time to free
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_GENERALIZEDTIME* gt = wolfSSL_ASN1_GENERALIZEDTIME_new();
+    wolfSSL_ASN1_GENERALIZEDTIME_free(gt);
+    \endcode
+
+    \sa wolfSSL_ASN1_GENERALIZEDTIME_new
+*/
+void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_GENERALIZEDTIME* gt);
+
+/*!
+    \ingroup ASN
+
+    \brief Checks if ASN1_TIME is valid.
+
+    \return WOLFSSL_SUCCESS if valid
+    \return WOLFSSL_FAILURE if invalid
+
+    \param a Time to check
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* time = wolfSSL_X509_get_notBefore(cert);
+    int ret = wolfSSL_ASN1_TIME_check(time);
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_compare
+*/
+int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a);
+
+/*!
+    \ingroup ASN
+
+    \brief Calculates time difference.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param days Pointer to store days difference
+    \param secs Pointer to store seconds difference
+    \param from Start time
+    \param to End time
+
+    _Example_
+    \code
+    int days, secs;
+    int ret = wolfSSL_ASN1_TIME_diff(&days, &secs, from, to);
+    printf("Difference: %d days, %d seconds\n", days, secs);
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_compare
+*/
+int wolfSSL_ASN1_TIME_diff(int* days, int* secs,
+                            const WOLFSSL_ASN1_TIME* from,
+                            const WOLFSSL_ASN1_TIME* to);
+
+/*!
+    \ingroup ASN
+
+    \brief Compares two ASN1_TIME values.
+
+    \return negative if a < b
+    \return 0 if a == b
+    \return positive if a > b
+
+    \param a First time
+    \param b Second time
+
+    _Example_
+    \code
+    int cmp = wolfSSL_ASN1_TIME_compare(time1, time2);
+    if (cmp < 0) {
+        printf("time1 is before time2\n");
+    }
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_diff
+*/
+int wolfSSL_ASN1_TIME_compare(const WOLFSSL_ASN1_TIME *a,
+                                const WOLFSSL_ASN1_TIME *b);
+
+/*!
+    \ingroup ASN
+
+    \brief Sets ASN1_TIME from string.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param s Time object to set
+    \param str Time string
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_ASN1_TIME_set_string(time, "20231231120000Z");
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_set_string_X509
+*/
+int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str);
+
+/*!
+    \ingroup ASN
+
+    \brief Sets ASN1_TIME from X509 format string.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param t Time object to set
+    \param str Time string in X509 format
+
+    _Example_
+    \code
+    WOLFSSL_ASN1_TIME* time = wolfSSL_ASN1_TIME_new();
+    int ret = wolfSSL_ASN1_TIME_set_string_X509(time, "231231120000Z");
+    \endcode
+
+    \sa wolfSSL_ASN1_TIME_set_string
+*/
+int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t,
+                                       const char *str);
+
+/*!
+    \ingroup openSSL
+
+    \brief Encodes session to DER.
+
+    \return int Number of bytes written
+    \return negative on error
+
+    \param sess Session to encode
+    \param p Pointer to buffer pointer
+
+    _Example_
+    \code
+    unsigned char* buf = NULL;
+    int len = wolfSSL_i2d_SSL_SESSION(session, &buf);
+    if (len > 0) {
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    \endcode
+
+    \sa wolfSSL_d2i_SSL_SESSION
+*/
+int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p);
+
+/*!
+    \ingroup openSSL
+
+    \brief Decodes session from DER.
+
+    \return WOLFSSL_SESSION* Decoded session
+    \return NULL on failure
+
+    \param sess Pointer to session pointer
+    \param p Pointer to DER buffer pointer
+    \param i Buffer length
+
+    _Example_
+    \code
+    const unsigned char* p = der_buf;
+    WOLFSSL_SESSION* sess = wolfSSL_d2i_SSL_SESSION(NULL, &p, len);
+    \endcode
+
+    \sa wolfSSL_i2d_SSL_SESSION
+*/
+WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
+                                          const unsigned char** p, long i);
+
+/*!
+    \ingroup openSSL
+
+    \brief Checks if session has ticket.
+
+    \return 1 if has ticket
+    \return 0 if no ticket
+
+    \param session Session to check
+
+    _Example_
+    \code
+    int has = wolfSSL_SESSION_has_ticket(session);
+    if (has) {
+        printf("Session has ticket\n");
+    }
+    \endcode
+
+    \sa wolfSSL_SESSION_get_ticket_lifetime_hint
+*/
+int wolfSSL_SESSION_has_ticket(const WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets ticket lifetime hint.
+
+    \return unsigned long Lifetime hint in seconds
+
+    \param sess Session to query
+
+    _Example_
+    \code
+    unsigned long hint = wolfSSL_SESSION_get_ticket_lifetime_hint(sess);
+    printf("Ticket lifetime: %lu seconds\n", hint);
+    \endcode
+
+    \sa wolfSSL_SESSION_has_ticket
+*/
+unsigned long wolfSSL_SESSION_get_ticket_lifetime_hint(
+                                                  const WOLFSSL_SESSION* sess);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session timeout.
+
+    \return long Timeout in seconds
+
+    \param session Session to query
+
+    _Example_
+    \code
+    long timeout = wolfSSL_SESSION_get_timeout(session);
+    printf("Session timeout: %ld seconds\n", timeout);
+    \endcode
+
+    \sa wolfSSL_SESSION_get_time
+*/
+long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets session creation time.
+
+    \return long Creation time (Unix timestamp)
+
+    \param session Session to query
+
+    _Example_
+    \code
+    long time = wolfSSL_SESSION_get_time(session);
+    printf("Session created at: %ld\n", time);
+    \endcode
+
+    \sa wolfSSL_SESSION_get_timeout
+*/
+long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets peer certificate chain from session.
+
+    \return WOLFSSL_X509_CHAIN* Certificate chain
+    \return NULL if not available
+
+    \param session Session to query
+
+    _Example_
+    \code
+    WOLFSSL_X509_CHAIN* chain = wolfSSL_SESSION_get_peer_chain(session);
+    \endcode
+
+    \sa wolfSSL_SESSION_get0_peer
+*/
+WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Gets peer certificate from session.
+
+    \return WOLFSSL_X509* Peer certificate
+    \return NULL if not available
+
+    \param session Session to query
+
+    _Example_
+    \code
+    WOLFSSL_X509* cert = wolfSSL_SESSION_get0_peer(session);
+    \endcode
+
+    \sa wolfSSL_SESSION_get_peer_chain
+*/
+WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
+
+/*!
+    \ingroup openSSL
+
+    \brief Enables crypto policy.
+
+    \return WOLFSSL_SUCCESS on success
+    \return WOLFSSL_FAILURE on failure
+
+    \param policy Policy name to enable
+
+    _Example_
+    \code
+    int ret = wolfSSL_crypto_policy_enable("FIPS");
+    if (ret == WOLFSSL_SUCCESS) {
+        printf("FIPS policy enabled\n");
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_new
+*/
+int wolfSSL_crypto_policy_enable(const char * policy);
